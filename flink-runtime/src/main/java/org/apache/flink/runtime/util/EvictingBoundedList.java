@@ -50,13 +50,13 @@ public class EvictingBoundedList<T> implements Iterable<T>, Serializable {
     /** the array (viewed as a circular buffer) that holds the latest (= non-evicted) elements */
     private final Object[] elements;
 
-    /** The next index to put an element in the array */
+    /** The next index to put an element in the array. */
     private int idx;
 
-    /** The current number of (virtual) elements in the list */
+    /** The current number of (virtual) elements in the list. */
     private int count;
 
-    /** Modification count for fail-fast iterators */
+    /** Modification count for fail-fast iterators. */
     private long modCount;
 
     // ------------------------------------------------------------------------
@@ -142,7 +142,14 @@ public class EvictingBoundedList<T> implements Iterable<T>, Serializable {
         return defaultElement;
     }
 
-    private boolean isDroppedIndex(int idx) {
+    /**
+     * True if the given index is no longer kept in the evicting list; otherwise false.
+     *
+     * @param idx index check wehther it has been dropped
+     * @return {@code true} iff the given index is no longer kept in the evicting list; otherwise
+     *     {@code false}.
+     */
+    public boolean isDroppedIndex(int idx) {
         return idx < count - elements.length;
     }
 

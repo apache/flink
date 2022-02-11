@@ -40,7 +40,11 @@ import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_
  * Base class for {@link TableFormatFactory}s.
  *
  * @param <T> record type that the format produces or consumes.
+ * @deprecated This base class is not required anymore, implement either {@link
+ *     DynamicTableSourceFactory} or {@link DynamicTableSinkFactory} directly. See FLIP-95 for more
+ *     information.
  */
+@Deprecated
 @PublicEvolving
 public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T> {
 

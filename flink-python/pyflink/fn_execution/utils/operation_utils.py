@@ -16,6 +16,8 @@
 # limitations under the License.
 ################################################################################
 import datetime
+import threading
+import time
 from collections.abc import Generator
 
 from functools import partial
@@ -91,7 +93,8 @@ def extract_over_window_user_defined_function(user_defined_function_proto):
     return (*extract_user_defined_function(user_defined_function_proto, True), window_index)
 
 
-def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False)\
+def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False,
+                                  one_arg_optimization=False)\
         -> Tuple[str, Dict, List]:
     """
     Extracts user-defined-function from the proto representation of a
@@ -99,6 +102,7 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
 
     :param user_defined_function_proto: the proto representation of the Python
     :param pandas_udaf: whether the user_defined_function_proto is pandas udaf
+    :param one_arg_optimization: whether the optimization enabled
     :class:`UserDefinedFunction`
     """
 
@@ -114,13 +118,17 @@ def extract_user_defined_function(user_defined_function_proto, pandas_udaf=False
         for arg in args:
             if arg.HasField("udf"):
                 # for chaining Python UDF input: the input argument is a Python ScalarFunction
-                udf_arg, udf_variable_dict, udf_funcs = extract_user_defined_function(arg.udf)
+                udf_arg, udf_variable_dict, udf_funcs = extract_user_defined_function(
+                    arg.udf, one_arg_optimization=one_arg_optimization)
                 args_str.append(udf_arg)
                 local_variable_dict.update(udf_variable_dict)
                 local_funcs.extend(udf_funcs)
             elif arg.HasField("inputOffset"):
-                # the input argument is a column of the input row
-                args_str.append("value[%s]" % arg.inputOffset)
+                if one_arg_optimization:
+                    args_str.append("value")
+                else:
+                    # the input argument is a column of the input row
+                    args_str.append("value[%s]" % arg.inputOffset)
             else:
                 # the input argument is a constant value
                 constant_value_name, parsed_constant_value = \
@@ -271,3 +279,73 @@ def load_aggregate_function(payload):
         return cls()
     else:
         return pickle.loads(payload)
+
+
+def parse_function_proto(proto):
+    from pyflink.fn_execution import flink_fn_execution_pb2
+    serialized_fn = flink_fn_execution_pb2.UserDefinedFunctions()
+    serialized_fn.ParseFromString(proto)
+    return serialized_fn
+
+
+def deserialized_operation_from_serialized_bytes(b):
+    import cloudpickle
+    return cloudpickle.loads(b)
+
+
+def create_scalar_operation_from_proto(proto, one_arg_optimization=False,
+                                       one_result_optimization=False):
+    from pyflink.fn_execution.table.operations import ScalarFunctionOperation
+
+    serialized_fn = parse_function_proto(proto)
+    scalar_operation = ScalarFunctionOperation(
+        serialized_fn, one_arg_optimization, one_result_optimization)
+    return scalar_operation
+
+
+def create_serialized_scalar_operation_from_proto(proto, one_arg_optimization=False,
+                                                  one_result_optimization=False):
+    """
+    The CPython extension included in proto does not support initialization multiple times, so we
+    choose the only interpreter process to be responsible for initialization and proto parsing. The
+    only interpreter parses the proto and serializes function operations with cloudpickle.
+    """
+
+    import cloudpickle
+
+    scalar_operation = create_scalar_operation_from_proto(
+        bytes(b % 256 for b in proto), one_arg_optimization, one_result_optimization)
+    return cloudpickle.dumps(scalar_operation)
+
+
+class PeriodicThread(threading.Thread):
+    """Call a function periodically with the specified number of seconds"""
+
+    def __init__(self,
+                 interval,
+                 function,
+                 args=None,
+                 kwargs=None
+                 ) -> None:
+        threading.Thread.__init__(self)
+        self._interval = interval
+        self._function = function
+        self._args = args if args is not None else []
+        self._kwargs = kwargs if kwargs is not None else {}
+        self._finished = threading.Event()
+
+    def run(self) -> None:
+        now = time.time()
+        next_call = now + self._interval
+        while (next_call <= now and not self._finished.is_set()) or \
+                (not self._finished.wait(next_call - now)):
+            if next_call <= now:
+                next_call = now + self._interval
+            else:
+                next_call = next_call + self._interval
+            self._function(*self._args, **self._kwargs)
+            now = time.time()
+
+    def cancel(self) -> None:
+        """Stop the thread if it hasn't finished yet."""
+        self._finished.set()

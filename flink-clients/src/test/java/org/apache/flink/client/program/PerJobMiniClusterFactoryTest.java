@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -104,12 +105,12 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
         assertThrows(
                 "is not a streaming job.",
                 ExecutionException.class,
-                () -> jobClient.triggerSavepoint(null).get());
+                () -> jobClient.triggerSavepoint(null, SavepointFormatType.DEFAULT).get());
 
         assertThrows(
                 "is not a streaming job.",
                 ExecutionException.class,
-                () -> jobClient.stopWithSavepoint(true, null).get());
+                () -> jobClient.stopWithSavepoint(true, null, SavepointFormatType.DEFAULT).get());
     }
 
     @Test

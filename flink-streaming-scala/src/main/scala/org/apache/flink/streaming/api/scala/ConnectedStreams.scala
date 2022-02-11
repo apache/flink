@@ -23,7 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.functions.KeySelector
 import org.apache.flink.streaming.api.datastream.{ConnectedStreams => JavaCStream, DataStream => JavaStream}
 import org.apache.flink.streaming.api.functions.co._
-import org.apache.flink.streaming.api.operators.TwoInputStreamOperator
+import org.apache.flink.streaming.api.operators.{TwoInputStreamOperator, TwoInputStreamOperatorFactory}
 import org.apache.flink.util.Collector
 
 /**
@@ -326,6 +326,13 @@ class ConnectedStreams[IN1, IN2](javaStream: JavaCStream[IN1, IN2]) {
       functionName: String,
       operator: TwoInputStreamOperator[IN1, IN2, R]): DataStream[R] = {
     asScalaStream(javaStream.transform(functionName, implicitly[TypeInformation[R]], operator))
+  }
+
+  @PublicEvolving
+  def transform[R: TypeInformation](
+      functionName: String,
+      factory: TwoInputStreamOperatorFactory[IN1, IN2, R]): DataStream[R] = {
+    asScalaStream(javaStream.transform(functionName, implicitly[TypeInformation[R]], factory))
   }
 }
 

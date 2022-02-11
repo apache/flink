@@ -160,6 +160,19 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                 String.format("Failed to send event %s to subtask %d", event, subtaskId));
     }
 
+    void sendEventToSourceOperator(int subtaskId, OperatorEvent event) {
+        checkSubtaskIndex(subtaskId);
+
+        callInCoordinatorThread(
+                () -> {
+                    final OperatorCoordinator.SubtaskGateway gateway =
+                            getGatewayAndCheckReady(subtaskId);
+                    gateway.sendEvent(event);
+                    return null;
+                },
+                String.format("Failed to send event %s to subtask %d", event, subtaskId));
+    }
+
     @Override
     public int currentParallelism() {
         return operatorCoordinatorContext.currentParallelism();
@@ -172,7 +185,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     @Override
     public void assignSplits(SplitsAssignment<SplitT> assignment) {
-        // Ensure the split assignment is done by the the coordinator executor.
+        // Ensure the split assignment is done by the coordinator executor.
         callInCoordinatorThread(
                 () -> {
                     // Ensure all the subtasks in the assignment have registered.
@@ -213,7 +226,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     public void signalNoMoreSplits(int subtask) {
         checkSubtaskIndex(subtask);
 
-        // Ensure the split assignment is done by the the coordinator executor.
+        // Ensure the split assignment is done by the coordinator executor.
         callInCoordinatorThread(
                 () -> {
                     final OperatorCoordinator.SubtaskGateway gateway =
@@ -373,7 +386,7 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
      * @param callable the callable to delegate.
      */
     private <V> V callInCoordinatorThread(Callable<V> callable, String errorMessage) {
-        // Ensure the split assignment is done by the the coordinator executor.
+        // Ensure the split assignment is done by the coordinator executor.
         if (!coordinatorThreadFactory.isCurrentThreadCoordinatorThread()) {
             try {
                 final Callable<V> guardedCallable =

@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.logical.CumulativeWindowSpec;
 import org.apache.flink.table.planner.plan.logical.HoppingWindowSpec;
+import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TumblingWindowSpec;
 import org.apache.flink.table.planner.plan.logical.WindowSpec;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
@@ -35,16 +36,22 @@ import org.apache.flink.table.runtime.operators.window.assigners.WindowAssigner;
 public final class WindowTableFunctionUtil {
 
     /**
-     * Creates window assigner based on input window specification.
+     * Creates window assigner based on input window strategy.
      *
-     * @param windowSpec input window specification
+     * @param windowingStrategy input window strategy
      * @return new created window assigner
      */
-    public static WindowAssigner<TimeWindow> createWindowAssigner(WindowSpec windowSpec) {
+    public static WindowAssigner<TimeWindow> createWindowAssigner(
+            TimeAttributeWindowingStrategy windowingStrategy) {
+        WindowSpec windowSpec = windowingStrategy.getWindow();
+        boolean isProctime = windowingStrategy.isProctime();
         if (windowSpec instanceof TumblingWindowSpec) {
             TumblingWindowSpec tumblingWindowSpec = (TumblingWindowSpec) windowSpec;
             TumblingWindowAssigner windowAssigner =
                     TumblingWindowAssigner.of(tumblingWindowSpec.getSize());
+            if (isProctime) {
+                windowAssigner = windowAssigner.withProcessingTime();
+            }
             if (tumblingWindowSpec.getOffset() != null) {
                 windowAssigner = windowAssigner.withOffset(tumblingWindowSpec.getOffset());
             }
@@ -54,6 +61,9 @@ public final class WindowTableFunctionUtil {
             SlidingWindowAssigner windowAssigner =
                     SlidingWindowAssigner.of(
                             hoppingWindowSpec.getSize(), hoppingWindowSpec.getSlide());
+            if (isProctime) {
+                windowAssigner = windowAssigner.withProcessingTime();
+            }
             if (hoppingWindowSpec.getOffset() != null) {
                 windowAssigner = windowAssigner.withOffset(hoppingWindowSpec.getOffset());
             }
@@ -63,6 +73,9 @@ public final class WindowTableFunctionUtil {
             CumulativeWindowAssigner windowAssigner =
                     CumulativeWindowAssigner.of(
                             cumulativeWindowSpec.getMaxSize(), cumulativeWindowSpec.getStep());
+            if (isProctime) {
+                windowAssigner = windowAssigner.withProcessingTime();
+            }
             if (cumulativeWindowSpec.getOffset() != null) {
                 windowAssigner = windowAssigner.withOffset(cumulativeWindowSpec.getOffset());
             }

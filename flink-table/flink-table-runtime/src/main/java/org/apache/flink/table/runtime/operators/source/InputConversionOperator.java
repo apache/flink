@@ -78,7 +78,7 @@ public final class InputConversionOperator<E> extends TableStreamOperator<RowDat
 
     @Override
     public void processWatermark(Watermark mark) throws Exception {
-        if (propagateWatermark) {
+        if (propagateWatermark || Watermark.MAX_WATERMARK.equals(mark)) {
             super.processWatermark(mark);
         }
     }

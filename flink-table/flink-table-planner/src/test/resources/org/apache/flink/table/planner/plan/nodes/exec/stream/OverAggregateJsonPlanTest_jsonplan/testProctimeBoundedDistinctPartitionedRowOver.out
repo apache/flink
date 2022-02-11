@@ -1,106 +1,94 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MyTable"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "INT"
+            }, {
+              "name" : "b",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "c",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "rowtime",
+              "dataType" : {
+                "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+                "precision" : 3,
+                "kind" : "ROWTIME"
+              }
+            }, {
+              "name" : "proctime",
+              "kind" : "COMPUTED",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "REX_CALL",
+                  "operator" : {
+                    "name" : "PROCTIME",
+                    "kind" : "OTHER_FUNCTION",
+                    "syntax" : "FUNCTION"
+                  },
+                  "operands" : [ ],
+                  "type" : {
+                    "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+                    "nullable" : false,
+                    "precision" : 3,
+                    "kind" : "PROCTIME"
+                  }
+                },
+                "serializableString" : "PROCTIME()"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "rowtime",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "INPUT_REF",
+                  "inputIndex" : 3,
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`rowtime`"
+              }
+            } ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "bounded" : "false"
+          }
+        }
       },
-      "catalogTable" : {
-        "schema.watermark.0.strategy.expr" : "`rowtime`",
-        "schema.4.expr" : "PROCTIME()",
-        "schema.0.data-type" : "INT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "bounded" : "false",
-        "schema.4.name" : "proctime",
-        "schema.1.data-type" : "VARCHAR(2147483647)",
-        "schema.3.data-type" : "TIMESTAMP(3)",
-        "schema.2.data-type" : "BIGINT",
-        "schema.3.name" : "rowtime",
-        "connector" : "values",
-        "schema.watermark.0.rowtime" : "rowtime",
-        "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
-        "schema.4.data-type" : "TIMESTAMP(3) WITH LOCAL TIME ZONE NOT NULL",
-        "schema.0.name" : "a"
-      },
-      "sourceAbilitySpecs" : [ {
+      "abilities" : [ {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 2 ], [ 3 ] ],
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "a" : "INT"
-          }, {
-            "c" : "BIGINT"
-          }, {
-            "rowtime" : {
-              "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-              "nullable" : true,
-              "precision" : 3,
-              "kind" : "REGULAR"
-            }
-          } ]
-        }
+        "producedType" : "ROW<`a` INT, `c` BIGINT, `rowtime` TIMESTAMP(3)> NOT NULL"
       }, {
         "type" : "ReadingMetadata",
         "metadataKeys" : [ ],
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "a" : "INT"
-          }, {
-            "c" : "BIGINT"
-          }, {
-            "rowtime" : {
-              "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-              "nullable" : true,
-              "precision" : 3,
-              "kind" : "REGULAR"
-            }
-          } ]
-        }
+        "producedType" : "ROW<`a` INT, `c` BIGINT, `rowtime` TIMESTAMP(3)> NOT NULL"
       } ]
     },
-    "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "INT"
-      }, {
-        "c" : "BIGINT"
-      }, {
-        "rowtime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`a` INT, `c` BIGINT, `rowtime` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -110,21 +98,17 @@
       },
       "operands" : [ ],
       "type" : {
-        "timestampKind" : "PROCTIME",
-        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-        "nullable" : false
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
       }
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : true,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -134,41 +118,35 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "INT"
+        "name" : "a",
+        "fieldType" : "INT"
       }, {
-        "c" : "BIGINT"
+        "name" : "c",
+        "fieldType" : "BIGINT"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
         }
       }, {
-        "rowtime" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
+        "name" : "rowtime",
+        "fieldType" : "TIMESTAMP(3)"
       } ]
     },
     "description" : "Calc(select=[a, c, PROCTIME() AS proctime, rowtime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "id" : 3,
+    "type" : "stream-exec-watermark-assigner_1",
     "watermarkExpr" : {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : true,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3)"
     },
     "rowtimeFieldIndex" : 3,
-    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -178,22 +156,24 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "INT"
+        "name" : "a",
+        "fieldType" : "INT"
       }, {
-        "c" : "BIGINT"
+        "name" : "c",
+        "fieldType" : "BIGINT"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
         }
       }, {
-        "rowtime" : {
+        "name" : "rowtime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -201,32 +181,27 @@
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 4,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 2,
       "type" : {
-        "timestampKind" : "PROCTIME",
-        "typeName" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
-        "nullable" : false
+        "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
+        "nullable" : false,
+        "precision" : 3,
+        "kind" : "PROCTIME"
       }
     } ],
     "condition" : null,
-    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -236,13 +211,15 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "INT"
+        "name" : "a",
+        "fieldType" : "INT"
       }, {
-        "c" : "BIGINT"
+        "name" : "c",
+        "fieldType" : "BIGINT"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
@@ -252,8 +229,8 @@
     },
     "description" : "Calc(select=[a, c, proctime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 5,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -264,13 +241,15 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "INT"
+        "name" : "a",
+        "fieldType" : "INT"
       }, {
-        "c" : "BIGINT"
+        "name" : "c",
+        "fieldType" : "BIGINT"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
@@ -280,7 +259,8 @@
     },
     "description" : "Exchange(distribution=[hash[c]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate",
+    "id" : 6,
+    "type" : "stream-exec-over-aggregate_1",
     "overSpec" : {
       "partition" : {
         "fields" : [ 1 ]
@@ -300,10 +280,7 @@
           "offset" : {
             "kind" : "INPUT_REF",
             "inputIndex" : 3,
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : false
-            }
+            "type" : "INT NOT NULL"
           }
         },
         "upperBound" : {
@@ -321,10 +298,7 @@
           "distinct" : true,
           "approximate" : false,
           "ignoreNulls" : false,
-          "type" : {
-            "typeName" : "BIGINT",
-            "nullable" : false
-          }
+          "type" : "BIGINT NOT NULL"
         }, {
           "name" : "w0$o1",
           "aggFunction" : {
@@ -337,23 +311,16 @@
           "distinct" : true,
           "approximate" : false,
           "ignoreNulls" : false,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : false
-          }
+          "type" : "INT NOT NULL"
         } ]
       } ],
       "constants" : [ {
         "kind" : "LITERAL",
         "value" : "2",
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       } ],
       "originalInputFields" : 3
     },
-    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -363,34 +330,36 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "INT"
+        "name" : "a",
+        "fieldType" : "INT"
       }, {
-        "c" : "BIGINT"
+        "name" : "c",
+        "fieldType" : "BIGINT"
       }, {
-        "proctime" : {
+        "name" : "proctime",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
           "nullable" : false,
           "precision" : 3,
           "kind" : "PROCTIME"
         }
       }, {
-        "w0$o0" : "BIGINT NOT NULL"
+        "name" : "w0$o0",
+        "fieldType" : "BIGINT NOT NULL"
       }, {
-        "w0$o1" : "INT NOT NULL"
+        "name" : "w0$o1",
+        "fieldType" : "INT NOT NULL"
       } ]
     },
     "description" : "OverAggregate(partitionBy=[c], orderBy=[proctime ASC], window=[ ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, c, proctime, COUNT(DISTINCT a) AS w0$o0, $SUM0(DISTINCT a) AS w0$o1])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 7,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -401,15 +370,9 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 3,
-        "type" : {
-          "typeName" : "BIGINT",
-          "nullable" : false
-        }
+        "type" : "BIGINT NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -434,49 +397,27 @@
           "operands" : [ {
             "kind" : "INPUT_REF",
             "inputIndex" : 3,
-            "type" : {
-              "typeName" : "BIGINT",
-              "nullable" : false
-            }
+            "type" : "BIGINT NOT NULL"
           }, {
             "kind" : "LITERAL",
             "value" : "0",
-            "type" : {
-              "typeName" : "BIGINT",
-              "nullable" : false
-            }
+            "type" : "BIGINT NOT NULL"
           } ],
-          "type" : {
-            "typeName" : "BOOLEAN",
-            "nullable" : false
-          }
+          "type" : "BOOLEAN NOT NULL"
         }, {
           "kind" : "INPUT_REF",
           "inputIndex" : 4,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : false
-          }
+          "type" : "INT NOT NULL"
         }, {
           "kind" : "LITERAL",
           "value" : null,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : true
-          }
+          "type" : "INT"
         } ],
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : true
-        }
+        "type" : "INT"
       } ],
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     } ],
     "condition" : null,
-    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -484,40 +425,38 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "BIGINT"
-      }, {
-        "c" : "BIGINT"
-      } ]
-    },
-    "description" : "Calc(select=[c AS a, CAST(w0$o0) AS b, CAST(CASE((w0$o0 > 0:BIGINT), w0$o1, null:INTEGER)) AS c])"
+    "outputType" : "ROW<`a` BIGINT, `b` BIGINT, `c` BIGINT>",
+    "description" : "Calc(select=[c AS a, CAST(w0$o0 AS BIGINT) AS b, CAST(CASE((w0$o0 > 0), w0$o1, null:INTEGER) AS BIGINT) AS c])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 8,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MySink"
-      },
-      "catalogTable" : {
-        "sink-insert-only" : "false",
-        "table-sink-class" : "DEFAULT",
-        "schema.2.data-type" : "BIGINT",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "schema.0.name" : "a",
-        "schema.1.data-type" : "BIGINT"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "c",
+              "dataType" : "BIGINT"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "sink-insert-only" : "false",
+            "table-sink-class" : "DEFAULT",
+            "connector" : "values"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 8,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -525,17 +464,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "BIGINT"
-      }, {
-        "c" : "BIGINT"
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `b` BIGINT, `c` BIGINT>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])"
   } ],
   "edges" : [ {

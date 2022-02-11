@@ -24,6 +24,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.FailedCheckpointStats;
 import org.apache.flink.runtime.checkpoint.PendingCheckpointStats;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.TaskStateStats;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
@@ -47,7 +49,10 @@ import java.util.Map;
 import java.util.Objects;
 
 /** Statistics for a checkpoint. */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "@class")
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.PROPERTY,
+        property = "className")
 @JsonSubTypes({
     @JsonSubTypes.Type(
             value = CheckpointStatistics.CompletedCheckpointStatistics.class,
@@ -70,6 +75,8 @@ public class CheckpointStatistics implements ResponseBody {
     public static final String FIELD_NAME_TRIGGER_TIMESTAMP = "trigger_timestamp";
 
     public static final String FIELD_NAME_LATEST_ACK_TIMESTAMP = "latest_ack_timestamp";
+
+    public static final String FIELD_NAME_CHECKPOINTED_SIZE = "checkpointed_size";
 
     /**
      * The accurate name of this field should be 'checkpointed_data_size', keep it as before to not
@@ -110,6 +117,9 @@ public class CheckpointStatistics implements ResponseBody {
     @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP)
     private final long latestAckTimestamp;
 
+    @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE)
+    private final long checkpointedSize;
+
     @JsonProperty(FIELD_NAME_STATE_SIZE)
     private final long stateSize;
 
@@ -145,6 +155,7 @@ public class CheckpointStatistics implements ResponseBody {
             @JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
             @JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
             @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
+            @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) long checkpointedSize,
             @JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
             @JsonProperty(FIELD_NAME_DURATION) long duration,
             @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
@@ -161,6 +172,7 @@ public class CheckpointStatistics implements ResponseBody {
         this.savepoint = savepoint;
         this.triggerTimestamp = triggerTimestamp;
         this.latestAckTimestamp = latestAckTimestamp;
+        this.checkpointedSize = checkpointedSize;
         this.stateSize = stateSize;
         this.duration = duration;
         this.alignmentBuffered = alignmentBuffered;
@@ -190,6 +202,10 @@ public class CheckpointStatistics implements ResponseBody {
 
     public long getLatestAckTimestamp() {
         return latestAckTimestamp;
+    }
+
+    public long getCheckpointedSize() {
+        return checkpointedSize;
     }
 
     public long getStateSize() {
@@ -283,6 +299,7 @@ public class CheckpointStatistics implements ResponseBody {
                                 checkpointStats.getCheckpointId(),
                                 checkpointStats.getStatus(),
                                 taskStateStat.getLatestAckTimestamp(),
+                                taskStateStat.getCheckpointedSize(),
                                 taskStateStat.getStateSize(),
                                 taskStateStat.getEndToEndDuration(
                                         checkpointStats.getTriggerTimestamp()),
@@ -306,6 +323,7 @@ public class CheckpointStatistics implements ResponseBody {
                     completedCheckpointStats.getProperties().isSavepoint(),
                     completedCheckpointStats.getTriggerTimestamp(),
                     completedCheckpointStats.getLatestAckTimestamp(),
+                    completedCheckpointStats.getCheckpointedSize(),
                     completedCheckpointStats.getStateSize(),
                     completedCheckpointStats.getEndToEndDuration(),
                     0,
@@ -328,6 +346,7 @@ public class CheckpointStatistics implements ResponseBody {
                     failedCheckpointStats.getProperties().isSavepoint(),
                     failedCheckpointStats.getTriggerTimestamp(),
                     failedCheckpointStats.getLatestAckTimestamp(),
+                    failedCheckpointStats.getCheckpointedSize(),
                     failedCheckpointStats.getStateSize(),
                     failedCheckpointStats.getEndToEndDuration(),
                     0,
@@ -350,6 +369,7 @@ public class CheckpointStatistics implements ResponseBody {
                     pendingCheckpointStats.getProperties().isSavepoint(),
                     pendingCheckpointStats.getTriggerTimestamp(),
                     pendingCheckpointStats.getLatestAckTimestamp(),
+                    pendingCheckpointStats.getCheckpointedSize(),
                     pendingCheckpointStats.getStateSize(),
                     pendingCheckpointStats.getEndToEndDuration(),
                     0,
@@ -377,17 +397,12 @@ public class CheckpointStatistics implements ResponseBody {
         SAVEPOINT,
         SYNC_SAVEPOINT;
 
-        public static RestAPICheckpointType valueOf(CheckpointType checkpointType) {
-            switch (checkpointType) {
-                case CHECKPOINT:
-                    return CHECKPOINT;
-                case SAVEPOINT:
-                    return SAVEPOINT;
-                case SAVEPOINT_SUSPEND:
-                case SAVEPOINT_TERMINATE:
-                    return SYNC_SAVEPOINT;
-                default:
-                    throw new UnsupportedOperationException(checkpointType.toString());
+        public static RestAPICheckpointType valueOf(SnapshotType checkpointType) {
+            if (checkpointType.isSavepoint()) {
+                SavepointType savepointType = (SavepointType) checkpointType;
+                return savepointType.isSynchronous() ? SYNC_SAVEPOINT : SAVEPOINT;
+            } else {
+                return CHECKPOINT;
             }
         }
     }
@@ -417,6 +432,7 @@ public class CheckpointStatistics implements ResponseBody {
                 @JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
                 @JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
                 @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
+                @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) long checkpointedSize,
                 @JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
                 @JsonProperty(FIELD_NAME_DURATION) long duration,
                 @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
@@ -436,6 +452,7 @@ public class CheckpointStatistics implements ResponseBody {
                     savepoint,
                     triggerTimestamp,
                     latestAckTimestamp,
+                    checkpointedSize,
                     stateSize,
                     duration,
                     alignmentBuffered,
@@ -501,6 +518,7 @@ public class CheckpointStatistics implements ResponseBody {
                 @JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
                 @JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
                 @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
+                @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) long checkpointedSize,
                 @JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
                 @JsonProperty(FIELD_NAME_DURATION) long duration,
                 @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
@@ -520,6 +538,7 @@ public class CheckpointStatistics implements ResponseBody {
                     savepoint,
                     triggerTimestamp,
                     latestAckTimestamp,
+                    checkpointedSize,
                     stateSize,
                     duration,
                     alignmentBuffered,
@@ -575,6 +594,7 @@ public class CheckpointStatistics implements ResponseBody {
                 @JsonProperty(FIELD_NAME_IS_SAVEPOINT) boolean savepoint,
                 @JsonProperty(FIELD_NAME_TRIGGER_TIMESTAMP) long triggerTimestamp,
                 @JsonProperty(FIELD_NAME_LATEST_ACK_TIMESTAMP) long latestAckTimestamp,
+                @JsonProperty(FIELD_NAME_CHECKPOINTED_SIZE) long checkpointedSize,
                 @JsonProperty(FIELD_NAME_STATE_SIZE) long stateSize,
                 @JsonProperty(FIELD_NAME_DURATION) long duration,
                 @JsonProperty(FIELD_NAME_ALIGNMENT_BUFFERED) long alignmentBuffered,
@@ -592,6 +612,7 @@ public class CheckpointStatistics implements ResponseBody {
                     savepoint,
                     triggerTimestamp,
                     latestAckTimestamp,
+                    checkpointedSize,
                     stateSize,
                     duration,
                     alignmentBuffered,

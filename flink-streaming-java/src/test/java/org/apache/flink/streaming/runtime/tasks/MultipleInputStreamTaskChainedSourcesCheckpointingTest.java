@@ -25,13 +25,16 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.mocks.MockSource;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
@@ -39,7 +42,6 @@ import org.apache.flink.runtime.io.network.partition.ResultPartition;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.Input;
@@ -281,10 +283,10 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             CheckpointBarrier barrier = createStopWithSavepointDrainBarrier();
 
             testHarness.processElement(new StreamRecord<>("44", TimestampAssigner.NO_TIMESTAMP), 0);
-            testHarness.processEvent(EndOfData.INSTANCE, 0);
+            testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0);
             testHarness.processEvent(barrier, 0);
             testHarness.processElement(new StreamRecord<>(47d, TimestampAssigner.NO_TIMESTAMP), 1);
-            testHarness.processEvent(EndOfData.INSTANCE, 1);
+            testHarness.processEvent(new EndOfData(StopMode.DRAIN), 1);
             testHarness.processEvent(barrier, 1);
 
             addSourceRecords(testHarness, 1, Boundedness.CONTINUOUS_UNBOUNDED, 1, 2);
@@ -311,7 +313,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                     containsInAnyOrder(expectedOutput.toArray()));
             assertThat(
                     actualOutput.subList(actualOutput.size() - 3, actualOutput.size()),
-                    contains(new StreamRecord<>("FINISH"), EndOfData.INSTANCE, barrier));
+                    contains(new StreamRecord<>("FINISH"), new EndOfData(StopMode.DRAIN), barrier));
         }
     }
 
@@ -365,7 +367,9 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
     public void testTriggerUnalignedCheckpointWithFinishedChannelsAndSourceChain()
             throws Exception {
         testTriggerCheckpointWithFinishedChannelsAndSourceChain(
-                CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault()));
+                CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault()));
     }
 
     @Test
@@ -373,7 +377,9 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             throws Exception {
         testTriggerCheckpointWithFinishedChannelsAndSourceChain(
                 CheckpointOptions.alignedWithTimeout(
-                        CheckpointStorageLocationReference.getDefault(), 10L));
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault(),
+                        10L));
     }
 
     private void testTriggerCheckpointWithFinishedChannelsAndSourceChain(
@@ -396,11 +402,6 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                         config.setUnalignedCheckpointsEnabled(
                                                 checkpointOptions.isUnalignedCheckpoint()
                                                         || checkpointOptions.isTimeoutable());
-                                        config.getConfiguration()
-                                                .set(
-                                                        ExecutionCheckpointingOptions
-                                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                        true);
                                     })
                             .modifyExecutionConfig(applyObjectReuse(objectReuse))
                             .setCheckpointResponder(checkpointResponder)
@@ -435,8 +436,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                 testHarness.processAll();
 
                 // The checkpoint 2 would be aligned after received all the EndOfPartitionEvent.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
-                testHarness.processEvent(EndOfData.INSTANCE, 1, 0);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0, 0);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 1, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 1, 0);
                 testHarness.getTaskStateManager().getWaitForReportLatch().await();
@@ -493,8 +494,8 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
                                         output,
                                         new StreamElementSerializer<>(IntSerializer.INSTANCE)) {
                                     @Override
-                                    public void notifyEndOfData() throws IOException {
-                                        broadcastEvent(EndOfData.INSTANCE, false);
+                                    public void notifyEndOfData(StopMode mode) throws IOException {
+                                        broadcastEvent(new EndOfData(mode), false);
                                     }
                                 })
                         .addSourceInput(
@@ -522,7 +523,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
             testHarness.processElement(Watermark.MAX_WATERMARK);
             assertThat(output, is(empty()));
             testHarness.waitForTaskCompletion();
-            assertThat(output, contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
+            assertThat(output, contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN)));
 
             for (StreamOperatorWrapper<?, ?> wrapper :
                     testHarness.getStreamTask().operatorChain.getAllOperators()) {
@@ -547,7 +548,7 @@ public class MultipleInputStreamTaskChainedSourcesCheckpointingTest {
     private CheckpointBarrier createStopWithSavepointDrainBarrier() {
         CheckpointOptions checkpointOptions =
                 CheckpointOptions.alignedNoTimeout(
-                        CheckpointType.SAVEPOINT_TERMINATE,
+                        SavepointType.terminate(SavepointFormatType.CANONICAL),
                         CheckpointStorageLocationReference.getDefault());
 
         return new CheckpointBarrier(

@@ -19,6 +19,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableConfig;
@@ -26,9 +27,12 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
@@ -43,7 +47,6 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
@@ -57,9 +60,17 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>Regular joins are the most generic type of join in which any new records or changes to either
  * side of the join input are visible and are affecting the whole join result.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@ExecNodeMetadata(
+        name = "stream-exec-join",
+        version = 1,
+        producedTransformations = StreamExecJoin.JOIN_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String JOIN_TRANSFORMATION = "join";
+
     public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
     public static final String FIELD_NAME_LEFT_UNIQUE_KEYS = "leftUniqueKeys";
     public static final String FIELD_NAME_RIGHT_UNIQUE_KEYS = "rightUniqueKeys";
@@ -82,10 +93,11 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
             RowType outputType,
             String description) {
         this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecJoin.class),
                 joinSpec,
                 leftUniqueKeys,
                 rightUniqueKeys,
-                getNewNodeId(),
                 Lists.newArrayList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -93,14 +105,15 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
 
     @JsonCreator
     public StreamExecJoin(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
             @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS) List<int[]> leftUniqueKeys,
             @JsonProperty(FIELD_NAME_RIGHT_UNIQUE_KEYS) List<int[]> rightUniqueKeys,
-            @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 2);
         this.joinSpec = checkNotNull(joinSpec);
         this.leftUniqueKeys = leftUniqueKeys;
@@ -171,10 +184,10 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
 
         final RowType returnType = (RowType) getOutputType();
         final TwoInputTransformation<RowData, RowData, RowData> transform =
-                new TwoInputTransformation<>(
+                ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        getDescription(),
+                        createTransformationMeta(JOIN_TRANSFORMATION, tableConfig),
                         operator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

@@ -19,6 +19,7 @@
 package org.apache.flink.formats.csv;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.formats.common.Converter;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericArrayData;
 import org.apache.flink.table.data.GenericRowData;
@@ -65,7 +66,12 @@ public class CsvToRowDataConverters implements Serializable {
      * data structures.
      */
     @FunctionalInterface
-    public interface CsvToRowDataConverter extends Serializable {
+    interface CsvToRowDataConverter extends Converter<JsonNode, Object, Void> {
+        @Override
+        default Object convert(JsonNode source, Void context) {
+            return convert(source);
+        }
+
         Object convert(JsonNode jsonNode);
     }
 
@@ -305,7 +311,7 @@ public class CsvToRowDataConverters implements Serializable {
     }
 
     private static void validateArity(int expected, int actual, boolean ignoreParseErrors) {
-        if (expected != actual && !ignoreParseErrors) {
+        if (expected > actual && !ignoreParseErrors) {
             throw new RuntimeException(
                     "Row length mismatch. "
                             + expected

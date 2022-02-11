@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.OperatingSystem;
@@ -27,6 +26,7 @@ import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -42,6 +42,7 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -52,6 +53,7 @@ import static org.apache.flink.runtime.blob.BlobServerCleanupTest.checkFileCount
 import static org.apache.flink.runtime.blob.BlobServerGetTest.verifyDeleted;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.put;
 import static org.apache.flink.runtime.blob.BlobServerPutTest.verifyContents;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -108,10 +110,9 @@ public class BlobServerDeleteTest extends TestLogger {
             throws IOException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -176,10 +177,9 @@ public class BlobServerDeleteTest extends TestLogger {
             @Nullable final JobID jobId, BlobKey.BlobType blobType) throws IOException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -230,13 +230,11 @@ public class BlobServerDeleteTest extends TestLogger {
         assumeTrue(!OperatingSystem.isWindows()); // setWritable doesn't work on Windows.
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
         File blobFile = null;
         File directory = null;
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -281,7 +279,8 @@ public class BlobServerDeleteTest extends TestLogger {
     }
 
     /**
-     * Tests that {@link BlobServer} cleans up after calling {@link BlobServer#cleanupJob}.
+     * Tests that {@link BlobServer} cleans up after calling {@link
+     * BlobServer#globalCleanupAsync(JobID, Executor)}.
      *
      * @param blobType whether the BLOB should become permanent or transient
      */
@@ -290,10 +289,10 @@ public class BlobServerDeleteTest extends TestLogger {
         JobID jobId2 = new JobID();
 
         Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        try (BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
+        try (BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 
@@ -314,7 +313,7 @@ public class BlobServerDeleteTest extends TestLogger {
             verifyContents(server, jobId2, key2, data);
             checkFileCountForJob(1, jobId2, server);
 
-            server.cleanupJob(jobId1, true);
+            server.globalCleanupAsync(jobId1, executorService).join();
 
             verifyDeleted(server, jobId1, key1a);
             verifyDeleted(server, jobId1, key1b);
@@ -322,14 +321,16 @@ public class BlobServerDeleteTest extends TestLogger {
             verifyContents(server, jobId2, key2, data);
             checkFileCountForJob(1, jobId2, server);
 
-            server.cleanupJob(jobId2, true);
+            server.globalCleanupAsync(jobId2, executorService).join();
 
             checkFileCountForJob(0, jobId1, server);
             verifyDeleted(server, jobId2, key2);
             checkFileCountForJob(0, jobId2, server);
 
             // calling a second time should not fail
-            server.cleanupJob(jobId2, true);
+            server.globalCleanupAsync(jobId2, executorService).join();
+        } finally {
+            assertThat(executorService.shutdownNow(), IsEmptyCollection.empty());
         }
     }
 
@@ -359,8 +360,6 @@ public class BlobServerDeleteTest extends TestLogger {
             throws IOException, InterruptedException, ExecutionException {
 
         final Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
         final int concurrentDeleteOperations = 3;
         final ExecutorService executor = Executors.newFixedThreadPool(concurrentDeleteOperations);
@@ -370,7 +369,8 @@ public class BlobServerDeleteTest extends TestLogger {
 
         final byte[] data = {1, 2, 3};
 
-        try (final BlobServer server = new BlobServer(config, new VoidBlobStore())) {
+        try (final BlobServer server =
+                new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore())) {
 
             server.start();
 

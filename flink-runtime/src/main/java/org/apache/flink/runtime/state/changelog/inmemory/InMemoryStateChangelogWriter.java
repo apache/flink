@@ -34,6 +34,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -100,6 +101,15 @@ class InMemoryStateChangelogWriter implements StateChangelogWriter<InMemoryChang
     public void close() {
         Preconditions.checkState(!closed);
         closed = true;
+    }
+
+    @Override
+    public SequenceNumber getLowestSequenceNumber() {
+        return changesByKeyGroup.values().stream()
+                .filter(map -> !map.isEmpty())
+                .map(SortedMap::firstKey)
+                .min(Comparator.naturalOrder())
+                .orElse(lastAppendedSequenceNumber().next());
     }
 
     @Override

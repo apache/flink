@@ -233,6 +233,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
             return context.getUserCodeClassloader();
         }
 
+        @Override
+        public CoordinatorStore getCoordinatorStore() {
+            return context.getCoordinatorStore();
+        }
+
         @VisibleForTesting
         synchronized void quiesce() {
             quiesced = true;

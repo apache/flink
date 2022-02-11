@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.CompletedOperationCache;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
@@ -65,25 +66,35 @@ public class DispatcherCachedOperationsHandler {
     public CompletableFuture<Acknowledge> triggerSavepoint(
             AsynchronousJobOperationKey operationKey,
             String targetDirectory,
+            SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
             Time timeout) {
         return registerOperationIdempotently(
                 operationKey,
                 () ->
                         triggerSavepointFunction.apply(
-                                operationKey.getJobId(), targetDirectory, savepointMode, timeout));
+                                operationKey.getJobId(),
+                                targetDirectory,
+                                formatType,
+                                savepointMode,
+                                timeout));
     }
 
     public CompletableFuture<Acknowledge> stopWithSavepoint(
             AsynchronousJobOperationKey operationKey,
             String targetDirectory,
+            SavepointFormatType formatType,
             TriggerSavepointMode savepointMode,
             Time timeout) {
         return registerOperationIdempotently(
                 operationKey,
                 () ->
                         stopWithSavepointFunction.apply(
-                                operationKey.getJobId(), targetDirectory, savepointMode, timeout));
+                                operationKey.getJobId(),
+                                targetDirectory,
+                                formatType,
+                                savepointMode,
+                                timeout));
     }
 
     public CompletableFuture<OperationResult<String>> getSavepointStatus(

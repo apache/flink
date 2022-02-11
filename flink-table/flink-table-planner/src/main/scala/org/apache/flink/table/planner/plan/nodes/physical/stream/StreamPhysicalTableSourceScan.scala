@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.catalog.ResolvedCatalogTable
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec
@@ -59,12 +60,9 @@ class StreamPhysicalTableSourceScan(
 
   override def translateToExecNode(): ExecNode[_] = {
     val tableSourceSpec = new DynamicTableSourceSpec(
-      tableSourceTable.tableIdentifier,
-      tableSourceTable.catalogTable,
+      tableSourceTable.contextResolvedTable,
       util.Arrays.asList(tableSourceTable.abilitySpecs: _*))
     tableSourceSpec.setTableSource(tableSource)
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-    tableSourceSpec.setReadableConfig(tableConfig.getConfiguration)
 
     new StreamExecTableSourceScan(
       tableSourceSpec,

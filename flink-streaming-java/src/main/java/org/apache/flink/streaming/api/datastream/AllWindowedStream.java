@@ -259,7 +259,8 @@ public class AllWindowedStream<T, W extends Window> {
         String callLocation = Utils.getCallLocationName();
         String udfName = "AllWindowedStream." + callLocation;
 
-        String opName;
+        String opName = windowAssigner.getClass().getSimpleName();
+        String opDescription;
         KeySelector<T, Byte> keySel = input.getKeySelector();
 
         OneInputStreamOperator<T, R> operator;
@@ -276,7 +277,7 @@ public class AllWindowedStream<T, W extends Window> {
             ListStateDescriptor<StreamRecord<T>> stateDesc =
                     new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-            opName =
+            opDescription =
                     "TriggerWindow("
                             + windowAssigner
                             + ", "
@@ -313,7 +314,7 @@ public class AllWindowedStream<T, W extends Window> {
                             input.getType()
                                     .createSerializer(getExecutionEnvironment().getConfig()));
 
-            opName =
+            opDescription =
                     "TriggerWindow("
                             + windowAssigner
                             + ", "
@@ -339,7 +340,9 @@ public class AllWindowedStream<T, W extends Window> {
                             lateDataOutputTag);
         }
 
-        return input.transform(opName, resultType, operator).forceNonParallel();
+        return input.transform(opName, resultType, operator)
+                .setDescription(opDescription)
+                .forceNonParallel();
     }
 
     /**
@@ -808,7 +811,8 @@ public class AllWindowedStream<T, W extends Window> {
         final String callLocation = Utils.getCallLocationName();
         final String udfName = "AllWindowedStream." + callLocation;
 
-        final String opName;
+        final String opName = windowAssigner.getClass().getSimpleName();
+        final String opDescription;
         final KeySelector<T, Byte> keySel = input.getKeySelector();
 
         OneInputStreamOperator<T, R> operator;
@@ -825,7 +829,7 @@ public class AllWindowedStream<T, W extends Window> {
             ListStateDescriptor<StreamRecord<T>> stateDesc =
                     new ListStateDescriptor<>("window-contents", streamRecordSerializer);
 
-            opName =
+            opDescription =
                     "TriggerWindow("
                             + windowAssigner
                             + ", "
@@ -862,7 +866,7 @@ public class AllWindowedStream<T, W extends Window> {
                             accumulatorType.createSerializer(
                                     getExecutionEnvironment().getConfig()));
 
-            opName =
+            opDescription =
                     "TriggerWindow("
                             + windowAssigner
                             + ", "
@@ -888,7 +892,9 @@ public class AllWindowedStream<T, W extends Window> {
                             lateDataOutputTag);
         }
 
-        return input.transform(opName, resultType, operator).forceNonParallel();
+        return input.transform(opName, resultType, operator)
+                .setDescription(opDescription)
+                .forceNonParallel();
     }
 
     // ------------------------------------------------------------------------

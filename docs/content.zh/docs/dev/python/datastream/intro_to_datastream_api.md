@@ -265,9 +265,9 @@ It also supports to convert a `DataStream` to a `Table` and vice verse.
 table = t_env.from_data_stream(ds, 'a, b, c')
 
 # convert a Table to a DataStream
-ds = table.to_append_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
+ds = t_env.to_append_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
 # or
-ds = table.to_retract_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
+ds = t_env.to_retract_stream(table, Types.ROW([Types.INT(), Types.STRING()]))
 ```
 
 {{< top >}}

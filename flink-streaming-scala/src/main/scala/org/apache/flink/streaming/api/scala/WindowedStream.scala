@@ -374,7 +374,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
     * evaluation of the window for each key individually. The output of the window function is
     * interpreted as a regular non-windowed stream.
     *
-    * Not that this function requires that all data in the windows is buffered until the window
+    * Note that this function requires that all data in the windows is buffered until the window
     * is evaluated, as the function provides no means of pre-aggregation.
     *
     * @param function The window function.
@@ -394,7 +394,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    * evaluation of the window for each key individually. The output of the window function is
    * interpreted as a regular non-windowed stream.
    *
-   * Not that this function requires that all data in the windows is buffered until the window
+   * Note that this function requires that all data in the windows is buffered until the window
    * is evaluated, as the function provides no means of pre-aggregation.
    *
    * @param function The window function.
@@ -413,7 +413,7 @@ class WindowedStream[T, K, W <: Window](javaStream: JavaWStream[T, K, W]) {
    * evaluation of the window for each key individually. The output of the window function is
    * interpreted as a regular non-windowed stream.
    *
-   * Not that this function requires that all data in the windows is buffered until the window
+   * Note that this function requires that all data in the windows is buffered until the window
    * is evaluated, as the function provides no means of pre-aggregation.
    *
    * @param function The window function.

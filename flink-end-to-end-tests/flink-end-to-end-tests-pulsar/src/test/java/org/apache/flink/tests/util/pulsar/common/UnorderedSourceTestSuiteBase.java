@@ -21,20 +21,22 @@ package org.apache.flink.tests.util.pulsar.common;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
-import org.apache.flink.connectors.test.common.environment.TestEnvironment;
-import org.apache.flink.connectors.test.common.external.ExternalContext;
-import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
-import org.apache.flink.connectors.test.common.junit.extensions.ConnectorTestingExtension;
-import org.apache.flink.connectors.test.common.junit.extensions.TestCaseInvocationContextProvider;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
+import org.apache.flink.connector.testframe.environment.TestEnvironment;
+import org.apache.flink.connector.testframe.environment.TestEnvironmentSettings;
+import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
+import org.apache.flink.connector.testframe.external.source.DataStreamSourceExternalContext;
+import org.apache.flink.connector.testframe.external.source.TestingSourceSettings;
+import org.apache.flink.connector.testframe.junit.extensions.ConnectorTestingExtension;
+import org.apache.flink.connector.testframe.junit.extensions.TestCaseInvocationContextProvider;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -53,14 +55,26 @@ public abstract class UnorderedSourceTestSuiteBase<T> {
     @TestTemplate
     @DisplayName("Test source with one split and four consumers")
     public void testOneSplitWithMultipleConsumers(
-            TestEnvironment testEnv, ExternalContext<T> externalContext) throws Exception {
-        Collection<T> testData =
-                externalContext.generateTestData(0, ThreadLocalRandom.current().nextLong());
-        SourceSplitDataWriter<T> writer = externalContext.createSourceSplitDataWriter();
+            TestEnvironment testEnv, DataStreamSourceExternalContext<T> externalContext)
+            throws Exception {
+        TestingSourceSettings sourceSettings =
+                TestingSourceSettings.builder()
+                        .setBoundedness(Boundedness.BOUNDED)
+                        .setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE)
+                        .build();
+        TestEnvironmentSettings envOptions =
+                TestEnvironmentSettings.builder()
+                        .setConnectorJarPaths(externalContext.getConnectorJarPaths())
+                        .build();
+        List<T> testData =
+                externalContext.generateTestData(
+                        sourceSettings, 0, ThreadLocalRandom.current().nextLong());
+        ExternalSystemSplitDataWriter<T> writer =
+                externalContext.createSourceSplitDataWriter(sourceSettings);
         writer.writeRecords(testData);
 
-        Source<T, ?, ?> source = externalContext.createSource(Boundedness.BOUNDED);
-        StreamExecutionEnvironment execEnv = testEnv.createExecutionEnvironment();
+        Source<T, ?, ?> source = externalContext.createSource(sourceSettings);
+        StreamExecutionEnvironment execEnv = testEnv.createExecutionEnvironment(envOptions);
         List<T> results =
                 execEnv.fromSource(source, WatermarkStrategy.noWatermarks(), "Pulsar source")
                         .setParallelism(4)

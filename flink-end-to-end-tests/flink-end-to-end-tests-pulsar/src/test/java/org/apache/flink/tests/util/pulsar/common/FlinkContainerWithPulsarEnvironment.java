@@ -30,6 +30,7 @@ public class FlinkContainerWithPulsarEnvironment extends FlinkContainerTestEnvir
 
     public FlinkContainerWithPulsarEnvironment(int numTaskManagers, int numSlotsPerTaskManager) {
         super(
+                flinkConfiguration(),
                 numTaskManagers,
                 numSlotsPerTaskManager,
                 resourcePath("pulsar-connector.jar"),
@@ -43,12 +44,10 @@ public class FlinkContainerWithPulsarEnvironment extends FlinkContainerTestEnvir
         return TestUtils.getResource(jarName).toAbsolutePath().toString();
     }
 
-    @Override
-    protected Configuration flinkConfiguration() {
-        Configuration configuration = super.flinkConfiguration();
+    protected static Configuration flinkConfiguration() {
+        Configuration configuration = new Configuration();
         // Increase the off heap memory for avoiding direct buffer memory error on Pulsar e2e tests.
         configuration.set(TASK_OFF_HEAP_MEMORY, MemorySize.ofMebiBytes(100));
-
         return configuration;
     }
 }

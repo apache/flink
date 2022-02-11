@@ -64,16 +64,12 @@ public class RexWindowBoundJsonDeserializer extends StdDeserializer<RexWindowBou
             case KIND_UNBOUNDED_PRECEDING:
                 return RexWindowBounds.UNBOUNDED_PRECEDING;
             case KIND_BOUNDED_WINDOW:
-                FlinkDeserializationContext flinkDeserializationContext =
-                        (FlinkDeserializationContext) deserializationContext;
                 RexNode offset = null;
                 if (jsonNode.get(FIELD_NAME_OFFSET) != null) {
                     offset =
-                            flinkDeserializationContext
-                                    .getObjectMapper()
-                                    .readValue(
-                                            jsonNode.get(FIELD_NAME_OFFSET).toString(),
-                                            RexNode.class);
+                            deserializationContext.readValue(
+                                    jsonNode.get(FIELD_NAME_OFFSET).traverse(jsonParser.getCodec()),
+                                    RexNode.class);
                 }
                 if (offset != null && jsonNode.get(FIELD_NAME_IS_FOLLOWING) != null) {
                     return RexWindowBounds.following(offset);

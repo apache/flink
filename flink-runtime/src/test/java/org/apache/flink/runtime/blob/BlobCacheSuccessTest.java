@@ -146,9 +146,6 @@ public class BlobCacheSuccessTest extends TestLogger {
         if (!cacheHasAccessToFs) {
             // make sure the cache cannot access the HA store directly
             cacheConfig.setString(
-                    BlobServerOptions.STORAGE_DIRECTORY,
-                    temporaryFolder.newFolder().getAbsolutePath());
-            cacheConfig.setString(
                     HighAvailabilityOptions.HA_STORAGE_PATH,
                     temporaryFolder.newFolder().getPath() + "/does-not-exist");
         }
@@ -162,10 +159,12 @@ public class BlobCacheSuccessTest extends TestLogger {
 
         try {
             blobStoreService = BlobUtils.createBlobStoreFromConfig(cacheConfig);
-            try (BlobServer server = new BlobServer(config, blobStoreService);
+            try (BlobServer server =
+                            new BlobServer(config, temporaryFolder.newFolder(), blobStoreService);
                     BlobCacheService cache =
                             new BlobCacheService(
                                     cacheConfig,
+                                    temporaryFolder.newFolder(),
                                     blobStoreService,
                                     new InetSocketAddress("localhost", server.getPort()))) {
 

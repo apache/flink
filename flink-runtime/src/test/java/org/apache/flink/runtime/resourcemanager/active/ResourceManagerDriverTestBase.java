@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -194,6 +195,10 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
                         }
                     });
             return future;
+        }
+
+        protected final <T> CompletableFuture<T> runInMainThread(Supplier<T> supplier) {
+            return CompletableFuture.supplyAsync(supplier, mainThreadExecutor);
         }
 
         protected final void validateInMainThread() {

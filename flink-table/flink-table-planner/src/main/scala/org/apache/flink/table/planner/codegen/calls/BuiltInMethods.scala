@@ -18,14 +18,15 @@
 
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.table.api.{JsonExistsOnError, JsonQueryOnEmptyOrError, JsonQueryWrapper, JsonValueOnEmptyOrError}
+import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUtil}
 import org.apache.flink.table.data.{DecimalData, DecimalDataUtils, TimestampData}
+import org.apache.flink.table.functions.SqlLikeUtils
 import org.apache.flink.table.runtime.functions._
 import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange
+
 import org.apache.calcite.linq4j.tree.Types
-import org.apache.calcite.runtime.{JsonFunctions, SqlFunctions}
-import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior, SqlJsonValueEmptyOrErrorBehavior}
-import org.apache.flink.table.data.binary.{BinaryStringData, BinaryStringDataUtil}
 
 import java.lang.reflect.Method
 import java.lang.{Byte => JByte, Integer => JInteger, Long => JLong, Short => JShort}
@@ -82,17 +83,22 @@ object BuiltInMethods {
   val POWER_DEC_NUM = Types.lookupMethod(
     classOf[SqlFunctionUtils], "power", classOf[DecimalData], classOf[Double])
 
-
   // TRIGONOMETRIC FUNCTIONS
 
   val LN = Types.lookupMethod(classOf[SqlFunctionUtils], "log", classOf[Double])
 
   val LN_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "log", classOf[DecimalData])
 
-  val ABS = Types.lookupMethod(classOf[SqlFunctions], "abs", classOf[Double])
+  val ABS = Types.lookupMethod(classOf[SqlFunctionUtils], "abs", classOf[Double])
   val ABS_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "abs", classOf[DecimalData])
 
+  val FLOOR = Types.lookupMethod(classOf[SqlFunctionUtils], "floor", classOf[Double])
+  val FLOOR_INTEGRAL = Types.lookupMethod(classOf[SqlFunctionUtils], "floor", classOf[Int],
+    classOf[Int])
   val FLOOR_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "floor", classOf[DecimalData])
+  val CEIL = Types.lookupMethod(classOf[SqlFunctionUtils], "ceil", classOf[Double])
+  val CEIL_INTEGRAL = Types.lookupMethod(classOf[SqlFunctionUtils], "ceil", classOf[Int],
+    classOf[Int])
   val CEIL_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "ceil", classOf[DecimalData])
 
   val SIN = Types.lookupMethod(classOf[Math], "sin", classOf[Double])
@@ -104,7 +110,7 @@ object BuiltInMethods {
   val TAN = Types.lookupMethod(classOf[Math], "tan", classOf[Double])
   val TAN_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "tan", classOf[DecimalData])
 
-  val COT = Types.lookupMethod(classOf[SqlFunctions], "cot", classOf[Double])
+  val COT = Types.lookupMethod(classOf[SqlFunctionUtils], "cot", classOf[Double])
   val COT_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "cot", classOf[DecimalData])
 
   val ASIN = Types.lookupMethod(classOf[Math], "asin", classOf[Double])
@@ -147,10 +153,12 @@ object BuiltInMethods {
   val SIGN_LONG = Types.lookupMethod(classOf[JLong], "signum", classOf[Long])
   val SIGN_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "sign", classOf[DecimalData])
 
-  val ROUND_DOUBLE = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[Double],
+  val ROUND_DOUBLE = Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Double],
     classOf[Int])
-  val ROUND_INT = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[Int], classOf[Int])
-  val ROUND_LONG = Types.lookupMethod(classOf[SqlFunctions], "sround", classOf[Long], classOf[Int])
+  val ROUND_INT = Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Int],
+    classOf[Int])
+  val ROUND_LONG = Types.lookupMethod(classOf[SqlFunctionUtils], "sround", classOf[Long],
+    classOf[Int])
   val ROUND_BYTE = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
     classOf[Byte], classOf[Int])
   val ROUND_SHORT = Types.lookupMethod(classOf[SqlFunctionUtils], "sround",
@@ -228,32 +236,27 @@ object BuiltInMethods {
 
   val UNIX_TIME_TO_STRING = Types.lookupMethod(
     classOf[DateTimeUtils],
-    "unixTimeToString",
+    "formatTimestampMillis",
     classOf[Int], classOf[Int])
 
   val UNIX_DATE_TO_STRING = Types.lookupMethod(
     classOf[DateTimeUtils],
-    "unixDateToString",
+    "formatDate",
     classOf[Int])
-
-  val TIMESTAMP_TO_STRING = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "timestampToString",
-    classOf[TimestampData], classOf[Int])
 
   val INTERVAL_YEAR_MONTH_TO_STRING = Types.lookupMethod(
     classOf[DateTimeUtils],
-    "intervalYearMonthToString",
+    "formatIntervalYearMonth",
     classOf[Int])
 
   val INTERVAL_DAY_TIME_TO_STRING = Types.lookupMethod(
     classOf[DateTimeUtils],
-    "intervalDayTimeToString",
+    "formatIntervalDayTime",
     classOf[Long])
 
   val TIMESTAMP_TO_STRING_TIME_ZONE = Types.lookupMethod(
     classOf[DateTimeUtils],
-    "timestampToString",
+    "formatTimestamp",
     classOf[TimestampData], classOf[TimeZone], classOf[Int])
 
   val TIMESTAMP_TO_TIMESTAMP_WITH_LOCAL_ZONE = Types.lookupMethod(
@@ -266,30 +269,46 @@ object BuiltInMethods {
     "timestampWithLocalZoneToTimestamp",
     classOf[TimestampData], classOf[TimeZone])
 
+  val TIMESTAMP_FROM_EPOCH_MILLIS = Types.lookupMethod(
+    classOf[TimestampData],
+    "fromEpochMillis",
+    classOf[Long])
+
   val STRING_TO_DATE_WITH_FORMAT = Types.lookupMethod(
     classOf[DateTimeUtils],
-    "strToDate",
+    "parseDate",
     classOf[String], classOf[String])
 
-  val DATE_FORMAT_STRING_STRING_STRING_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateFormat", classOf[String],
-    classOf[String], classOf[String], classOf[TimeZone])
-
-  val DATE_FORMAT_STIRNG_STRING_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateFormat", classOf[String], classOf[String], classOf[TimeZone])
-
-  val DATE_FORMAT_TIMESTAMP_STRING_TIME_ZONE = Types.lookupMethod(
+  val FORMAT_TIMESTAMP_STRING_STRING_STRING_TIME_ZONE = Types.lookupMethod(
     classOf[DateTimeUtils],
-    "dateFormat",
-    classOf[TimestampData],
+    "formatTimestampString",
+    classOf[String],
+    classOf[String],
     classOf[String],
     classOf[TimeZone])
 
-  val DATE_FORMAT_STIRNG_STRING = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateFormat", classOf[String], classOf[String])
+  val FORMAT_TIMESTAMP_STRING_STRING_TIME_ZONE = Types.lookupMethod(
+    classOf[DateTimeUtils],
+    "formatTimestampString",
+    classOf[String],
+    classOf[String],
+    classOf[TimeZone])
 
-  val DATE_FORMAT_TIMESTAMP_STRING = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateFormat", classOf[TimestampData], classOf[String])
+  val FORMAT_TIMESTAMP_STRING_FORMAT_STRING_STRING = Types.lookupMethod(
+    classOf[DateTimeUtils],
+    "formatTimestampString",
+    classOf[String],
+    classOf[String])
+
+  val FORMAT_TIMESTAMP_DATA = Types.lookupMethod(
+    classOf[DateTimeUtils], "formatTimestamp", classOf[TimestampData], classOf[String])
+
+  val FORMAT_TIMESTAMP_DATA_WITH_TIME_ZONE = Types.lookupMethod(
+    classOf[DateTimeUtils],
+    "formatTimestamp",
+    classOf[TimestampData],
+    classOf[String],
+    classOf[TimeZone])
 
   val UNIX_TIMESTAMP_FORMAT = Types.lookupMethod(
     classOf[DateTimeUtils],
@@ -308,73 +327,14 @@ object BuiltInMethods {
     classOf[DateTimeUtils], "unixTimestamp", classOf[Long])
 
   val FROM_UNIXTIME_FORMAT = Types.lookupMethod(
-    classOf[DateTimeUtils], "fromUnixtime", classOf[Long], classOf[String], classOf[TimeZone])
+    classOf[DateTimeUtils],
+    "formatUnixTimestamp",
+    classOf[Long],
+    classOf[String],
+    classOf[TimeZone])
 
   val FROM_UNIXTIME = Types.lookupMethod(
-    classOf[DateTimeUtils], "fromUnixtime", classOf[Long], classOf[TimeZone])
-
-  val DATEDIFF_T_S_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateDiff", classOf[Long], classOf[String], classOf[TimeZone])
-
-  val DATEDIFF_S_S_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateDiff", classOf[String], classOf[String], classOf[TimeZone])
-
-  val DATEDIFF_S_T_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateDiff", classOf[String], classOf[Long], classOf[TimeZone])
-
-  val DATEDIFF_T_T_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateDiff", classOf[Long], classOf[Long], classOf[TimeZone])
-
-  val DATEDIFF_T_S = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateDiff", classOf[Long], classOf[String])
-
-  val DATEDIFF_S_S = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateDiff", classOf[String], classOf[String])
-
-  val DATEDIFF_S_T = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateDiff", classOf[String], classOf[Long])
-
-  val DATEDIFF_T_T = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateDiff", classOf[Long], classOf[Long])
-
-  val DATE_SUB_S_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateSub", classOf[String], classOf[Int], classOf[TimeZone])
-
-  val DATE_SUB_T_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateSub", classOf[Long], classOf[Int], classOf[TimeZone])
-
-  val DATE_SUB_S = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateSub", classOf[String], classOf[Int])
-
-  val DATE_SUB_T = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateSub", classOf[Long], classOf[Int])
-
-  val DATE_ADD_S_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateAdd", classOf[String], classOf[Int], classOf[TimeZone])
-
-  val DATE_ADD_T_TIME_ZONE = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateAdd", classOf[Long], classOf[Int], classOf[TimeZone])
-
-  val DATE_ADD_S = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateAdd", classOf[String], classOf[Int])
-
-  val DATE_ADD_T = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateAdd", classOf[Long], classOf[Int])
-
-  val LONG_TO_TIMESTAMP = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "toTimestamp",
-    classOf[Long])
-
-  val DOUBLE_TO_TIMESTAMP = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "toTimestamp",
-    classOf[Double])
-
-  val DECIMAL_TO_TIMESTAMP = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "toTimestamp",
-    classOf[DecimalData])
+    classOf[DateTimeUtils], "formatUnixTimestamp", classOf[Long], classOf[TimeZone])
 
   val LONG_TO_TIMESTAMP_LTZ_WITH_PRECISION = Types.lookupMethod(
     classOf[DateTimeUtils],
@@ -393,23 +353,23 @@ object BuiltInMethods {
 
   val STRING_TO_TIMESTAMP = Types.lookupMethod(
     classOf[DateTimeUtils],
-    "toTimestampData",
+    "parseTimestampData",
     classOf[String])
 
   val STRING_TO_TIMESTAMP_WITH_FORMAT = Types.lookupMethod(
     classOf[DateTimeUtils],
-    "toTimestampData",
+    "parseTimestampData",
     classOf[String], classOf[String])
 
   val TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_DATE = Types.lookupMethod(
     classOf[DateTimeUtils],
     "timestampWithLocalZoneToDate",
-    classOf[Long], classOf[TimeZone])
+    classOf[TimestampData], classOf[TimeZone])
 
   val TIMESTAMP_WITH_LOCAL_TIME_ZONE_TO_TIME = Types.lookupMethod(
     classOf[DateTimeUtils],
     "timestampWithLocalZoneToTime",
-    classOf[Long], classOf[TimeZone])
+    classOf[TimestampData], classOf[TimeZone])
 
   val DATE_TO_TIMESTAMP_WITH_LOCAL_TIME_ZONE = Types.lookupMethod(
     classOf[DateTimeUtils],
@@ -431,16 +391,6 @@ object BuiltInMethods {
     "extractFromTimestamp",
     classOf[TimeUnitRange], classOf[TimestampData], classOf[TimeZone])
 
-  val UNIX_TIME_EXTRACT = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "unixTimeExtract",
-    classOf[TimeUnitRange], classOf[Int])
-
-  val EXTRACT_YEAR_MONTH = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "extractYearMonth",
-    classOf[TimeUnitRange], classOf[Int])
-
   val TIMESTAMP_FLOOR_TIME_ZONE = Types.lookupMethod(
     classOf[DateTimeUtils],
     "timestampFloor",
@@ -456,35 +406,30 @@ object BuiltInMethods {
     "convertTz",
     classOf[String], classOf[String], classOf[String])
 
-  val CONVERT_FORMAT_TZ = Types.lookupMethod(
-    classOf[DateTimeUtils],
-    "convertTz",
-    classOf[String], classOf[String], classOf[String], classOf[String])
-
   val STRING_TO_DATE = Types.lookupMethod(
-    classOf[DateTimeUtils], "dateStringToUnixDate", classOf[String])
+    classOf[DateTimeUtils], "parseDate", classOf[String])
 
   val STRING_TO_TIME = Types.lookupMethod(
-    classOf[DateTimeUtils], "timeStringToUnixDate", classOf[String])
+    classOf[DateTimeUtils], "parseTime", classOf[String])
 
-  val TRUNCATE_DOUBLE_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_DOUBLE_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Double])
   val TRUNCATE_FLOAT_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Float])
-  val TRUNCATE_INT_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_INT_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Int])
-  val TRUNCATE_LONG_ONE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_LONG_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Long])
   val TRUNCATE_DEC_ONE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[DecimalData])
 
-  val TRUNCATE_DOUBLE = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_DOUBLE = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Double], classOf[Int])
   val TRUNCATE_FLOAT = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Float], classOf[Int])
-  val TRUNCATE_INT = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_INT = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Int], classOf[Int])
-  val TRUNCATE_LONG = Types.lookupMethod(classOf[SqlFunctions], "struncate",
+  val TRUNCATE_LONG = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[Long], classOf[Int])
   val TRUNCATE_DEC = Types.lookupMethod(classOf[SqlFunctionUtils], "struncate",
     classOf[DecimalData], classOf[Int])
@@ -501,35 +446,47 @@ object BuiltInMethods {
   val UNIX_TIMESTAMP_FLOOR = Types.lookupMethod(classOf[DateTimeUtils], "unixTimestampFloor",
     classOf[TimeUnitRange], classOf[Long])
 
-  val UNIX_DATE_EXTRACT = Types.lookupMethod(classOf[DateTimeUtils], "unixDateExtract",
+  val UNIX_DATE_EXTRACT = Types.lookupMethod(classOf[DateTimeUtils], "extractFromDate",
     classOf[TimeUnitRange], classOf[Int])
 
   val TRUNCATE_SQL_TIMESTAMP = Types.lookupMethod(classOf[DateTimeUtils], "truncate",
     classOf[TimestampData], classOf[Int])
 
-  val ADD_MONTHS = Types.lookupMethod(classOf[SqlFunctions], "addMonths",
+  val ADD_MONTHS = Types.lookupMethod(classOf[DateTimeUtils], "addMonths",
     classOf[Long], classOf[Int])
 
-  val SUBTRACT_MONTHS = Types.lookupMethod(classOf[SqlFunctions], "subtractMonths",
+  val SUBTRACT_MONTHS = Types.lookupMethod(classOf[DateTimeUtils], "subtractMonths",
     classOf[Long], classOf[Long])
 
   // JSON functions
 
-  val JSON_EXISTS = Types.lookupMethod(classOf[JsonFunctions], "jsonExists",
+  val JSON_EXISTS = Types.lookupMethod(classOf[SqlJsonUtils], "jsonExists",
     classOf[String], classOf[String])
 
-  val JSON_EXISTS_ON_ERROR = Types.lookupMethod(classOf[JsonFunctions], "jsonExists",
-    classOf[String], classOf[String], classOf[SqlJsonExistsErrorBehavior])
+  val JSON_EXISTS_ON_ERROR = Types.lookupMethod(classOf[SqlJsonUtils], "jsonExists",
+    classOf[String], classOf[String], classOf[JsonExistsOnError])
 
-  val JSON_VALUE = Types.lookupMethod(classOf[JsonFunctions], "jsonValue",
+  val JSON_VALUE = Types.lookupMethod(classOf[SqlJsonUtils], "jsonValue",
     classOf[String], classOf[String],
-    classOf[SqlJsonValueEmptyOrErrorBehavior], classOf[Any],
-    classOf[SqlJsonValueEmptyOrErrorBehavior], classOf[Any]
+    classOf[JsonValueOnEmptyOrError], classOf[Any],
+    classOf[JsonValueOnEmptyOrError], classOf[Any]
   )
 
-  val JSON_QUERY = Types.lookupMethod(classOf[JsonFunctions], "jsonQuery",
-    classOf[String], classOf[String], classOf[SqlJsonQueryWrapperBehavior],
-    classOf[SqlJsonQueryEmptyOrErrorBehavior], classOf[SqlJsonQueryEmptyOrErrorBehavior])
+  val JSON_QUERY = Types.lookupMethod(classOf[SqlJsonUtils], "jsonQuery",
+    classOf[String], classOf[String], classOf[JsonQueryWrapper],
+    classOf[JsonQueryOnEmptyOrError], classOf[JsonQueryOnEmptyOrError])
+
+  val IS_JSON_VALUE = Types.lookupMethod(classOf[SqlJsonUtils], "isJsonValue",
+    classOf[String])
+
+  val IS_JSON_OBJECT = Types.lookupMethod(classOf[SqlJsonUtils], "isJsonObject",
+    classOf[String])
+
+  val IS_JSON_ARRAY = Types.lookupMethod(classOf[SqlJsonUtils], "isJsonArray",
+    classOf[String])
+
+  val IS_JSON_SCALAR = Types.lookupMethod(classOf[SqlJsonUtils], "isJsonScalar",
+    classOf[String])
 
   // STRING functions
 
@@ -590,6 +547,20 @@ object BuiltInMethods {
   val STRING_DATA_TO_TIMESTAMP_WITH_ZONE = Types.lookupMethod(
     classOf[BinaryStringDataUtil], "toTimestamp", classOf[BinaryStringData], classOf[TimeZone])
 
+  val STRING_LIKE = Types.lookupMethod(
+    classOf[SqlLikeUtils], "like", classOf[String], classOf[String])
+
+  val STRING_LIKE_WITH_ESCAPE = Types.lookupMethod(
+    classOf[SqlLikeUtils], "like", classOf[String], classOf[String], classOf[String])
+
+  val STRING_SIMILAR = Types.lookupMethod(
+    classOf[SqlLikeUtils], "similar", classOf[String], classOf[String])
+
+  val STRING_SIMILAR_WITH_ESCAPE = Types.lookupMethod(
+    classOf[SqlLikeUtils], "similar", classOf[String], classOf[String], classOf[String])
+
+  val STRING_INITCAP = Types.lookupMethod(classOf[SqlFunctionUtils], "initcap", classOf[String])
+
   // DecimalData functions
 
   val DECIMAL_TO_DECIMAL = Types.lookupMethod(
@@ -604,6 +575,10 @@ object BuiltInMethods {
     classOf[DecimalDataUtils],
     "doubleValue", classOf[DecimalData])
 
+  val DECIMAL_TO_BOOLEAN = Types.lookupMethod(
+    classOf[DecimalDataUtils],
+    "castToBoolean", classOf[DecimalData])
+
   val INTEGRAL_TO_DECIMAL = Types.lookupMethod(
     classOf[DecimalDataUtils],
     "castFrom", classOf[Long], classOf[Int], classOf[Int])
@@ -611,5 +586,9 @@ object BuiltInMethods {
   val DOUBLE_TO_DECIMAL = Types.lookupMethod(
     classOf[DecimalDataUtils],
     "castFrom", classOf[Long], classOf[Int], classOf[Int])
+
+  val DECIMAL_ZERO = Types.lookupMethod(
+    classOf[DecimalData],
+    "zero", classOf[Int], classOf[Int])
 
 }

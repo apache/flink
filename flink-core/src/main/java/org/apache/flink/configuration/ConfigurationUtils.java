@@ -20,6 +20,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 
 import javax.annotation.Nonnull;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS;
@@ -71,6 +73,27 @@ public class ConfigurationUtils {
     @Nonnull
     public static String[] parseTempDirectories(Configuration configuration) {
         return splitPaths(configuration.getString(CoreOptions.TMP_DIRS));
+    }
+
+    /**
+     * Picks a temporary directory randomly from the given configuration.
+     *
+     * @param configuration to extract the temp directory from
+     * @return a randomly picked temporary directory
+     */
+    @Nonnull
+    public static File getRandomTempDirectory(Configuration configuration) {
+        final String[] tmpDirectories = parseTempDirectories(configuration);
+
+        Preconditions.checkState(
+                tmpDirectories.length > 0,
+                String.format(
+                        "No temporary directory has been specified for %s",
+                        CoreOptions.TMP_DIRS.key()));
+
+        final int randomIndex = ThreadLocalRandom.current().nextInt(tmpDirectories.length);
+
+        return new File(tmpDirectories[randomIndex]);
     }
 
     /**

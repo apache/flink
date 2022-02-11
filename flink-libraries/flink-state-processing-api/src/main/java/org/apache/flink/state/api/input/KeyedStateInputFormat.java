@@ -28,7 +28,6 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
-import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
 import org.apache.flink.runtime.state.DefaultKeyedStateStore;
 import org.apache.flink.runtime.state.KeyGroupRange;
@@ -37,19 +36,19 @@ import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
 import org.apache.flink.state.api.input.operator.StateReaderOperator;
 import org.apache.flink.state.api.input.splits.KeyGroupRangeInputSplit;
-import org.apache.flink.state.api.runtime.NeverFireProcessingTimeService;
-import org.apache.flink.state.api.runtime.SavepointEnvironment;
 import org.apache.flink.state.api.runtime.SavepointRuntimeContext;
 import org.apache.flink.streaming.api.operators.InternalTimeServiceManager;
 import org.apache.flink.streaming.api.operators.StreamOperatorStateContext;
-import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
-import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.Preconditions;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -67,9 +66,11 @@ public class KeyedStateInputFormat<K, N, OUT>
 
     private static final long serialVersionUID = 8230460226049597182L;
 
+    private static final Logger LOG = LoggerFactory.getLogger(KeyedStateInputFormat.class);
+
     private final OperatorState operatorState;
 
-    private final StateBackend stateBackend;
+    @Nullable private final StateBackend stateBackend;
 
     private final Configuration configuration;
 
@@ -90,11 +91,10 @@ public class KeyedStateInputFormat<K, N, OUT>
      */
     public KeyedStateInputFormat(
             OperatorState operatorState,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
             Configuration configuration,
             StateReaderOperator<?, K, N, OUT> operator) {
         Preconditions.checkNotNull(operatorState, "The operator state cannot be null");
-        Preconditions.checkNotNull(stateBackend, "The state backend cannot be null");
         Preconditions.checkNotNull(configuration, "The configuration cannot be null");
         Preconditions.checkNotNull(operator, "The operator cannot be null");
 
@@ -144,15 +144,20 @@ public class KeyedStateInputFormat<K, N, OUT>
     public void open(KeyGroupRangeInputSplit split) throws IOException {
         registry = new CloseableRegistry();
 
-        final Environment environment =
-                new SavepointEnvironment.Builder(getRuntimeContext(), split.getNumKeyGroups())
-                        .setConfiguration(configuration)
-                        .setSubtaskIndex(split.getSplitNumber())
-                        .setPrioritizedOperatorSubtaskState(
-                                split.getPrioritizedOperatorSubtaskState())
-                        .build();
-
-        final StreamOperatorStateContext context = getStreamOperatorStateContext(environment);
+        final StreamOperatorStateContext context =
+                new StreamOperatorContextBuilder(
+                                getRuntimeContext(),
+                                configuration,
+                                operatorState,
+                                split,
+                                registry,
+                                stateBackend)
+                        .withMaxParallelism(split.getNumKeyGroups())
+                        .withKey(
+                                operator,
+                                operator.getKeyType()
+                                        .createSerializer(getRuntimeContext().getExecutionConfig()))
+                        .build(LOG);
 
         AbstractKeyedStateBackend<K> keyedStateBackend =
                 (AbstractKeyedStateBackend<K>) context.keyedStateBackend();
@@ -178,33 +183,12 @@ public class KeyedStateInputFormat<K, N, OUT>
         }
     }
 
-    private StreamOperatorStateContext getStreamOperatorStateContext(Environment environment)
-            throws IOException {
-        StreamTaskStateInitializer initializer =
-                new StreamTaskStateInitializerImpl(environment, stateBackend);
-
-        try {
-            return initializer.streamOperatorStateContext(
-                    operatorState.getOperatorID(),
-                    operatorState.getOperatorID().toString(),
-                    new NeverFireProcessingTimeService(),
-                    operator,
-                    operator.getKeyType().createSerializer(environment.getExecutionConfig()),
-                    registry,
-                    getRuntimeContext().getMetricGroup(),
-                    1.0,
-                    false);
-        } catch (Exception e) {
-            throw new IOException("Failed to restore state backend", e);
-        }
-    }
-
     @Override
     public void close() throws IOException {
         try {
             IOUtils.closeQuietly(keysAndNamespaces);
-            operator.close();
-            registry.close();
+            IOUtils.closeQuietly(operator);
+            IOUtils.closeQuietly(registry);
         } catch (Exception e) {
             throw new IOException("Failed to close state backend", e);
         }

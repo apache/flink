@@ -24,7 +24,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.serde.RequiredDistribution
 import org.apache.flink.table.planner.plan.nodes.exec.serde.RequiredDistributionJsonSerializer;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -111,17 +110,14 @@ public class InputProperty {
         this.priority = priority;
     }
 
-    @JsonIgnore
     public RequiredDistribution getRequiredDistribution() {
         return requiredDistribution;
     }
 
-    @JsonIgnore
     public DamBehavior getDamBehavior() {
         return damBehavior;
     }
 
-    @JsonIgnore
     public int getPriority() {
         return priority;
     }

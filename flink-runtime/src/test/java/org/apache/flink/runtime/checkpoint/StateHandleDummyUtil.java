@@ -185,7 +185,7 @@ public class StateHandleDummyUtil {
         }
 
         @Override
-        public void registerSharedStates(SharedStateRegistry stateRegistry) {}
+        public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {}
 
         @Override
         public void discardState() throws Exception {}
@@ -193,6 +193,11 @@ public class StateHandleDummyUtil {
         @Override
         public long getStateSize() {
             return 0L;
+        }
+
+        @Override
+        public long getCheckpointedSize() {
+            return getStateSize();
         }
     }
 }

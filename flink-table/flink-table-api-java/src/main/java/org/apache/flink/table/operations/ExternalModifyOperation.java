@@ -20,8 +20,7 @@ package org.apache.flink.table.operations;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.types.DataType;
 
@@ -31,19 +30,13 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /** Internal operation used to convert a {@link Table} into a DataStream. */
 @Internal
 public final class ExternalModifyOperation implements ModifyOperation {
 
-    private static final AtomicInteger uniqueId = new AtomicInteger(0);
-
-    private final ObjectIdentifier tableIdentifier;
-
+    private final ContextResolvedTable contextResolvedTable;
     private final QueryOperation child;
-
-    private final ResolvedSchema resolvedSchema;
 
     /** Null if changelog mode is derived from input. */
     private final @Nullable ChangelogMode changelogMode;
@@ -51,24 +44,18 @@ public final class ExternalModifyOperation implements ModifyOperation {
     private final DataType physicalDataType;
 
     public ExternalModifyOperation(
-            ObjectIdentifier tableIdentifier,
+            ContextResolvedTable contextResolvedTable,
             QueryOperation child,
-            ResolvedSchema resolvedSchema,
-            ChangelogMode changelogMode,
+            @Nullable ChangelogMode changelogMode,
             DataType physicalDataType) {
-        this.tableIdentifier = tableIdentifier;
+        this.contextResolvedTable = contextResolvedTable;
         this.child = child;
-        this.resolvedSchema = resolvedSchema;
         this.changelogMode = changelogMode;
         this.physicalDataType = physicalDataType;
     }
 
-    public static int getUniqueId() {
-        return uniqueId.incrementAndGet();
-    }
-
-    public ObjectIdentifier getTableIdentifier() {
-        return tableIdentifier;
+    public ContextResolvedTable getContextResolvedTable() {
+        return contextResolvedTable;
     }
 
     @Override
@@ -84,10 +71,6 @@ public final class ExternalModifyOperation implements ModifyOperation {
         return Optional.ofNullable(changelogMode);
     }
 
-    public ResolvedSchema getResolvedSchema() {
-        return resolvedSchema;
-    }
-
     @Override
     public <T> T accept(ModifyOperationVisitor<T> visitor) {
         return visitor.visit(this);
@@ -96,7 +79,7 @@ public final class ExternalModifyOperation implements ModifyOperation {
     @Override
     public String asSummaryString() {
         final Map<String, Object> args = new LinkedHashMap<>();
-        args.put("identifier", tableIdentifier);
+        args.put("identifier", getContextResolvedTable().getIdentifier().asSummaryString());
         args.put("changelogMode", changelogMode);
         args.put("type", physicalDataType);
 

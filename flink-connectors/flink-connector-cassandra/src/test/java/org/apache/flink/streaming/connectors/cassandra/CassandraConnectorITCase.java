@@ -46,10 +46,10 @@ import org.apache.flink.streaming.api.functions.sink.SinkContextUtil;
 import org.apache.flink.streaming.runtime.operators.WriteAheadSinkTestBase;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
-import org.apache.flink.testutils.junit.FailsOnJava11;
 import org.apache.flink.testutils.junit.RetryOnException;
 import org.apache.flink.testutils.junit.RetryRule;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.DockerImageVersions;
 
 import com.datastax.driver.core.Cluster;
 import com.datastax.driver.core.ConsistencyLevel;
@@ -58,7 +58,7 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.mapping.Mapper;
-import org.apache.cassandra.service.CassandraDaemon;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -66,22 +66,24 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.CassandraContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.images.builder.Transferable;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
-import java.util.Scanner;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -95,38 +97,46 @@ import static org.junit.Assert.assertTrue;
 
 /** IT cases for all cassandra sinks. */
 @SuppressWarnings("serial")
-@Category(FailsOnJava11.class)
-// this test is known to be unstable, but the exact cause is unknown
-@RetryOnException(times = 2, exception = NoHostAvailableException.class)
+// NoHostAvailableException is raised by Cassandra client under load while connecting to the cluster
+@RetryOnException(times = 3, exception = NoHostAvailableException.class)
 public class CassandraConnectorITCase
         extends WriteAheadSinkTestBase<
                 Tuple3<String, Integer, Integer>,
                 CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>>> {
 
+    private static final int MAX_CONNECTION_RETRY = 3;
+    private static final long CONNECTION_RETRY_DELAY = 500L;
     private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorITCase.class);
+    private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
+    private static final String TABLE_POJO = "test";
+    private static final String TABLE_POJO_NO_ANNOTATED_KEYSPACE = "testPojoNoAnnotatedKeyspace";
+
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
+    @ClassRule
+    public static final CassandraContainer CASSANDRA_CONTAINER = createCassandraContainer();
 
     @Rule public final RetryRule retryRule = new RetryRule();
 
-    private static final boolean EMBEDDED = true;
-
-    private static EmbeddedCassandraService cassandra;
-
-    private static final String HOST = "127.0.0.1";
-
     private static final int PORT = 9042;
 
-    private static ClusterBuilder builderForReading =
+    private static Cluster cluster;
+    private static Session session;
+
+    private final ClusterBuilder builderForReading =
             createBuilderWithConsistencyLevel(ConsistencyLevel.ONE);
     // Lower consistency level ANY is only available for writing.
-    private static ClusterBuilder builderForWriting =
+    private final ClusterBuilder builderForWriting =
             createBuilderWithConsistencyLevel(ConsistencyLevel.ANY);
 
-    private static ClusterBuilder createBuilderWithConsistencyLevel(
-            ConsistencyLevel consistencyLevel) {
+    private ClusterBuilder createBuilderWithConsistencyLevel(ConsistencyLevel consistencyLevel) {
         return new ClusterBuilder() {
             @Override
             protected Cluster buildCluster(Cluster.Builder builder) {
-                return builder.addContactPointsWithPorts(new InetSocketAddress(HOST, PORT))
+                return builder.addContactPointsWithPorts(
+                                new InetSocketAddress(
+                                        CASSANDRA_CONTAINER.getHost(),
+                                        CASSANDRA_CONTAINER.getMappedPort(PORT)))
                         .withQueryOptions(
                                 new QueryOptions()
                                         .setConsistencyLevel(consistencyLevel)
@@ -138,23 +148,45 @@ public class CassandraConnectorITCase
         };
     }
 
-    private static Cluster cluster;
-    private static Session session;
-
     private static final String TABLE_NAME_PREFIX = "flink_";
     private static final String TABLE_NAME_VARIABLE = "$TABLE";
+    private static final String KEYSPACE = "flink";
+    private static final String TUPLE_ID_FIELD = "id";
+    private static final String TUPLE_COUNTER_FIELD = "counter";
+    private static final String TUPLE_BATCHID_FIELD = "batch_id";
     private static final String CREATE_KEYSPACE_QUERY =
-            "CREATE KEYSPACE flink WITH replication= {'class':'SimpleStrategy', 'replication_factor':1};";
+            "CREATE KEYSPACE "
+                    + KEYSPACE
+                    + " WITH replication= {'class':'SimpleStrategy', 'replication_factor':1};";
+    private static final String DROP_KEYSPACE_QUERY = "DROP KEYSPACE IF EXISTS " + KEYSPACE + " ;";
+    private static final String DROP_TABLE_QUERY =
+            "DROP TABLE IF EXISTS " + KEYSPACE + "." + TABLE_NAME_VARIABLE + " ;";
     private static final String CREATE_TABLE_QUERY =
-            "CREATE TABLE flink."
+            "CREATE TABLE "
+                    + KEYSPACE
+                    + "."
                     + TABLE_NAME_VARIABLE
-                    + " (id text PRIMARY KEY, counter int, batch_id int);";
+                    + " ("
+                    + TUPLE_ID_FIELD
+                    + " text PRIMARY KEY, "
+                    + TUPLE_COUNTER_FIELD
+                    + " int, "
+                    + TUPLE_BATCHID_FIELD
+                    + " int);";
     private static final String INSERT_DATA_QUERY =
-            "INSERT INTO flink."
+            "INSERT INTO "
+                    + KEYSPACE
+                    + "."
                     + TABLE_NAME_VARIABLE
-                    + " (id, counter, batch_id) VALUES (?, ?, ?)";
+                    + " ("
+                    + TUPLE_ID_FIELD
+                    + ", "
+                    + TUPLE_COUNTER_FIELD
+                    + ", "
+                    + TUPLE_BATCHID_FIELD
+                    + ") VALUES (?, ?, ?)";
     private static final String SELECT_DATA_QUERY =
-            "SELECT * FROM flink." + TABLE_NAME_VARIABLE + ';';
+            "SELECT * FROM " + KEYSPACE + "." + TABLE_NAME_VARIABLE + ';';
 
     private static final Random random = new Random();
     private int tableID;
@@ -174,73 +206,87 @@ public class CassandraConnectorITCase
         }
     }
 
-    private static class EmbeddedCassandraService {
-        CassandraDaemon cassandraDaemon;
-
-        public void start() throws IOException {
-            this.cassandraDaemon = new CassandraDaemon();
-            this.cassandraDaemon.init(null);
-            this.cassandraDaemon.start();
-        }
-
-        public void stop() {
-            this.cassandraDaemon.stop();
-        }
+    public static CassandraContainer createCassandraContainer() {
+        CassandraContainer cassandra = new CassandraContainer(DockerImageVersions.CASSANDRA_3);
+        cassandra.withJmxReporting(false);
+        cassandra.withLogConsumer(LOG_CONSUMER);
+        return cassandra;
     }
 
-    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
-
     @BeforeClass
-    public static void startCassandra() throws IOException {
-
-        ClassLoader classLoader = CassandraConnectorITCase.class.getClassLoader();
-        File file = new File(classLoader.getResource("cassandra.yaml").getFile());
-        File tmp = TEMPORARY_FOLDER.newFile("cassandra.yaml");
-
-        try (BufferedWriter b = new BufferedWriter(new FileWriter(tmp));
-
-                // copy cassandra.yaml; inject absolute paths into cassandra.yaml
-                Scanner scanner = new Scanner(file); ) {
-            while (scanner.hasNextLine()) {
-                String line = scanner.nextLine();
-                line = line.replace("$PATH", "'" + tmp.getParentFile());
-                b.write(line + "\n");
-                b.flush();
-            }
-        }
-
-        // Tell cassandra where the configuration files are.
-        // Use the test configuration file.
-        System.setProperty("cassandra.config", tmp.getAbsoluteFile().toURI().toString());
-
-        if (EMBEDDED) {
-            cassandra = new EmbeddedCassandraService();
-            cassandra.start();
-        }
-
-        // start establishing a connection within 30 seconds
-        long start = System.nanoTime();
-        long deadline = start + 30_000_000_000L;
-        while (true) {
+    public static void startAndInitializeCassandra() {
+        raiseCassandraRequestsTimeouts();
+        // CASSANDRA_CONTAINER#start() already contains retrials
+        CASSANDRA_CONTAINER.start();
+        cluster = CASSANDRA_CONTAINER.getCluster();
+        int retried = 0;
+        while (retried < MAX_CONNECTION_RETRY) {
             try {
-                cluster = builderForReading.getCluster();
                 session = cluster.connect();
                 break;
-            } catch (Exception e) {
-                if (System.nanoTime() > deadline) {
-                    throw e;
+            } catch (NoHostAvailableException e) {
+                retried++;
+                LOG.debug(
+                        "Connection failed with NoHostAvailableException : retry number {}, will retry to connect within {} ms",
+                        retried,
+                        CONNECTION_RETRY_DELAY);
+                if (retried == MAX_CONNECTION_RETRY) {
+                    throw new RuntimeException(
+                            String.format(
+                                    "Failed to connect to Cassandra cluster after %d retries every %d ms",
+                                    retried, CONNECTION_RETRY_DELAY),
+                            e);
                 }
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(CONNECTION_RETRY_DELAY);
                 } catch (InterruptedException ignored) {
                 }
             }
         }
-        LOG.debug("Connection established after {}ms.", System.currentTimeMillis() - start);
-
+        session.execute(DROP_KEYSPACE_QUERY);
         session.execute(CREATE_KEYSPACE_QUERY);
         session.execute(
                 CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_NAME_PREFIX + "initial"));
+    }
+
+    private static void raiseCassandraRequestsTimeouts() {
+        try {
+            final Path configurationPath = TEMPORARY_FOLDER.newFile().toPath();
+            CASSANDRA_CONTAINER.copyFileFromContainer(
+                    "/etc/cassandra/cassandra.yaml", configurationPath.toAbsolutePath().toString());
+            String configuration =
+                    new String(Files.readAllBytes(configurationPath), StandardCharsets.UTF_8);
+            String patchedConfiguration =
+                    configuration
+                            .replaceAll(
+                                    "request_timeout_in_ms: [0-9]+", "request_timeout_in_ms: 30000")
+                            .replaceAll(
+                                    "read_request_timeout_in_ms: [0-9]+",
+                                    "read_request_timeout_in_ms: 15000")
+                            .replaceAll(
+                                    "write_request_timeout_in_ms: [0-9]+",
+                                    "write_request_timeout_in_ms: 6000");
+            CASSANDRA_CONTAINER.copyFileToContainer(
+                    Transferable.of(patchedConfiguration.getBytes(StandardCharsets.UTF_8)),
+                    "/etc/cassandra/cassandra.yaml");
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to open Cassandra configuration file ", e);
+        }
+    }
+
+    @Test
+    public void testRaiseCassandraRequestsTimeouts() throws IOException {
+        // raiseCassandraRequestsTimeouts() was already called in @BeforeClass,
+        // do not change the container conf twice, just assert that it was indeed changed in the
+        // container
+        final Path configurationPath = TEMPORARY_FOLDER.newFile().toPath();
+        CASSANDRA_CONTAINER.copyFileFromContainer(
+                "/etc/cassandra/cassandra.yaml", configurationPath.toAbsolutePath().toString());
+        final String configuration =
+                new String(Files.readAllBytes(configurationPath), StandardCharsets.UTF_8);
+        assertTrue(configuration.contains("request_timeout_in_ms: 30000"));
+        assertTrue(configuration.contains("read_request_timeout_in_ms: 15000"));
+        assertTrue(configuration.contains("write_request_timeout_in_ms: 6000"));
     }
 
     @Before
@@ -249,19 +295,27 @@ public class CassandraConnectorITCase
         session.execute(injectTableName(CREATE_TABLE_QUERY));
     }
 
+    @After
+    public void dropTables() {
+        // need to drop tables in case of retrials. Need to drop all the tables
+        // that are created in test because this method is executed with every test
+        session.execute(
+                DROP_TABLE_QUERY.replace(
+                        TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo.TABLE_NAME));
+        session.execute(DROP_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_POJO));
+        session.execute(
+                DROP_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_POJO_NO_ANNOTATED_KEYSPACE));
+    }
+
     @AfterClass
     public static void closeCassandra() {
         if (session != null) {
             session.close();
         }
-
         if (cluster != null) {
             cluster.close();
         }
-
-        if (cassandra != null) {
-            cassandra.stop();
-        }
+        CASSANDRA_CONTAINER.stop();
     }
 
     // ------------------------------------------------------------------------
@@ -300,7 +354,7 @@ public class CassandraConnectorITCase
         }
 
         for (com.datastax.driver.core.Row s : result) {
-            list.remove(new Integer(s.getInt("counter")));
+            list.remove(new Integer(s.getInt(TUPLE_COUNTER_FIELD)));
         }
         Assert.assertTrue(
                 "The following ID's were not found in the ResultSet: " + list.toString(),
@@ -318,7 +372,7 @@ public class CassandraConnectorITCase
         }
 
         for (com.datastax.driver.core.Row s : result) {
-            list.remove(new Integer(s.getInt("counter")));
+            list.remove(new Integer(s.getInt(TUPLE_COUNTER_FIELD)));
         }
         Assert.assertTrue(
                 "The following ID's were not found in the ResultSet: " + list.toString(),
@@ -339,7 +393,7 @@ public class CassandraConnectorITCase
         }
 
         for (com.datastax.driver.core.Row s : result) {
-            list.remove(new Integer(s.getInt("counter")));
+            list.remove(new Integer(s.getInt(TUPLE_COUNTER_FIELD)));
         }
         Assert.assertTrue(
                 "The following ID's were not found in the ResultSet: " + list.toString(),
@@ -366,7 +420,7 @@ public class CassandraConnectorITCase
         ResultSet result = session.execute(injectTableName(SELECT_DATA_QUERY));
 
         for (com.datastax.driver.core.Row s : result) {
-            actual.add(s.getInt("counter"));
+            actual.add(s.getInt(TUPLE_COUNTER_FIELD));
         }
 
         Collections.sort(actual);
@@ -466,7 +520,7 @@ public class CassandraConnectorITCase
 
     @Test
     public void testCassandraPojoAtLeastOnceSink() throws Exception {
-        session.execute(CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, "test"));
+        session.execute(CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_POJO));
 
         CassandraPojoSink<Pojo> sink = new CassandraPojoSink<>(Pojo.class, builderForWriting);
         try {
@@ -478,17 +532,17 @@ public class CassandraConnectorITCase
             sink.close();
         }
 
-        ResultSet rs = session.execute(SELECT_DATA_QUERY.replace(TABLE_NAME_VARIABLE, "test"));
+        ResultSet rs = session.execute(SELECT_DATA_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_POJO));
         Assert.assertEquals(20, rs.all().size());
     }
 
     @Test
     public void testCassandraPojoNoAnnotatedKeyspaceAtLeastOnceSink() throws Exception {
         session.execute(
-                CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, "testPojoNoAnnotatedKeyspace"));
+                CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_POJO_NO_ANNOTATED_KEYSPACE));
 
         CassandraPojoSink<PojoNoAnnotatedKeyspace> sink =
-                new CassandraPojoSink<>(PojoNoAnnotatedKeyspace.class, builderForWriting, "flink");
+                new CassandraPojoSink<>(PojoNoAnnotatedKeyspace.class, builderForWriting, KEYSPACE);
         try {
             sink.open(new Configuration());
             for (int x = 0; x < 20; x++) {
@@ -501,7 +555,7 @@ public class CassandraConnectorITCase
         ResultSet rs =
                 session.execute(
                         SELECT_DATA_QUERY.replace(
-                                TABLE_NAME_VARIABLE, "testPojoNoAnnotatedKeyspace"));
+                                TABLE_NAME_VARIABLE, TABLE_POJO_NO_ANNOTATED_KEYSPACE));
         Assert.assertEquals(20, rs.all().size());
     }
 
@@ -545,6 +599,19 @@ public class CassandraConnectorITCase
                 "The input data was not completely written to Cassandra", input.isEmpty());
     }
 
+    private static int retrialsCount = 0;
+
+    @Test
+    public void testRetrialAndDropTables() {
+        session.execute(
+                CREATE_TABLE_QUERY.replace(
+                        TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo.TABLE_NAME));
+        if (retrialsCount < 2) {
+            retrialsCount++;
+            throw new NoHostAvailableException(new HashMap<>());
+        }
+    }
+
     @Test
     public void testCassandraBatchPojoFormat() throws Exception {
 
@@ -583,7 +650,8 @@ public class CassandraConnectorITCase
 
         InputFormat<CustomCassandraAnnotatedPojo, InputSplit> source =
                 new CassandraPojoInputFormat<>(
-                        SELECT_DATA_QUERY.replace(TABLE_NAME_VARIABLE, "batches"),
+                        SELECT_DATA_QUERY.replace(
+                                TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo.TABLE_NAME),
                         builderForReading,
                         CustomCassandraAnnotatedPojo.class);
         List<CustomCassandraAnnotatedPojo> result = new ArrayList<>();
@@ -730,7 +798,9 @@ public class CassandraConnectorITCase
         for (com.datastax.driver.core.Row row : rows) {
             scalaTupleCollection.remove(
                     new scala.Tuple3<>(
-                            row.getString("id"), row.getInt("counter"), row.getInt("batch_id")));
+                            row.getString(TUPLE_ID_FIELD),
+                            row.getInt(TUPLE_COUNTER_FIELD),
+                            row.getInt(TUPLE_BATCHID_FIELD)));
         }
         Assert.assertEquals(0, scalaTupleCollection.size());
     }
@@ -769,7 +839,9 @@ public class CassandraConnectorITCase
             Assert.assertEquals(
                     new scala.Tuple3<>(id, counter, batchId),
                     new scala.Tuple3<>(
-                            row.getString("id"), row.getInt("counter"), row.getInt("batch_id")));
+                            row.getString(TUPLE_ID_FIELD),
+                            row.getInt(TUPLE_COUNTER_FIELD),
+                            row.getInt(TUPLE_BATCHID_FIELD)));
         }
     }
 }

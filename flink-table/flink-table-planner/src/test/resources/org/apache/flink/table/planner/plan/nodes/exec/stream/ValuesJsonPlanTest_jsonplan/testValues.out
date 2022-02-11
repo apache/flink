@@ -1,68 +1,39 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecValues",
+    "id" : 1,
+    "type" : "stream-exec-values_1",
     "tuples" : [ [ {
       "kind" : "LITERAL",
       "value" : "1",
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
       "value" : "2",
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
       "value" : "Hi",
-      "type" : {
-        "typeName" : "CHAR",
-        "nullable" : false,
-        "precision" : 2
-      }
+      "type" : "CHAR(2) NOT NULL"
     } ], [ {
       "kind" : "LITERAL",
       "value" : "3",
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
       "value" : "4",
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     }, {
       "kind" : "LITERAL",
       "value" : "Hello",
-      "type" : {
-        "typeName" : "CHAR",
-        "nullable" : false,
-        "precision" : 5
-      }
+      "type" : "CHAR(5) NOT NULL"
     } ] ],
-    "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "EXPR$0" : "INT NOT NULL"
-      }, {
-        "EXPR$1" : "INT NOT NULL"
-      }, {
-        "EXPR$2" : "VARCHAR(5) NOT NULL"
-      } ]
-    },
+    "outputType" : "ROW<`EXPR$0` INT NOT NULL, `EXPR$1` INT NOT NULL, `EXPR$2` VARCHAR(5) NOT NULL>",
     "description" : "Values(tuples=[[{ 1, 2, _UTF-16LE'Hi' }, { 3, 4, _UTF-16LE'Hello' }]])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "REX_CALL",
       "operator" : {
@@ -73,15 +44,9 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -92,15 +57,9 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -111,20 +70,11 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
-        "type" : {
-          "typeName" : "VARCHAR",
-          "nullable" : false,
-          "precision" : 5
-        }
+        "type" : "VARCHAR(5) NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "VARCHAR",
-        "nullable" : true,
-        "precision" : 2147483647
-      }
+      "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -132,40 +82,38 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "BIGINT"
-      }, {
-        "c" : "VARCHAR(2147483647)"
-      } ]
-    },
-    "description" : "Calc(select=[CAST(EXPR$0) AS a, CAST(EXPR$1) AS b, CAST(EXPR$2) AS c])"
+    "outputType" : "ROW<`a` BIGINT, `b` BIGINT, `c` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[CAST(EXPR$0 AS BIGINT) AS a, CAST(EXPR$1 AS BIGINT) AS b, CAST(EXPR$2 AS VARCHAR(2147483647)) AS c])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 3,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MySink"
-      },
-      "catalogTable" : {
-        "sink-insert-only" : "false",
-        "table-sink-class" : "DEFAULT",
-        "schema.2.data-type" : "VARCHAR(2147483647)",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "schema.0.name" : "a",
-        "schema.1.data-type" : "BIGINT NOT NULL"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "BIGINT NOT NULL"
+            }, {
+              "name" : "c",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "sink-insert-only" : "false",
+            "table-sink-class" : "DEFAULT",
+            "connector" : "values"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -173,17 +121,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "BIGINT"
-      }, {
-        "c" : "VARCHAR(2147483647)"
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `b` BIGINT, `c` VARCHAR(2147483647)>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, c])"
   } ],
   "edges" : [ {

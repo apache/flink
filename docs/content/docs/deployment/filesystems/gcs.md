@@ -26,9 +26,7 @@ under the License.
 
 # Google Cloud Storage
 
-[Google Cloud storage](https://cloud.google.com/storage) (GCS) provides cloud storage for a variety of use cases. You can use it for **reading** and **writing data**, and for checkpoint storage when using [`FileSystemCheckpointStorage`]({{< ref "docs/ops/state/checkpoints" >}}#the-filesystemcheckpointstorage)) with the [streaming **state backends**]({{< ref "docs/ops/state/state_backends" >}}).
-
-
+[Google Cloud Storage](https://cloud.google.com/storage) (GCS) provides cloud storage for a variety of use cases. You can use it for **reading** and **writing** data, and for checkpoint storage when using [`FileSystemCheckpointStorage`]({{< ref "docs/ops/state/checkpoints" >}}#the-filesystemcheckpointstorage)) with the [streaming **state backends**]({{< ref "docs/ops/state/state_backends" >}}).
 
 You can use GCS objects like regular files by specifying paths in the following format:
 
@@ -39,7 +37,7 @@ gs://<your-bucket>/<endpoint>
 The endpoint can either be a single file or a directory, for example:
 
 ```java
-// Read from GSC bucket
+// Read from GCS bucket
 env.readTextFile("gs://<bucket>/<endpoint>");
 
 // Write to GCS bucket
@@ -50,57 +48,77 @@ env.getCheckpointConfig().setCheckpointStorage("gs://<bucket>/<endpoint>");
 
 ```
 
-### Libraries
+Note that these examples are *not* exhaustive and you can use GCS in other places as well, including your [high availability setup]({{< ref "docs/deployment/ha/overview" >}}) or the [EmbeddedRocksDBStateBackend]({{< ref "docs/ops/state/state_backends" >}}#the-rocksdbstatebackend); everywhere that Flink expects a FileSystem URI.
 
-You must include the following jars in Flink's `lib` directory to connect Flink with gcs:
+### GCS File System plugin
 
-```xml
-<dependency>
-  <groupId>org.apache.flink</groupId>
-  <artifactId>flink-shaded-hadoop2-uber</artifactId>
-  <version>${flink.shared_hadoop_latest_version}</version>
-</dependency>
+Flink provides the `flink-gs-fs-hadoop` file system to write to GCS.
+This implementation is self-contained with no dependency footprint, so there is no need to add Hadoop to the classpath to use it.
 
-<dependency>
-  <groupId>com.google.cloud.bigdataoss</groupId>
-  <artifactId>gcs-connector</artifactId>
-  <version>hadoop2-2.2.0</version>
-</dependency>
+`flink-gs-fs-hadoop` registers a `FileSystem` wrapper for URIs with the *gs://* scheme. It uses Google's [gcs-connector](https://mvnrepository.com/artifact/com.google.cloud.bigdataoss/gcs-connector) Hadoop library to access GCS. It also uses Google's [google-cloud-storage](https://mvnrepository.com/artifact/com.google.cloud/google-cloud-storage) library to provide `RecoverableWriter` support. 
+
+This file system can be used with the [FileSystem connector]({{< ref "docs/connectors/datastream/filesystem.md" >}}).
+
+To use `flink-gs-fs-hadoop`, copy the JAR file from the `opt` directory to the `plugins` directory of your Flink distribution before starting Flink, i.e.
+
+```bash
+mkdir ./plugins/gs-fs-hadoop
+cp ./opt/flink-gs-fs-hadoop-{{< version >}}.jar ./plugins/gs-fs-hadoop/
 ```
 
-We have tested with `flink-shared-hadoop2-uber` version >= `2.8.3-1.8.3`.
-You can track the latest version of the [gcs-connector hadoop 2](https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-latest-hadoop2.jar).
+### Configuration
+
+The underlying Hadoop file system can be configured using the [Hadoop configuration keys](https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/master/gcs/CONFIGURATION.md) for `gcs-connector` by adding the configurations to your `flink-conf.yaml`.
+
+For example, `gcs-connector` has a `fs.gs.http.connect-timeout` configuration key. If you want to change it, you need to set `gs.http.connect-timeout: xyz` in `flink-conf.yaml`. Flink will internally translate this back to `fs.gs.http.connect-timeout`. 
+
+You can also set `gcs-connector` options directly in the Hadoop `core-site.xml` configuration file, so long as the Hadoop configuration directory is made known to Flink via the `env.hadoop.conf.dir` Flink option or via the `HADOOP_CONF_DIR` environment variable.
+
+`flink-gs-fs-hadoop` can also be configured by setting the following options in `flink-conf.yaml`:
+
+| Key                                       | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+|-------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| gs.writer.temporary.bucket.name           | Set this property to choose a bucket to hold temporary blobs for in-progress writes via `RecoverableWriter`. If this property is not set, temporary blobs will be written to same bucket as the final file being written. In either case, temporary blobs are written with the prefix `.inprogress/`. <br><br>  It is recommended to choose a separate bucket in order to [assign it a TTL](https://cloud.google.com/storage/docs/lifecycle), to provide a mechanism to clean up orphaned blobs that can occur when restoring from check/savepoints.<br><br>If you do use a separate bucket with a TTL for temporary blobs, attempts to restart jobs from check/savepoints after the TTL interval expires may fail. 
+| gs.writer.chunk.size                      | Set this property to [set the chunk size](https://cloud.google.com/java/docs/reference/google-cloud-core/latest/com.google.cloud.WriteChannel#com_google_cloud_WriteChannel_setChunkSize_int_) for writes via `RecoverableWriter`. <br><br>If not set, a Google-determined default chunk size will be used.                                                                                                                                                                                                                                                                                                                                                                     |
 
 ### Authentication to access GCS
 
-Most operations on GCS require authentication. Please see [the documentation on Google Cloud Storage authentication](https://cloud.google.com/storage/docs/authentication) for more information.
+Most operations on GCS require authentication. To provide authentication credentials, either:
 
-You can use the following method for authentication
-* Configure via core-site.xml
-  You would need to add the following properties to `core-site.xml`
+* Set the `GOOGLE_APPLICATION_CREDENTIALS` environment variable to the path of the JSON credentials file, as described [here](https://cloud.google.com/docs/authentication/getting-started#setting_the_environment_variable), where JobManagers and TaskManagers run. This is the **recommended** method.
 
-  ```xml
-  <configuration>
-    <property>
-      <name>google.cloud.auth.service.account.enable</name>
-      <value>true</value>
-    </property>
-    <property>
-      <name>google.cloud.auth.service.account.json.keyfile</name>
-      <value><PATH TO GOOGLE AUTHENTICATION JSON></value>
-    </property>
-  </configuration>
-  ```
 
-  You would need to add the following to `flink-conf.yaml`
+* Set the `google.cloud.auth.service.account.json.keyfile` property in `core-site.xml` to the path to the JSON credentials file (and make sure that the Hadoop configuration directory is specified to Flink as described [above](#configuration)):
+  
+```
+<configuration>
+  <property>
+    <name>google.cloud.auth.service.account.json.keyfile</name>
+    <value>PATH TO GOOGLE AUTHENTICATION JSON FILE</value>
+  </property>
+</configuration>
+```
 
-  ```yaml
-  flinkConfiguration:
-    fs.hdfs.hadoopconf: <DIRECTORY PATH WHERE core-site.xml IS SAVED>
-  ```
+For `flink-gs-fs-hadoop` to use credentials via either of these two methods, the use of service accounts for authentication must be enabled. This is enabled by default; however, it can be disabled in `core-site.xml` by setting:
 
-* You can provide the necessary key via the `GOOGLE_APPLICATION_CREDENTIALS` environment variable.
+```
+<configuration>
+  <property>
+    <name>google.cloud.auth.service.account.enable</name>
+    <value>false</value>
+  </property>
+</configuration>
+```
 
+{{< hint warning >}}
+`gcs-connector` supports additional options to provide authentication credentials besides the `google.cloud.auth.service.account.json.keyfile` option described above. 
+
+However, if you use any of those other options, the provided credentials will not be used by the `google-cloud-storage` library, which provides `RecoverableWriter` support, so Flink recoverable-write operations would be expected to fail.
+
+For this reason, use of the `gcs-connector` authentication-credentials options other than `google.cloud.auth.service.account.json.keyfile` is **not recommended.**
+
+
+{{< /hint >}}
 
 
 {{< top >}}

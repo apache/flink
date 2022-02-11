@@ -23,17 +23,18 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamingJobGraphGenerator;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -156,7 +157,9 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
                 savepointPath =
                         clusterClient
                                 .cancelWithSavepoint(
-                                        jobToMigrate.getJobID(), targetDirectory.getAbsolutePath())
+                                        jobToMigrate.getJobID(),
+                                        targetDirectory.getAbsolutePath(),
+                                        SavepointFormatType.CANONICAL)
                                 .get();
             } catch (Exception e) {
                 String exceptionString = ExceptionUtils.stringifyException(e);

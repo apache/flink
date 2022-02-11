@@ -17,6 +17,7 @@
 
 package org.apache.flink.metrics.groups;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.MetricGroup;
 
 /**
@@ -24,6 +25,7 @@ import org.apache.flink.metrics.MetricGroup;
  *
  * <p>You should only update the metrics in the main operator thread.
  */
+@PublicEvolving
 public interface OperatorMetricGroup extends MetricGroup {
     OperatorIOMetricGroup getIOMetricGroup();
 }

@@ -357,8 +357,10 @@ string:
     description: Returns the reversed string. Returns NULL if string is NULL.
   - sql: SPLIT_INDEX(string1, string2, integer1)
     description: Splits string1 by the delimiter string2, returns the integerth (zero-based) string of the split strings. Returns NULL if integer is negative. Returns NULL if any of arguments is NULL.
-  - sql: STR_TO_MAP(string1[, string2, string3]])
-    description: Returns a map after splitting the string1 into key/value pairs using delimiters. string2 is the pair delimiter, default is ','. And string3 is the key-value delimiter, default is '='.
+  - sql: STR_TO_MAP(string1[, string2, string3])
+    description: |
+      Returns a map after splitting the string1 into key/value pairs using delimiters. string2 is the pair delimiter, default is ','. And string3 is the key-value delimiter, default is '='.
+      Both pair delimiter and key-value delimiter are treated as regular expressions. So special characters (e.g. `<([{\^-=$!|]})?*+.>`) need to be properly escaped before using as a delimiter literally.
   - sql: SUBSTR(string[, integer1[, integer2]])
     description: Returns a substring of string starting from position integer1 with length integer2 (to the end by default).
 

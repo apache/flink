@@ -288,6 +288,21 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAlterTableCompact() {
+        sql("alter table t1 compact").ok("ALTER TABLE `T1` COMPACT");
+
+        sql("alter table db1.t1 compact").ok("ALTER TABLE `DB1`.`T1` COMPACT");
+
+        sql("alter table cat1.db1.t1 compact").ok("ALTER TABLE `CAT1`.`DB1`.`T1` COMPACT");
+
+        sql("alter table t1 partition(x='y',m='n') compact")
+                .ok("ALTER TABLE `T1` PARTITION (`X` = 'y', `M` = 'n') COMPACT");
+
+        sql("alter table t1 partition(^)^ compact")
+                .fails("(?s).*Encountered \"\\)\" at line 1, column 26.\n.*");
+    }
+
+    @Test
     public void testCreateTable() {
         final String sql =
                 "CREATE TABLE tbl1 (\n"
@@ -1331,9 +1346,48 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testExecuteStatementSet() {
+        sql("execute statement set begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "EXECUTE STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+    }
+
+    @Test
+    public void testExplainStatementSet() {
+        sql("explain statement set begin insert into t1 select * from t2; insert into t2 select * from t3; end")
+                .ok(
+                        "EXPLAIN STATEMENT SET BEGIN\n"
+                                + "INSERT INTO `T1`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T2`)\n"
+                                + ";\n"
+                                + "INSERT INTO `T2`\n"
+                                + "(SELECT *\n"
+                                + "FROM `T3`)\n"
+                                + ";\n"
+                                + "END");
+    }
+
+    @Test
     public void testExplain() {
         String sql = "explain select * from emps";
         String expected = "EXPLAIN SELECT *\nFROM `EMPS`";
+        this.sql(sql).ok(expected);
+    }
+
+    @Test
+    public void testExecuteSelect() {
+        String sql = "execute select * from emps";
+        String expected = "EXECUTE SELECT *\nFROM `EMPS`";
         this.sql(sql).ok(expected);
     }
 
@@ -1420,6 +1474,12 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     public void testExplainInsert() {
         String expected = "EXPLAIN INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
         this.sql("explain plan for insert into emps1 select * from emps2").ok(expected);
+    }
+
+    @Test
+    public void testExecuteInsert() {
+        String expected = "EXECUTE INSERT INTO `EMPS1`\n" + "(SELECT *\n" + "FROM `EMPS2`)";
+        this.sql("execute insert into emps1 select * from emps2").ok(expected);
     }
 
     @Test

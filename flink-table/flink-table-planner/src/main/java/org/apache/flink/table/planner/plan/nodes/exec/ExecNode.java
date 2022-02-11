@@ -32,25 +32,34 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
 import java.util.List;
+
+import static org.apache.flink.table.planner.plan.nodes.exec.ExecNode.FIELD_NAME_TYPE;
 
 /**
  * The representation of execution information for a {@link FlinkPhysicalRel}.
  *
  * @param <T> The type of the elements that result from this node.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "class")
+@JsonTypeInfo(
+        use = JsonTypeInfo.Id.NAME,
+        include = JsonTypeInfo.As.EXISTING_PROPERTY,
+        property = FIELD_NAME_TYPE,
+        visible = true)
+@JsonTypeIdResolver(ExecNodeTypeIdResolver.class)
 @Internal
 public interface ExecNode<T> extends ExecNodeTranslator<T> {
 
     String FIELD_NAME_ID = "id";
+    String FIELD_NAME_TYPE = "type";
     String FIELD_NAME_DESCRIPTION = "description";
     String FIELD_NAME_INPUT_PROPERTIES = "inputProperties";
     String FIELD_NAME_OUTPUT_TYPE = "outputType";
 
-    /** Gets the ID of this node. */
-    @JsonProperty(value = FIELD_NAME_ID)
+    /** The unique ID of the node. */
+    @JsonProperty(value = FIELD_NAME_ID, index = 0)
     int getId();
 
     /** Returns a string which describes this node. */

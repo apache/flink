@@ -33,7 +33,7 @@ To use this connector, add the following dependency to your project:
 {{< artifact flink-connector-twitter >}}
 
 Note that the streaming connectors are currently not part of the binary distribution.
-See linking with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+See linking with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 #### Authentication
 In order to connect to the Twitter stream the user has to register their program and acquire the necessary information for the authentication. The process is described below.

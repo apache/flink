@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
@@ -58,8 +59,8 @@ public class DeduplicationJsonPlanITCase extends JsonPlanTestBase {
                 "order_time bigint",
                 "primary key(product) not enforced");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink "
                                 + "select order_id, user, product, order_time \n"
                                 + "FROM (\n"
@@ -70,7 +71,7 @@ public class DeduplicationJsonPlanITCase extends JsonPlanTestBase {
         tableEnv.getConfig()
                 .getConfiguration()
                 .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(
                 Arrays.asList("+I[1, terry, pen, 1000]", "+I[4, bob, apple, 4000]"),

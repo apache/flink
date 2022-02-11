@@ -28,7 +28,6 @@ from pyflink.datastream.window import MAX_LONG_VALUE
 from pyflink.fn_execution.datastream.window.merging_window_set import MergingWindowSet
 from pyflink.fn_execution.internal_state import InternalMergingState, InternalKvState, \
     InternalAppendingState
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.metrics import MetricGroup
 
 T = TypeVar("T")
@@ -269,7 +268,7 @@ class WindowOperator(object):
 
     def __init__(self,
                  window_assigner: WindowAssigner,
-                 keyed_state_backend: RemoteKeyedStateBackend,
+                 keyed_state_backend,
                  user_key_selector,
                  window_state_descriptor: StateDescriptor,
                  window_function: InternalWindowFunction,

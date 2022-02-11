@@ -35,6 +35,8 @@ import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactor
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
+import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -170,6 +172,51 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                     assertEquals(
                             ownerReference.getMetadata().getUid(), ownerReferences.get(0).getUid());
                 });
+    }
+
+    @Test
+    public void testUpdateRestServicePort() throws Exception {
+        this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
+
+        final int expectedRestPort = 9081;
+        flinkKubeClient
+                .updateServiceTargetPort(
+                        KubernetesService.ServiceType.REST_SERVICE,
+                        CLUSTER_ID,
+                        Constants.REST_PORT_NAME,
+                        expectedRestPort)
+                .get();
+        final int updatedRestPort =
+                getServiceTargetPort(
+                        CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX, Constants.REST_PORT_NAME);
+        assertThat(updatedRestPort, is(expectedRestPort));
+    }
+
+    @Test
+    public void testUpdateInternalServicePort() throws Exception {
+        this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
+
+        final int expectedBlobPort = 9082;
+        flinkKubeClient
+                .updateServiceTargetPort(
+                        KubernetesService.ServiceType.INTERNAL_SERVICE,
+                        CLUSTER_ID,
+                        Constants.BLOB_SERVER_PORT_NAME,
+                        expectedBlobPort)
+                .get();
+        final int updatedBlobPort =
+                getServiceTargetPort(CLUSTER_ID, Constants.BLOB_SERVER_PORT_NAME);
+        assertThat(updatedBlobPort, is(expectedBlobPort));
+    }
+
+    private int getServiceTargetPort(String serviceName, String portName) {
+        final List<Integer> ports =
+                kubeClient.services().withName(serviceName).get().getSpec().getPorts().stream()
+                        .filter(servicePort -> servicePort.getName().equalsIgnoreCase(portName))
+                        .map(servicePort -> servicePort.getTargetPort().getIntVal())
+                        .collect(Collectors.toList());
+        assertThat(ports.size(), is(1));
+        return ports.get(0);
     }
 
     @Test

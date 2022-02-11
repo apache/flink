@@ -20,15 +20,17 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
+import org.apache.flink.util.Preconditions;
 
-import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Executor;
@@ -36,106 +38,113 @@ import java.util.concurrent.Executor;
 /** {@link Dispatcher} services container. */
 public class DispatcherServices {
 
-    @Nonnull private final Configuration configuration;
+    private final Configuration configuration;
 
-    @Nonnull private final HighAvailabilityServices highAvailabilityServices;
+    private final HighAvailabilityServices highAvailabilityServices;
 
-    @Nonnull private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
+    private final GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever;
 
-    @Nonnull private final BlobServer blobServer;
+    private final BlobServer blobServer;
 
-    @Nonnull private final HeartbeatServices heartbeatServices;
+    private final HeartbeatServices heartbeatServices;
 
-    @Nonnull private final JobManagerMetricGroup jobManagerMetricGroup;
+    private final JobManagerMetricGroup jobManagerMetricGroup;
 
-    @Nonnull private final ExecutionGraphInfoStore executionGraphInfoStore;
+    private final ExecutionGraphInfoStore executionGraphInfoStore;
 
-    @Nonnull private final FatalErrorHandler fatalErrorHandler;
+    private final FatalErrorHandler fatalErrorHandler;
 
-    @Nonnull private final HistoryServerArchivist historyServerArchivist;
+    private final HistoryServerArchivist historyServerArchivist;
 
     @Nullable private final String metricQueryServiceAddress;
 
-    @Nonnull private final DispatcherOperationCaches operationCaches;
+    private final DispatcherOperationCaches operationCaches;
 
-    @Nonnull private final JobGraphWriter jobGraphWriter;
+    private final JobGraphWriter jobGraphWriter;
 
-    @Nonnull private final JobManagerRunnerFactory jobManagerRunnerFactory;
+    private final JobResultStore jobResultStore;
 
-    @Nonnull private final Executor ioExecutor;
+    private final JobManagerRunnerFactory jobManagerRunnerFactory;
+
+    private final CleanupRunnerFactory cleanupRunnerFactory;
+
+    private final Executor ioExecutor;
 
     DispatcherServices(
-            @Nonnull Configuration configuration,
-            @Nonnull HighAvailabilityServices highAvailabilityServices,
-            @Nonnull GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
-            @Nonnull BlobServer blobServer,
-            @Nonnull HeartbeatServices heartbeatServices,
-            @Nonnull ExecutionGraphInfoStore executionGraphInfoStore,
-            @Nonnull FatalErrorHandler fatalErrorHandler,
-            @Nonnull HistoryServerArchivist historyServerArchivist,
+            Configuration configuration,
+            HighAvailabilityServices highAvailabilityServices,
+            GatewayRetriever<ResourceManagerGateway> resourceManagerGatewayRetriever,
+            BlobServer blobServer,
+            HeartbeatServices heartbeatServices,
+            ExecutionGraphInfoStore executionGraphInfoStore,
+            FatalErrorHandler fatalErrorHandler,
+            HistoryServerArchivist historyServerArchivist,
             @Nullable String metricQueryServiceAddress,
-            @Nonnull DispatcherOperationCaches operationCaches,
-            @Nonnull JobManagerMetricGroup jobManagerMetricGroup,
-            @Nonnull JobGraphWriter jobGraphWriter,
-            @Nonnull JobManagerRunnerFactory jobManagerRunnerFactory,
-            @Nonnull Executor ioExecutor) {
-        this.configuration = configuration;
-        this.highAvailabilityServices = highAvailabilityServices;
-        this.resourceManagerGatewayRetriever = resourceManagerGatewayRetriever;
-        this.blobServer = blobServer;
-        this.heartbeatServices = heartbeatServices;
-        this.executionGraphInfoStore = executionGraphInfoStore;
-        this.fatalErrorHandler = fatalErrorHandler;
-        this.historyServerArchivist = historyServerArchivist;
+            DispatcherOperationCaches operationCaches,
+            JobManagerMetricGroup jobManagerMetricGroup,
+            JobGraphWriter jobGraphWriter,
+            JobResultStore jobResultStore,
+            JobManagerRunnerFactory jobManagerRunnerFactory,
+            CleanupRunnerFactory cleanupRunnerFactory,
+            Executor ioExecutor) {
+        this.configuration = Preconditions.checkNotNull(configuration, "Configuration");
+        this.highAvailabilityServices =
+                Preconditions.checkNotNull(highAvailabilityServices, "HighAvailabilityServices");
+        this.resourceManagerGatewayRetriever =
+                Preconditions.checkNotNull(
+                        resourceManagerGatewayRetriever, "ResourceManagerGatewayRetriever");
+        this.blobServer = Preconditions.checkNotNull(blobServer, "BlobServer");
+        this.heartbeatServices = Preconditions.checkNotNull(heartbeatServices, "HeartBeatServices");
+        this.executionGraphInfoStore =
+                Preconditions.checkNotNull(executionGraphInfoStore, "ExecutionGraphInfoStore");
+        this.fatalErrorHandler = Preconditions.checkNotNull(fatalErrorHandler, "FatalErrorHandler");
+        this.historyServerArchivist =
+                Preconditions.checkNotNull(historyServerArchivist, "HistoryServerArchivist");
         this.metricQueryServiceAddress = metricQueryServiceAddress;
-        this.operationCaches = operationCaches;
-        this.jobManagerMetricGroup = jobManagerMetricGroup;
-        this.jobGraphWriter = jobGraphWriter;
-        this.jobManagerRunnerFactory = jobManagerRunnerFactory;
-        this.ioExecutor = ioExecutor;
+        this.operationCaches = Preconditions.checkNotNull(operationCaches, "OperationCaches");
+        this.jobManagerMetricGroup =
+                Preconditions.checkNotNull(jobManagerMetricGroup, "JobManagerMetricGroup");
+        this.jobGraphWriter = Preconditions.checkNotNull(jobGraphWriter, "JobGraphWriter");
+        this.jobResultStore = Preconditions.checkNotNull(jobResultStore, "JobResultStore");
+        this.jobManagerRunnerFactory =
+                Preconditions.checkNotNull(jobManagerRunnerFactory, "JobManagerRunnerFactory");
+        this.cleanupRunnerFactory =
+                Preconditions.checkNotNull(cleanupRunnerFactory, "CleanupRunnerFactory");
+        this.ioExecutor = Preconditions.checkNotNull(ioExecutor, "IOExecutor");
     }
 
-    @Nonnull
     public Configuration getConfiguration() {
         return configuration;
     }
 
-    @Nonnull
     public HighAvailabilityServices getHighAvailabilityServices() {
         return highAvailabilityServices;
     }
 
-    @Nonnull
     public GatewayRetriever<ResourceManagerGateway> getResourceManagerGatewayRetriever() {
         return resourceManagerGatewayRetriever;
     }
 
-    @Nonnull
     public BlobServer getBlobServer() {
         return blobServer;
     }
 
-    @Nonnull
     public HeartbeatServices getHeartbeatServices() {
         return heartbeatServices;
     }
 
-    @Nonnull
     public JobManagerMetricGroup getJobManagerMetricGroup() {
         return jobManagerMetricGroup;
     }
 
-    @Nonnull
     public ExecutionGraphInfoStore getArchivedExecutionGraphStore() {
         return executionGraphInfoStore;
     }
 
-    @Nonnull
     public FatalErrorHandler getFatalErrorHandler() {
         return fatalErrorHandler;
     }
 
-    @Nonnull
     public HistoryServerArchivist getHistoryServerArchivist() {
         return historyServerArchivist;
     }
@@ -145,47 +154,56 @@ public class DispatcherServices {
         return metricQueryServiceAddress;
     }
 
-    @Nonnull
     public DispatcherOperationCaches getOperationCaches() {
         return operationCaches;
     }
 
-    @Nonnull
     public JobGraphWriter getJobGraphWriter() {
         return jobGraphWriter;
     }
 
-    @Nonnull
+    public JobResultStore getJobResultStore() {
+        return jobResultStore;
+    }
+
     JobManagerRunnerFactory getJobManagerRunnerFactory() {
         return jobManagerRunnerFactory;
     }
 
-    @Nonnull
+    CleanupRunnerFactory getCleanupRunnerFactory() {
+        return cleanupRunnerFactory;
+    }
+
     public Executor getIoExecutor() {
         return ioExecutor;
     }
 
     public static DispatcherServices from(
-            @Nonnull
-                    PartialDispatcherServicesWithJobGraphStore
-                            partialDispatcherServicesWithJobGraphStore,
-            @Nonnull JobManagerRunnerFactory jobManagerRunnerFactory) {
+            PartialDispatcherServicesWithJobPersistenceComponents
+                    partialDispatcherServicesWithJobPersistenceComponents,
+            JobManagerRunnerFactory jobManagerRunnerFactory,
+            CleanupRunnerFactory cleanupRunnerFactory) {
         return new DispatcherServices(
-                partialDispatcherServicesWithJobGraphStore.getConfiguration(),
-                partialDispatcherServicesWithJobGraphStore.getHighAvailabilityServices(),
-                partialDispatcherServicesWithJobGraphStore.getResourceManagerGatewayRetriever(),
-                partialDispatcherServicesWithJobGraphStore.getBlobServer(),
-                partialDispatcherServicesWithJobGraphStore.getHeartbeatServices(),
-                partialDispatcherServicesWithJobGraphStore.getArchivedExecutionGraphStore(),
-                partialDispatcherServicesWithJobGraphStore.getFatalErrorHandler(),
-                partialDispatcherServicesWithJobGraphStore.getHistoryServerArchivist(),
-                partialDispatcherServicesWithJobGraphStore.getMetricQueryServiceAddress(),
-                partialDispatcherServicesWithJobGraphStore.getOperationCaches(),
-                partialDispatcherServicesWithJobGraphStore
+                partialDispatcherServicesWithJobPersistenceComponents.getConfiguration(),
+                partialDispatcherServicesWithJobPersistenceComponents.getHighAvailabilityServices(),
+                partialDispatcherServicesWithJobPersistenceComponents
+                        .getResourceManagerGatewayRetriever(),
+                partialDispatcherServicesWithJobPersistenceComponents.getBlobServer(),
+                partialDispatcherServicesWithJobPersistenceComponents.getHeartbeatServices(),
+                partialDispatcherServicesWithJobPersistenceComponents
+                        .getArchivedExecutionGraphStore(),
+                partialDispatcherServicesWithJobPersistenceComponents.getFatalErrorHandler(),
+                partialDispatcherServicesWithJobPersistenceComponents.getHistoryServerArchivist(),
+                partialDispatcherServicesWithJobPersistenceComponents
+                        .getMetricQueryServiceAddress(),
+                partialDispatcherServicesWithJobPersistenceComponents.getOperationCaches(),
+                partialDispatcherServicesWithJobPersistenceComponents
                         .getJobManagerMetricGroupFactory()
                         .create(),
-                partialDispatcherServicesWithJobGraphStore.getJobGraphWriter(),
+                partialDispatcherServicesWithJobPersistenceComponents.getJobGraphWriter(),
+                partialDispatcherServicesWithJobPersistenceComponents.getJobResultStore(),
                 jobManagerRunnerFactory,
-                partialDispatcherServicesWithJobGraphStore.getIoExecutor());
+                cleanupRunnerFactory,
+                partialDispatcherServicesWithJobPersistenceComponents.getIoExecutor());
     }
 }

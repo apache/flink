@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.connectors.kafka;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.streaming.connectors.kafka.internals.FlinkKafkaInternalProducer;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
 import org.junit.runner.RunWith;
@@ -52,17 +52,17 @@ public class KafkaSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Ob
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "transaction-state-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             TransactionStateSerializerSetup.class,
                             TransactionStateSerializerVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "context-state-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             ContextStateSerializerSetup.class,
                             ContextStateSerializerVerifier.class));
         }
@@ -117,7 +117,7 @@ public class KafkaSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Ob
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<FlinkKafkaProducer.KafkaTransactionState>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -174,7 +174,7 @@ public class KafkaSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<Ob
         public Matcher<
                         TypeSerializerSchemaCompatibility<
                                 FlinkKafkaProducer.KafkaTransactionContext>>
-                schemaCompatibilityMatcher(MigrationVersion version) {
+                schemaCompatibilityMatcher(FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

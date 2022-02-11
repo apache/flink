@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
@@ -76,7 +77,7 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
                     DataType physicalDataType,
                     int[][] projections) {
                 final DataType producedDataType =
-                        DataType.projectFields(physicalDataType, projections);
+                        Projection.of(projections).project(physicalDataType);
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
@@ -144,6 +145,16 @@ public class JsonFormatFactory implements DeserializationFormatFactory, Serializ
         Set<ConfigOption<?>> options = new HashSet<>();
         options.add(FAIL_ON_MISSING_FIELD);
         options.add(IGNORE_PARSE_ERRORS);
+        options.add(TIMESTAMP_FORMAT);
+        options.add(MAP_NULL_KEY_MODE);
+        options.add(MAP_NULL_KEY_LITERAL);
+        options.add(ENCODE_DECIMAL_AS_PLAIN_NUMBER);
+        return options;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        Set<ConfigOption<?>> options = new HashSet<>();
         options.add(TIMESTAMP_FORMAT);
         options.add(MAP_NULL_KEY_MODE);
         options.add(MAP_NULL_KEY_LITERAL);

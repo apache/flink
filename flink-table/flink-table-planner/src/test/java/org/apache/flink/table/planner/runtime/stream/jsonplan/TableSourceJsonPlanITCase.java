@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
@@ -29,7 +30,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-import static org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime;
+import static org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime;
 
 /** Test for table source json plan. */
 public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
@@ -40,8 +41,9 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
         createTestCsvSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath = createTestCsvSinkTable("MySink", "a bigint", "b int");
 
-        String jsonPlan = tableEnv.getJsonPlan("insert into MySink select a, b from MyTable");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql("insert into MySink select a, b from MyTable");
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(Arrays.asList("1,1", "2,1", "3,2"), sinkPath);
     }
@@ -60,8 +62,9 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
 
         File sinkPath = createTestCsvSinkTable("MySink", "a bigint", "m varchar");
 
-        String jsonPlan = tableEnv.getJsonPlan("insert into MySink select a, m from MyTable");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql("insert into MySink select a, m from MyTable");
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(Arrays.asList("1,Hi", "2,Hello", "3,Hello world"), sinkPath);
     }
@@ -72,9 +75,9 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
         createTestCsvSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath = createTestCsvSinkTable("MySink", "a bigint", "b int", "c varchar");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan("insert into MySink select * from MyTable where a > 1");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql("insert into MySink select * from MyTable where a > 1");
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(Arrays.asList("2,1,hello", "3,2,hello world"), sinkPath);
     }
@@ -93,9 +96,9 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
                 });
         File sinkPath = createTestCsvSinkTable("MySink", "a int", "p bigint", "c varchar");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan("insert into MySink select * from MyTable where p = 2");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql("insert into MySink select * from MyTable where p = 2");
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(Arrays.asList("2,2,Hello", "3,2,Hello world"), sinkPath);
     }
@@ -120,15 +123,16 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
 
         File sinkPath = createTestCsvSinkTable("MySink", "a int", "b bigint", "ts timestamp(3)");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan("insert into MySink select a, b, ts from MyTable where b = 3");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
+                        "insert into MySink select a, b, ts from MyTable where b = 3");
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(
                 Arrays.asList(
-                        "4,3," + unixTimestampToLocalDateTime(4000L),
-                        "5,3," + unixTimestampToLocalDateTime(5000L),
-                        "6,3," + unixTimestampToLocalDateTime(6000L)),
+                        "4,3," + toLocalDateTime(4000L),
+                        "5,3," + toLocalDateTime(5000L),
+                        "6,3," + toLocalDateTime(6000L)),
                 sinkPath);
     }
 
@@ -156,15 +160,13 @@ public class TableSourceJsonPlanITCase extends JsonPlanTestBase {
 
         File sinkPath = createTestCsvSinkTable("MySink", "a int", "ts timestamp(3)");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "insert into MySink select a, ts from MyTable where b = 3 and a > 4");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(
-                Arrays.asList(
-                        "5," + unixTimestampToLocalDateTime(5000L),
-                        "6," + unixTimestampToLocalDateTime(6000L)),
+                Arrays.asList("5," + toLocalDateTime(5000L), "6," + toLocalDateTime(6000L)),
                 sinkPath);
     }
 }

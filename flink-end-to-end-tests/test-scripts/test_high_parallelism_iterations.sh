@@ -33,6 +33,7 @@ set_config_key "taskmanager.numberOfTaskSlots" "$SLOTS_PER_TM"
 set_config_key "taskmanager.memory.network.min" "160m"
 set_config_key "taskmanager.memory.network.max" "160m"
 set_config_key "taskmanager.memory.framework.off-heap.size" "300m"
+set_config_key "taskmanager.network.sort-shuffle.min-buffers" "64"
 
 print_mem_use
 start_cluster

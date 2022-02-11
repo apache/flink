@@ -21,10 +21,34 @@
             <td>Whether processes should halt on fatal errors instead of performing a graceful shutdown. In some environments (e.g. Java 8 with the G1 garbage collector), a regular graceful shutdown can lead to a JVM deadlock. See <a href="https://issues.apache.org/jira/browse/FLINK-16510">FLINK-16510</a> for details.</td>
         </tr>
         <tr>
+            <td><h5>cluster.thread-dump.stacktrace-max-depth</h5></td>
+            <td style="word-wrap: break-word;">8</td>
+            <td>Integer</td>
+            <td>The maximum stacktrace depth of TaskManager and JobManager's thread dump web-frontend displayed.</td>
+        </tr>
+        <tr>
             <td><h5>cluster.uncaught-exception-handling</h5></td>
             <td style="word-wrap: break-word;">LOG</td>
             <td><p>Enum</p></td>
             <td>Defines whether cluster will handle any uncaught exceptions by just logging them (LOG mode), or by failing job (FAIL mode)<br /><br />Possible values:<ul><li>"LOG"</li><li>"FAIL"</li></ul></td>
+        </tr>
+        <tr>
+            <td><h5>process.jobmanager.working-dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Working directory for Flink JobManager processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to <code class="highlighter-rouge">process.working-dir</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>process.taskmanager.working-dir</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Working directory for Flink TaskManager processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to <code class="highlighter-rouge">process.working-dir</code>.</td>
+        </tr>
+        <tr>
+            <td><h5>process.working-dir</h5></td>
+            <td style="word-wrap: break-word;">io.tmp.dirs</td>
+            <td>String</td>
+            <td>Local working directory for Flink processes. The working directory can be used to store information that can be used upon process recovery. If not configured, then it will default to a randomly picked temporary directory defined via <code class="highlighter-rouge">io.tmp.dirs</code>.</td>
         </tr>
     </tbody>
 </table>

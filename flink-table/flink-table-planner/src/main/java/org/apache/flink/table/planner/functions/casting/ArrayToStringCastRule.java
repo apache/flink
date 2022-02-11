@@ -23,15 +23,19 @@ import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAccess;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.NULL_STR_LITERAL;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.nullLiteral;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
+import static org.apache.flink.table.planner.functions.casting.CharVarCharTrimPadCastRule.couldTrim;
+import static org.apache.flink.table.planner.functions.casting.CharVarCharTrimPadCastRule.stringExceedsLength;
+import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 
 /** {@link LogicalTypeRoot#ARRAY} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
 class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayData, String> {
@@ -51,28 +55,54 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
                         .build());
     }
 
-    /* Example generated code for ARRAY<INT>:
+    /* Example generated code for ARRAY<INT> -> CHAR(10)
 
     isNull$0 = _myInputIsNull;
     if (!isNull$0) {
         builder$1.setLength(0);
         builder$1.append("[");
-        for (int i$2 = 0; i$2 < _myInput.size(); i$2++) {
-            if (i$2 != 0) {
+        for (int i$3 = 0; i$3 < _myInput.size(); i$3++) {
+            if (builder$1.length() > 10) {
+                break;
+            }
+            if (i$3 != 0) {
                 builder$1.append(", ");
             }
-            int element$3 = -1;
-            boolean elementIsNull$4 = _myInput.isNullAt(i$2);
-            if (!elementIsNull$4) {
-                element$3 = _myInput.getInt(i$2);
-                result$2 = org.apache.flink.table.data.binary.BinaryStringData.fromString("" + element$3);
-                builder$1.append(result$2);
+            int element$4 = -1;
+            boolean elementIsNull$5 = _myInput.isNullAt(i$3);
+            if (!elementIsNull$5) {
+                element$4 = _myInput.getInt(i$3);
+                isNull$2 = false;
+                if (!isNull$2) {
+                    result$3 = org.apache.flink.table.data.binary.BinaryStringData.fromString("" + element$4);
+                    isNull$2 = result$3 == null;
+                } else {
+                    result$3 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
+                }
+                builder$1.append(result$3);
             } else {
-                builder$1.append("null");
+                builder$1.append("NULL");
             }
         }
         builder$1.append("]");
-        result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(builder$1.toString());
+        java.lang.String resultString$2;
+        resultString$2 = builder$1.toString();
+        if (builder$1.length() > 10) {
+            resultString$2 = builder$1.substring(0, java.lang.Math.min(builder$1.length(), 10));
+        } else {
+            if (resultString$2.length() < 10) {
+                int padLength$6;
+                padLength$6 = 10 - resultString$2.length();
+                java.lang.StringBuilder sbPadding$7;
+                sbPadding$7 = new java.lang.StringBuilder();
+                for (int i$8 = 0; i$8 < padLength$6; i$8++) {
+                    sbPadding$7.append(" ");
+                }
+                resultString$2 = resultString$2 + sbPadding$7.toString();
+            }
+        }
+        result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(resultString$2);
+        isNull$0 = result$1 == null;
     } else {
         result$1 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
     }
@@ -91,74 +121,93 @@ class ArrayToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<Array
         context.declareClassField(
                 className(StringBuilder.class), builderTerm, constructorCall(StringBuilder.class));
 
-        return new CastRuleUtils.CodeWriter()
-                .stmt(methodCall(builderTerm, "setLength", 0))
-                .stmt(methodCall(builderTerm, "append", strLiteral("[")))
-                .forStmt(
-                        methodCall(inputTerm, "size"),
-                        (indexTerm, loopBodyWriter) -> {
-                            String elementTerm = newName("element");
-                            String elementIsNullTerm = newName("elementIsNull");
+        final String resultStringTerm = newName("resultString");
+        final int length = LogicalTypeChecks.getLength(targetLogicalType);
 
-                            CastCodeBlock codeBlock =
-                                    CastRuleProvider.generateCodeBlock(
-                                            context,
-                                            elementTerm,
-                                            "false",
+        CastRuleUtils.CodeWriter writer =
+                new CastRuleUtils.CodeWriter()
+                        .stmt(methodCall(builderTerm, "setLength", 0))
+                        .stmt(methodCall(builderTerm, "append", strLiteral("[")))
+                        .forStmt(
+                                methodCall(inputTerm, "size"),
+                                (indexTerm, loopBodyWriter) -> {
+                                    String elementTerm = newName("element");
+                                    String elementIsNullTerm = newName("elementIsNull");
+
+                                    CastCodeBlock codeBlock =
                                             // Null check is done at the array access level
-                                            innerInputType.copy(false),
-                                            targetLogicalType);
+                                            CastRuleProvider.generateAlwaysNonNullCodeBlock(
+                                                    context,
+                                                    elementTerm,
+                                                    innerInputType,
+                                                    STRING_TYPE);
 
-                            loopBodyWriter
-                                    // Write the comma
-                                    .ifStmt(
-                                            indexTerm + " != 0",
-                                            thenBodyWriter ->
-                                                    thenBodyWriter.stmt(
-                                                            methodCall(
-                                                                    builderTerm,
-                                                                    "append",
-                                                                    strLiteral(", "))))
-                                    // Extract element from array
-                                    .declPrimitiveStmt(innerInputType, elementTerm)
-                                    .declStmt(
-                                            boolean.class,
-                                            elementIsNullTerm,
-                                            methodCall(inputTerm, "isNullAt", indexTerm))
-                                    .ifStmt(
-                                            "!" + elementIsNullTerm,
-                                            thenBodyWriter ->
-                                                    thenBodyWriter
-                                                            // If element not null, extract it and
-                                                            // execute the cast
-                                                            .assignStmt(
-                                                                    elementTerm,
-                                                                    rowFieldReadAccess(
-                                                                            indexTerm,
-                                                                            inputTerm,
-                                                                            innerInputType))
-                                                            .append(codeBlock)
-                                                            .stmt(
+                                    if (!context.legacyBehaviour() && couldTrim(length)) {
+                                        // Break if the target length is already exceeded
+                                        loopBodyWriter.ifStmt(
+                                                stringExceedsLength(builderTerm, length),
+                                                CastRuleUtils.CodeWriter::breakStmt);
+                                    }
+                                    loopBodyWriter
+                                            // Write the comma
+                                            .ifStmt(
+                                                    indexTerm + " != 0",
+                                                    thenBodyWriter ->
+                                                            thenBodyWriter.stmt(
                                                                     methodCall(
                                                                             builderTerm,
                                                                             "append",
-                                                                            codeBlock
-                                                                                    .getReturnTerm())),
-                                            elseBodyWriter ->
-                                                    // If element is null, just write NULL
-                                                    elseBodyWriter.stmt(
-                                                            methodCall(
-                                                                    builderTerm,
-                                                                    "append",
-                                                                    NULL_STR_LITERAL)));
-                        })
-                .stmt(methodCall(builderTerm, "append", strLiteral("]")))
+                                                                            strLiteral(", "))))
+                                            // Extract element from array
+                                            .declPrimitiveStmt(innerInputType, elementTerm)
+                                            .declStmt(
+                                                    boolean.class,
+                                                    elementIsNullTerm,
+                                                    methodCall(inputTerm, "isNullAt", indexTerm))
+                                            .ifStmt(
+                                                    "!" + elementIsNullTerm,
+                                                    thenBodyWriter ->
+                                                            thenBodyWriter
+                                                                    // If element not null,
+                                                                    // extract it and
+                                                                    // execute the cast
+                                                                    .assignStmt(
+                                                                            elementTerm,
+                                                                            rowFieldReadAccess(
+                                                                                    indexTerm,
+                                                                                    inputTerm,
+                                                                                    innerInputType))
+                                                                    .append(codeBlock)
+                                                                    .stmt(
+                                                                            methodCall(
+                                                                                    builderTerm,
+                                                                                    "append",
+                                                                                    codeBlock
+                                                                                            .getReturnTerm())),
+                                                    elseBodyWriter ->
+                                                            // If element is null, just
+                                                            // write NULL
+                                                            elseBodyWriter.stmt(
+                                                                    methodCall(
+                                                                            builderTerm,
+                                                                            "append",
+                                                                            nullLiteral(
+                                                                                    context
+                                                                                            .legacyBehaviour()))));
+                                })
+                        .stmt(methodCall(builderTerm, "append", strLiteral("]")));
+        return CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
+                        writer,
+                        targetLogicalType,
+                        context.legacyBehaviour(),
+                        length,
+                        resultStringTerm,
+                        builderTerm)
                 // Assign the result value
                 .assignStmt(
                         returnVariable,
                         CastRuleUtils.staticCall(
-                                BINARY_STRING_DATA_FROM_STRING(),
-                                methodCall(builderTerm, "toString")))
+                                BINARY_STRING_DATA_FROM_STRING(), resultStringTerm))
                 .toString();
     }
 }

@@ -49,7 +49,7 @@ under the License.
 				<configuration>
 					<reuseForks>true</reuseForks>
 					<forkCount>1</forkCount>
-					<argLine>-Xms256m -Xmx2800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
+					<argLine>-Xms256m -Xmx2800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit -Duser.country=US -Duser.language=en</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -130,12 +130,6 @@ under the License.
 			</exclusions>
 		</dependency>
 		<dependency>
-			<!-- Bump cassandra netty dependency -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-handler</artifactId>
-			<version>4.1.46.Final</version>
-		</dependency>
-		<dependency>
 			<groupId>com.datastax.cassandra</groupId>
 			<artifactId>cassandra-driver-mapping</artifactId>
 			<version>${driver.version}</version>
@@ -208,26 +202,23 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.cassandra</groupId>
-			<artifactId>cassandra-all</artifactId>
-			<version>${cassandra.version}</version>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>cassandra</artifactId>
 			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>log4j-over-slf4j</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>ch.qos.logback</groupId>
-					<artifactId>logback-classic</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<!-- Bump cassandra netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
 			<version>4.1.46.Final</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

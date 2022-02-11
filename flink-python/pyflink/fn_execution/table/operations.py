@@ -24,7 +24,6 @@ from pyflink.fn_execution.coders import DataViewFilterCoder, PickleCoder
 from pyflink.fn_execution.datastream.timerservice import InternalTimer
 from pyflink.fn_execution.datastream.operations import Operation
 from pyflink.fn_execution.datastream.timerservice_impl import TimerOperandType, InternalTimerImpl
-from pyflink.fn_execution import flink_fn_execution_pb2
 from pyflink.fn_execution.table.state_data_view import extract_data_view_specs
 
 from pyflink.fn_execution.table.window_assigner import TumblingWindowAssigner, \
@@ -76,9 +75,9 @@ class BundleOperation(object):
 
 
 class BaseOperation(Operation):
-    def __init__(self, spec):
-        super(BaseOperation, self).__init__(spec)
-        self.func, self.user_defined_funcs = self.generate_func(self.spec.serialized_fn)
+    def __init__(self, serialized_fn):
+        super(BaseOperation, self).__init__(serialized_fn)
+        self.func, self.user_defined_funcs = self.generate_func(serialized_fn)
 
     def process_element(self, value):
         return self.func(value)
@@ -99,8 +98,10 @@ class BaseOperation(Operation):
 
 
 class ScalarFunctionOperation(BaseOperation):
-    def __init__(self, spec):
-        super(ScalarFunctionOperation, self).__init__(spec)
+    def __init__(self, serialized_fn, one_arg_optimization=False, one_result_optimization=False):
+        self._one_arg_optimization = one_arg_optimization
+        self._one_result_optimization = one_result_optimization
+        super(ScalarFunctionOperation, self).__init__(serialized_fn)
 
     def generate_func(self, serialized_fn):
         """
@@ -114,14 +115,20 @@ class ScalarFunctionOperation(BaseOperation):
                 ','.join([x[0], y[0]]),
                 dict(chain(x[1].items(), y[1].items())),
                 x[2] + y[2]),
-            [operation_utils.extract_user_defined_function(udf) for udf in serialized_fn.udfs])
-        generate_func = eval('lambda value: [%s]' % scalar_functions, variable_dict)
+            [operation_utils.extract_user_defined_function(
+                udf, one_arg_optimization=self._one_arg_optimization)
+                for udf in serialized_fn.udfs])
+        if self._one_result_optimization:
+            func_str = 'lambda value: %s' % scalar_functions
+        else:
+            func_str = 'lambda value: [%s]' % scalar_functions
+        generate_func = eval(func_str, variable_dict)
         return generate_func, user_defined_funcs
 
 
 class TableFunctionOperation(BaseOperation):
-    def __init__(self, spec):
-        super(TableFunctionOperation, self).__init__(spec)
+    def __init__(self, serialized_fn):
+        super(TableFunctionOperation, self).__init__(serialized_fn)
 
     def generate_func(self, serialized_fn):
         """
@@ -140,8 +147,8 @@ class TableFunctionOperation(BaseOperation):
 
 
 class PandasAggregateFunctionOperation(BaseOperation):
-    def __init__(self, spec):
-        super(PandasAggregateFunctionOperation, self).__init__(spec)
+    def __init__(self, serialized_fn):
+        super(PandasAggregateFunctionOperation, self).__init__(serialized_fn)
 
     def generate_func(self, serialized_fn):
         pandas_functions, variable_dict, user_defined_funcs = reduce(
@@ -158,13 +165,16 @@ class PandasAggregateFunctionOperation(BaseOperation):
 
 
 class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
-    def __init__(self, spec):
-        super(PandasBatchOverWindowAggregateFunctionOperation, self).__init__(spec)
-        self.windows = [window for window in self.spec.serialized_fn.windows]
+    def __init__(self, serialized_fn):
+        super(PandasBatchOverWindowAggregateFunctionOperation, self).__init__(serialized_fn)
+        self.windows = [window for window in serialized_fn.windows]
         # the index among all the bounded range over window
         self.bounded_range_window_index = [-1 for _ in range(len(self.windows))]
         # Whether the specified position window is a bounded range window.
         self.is_bounded_range_window = []
+
+        from pyflink.fn_execution import flink_fn_execution_pb2
+
         window_types = flink_fn_execution_pb2.OverWindow
 
         bounded_range_window_nums = 0
@@ -193,6 +203,8 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
 
     def wrapped_over_window_function(self, boundaries_series):
         import pandas as pd
+        from pyflink.fn_execution import flink_fn_execution_pb2
+
         OverWindow = flink_fn_execution_pb2.OverWindow
         input_series = boundaries_series[-1]
         # the row number of the arrow format data
@@ -264,9 +276,9 @@ class PandasBatchOverWindowAggregateFunctionOperation(BaseOperation):
 
 class BaseStatefulOperation(BaseOperation, abc.ABC):
 
-    def __init__(self, spec, keyed_state_backend):
+    def __init__(self, serialized_fn, keyed_state_backend):
         self.keyed_state_backend = keyed_state_backend
-        super(BaseStatefulOperation, self).__init__(spec)
+        super(BaseStatefulOperation, self).__init__(serialized_fn)
 
     def finish(self):
         super().finish()
@@ -282,19 +294,20 @@ REGISTER_PROCESSING_TIMER = 1
 
 class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
 
-    def __init__(self, spec, keyed_state_backend):
-        self.generate_update_before = spec.serialized_fn.generate_update_before
-        self.grouping = [i for i in spec.serialized_fn.grouping]
+    def __init__(self, serialized_fn, keyed_state_backend):
+        self.generate_update_before = serialized_fn.generate_update_before
+        self.grouping = [i for i in serialized_fn.grouping]
         self.group_agg_function = None
         # If the upstream generates retract message, we need to add an additional count1() agg
         # to track current accumulated messages count. If all the messages are retracted, we need
         # to send a DELETE message to downstream.
-        self.index_of_count_star = spec.serialized_fn.index_of_count_star
-        self.count_star_inserted = spec.serialized_fn.count_star_inserted
-        self.state_cache_size = spec.serialized_fn.state_cache_size
-        self.state_cleaning_enabled = spec.serialized_fn.state_cleaning_enabled
-        self.data_view_specs = extract_data_view_specs(spec.serialized_fn.udfs)
-        super(AbstractStreamGroupAggregateOperation, self).__init__(spec, keyed_state_backend)
+        self.index_of_count_star = serialized_fn.index_of_count_star
+        self.count_star_inserted = serialized_fn.count_star_inserted
+        self.state_cache_size = serialized_fn.state_cache_size
+        self.state_cleaning_enabled = serialized_fn.state_cleaning_enabled
+        self.data_view_specs = extract_data_view_specs(serialized_fn.udfs)
+        super(AbstractStreamGroupAggregateOperation, self).__init__(
+            serialized_fn, keyed_state_backend)
 
     def open(self):
         self.group_agg_function.open(FunctionContext(self.base_metric_group))
@@ -363,8 +376,8 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
 
 class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation, BundleOperation):
 
-    def __init__(self, spec, keyed_state_backend):
-        super(StreamGroupAggregateOperation, self).__init__(spec, keyed_state_backend)
+    def __init__(self, serialized_fn, keyed_state_backend):
+        super(StreamGroupAggregateOperation, self).__init__(serialized_fn, keyed_state_backend)
 
     def finish_bundle(self):
         return self.group_agg_function.finish_bundle()
@@ -393,8 +406,8 @@ class StreamGroupAggregateOperation(AbstractStreamGroupAggregateOperation, Bundl
 
 
 class StreamGroupTableAggregateOperation(AbstractStreamGroupAggregateOperation, BundleOperation):
-    def __init__(self, spec, keyed_state_backend):
-        super(StreamGroupTableAggregateOperation, self).__init__(spec, keyed_state_backend)
+    def __init__(self, serialized_fn, keyed_state_backend):
+        super(StreamGroupTableAggregateOperation, self).__init__(serialized_fn, keyed_state_backend)
 
     def finish_bundle(self):
         return self.group_agg_function.finish_bundle()
@@ -420,17 +433,20 @@ class StreamGroupTableAggregateOperation(AbstractStreamGroupAggregateOperation, 
 
 
 class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation):
-    def __init__(self, spec, keyed_state_backend):
-        self._window = spec.serialized_fn.group_window
+    def __init__(self, serialized_fn, keyed_state_backend):
+        self._window = serialized_fn.group_window
         self._named_property_extractor = self._create_named_property_function()
         self._is_time_window = None
         self._reuse_timer_data = Row()
         self._reuse_key_data = Row()
-        super(StreamGroupWindowAggregateOperation, self).__init__(spec, keyed_state_backend)
+        super(StreamGroupWindowAggregateOperation, self).__init__(
+            serialized_fn, keyed_state_backend)
 
     def create_process_function(self, user_defined_aggs, input_extractors, filter_args,
                                 distinct_indexes, distinct_view_descriptors, key_selector,
                                 state_value_coder):
+        from pyflink.fn_execution import flink_fn_execution_pb2
+
         self._is_time_window = self._window.is_time_window
         self._namespace_coder = self.keyed_state_backend._namespace_coder_impl
         if self._window.window_type == flink_fn_execution_pb2.GroupWindow.TUMBLING_GROUP_WINDOW:
@@ -515,6 +531,8 @@ class StreamGroupWindowAggregateOperation(AbstractStreamGroupAggregateOperation)
                 yield [NORMAL_RECORD, result_data, None]
 
     def _create_named_property_function(self):
+        from pyflink.fn_execution import flink_fn_execution_pb2
+
         named_property_extractor_array = []
         for named_property in self._window.namedProperties:
             if named_property == flink_fn_execution_pb2.GroupWindow.WINDOW_START:

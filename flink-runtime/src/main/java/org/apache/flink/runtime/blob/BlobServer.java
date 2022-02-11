@@ -25,16 +25,23 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.SecurityOptions;
+import org.apache.flink.runtime.dispatcher.cleanup.GloballyCleanableResource;
+import org.apache.flink.runtime.dispatcher.cleanup.LocallyCleanableResource;
 import org.apache.flink.runtime.net.SSLUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.FunctionUtils;
+import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.GuardedBy;
 import javax.net.ServerSocketFactory;
 
 import java.io.File;
@@ -47,13 +54,18 @@ import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.security.MessageDigest;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.Timer;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -71,7 +83,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * the directory structure to store the BLOBs or temporarily cache them.
  */
 public class BlobServer extends Thread
-        implements BlobService, BlobWriter, PermanentBlobService, TransientBlobService {
+        implements BlobService,
+                BlobWriter,
+                PermanentBlobService,
+                TransientBlobService,
+                LocallyCleanableResource,
+                GloballyCleanableResource {
 
     /** The log object used for debugging. */
     private static final Logger LOG = LoggerFactory.getLogger(BlobServer.class);
@@ -89,7 +106,7 @@ public class BlobServer extends Thread
     private final AtomicBoolean shutdownRequested = new AtomicBoolean();
 
     /** Root directory for local file storage. */
-    private final File storageDir;
+    private final Reference<File> storageDir;
 
     /** Blob store for distributed file storage, e.g. in HA. */
     private final BlobStore blobStore;
@@ -121,21 +138,29 @@ public class BlobServer extends Thread
     /** Timer task to execute the cleanup at regular intervals. */
     private final Timer cleanupTimer;
 
+    @VisibleForTesting
+    public BlobServer(Configuration config, File storageDir, BlobStore blobStore)
+            throws IOException {
+        this(config, Reference.owned(storageDir), blobStore);
+    }
+
     /**
      * Instantiates a new BLOB server and binds it to a free network port.
      *
      * @param config Configuration to be used to instantiate the BlobServer
+     * @param storageDir storage directory for the blobs
      * @param blobStore BlobStore to store blobs persistently
      * @throws IOException thrown if the BLOB server cannot bind to a free network port or if the
      *     (local or distributed) file storage cannot be created or is not usable
      */
-    public BlobServer(Configuration config, BlobStore blobStore) throws IOException {
+    public BlobServer(Configuration config, Reference<File> storageDir, BlobStore blobStore)
+            throws IOException {
         this.blobServiceConfiguration = checkNotNull(config);
         this.blobStore = checkNotNull(blobStore);
         this.readWriteLock = new ReentrantReadWriteLock();
 
         // configure and create the storage directory
-        this.storageDir = BlobUtils.initLocalStorageDirectory(config);
+        this.storageDir = storageDir;
         LOG.info("Created BLOB server storage directory {}", storageDir);
 
         // configure the maximum number of concurrent connections
@@ -165,8 +190,7 @@ public class BlobServer extends Thread
 
         this.cleanupInterval = config.getLong(BlobServerOptions.CLEANUP_INTERVAL) * 1000;
         this.cleanupTimer.schedule(
-                new TransientBlobCleanupTask(
-                        blobExpiryTimes, readWriteLock.writeLock(), storageDir, LOG),
+                new TransientBlobCleanupTask(blobExpiryTimes, this::deleteInternal, LOG),
                 cleanupInterval,
                 cleanupInterval);
 
@@ -218,6 +242,30 @@ public class BlobServer extends Thread
                     maxConnections,
                     backlog);
         }
+
+        checkStoredBlobsForCorruption();
+        registerBlobExpiryTimes();
+    }
+
+    private void registerBlobExpiryTimes() throws IOException {
+        if (storageDir.deref().exists()) {
+            final Collection<BlobUtils.TransientBlob> transientBlobs =
+                    BlobUtils.listTransientBlobsInDirectory(storageDir.deref().toPath());
+
+            final long expiryTime = System.currentTimeMillis() + cleanupInterval;
+
+            for (BlobUtils.TransientBlob transientBlob : transientBlobs) {
+                blobExpiryTimes.put(
+                        Tuple2.of(transientBlob.getJobId(), transientBlob.getBlobKey()),
+                        expiryTime);
+            }
+        }
+    }
+
+    private void checkStoredBlobsForCorruption() throws IOException {
+        if (storageDir.deref().exists()) {
+            BlobUtils.checkAndDeleteCorruptedBlobs(storageDir.deref().toPath(), LOG);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
@@ -225,7 +273,7 @@ public class BlobServer extends Thread
     // --------------------------------------------------------------------------------------------
 
     public File getStorageDir() {
-        return storageDir;
+        return storageDir.deref();
     }
 
     /**
@@ -240,7 +288,7 @@ public class BlobServer extends Thread
      */
     @VisibleForTesting
     public File getStorageLocation(@Nullable JobID jobId, BlobKey key) throws IOException {
-        return BlobUtils.getStorageLocation(storageDir, jobId, key);
+        return BlobUtils.getStorageLocation(storageDir.deref(), jobId, key);
     }
 
     /**
@@ -251,7 +299,7 @@ public class BlobServer extends Thread
      */
     File createTemporaryFilename() throws IOException {
         return new File(
-                BlobUtils.getIncomingDirectory(storageDir),
+                BlobUtils.getIncomingDirectory(storageDir.deref()),
                 String.format("temp-%08d", tempFileCounter.getAndIncrement()));
     }
 
@@ -333,10 +381,12 @@ public class BlobServer extends Thread
                 }
             }
 
-            // Clean up the storage directory
+            // Clean up the storage directory if it is owned
             try {
-                FileUtils.deleteDirectory(storageDir);
-            } catch (IOException e) {
+                storageDir
+                        .owned()
+                        .ifPresent(FunctionUtils.uncheckedConsumer(FileUtils::deleteDirectory));
+            } catch (Exception e) {
                 exception = ExceptionUtils.firstOrSuppressed(e, exception);
             }
 
@@ -373,7 +423,7 @@ public class BlobServer extends Thread
      */
     @Override
     public File getFile(TransientBlobKey key) throws IOException {
-        return getFileInternal(null, key);
+        return getFileInternalWithReadLock(null, key);
     }
 
     /**
@@ -391,7 +441,7 @@ public class BlobServer extends Thread
     @Override
     public File getFile(JobID jobId, TransientBlobKey key) throws IOException {
         checkNotNull(jobId);
-        return getFileInternal(jobId, key);
+        return getFileInternalWithReadLock(jobId, key);
     }
 
     /**
@@ -410,7 +460,7 @@ public class BlobServer extends Thread
     @Override
     public File getFile(JobID jobId, PermanentBlobKey key) throws IOException {
         checkNotNull(jobId);
-        return getFileInternal(jobId, key);
+        return getFileInternalWithReadLock(jobId, key);
     }
 
     /**
@@ -425,15 +475,13 @@ public class BlobServer extends Thread
      * @return file referring to the local storage location of the BLOB
      * @throws IOException Thrown if the file retrieval failed.
      */
-    private File getFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
+    private File getFileInternalWithReadLock(@Nullable JobID jobId, BlobKey blobKey)
+            throws IOException {
         checkArgument(blobKey != null, "BLOB key cannot be null.");
-
-        final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
         readWriteLock.readLock().lock();
 
         try {
-            getFileInternal(jobId, blobKey, localFile);
-            return localFile;
+            return getFileInternal(jobId, blobKey);
         } finally {
             readWriteLock.readLock().unlock();
         }
@@ -450,12 +498,13 @@ public class BlobServer extends Thread
      *
      * @param jobId ID of the job this blob belongs to (or <tt>null</tt> if job-unrelated)
      * @param blobKey blob key associated with the requested file
-     * @param localFile (local) file where the blob is/should be stored
      * @throws IOException Thrown if the file retrieval failed.
+     * @return the retrieved local blob file
      */
-    void getFileInternal(@Nullable JobID jobId, BlobKey blobKey, File localFile)
-            throws IOException {
+    File getFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
         // assume readWriteLock.readLock() was already locked (cannot really check that)
+
+        final File localFile = BlobUtils.getStorageLocation(storageDir.deref(), jobId, blobKey);
 
         if (localFile.exists()) {
             // update TTL for transient BLOBs:
@@ -467,7 +516,7 @@ public class BlobServer extends Thread
                         Tuple2.of(jobId, (TransientBlobKey) blobKey),
                         System.currentTimeMillis() + cleanupInterval);
             }
-            return;
+            return localFile;
         } else if (blobKey instanceof PermanentBlobKey) {
             // Try the HA blob store
             // first we have to release the read lock in order to acquire the write lock
@@ -487,7 +536,7 @@ public class BlobServer extends Thread
                     readWriteLock.writeLock().unlock();
                 }
 
-                return;
+                return localFile;
             } finally {
                 // delete incomingFile from a failed download
                 if (incomingFile != null && !incomingFile.delete() && incomingFile.exists()) {
@@ -672,7 +721,7 @@ public class BlobServer extends Thread
         while (true) {
             // add unique component independent of the BLOB content
             BlobKey blobKey = BlobKey.createKey(blobType, digest);
-            File storageFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
+            File storageFile = BlobUtils.getStorageLocation(storageDir.deref(), jobId, blobKey);
 
             // try again until the key is unique (put the existence check into the lock!)
             readWriteLock.writeLock().lock();
@@ -758,7 +807,8 @@ public class BlobServer extends Thread
     boolean deleteInternal(@Nullable JobID jobId, TransientBlobKey key) {
         final File localFile =
                 new File(
-                        BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
+                        BlobUtils.getStorageLocationPath(
+                                storageDir.deref().getAbsolutePath(), jobId, key));
 
         readWriteLock.writeLock().lock();
 
@@ -790,7 +840,8 @@ public class BlobServer extends Thread
     private boolean deleteInternal(JobID jobId, PermanentBlobKey key) {
         final File localFile =
                 new File(
-                        BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId, key));
+                        BlobUtils.getStorageLocationPath(
+                                storageDir.deref().getAbsolutePath(), jobId, key));
 
         readWriteLock.writeLock().lock();
 
@@ -824,47 +875,100 @@ public class BlobServer extends Thread
     }
 
     /**
-     * Removes all BLOBs from local and HA store belonging to the given job ID.
+     * Deletes locally stored artifacts for the job represented by the given {@link JobID}. This
+     * doesn't touch the job's entry in the {@link BlobStore} to enable recovering.
      *
-     * @param jobId ID of the job this blob belongs to
-     * @param cleanupBlobStoreFiles True if the corresponding blob store files shall be cleaned up
-     *     as well. Otherwise false.
-     * @return <tt>true</tt> if the job directory is successfully deleted or non-existing;
-     *     <tt>false</tt> otherwise
+     * @param jobId The {@code JobID} of the job that is subject to cleanup.
      */
-    public boolean cleanupJob(JobID jobId, boolean cleanupBlobStoreFiles) {
+    @Override
+    public CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor cleanupExecutor) {
         checkNotNull(jobId);
 
+        return runAsyncWithWriteLock(() -> internalLocalCleanup(jobId), cleanupExecutor);
+    }
+
+    @GuardedBy("readWriteLock")
+    private void internalLocalCleanup(JobID jobId) throws IOException {
         final File jobDir =
-                new File(BlobUtils.getStorageLocationPath(storageDir.getAbsolutePath(), jobId));
+                new File(
+                        BlobUtils.getStorageLocationPath(
+                                storageDir.deref().getAbsolutePath(), jobId));
+        FileUtils.deleteDirectory(jobDir);
 
-        readWriteLock.writeLock().lock();
+        // NOTE on why blobExpiryTimes are not cleaned up: Instead of going through
+        // blobExpiryTimes, keep lingering entries. They will be cleaned up by the timer
+        // task which tolerate non-existing files. If inserted again with the same IDs
+        // (via put()), the TTL will be updated again.
+    }
 
-        try {
-            // delete locally
-            boolean deletedLocally = false;
-            try {
-                FileUtils.deleteDirectory(jobDir);
+    /**
+     * Removes all BLOBs from local and HA store belonging to the given {@link JobID}.
+     *
+     * @param jobId ID of the job this blob belongs to
+     */
+    @Override
+    public CompletableFuture<Void> globalCleanupAsync(JobID jobId, Executor executor) {
+        checkNotNull(jobId);
 
-                // NOTE: Instead of going through blobExpiryTimes, keep lingering entries - they
-                //       will be cleaned up by the timer task which tolerates non-existing files
-                //       If inserted again with the same IDs (via put()), the TTL will be updated
-                //       again.
+        return runAsyncWithWriteLock(
+                () -> {
+                    IOException exception = null;
 
-                deletedLocally = true;
-            } catch (IOException e) {
-                LOG.warn(
-                        "Failed to locally delete BLOB storage directory at "
-                                + jobDir.getAbsolutePath(),
-                        e);
+                    try {
+                        internalLocalCleanup(jobId);
+                    } catch (IOException e) {
+                        exception = e;
+                    }
+
+                    if (!blobStore.deleteAll(jobId)) {
+                        exception =
+                                ExceptionUtils.firstOrSuppressed(
+                                        new IOException(
+                                                "Error while cleaning up the BlobStore for job "
+                                                        + jobId),
+                                        exception);
+                    }
+
+                    if (exception != null) {
+                        throw new IOException(exception);
+                    }
+                },
+                executor);
+    }
+
+    private CompletableFuture<Void> runAsyncWithWriteLock(
+            ThrowingRunnable<IOException> runnable, Executor executor) {
+        return CompletableFuture.runAsync(
+                () -> {
+                    readWriteLock.writeLock().lock();
+                    try {
+                        runnable.run();
+                    } catch (IOException e) {
+                        throw new CompletionException(e);
+                    } finally {
+                        readWriteLock.writeLock().unlock();
+                    }
+                },
+                executor);
+    }
+
+    public void retainJobs(Collection<JobID> jobsToRetain, Executor ioExecutor) throws IOException {
+        if (storageDir.deref().exists()) {
+            final Set<JobID> jobsToRemove = BlobUtils.listExistingJobs(storageDir.deref().toPath());
+
+            jobsToRemove.removeAll(jobsToRetain);
+
+            final Collection<CompletableFuture<Void>> cleanupResultFutures =
+                    new ArrayList<>(jobsToRemove.size());
+            for (JobID jobToRemove : jobsToRemove) {
+                cleanupResultFutures.add(globalCleanupAsync(jobToRemove, ioExecutor));
             }
 
-            // delete in HA blob store files
-            final boolean deletedHA = !cleanupBlobStoreFiles || blobStore.deleteAll(jobId);
-
-            return deletedLocally && deletedHA;
-        } finally {
-            readWriteLock.writeLock().unlock();
+            try {
+                FutureUtils.completeAll(cleanupResultFutures).get();
+            } catch (InterruptedException | ExecutionException e) {
+                ExceptionUtils.rethrowIOException(e);
+            }
         }
     }
 

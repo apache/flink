@@ -24,8 +24,10 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.RestfulGateway;
 import org.apache.flink.util.AutoCloseableAsync;
@@ -176,16 +178,14 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
         createdDispatcherService
                 .getTerminationFuture()
                 .whenComplete(
-                        (ignored, throwable) -> {
-                            runIfStateIs(
-                                    State.RUNNING,
-                                    () -> {
-                                        handleError(
-                                                new FlinkException(
-                                                        "Unexpected termination of DispatcherService.",
-                                                        throwable));
-                                    });
-                        });
+                        (ignored, throwable) ->
+                                runIfStateIs(
+                                        State.RUNNING,
+                                        () ->
+                                                handleError(
+                                                        new FlinkException(
+                                                                "Unexpected termination of DispatcherService.",
+                                                                throwable))));
     }
 
     final <V> Optional<V> supplyUnsynchronizedIfRunning(Supplier<V> supplier) {
@@ -257,9 +257,11 @@ public abstract class AbstractDispatcherLeaderProcess implements DispatcherLeade
     /** Factory for {@link DispatcherGatewayService}. */
     public interface DispatcherGatewayServiceFactory {
         DispatcherGatewayService create(
-                DispatcherId fencingToken,
+                DispatcherId dispatcherId,
                 Collection<JobGraph> recoveredJobs,
-                JobGraphWriter jobGraphWriter);
+                Collection<JobResult> recoveredDirtyJobResults,
+                JobGraphWriter jobGraphWriter,
+                JobResultStore jobResultStore);
     }
 
     /** An accessor of the {@link DispatcherGateway}. */

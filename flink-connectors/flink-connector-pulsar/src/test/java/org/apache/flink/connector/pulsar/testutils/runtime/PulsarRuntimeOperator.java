@@ -22,7 +22,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicPartition;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
-import org.apache.flink.connectors.test.common.external.ExternalContext;
+import org.apache.flink.connector.testframe.external.ExternalContext;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
@@ -91,13 +91,18 @@ public class PulsarRuntimeOperator implements Serializable, Closeable {
     }
 
     public <T> void setupTopic(String topic, Schema<T> schema, Supplier<T> supplier) {
+        setupTopic(topic, schema, supplier, NUM_RECORDS_PER_PARTITION);
+    }
+
+    public <T> void setupTopic(
+            String topic, Schema<T> schema, Supplier<T> supplier, int numRecordsPerSplit) {
         createTopic(topic, DEFAULT_PARTITIONS);
 
-        // Make sure every topic partition has message.
+        // Make sure every topic partition has messages.
         for (int i = 0; i < DEFAULT_PARTITIONS; i++) {
             String partitionName = TopicNameUtils.topicNameWithPartition(topic, i);
             List<T> messages =
-                    Stream.generate(supplier).limit(NUM_RECORDS_PER_PARTITION).collect(toList());
+                    Stream.generate(supplier).limit(numRecordsPerSplit).collect(toList());
 
             sendMessages(partitionName, schema, messages);
         }
@@ -204,7 +209,6 @@ public class PulsarRuntimeOperator implements Serializable, Closeable {
         Configuration configuration = new Configuration();
         configuration.set(PULSAR_SERVICE_URL, serviceUrl());
         configuration.set(PULSAR_ADMIN_URL, adminUrl());
-
         return configuration;
     }
 

@@ -61,6 +61,12 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
     @Override
     public CastExecutor<IN, OUT> create(
             CastRule.Context context, LogicalType inputLogicalType, LogicalType targetLogicalType) {
+        if (this.canFail()) {
+            // We can't use the ExpressionEvaluator because we need proper wrapping of the eventual
+            // exception
+            return super.create(context, inputLogicalType, targetLogicalType);
+        }
+
         final String inputArgumentName = "inputValue";
 
         final String expression =
@@ -97,6 +103,11 @@ abstract class AbstractExpressionCodeGeneratorCastRule<IN, OUT>
     private static CodeGeneratorCastRule.Context createCodeGeneratorCastRuleContext(
             CastRule.Context ctx) {
         return new CodeGeneratorCastRule.Context() {
+            @Override
+            public boolean legacyBehaviour() {
+                return ctx.legacyBehaviour();
+            }
+
             @Override
             public String getSessionTimeZoneTerm() {
                 return "java.util.TimeZone.getTimeZone(\"" + ctx.getSessionZoneId().getId() + "\")";

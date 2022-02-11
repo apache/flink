@@ -17,6 +17,7 @@
 
 package org.apache.flink.metrics.groups;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.metrics.Gauge;
 
 /**
@@ -24,6 +25,7 @@ import org.apache.flink.metrics.Gauge;
  *
  * <p>You should only update the metrics in the main operator thread.
  */
+@PublicEvolving
 public interface SplitEnumeratorMetricGroup extends OperatorCoordinatorMetricGroup {
     /**
      * Sets an optional gauge for the number of splits that have been enumerated but not yet

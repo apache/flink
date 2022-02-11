@@ -177,10 +177,6 @@ public final class DecimalDataUtils {
         return fromBigDecimal(dec.toBigDecimal(), precision, scale);
     }
 
-    public static boolean castToBoolean(DecimalData dec) {
-        return dec.toBigDecimal().compareTo(BigDecimal.ZERO) != 0;
-    }
-
     public static DecimalData castFrom(DecimalData dec, int precision, int scale) {
         return fromBigDecimal(dec.toBigDecimal(), precision, scale);
     }
@@ -197,8 +193,8 @@ public final class DecimalDataUtils {
         return fromBigDecimal(BigDecimal.valueOf(val), p, s);
     }
 
-    public static DecimalData castFrom(boolean val, int p, int s) {
-        return fromBigDecimal(BigDecimal.valueOf((val ? 1 : 0)), p, s);
+    public static boolean castToBoolean(DecimalData dec) {
+        return dec.toBigDecimal().compareTo(BigDecimal.ZERO) != 0;
     }
 
     /**

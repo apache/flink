@@ -173,7 +173,7 @@ jar which must be explicitly included as a dependency in the `pom.xml` of your p
 </dependency>
 ```
 
-For more on this, you can check how to [set up a Flink program]({{< ref "docs/dev/datastream/project-configuration" >}}).
+For more on this, you can check how to [set up a Flink program]({{< ref "docs/dev/configuration/overview" >}}).
 
 The `QueryableStateClient` will submit your query to the internal proxy, which will then process your query and return 
 the final result. The only requirement to initialize the client is to provide a valid `TaskManager` hostname (remember 

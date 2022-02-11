@@ -78,12 +78,11 @@ class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayD
                         arraySize,
                         (index, loopWriter) -> {
                             CastCodeBlock codeBlock =
-                                    CastRuleProvider.generateCodeBlock(
+                                    // Null check is done at the array access level
+                                    CastRuleProvider.generateAlwaysNonNullCodeBlock(
                                             context,
                                             rowFieldReadAccess(index, inputTerm, innerInputType),
-                                            "false",
-                                            // Null check is done at the array access level
-                                            innerInputType.copy(false),
+                                            innerInputType,
                                             innerTargetType);
 
                             if (innerTargetType.isNullable()) {

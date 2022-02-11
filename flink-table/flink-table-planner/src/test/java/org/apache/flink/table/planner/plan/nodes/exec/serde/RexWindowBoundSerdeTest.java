@@ -23,17 +23,17 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
-import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
-import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.rex.RexWindowBounds;
 import org.junit.Test;
+
+import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
 
@@ -41,56 +41,52 @@ import static org.junit.Assert.assertEquals;
 public class RexWindowBoundSerdeTest {
 
     @Test
-    public void testSerde() throws JsonProcessingException {
+    public void testSerde() throws IOException {
         SerdeContext serdeCtx =
                 new SerdeContext(
+                        null,
                         new FlinkContextImpl(
                                 false,
                                 TableConfig.getDefault(),
                                 new ModuleManager(),
                                 null,
-                                null,
+                                CatalogManagerMocks.createEmptyCatalogManager(),
                                 null),
                         Thread.currentThread().getContextClassLoader(),
                         FlinkTypeFactory.INSTANCE(),
                         FlinkSqlOperatorTable.instance());
-        ObjectMapper mapper = JsonSerdeUtil.createObjectMapper(serdeCtx);
-        SimpleModule module = new SimpleModule();
-        module.addSerializer(new RexWindowBoundJsonSerializer());
-        module.addDeserializer(RexWindowBound.class, new RexWindowBoundJsonDeserializer());
-        module.addSerializer(new RexNodeJsonSerializer());
-        module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
-        module.addSerializer(new RelDataTypeJsonSerializer());
-        module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
-        mapper.registerModule(module);
+        ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
+        ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
         assertEquals(
                 RexWindowBounds.CURRENT_ROW,
-                mapper.readValue(
-                        mapper.writeValueAsString(RexWindowBounds.CURRENT_ROW),
+                objectReader.readValue(
+                        objectWriter.writeValueAsString(RexWindowBounds.CURRENT_ROW),
                         RexWindowBound.class));
 
         assertEquals(
                 RexWindowBounds.UNBOUNDED_FOLLOWING,
-                mapper.readValue(
-                        mapper.writeValueAsString(RexWindowBounds.UNBOUNDED_FOLLOWING),
+                objectReader.readValue(
+                        objectWriter.writeValueAsString(RexWindowBounds.UNBOUNDED_FOLLOWING),
                         RexWindowBound.class));
 
         assertEquals(
                 RexWindowBounds.UNBOUNDED_PRECEDING,
-                mapper.readValue(
-                        mapper.writeValueAsString(RexWindowBounds.UNBOUNDED_PRECEDING),
+                objectReader.readValue(
+                        objectWriter.writeValueAsString(RexWindowBounds.UNBOUNDED_PRECEDING),
                         RexWindowBound.class));
 
         RexBuilder builder = new RexBuilder(FlinkTypeFactory.INSTANCE());
         RexWindowBound windowBound = RexWindowBounds.following(builder.makeLiteral("test"));
         assertEquals(
                 windowBound,
-                mapper.readValue(mapper.writeValueAsString(windowBound), RexWindowBound.class));
+                objectReader.readValue(
+                        objectWriter.writeValueAsString(windowBound), RexWindowBound.class));
 
         windowBound = RexWindowBounds.preceding(builder.makeLiteral("test"));
         assertEquals(
                 windowBound,
-                mapper.readValue(mapper.writeValueAsString(windowBound), RexWindowBound.class));
+                objectReader.readValue(
+                        objectWriter.writeValueAsString(windowBound), RexWindowBound.class));
     }
 }

@@ -20,8 +20,6 @@ package org.apache.flink.table.factories;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.api.AmbiguousTableFactoryException;
-import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.descriptors.Descriptor;
 import org.apache.flink.table.descriptors.Schema;
@@ -45,6 +43,7 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 
 /** Unified class to search for a {@link TableFactory} of provided type and properties. */
+@Deprecated
 @Internal
 public class TableFactoryService {
 

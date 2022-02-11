@@ -53,9 +53,13 @@ public class MessageIdStartCursor implements StartCursor {
                     messageId instanceof MessageIdImpl,
                     "We only support normal message id and batch message id.");
             MessageIdImpl id = (MessageIdImpl) messageId;
-            this.messageId =
-                    new MessageIdImpl(
-                            id.getLedgerId(), id.getEntryId() + 1, id.getPartitionIndex());
+            if (MessageId.earliest.equals(messageId) || MessageId.latest.equals(messageId)) {
+                this.messageId = messageId;
+            } else {
+                this.messageId =
+                        new MessageIdImpl(
+                                id.getLedgerId(), id.getEntryId() + 1, id.getPartitionIndex());
+            }
         }
     }
 

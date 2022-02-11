@@ -53,6 +53,7 @@ import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nonnull;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -66,8 +67,9 @@ import java.util.stream.Stream;
 /** State backend which produces in memory mock state objects. */
 public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
-    /** Whether to create empty snapshot ({@link MockKeyedStateHandle} isn't recognized by JM). */
-    private final boolean emptySnapshot;
+    private long lastCompletedCheckpointID;
+
+    private final MockSnapshotSupplier snapshotSupplier;
 
     private interface StateFactory {
         <N, SV, S extends State, IS extends S> IS createInternalState(
@@ -109,7 +111,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters,
             CloseableRegistry cancelStreamRegistry,
             InternalKeyContext<K> keyContext,
-            boolean emptySnapshot) {
+            MockSnapshotSupplier snapshotSupplier) {
         super(
                 kvStateRegistry,
                 keySerializer,
@@ -121,7 +123,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 keyContext);
         this.stateValues = stateValues;
         this.stateSnapshotFilters = stateSnapshotFilters;
-        this.emptySnapshot = emptySnapshot;
+        this.snapshotSupplier = snapshotSupplier;
     }
 
     @Override
@@ -188,7 +190,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) {
-        // noop
+        lastCompletedCheckpointID = checkpointId;
     }
 
     @Override
@@ -224,13 +226,7 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
             long timestamp,
             @Nonnull CheckpointStreamFactory streamFactory,
             @Nonnull CheckpointOptions checkpointOptions) {
-        return new FutureTask<>(
-                () ->
-                        emptySnapshot
-                                ? SnapshotResult.empty()
-                                : SnapshotResult.of(
-                                        new MockKeyedStateHandle<>(
-                                                copy(stateValues, stateSnapshotFilters))));
+        return new FutureTask<>(() -> snapshotSupplier.snapshot(stateValues, stateSnapshotFilters));
     }
 
     @Nonnull
@@ -300,6 +296,10 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
                 0);
     }
 
+    public long getLastCompletedCheckpointID() {
+        return lastCompletedCheckpointID;
+    }
+
     static class MockKeyedStateHandle<K> implements KeyedStateHandle {
         private static final long serialVersionUID = 1L;
 
@@ -320,7 +320,12 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         }
 
         @Override
-        public void registerSharedStates(SharedStateRegistry stateRegistry) {}
+        public long getCheckpointedSize() {
+            return getStateSize();
+        }
+
+        @Override
+        public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {}
 
         @Override
         public KeyGroupRange getKeyGroupRange() {
@@ -331,5 +336,37 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         public KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
             throw new UnsupportedOperationException();
         }
+    }
+
+    public interface MockSnapshotSupplier extends Serializable {
+        MockSnapshotSupplier EMPTY =
+                new MockSnapshotSupplier() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public <K> SnapshotResult<KeyedStateHandle> snapshot(
+                            Map<String, Map<K, Map<Object, Object>>> stateValues,
+                            Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters) {
+                        return SnapshotResult.empty();
+                    }
+                };
+
+        MockSnapshotSupplier DEFAULT =
+                new MockSnapshotSupplier() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public <K> SnapshotResult<KeyedStateHandle> snapshot(
+                            Map<String, Map<K, Map<Object, Object>>> stateValues,
+                            Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters) {
+                        return SnapshotResult.of(
+                                new MockKeyedStateHandle<>(
+                                        copy(stateValues, stateSnapshotFilters)));
+                    }
+                };
+
+        <K> SnapshotResult<KeyedStateHandle> snapshot(
+                Map<String, Map<K, Map<Object, Object>>> stateValues,
+                Map<String, StateSnapshotTransformer<Object>> stateSnapshotFilters);
     }
 }

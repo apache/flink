@@ -46,13 +46,6 @@ In contrast to all this, Savepoints are created, owned, and deleted by the user.
 changing parallelism, forking a second job like for a red/blue deployment, and so on. Of course, Savepoints must survive job termination. Conceptually, Savepoints can be a bit more expensive to produce and restore and focus
 more on portability and support for the previously mentioned changes to the job.
 
-Flink's savepoint binary format is unified across all state backends. That means you can take a savepoint with one state backend and then restore it using another.
-
-{{< hint info >}}
-State backends did not start producing a common format until version 1.13. Therefore, if you want to switch the state backend you should first upgrade your Flink version then
-take a savepoint with the new version, and only after that, you can restore it with a different state backend.
-{{< /hint >}}
-
 ## Assigning Operator IDs
 
 It is **highly recommended** that you adjust your programs as described in this section in order to be able to upgrade your programs in the future. The main required change is to manually specify operator IDs via the **`uid(String)`** method. These IDs are used to scope the state of each operator.
@@ -130,9 +123,48 @@ Unlike savepoints, checkpoints cannot generally be moved to a different location
 
 If you use `JobManagerCheckpointStorage`, metadata *and* savepoint state will be stored in the `_metadata` file, so don't be confused by the absence of additional data files.
 
-{{< hint warning  >}}
-It is discouraged to move or delete the last savepoint of a running job, because this might interfere with failure-recovery. Savepoints have side-effects on exactly-once sinks, therefore 
-to ensure exactly-once semantics, if there is no checkpoint after the last savepoint, the savepoint will be used for recovery. 
+{{< hint warning  >}} 
+Starting from Flink 1.15 intermediate savepoints (savepoints other than
+created with [stop-with-savepoint](#stopping-a-job-with-savepoint)) are not used for recovery and do
+not commit any side effects.
+
+This has to be taken into consideration, especially when running multiple jobs in the same
+checkpointing timeline. It is possible in that solution that if the original job (after taking a
+savepoint) fails, then it will fall back to a checkpoint prior to the savepoint. However, if we now
+resume a job from the savepoint, then we might commit transactions that might’ve never happened
+because of falling back to a checkpoint before the savepoint (assuming non-determinism).
+
+If one wants to be safe in those scenarios, we advise dropping the state of transactional sinks, by
+changing sinks [uids](#assigning-operator-ids).
+
+It should not require any additional steps if there is just a single job running in the same
+checkpointing timeline, which means that you stop the original job before running a new job from the
+savepoint. 
+{{< /hint >}}
+
+#### Savepoint format
+
+You can choose between two binary formats of a savepoint:
+
+* canonical format - a format that has been unified across all state backends, which lets you take a
+  savepoint with one state backend and then restore it using another. This is the most stable
+  format, that is targeted at maintaining the most compatibility with previous versions, schemas,
+  modifications etc. 
+  
+{{< hint info >}}
+State backends did not start producing a common canonical format until version 1.13. Therefore, if
+you want to switch the state backend you should first upgrade your Flink version then take a
+savepoint with the new version, and only after that, you can restore it with a different state
+backend.
+{{< /hint >}}
+
+* native format - the downside of the canonical format is that often it is slow to take and restore
+  from. Native format creates a snapshot in the format specific for the used state backend (e.g. SST
+  files for RocksDB).
+
+{{< hint info >}}
+The possibility to trigger a savepoint in the native format was introduced in Flink 1.15. Up until
+then savepoints were created in the canonical format.
 {{< /hint >}}
 
 #### Trigger a Savepoint
@@ -141,7 +173,13 @@ to ensure exactly-once semantics, if there is no checkpoint after the last savep
 $ bin/flink savepoint :jobId [:targetDirectory]
 ```
 
-This will trigger a savepoint for the job with ID `:jobId`, and returns the path of the created savepoint. You need this path to restore and dispose savepoints.
+This will trigger a savepoint for the job with ID `:jobId`, and returns the path of the created
+savepoint. You need this path to restore and dispose savepoints. You can also pass a type in which
+the savepoint should be taken. If not specified the savepoint will be taken in canonical format.
+
+```shell
+$ bin/flink savepoint -type [native/canonical] :jobId [:targetDirectory]
+```
 
 #### Trigger a Savepoint with YARN
 
@@ -150,7 +188,6 @@ $ bin/flink savepoint :jobId [:targetDirectory] -yid :yarnAppId
 ```
 
 This will trigger a savepoint for the job with ID `:jobId` and YARN application ID `:yarnAppId`, and returns the path of the created savepoint.
-
 #### Stopping a Job with Savepoint
 
 ```shell
@@ -171,9 +208,93 @@ This submits a job and specifies a savepoint to resume from. You may give a path
 
 By default the resume operation will try to map all state of the savepoint back to the program you are restoring with. If you dropped an operator, you can allow to skip state that cannot be mapped to the new program via `--allowNonRestoredState` (short: `-n`) option:
 
+#### Restore mode
+
+Flink 1.15 changed and at the same time added a possibility to choose a mode in which savepoints or 
+[externalized checkpoints]({{< ref "docs/ops/state/checkpoints" >}}/#resuming-from-a-retained-checkpoint)
+can be restored. Both savepoints and externalized checkpoints behave similarly in that context and
+will be referenced as snapshots, unless we need to explain specific properties of one of the two.
+
+The restore mode determines who takes ownership of the files of the snapshots that we are restoring
+from. Snapshots can be owned either by a user or Flink itself. If a snapshot is owned by a user,
+Flink will not delete its files, moreover, Flink can not depend on the existence of the files from
+such a snapshot, as it might be deleted outside of Flink's control. 
+
+There is no one perfect restore mode, each comes with its own price, but they can serve different
+purposes. Nevertheless, we believe the default *NO_CLAIM* mode is a good tradeoff for most usages,
+as it provides clear ownership with a small price for the first checkpoint after the restore.
+
+You can pass the restore mode as:
 ```shell
-$ bin/flink run -s :savepointPath -n [:runArgs]
+$ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
 ```
+
+**NO_CLAIM (default)**
+
+In the *NO_CLAIM* mode Flink will not assume ownership of the snapshot. It will leave the files in
+user's control and never delete any of the files. In this mode you can start multiple jobs from the
+same snapshot.
+
+In order to make sure Flink does not depend on any of the files from that snapshot,
+it will force the first, completed checkpoint after the restore to be a full one. What it means,
+depends on the chosen state backend. For example, it makes no difference for the hashmap state
+backend, as there checkpoints never share files. On the other hand, RocksDB state backend might need
+to either reupload or duplicate some files that were previously uploaded for the restored snapshot,
+making the first checkpoint after restore non-incremental. 
+
+Once the first full checkpoint completes, all subsequent checkpoints will be taken as usual.
+Consequently, once a checkpoint succeeds it is safe to delete the original snapshot. We can not do
+that earlier, because if we do not have any completed checkpoints, we will try to fail over to the
+one we restored from.
+
+<div style="text-align: center">
+  {{< img src="/fig/restore-mode-no_claim.svg" alt="NO_CLAIM restore mode" width="70%" >}}
+</div>
+
+**CLAIM**
+
+The other available mode is the *CLAIM* mode. In this mode Flink will claim the ownership of the snapshot
+and might delete it at a certain point in time, once it becomes subsumed. Flink keeps around
+a [configured number]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing" >}}/#state-checkpoints-num-retained)
+of checkpoints. Moreover, the snapshot becomes owned by Flink, it is no longer safe to remove it
+manually. Moreover, Flink might immediately build an incremental checkpoint on top of the initial
+snapshot.
+
+{{< hint warning >}}
+You should not start multiple jobs from the same snapshot, if you claim it. One of the jobs can remove
+the snapshot, while others still depend on it.
+{{< /hint >}}
+
+<div style="text-align: center">
+  {{< img src="/fig/restore-mode-claim.svg" alt="CLAIM restore mode" width="70%" >}}
+</div>
+
+{{< hint warning >}}
+**Attention:**
+1. Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk_<x>`. Flink does not
+take ownership of the `<checkpoint_dir>/<job_id>` directory, but only the `chk_<x>`. The directory
+of the old job will not be deleted by Flink
+
+2. [Native](#savepoint-format) format supports incremental RocksDB savepoints. For those savepoints Flink puts all
+SST files inside the savepoints directory. This means such savepoints are self-contained and relocatable.
+However, when restored in CLAIM mode, subsequent checkpoints might reuse some SST files, which
+in turn might block deleting the savepoints directory at the time the savepoint is subsumed. Later
+on Flink will delete the reused shared SST files, but it won't retry deleting the savepoints directory.
+Therefore, it is possible Flink leaves an empty savepoints directory if it was restored in CLAIM mode.    
+{{< /hint >}}
+
+**LEGACY**
+
+The legacy is mode is how Flink worked until 1.15. The biggest downside of the mode is that it is
+not clear who owns the snapshot that is restored. In the mode Flink will never delete the initial
+checkpoint. At the same time, it is not clear if a user can ever delete it as well. The problem here,
+is that Flink might immediately build an incremental checkpoint on top of the restored one. Therefore,
+subsequent checkpoints depend on the restored checkpoint.
+
+<div style="text-align: center">
+  {{< img src="/fig/restore-mode-legacy.svg" alt="LEGACY restore mode" width="70%" >}}
+</div>
+
 
 ### Disposing Savepoints
 

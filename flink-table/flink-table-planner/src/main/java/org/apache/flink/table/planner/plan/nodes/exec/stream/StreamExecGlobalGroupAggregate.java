@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -31,9 +32,12 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonDeserializer;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
@@ -71,8 +75,18 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stream {@link ExecNode} for unbounded global group aggregate. */
+@ExecNodeMetadata(
+        name = "stream-exec-global-group-aggregate",
+        version = 1,
+        producedTransformations =
+                StreamExecGlobalGroupAggregate.GLOBAL_GROUP_AGGREGATE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
+
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGlobalGroupAggregate.class);
+
+    public static final String GLOBAL_GROUP_AGGREGATE_TRANSFORMATION = "global-group-aggregate";
 
     public static final String FIELD_NAME_LOCAL_AGG_INPUT_ROW_TYPE = "localAggInputRowType";
     public static final String FIELD_NAME_INDEX_OF_COUNT_STAR = "indexOfCountStar";
@@ -118,6 +132,8 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
             RowType outputType,
             String description) {
         this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecGlobalGroupAggregate.class),
                 grouping,
                 aggCalls,
                 aggCallNeedRetractions,
@@ -125,7 +141,6 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                 generateUpdateBefore,
                 needRetraction,
                 indexOfCountStar,
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -133,6 +148,8 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
     @JsonCreator
     public StreamExecGlobalGroupAggregate(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS) boolean[] aggCallNeedRetractions,
@@ -140,11 +157,10 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
             @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
             @JsonProperty(FIELD_NAME_INDEX_OF_COUNT_STAR) @Nullable Integer indexOfCountStar,
-            @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, inputProperties, outputType, description);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
         this.aggCallNeedRetractions = checkNotNull(aggCallNeedRetractions);
@@ -248,9 +264,10 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
         // partitioned aggregation
         final OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
+                ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getDescription(),
+                        createTransformationMeta(
+                                GLOBAL_GROUP_AGGREGATE_TRANSFORMATION, tableConfig),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

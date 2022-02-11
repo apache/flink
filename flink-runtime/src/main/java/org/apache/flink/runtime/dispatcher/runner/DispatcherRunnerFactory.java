@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
+import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -32,7 +32,7 @@ public interface DispatcherRunnerFactory {
     DispatcherRunner createDispatcherRunner(
             LeaderElectionService leaderElectionService,
             FatalErrorHandler fatalErrorHandler,
-            JobGraphStoreFactory jobGraphStoreFactory,
+            JobPersistenceComponentFactory jobPersistenceComponentFactory,
             Executor ioExecutor,
             RpcService rpcService,
             PartialDispatcherServices partialDispatcherServices)

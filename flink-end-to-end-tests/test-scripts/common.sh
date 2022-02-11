@@ -21,7 +21,7 @@
 #set -Eexuo pipefail
 set -o pipefail
 
-if [[ -z $FLINK_DIR ]]; then
+if [[ -z "${FLINK_DIR:-}" ]]; then
     echo "FLINK_DIR needs to point to a Flink distribution directory"
     exit 1
 fi
@@ -51,7 +51,7 @@ cd $TEST_ROOT
 
 source "${TEST_INFRA_DIR}/common_utils.sh"
 
-NODENAME=${NODENAME:-`hostname -f`}
+NODENAME=${NODENAME:-"localhost"}
 
 # REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
 # they should be used in curl command to query Flink REST API
@@ -145,6 +145,16 @@ function add_optional_plugin() {
 
     mkdir -p "$plugin_dir"
     cp "$FLINK_DIR/opt/flink-$plugin"*".jar" "$plugin_dir"
+}
+
+function swap_planner_loader_with_planner_scala() {
+  mv "$FLINK_DIR/lib/flink-table-planner-loader"*".jar" "$FLINK_DIR/opt"
+  mv "$FLINK_DIR/opt/flink-table-planner_"*".jar" "$FLINK_DIR/lib"
+}
+
+function swap_planner_scala_with_planner_loader() {
+  mv "$FLINK_DIR/opt/flink-table-planner-loader"*".jar" "$FLINK_DIR/lib"
+  mv "$FLINK_DIR/lib/flink-table-planner_"*".jar" "$FLINK_DIR/opt"
 }
 
 function delete_config_key() {
@@ -264,14 +274,23 @@ function wait_rest_endpoint_up {
   # wait at most 30 seconds until the endpoint is up
   local TIMEOUT=30
   for i in $(seq 1 ${TIMEOUT}); do
+    local log_file=$(mktemp)
     # without the || true this would exit our script if the endpoint is not yet up
-    QUERY_RESULT=$(curl ${CURL_SSL_ARGS} "$query_url" 2> /dev/null || true)
+    QUERY_RESULT=$(curl -v ${CURL_SSL_ARGS} "$query_url" 2> ${log_file} || true)
 
     # ensure the response adapts with the successful regex
     if [[ ${QUERY_RESULT} =~ ${successful_response_regex} ]]; then
       echo "${endpoint_name} REST endpoint is up."
       return
+    else
+      echo "***************** Curl detailed output *****************"
+      echo "QUERY_RESULT is ${QUERY_RESULT}"
+      cat ${log_file}
+      echo "********************************************************"
     fi
+
+    # Remove the temporary file
+    rm ${log_file}
 
     echo "Waiting for ${endpoint_name} REST endpoint to come up..."
     sleep 1
@@ -369,6 +388,7 @@ function check_logs_for_errors {
       | grep -v "error_prone_annotations" \
       | grep -v "Error sending fetch request" \
       | grep -v "WARN  akka.remote.ReliableDeliverySupervisor" \
+      | grep -v "Options.*error_*" \
       | grep -ic "error" || true)
   if [[ ${error_count} -gt 0 ]]; then
     echo "Found error in log files; printing first 500 lines; see full logs for details:"

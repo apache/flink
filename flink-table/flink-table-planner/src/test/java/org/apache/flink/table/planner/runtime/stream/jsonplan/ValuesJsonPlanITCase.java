@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
@@ -32,10 +33,10 @@ public class ValuesJsonPlanITCase extends JsonPlanTestBase {
     @Test
     public void testValues() throws Exception {
         createTestValuesSinkTable("MySink", "b INT", "a INT", "c VARCHAR");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
                         "INSERT INTO MySink SELECT * from (VALUES (1, 2, 'Hi'), (3, 4, 'Hello'))");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        tableEnv.executePlan(compiledPlan).await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(Arrays.asList("+I[1, 2, Hi]", "+I[3, 4, Hello]"), result);

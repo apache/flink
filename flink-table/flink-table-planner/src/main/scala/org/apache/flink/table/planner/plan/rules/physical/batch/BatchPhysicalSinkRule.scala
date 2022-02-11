@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.catalog.ResolvedCatalogTable
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.abilities.sink.{PartitioningSpec, SinkAbilitySpec}
@@ -27,10 +28,10 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSink
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSink
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.types.logical.RowType
+
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.convert.ConverterRule
 import org.apache.calcite.rel.{RelCollationTraitDef, RelCollations, RelNode}
-import org.apache.flink.table.filesystem.FileSystemConnectorOptions
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable
@@ -47,7 +48,9 @@ class BatchPhysicalSinkRule extends ConverterRule(
     var requiredTraitSet = sink.getInput.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
     val abilitySpecs: mutable.ArrayBuffer[SinkAbilitySpec] =
       mutable.ArrayBuffer(sink.abilitySpecs: _*)
-    if (sink.catalogTable != null && sink.catalogTable.isPartitioned) {
+    val resolvedCatalogTable = sink.contextResolvedTable.getResolvedTable
+      .asInstanceOf[ResolvedCatalogTable]
+    if (resolvedCatalogTable.isPartitioned) {
       sink.tableSink match {
         case partitionSink: SupportsPartitioning =>
           if (sink.staticPartitions.nonEmpty) {
@@ -56,9 +59,9 @@ class BatchPhysicalSinkRule extends ConverterRule(
             abilitySpecs += partitioningSpec
           }
 
-          val dynamicPartFields = sink.catalogTable.getPartitionKeys
+          val dynamicPartFields = resolvedCatalogTable.getPartitionKeys
               .filter(!sink.staticPartitions.contains(_))
-          val fieldNames = sink.catalogTable
+          val fieldNames = resolvedCatalogTable
             .getResolvedSchema
             .toPhysicalRowDataType
             .getLogicalType.asInstanceOf[RowType]
@@ -68,12 +71,13 @@ class BatchPhysicalSinkRule extends ConverterRule(
             val dynamicPartIndices =
               dynamicPartFields.map(fieldNames.indexOf(_))
 
-            val shuffleEnable = sink
-                .catalogTable
-                .getOptions
-                .get(FileSystemConnectorOptions.SINK_SHUFFLE_BY_PARTITION.key())
+            // TODO This option is hardcoded to remove the dependency of planner from
+            //  flink-connector-files. We should move this option out of FileSystemConnectorOptions
+            val shuffleEnable = resolvedCatalogTable
+              .getOptions
+              .getOrDefault("sink.shuffle-by-partition.enable", "false")
 
-            if (shuffleEnable != null && shuffleEnable.toBoolean) {
+            if (shuffleEnable.toBoolean) {
               requiredTraitSet = requiredTraitSet.plus(
                 FlinkRelDistribution.hash(dynamicPartIndices
                     .map(Integer.valueOf), requireStrict = false))
@@ -93,7 +97,7 @@ class BatchPhysicalSinkRule extends ConverterRule(
             }
           }
         case _ => throw new TableException(
-          s"'${sink.tableIdentifier.asSummaryString()}' is a partitioned table, " +
+          s"'${sink.contextResolvedTable.getIdentifier.asSummaryString}' is a partitioned table, " +
             s"but the underlying [${sink.tableSink.asSummaryString()}] DynamicTableSink " +
             s"doesn't implement SupportsPartitioning interface.")
       }
@@ -106,8 +110,7 @@ class BatchPhysicalSinkRule extends ConverterRule(
       newTrait,
       newInput,
       sink.hints,
-      sink.tableIdentifier,
-      sink.catalogTable,
+      sink.contextResolvedTable,
       sink.tableSink,
       abilitySpecs.toArray)
   }

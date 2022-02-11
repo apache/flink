@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.functions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
@@ -50,6 +51,7 @@ import java.util.Set;
 import static org.apache.flink.table.functions.FunctionKind.AGGREGATE;
 import static org.apache.flink.table.functions.FunctionKind.OTHER;
 import static org.apache.flink.table.functions.FunctionKind.SCALAR;
+import static org.apache.flink.table.functions.FunctionKind.TABLE;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.ANY;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.COMMON_ARG_NULLABLE;
 import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
@@ -137,6 +139,26 @@ public final class BuiltInFunctionDefinitions {
                     .outputTypeStrategy(nullableIfAllArgs(COMMON))
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.scalar.CoalesceFunction")
+                    .build();
+
+    public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("$REPLICATE_ROWS$1")
+                    .kind(TABLE)
+                    .outputTypeStrategy(SpecificTypeStrategies.INTERNAL_REPLICATE_ROWS)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.table.ReplicateRowsFunction")
+                    .internal()
+                    .build();
+
+    public static final BuiltInFunctionDefinition INTERNAL_UNNEST_ROWS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("$UNNEST_ROWS$1")
+                    .kind(TABLE)
+                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.table.UnnestRowsFunction")
+                    .internal()
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -761,10 +783,10 @@ public final class BuiltInFunctionDefinitions {
                     .build();
 
     /**
-     * Special "+" operator used internally by {@code SumAggFunction} to implement SUM aggregation
-     * on a Decimal type. Uses the {@link LogicalTypeMerging#findSumAggType(LogicalType)} to avoid
-     * the normal {@link #PLUS} override the special calculation for precision and scale needed by
-     * SUM.
+     * Special "+" operator used internally for implementing SUM/AVG aggregations (with and without
+     * retractions) on a Decimal type. Uses the {@link
+     * LogicalTypeMerging#findSumAggType(LogicalType)} to prevent the normal {@link #PLUS} from
+     * overriding the special calculation for precision and scale needed by the aggregate function.
      */
     public static final BuiltInFunctionDefinition AGG_DECIMAL_PLUS =
             BuiltInFunctionDefinition.newBuilder()
@@ -799,6 +821,24 @@ public final class BuiltInFunctionDefinitions {
                                             logical(LogicalTypeFamily.INTERVAL))))
                     .outputTypeStrategy(
                             nullableIfArgs(first(SpecificTypeStrategies.DECIMAL_PLUS, COMMON)))
+                    .build();
+
+    /**
+     * Special "-" operator used internally for implementing SUM/AVG aggregations (with and without
+     * retractions) on a Decimal type. Uses the {@link
+     * LogicalTypeMerging#findSumAggType(LogicalType)} to prevent the normal {@link #MINUS} from
+     * overriding the special calculation for precision and scale needed by the aggregate function.
+     */
+    public static final BuiltInFunctionDefinition AGG_DECIMAL_MINUS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("AGG_DECIMAL_MINUS")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(
+                            sequence(
+                                    logical(LogicalTypeRoot.DECIMAL),
+                                    logical(LogicalTypeRoot.DECIMAL)))
+                    .outputTypeStrategy(SpecificTypeStrategies.AGG_DECIMAL_PLUS)
+                    .runtimeProvided()
                     .build();
 
     public static final BuiltInFunctionDefinition DIVIDE =
@@ -1723,6 +1763,7 @@ public final class BuiltInFunctionDefinitions {
 
     public static final List<FunctionDefinition> ORDERING = Arrays.asList(ORDER_ASC, ORDER_DESC);
 
+    @Internal
     public static List<BuiltInFunctionDefinition> getDefinitions() {
         final Field[] fields = BuiltInFunctionDefinitions.class.getFields();
         final List<BuiltInFunctionDefinition> list = new ArrayList<>(fields.length);

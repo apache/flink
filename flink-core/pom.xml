@@ -49,7 +49,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-shaded-asm-7</artifactId>
+			<artifactId>flink-shaded-asm-9</artifactId>
 		</dependency>
 
 		<!-- standard utilities -->
@@ -145,70 +145,6 @@ under the License.
 			<plugin>
 				<groupId>com.github.siom79.japicmp</groupId>
 				<artifactId>japicmp-maven-plugin</artifactId>
-				<configuration>
-					<parameter>
-						<excludes combine.children="append">
-							<exclude>org.apache.flink.api.common.ExecutionConfig#CONFIG_KEY</exclude>
-							<exclude>org.apache.flink.core.fs.FileSystem\$FSKey</exclude>
-							<exclude>org.apache.flink.core.fs.FileSystem#initialize(java.net.URI)</exclude>
-							<exclude>org.apache.flink.core.fs.FileSystem#isFlinkSupportedScheme(java.lang.String)</exclude>
-							<exclude>org.apache.flink.core.fs.FileSystem#setDefaultScheme(org.apache.flink.configuration.Configuration)</exclude>
-							<exclude>org.apache.flink.api.java.typeutils.WritableTypeInfo</exclude>
-							<exclude>org.apache.flink.api.java.typeutils.AvroTypeInfo</exclude>
-							<!-- Breaking changes between 1.1 and 1.2.
-							We ignore these changes because these are low-level, internal runtime configuration parameters -->
-							<exclude>org.apache.flink.configuration.ConfigConstants#DEFAULT_NETWORK_REQUEST_BACKOFF_INITIAL</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants#DEFAULT_NETWORK_REQUEST_BACKOFF_MAX</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants#DEFAULT_TASK_CANCELLATION_TIMEOUT_MILLIS</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants#ENABLE_QUARANTINE_MONITOR</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants#NETWORK_REQUEST_BACKOFF_INITIAL_KEY</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants#NETWORK_REQUEST_BACKOFF_MAX_KEY</exclude>
-
-							<!-- fields that were accidentally not final in the beginning -->
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_WATCH_THRESHOLD</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_DISPATCHER_THROUGHPUT</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_SECURITY_SSL_VERIFY_HOSTNAME</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_LOOKUP_TIMEOUT</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_TRANSPORT_HEARTBEAT_INTERVAL</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_RECOVERY_MODE</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_SECURITY_SSL_ENABLED</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_CLIENT_TIMEOUT</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_STATE_BACKEND</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_ASK_TIMEOUT</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_TRANSPORT_THRESHOLD</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_FRAMESIZE</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_SECURITY_SSL_PROTOCOL</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_LOG_LIFECYCLE_EVENTS</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_SECURITY_SSL_ALGORITHMS</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_TRANSPORT_HEARTBEAT_PAUSE</exclude>
-							<exclude>org.apache.flink.configuration.ConfigConstants.DEFAULT_AKKA_SSL_ENABLED</exclude>
-
-							<!-- apparently there is a bug in the plugin which makes it fail on this new file, event though
-								its new, and not conflicting/breaking -->
-							<exclude>org.apache.flink.api.common.serialization.DeserializationSchema</exclude>
-							<exclude>org.apache.flink.api.common.serialization.SerializationSchema</exclude>
-
-							<!-- leaked constructor in TypeHint -->
-							<exclude>org.apache.flink.api.common.typeinfo.TypeHint</exclude>
-							<exclude>org.apache.flink.api.java.typeutils.TypeInfoParser</exclude>
-
-							<!-- removed in 1.12, before that the settings were ineffective anyway -->
-							<exclude>org.apache.flink.api.common.ExecutionConfig#disableSysoutLogging()</exclude>
-							<exclude>org.apache.flink.api.common.ExecutionConfig#enableSysoutLogging()</exclude>
-							<exclude>org.apache.flink.api.common.ExecutionConfig#isSysoutLoggingEnabled()</exclude>
-
-							<!-- it was decided to remove the fold opperations in 1.12 -->
-							<exclude>org.apache.flink.api.common.functions.FoldFunction</exclude>
-							<exclude>org.apache.flink.api.common.functions.RichFoldFunction</exclude>
-
-							<!-- added method to interface in 1.13 -->
-							<exclude>org.apache.flink.api.common.functions.RuntimeContext#getJobId()</exclude>
-
-							<!-- added method to interface in 1.14 through FLIP-180 -->
-							<exclude>org.apache.flink.api.common.eventtime.WatermarkOutput#markActive()</exclude>
-						</excludes>
-					</parameter>
-				</configuration>
 			</plugin>
 
 			<!-- publish some test base classes -->

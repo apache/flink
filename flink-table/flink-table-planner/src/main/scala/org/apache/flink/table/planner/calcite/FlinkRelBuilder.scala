@@ -20,23 +20,27 @@ package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory}
-import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, WindowProperty}
+import org.apache.flink.table.planner.expressions.WindowProperty
 import org.apache.flink.table.planner.plan.QueryOperationConverter
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, LogicalWatermarkAssigner, LogicalWindowAggregate, LogicalWindowTableAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelCollation
 import org.apache.calcite.rel.`type`.RelDataTypeField
+import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.tools.RelBuilder.{AggCall, Config, GroupKey}
 import org.apache.calcite.tools.{RelBuilder, RelBuilderFactory}
 import org.apache.calcite.util.{ImmutableBitSet, Util}
+import org.apache.flink.table.catalog.ObjectIdentifier
+import org.apache.flink.table.planner.hint.FlinkHints
 
 import java.lang.Iterable
 import java.util
@@ -60,7 +64,7 @@ class FlinkRelBuilder(
   require(context != null)
 
   private val toRelNodeConverter = {
-    new QueryOperationConverter(this)
+    new QueryOperationConverter(this, context.unwrap(classOf[FlinkContext]).isBatchMode)
   }
 
   private val expandFactory: ExpandFactory = {
@@ -139,7 +143,7 @@ class FlinkRelBuilder(
   def windowAggregate(
       window: LogicalWindow,
       groupKey: GroupKey,
-      namedProperties: List[PlannerNamedWindowProperty],
+      namedProperties: List[NamedWindowProperty],
       aggCalls: Iterable[AggCall]): RelBuilder = {
     // build logical aggregate
 
@@ -183,6 +187,16 @@ class FlinkRelBuilder(
   def queryOperation(queryOperation: QueryOperation): RelBuilder = {
     val relNode = queryOperation.accept(toRelNodeConverter)
     push(relNode)
+    this
+  }
+
+  def scan(
+      identifier: ObjectIdentifier,
+      dynamicOptions: util.Map[String, String]): RelBuilder = {
+    val hints = new util.ArrayList[RelHint]
+    hints.add(RelHint.builder(FlinkHints.HINT_NAME_OPTIONS).hintOptions(dynamicOptions).build)
+    val toRelContext = ViewExpanders.simpleContext(cluster, hints)
+    push(relOptSchema.getTableForMember(identifier.toList).toRel(toRelContext))
     this
   }
 }

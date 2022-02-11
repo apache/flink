@@ -54,12 +54,14 @@ public class AsynchronousOperationResult<V> implements AsynchronouslyCreatedReso
     }
 
     @Override
+    @JsonProperty(FIELD_NAME_STATUS)
     public QueueStatus queueStatus() {
         return queueStatus;
     }
 
     @Nullable
     @Override
+    @JsonProperty(FIELD_NAME_OPERATION)
     public V resource() {
         return value;
     }

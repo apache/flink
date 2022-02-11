@@ -67,15 +67,17 @@ Format Options
       <tr>
         <th class="text-left" style="width: 25%">Option</th>
         <th class="text-center" style="width: 8%">Required</th>
+        <th class="text-center" style="width: 8%">Forwarded</th>
         <th class="text-center" style="width: 7%">Default</th>
         <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-center" style="width: 42%">Description</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>format</h5></td>
       <td>required</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Specify what format to use, here should be <code>'csv'</code>.</td>
@@ -83,6 +85,7 @@ Format Options
     <tr>
       <td><h5>csv.field-delimiter</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;"><code>,</code></td>
       <td>String</td>
       <td>Field delimiter character (<code>','</code> by default), must be single character. You can use backslash to specify special characters, e.g. <code>'\t'</code> represents the tab character.
@@ -92,6 +95,7 @@ Format Options
     <tr>
       <td><h5>csv.disable-quote-character</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>Disabled quote character for enclosing field values (false by default).
@@ -100,6 +104,7 @@ Format Options
     <tr>
       <td><h5>csv.quote-character</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;"><code>"</code></td>
       <td>String</td>
       <td>Quote character for enclosing field values (<code>"</code> by default).</td>
@@ -107,6 +112,7 @@ Format Options
     <tr>
       <td><h5>csv.allow-comments</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>Ignore comment lines that start with <code>'#'</code> (disabled by default).
@@ -115,6 +121,7 @@ Format Options
     <tr>
       <td><h5>csv.ignore-parse-errors</h5></td>
       <td>optional</td>
+      <td>no</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
       <td>Skip fields and rows with parse errors instead of failing.
@@ -123,6 +130,7 @@ Format Options
     <tr>
       <td><h5>csv.array-element-delimiter</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;"><code>;</code></td>
       <td>String</td>
       <td>Array element delimiter string for separating
@@ -131,6 +139,7 @@ Format Options
     <tr>
       <td><h5>csv.escape-character</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Escape character for escaping values (disabled by default).</td>
@@ -138,6 +147,7 @@ Format Options
     <tr>
       <td><h5>csv.null-literal</h5></td>
       <td>optional</td>
+      <td>yes</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Null literal string that is interpreted as a null value (disabled by default).</td>

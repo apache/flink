@@ -65,7 +65,7 @@ public class ConfigurationParserUtils {
     }
 
     /**
-     * Validates a condition for a config parameter and displays a standard exception, if the the
+     * Validates a condition for a config parameter and displays a standard exception, if the
      * condition does not hold.
      *
      * @param condition The condition that must hold. If the condition is false, an exception is

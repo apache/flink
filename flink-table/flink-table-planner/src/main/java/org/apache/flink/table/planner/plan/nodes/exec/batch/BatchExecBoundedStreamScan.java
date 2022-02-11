@@ -19,12 +19,14 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -52,7 +54,12 @@ public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
             List<String> qualifiedName,
             RowType outputType,
             String description) {
-        super(Collections.emptyList(), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecBoundedStreamScan.class),
+                Collections.emptyList(),
+                outputType,
+                description);
         this.dataStream = dataStream;
         this.sourceType = sourceType;
         this.fieldIndexes = fieldIndexes;
@@ -63,6 +70,7 @@ public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final Transformation<?> sourceTransform = dataStream.getTransformation();
+        final Configuration config = planner.getTableConfig().getConfiguration();
         if (needInternalConversion()) {
             return ScanUtil.convertToInternalRow(
                     new CodeGeneratorContext(planner.getTableConfig()),
@@ -71,6 +79,9 @@ public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
                     sourceType,
                     (RowType) getOutputType(),
                     qualifiedName,
+                    (detailName, simplifyName) ->
+                            createFormattedTransformationName(detailName, simplifyName, config),
+                    (description) -> createFormattedTransformationDescription(description, config),
                     JavaScalaConversionUtil.toScala(Optional.empty()),
                     "",
                     "");

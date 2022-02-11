@@ -61,19 +61,21 @@ flink-table/flink-sql-parser-hive,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\
+flink-table/flink-table-api-bridge-base,\
 flink-table/flink-table-api-java-bridge,\
 flink-table/flink-table-api-scala-bridge,\
 flink-table/flink-sql-client,\
 flink-table/flink-table-planner,\
+flink-table/flink-table-planner-loader,\
 flink-table/flink-table-runtime,\
-flink-table/flink-table-code-splitter"
+flink-table/flink-table-code-splitter,\
+flink-table/flink-table-test-utils"
 
 MODULES_CONNECTORS="\
 flink-contrib/flink-connector-wikiedits,\
 flink-filesystems,\
 flink-filesystems/flink-fs-hadoop-shaded,\
 flink-filesystems/flink-hadoop-fs,\
-flink-filesystems/flink-mapr-fs,\
 flink-filesystems/flink-oss-fs-hadoop,\
 flink-filesystems/flink-s3-fs-base,\
 flink-filesystems/flink-s3-fs-hadoop,\
@@ -94,6 +96,7 @@ flink-connectors/flink-connector-hbase-2.2,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors,\
+flink-connectors/flink-connector-files,\
 flink-connectors/flink-connector-jdbc,\
 flink-connectors/flink-connector-cassandra,\
 flink-connectors/flink-connector-elasticsearch6,\
@@ -105,6 +108,8 @@ flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
 flink-connectors/flink-connector-twitter,\
 flink-connectors/flink-connector-kinesis,\
+flink-connectors/flink-connector-aws-kinesis-data-streams,\
+flink-connectors/flink-connector-aws-kinesis-firehose,\
 flink-metrics/flink-metrics-dropwizard,\
 flink-metrics/flink-metrics-graphite,\
 flink-metrics/flink-metrics-jmx,\

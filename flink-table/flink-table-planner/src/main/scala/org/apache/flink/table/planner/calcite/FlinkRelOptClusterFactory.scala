@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.metadata.{FlinkDefaultRelMetadataProv
 import org.apache.calcite.plan.{RelOptCluster, RelOptPlanner}
 import org.apache.calcite.rel.metadata.{DefaultRelMetadataProvider, RelMetadataQuery}
 import org.apache.calcite.rex.RexBuilder
+import org.apache.flink.table.planner.hint.FlinkHintStrategies
 
 import java.util.function.Supplier
 
@@ -38,6 +39,7 @@ object FlinkRelOptClusterFactory {
     cluster.setMetadataQuerySupplier(new Supplier[RelMetadataQuery]() {
       def get: FlinkRelMetadataQuery = FlinkRelMetadataQuery.instance()
     })
+    cluster.setHintStrategies(FlinkHintStrategies.createHintStrategyTable())
     cluster
   }
 

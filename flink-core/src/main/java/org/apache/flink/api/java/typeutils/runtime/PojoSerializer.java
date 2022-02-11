@@ -50,6 +50,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -163,12 +164,30 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
     @Override
     public PojoSerializer<T> duplicate() {
-        boolean stateful = false;
-        TypeSerializer<?>[] duplicateFieldSerializers = new TypeSerializer[fieldSerializers.length];
+        TypeSerializer<Object>[] duplicateFieldSerializers = duplicateSerializers(fieldSerializers);
+        TypeSerializer<Object>[] duplicateRegisteredSerializers =
+                duplicateSerializers(registeredSerializers);
 
-        for (int i = 0; i < fieldSerializers.length; i++) {
-            duplicateFieldSerializers[i] = fieldSerializers[i].duplicate();
-            if (duplicateFieldSerializers[i] != fieldSerializers[i]) {
+        return new PojoSerializer<>(
+                clazz,
+                fields,
+                duplicateFieldSerializers,
+                new LinkedHashMap<>(registeredClasses),
+                duplicateRegisteredSerializers,
+                subclassSerializerCache.entrySet().stream()
+                        .collect(
+                                Collectors.toMap(Map.Entry::getKey, e -> e.getValue().duplicate())),
+                executionConfig);
+    }
+
+    @SuppressWarnings("unchecked")
+    private TypeSerializer<Object>[] duplicateSerializers(TypeSerializer<?>[] serializers) {
+        boolean stateful = false;
+        TypeSerializer<?>[] duplicateSerializers = new TypeSerializer[serializers.length];
+
+        for (int i = 0; i < serializers.length; i++) {
+            duplicateSerializers[i] = serializers[i].duplicate();
+            if (duplicateSerializers[i] != serializers[i]) {
                 // at least one of them is stateful
                 stateful = true;
             }
@@ -176,12 +195,9 @@ public final class PojoSerializer<T> extends TypeSerializer<T> {
 
         if (!stateful) {
             // as a small memory optimization, we can share the same object between instances
-            duplicateFieldSerializers = fieldSerializers;
+            duplicateSerializers = serializers;
         }
-
-        // we must create a new instance, otherwise the subclassSerializerCache can create
-        // concurrency problems
-        return new PojoSerializer<>(clazz, duplicateFieldSerializers, fields, executionConfig);
+        return (TypeSerializer<Object>[]) duplicateSerializers;
     }
 
     @Override

@@ -52,7 +52,7 @@ import java.util.Map;
  * produced {@link RowData}, then it should implement {@link ProjectableDecodingFormat}. {@link
  * ProjectableDecodingFormat#createRuntimeDecoder(DynamicTableSource.Context, DataType, int[][])}
  * provides the {@code physicalDataType} as described above and provides {@code projections} to
- * compute the type to produce using {@code DataType.projectFields(physicalDataType, projections)}.
+ * compute the type to produce using {@code Projection.of(projections).project(physicalDataType)}.
  * For example, a JSON format implementation may match the fields based on the JSON object keys,
  * hence it can easily produce {@link RowData} excluding unused object values and set values inside
  * the {@link RowData} using the index provided by the {@code projections} array.
@@ -76,7 +76,7 @@ import java.util.Map;
  *       ProjectableDecodingFormat#createRuntimeDecoder(DynamicTableSource.Context, DataType,
  *       int[][])} providing a non null {@code projections} array excluding auxiliary fields. The
  *       built runtime implementation will take care of projections, producing records of type
- *       {@code DataType.projectFields(physicalDataType, projections)}.
+ *       {@code Projection.of(projections).project(physicalDataType)}.
  *   <li>If no, then the connector must take care of performing the projection, for example using
  *       {@link ProjectedRowData} to project physical {@link RowData} emitted from the decoder
  *       runtime implementation.

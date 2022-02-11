@@ -30,8 +30,8 @@ import org.apache.flink.runtime.messages.ThreadInfoSample;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorThreadInfoGateway;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.JvmUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;

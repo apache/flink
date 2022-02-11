@@ -506,6 +506,7 @@ public class OperatorCoordinatorHolderTest extends TestLogger {
                 OperatorCoordinatorHolder.create(
                         opId,
                         provider,
+                        new CoordinatorStoreImpl(),
                         "test-coordinator-name",
                         getClass().getClassLoader(),
                         3,

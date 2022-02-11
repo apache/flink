@@ -38,8 +38,8 @@ For details on Kafka compatibility, please refer to the official [Kafka document
 
 {{< artifact flink-connector-kafka >}}
 
-Flink's streaming connectors are not currently part of the binary distribution.
-See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+Flink's streaming connectors are not part of the binary distribution.
+See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 ## Kafka Source
 {{< hint info >}}
@@ -196,6 +196,15 @@ env.fromSource(kafkaSource, new CustomWatermarkStrategy(), "Kafka Source With Cu
 ```
 [This documentation]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}}) describes
 details about how to define a ```WatermarkStrategy```.
+
+### Idleness
+The Kafka Source does not go automatically in an idle state if the parallelism is higher than the
+number of partitions. You will either need to lower the parallelism or add an idle timeout to the 
+watermark strategy. If no records flow in a partition of a stream for that amount of time, then that 
+partition is considered "idle" and will not hold back the progress of watermarks in downstream operators.
+
+[This documentation]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}}#dealing-with-idle-sources) 
+describes details about how to define a ```WatermarkStrategy#withIdleness```.
 
 ### Consumer Offset Committing
 Kafka source commits the current consuming offset when checkpoints are **completed**, for 

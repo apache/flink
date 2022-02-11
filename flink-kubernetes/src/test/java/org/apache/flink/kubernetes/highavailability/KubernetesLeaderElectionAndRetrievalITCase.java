@@ -25,6 +25,7 @@ import org.apache.flink.kubernetes.configuration.KubernetesLeaderElectionConfigu
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.KubernetesConfigMapSharedWatcher;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
+import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionEventHandler;
 import org.apache.flink.runtime.leaderretrieval.TestingLeaderRetrievalEventHandler;
 import org.apache.flink.util.ExecutorUtils;
@@ -38,8 +39,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityTestBase.LEADER_CONFIGMAP_NAME;
-import static org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityTestBase.LEADER_INFORMATION;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
@@ -52,6 +51,9 @@ import static org.hamcrest.Matchers.is;
  */
 public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
 
+    private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
+    private static final String LEADER_ADDRESS =
+            "akka.tcp://flink@172.20.1.21:6123/user/rpc/dispatcher";
     @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
 
     private static final long TIMEOUT = 120L * 1000L;
@@ -73,7 +75,7 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
         final ExecutorService watchExecutorService = Executors.newCachedThreadPool();
 
         final TestingLeaderElectionEventHandler electionEventHandler =
-                new TestingLeaderElectionEventHandler(LEADER_INFORMATION);
+                new TestingLeaderElectionEventHandler(LEADER_ADDRESS);
 
         try {
             leaderElectionDriver =
@@ -96,20 +98,23 @@ public class KubernetesLeaderElectionAndRetrievalITCase extends TestLogger {
                             watchExecutorService,
                             configMapName,
                             retrievalEventHandler,
+                            KubernetesUtils::getLeaderInformationFromConfigMap,
                             retrievalEventHandler::handleError);
 
             electionEventHandler.waitForLeader(TIMEOUT);
             // Check the new leader is confirmed
-            assertThat(
-                    electionEventHandler.getConfirmedLeaderInformation(), is(LEADER_INFORMATION));
+            final LeaderInformation confirmedLeaderInformation =
+                    electionEventHandler.getConfirmedLeaderInformation();
+            assertThat(confirmedLeaderInformation.getLeaderAddress(), is(LEADER_ADDRESS));
 
             // Check the leader retrieval driver should be notified the leader address
             retrievalEventHandler.waitForNewLeader(TIMEOUT);
             assertThat(
                     retrievalEventHandler.getLeaderSessionID(),
-                    is(LEADER_INFORMATION.getLeaderSessionID()));
+                    is(confirmedLeaderInformation.getLeaderSessionID()));
             assertThat(
-                    retrievalEventHandler.getAddress(), is(LEADER_INFORMATION.getLeaderAddress()));
+                    retrievalEventHandler.getAddress(),
+                    is(confirmedLeaderInformation.getLeaderAddress()));
         } finally {
             electionEventHandler.close();
             if (leaderElectionDriver != null) {

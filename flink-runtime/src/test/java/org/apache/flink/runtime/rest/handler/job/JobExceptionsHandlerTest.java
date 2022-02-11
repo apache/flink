@@ -47,8 +47,8 @@ import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.EvictingBoundedList;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.TestLogger;

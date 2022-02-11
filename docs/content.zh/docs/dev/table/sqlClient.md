@@ -660,6 +660,6 @@ If the option `pipeline.name` is not specified, SQL Client will generate a defau
 局限与未来
 --------------------
 
-当前的 SQL 客户端仅支持嵌入式模式。在将来，社区计划提供基于 REST 的 [SQL 客户端网关（Gateway）](sqlClient.html#limitations--future) 的功能，详见 [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) 和 [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway)。
+当前的 SQL 客户端仅支持嵌入式模式。在将来，社区计划提供基于 REST 的 SQL 客户端网关（Gateway) 的功能，详见 [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) 和 [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway)。
 
 {{< top >}}

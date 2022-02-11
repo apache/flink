@@ -38,6 +38,8 @@ import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 
 /**
@@ -47,6 +49,7 @@ import java.io.IOException;
  * @param <W> The type of {@code Window}.
  */
 @PublicEvolving
+@Deprecated
 public class EvictingWindowReader<W extends Window> {
 
     /** The batch execution environment. Used for creating inputs for reading state. */
@@ -63,7 +66,7 @@ public class EvictingWindowReader<W extends Window> {
      * savepoint. This is also the state backend that will be used when writing again this existing
      * savepoint.
      */
-    private final StateBackend stateBackend;
+    @Nullable private final StateBackend stateBackend;
 
     /** The window serializer used to write the window operator. */
     private final TypeSerializer<W> windowSerializer;
@@ -71,11 +74,10 @@ public class EvictingWindowReader<W extends Window> {
     EvictingWindowReader(
             ExecutionEnvironment env,
             SavepointMetadata metadata,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
             TypeSerializer<W> windowSerializer) {
         Preconditions.checkNotNull(env, "The execution environment must not be null");
         Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
-        Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
         Preconditions.checkNotNull(windowSerializer, "The window serializer must not be null");
 
         this.env = env;

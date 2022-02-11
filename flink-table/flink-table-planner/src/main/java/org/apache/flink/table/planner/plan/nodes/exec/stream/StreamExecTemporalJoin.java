@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
@@ -33,9 +34,12 @@ import org.apache.flink.table.planner.codegen.GeneratedExpression;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -49,7 +53,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Arrays;
@@ -63,9 +66,16 @@ import java.util.Optional;
  * <p>The legacy temporal table function join is the subset of temporal table join, the only
  * difference is the validation, we reuse most same logic here.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@ExecNodeMetadata(
+        name = "stream-exec-temporal-join",
+        version = 1,
+        producedTransformations = StreamExecTemporalJoin.TEMPORAL_JOIN_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String TEMPORAL_JOIN_TRANSFORMATION = "temporal-join";
 
     public static final String FIELD_NAME_JOIN_SPEC = "joinSpec";
     public static final String FIELD_NAME_IS_TEMPORAL_FUNCTION_JOIN = "isTemporalFunctionJoin";
@@ -95,11 +105,12 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
             RowType outputType,
             String description) {
         this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecTemporalJoin.class),
                 joinSpec,
                 isTemporalTableFunctionJoin,
                 leftTimeAttributeIndex,
                 rightTimeAttributeIndex,
-                getNewNodeId(),
                 Arrays.asList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -107,15 +118,16 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
 
     @JsonCreator
     public StreamExecTemporalJoin(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
             @JsonProperty(FIELD_NAME_IS_TEMPORAL_FUNCTION_JOIN) boolean isTemporalTableFunctionJoin,
             @JsonProperty(FIELD_NAME_LEFT_TIME_ATTRIBUTE_INDEX) int leftTimeAttributeIndex,
             @JsonProperty(FIELD_NAME_RIGHT_TIME_ATTRIBUTE_INDEX) int rightTimeAttributeIndex,
-            @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, inputProperties, outputType, description);
         Preconditions.checkArgument(inputProperties.size() == 2);
         Preconditions.checkArgument(
                 rightTimeAttributeIndex == FIELD_INDEX_FOR_PROC_TIME_ATTRIBUTE
@@ -165,10 +177,11 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                 (Transformation<RowData>) rightInputEdge.translateToPlan(planner);
 
         TwoInputTransformation<RowData, RowData, RowData> ret =
-                new TwoInputTransformation<>(
+                ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        getDescription(),
+                        createTransformationMeta(
+                                TEMPORAL_JOIN_TRANSFORMATION, planner.getTableConfig()),
                         joinOperator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

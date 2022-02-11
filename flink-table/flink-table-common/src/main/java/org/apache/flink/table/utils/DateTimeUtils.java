@@ -42,7 +42,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAccessor;
 import java.util.Collections;
 import java.util.Date;
@@ -60,8 +59,25 @@ import static java.time.temporal.ChronoField.SECOND_OF_MINUTE;
 import static java.time.temporal.ChronoField.YEAR;
 
 /**
- * Utility functions for datetime types: date, time, timestamp. Currently, it is a bit messy putting
- * date time functions in various classes because the runtime module does not depend on calcite..
+ * Utility functions for datetime types: date, time, timestamp.
+ *
+ * <p>These utils include:
+ *
+ * <ul>
+ *   <li>{@code parse[type]}: methods for parsing strings to date/time/timestamp
+ *   <li>{@code format[type]}: methods for formatting date/time/timestamp
+ *   <li>{@code to[externalTypeName]} and {@code toInternal}: methods for converting values from
+ *       internal date/time/timestamp types from/to java.sql or java.time types
+ *   <li>Various operations on timestamp, including floor, ceil and extract
+ *   <li>{@link TimeUnit} and {@link TimeUnitRange} enums
+ * </ul>
+ *
+ * <p>Currently, this class is a bit messy because it includes a mix of functionalities both from
+ * common and planner. We should strive to reduce the number of functionalities here, eventually
+ * moving some methods closer to where they're needed. Connectors and formats should not use this
+ * class, but rather if a functionality is necessary, it should be part of the public APIs of our
+ * type system (e.g a new method in {@link TimestampData} or in {@link TimestampType}). Methods used
+ * only by the planner should live inside the planner whenever is possible.
  */
 @Internal
 public class DateTimeUtils {
@@ -101,7 +117,7 @@ public class DateTimeUtils {
     public static final TimeZone UTC_ZONE = TimeZone.getTimeZone("UTC");
 
     /** The local time zone. */
-    private static final TimeZone LOCAL_TZ = TimeZone.getDefault();
+    public static final TimeZone LOCAL_TZ = TimeZone.getDefault();
 
     /** The valid minimum epoch milliseconds ('0000-01-01 00:00:00.000 UTC+0'). */
     private static final long MIN_EPOCH_MILLS = -62167219200000L;
@@ -160,14 +176,14 @@ public class DateTimeUtils {
             };
 
     // --------------------------------------------------------------------------------------------
-    // Date/Time/Timestamp --> internal int/int/long conversion
+    // java.sql Date/Time/Timestamp --> internal data types
     // --------------------------------------------------------------------------------------------
 
     /**
      * Converts the internal representation of a SQL DATE (int) to the Java type used for UDF
      * parameters ({@link java.sql.Date}).
      */
-    public static java.sql.Date internalToDate(int v) {
+    public static java.sql.Date toSQLDate(int v) {
         // note that, in this case, can't handle Daylight Saving Time
         final long t = v * MILLIS_PER_DAY;
         return new java.sql.Date(t - LOCAL_TZ.getOffset(t));
@@ -177,7 +193,7 @@ public class DateTimeUtils {
      * Converts the internal representation of a SQL TIME (int) to the Java type used for UDF
      * parameters ({@link java.sql.Time}).
      */
-    public static java.sql.Time internalToTime(int v) {
+    public static java.sql.Time toSQLTime(int v) {
         // note that, in this case, can't handle Daylight Saving Time
         return new java.sql.Time(v - LOCAL_TZ.getOffset(v));
     }
@@ -186,7 +202,7 @@ public class DateTimeUtils {
      * Converts the internal representation of a SQL TIMESTAMP (long) to the Java type used for UDF
      * parameters ({@link java.sql.Timestamp}).
      */
-    public static java.sql.Timestamp internalToTimestamp(long v) {
+    public static java.sql.Timestamp toSQLTimestamp(long v) {
         return new java.sql.Timestamp(v - LOCAL_TZ.getOffset(v));
     }
 
@@ -194,9 +210,9 @@ public class DateTimeUtils {
      * Converts the Java type used for UDF parameters of SQL DATE type ({@link java.sql.Date}) to
      * internal representation (int).
      *
-     * <p>Converse of {@link #internalToDate(int)}.
+     * <p>Converse of {@link #toSQLDate(int)}.
      */
-    public static int dateToInternal(java.sql.Date date) {
+    public static int toInternal(java.sql.Date date) {
         long ts = date.getTime() + LOCAL_TZ.getOffset(date.getTime());
         return (int) (ts / MILLIS_PER_DAY);
     }
@@ -205,9 +221,9 @@ public class DateTimeUtils {
      * Converts the Java type used for UDF parameters of SQL TIME type ({@link java.sql.Time}) to
      * internal representation (int).
      *
-     * <p>Converse of {@link #internalToTime(int)}.
+     * <p>Converse of {@link #toSQLTime(int)}.
      */
-    public static int timeToInternal(java.sql.Time time) {
+    public static int toInternal(java.sql.Time time) {
         long ts = time.getTime() + LOCAL_TZ.getOffset(time.getTime());
         return (int) (ts % MILLIS_PER_DAY);
     }
@@ -216,36 +232,117 @@ public class DateTimeUtils {
      * Converts the Java type used for UDF parameters of SQL TIMESTAMP type ({@link
      * java.sql.Timestamp}) to internal representation (long).
      *
-     * <p>Converse of {@link #internalToTimestamp(long)}.
+     * <p>Converse of {@link #toSQLTimestamp(long)}.
      */
-    public static long timestampToInternal(java.sql.Timestamp ts) {
+    public static long toInternal(java.sql.Timestamp ts) {
         long time = ts.getTime();
         return time + LOCAL_TZ.getOffset(time);
     }
 
     // --------------------------------------------------------------------------------------------
-    // int/long/double/DecimalData --> Date/Timestamp internal representation
+    // Java 8 time conversion
     // --------------------------------------------------------------------------------------------
 
-    public static int toDate(int v) {
-        return v;
+    public static LocalDate toLocalDate(int date) {
+        return julianToLocalDate(date + EPOCH_JULIAN);
     }
 
-    public static long toTimestamp(long v) {
-        return v;
+    private static LocalDate julianToLocalDate(int julian) {
+        // this shifts the epoch back to astronomical year -4800 instead of the
+        // start of the Christian era in year AD 1 of the proleptic Gregorian
+        // calendar.
+        int j = julian + 32044;
+        int g = j / 146097;
+        int dg = j % 146097;
+        int c = (dg / 36524 + 1) * 3 / 4;
+        int dc = dg - c * 36524;
+        int b = dc / 1461;
+        int db = dc % 1461;
+        int a = (db / 365 + 1) * 3 / 4;
+        int da = db - a * 365;
+
+        // integer number of full years elapsed since March 1, 4801 BC
+        int y = g * 400 + c * 100 + b * 4 + a;
+        // integer number of full months elapsed since the last March 1
+        int m = (da * 5 + 308) / 153 - 2;
+        // number of days elapsed since day 1 of the month
+        int d = da - (m + 4) * 153 / 5 + 122;
+        int year = y - 4800 + (m + 2) / 12;
+        int month = (m + 2) % 12 + 1;
+        int day = d + 1;
+        return LocalDate.of(year, month, day);
     }
 
-    public static long toTimestamp(double v) {
-        return (long) v;
+    public static int toInternal(LocalDate date) {
+        return ymdToUnixDate(date.getYear(), date.getMonthValue(), date.getDayOfMonth());
     }
 
-    public static long toTimestamp(DecimalData v) {
-        return v.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue();
+    private static int ymdToUnixDate(int year, int month, int day) {
+        final int julian = ymdToJulian(year, month, day);
+        return julian - EPOCH_JULIAN;
+    }
+
+    private static int ymdToJulian(int year, int month, int day) {
+        int a = (14 - month) / 12;
+        int y = year + 4800 - a;
+        int m = month + 12 * a - 3;
+        return day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045;
+    }
+
+    public static LocalTime toLocalTime(int time) {
+        int h = time / 3600000;
+        int time2 = time % 3600000;
+        int m = time2 / 60000;
+        int time3 = time2 % 60000;
+        int s = time3 / 1000;
+        int ms = time3 % 1000;
+        return LocalTime.of(h, m, s, ms * 1000_000);
+    }
+
+    public static int toInternal(LocalTime time) {
+        return time.getHour() * (int) MILLIS_PER_HOUR
+                + time.getMinute() * (int) MILLIS_PER_MINUTE
+                + time.getSecond() * (int) MILLIS_PER_SECOND
+                + time.getNano() / 1000_000;
+    }
+
+    public static LocalDateTime toLocalDateTime(long timestamp) {
+        int date = (int) (timestamp / MILLIS_PER_DAY);
+        int time = (int) (timestamp % MILLIS_PER_DAY);
+        if (time < 0) {
+            --date;
+            time += MILLIS_PER_DAY;
+        }
+        LocalDate localDate = toLocalDate(date);
+        LocalTime localTime = toLocalTime(time);
+        return LocalDateTime.of(localDate, localTime);
+    }
+
+    public static long toTimestampMillis(LocalDateTime dateTime) {
+        return unixTimestamp(
+                dateTime.getYear(),
+                dateTime.getMonthValue(),
+                dateTime.getDayOfMonth(),
+                dateTime.getHour(),
+                dateTime.getMinute(),
+                dateTime.getSecond(),
+                dateTime.getNano() / 1000_000);
+    }
+
+    private static long unixTimestamp(
+            int year, int month, int day, int hour, int minute, int second, int mills) {
+        final int date = ymdToUnixDate(year, month, day);
+        return (long) date * MILLIS_PER_DAY
+                + (long) hour * MILLIS_PER_HOUR
+                + (long) minute * MILLIS_PER_MINUTE
+                + (long) second * MILLIS_PER_SECOND
+                + mills;
     }
 
     // --------------------------------------------------------------------------------------------
-    // TO_TIMESTAMP_LTZ(numeric, precision) function supports precision 0 or 3.
+    // Numeric -> Timestamp conversion
     // --------------------------------------------------------------------------------------------
+
     public static TimestampData toTimestampData(long v, int precision) {
         switch (precision) {
             case 0:
@@ -295,7 +392,7 @@ public class DateTimeUtils {
                                 * MILLIS_PER_SECOND;
                 return timestampDataFromEpochMills(epochMills);
             case 3:
-                epochMills = toTimestamp(v);
+                epochMills = toMillis(v);
                 return timestampDataFromEpochMills(epochMills);
             default:
                 throw new TableException(
@@ -314,11 +411,15 @@ public class DateTimeUtils {
         return null;
     }
 
+    private static long toMillis(DecimalData v) {
+        return v.toBigDecimal().setScale(0, RoundingMode.DOWN).longValue();
+    }
+
     // --------------------------------------------------------------------------------------------
-    // String --> Timestamp conversion
+    // Parsing functions
     // --------------------------------------------------------------------------------------------
 
-    public static TimestampData toTimestampData(String dateStr) {
+    public static TimestampData parseTimestampData(String dateStr) {
         int length = dateStr.length();
         String format;
         if (length == 10) {
@@ -329,10 +430,10 @@ public class DateTimeUtils {
             // otherwise fall back to second's precision
             format = DEFAULT_DATETIME_FORMATS[0];
         }
-        return toTimestampData(dateStr, format);
+        return parseTimestampData(dateStr, format);
     }
 
-    public static TimestampData toTimestampData(String dateStr, String format) {
+    public static TimestampData parseTimestampData(String dateStr, String format) {
         DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
 
         try {
@@ -375,10 +476,6 @@ public class DateTimeUtils {
         }
     }
 
-    public static Long toTimestamp(String dateStr) {
-        return toTimestamp(dateStr, UTC_ZONE);
-    }
-
     /**
      * Parse date time string to timestamp based on the given time zone and "yyyy-MM-dd HH:mm:ss"
      * format. Returns null if parsing failed.
@@ -386,7 +483,7 @@ public class DateTimeUtils {
      * @param dateStr the date time string
      * @param tz the time zone
      */
-    public static Long toTimestamp(String dateStr, TimeZone tz) {
+    public static long parseTimestampMillis(String dateStr, TimeZone tz) throws ParseException {
         int length = dateStr.length();
         String format;
         if (length == 10) {
@@ -401,7 +498,7 @@ public class DateTimeUtils {
             // otherwise fall back to the default
             format = DEFAULT_DATETIME_FORMATS[0];
         }
-        return toTimestamp(dateStr, format, tz);
+        return parseTimestampMillis(dateStr, format, tz);
     }
 
     /**
@@ -412,18 +509,11 @@ public class DateTimeUtils {
      * @param format date time string format
      * @param tz the time zone
      */
-    private static Long toTimestamp(String dateStr, String format, TimeZone tz) {
+    private static long parseTimestampMillis(String dateStr, String format, TimeZone tz)
+            throws ParseException {
         SimpleDateFormat formatter = FORMATTER_CACHE.get(format);
         formatter.setTimeZone(tz);
-        try {
-            return formatter.parse(dateStr).getTime();
-        } catch (ParseException e) {
-            return null;
-        }
-    }
-
-    public static Long toTimestamp(String dateStr, String format) {
-        return toTimestamp(dateStr, format, UTC_ZONE);
+        return formatter.parse(dateStr).getTime();
     }
 
     /**
@@ -431,82 +521,242 @@ public class DateTimeUtils {
      * null if parsing failed.
      *
      * @param dateStr the date time string
-     * @param format the date time string format
      * @param tzStr the time zone id string
      */
-    public static Long toTimestampTz(String dateStr, String format, String tzStr) {
+    private static long parseTimestampTz(String dateStr, String tzStr) throws ParseException {
         TimeZone tz = TIMEZONE_CACHE.get(tzStr);
-        return toTimestamp(dateStr, format, tz);
+        return parseTimestampMillis(dateStr, DateTimeUtils.TIMESTAMP_FORMAT_STRING, tz);
     }
-
-    public static Long toTimestampTz(String dateStr, String tzStr) {
-        // use "yyyy-MM-dd HH:mm:ss" as default format
-        return toTimestampTz(dateStr, TIMESTAMP_FORMAT_STRING, tzStr);
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // String --> Date conversion
-    // --------------------------------------------------------------------------------------------
 
     /** Returns the epoch days since 1970-01-01. */
-    public static int strToDate(String dateStr, String fromFormat) {
+    public static int parseDate(String dateStr, String fromFormat) {
         // It is OK to use UTC, we just want get the epoch days
         // TODO  use offset, better performance
-        long ts = parseToTimeMillis(dateStr, fromFormat, TimeZone.getTimeZone("UTC"));
+        long ts = internalParseTimestampMillis(dateStr, fromFormat, TimeZone.getTimeZone("UTC"));
         ZoneId zoneId = ZoneId.of("UTC");
         Instant instant = Instant.ofEpochMilli(ts);
         ZonedDateTime zdt = ZonedDateTime.ofInstant(instant, zoneId);
         return ymdToUnixDate(zdt.getYear(), zdt.getMonthValue(), zdt.getDayOfMonth());
     }
 
-    // --------------------------------------------------------------------------------------------
-    // DATE_FORMAT
-    // --------------------------------------------------------------------------------------------
+    public static Integer parseDate(String s) {
+        // allow timestamp str to date, e.g. 2017-12-12 09:30:00.0
+        int ws1 = s.indexOf(" ");
+        if (ws1 > 0) {
+            s = s.substring(0, ws1);
+        }
+        int hyphen1 = s.indexOf('-');
+        int y;
+        int m;
+        int d;
+        if (hyphen1 < 0) {
+            if (!isInteger(s.trim())) {
+                return null;
+            }
+            y = Integer.parseInt(s.trim());
+            m = 1;
+            d = 1;
+        } else {
+            if (!isInteger(s.substring(0, hyphen1).trim())) {
+                return null;
+            }
+            y = Integer.parseInt(s.substring(0, hyphen1).trim());
+            final int hyphen2 = s.indexOf('-', hyphen1 + 1);
+            if (hyphen2 < 0) {
+                if (!isInteger(s.substring(hyphen1 + 1).trim())) {
+                    return null;
+                }
+                m = Integer.parseInt(s.substring(hyphen1 + 1).trim());
+                d = 1;
+            } else {
+                if (!isInteger(s.substring(hyphen1 + 1, hyphen2).trim())) {
+                    return null;
+                }
+                m = Integer.parseInt(s.substring(hyphen1 + 1, hyphen2).trim());
+                if (!isInteger(s.substring(hyphen2 + 1).trim())) {
+                    return null;
+                }
+                d = Integer.parseInt(s.substring(hyphen2 + 1).trim());
+            }
+        }
+        if (!isIllegalDate(y, m, d)) {
+            return null;
+        }
+        return ymdToUnixDate(y, m, d);
+    }
+
+    public static Integer parseTime(String v) {
+        final int start = 0;
+        final int colon1 = v.indexOf(':', start);
+        // timezone hh:mm:ss[.ssssss][[+|-]hh:mm:ss]
+        // refer https://www.w3.org/TR/NOTE-datetime
+        int timezoneHour;
+        int timezoneMinute;
+        int hour;
+        int minute;
+        int second;
+        int milli;
+        int operator = -1;
+        int end = v.length();
+        int timezone = v.indexOf('-', start);
+        if (timezone < 0) {
+            timezone = v.indexOf('+', start);
+            operator = 1;
+        }
+        if (timezone < 0) {
+            timezoneHour = 0;
+            timezoneMinute = 0;
+        } else {
+            end = timezone;
+            final int colon3 = v.indexOf(':', timezone);
+            if (colon3 < 0) {
+                if (!isInteger(v.substring(timezone + 1).trim())) {
+                    return null;
+                }
+                timezoneHour = Integer.parseInt(v.substring(timezone + 1).trim());
+                timezoneMinute = 0;
+            } else {
+                if (!isInteger(v.substring(timezone + 1, colon3).trim())) {
+                    return null;
+                }
+                timezoneHour = Integer.parseInt(v.substring(timezone + 1, colon3).trim());
+                if (!isInteger(v.substring(colon3 + 1).trim())) {
+                    return null;
+                }
+                timezoneMinute = Integer.parseInt(v.substring(colon3 + 1).trim());
+            }
+        }
+        if (colon1 < 0) {
+            if (!isInteger(v.substring(start, end).trim())) {
+                return null;
+            }
+            hour = Integer.parseInt(v.substring(start, end).trim());
+            minute = 0;
+            second = 0;
+            milli = 0;
+        } else {
+            if (!isInteger(v.substring(start, colon1).trim())) {
+                return null;
+            }
+            hour = Integer.parseInt(v.substring(start, colon1).trim());
+            final int colon2 = v.indexOf(':', colon1 + 1);
+            if (colon2 < 0) {
+                if (!isInteger(v.substring(colon1 + 1, end).trim())) {
+                    return null;
+                }
+                minute = Integer.parseInt(v.substring(colon1 + 1, end).trim());
+                second = 0;
+                milli = 0;
+            } else {
+                if (!isInteger(v.substring(colon1 + 1, colon2).trim())) {
+                    return null;
+                }
+                minute = Integer.parseInt(v.substring(colon1 + 1, colon2).trim());
+                int dot = v.indexOf('.', colon2);
+                if (dot < 0) {
+                    if (!isInteger(v.substring(colon2 + 1, end).trim())) {
+                        return null;
+                    }
+                    second = Integer.parseInt(v.substring(colon2 + 1, end).trim());
+                    milli = 0;
+                } else {
+                    if (!isInteger(v.substring(colon2 + 1, dot).trim())) {
+                        return null;
+                    }
+                    second = Integer.parseInt(v.substring(colon2 + 1, dot).trim());
+                    milli = parseFraction(v.substring(dot + 1, end).trim());
+                }
+            }
+        }
+        hour += operator * timezoneHour;
+        minute += operator * timezoneMinute;
+        return hour * (int) MILLIS_PER_HOUR
+                + minute * (int) MILLIS_PER_MINUTE
+                + second * (int) MILLIS_PER_SECOND
+                + milli;
+    }
 
     /**
-     * Format a timestamp as specific.
+     * Parses a fraction, multiplying the first character by {@code multiplier}, the second
+     * character by {@code multiplier / 10}, the third character by {@code multiplier / 100}, and so
+     * forth.
      *
-     * @param ts the {@link TimestampData} to format.
-     * @param format the string formatter.
-     * @param zoneId the ZoneId.
+     * <p>For example, {@code parseFraction("1234", 100)} yields {@code 123}.
      */
-    public static String dateFormat(TimestampData ts, String format, ZoneId zoneId) {
+    private static int parseFraction(String v) {
+        int multiplier = 100;
+        int r = 0;
+        for (int i = 0; i < v.length(); i++) {
+            char c = v.charAt(i);
+            int x = c < '0' || c > '9' ? 0 : (c - '0');
+            r += multiplier * x;
+            if (multiplier < 10) {
+                // We're at the last digit. Check for rounding.
+                if (i + 1 < v.length() && v.charAt(i + 1) >= '5') {
+                    ++r;
+                }
+                break;
+            }
+            multiplier /= 10;
+        }
+        return r;
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Format
+    // --------------------------------------------------------------------------------------------
+
+    public static String formatTimestamp(TimestampData ts, String format) {
+        return formatTimestamp(ts, format, ZoneId.of("UTC"));
+    }
+
+    public static String formatTimestamp(TimestampData ts, String format, TimeZone zone) {
+        return formatTimestamp(ts, format, zone.toZoneId());
+    }
+
+    private static String formatTimestamp(TimestampData ts, int precision) {
+        LocalDateTime ldt = ts.toLocalDateTime();
+
+        String fraction = pad(9, ldt.getNano());
+        while (fraction.length() > precision && fraction.endsWith("0")) {
+            fraction = fraction.substring(0, fraction.length() - 1);
+        }
+
+        StringBuilder ymdhms =
+                ymdhms(
+                        new StringBuilder(),
+                        ldt.getYear(),
+                        ldt.getMonthValue(),
+                        ldt.getDayOfMonth(),
+                        ldt.getHour(),
+                        ldt.getMinute(),
+                        ldt.getSecond());
+
+        if (fraction.length() > 0) {
+            ymdhms.append(".").append(fraction);
+        }
+
+        return ymdhms.toString();
+    }
+
+    public static String formatTimestamp(TimestampData ts, TimeZone tz, int precision) {
+        return formatTimestamp(timestampWithLocalZoneToTimestamp(ts, tz), precision);
+    }
+
+    private static String formatTimestamp(TimestampData ts, String format, ZoneId zoneId) {
         DateTimeFormatter formatter = DATETIME_FORMATTER_CACHE.get(format);
         Instant instant = ts.toInstant();
         return LocalDateTime.ofInstant(instant, zoneId).format(formatter);
     }
 
-    public static String dateFormat(TimestampData ts, String format) {
-        return dateFormat(ts, format, ZoneId.of("UTC"));
-    }
-
-    public static String dateFormat(TimestampData ts, String format, TimeZone zone) {
-        return dateFormat(ts, format, zone.toZoneId());
-    }
-
-    /**
-     * Format a timestamp as specific.
-     *
-     * @param ts the timestamp to format.
-     * @param format the string formatter.
-     * @param tz the time zone
-     */
-    public static String dateFormat(long ts, String format, TimeZone tz) {
+    public static String formatTimestampMillis(long ts, String format, TimeZone tz) {
         SimpleDateFormat formatter = FORMATTER_CACHE.get(format);
         formatter.setTimeZone(tz);
         Date dateTime = new Date(ts);
         return formatter.format(dateTime);
     }
 
-    /**
-     * Format a string datetime as specific.
-     *
-     * @param dateStr the string datetime.
-     * @param fromFormat the original date format.
-     * @param toFormat the target date format.
-     * @param tz the time zone.
-     */
-    public static String dateFormat(
+    public static String formatTimestampString(
             String dateStr, String fromFormat, String toFormat, TimeZone tz) {
         SimpleDateFormat fromFormatter = FORMATTER_CACHE.get(fromFormat);
         fromFormatter.setTimeZone(tz);
@@ -528,87 +778,22 @@ public class DateTimeUtils {
         }
     }
 
-    public static String dateFormat(String dateStr, String toFormat, TimeZone tz) {
+    public static String formatTimestampString(String dateStr, String toFormat, TimeZone tz) {
         // use yyyy-MM-dd HH:mm:ss as default
-        return dateFormat(dateStr, TIMESTAMP_FORMAT_STRING, toFormat, tz);
+        return formatTimestampString(dateStr, TIMESTAMP_FORMAT_STRING, toFormat, tz);
     }
 
-    public static String dateFormat(long ts, String format) {
-        return dateFormat(ts, format, UTC_ZONE);
+    public static String formatTimestampString(String dateStr, String toFormat) {
+        return formatTimestampString(dateStr, toFormat, UTC_ZONE);
     }
 
-    public static String dateFormat(String dateStr, String fromFormat, String toFormat) {
-        return dateFormat(dateStr, fromFormat, toFormat, UTC_ZONE);
-    }
-
-    public static String dateFormat(String dateStr, String toFormat) {
-        return dateFormat(dateStr, toFormat, UTC_ZONE);
-    }
-
-    public static String dateFormatTz(long ts, String format, String tzStr) {
-        TimeZone tz = TIMEZONE_CACHE.get(tzStr);
-        return dateFormat(ts, format, tz);
-    }
-
-    public static String dateFormatTz(long ts, String tzStr) {
-        // use yyyy-MM-dd HH:mm:ss as default
-        return dateFormatTz(ts, TIMESTAMP_FORMAT_STRING, tzStr);
-    }
-
-    /**
-     * Convert datetime string from a time zone to another time zone.
-     *
-     * @param dateStr the date time string
-     * @param format the date time format
-     * @param tzFrom the original time zone
-     * @param tzTo the target time zone
-     */
-    public static String convertTz(String dateStr, String format, String tzFrom, String tzTo) {
-        Long ts = toTimestampTz(dateStr, format, tzFrom);
-        if (null != ts) { // avoid NPE
-            return dateFormatTz(ts, tzTo);
-        }
-        return null;
-    }
-
-    public static String convertTz(String dateStr, String tzFrom, String tzTo) {
-        // use yyyy-MM-dd HH:mm:ss as default
-        return convertTz(dateStr, TIMESTAMP_FORMAT_STRING, tzFrom, tzTo);
-    }
-
-    public static String timestampToString(long ts, int precision) {
-        int p = (precision <= 3 && precision >= 0) ? precision : 3;
-        String format = DEFAULT_DATETIME_FORMATS[p];
-        return dateFormat(ts, format, UTC_ZONE);
-    }
-
-    /**
-     * Convert a timestamp to string.
-     *
-     * @param ts the timestamp to convert.
-     * @param precision the milli second precision to preserve
-     * @param tz the time zone
-     */
-    public static String timestampToString(long ts, int precision, TimeZone tz) {
-        int p = (precision <= 3 && precision >= 0) ? precision : 3;
-        String format = DEFAULT_DATETIME_FORMATS[p];
-        return dateFormat(ts, format, tz);
-    }
-
-    /** Helper for CAST({time} AS VARCHAR(n)). */
-    public static String unixTimeToString(int time) {
-        final StringBuilder buf = new StringBuilder(8);
-        unixTimeToString(buf, time, 0); // set millisecond precision to 0
-        return buf.toString();
-    }
-
-    public static String unixTimeToString(int time, int precision) {
+    public static String formatTimestampMillis(int time, int precision) {
         final StringBuilder buf = new StringBuilder(8 + (precision > 0 ? precision + 1 : 0));
-        unixTimeToString(buf, time, precision);
+        formatTimestampMillis(buf, time, precision);
         return buf.toString();
     }
 
-    private static void unixTimeToString(StringBuilder buf, int time, int precision) {
+    private static void formatTimestampMillis(StringBuilder buf, int time, int precision) {
         // we copy this method from Calcite DateTimeUtils but add the following changes
         // time may be negative which means time milli seconds before 00:00:00
         // this maybe a bug in calcite avatica
@@ -649,13 +834,13 @@ public class DateTimeUtils {
     }
 
     /** Helper for CAST({date} AS VARCHAR(n)). */
-    public static String unixDateToString(int date) {
+    public static String formatDate(int date) {
         final StringBuilder buf = new StringBuilder(10);
-        unixDateToString(buf, date);
+        formatDate(buf, date);
         return buf.toString();
     }
 
-    private static void unixDateToString(StringBuilder buf, int date) {
+    private static void formatDate(StringBuilder buf, int date) {
         julianToString(buf, date + EPOCH_JULIAN);
     }
 
@@ -689,7 +874,7 @@ public class DateTimeUtils {
         int2(buf, day);
     }
 
-    public static String intervalYearMonthToString(int v) {
+    public static String formatIntervalYearMonth(int v) {
         final StringBuilder buf = new StringBuilder();
         if (v >= 0) {
             buf.append('+');
@@ -712,22 +897,13 @@ public class DateTimeUtils {
         return buf.append(v);
     }
 
-    public static int digitCount(int v) {
+    private static int digitCount(int v) {
         for (int n = 1; ; n++) {
             v /= 10;
             if (v == 0) {
                 return n;
             }
         }
-    }
-
-    private static int roundUp(int dividend, int divisor) {
-        int remainder = dividend % divisor;
-        dividend -= remainder;
-        if (remainder * 2 > divisor) {
-            dividend += divisor;
-        }
-        return dividend;
     }
 
     private static long roundUp(long dividend, long divisor) {
@@ -756,11 +932,8 @@ public class DateTimeUtils {
         return x;
     }
 
-    public static String intervalDayTimeToString(long v) {
-        return intervalDayTimeToString(v, 3);
-    }
-
-    public static String intervalDayTimeToString(long v, int scale) {
+    public static String formatIntervalDayTime(long v) {
+        final int scale = 3;
         final StringBuilder buf = new StringBuilder();
         if (v >= 0) {
             buf.append('+');
@@ -794,21 +967,7 @@ public class DateTimeUtils {
         return buf.toString();
     }
 
-    /**
-     * Parses a given datetime string to milli seconds since 1970-01-01 00:00:00 UTC using the
-     * default format "yyyy-MM-dd" or "yyyy-MM-dd HH:mm:ss" depends on the string length.
-     */
-    private static long parseToTimeMillis(String dateStr, TimeZone tz) {
-        String format;
-        if (dateStr.length() <= 10) {
-            format = DATE_FORMAT_STRING;
-        } else {
-            format = TIMESTAMP_FORMAT_STRING;
-        }
-        return parseToTimeMillis(dateStr, format, tz) + getMillis(dateStr);
-    }
-
-    private static long parseToTimeMillis(String dateStr, String format, TimeZone tz) {
+    private static long internalParseTimestampMillis(String dateStr, String format, TimeZone tz) {
         SimpleDateFormat formatter = FORMATTER_CACHE.get(format);
         formatter.setTimeZone(tz);
         try {
@@ -824,72 +983,21 @@ public class DateTimeUtils {
         }
     }
 
-    /** Returns the milli second part of the datetime. */
-    private static int getMillis(String dateStr) {
-        int length = dateStr.length();
-        if (length == 19) {
-            // "1999-12-31 12:34:56", no milli second left
-            return 0;
-        } else if (length == 21) {
-            // "1999-12-31 12:34:56.7", return 7
-            return Integer.parseInt(dateStr.substring(20)) * 100;
-        } else if (length == 22) {
-            // "1999-12-31 12:34:56.78", return 78
-            return Integer.parseInt(dateStr.substring(20)) * 10;
-        } else if (length >= 23 && length <= 26) {
-            // "1999-12-31 12:34:56.123" ~ "1999-12-31 12:34:56.123456"
-            return Integer.parseInt(dateStr.substring(20, 23));
-        } else {
-            return 0;
-        }
-    }
-
     // --------------------------------------------------------------------------------------------
-    // EXTRACT YEAR/MONTH/QUARTER
+    // EXTRACT
     // --------------------------------------------------------------------------------------------
 
-    public static int extractYearMonth(TimeUnitRange range, int v) {
-        switch (range) {
-            case YEAR:
-                return v / 12;
-            case MONTH:
-                return v % 12;
-            case QUARTER:
-                return (v % 12 + 2) / 3;
-            default:
-                throw new UnsupportedOperationException("Unsupported TimeUnitRange: " + range);
-        }
-    }
-
-    private static final DateType REUSE_DATE_TYPE = new DateType();
     private static final TimestampType REUSE_TIMESTAMP_TYPE = new TimestampType(9);
-
-    public static int unixTimeExtract(TimeUnitRange range, int time) {
-        assert time >= 0;
-        assert time < MILLIS_PER_DAY;
-        switch (range) {
-            case HOUR:
-                return time / (int) MILLIS_PER_HOUR;
-            case MINUTE:
-                final int minutes = time / (int) MILLIS_PER_MINUTE;
-                return minutes % 60;
-            case SECOND:
-                final int seconds = time / (int) MILLIS_PER_SECOND;
-                return seconds % 60;
-            default:
-                throw new AssertionError(range);
-        }
-    }
 
     public static long extractFromTimestamp(TimeUnitRange range, TimestampData ts, TimeZone tz) {
         return convertExtract(range, ts, REUSE_TIMESTAMP_TYPE, tz);
     }
 
-    public static long unixDateExtract(TimeUnitRange range, long date) {
-        return unixDateExtract(range, (int) date);
+    public static long extractFromDate(TimeUnitRange range, long date) {
+        return extractFromDate(range, (int) date);
     }
 
-    public static long unixDateExtract(TimeUnitRange range, int date) {
+    public static long extractFromDate(TimeUnitRange range, int date) {
         switch (range) {
             case EPOCH:
                 return date * 86400L;
@@ -1012,25 +1120,25 @@ public class DateTimeUtils {
         switch (startUnit) {
             case MILLENNIUM:
             case CENTURY:
+            case DECADE:
             case YEAR:
             case QUARTER:
             case MONTH:
             case DAY:
             case DOW:
             case DOY:
+            case ISODOW:
+            case ISOYEAR:
             case WEEK:
                 if (type instanceof TimestampType) {
                     long d = divide(utcTs, TimeUnit.DAY.multiplier);
-                    return unixDateExtract(range, d);
+                    return extractFromDate(range, d);
                 } else if (type instanceof DateType) {
                     return divide(utcTs, TimeUnit.DAY.multiplier);
                 } else {
                     // TODO support it
                     throw new TableException(type + " is unsupported now.");
                 }
-            case DECADE:
-                // TODO support it
-                throw new TableException("DECADE is unsupported now.");
             case EPOCH:
                 // TODO support it
                 throw new TableException("EPOCH is unsupported now.");
@@ -1107,12 +1215,8 @@ public class DateTimeUtils {
     }
 
     // --------------------------------------------------------------------------------------------
-    // Floor/Ceil
+    // Floor/Ceil/Convert tz
     // --------------------------------------------------------------------------------------------
-
-    public static long timestampFloor(TimeUnitRange range, long ts) {
-        return timestampFloor(range, ts, UTC_ZONE);
-    }
 
     public static long timestampFloor(TimeUnitRange range, long ts, TimeZone tz) {
         // assume that we are at UTC timezone, just for algorithm performance
@@ -1138,10 +1242,6 @@ public class DateTimeUtils {
                 // it is more effective to use arithmetic Method
                 throw new AssertionError(range);
         }
-    }
-
-    public static long timestampCeil(TimeUnitRange range, long ts) {
-        return timestampCeil(range, ts, UTC_ZONE);
     }
 
     /**
@@ -1251,133 +1351,24 @@ public class DateTimeUtils {
         }
     }
 
-    // --------------------------------------------------------------------------------------------
-    // DATE DIFF/ADD
-    // --------------------------------------------------------------------------------------------
-
     /**
-     * NOTE: (1). JDK relies on the operating system clock for time. Each operating system has its
-     * own method of handling date changes such as leap seconds(e.g. OS will slow down the clock to
-     * accommodate for this). (2). DST(Daylight Saving Time) is a legal issue, governments changed
-     * it over time. Some days are NOT exactly 24 hours long, it could be 23/25 hours long on the
-     * first or last day of daylight saving time. JDK can handle DST correctly. TODO: carefully
-     * written algorithm can improve the performance
-     */
-    public static int dateDiff(long t1, long t2, TimeZone tz) {
-        ZoneId zoneId = tz.toZoneId();
-        LocalDate ld1 = Instant.ofEpochMilli(t1).atZone(zoneId).toLocalDate();
-        LocalDate ld2 = Instant.ofEpochMilli(t2).atZone(zoneId).toLocalDate();
-        return (int) ChronoUnit.DAYS.between(ld2, ld1);
-    }
-
-    public static int dateDiff(String t1Str, long t2, TimeZone tz) {
-        long t1 = parseToTimeMillis(t1Str, tz);
-        return dateDiff(t1, t2, tz);
-    }
-
-    public static int dateDiff(long t1, String t2Str, TimeZone tz) {
-        long t2 = parseToTimeMillis(t2Str, tz);
-        return dateDiff(t1, t2, tz);
-    }
-
-    public static int dateDiff(String t1Str, String t2Str, TimeZone tz) {
-        long t1 = parseToTimeMillis(t1Str, tz);
-        long t2 = parseToTimeMillis(t2Str, tz);
-        return dateDiff(t1, t2, tz);
-    }
-
-    public static int dateDiff(long t1, long t2) {
-        return dateDiff(t1, t2, UTC_ZONE);
-    }
-
-    public static int dateDiff(String t1Str, long t2) {
-        return dateDiff(t1Str, t2, UTC_ZONE);
-    }
-
-    public static int dateDiff(long t1, String t2Str) {
-        return dateDiff(t1, t2Str, UTC_ZONE);
-    }
-
-    public static int dateDiff(String t1Str, String t2Str) {
-        return dateDiff(t1Str, t2Str, UTC_ZONE);
-    }
-
-    /**
-     * Do subtraction on date string.
+     * Convert datetime string from a time zone to another time zone.
      *
-     * @param dateStr formatted date string.
-     * @param days days count you want to subtract.
-     * @param tz time zone of the date time string
-     * @return datetime string.
+     * @param dateStr the date time string
+     * @param tzFrom the original time zone
+     * @param tzTo the target time zone
      */
-    public static String dateSub(String dateStr, int days, TimeZone tz) {
-        long ts = parseToTimeMillis(dateStr, tz);
-        if (ts == Long.MIN_VALUE) {
+    public static String convertTz(String dateStr, String tzFrom, String tzTo) {
+        try {
+            return formatTimestampTz(parseTimestampTz(dateStr, tzFrom), tzTo);
+        } catch (ParseException e) {
             return null;
         }
-        return dateSub(ts, days, tz);
     }
 
-    /**
-     * Do subtraction on date string.
-     *
-     * @param ts the timestamp.
-     * @param days days count you want to subtract.
-     * @param tz time zone of the date time string
-     * @return datetime string.
-     */
-    public static String dateSub(long ts, int days, TimeZone tz) {
-        ZoneId zoneId = tz.toZoneId();
-        Instant instant = Instant.ofEpochMilli(ts);
-        ZonedDateTime zdt = ZonedDateTime.ofInstant(instant, zoneId);
-        long resultTs = zdt.minusDays(days).toInstant().toEpochMilli();
-        return dateFormat(resultTs, DATE_FORMAT_STRING, tz);
-    }
-
-    public static String dateSub(String dateStr, int days) {
-        return dateSub(dateStr, days, UTC_ZONE);
-    }
-
-    public static String dateSub(long ts, int days) {
-        return dateSub(ts, days, UTC_ZONE);
-    }
-
-    /**
-     * Do addition on date string.
-     *
-     * @param dateStr formatted date string.
-     * @param days days count you want to add.
-     * @return datetime string.
-     */
-    public static String dateAdd(String dateStr, int days, TimeZone tz) {
-        long ts = parseToTimeMillis(dateStr, tz);
-        if (ts == Long.MIN_VALUE) {
-            return null;
-        }
-        return dateAdd(ts, days, tz);
-    }
-
-    /**
-     * Do addition on timestamp.
-     *
-     * @param ts the timestamp.
-     * @param days days count you want to add.
-     * @return datetime string.
-     */
-    public static String dateAdd(long ts, int days, TimeZone tz) {
-        ZoneId zoneId = tz.toZoneId();
-        Instant instant = Instant.ofEpochMilli(ts);
-        ZonedDateTime zdt = ZonedDateTime.ofInstant(instant, zoneId);
-        long resultTs = zdt.plusDays(days).toInstant().toEpochMilli();
-        return dateFormat(resultTs, DATE_FORMAT_STRING, tz);
-    }
-
-    public static String dateAdd(String dateStr, int days) {
-        return dateAdd(dateStr, days, UTC_ZONE);
-    }
-
-    public static String dateAdd(long ts, int days) {
-        return dateAdd(ts, days, UTC_ZONE);
+    private static String formatTimestampTz(long ts, String tzStr) {
+        TimeZone tz = TIMEZONE_CACHE.get(tzStr);
+        return formatTimestampMillis(ts, DateTimeUtils.TIMESTAMP_FORMAT_STRING, tz);
     }
 
     // --------------------------------------------------------------------------------------------
@@ -1390,7 +1381,7 @@ public class DateTimeUtils {
      * @param ts the timestamp in milliseconds.
      * @return the date in days.
      */
-    public static int getDateInDays(long ts) {
+    public static int timestampMillisToDate(long ts) {
         int days = (int) (ts / MILLIS_PER_DAY);
         if (days < 0) {
             days = days - 1;
@@ -1404,7 +1395,7 @@ public class DateTimeUtils {
      * @param ts the timestamp in milliseconds.
      * @return the time in milliseconds.
      */
-    public static int getTimeInMills(long ts) {
+    public static int timestampMillisToTime(long ts) {
         return (int) (ts % MILLIS_PER_DAY);
     }
 
@@ -1420,15 +1411,15 @@ public class DateTimeUtils {
      * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
      * "yyyy-MM-dd HH:mm:ss" format.
      */
-    public static String fromUnixtime(long unixtime, TimeZone tz) {
-        return fromUnixtime(unixtime, TIMESTAMP_FORMAT_STRING, tz);
+    public static String formatUnixTimestamp(long unixtime, TimeZone tz) {
+        return formatUnixTimestamp(unixtime, TIMESTAMP_FORMAT_STRING, tz);
     }
 
     /**
      * Convert unix timestamp (seconds since '1970-01-01 00:00:00' UTC) to datetime string in the
      * given format.
      */
-    public static String fromUnixtime(long unixtime, String format, TimeZone tz) {
+    public static String formatUnixTimestamp(long unixtime, String format, TimeZone tz) {
         SimpleDateFormat formatter = FORMATTER_CACHE.get(format);
         formatter.setTimeZone(tz);
         Date date = new Date(unixtime * 1000);
@@ -1440,35 +1431,16 @@ public class DateTimeUtils {
         }
     }
 
-    public static String fromUnixtime(double unixtime, TimeZone tz) {
-        return fromUnixtime((long) unixtime, tz);
-    }
-
-    public static String fromUnixtime(DecimalData unixtime, TimeZone tz) {
-        return fromUnixtime(toTimestamp(unixtime), tz);
-    }
-
-    public static String fromUnixtime(long unixtime) {
-        return fromUnixtime(unixtime, UTC_ZONE);
-    }
-
-    public static String fromUnixtime(long unixtime, String format) {
-        return fromUnixtime(unixtime, format, UTC_ZONE);
-    }
-
-    public static String fromUnixtime(double unixtime) {
-        return fromUnixtime(unixtime, UTC_ZONE);
-    }
-
-    public static String fromUnixtime(DecimalData unixtime) {
-        return fromUnixtime(unixtime, UTC_ZONE);
-    }
-
     /**
      * Returns a Unix timestamp in seconds since '1970-01-01 00:00:00' UTC as an unsigned integer.
      */
     public static long unixTimestamp() {
         return System.currentTimeMillis() / 1000;
+    }
+
+    /** Returns the value of the timestamp to seconds since '1970-01-01 00:00:00' UTC. */
+    public static long unixTimestamp(long ts) {
+        return ts / 1000;
     }
 
     /**
@@ -1484,7 +1456,7 @@ public class DateTimeUtils {
      * 00:00:00' UTC.
      */
     public static long unixTimestamp(String dateStr, String format, TimeZone tz) {
-        long ts = parseToTimeMillis(dateStr, format, tz);
+        long ts = internalParseTimestampMillis(dateStr, format, tz);
         if (ts == Long.MIN_VALUE) {
             return Long.MIN_VALUE;
         } else {
@@ -1493,114 +1465,9 @@ public class DateTimeUtils {
         }
     }
 
-    public static long unixTimestamp(String dateStr) {
-        return unixTimestamp(dateStr, UTC_ZONE);
-    }
-
-    public static long unixTimestamp(String dateStr, String format) {
-        return unixTimestamp(dateStr, format, UTC_ZONE);
-    }
-
-    /** Returns the value of the timestamp to seconds since '1970-01-01 00:00:00' UTC. */
-    public static long unixTimestamp(long ts) {
-        return ts / 1000;
-    }
-
-    public static LocalDate unixDateToLocalDate(int date) {
-        return julianToLocalDate(date + EPOCH_JULIAN);
-    }
-
-    private static LocalDate julianToLocalDate(int julian) {
-        // this shifts the epoch back to astronomical year -4800 instead of the
-        // start of the Christian era in year AD 1 of the proleptic Gregorian
-        // calendar.
-        int j = julian + 32044;
-        int g = j / 146097;
-        int dg = j % 146097;
-        int c = (dg / 36524 + 1) * 3 / 4;
-        int dc = dg - c * 36524;
-        int b = dc / 1461;
-        int db = dc % 1461;
-        int a = (db / 365 + 1) * 3 / 4;
-        int da = db - a * 365;
-
-        // integer number of full years elapsed since March 1, 4801 BC
-        int y = g * 400 + c * 100 + b * 4 + a;
-        // integer number of full months elapsed since the last March 1
-        int m = (da * 5 + 308) / 153 - 2;
-        // number of days elapsed since day 1 of the month
-        int d = da - (m + 4) * 153 / 5 + 122;
-        int year = y - 4800 + (m + 2) / 12;
-        int month = (m + 2) % 12 + 1;
-        int day = d + 1;
-        return LocalDate.of(year, month, day);
-    }
-
-    public static int localDateToUnixDate(LocalDate date) {
-        return ymdToUnixDate(date.getYear(), date.getMonthValue(), date.getDayOfMonth());
-    }
-
-    private static int ymdToUnixDate(int year, int month, int day) {
-        final int julian = ymdToJulian(year, month, day);
-        return julian - EPOCH_JULIAN;
-    }
-
-    private static int ymdToJulian(int year, int month, int day) {
-        int a = (14 - month) / 12;
-        int y = year + 4800 - a;
-        int m = month + 12 * a - 3;
-        return day + (153 * m + 2) / 5 + 365 * y + y / 4 - y / 100 + y / 400 - 32045;
-    }
-
-    public static LocalTime unixTimeToLocalTime(int time) {
-        int h = time / 3600000;
-        int time2 = time % 3600000;
-        int m = time2 / 60000;
-        int time3 = time2 % 60000;
-        int s = time3 / 1000;
-        int ms = time3 % 1000;
-        return LocalTime.of(h, m, s, ms * 1000_000);
-    }
-
-    public static int localTimeToUnixDate(LocalTime time) {
-        return time.getHour() * (int) MILLIS_PER_HOUR
-                + time.getMinute() * (int) MILLIS_PER_MINUTE
-                + time.getSecond() * (int) MILLIS_PER_SECOND
-                + time.getNano() / 1000_000;
-    }
-
-    public static LocalDateTime unixTimestampToLocalDateTime(long timestamp) {
-        int date = (int) (timestamp / MILLIS_PER_DAY);
-        int time = (int) (timestamp % MILLIS_PER_DAY);
-        if (time < 0) {
-            --date;
-            time += MILLIS_PER_DAY;
-        }
-        LocalDate localDate = unixDateToLocalDate(date);
-        LocalTime localTime = unixTimeToLocalTime(time);
-        return LocalDateTime.of(localDate, localTime);
-    }
-
-    public static long localDateTimeToUnixTimestamp(LocalDateTime dateTime) {
-        return unixTimestamp(
-                dateTime.getYear(),
-                dateTime.getMonthValue(),
-                dateTime.getDayOfMonth(),
-                dateTime.getHour(),
-                dateTime.getMinute(),
-                dateTime.getSecond(),
-                dateTime.getNano() / 1000_000);
-    }
-
-    private static long unixTimestamp(
-            int year, int month, int day, int hour, int minute, int second, int mills) {
-        final int date = ymdToUnixDate(year, month, day);
-        return (long) date * MILLIS_PER_DAY
-                + (long) hour * MILLIS_PER_HOUR
-                + (long) minute * MILLIS_PER_MINUTE
-                + (long) second * MILLIS_PER_SECOND
-                + mills;
-    }
+    // --------------------------------------------------------------------------------------------
+    // TIMESTAMP to TIMESTAMP_LTZ conversions
+    // --------------------------------------------------------------------------------------------
 
     public static TimestampData timestampToTimestampWithLocalZone(TimestampData ts, TimeZone tz) {
         return TimestampData.fromInstant(ts.toLocalDateTime().atZone(tz.toZoneId()).toInstant());
@@ -1611,25 +1478,27 @@ public class DateTimeUtils {
                 LocalDateTime.ofInstant(ts.toInstant(), tz.toZoneId()));
     }
 
-    public static int timestampWithLocalZoneToDate(long ts, TimeZone tz) {
-        return localDateToUnixDate(
-                LocalDateTime.ofInstant(Instant.ofEpochMilli(ts), tz.toZoneId()).toLocalDate());
+    public static int timestampWithLocalZoneToDate(TimestampData ts, TimeZone tz) {
+        return toInternal(
+                LocalDateTime.ofInstant(Instant.ofEpochMilli(ts.getMillisecond()), tz.toZoneId())
+                        .toLocalDate());
     }
 
-    public static int timestampWithLocalZoneToTime(long ts, TimeZone tz) {
-        return localTimeToUnixDate(
-                LocalDateTime.ofInstant(Instant.ofEpochMilli(ts), tz.toZoneId()).toLocalTime());
+    public static int timestampWithLocalZoneToTime(TimestampData ts, TimeZone tz) {
+        return toInternal(
+                LocalDateTime.ofInstant(Instant.ofEpochMilli(ts.getMillisecond()), tz.toZoneId())
+                        .toLocalTime());
     }
 
-    public static long dateToTimestampWithLocalZone(int date, TimeZone tz) {
-        return LocalDateTime.of(unixDateToLocalDate(date), LocalTime.MIDNIGHT)
-                .atZone(tz.toZoneId())
-                .toInstant()
-                .toEpochMilli();
+    public static TimestampData dateToTimestampWithLocalZone(int date, TimeZone tz) {
+        return TimestampData.fromInstant(
+                LocalDateTime.of(toLocalDate(date), LocalTime.MIDNIGHT)
+                        .atZone(tz.toZoneId())
+                        .toInstant());
     }
 
-    public static long timeToTimestampWithLocalZone(int time, TimeZone tz) {
-        return unixTimestampToLocalDateTime(time).atZone(tz.toZoneId()).toInstant().toEpochMilli();
+    public static TimestampData timeToTimestampWithLocalZone(int time, TimeZone tz) {
+        return TimestampData.fromInstant(toLocalDateTime(time).atZone(tz.toZoneId()).toInstant());
     }
 
     private static boolean isInteger(String s) {
@@ -1666,200 +1535,6 @@ public class DateTimeUtils {
             return false;
         }
         return true;
-    }
-
-    public static Integer dateStringToUnixDate(String s) {
-        // allow timestamp str to date, e.g. 2017-12-12 09:30:00.0
-        int ws1 = s.indexOf(" ");
-        if (ws1 > 0) {
-            s = s.substring(0, ws1);
-        }
-        int hyphen1 = s.indexOf('-');
-        int y;
-        int m;
-        int d;
-        if (hyphen1 < 0) {
-            if (!isInteger(s.trim())) {
-                return null;
-            }
-            y = Integer.parseInt(s.trim());
-            m = 1;
-            d = 1;
-        } else {
-            if (!isInteger(s.substring(0, hyphen1).trim())) {
-                return null;
-            }
-            y = Integer.parseInt(s.substring(0, hyphen1).trim());
-            final int hyphen2 = s.indexOf('-', hyphen1 + 1);
-            if (hyphen2 < 0) {
-                if (!isInteger(s.substring(hyphen1 + 1).trim())) {
-                    return null;
-                }
-                m = Integer.parseInt(s.substring(hyphen1 + 1).trim());
-                d = 1;
-            } else {
-                if (!isInteger(s.substring(hyphen1 + 1, hyphen2).trim())) {
-                    return null;
-                }
-                m = Integer.parseInt(s.substring(hyphen1 + 1, hyphen2).trim());
-                if (!isInteger(s.substring(hyphen2 + 1).trim())) {
-                    return null;
-                }
-                d = Integer.parseInt(s.substring(hyphen2 + 1).trim());
-            }
-        }
-        if (!isIllegalDate(y, m, d)) {
-            return null;
-        }
-        return ymdToUnixDate(y, m, d);
-    }
-
-    public static Integer timeStringToUnixDate(String v) {
-        return timeStringToUnixDate(v, 0);
-    }
-
-    private static Integer timeStringToUnixDate(String v, int start) {
-        final int colon1 = v.indexOf(':', start);
-        // timezone hh:mm:ss[.ssssss][[+|-]hh:mm:ss]
-        // refer https://www.w3.org/TR/NOTE-datetime
-        int timezoneHour;
-        int timezoneMinute;
-        int hour;
-        int minute;
-        int second;
-        int milli;
-        int operator = -1;
-        int end = v.length();
-        int timezone = v.indexOf('-', start);
-        if (timezone < 0) {
-            timezone = v.indexOf('+', start);
-            operator = 1;
-        }
-        if (timezone < 0) {
-            timezoneHour = 0;
-            timezoneMinute = 0;
-        } else {
-            end = timezone;
-            final int colon3 = v.indexOf(':', timezone);
-            if (colon3 < 0) {
-                if (!isInteger(v.substring(timezone + 1).trim())) {
-                    return null;
-                }
-                timezoneHour = Integer.parseInt(v.substring(timezone + 1).trim());
-                timezoneMinute = 0;
-            } else {
-                if (!isInteger(v.substring(timezone + 1, colon3).trim())) {
-                    return null;
-                }
-                timezoneHour = Integer.parseInt(v.substring(timezone + 1, colon3).trim());
-                if (!isInteger(v.substring(colon3 + 1).trim())) {
-                    return null;
-                }
-                timezoneMinute = Integer.parseInt(v.substring(colon3 + 1).trim());
-            }
-        }
-        if (colon1 < 0) {
-            if (!isInteger(v.substring(start, end).trim())) {
-                return null;
-            }
-            hour = Integer.parseInt(v.substring(start, end).trim());
-            minute = 0;
-            second = 0;
-            milli = 0;
-        } else {
-            if (!isInteger(v.substring(start, colon1).trim())) {
-                return null;
-            }
-            hour = Integer.parseInt(v.substring(start, colon1).trim());
-            final int colon2 = v.indexOf(':', colon1 + 1);
-            if (colon2 < 0) {
-                if (!isInteger(v.substring(colon1 + 1, end).trim())) {
-                    return null;
-                }
-                minute = Integer.parseInt(v.substring(colon1 + 1, end).trim());
-                second = 0;
-                milli = 0;
-            } else {
-                if (!isInteger(v.substring(colon1 + 1, colon2).trim())) {
-                    return null;
-                }
-                minute = Integer.parseInt(v.substring(colon1 + 1, colon2).trim());
-                int dot = v.indexOf('.', colon2);
-                if (dot < 0) {
-                    if (!isInteger(v.substring(colon2 + 1, end).trim())) {
-                        return null;
-                    }
-                    second = Integer.parseInt(v.substring(colon2 + 1, end).trim());
-                    milli = 0;
-                } else {
-                    if (!isInteger(v.substring(colon2 + 1, dot).trim())) {
-                        return null;
-                    }
-                    second = Integer.parseInt(v.substring(colon2 + 1, dot).trim());
-                    milli = parseFraction(v.substring(dot + 1, end).trim(), 100);
-                }
-            }
-        }
-        hour += operator * timezoneHour;
-        minute += operator * timezoneMinute;
-        return hour * (int) MILLIS_PER_HOUR
-                + minute * (int) MILLIS_PER_MINUTE
-                + second * (int) MILLIS_PER_SECOND
-                + milli;
-    }
-
-    /**
-     * Parses a fraction, multiplying the first character by {@code multiplier}, the second
-     * character by {@code multiplier / 10}, the third character by {@code multiplier / 100}, and so
-     * forth.
-     *
-     * <p>For example, {@code parseFraction("1234", 100)} yields {@code 123}.
-     */
-    private static int parseFraction(String v, int multiplier) {
-        int r = 0;
-        for (int i = 0; i < v.length(); i++) {
-            char c = v.charAt(i);
-            int x = c < '0' || c > '9' ? 0 : (c - '0');
-            r += multiplier * x;
-            if (multiplier < 10) {
-                // We're at the last digit. Check for rounding.
-                if (i + 1 < v.length() && v.charAt(i + 1) >= '5') {
-                    ++r;
-                }
-                break;
-            }
-            multiplier /= 10;
-        }
-        return r;
-    }
-
-    public static String timestampToString(TimestampData ts, int precision) {
-        LocalDateTime ldt = ts.toLocalDateTime();
-
-        String fraction = pad(9, (long) ldt.getNano());
-        while (fraction.length() > precision && fraction.endsWith("0")) {
-            fraction = fraction.substring(0, fraction.length() - 1);
-        }
-
-        StringBuilder ymdhms =
-                ymdhms(
-                        new StringBuilder(),
-                        ldt.getYear(),
-                        ldt.getMonthValue(),
-                        ldt.getDayOfMonth(),
-                        ldt.getHour(),
-                        ldt.getMinute(),
-                        ldt.getSecond());
-
-        if (fraction.length() > 0) {
-            ymdhms.append(".").append(fraction);
-        }
-
-        return ymdhms.toString();
-    }
-
-    public static String timestampToString(TimestampData ts, TimeZone tz, int precision) {
-        return timestampToString(timestampWithLocalZoneToTimestamp(ts, tz), precision);
     }
 
     private static String pad(int length, long v) {
@@ -1946,6 +1621,95 @@ public class DateTimeUtils {
         int date = (int) (timestamp / MILLIS_PER_DAY);
         final long f = julianDateFloor(range, date + EPOCH_JULIAN, false);
         return f * MILLIS_PER_DAY;
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // ADD/REMOVE months
+    // --------------------------------------------------------------------------------------------
+
+    /**
+     * Adds a given number of months to a timestamp, represented as the number of milliseconds since
+     * the epoch.
+     */
+    public static long addMonths(long timestamp, int m) {
+        final long millis = DateTimeUtils.floorMod(timestamp, DateTimeUtils.MILLIS_PER_DAY);
+        timestamp -= millis;
+        final long x = addMonths((int) (timestamp / DateTimeUtils.MILLIS_PER_DAY), m);
+        return x * DateTimeUtils.MILLIS_PER_DAY + millis;
+    }
+
+    /**
+     * Adds a given number of months to a date, represented as the number of days since the epoch.
+     */
+    public static int addMonths(int date, int m) {
+        int y0 = (int) extractFromDate(TimeUnitRange.YEAR, date);
+        int m0 = (int) extractFromDate(TimeUnitRange.MONTH, date);
+        int d0 = (int) extractFromDate(TimeUnitRange.DAY, date);
+        m0 += m;
+        int deltaYear = (int) DateTimeUtils.floorDiv(m0, 12);
+        y0 += deltaYear;
+        m0 = (int) DateTimeUtils.floorMod(m0, 12);
+        if (m0 == 0) {
+            y0 -= 1;
+            m0 += 12;
+        }
+
+        int last = lastDay(y0, m0);
+        if (d0 > last) {
+            d0 = last;
+        }
+        return ymdToUnixDate(y0, m0, d0);
+    }
+
+    private static int lastDay(int y, int m) {
+        switch (m) {
+            case 2:
+                return y % 4 == 0 && (y % 100 != 0 || y % 400 == 0) ? 29 : 28;
+            case 4:
+            case 6:
+            case 9:
+            case 11:
+                return 30;
+            default:
+                return 31;
+        }
+    }
+
+    /**
+     * Finds the number of months between two dates, each represented as the number of days since
+     * the epoch.
+     */
+    public static int subtractMonths(int date0, int date1) {
+        if (date0 < date1) {
+            return -subtractMonths(date1, date0);
+        }
+        // Start with an estimate.
+        // Since no month has more than 31 days, the estimate is <= the true value.
+        int m = (date0 - date1) / 31;
+        while (true) {
+            int date2 = addMonths(date1, m);
+            if (date2 >= date0) {
+                return m;
+            }
+            int date3 = addMonths(date1, m + 1);
+            if (date3 > date0) {
+                return m;
+            }
+            ++m;
+        }
+    }
+
+    public static int subtractMonths(long t0, long t1) {
+        final long millis0 = DateTimeUtils.floorMod(t0, DateTimeUtils.MILLIS_PER_DAY);
+        final int d0 = (int) DateTimeUtils.floorDiv(t0 - millis0, DateTimeUtils.MILLIS_PER_DAY);
+        final long millis1 = DateTimeUtils.floorMod(t1, DateTimeUtils.MILLIS_PER_DAY);
+        final int d1 = (int) DateTimeUtils.floorDiv(t1 - millis1, DateTimeUtils.MILLIS_PER_DAY);
+        int x = subtractMonths(d0, d1);
+        final long d2 = addMonths(d1, x);
+        if (d2 == d0 && millis0 < millis1) {
+            --x;
+        }
+        return x;
     }
 
     // --------------------------------------------------------------------------------------------

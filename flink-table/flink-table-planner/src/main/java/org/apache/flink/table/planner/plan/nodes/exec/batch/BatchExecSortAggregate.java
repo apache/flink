@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.batch.AggWithoutKeysCodeGenerator;
@@ -29,8 +28,10 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -65,7 +66,12 @@ public class BatchExecSortAggregate extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecSortAggregate.class),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.grouping = grouping;
         this.auxGrouping = auxGrouping;
         this.aggCalls = aggCalls;
@@ -118,9 +124,10 @@ public class BatchExecSortAggregate extends ExecNodeBase<RowData>
                             isFinal);
         }
 
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                createTransformationName(planner.getTableConfig()),
+                createTransformationDescription(planner.getTableConfig()),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

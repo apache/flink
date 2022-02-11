@@ -76,6 +76,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
+            int consumedSubpartitionIndex,
             ResultPartitionManager partitionManager,
             TaskEventPublisher taskEventPublisher,
             int initialBackoff,
@@ -88,6 +89,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                 inputGate,
                 channelIndex,
                 partitionId,
+                consumedSubpartitionIndex,
                 initialBackoff,
                 maxBackoff,
                 numBytesIn,
@@ -111,7 +113,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
     }
 
     @Override
-    protected void requestSubpartition(int subpartitionIndex) throws IOException {
+    protected void requestSubpartition() throws IOException {
 
         boolean retriggerRequest = false;
         boolean notifyDataAvailable = false;
@@ -124,14 +126,14 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                 LOG.debug(
                         "{}: Requesting LOCAL subpartition {} of partition {}. {}",
                         this,
-                        subpartitionIndex,
+                        consumedSubpartitionIndex,
                         partitionId,
                         channelStatePersister);
 
                 try {
                     ResultSubpartitionView subpartitionView =
                             partitionManager.createSubpartitionView(
-                                    partitionId, subpartitionIndex, this);
+                                    partitionId, consumedSubpartitionIndex, this);
 
                     if (subpartitionView == null) {
                         throw new IOException("Error requesting subpartition.");
@@ -165,12 +167,13 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
         // deadlock with a concurrent release of the channel via the
         // input gate.
         if (retriggerRequest) {
-            inputGate.retriggerPartitionRequest(partitionId.getPartitionId());
+            inputGate.retriggerPartitionRequest(
+                    partitionId.getPartitionId(), consumedSubpartitionIndex);
         }
     }
 
     /** Retriggers a subpartition request. */
-    void retriggerSubpartitionRequest(Timer timer, final int subpartitionIndex) {
+    void retriggerSubpartitionRequest(Timer timer) {
         synchronized (requestLock) {
             checkState(subpartitionView == null, "already requested partition");
 
@@ -179,7 +182,7 @@ public class LocalInputChannel extends InputChannel implements BufferAvailabilit
                         @Override
                         public void run() {
                             try {
-                                requestSubpartition(subpartitionIndex);
+                                requestSubpartition();
                             } catch (Throwable t) {
                                 setError(t);
                             }

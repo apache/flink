@@ -28,7 +28,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.util.function.TriFunction;
 
-import org.apache.flink.shaded.curator4.com.google.common.collect.ImmutableMap;
+import org.apache.flink.shaded.curator5.com.google.common.collect.ImmutableMap;
 
 import org.apache.hadoop.hive.common.type.HiveDecimal;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;

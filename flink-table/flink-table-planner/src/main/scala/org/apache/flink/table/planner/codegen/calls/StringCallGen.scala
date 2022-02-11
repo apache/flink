@@ -29,7 +29,6 @@ import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isTimestamp, isTimestampWithLocalZone}
 import org.apache.flink.table.types.logical._
 
-import org.apache.calcite.runtime.SqlFunctions
 import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.fun.SqlTrimFunction.Flag.{BOTH, LEADING, TRAILING}
 
@@ -205,17 +204,17 @@ object StringCallGen {
       case DATE_FORMAT if operands.size == 2 &&
           isTimestamp(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_TIMESTAMP_STRING)
+        methodGen(BuiltInMethods.FORMAT_TIMESTAMP_DATA)
 
       case DATE_FORMAT if operands.size == 2 &&
           isTimestampWithLocalZone(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_TIMESTAMP_STRING_TIME_ZONE)
+        methodGen(BuiltInMethods.FORMAT_TIMESTAMP_DATA_WITH_TIME_ZONE)
 
       case DATE_FORMAT if operands.size == 2 &&
           isCharacterString(operands.head.resultType) &&
           isCharacterString(operands(1).resultType) =>
-        methodGen(BuiltInMethods.DATE_FORMAT_STIRNG_STRING)
+        methodGen(BuiltInMethods.FORMAT_TIMESTAMP_STRING_FORMAT_STRING_STRING)
 
       case CONVERT_TZ if operands.size == 3 &&
           isCharacterString(operands.head.resultType) &&
@@ -341,9 +340,8 @@ object StringCallGen {
   def generateSimilarTo(
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression]): GeneratedExpression = {
-    val className = classOf[SqlFunctions].getCanonicalName
     generateCallIfArgsNotNull(ctx, new BooleanType(), operands) {
-      terms => s"$className.similar(${toStringTerms(terms, operands)})"
+      terms => s"${qualifyMethod(BuiltInMethods.STRING_SIMILAR)}(${toStringTerms(terms, operands)})"
     }
   }
 
@@ -424,9 +422,8 @@ object StringCallGen {
     ctx: CodeGeneratorContext,
     operands: Seq[GeneratedExpression],
     returnType: LogicalType): GeneratedExpression = {
-    val className = classOf[SqlFunctions].getCanonicalName
     generateStringResultCallIfArgsNotNull(ctx, operands, returnType) {
-      terms => s"$className.initcap(${terms.head}.toString())"
+      terms => s"${qualifyMethod(BuiltInMethods.STRING_INITCAP)}(${terms.head}.toString())"
     }
   }
 
@@ -765,7 +762,7 @@ object StringCallGen {
       operands: Seq[GeneratedExpression]): GeneratedExpression = {
     val className = classOf[SqlFunctionUtils].getCanonicalName
     val t = new MapType(
-      new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH))
+      VarCharType.STRING_TYPE, VarCharType.STRING_TYPE)
     val converter = DataFormatConverters.getConverterForDataType(
       DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING()))
     val converterTerm = ctx.addReusableObject(converter, "mapConverter")

@@ -21,20 +21,26 @@ import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.JList
+import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
+
 import com.google.common.base.Function
 import com.google.common.collect.{ImmutableList, Lists}
+import org.apache.calcite.avatica.util.ByteString
 import org.apache.calcite.plan.{RelOptPredicateList, RelOptUtil}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.fun.{SqlCastFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.{SqlAsOperator, SqlKind, SqlOperator}
-import org.apache.calcite.util.{ControlFlowException, ImmutableBitSet, Sarg, Util}
+import org.apache.calcite.util.{ControlFlowException, DateString, ImmutableBitSet, NlsString, Sarg, TimeString, TimestampString, Util}
 
 import java.lang.{Iterable => JIterable}
+import java.math.BigDecimal
 import java.util
 import java.util.function.Predicate
+
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
@@ -47,8 +53,9 @@ object FlinkRexUtil {
   @Experimental
   private[flink] val TABLE_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[Integer] =
     key("table.optimizer.cnf-nodes-limit")
-      .defaultValue(Integer.valueOf(-1))
-      .withDescription("When converting to conjunctive normal form (CNF, like '(a AND b) OR" +
+       .intType()
+       .defaultValue(Integer.valueOf(-1))
+       .withDescription("When converting to conjunctive normal form (CNF, like '(a AND b) OR" +
         " c' will be converted to '(a OR c) AND (b OR c)'), fail if the expression  exceeds " +
         "this threshold; (e.g. predicate in TPC-DS q41.sql will be converted to hundreds of " +
         "thousands of CNF nodes.) the threshold is expressed in terms of number of nodes " +
@@ -452,17 +459,29 @@ object FlinkRexUtil {
   }
 
   def getExpressionString(
-        expr: RexNode,
-        inFields: Seq[String]): String = {
-    getExpressionString(expr, inFields, Option.empty[List[RexNode]], ExpressionFormat.Prefix)
+      expr: RexNode,
+      inFields: Seq[String]): String = {
+    getExpressionString(expr, inFields, ExpressionDetail.Digest)
   }
 
   def getExpressionString(
-        expr: RexNode,
-        inFields: Seq[String],
-        localExprsTable: Option[List[RexNode]],
-        expressionFormat: ExpressionFormat): String = {
+      expr: RexNode,
+      inFields: Seq[String],
+      expressionDetail: ExpressionDetail): String = {
+    getExpressionString(
+      expr,
+      inFields,
+      Option.empty[List[RexNode]],
+      ExpressionFormat.Prefix,
+      expressionDetail)
+  }
 
+  def getExpressionString(
+      expr: RexNode,
+      inFields: Seq[String],
+      localExprsTable: Option[List[RexNode]],
+      expressionFormat: ExpressionFormat,
+      expressionDetail: ExpressionDetail): String = {
     expr match {
       case pr: RexPatternFieldRef =>
         val alpha = pr.getAlpha
@@ -473,22 +492,54 @@ object FlinkRexUtil {
         inFields(i.getIndex)
 
       case l: RexLiteral =>
-        l.toString
+        expressionDetail match {
+          case ExpressionDetail.Digest =>
+            // the digest for the literal
+            l.toString
+          case ExpressionDetail.Explain =>
+            val value = l.getValue
+            if (value == null) {
+              // return null with type
+              "null:" + l.getType
+            } else {
+              l.getTypeName match {
+                case SqlTypeName.DOUBLE => Util.toScientificNotation(value.asInstanceOf[BigDecimal])
+                case SqlTypeName.BIGINT => s"${value.asInstanceOf[BigDecimal].longValue()}L"
+                case SqlTypeName.BINARY => s"X'${value.asInstanceOf[ByteString].toString(16)}'"
+                case SqlTypeName.VARCHAR | SqlTypeName.CHAR =>
+                  s"'${value.asInstanceOf[NlsString].getValue}'"
+                case SqlTypeName.TIME | SqlTypeName.TIME_WITH_LOCAL_TIME_ZONE =>
+                  l.getValueAs(classOf[TimeString]).toString
+                case SqlTypeName.DATE =>
+                  l.getValueAs(classOf[DateString]).toString
+                case SqlTypeName.TIMESTAMP | SqlTypeName.TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
+                  l.getValueAs(classOf[TimestampString]).toString
+                case typ if SqlTypeName.INTERVAL_TYPES.contains(typ) => l.toString
+                case _ => value.toString
+              }
+            }
+        }
 
-      case l: RexLocalRef if localExprsTable.isEmpty =>
+      case _: RexLocalRef if localExprsTable.isEmpty =>
         throw new IllegalArgumentException("Encountered RexLocalRef without " +
           "local expression table")
 
       case l: RexLocalRef =>
         val lExpr = localExprsTable.get(l.getIndex)
-        getExpressionString(lExpr, inFields, localExprsTable, expressionFormat)
+        getExpressionString(lExpr, inFields, localExprsTable, expressionFormat, expressionDetail)
 
       case c: RexCall =>
         val op = c.getOperator.toString
         val ops = c.getOperands.map(
-          getExpressionString(_, inFields, localExprsTable, expressionFormat))
+          getExpressionString(_, inFields, localExprsTable, expressionFormat, expressionDetail))
         c.getOperator match {
           case _: SqlAsOperator => ops.head
+          case _: SqlCastFunction =>
+            val typeStr = expressionDetail match {
+              case ExpressionDetail.Digest => c.getType.getFullTypeString
+              case ExpressionDetail.Explain => c.getType.toString
+            }
+            s"$op(${ops.head} AS $typeStr)"
           case _ =>
             if (ops.size() == 1) {
               val operand = ops.head
@@ -525,7 +576,8 @@ object FlinkRexUtil {
           fa.getReferenceExpr,
           inFields,
           localExprsTable,
-          expressionFormat)
+          expressionFormat,
+          expressionDetail)
         val field = fa.getField.getName
         s"$referenceExpr.$field"
       case cv: RexCorrelVariable =>
@@ -570,4 +622,10 @@ object FlinkRexUtil {
 object ExpressionFormat extends Enumeration {
   type ExpressionFormat = Value
   val Infix, PostFix, Prefix = Value
+}
+
+/** ExpressionDetail defines the types of details for expression string result. */
+object ExpressionDetail extends Enumeration {
+  type ExpressionDetail = Value
+  val Explain, Digest = Value
 }

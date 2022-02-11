@@ -17,6 +17,7 @@
 
 package org.apache.flink.state.changelog;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
 import org.apache.flink.runtime.state.KeyedStateHandle;
@@ -117,6 +118,7 @@ class PeriodicMaterializationManager implements Closeable {
         }
     }
 
+    @VisibleForTesting
     public void triggerMaterialization() {
         mailboxExecutor.execute(
                 () -> {
@@ -129,6 +131,7 @@ class PeriodicMaterializationManager implements Closeable {
                                 () ->
                                         asyncMaterializationPhase(
                                                 runnable.getMaterializationRunnable(),
+                                                runnable.getMaterializationID(),
                                                 runnable.getMaterializedTo()));
                     } else {
                         scheduleNextMaterialization();
@@ -145,6 +148,7 @@ class PeriodicMaterializationManager implements Closeable {
 
     private void asyncMaterializationPhase(
             RunnableFuture<SnapshotResult<KeyedStateHandle>> materializedRunnableFuture,
+            long materializationID,
             SequenceNumber upTo) {
 
         uploadSnapshot(materializedRunnableFuture)
@@ -157,7 +161,7 @@ class PeriodicMaterializationManager implements Closeable {
                                 mailboxExecutor.execute(
                                         () ->
                                                 keyedStateBackend.updateChangelogSnapshotState(
-                                                        snapshotResult, upTo),
+                                                        snapshotResult, materializationID, upTo),
                                         "Task {} update materializedSnapshot up to changelog sequence number: {}",
                                         subtaskName,
                                         upTo);
@@ -238,12 +242,13 @@ class PeriodicMaterializationManager implements Closeable {
 
     // task thread and asyncOperationsThreadPool can access this method
     private synchronized void scheduleNextMaterialization() {
-        LOG.info(
-                "Task {} schedules the next materialization in {} seconds",
-                subtaskName,
-                periodicMaterializeDelay / 1000);
+        if (started && !periodicExecutor.isShutdown()) {
 
-        if (!periodicExecutor.isShutdown()) {
+            LOG.info(
+                    "Task {} schedules the next materialization in {} seconds",
+                    subtaskName,
+                    periodicMaterializeDelay / 1000);
+
             periodicExecutor.schedule(
                     this::triggerMaterialization, periodicMaterializeDelay, TimeUnit.MILLISECONDS);
         }
@@ -251,6 +256,8 @@ class PeriodicMaterializationManager implements Closeable {
 
     static class MaterializationRunnable {
         private final RunnableFuture<SnapshotResult<KeyedStateHandle>> materializationRunnable;
+
+        private final long materializationID;
 
         /**
          * The {@link SequenceNumber} up to which the state is materialized, exclusive. This
@@ -260,9 +267,11 @@ class PeriodicMaterializationManager implements Closeable {
 
         public MaterializationRunnable(
                 RunnableFuture<SnapshotResult<KeyedStateHandle>> materializationRunnable,
+                long materializationID,
                 SequenceNumber materializedTo) {
             this.materializationRunnable = materializationRunnable;
             this.materializedTo = materializedTo;
+            this.materializationID = materializationID;
         }
 
         RunnableFuture<SnapshotResult<KeyedStateHandle>> getMaterializationRunnable() {
@@ -271,6 +280,10 @@ class PeriodicMaterializationManager implements Closeable {
 
         SequenceNumber getMaterializedTo() {
             return materializedTo;
+        }
+
+        public long getMaterializationID() {
+            return materializationID;
         }
     }
 }

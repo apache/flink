@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.TestingClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -35,8 +36,8 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -63,7 +64,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
         OneShotLatch stopWithSavepointLatch = new OneShotLatch();
         TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
         clusterClient.setStopWithSavepointFunction(
-                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                (jobID, advanceToEndOfEventTime, savepointDirectory, formatType) -> {
                     assertThat(jobID, is(jid));
                     assertThat(advanceToEndOfEventTime, is(false));
                     assertNull(savepointDirectory);
@@ -85,7 +86,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
         OneShotLatch stopWithSavepointLatch = new OneShotLatch();
         TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
         clusterClient.setStopWithSavepointFunction(
-                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                (jobID, advanceToEndOfEventTime, savepointDirectory, formatType) -> {
                     assertThat(jobID, is(jid));
                     assertThat(advanceToEndOfEventTime, is(false));
                     assertNull(savepointDirectory);
@@ -106,7 +107,29 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
         OneShotLatch stopWithSavepointLatch = new OneShotLatch();
         TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
         clusterClient.setStopWithSavepointFunction(
-                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                (jobID, advanceToEndOfEventTime, savepointDirectory, formatType) -> {
+                    assertThat(jobID, is(jid));
+                    assertThat(advanceToEndOfEventTime, is(false));
+                    assertThat(savepointDirectory, is("test-target-dir"));
+                    stopWithSavepointLatch.trigger();
+                    return CompletableFuture.completedFuture(savepointDirectory);
+                });
+        MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+        testFrontend.stop(parameters);
+        stopWithSavepointLatch.await();
+    }
+
+    @Test
+    public void testStopWithExplicitSavepointType() throws Exception {
+        JobID jid = new JobID();
+
+        String[] parameters = {
+            "-p", "test-target-dir", jid.toString(), "-type", SavepointFormatType.NATIVE.toString()
+        };
+        OneShotLatch stopWithSavepointLatch = new OneShotLatch();
+        TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
+        clusterClient.setStopWithSavepointFunction(
+                (jobID, advanceToEndOfEventTime, savepointDirectory, formatType) -> {
                     assertThat(jobID, is(jid));
                     assertThat(advanceToEndOfEventTime, is(false));
                     assertThat(savepointDirectory, is("test-target-dir"));
@@ -126,7 +149,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
         OneShotLatch stopWithSavepointLatch = new OneShotLatch();
         TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
         clusterClient.setStopWithSavepointFunction(
-                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                (jobID, advanceToEndOfEventTime, savepointDirectory, formatType) -> {
                     assertThat(jobID, is(jid));
                     assertThat(advanceToEndOfEventTime, is(true));
                     assertNull(savepointDirectory);
@@ -147,7 +170,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
         OneShotLatch stopWithSavepointLatch = new OneShotLatch();
         TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
         clusterClient.setStopWithSavepointFunction(
-                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                (jobID, advanceToEndOfEventTime, savepointDirectory, formatType) -> {
                     assertThat(jobID, is(jid));
                     assertThat(advanceToEndOfEventTime, is(true));
                     assertNull(savepointDirectory);
@@ -168,7 +191,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
         OneShotLatch stopWithSavepointLatch = new OneShotLatch();
         TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
         clusterClient.setStopWithSavepointFunction(
-                (jobID, advanceToEndOfEventTime, savepointDirectory) -> {
+                (jobID, advanceToEndOfEventTime, savepointDirectory, formatType) -> {
                     assertThat(jobID, is(jid));
                     assertThat(advanceToEndOfEventTime, is(true));
                     assertThat(savepointDirectory, is("test-target-dir"));
@@ -219,7 +242,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
         FlinkException testException = new FlinkException(expectedMessage);
         TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
         clusterClient.setStopWithSavepointFunction(
-                (jobID, advanceToEndOfEventTime, savepointDirectory) ->
+                (jobID, advanceToEndOfEventTime, savepointDirectory, formatType) ->
                         FutureUtils.completedExceptionally(testException));
         MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
 

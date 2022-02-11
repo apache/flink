@@ -23,9 +23,12 @@ import org.apache.flink.api.common.io.CheckpointableInputFormat;
 import org.apache.flink.api.common.io.LocatableInputSplitAssigner;
 import org.apache.flink.api.common.io.statistics.BaseStatistics;
 import org.apache.flink.api.java.hadoop.common.HadoopInputFormatCommonBase;
-import org.apache.flink.connectors.hive.HiveSourceFileEnumerator;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.connectors.hive.HiveOptions;
 import org.apache.flink.connectors.hive.HiveTablePartition;
+import org.apache.flink.connectors.hive.HiveTablePartitionSplits;
 import org.apache.flink.connectors.hive.JobConfWrapper;
+import org.apache.flink.connectors.hive.MRSplitsGetter;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -66,6 +69,8 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
     private static final String SCHEMA_EVOLUTION_COLUMNS = "schema.evolution.columns";
     private static final String SCHEMA_EVOLUTION_COLUMNS_TYPES = "schema.evolution.columns.types";
 
+    private final ReadableConfig flinkConf;
+
     private final JobConfWrapper jobConf;
 
     private final String hiveVersion;
@@ -93,6 +98,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
     @VisibleForTesting protected transient SplitReader reader;
 
     public HiveTableInputFormat(
+            ReadableConfig flinkConf,
             JobConf jobConf,
             List<String> partitionKeys,
             DataType[] fieldTypes,
@@ -103,6 +109,7 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
             boolean useMapRedReader,
             List<HiveTablePartition> partitions) {
         super(jobConf.getCredentials());
+        this.flinkConf = flinkConf;
         this.jobConf = new JobConfWrapper(new JobConf(jobConf));
         this.partitionKeys = partitionKeys;
         this.fieldTypes = fieldTypes;
@@ -310,19 +317,31 @@ public class HiveTableInputFormat extends HadoopInputFormatCommonBase<RowData, H
 
     @Override
     public HiveTableInputSplit[] createInputSplits(int minNumSplits) throws IOException {
-        return createInputSplits(minNumSplits, partitions, jobConf.conf());
+        return createInputSplits(minNumSplits, partitions, flinkConf, jobConf.conf());
     }
 
     public static HiveTableInputSplit[] createInputSplits(
-            int minNumSplits, List<HiveTablePartition> partitions, JobConf jobConf)
+            int minNumSplits,
+            List<HiveTablePartition> partitions,
+            ReadableConfig flinkConf,
+            JobConf jobConf)
             throws IOException {
         List<HiveTableInputSplit> hiveSplits = new ArrayList<>();
         int splitNum = 0;
-        for (HiveTablePartition partition : partitions) {
-            for (InputSplit inputSplit :
-                    HiveSourceFileEnumerator.createMRSplits(
-                            minNumSplits, partition.getStorageDescriptor(), jobConf)) {
-                hiveSplits.add(new HiveTableInputSplit(splitNum++, inputSplit, jobConf, partition));
+        try (MRSplitsGetter splitsGetter =
+                new MRSplitsGetter(
+                        flinkConf.get(
+                                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM))) {
+            for (HiveTablePartitionSplits partitionSplits :
+                    splitsGetter.getHiveTablePartitionMRSplits(minNumSplits, partitions, jobConf)) {
+                for (InputSplit inputSplit : partitionSplits.getInputSplits()) {
+                    hiveSplits.add(
+                            new HiveTableInputSplit(
+                                    splitNum++,
+                                    inputSplit,
+                                    partitionSplits.getJobConf(),
+                                    partitionSplits.getHiveTablePartition()));
+                }
             }
         }
 

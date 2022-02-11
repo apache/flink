@@ -25,8 +25,12 @@ public class Constants {
     public static final String API_VERSION = "v1";
     public static final String APPS_API_VERSION = "apps/v1";
 
+    public static final String DNS_PLOICY_DEFAULT = "ClusterFirst";
+    public static final String DNS_PLOICY_HOSTNETWORK = "ClusterFirstWithHostNet";
+
     public static final String CONFIG_FILE_LOGBACK_NAME = "logback-console.xml";
     public static final String CONFIG_FILE_LOG4J_NAME = "log4j-console.properties";
+    public static final String ENV_FLINK_LOG_DIR = "FLINK_LOG_DIR";
 
     public static final String MAIN_CONTAINER_NAME = "flink-main-container";
 
@@ -81,8 +85,6 @@ public class Constants {
 
     public static final String POD_IP_FIELD_PATH = "status.podIP";
 
-    public static final String HEADLESS_SERVICE_CLUSTER_IP = "None";
-
     public static final int MAXIMUM_CHARACTERS_OF_CLUSTER_ID = 45;
 
     public static final String RESTART_POLICY_OF_NEVER = "Never";
@@ -92,7 +94,6 @@ public class Constants {
     public static final String LEADER_SESSION_ID_KEY = "sessionId";
     public static final String JOB_GRAPH_STORE_KEY_PREFIX = "jobGraph-";
     public static final String SUBMITTED_JOBGRAPH_FILE_PREFIX = "submittedJobGraph";
-    public static final String RUNNING_JOBS_REGISTRY_KEY_PREFIX = "runningJobsRegistry-";
     public static final String CHECKPOINT_COUNTER_KEY = "counter";
     public static final String CHECKPOINT_ID_KEY_PREFIX = "checkpointID-";
     public static final String COMPLETED_CHECKPOINT_FILE_SUFFIX = "completedCheckpoint";

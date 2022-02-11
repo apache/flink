@@ -92,7 +92,7 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         // No shared states
     }
 
@@ -104,6 +104,11 @@ public class KeyGroupsStateHandle implements StreamStateHandle, KeyedStateHandle
     @Override
     public long getStateSize() {
         return stateHandle.getStateSize();
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        return getStateSize();
     }
 
     @Override

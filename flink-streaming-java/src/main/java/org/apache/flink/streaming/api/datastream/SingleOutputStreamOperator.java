@@ -419,4 +419,22 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
                 new SideOutputTransformation<>(this.getTransformation(), sideOutputTag);
         return new DataStream<>(this.getExecutionEnvironment(), sideOutputTransformation);
     }
+
+    /**
+     * Sets the description for this operation.
+     *
+     * <p>Description is used in json plan and web ui, but not in logging and metrics where only
+     * name is available. Description is expected to provide detailed information about the sink,
+     * while name is expected to be more simple, providing summary information only, so that we can
+     * have more user-friendly logging messages and metric tags without losing useful messages for
+     * debugging.
+     *
+     * @param description The description for this operation.
+     * @return The operation with new description.
+     */
+    @PublicEvolving
+    public SingleOutputStreamOperator<T> setDescription(String description) {
+        transformation.setDescription(description);
+        return this;
+    }
 }

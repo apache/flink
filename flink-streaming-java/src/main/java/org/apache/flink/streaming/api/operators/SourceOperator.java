@@ -34,6 +34,7 @@ import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.metrics.groups.InternalSourceReaderMetricGroup;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
@@ -49,6 +50,7 @@ import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.source.TimestampsAndWatermarks;
 import org.apache.flink.streaming.api.operators.util.SimpleVersionedListState;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
+import org.apache.flink.streaming.runtime.io.MultipleFuturesAvailabilityHelper;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
@@ -146,6 +148,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private enum OperatingMode {
         READING,
         OUTPUT_NOT_INITIALIZED,
+        SOURCE_DRAINED,
         SOURCE_STOPPED,
         DATA_FINISHED
     }
@@ -305,23 +308,35 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     @Override
     public void finish() throws Exception {
+        stopInternalServices();
+        super.finish();
+
+        finished.complete(null);
+    }
+
+    private void stopInternalServices() {
         if (eventTimeLogic != null) {
             eventTimeLogic.stopPeriodicWatermarkEmits();
         }
         if (latencyMarerEmitter != null) {
             latencyMarerEmitter.close();
         }
-        super.finish();
-
-        finished.complete(null);
     }
 
-    public CompletableFuture<Void> stop() {
+    public CompletableFuture<Void> stop(StopMode mode) {
         switch (operatingMode) {
             case OUTPUT_NOT_INITIALIZED:
             case READING:
-                this.operatingMode = OperatingMode.SOURCE_STOPPED;
+                this.operatingMode =
+                        mode == StopMode.DRAIN
+                                ? OperatingMode.SOURCE_DRAINED
+                                : OperatingMode.SOURCE_STOPPED;
                 availabilityHelper.forceStop();
+                if (this.operatingMode == OperatingMode.SOURCE_STOPPED) {
+                    stopInternalServices();
+                    finished.complete(null);
+                    return finished;
+                }
                 break;
         }
         return finished;
@@ -361,6 +376,10 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                 this.operatingMode = OperatingMode.READING;
                 return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
             case SOURCE_STOPPED:
+                this.operatingMode = OperatingMode.DATA_FINISHED;
+                sourceMetricGroup.idlingStarted();
+                return DataInputStatus.STOPPED;
+            case SOURCE_DRAINED:
                 this.operatingMode = OperatingMode.DATA_FINISHED;
                 sourceMetricGroup.idlingStarted();
                 return DataInputStatus.END_OF_DATA;
@@ -423,6 +442,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             case READING:
                 return availabilityHelper.update(sourceReader.isAvailable());
             case SOURCE_STOPPED:
+            case SOURCE_DRAINED:
             case DATA_FINISHED:
                 return AvailabilityProvider.AVAILABLE;
             default:
@@ -487,24 +507,26 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
 
     private static class SourceOperatorAvailabilityHelper {
         private final CompletableFuture<Void> forcedStopFuture = new CompletableFuture<>();
-        private CompletableFuture<Void> currentReaderFuture;
-        private CompletableFuture<?> currentCombinedFuture;
+        private final MultipleFuturesAvailabilityHelper availabilityHelper;
+
+        private SourceOperatorAvailabilityHelper() {
+            availabilityHelper = new MultipleFuturesAvailabilityHelper(2);
+            availabilityHelper.anyOf(0, forcedStopFuture);
+        }
 
         public CompletableFuture<?> update(CompletableFuture<Void> sourceReaderFuture) {
-            if (sourceReaderFuture == AvailabilityProvider.AVAILABLE) {
-                return sourceReaderFuture;
-            } else if (sourceReaderFuture == currentReaderFuture) {
-                return currentCombinedFuture;
-            } else {
-                currentReaderFuture = sourceReaderFuture;
-                currentCombinedFuture =
-                        CompletableFuture.anyOf(forcedStopFuture, sourceReaderFuture);
-                return currentCombinedFuture;
+            if (sourceReaderFuture == AvailabilityProvider.AVAILABLE
+                    || sourceReaderFuture.isDone()) {
+                return AvailabilityProvider.AVAILABLE;
             }
+            availabilityHelper.resetToUnAvailable();
+            availabilityHelper.anyOf(0, forcedStopFuture);
+            availabilityHelper.anyOf(1, sourceReaderFuture);
+            return availabilityHelper.getAvailableFuture();
         }
 
         public void forceStop() {
-            this.forcedStopFuture.complete(null);
+            forcedStopFuture.complete(null);
         }
     }
 }

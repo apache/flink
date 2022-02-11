@@ -29,8 +29,10 @@ import org.junit.Test;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+/** Tests for {@link SerializedThrowable}. */
 public class SerializedThrowableTest {
 
     @Test
@@ -151,5 +153,34 @@ public class SerializedThrowableTest {
         assertEquals("parent message", copy.getMessage());
         assertNotNull(copy.getCause());
         assertEquals("original message", copy.getCause().getMessage());
+    }
+
+    @Test
+    public void testSuppressedTransferring() {
+        Exception root = new Exception("root");
+        Exception suppressed = new Exception("suppressed");
+        root.addSuppressed(suppressed);
+
+        SerializedThrowable serializedThrowable = new SerializedThrowable(root);
+
+        assertEquals(1, serializedThrowable.getSuppressed().length);
+        Throwable actualSuppressed = serializedThrowable.getSuppressed()[0];
+        assertTrue(actualSuppressed instanceof SerializedThrowable);
+        assertEquals("suppressed", actualSuppressed.getMessage());
+    }
+
+    @Test
+    public void testCopySuppressed() {
+        Exception root = new Exception("root");
+        Exception suppressed = new Exception("suppressed");
+        root.addSuppressed(suppressed);
+
+        SerializedThrowable serializedThrowable = new SerializedThrowable(root);
+        SerializedThrowable copy = new SerializedThrowable(serializedThrowable);
+
+        assertEquals(1, copy.getSuppressed().length);
+        Throwable actualSuppressed = copy.getSuppressed()[0];
+        assertTrue(actualSuppressed instanceof SerializedThrowable);
+        assertEquals("suppressed", actualSuppressed.getMessage());
     }
 }

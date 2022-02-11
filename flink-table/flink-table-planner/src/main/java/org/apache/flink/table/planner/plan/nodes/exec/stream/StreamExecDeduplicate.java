@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
@@ -34,8 +35,11 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
@@ -54,7 +58,6 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Collections;
@@ -68,9 +71,16 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * is an optimization of {@link StreamExecRank} for some special cases. Compared to {@link
  * StreamExecRank}, this node could use mini-batch and access less state.
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@ExecNodeMetadata(
+        name = "stream-exec-deduplicate",
+        version = 1,
+        producedTransformations = StreamExecDeduplicate.DEDUPLICATE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String DEDUPLICATE_TRANSFORMATION = "deduplicate";
 
     public static final String FIELD_NAME_UNIQUE_KEYS = "uniqueKeys";
     public static final String FIELD_NAME_IS_ROWTIME = "isRowtime";
@@ -123,11 +133,12 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
             RowType outputType,
             String description) {
         this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecDeduplicate.class),
                 uniqueKeys,
                 isRowtime,
                 keepLastRow,
                 generateUpdateBefore,
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -135,15 +146,16 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
 
     @JsonCreator
     public StreamExecDeduplicate(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_UNIQUE_KEYS) int[] uniqueKeys,
             @JsonProperty(FIELD_NAME_IS_ROWTIME) boolean isRowtime,
             @JsonProperty(FIELD_NAME_KEEP_LAST_ROW) boolean keepLastRow,
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
-            @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.uniqueKeys = checkNotNull(uniqueKeys);
         this.isRowtime = isRowtime;
@@ -188,9 +200,10 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         }
 
         final OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
+                ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getDescription(),
+                        createTransformationMeta(
+                                DEDUPLICATE_TRANSFORMATION, planner.getTableConfig()),
                         operator,
                         rowTypeInfo,
                         inputTransform.getParallelism());

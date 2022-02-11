@@ -1,26 +1,34 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "PartitionTable"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`PartitionTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "INT"
+            }, {
+              "name" : "p",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ "p" ],
+          "options" : {
+            "connector" : "values",
+            "partition-list" : "p:A",
+            "bounded" : "false"
+          }
+        }
       },
-      "catalogTable" : {
-        "schema.2.data-type" : "VARCHAR(2147483647)",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "p",
-        "schema.1.name" : "b",
-        "partition-list" : "p:A",
-        "bounded" : "false",
-        "schema.0.name" : "a",
-        "schema.1.data-type" : "INT",
-        "partition.keys.0.name" : "p"
-      },
-      "sourceAbilitySpecs" : [ {
+      "abilities" : [ {
         "type" : "PartitionPushDown",
         "partitions" : [ {
           "p" : "A"
@@ -28,57 +36,27 @@
       }, {
         "type" : "ProjectPushDown",
         "projectedFields" : [ [ 0 ], [ 1 ] ],
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "a" : "BIGINT"
-          }, {
-            "b" : "INT"
-          } ]
-        }
+        "producedType" : "ROW<`a` BIGINT, `b` INT> NOT NULL"
       }, {
         "type" : "ReadingMetadata",
         "metadataKeys" : [ ],
-        "producedType" : {
-          "type" : "ROW",
-          "nullable" : false,
-          "fields" : [ {
-            "a" : "BIGINT"
-          }, {
-            "b" : "INT"
-          } ]
-        }
+        "producedType" : "ROW<`a` BIGINT, `b` INT> NOT NULL"
       } ]
     },
-    "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "INT"
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `b` INT>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, PartitionTable, partitions=[{p=A}], project=[a, b], metadata=[]]], fields=[a, b])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : true
-      }
+      "type" : "INT"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -89,20 +67,11 @@
       "operands" : [ {
         "kind" : "LITERAL",
         "value" : "A",
-        "type" : {
-          "typeName" : "VARCHAR",
-          "nullable" : false,
-          "precision" : 2147483647
-        }
+        "type" : "VARCHAR(2147483647) NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "VARCHAR",
-        "nullable" : true,
-        "precision" : 2147483647
-      }
+      "type" : "VARCHAR(2147483647)"
     } ],
     "condition" : null,
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -110,39 +79,37 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "INT"
-      }, {
-        "p" : "VARCHAR(2147483647)"
-      } ]
-    },
-    "description" : "Calc(select=[a, b, CAST(_UTF-16LE'A':VARCHAR(2147483647) CHARACTER SET \"UTF-16LE\") AS p])"
+    "outputType" : "ROW<`a` BIGINT, `b` INT, `p` VARCHAR(2147483647)>",
+    "description" : "Calc(select=[a, b, CAST('A' AS VARCHAR(2147483647)) AS p])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 3,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MySink"
-      },
-      "catalogTable" : {
-        "table-sink-class" : "DEFAULT",
-        "schema.2.data-type" : "VARCHAR(2147483647)",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "schema.0.name" : "a",
-        "schema.1.data-type" : "INT"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "INT"
+            }, {
+              "name" : "c",
+              "dataType" : "VARCHAR(2147483647)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "table-sink-class" : "DEFAULT"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -150,17 +117,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "INT"
-      }, {
-        "p" : "VARCHAR(2147483647)"
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `b` INT, `p` VARCHAR(2147483647)>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, b, p])"
   } ],
   "edges" : [ {

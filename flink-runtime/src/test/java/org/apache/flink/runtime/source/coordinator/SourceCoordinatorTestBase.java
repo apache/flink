@@ -23,8 +23,10 @@ import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.api.connector.source.mocks.MockSplitEnumeratorCheckpointSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.operators.coordination.EventReceivingTasks;
 import org.apache.flink.runtime.operators.coordination.MockOperatorCoordinatorContext;
+import org.apache.flink.runtime.source.coordinator.SourceCoordinator.WatermarkAlignmentParams;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -37,8 +39,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -57,7 +59,7 @@ public abstract class SourceCoordinatorTestBase {
 
     // ---- Mocks for the Source Coordinator Context ----
     protected SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory;
-    protected ExecutorService coordinatorExecutor;
+    protected ScheduledExecutorService coordinatorExecutor;
     protected SplitAssignmentTracker<MockSourceSplit> splitSplitAssignmentTracker;
     protected SourceCoordinatorContext<MockSourceSplit> context;
 
@@ -78,7 +80,7 @@ public abstract class SourceCoordinatorTestBase {
                 new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
                         coordinatorThreadName, getClass().getClassLoader());
 
-        coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
+        coordinatorExecutor = Executors.newScheduledThreadPool(1, coordinatorThreadFactory);
         sourceCoordinator = getNewSourceCoordinator();
         context = sourceCoordinator.getContext();
     }
@@ -147,13 +149,23 @@ public abstract class SourceCoordinatorTestBase {
     // ------------------------------------------------------------------------
 
     protected SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> getNewSourceCoordinator() {
+        return getNewSourceCoordinator(SourceCoordinator.WATERMARK_ALIGNMENT_DISABLED);
+    }
+
+    protected SourceCoordinator<MockSourceSplit, Set<MockSourceSplit>> getNewSourceCoordinator(
+            WatermarkAlignmentParams watermarkAlignmentParams) {
         final Source<Integer, MockSourceSplit, Set<MockSourceSplit>> mockSource =
                 TestingSplitEnumerator.factorySource(
                         new MockSourceSplitSerializer(),
                         new MockSplitEnumeratorCheckpointSerializer());
 
         return new SourceCoordinator<>(
-                OPERATOR_NAME, coordinatorExecutor, mockSource, getNewSourceCoordinatorContext());
+                OPERATOR_NAME,
+                coordinatorExecutor,
+                mockSource,
+                getNewSourceCoordinatorContext(),
+                new CoordinatorStoreImpl(),
+                watermarkAlignmentParams);
     }
 
     protected SourceCoordinatorContext<MockSourceSplit> getNewSourceCoordinatorContext() {

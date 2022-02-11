@@ -54,7 +54,9 @@ public interface JobClient {
      * @return a {@link CompletableFuture} containing the path where the savepoint is located
      */
     CompletableFuture<String> stopWithSavepoint(
-            boolean advanceToEndOfEventTime, @Nullable String savepointDirectory);
+            boolean advanceToEndOfEventTime,
+            @Nullable String savepointDirectory,
+            SavepointFormatType formatType);
 
     /**
      * Triggers a savepoint for the associated job. The savepoint will be written to the given
@@ -64,7 +66,8 @@ public interface JobClient {
      * @param savepointDirectory directory the savepoint should be written to
      * @return a {@link CompletableFuture} containing the path where the savepoint is located
      */
-    CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory);
+    CompletableFuture<String> triggerSavepoint(
+            @Nullable String savepointDirectory, SavepointFormatType formatType);
 
     /**
      * Requests the accumulators of the associated job. Accumulators can be requested while it is

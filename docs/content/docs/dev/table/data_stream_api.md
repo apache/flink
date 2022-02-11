@@ -467,6 +467,8 @@ import org.apache.flink.table.api.bridge.scala._
 {{< /tab >}}
 {{< /tabs >}}
 
+Please refer to the [configuration]({{< ref "docs/dev/configuration/overview" >}}) section for more information. 
+
 ### Configuration
 
 The `TableEnvironment` will adopt all configuration options from the passed `StreamExecutionEnvironment`.
@@ -2788,7 +2790,7 @@ t_env = ... # type: StreamTableEnvironment
 
 stream = ... # type: DataStream of Types.TUPLE([Types.LONG(), Types.STRING()])
 
-table2 = t_env.from_data_stream(stream, col('my_long'), col('my_stram'))
+table2 = t_env.from_data_stream(stream, col('my_long'), col('my_stream'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -2898,7 +2900,7 @@ retract_stream = t_env.to_retract_stream(table, Types.ROW([Types.STRING(), Types
 {{< /tab >}}
 {{< /tabs >}}
 
-**Note:** A detailed discussion about dynamic tables and their properties is given in the [Dynamic Tables](streaming/dynamic_tables.html) document. 
+**Note:** A detailed discussion about dynamic tables and their properties is given in the [Dynamic Tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}) document. 
 
 {{< hint warning >}}
 Once the Table is converted to a DataStream, please use the `StreamExecutionEnvironment.execute()` method to execute the DataStream program.

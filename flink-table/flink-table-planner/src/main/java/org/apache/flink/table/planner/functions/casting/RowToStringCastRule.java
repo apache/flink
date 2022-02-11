@@ -22,18 +22,18 @@ import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.className;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.newName;
 import static org.apache.flink.table.planner.codegen.CodeGenUtils.rowFieldReadAccess;
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
-import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.NULL_STR_LITERAL;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.constructorCall;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.methodCall;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.nullLiteral;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.strLiteral;
 
 /** {@link LogicalTypeRoot#ROW} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
@@ -46,40 +46,61 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
     }
 
     private static boolean matches(LogicalType input, LogicalType target) {
-        return input.is(LogicalTypeRoot.ROW)
+        return (input.is(LogicalTypeRoot.ROW) || input.is(LogicalTypeRoot.STRUCTURED_TYPE))
                 && target.is(LogicalTypeFamily.CHARACTER_STRING)
-                && ((RowType) input)
-                        .getFields().stream()
-                                .allMatch(
-                                        field -> CastRuleProvider.exists(field.getType(), target));
+                && LogicalTypeChecks.getFieldTypes(input).stream()
+                        .allMatch(fieldType -> CastRuleProvider.exists(fieldType, target));
     }
 
-    /* Example generated code for ROW<`f0` INT, `f1` STRING>:
+    /* Example generated code for ROW<`f0` INT, `f1` STRING> -> CHAR(12):
 
     isNull$0 = _myInputIsNull;
     if (!isNull$0) {
         builder$1.setLength(0);
         builder$1.append("(");
-        int f0Value$2 = -1;
-        boolean f0IsNull$3 = _myInput.isNullAt(0);
-        if (!f0IsNull$3) {
-            f0Value$2 = _myInput.getInt(0);
-            result$2 = org.apache.flink.table.data.binary.BinaryStringData.fromString("" + f0Value$2);
-            builder$1.append(result$2);
+        int f0Value$3 = -1;
+        boolean f0IsNull$4 = _myInput.isNullAt(0);
+        if (!f0IsNull$4) {
+            f0Value$3 = _myInput.getInt(0);
+            isNull$2 = f0IsNull$4;
+            if (!isNull$2) {
+                result$3 = org.apache.flink.table.data.binary.BinaryStringData.fromString("" + f0Value$3);
+                isNull$2 = result$3 == null;
+            } else {
+                result$3 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
+            }
+            builder$1.append(result$3);
         } else {
-            builder$1.append("null");
+            builder$1.append("NULL");
         }
-        builder$1.append(",");
-        org.apache.flink.table.data.binary.BinaryStringData f1Value$4 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
-        boolean f1IsNull$5 = _myInput.isNullAt(1);
-        if (!f1IsNull$5) {
-            f1Value$4 = ((org.apache.flink.table.data.binary.BinaryStringData) _myInput.getString(1));
-            builder$1.append(f1Value$4);
+        builder$1.append(", ");
+        org.apache.flink.table.data.binary.BinaryStringData f1Value$5 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
+        boolean f1IsNull$6 = _myInput.isNullAt(1);
+        if (!f1IsNull$6) {
+            f1Value$5 = ((org.apache.flink.table.data.binary.BinaryStringData) _myInput.getString(1));
+            builder$1.append(f1Value$5);
         } else {
-            builder$1.append("null");
+            builder$1.append("NULL");
         }
         builder$1.append(")");
-        result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(builder$1.toString());
+        java.lang.String resultString$2;
+        resultString$2 = builder$1.toString();
+        if (builder$1.length() > 12) {
+            resultString$2 = builder$1.substring(0, java.lang.Math.min(builder$1.length(), 12));
+        } else {
+            if (resultString$2.length() < 12) {
+                int padLength$7;
+                padLength$7 = 12 - resultString$2.length();
+                java.lang.StringBuilder sbPadding$8;
+                sbPadding$8 = new java.lang.StringBuilder();
+                for (int i$9 = 0; i$9 < padLength$7; i$9++) {
+                    sbPadding$8.append(" ");
+                }
+                resultString$2 = resultString$2 + sbPadding$8.toString();
+            }
+        }
+        result$1 = org.apache.flink.table.data.binary.BinaryStringData.fromString(resultString$2);
+        isNull$0 = result$1 == null;
     } else {
         result$1 = org.apache.flink.table.data.binary.BinaryStringData.EMPTY_UTF8;
     }
@@ -92,15 +113,18 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
             String returnVariable,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        final List<LogicalType> fields =
-                ((RowType) inputLogicalType)
-                        .getFields().stream()
-                                .map(RowType.RowField::getType)
-                                .collect(Collectors.toList());
+        final List<LogicalType> fields = LogicalTypeChecks.getFieldTypes(inputLogicalType);
 
         final String builderTerm = newName("builder");
         context.declareClassField(
                 className(StringBuilder.class), builderTerm, constructorCall(StringBuilder.class));
+
+        final String resultStringTerm = newName("resultString");
+        final int length = LogicalTypeChecks.getLength(targetLogicalType);
+        final LogicalType targetTypeForElementCast =
+                targetLogicalType.is(LogicalTypeFamily.CHARACTER_STRING)
+                        ? VarCharType.STRING_TYPE
+                        : targetLogicalType;
 
         final CastRuleUtils.CodeWriter writer =
                 new CastRuleUtils.CodeWriter()
@@ -115,17 +139,14 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
             final String fieldIsNullTerm = newName("f" + fieldIndex + "IsNull");
 
             final CastCodeBlock codeBlock =
-                    CastRuleProvider.generateCodeBlock(
-                            context,
-                            fieldTerm,
-                            fieldIsNullTerm,
-                            // Null check is done at the row access level
-                            fieldType.copy(false),
-                            targetLogicalType);
+                    // Null check is done at the row access level
+                    CastRuleProvider.generateAlwaysNonNullCodeBlock(
+                            context, fieldTerm, fieldType, targetTypeForElementCast);
 
             // Write the comma
             if (fieldIndex != 0) {
-                writer.stmt(methodCall(builderTerm, "append", strLiteral(", ")));
+                final String comma = getDelimiter(context);
+                writer.stmt(methodCall(builderTerm, "append", comma));
             }
 
             writer
@@ -154,17 +175,35 @@ class RowToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayDa
                             elseBodyWriter ->
                                     // If element is null, just write NULL
                                     elseBodyWriter.stmt(
-                                            methodCall(builderTerm, "append", NULL_STR_LITERAL)));
+                                            methodCall(
+                                                    builderTerm,
+                                                    "append",
+                                                    nullLiteral(context.legacyBehaviour()))));
         }
 
-        writer.stmt(methodCall(builderTerm, "append", strLiteral(")")))
+        writer.stmt(methodCall(builderTerm, "append", strLiteral(")")));
+        return CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
+                        writer,
+                        targetLogicalType,
+                        context.legacyBehaviour(),
+                        length,
+                        resultStringTerm,
+                        builderTerm)
                 // Assign the result value
                 .assignStmt(
                         returnVariable,
                         CastRuleUtils.staticCall(
-                                BINARY_STRING_DATA_FROM_STRING(),
-                                methodCall(builderTerm, "toString")));
+                                BINARY_STRING_DATA_FROM_STRING(), resultStringTerm))
+                .toString();
+    }
 
-        return writer.toString();
+    private static String getDelimiter(CodeGeneratorCastRule.Context context) {
+        final String comma;
+        if (context.legacyBehaviour()) {
+            comma = strLiteral(",");
+        } else {
+            comma = strLiteral(", ");
+        }
+        return comma;
     }
 }

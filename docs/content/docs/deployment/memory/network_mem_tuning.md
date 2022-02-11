@@ -41,13 +41,13 @@ the network buffers. The larger the amount of in-flight data, the longer the che
 
 ## The Buffer Debloating Mechanism
 
-Previously, the only way to configure the amount of in-flight data was to specify both the amount and the buffer size. However, ideal values can be difficult to choose since they are different for every
+Previously, the only way to configure the amount of in-flight data was to specify both the buffer amount and the buffer size. However, ideal values can be difficult to choose since they are different for every
 deployment. The buffer debloating mechanism added in Flink 1.14 attempts to address this issue by automatically adjusting the amount of in-flight data to reasonable values.
 
 The buffer debloating feature calculates the maximum possible throughput for the subtask (in the scenario that it is always busy) and adjusts the amount of in-flight data such that the consumption time of those in-flight data will be equal to the configured value.
 
 The buffer debloat mechanism can be enabled by setting the property `taskmanager.network.memory.buffer-debloat.enabled` to `true`. 
-The targeted time to consume the in-flight data can be configured by setting `taskmanager.network.memory.buffer-debloat.target` to `duration`.
+The targeted time to consume the in-flight data can be configured by setting `taskmanager.network.memory.buffer-debloat.target` to a `duration`.
 The default value of the debloat target should be good enough for most cases.
 
 This feature uses past throughput data to predict the time required to consume the remaining
@@ -74,10 +74,6 @@ Here are [metrics]({{< ref "docs/ops/metrics" >}}#io) you can use to monitor the
 
 Currently, there are a few cases that are not handled automatically by the buffer debloating mechanism.
 
-#### Large records
-
-If your record size exceeds the [minimum memory segment size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-min-segment-size), buffer debloating can potentially shrink the buffer size so much, that the network stack will require more than one buffer to transfer a single record. This can have adverse effects on the throughput, without actually reducing the amount of in-flight data. 
-
 #### Multiple inputs and unions
 
 Currently, the throughput calculation and buffer debloating happen on the subtask level. 
@@ -89,6 +85,14 @@ If your subtask has multiple different inputs or it has a single but unioned inp
 Currently, buffer debloating only caps at the maximal used buffer size. The actual buffer size and the number of buffers remain unchanged. This means that the debloating mechanism cannot reduce the memory usage of your job. You would have to manually reduce either the amount or the size of the buffers. 
 
 Furthermore, if you want to reduce the amount of buffered in-flight data below what buffer debloating currently allows, you might want to manually configure the number of buffers.
+
+#### High parallelism
+
+Currently, the buffer debloating mechanism might not perform correctly with high parallelism (above ~200) using the default configuration. 
+If you observe reduced throughput or higher than expected checkpointing times 
+we suggest increasing the number of floating buffers (`taskmanager.network.memory.floating-buffers-per-gate`) from the default value to at least the number equal to the parallelism.
+
+The actual value of parallelism from which the problem occurs is various from job to job but normally it should be more than a couple of hundreds.
 
 ## Network buffer lifecycle
  
@@ -114,7 +118,7 @@ Unlike the input buffer pool, the output buffer pool has only one type of buffer
 
 In order to avoid excessive data skew, the number of buffers for each subpartition is limited by the `taskmanager.network.memory.max-buffers-per-channel` setting.
 
-Like the input buffer pool, the configured amount of exclusive buffers and floating buffers is only treated as recommended values. If there are not enough buffers available, Flink can make progress with only a single exclusive buffer per output subpartition and zero floating buffers.
+Unlike the input buffer pool, the configured amount of exclusive buffers and floating buffers is only treated as recommended values. If there are not enough buffers available, Flink can make progress with only a single exclusive buffer per output subpartition and zero floating buffers.
 
 ## The number of in-flight buffers 
 
@@ -137,7 +141,7 @@ If the buffer size is too large, this can lead to:
 The number of buffers is configured by the `taskmanager.network.memory.buffers-per-channel` and `taskmanager.network.memory.floating-buffers-per-gate` settings. 
 
 For best throughput, we recommend using the default values for the number of exclusive
-and floating buffers. If the amount of in-flight data is causing issues, enabling
+and floating buffers(except you have one of [limit cases]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#limitations)). If the amount of in-flight data is causing issues, enabling
 [buffer debloating]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#the-buffer-debloating-mechanism) is recommended. 
 
 You can tune the number of network buffers manually, but consider the following: 

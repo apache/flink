@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ExpandCodeGenerator;
@@ -27,13 +26,14 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexNode;
@@ -47,21 +47,24 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecExpand extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
+    public static final String EXPAND_TRANSFORMATION = "expand";
+
     public static final String FIELD_NAME_PROJECTS = "projects";
 
     @JsonProperty(FIELD_NAME_PROJECTS)
     private final List<List<RexNode>> projects;
 
-    @JsonIgnore private final boolean retainHeader;
+    private final boolean retainHeader;
 
     public CommonExecExpand(
+            int id,
+            ExecNodeContext context,
             List<List<RexNode>> projects,
             boolean retainHeader,
-            int id,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.projects = checkNotNull(projects);
         checkArgument(
@@ -87,9 +90,9 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
                         retainHeader,
                         getClass().getSimpleName());
 
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                createTransformationMeta(EXPAND_TRANSFORMATION, planner.getTableConfig()),
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

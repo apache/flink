@@ -23,8 +23,8 @@ import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.cluster.FileMessageParameters;
 import org.apache.flink.runtime.rest.messages.cluster.JobManagerCustomLogHeaders;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.commons.io.FileUtils;
@@ -67,7 +67,7 @@ public class JobManagerCustomLogHandlerTest extends TestLogger {
         initializeFolderStructure();
 
         final TestingDispatcherGateway dispatcherGateway =
-                new TestingDispatcherGateway.Builder().build();
+                TestingDispatcherGateway.newBuilder().build();
         testInstance =
                 new JobManagerCustomLogHandler(
                         () -> CompletableFuture.completedFuture(dispatcherGateway),

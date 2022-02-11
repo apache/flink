@@ -19,7 +19,6 @@
 package org.apache.flink.streaming.api.operators.source;
 
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.eventtime.Watermark;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.state.OperatorStateStore;
 import org.apache.flink.api.connector.source.ReaderOutput;
@@ -35,6 +34,7 @@ import org.apache.flink.runtime.state.StateInitializationContextImpl;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.operators.SourceOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.SourceOperatorStreamTask;
@@ -191,12 +191,8 @@ public class SourceOperatorEventTimeTest {
                 testSequenceOfEvents(emitProgressiveWatermarks, watermarkStrategy, actions);
 
         return allEvents.stream()
-                .filter((evt) -> evt instanceof org.apache.flink.streaming.api.watermark.Watermark)
-                .map(
-                        (evt) ->
-                                new Watermark(
-                                        ((org.apache.flink.streaming.api.watermark.Watermark) evt)
-                                                .getTimestamp()))
+                .filter((evt) -> evt instanceof Watermark)
+                .map((evt) -> (Watermark) evt)
                 .collect(Collectors.toList());
     }
 

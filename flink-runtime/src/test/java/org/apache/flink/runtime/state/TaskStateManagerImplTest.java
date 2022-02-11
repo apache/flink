@@ -191,8 +191,8 @@ public class TaskStateManagerImplTest extends TestLogger {
     }
 
     /**
-     * This tests if the {@link TaskStateManager} properly returns the the subtask local state dir
-     * from the corresponding {@link TaskLocalStateStoreImpl}.
+     * This tests if the {@link TaskStateManager} properly returns the subtask local state dir from
+     * the corresponding {@link TaskLocalStateStoreImpl}.
      */
     @Test
     public void testForwardingSubtaskLocalStateBaseDirFromLocalStateStore() throws IOException {
@@ -217,8 +217,7 @@ public class TaskStateManagerImplTest extends TestLogger {
             LocalRecoveryDirectoryProviderImpl directoryProvider =
                     new LocalRecoveryDirectoryProviderImpl(allocBaseDirs, jobID, jobVertexID, 0);
 
-            LocalRecoveryConfig localRecoveryConfig =
-                    new LocalRecoveryConfig(true, directoryProvider);
+            LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
 
             TaskLocalStateStore taskLocalStateStore =
                     new TaskLocalStateStoreImpl(
@@ -251,11 +250,13 @@ public class TaskStateManagerImplTest extends TestLogger {
                         allocBaseDirs[i % allocBaseDirs.length],
                         localRecoveryConfFromTaskLocalStateStore
                                 .getLocalStateDirectoryProvider()
+                                .get()
                                 .allocationBaseDirectory(i));
                 Assert.assertEquals(
                         allocBaseDirs[i % allocBaseDirs.length],
                         localRecoveryConfFromTaskStateManager
                                 .getLocalStateDirectoryProvider()
+                                .get()
                                 .allocationBaseDirectory(i));
             }
 

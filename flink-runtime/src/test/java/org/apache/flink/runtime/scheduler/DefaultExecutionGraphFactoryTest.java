@@ -38,7 +38,7 @@ import org.apache.flink.runtime.jobmaster.TestUtils;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
-import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.hamcrest.MatcherAssert;
@@ -77,6 +77,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                     0L,
                     new DefaultVertexAttemptNumberStore(),
                     SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
+                    (execution, previousState, newState) -> {},
                     log);
             fail("Expected ExecutionGraph creation to fail because of non restored state.");
         } catch (Exception e) {
@@ -105,6 +106,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                 0L,
                 new DefaultVertexAttemptNumberStore(),
                 SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
+                (execution, previousState, newState) -> {},
                 log);
 
         final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint();

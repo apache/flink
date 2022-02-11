@@ -134,18 +134,21 @@ import static org.apache.flink.streaming.tests.TestOperatorEnum.RESULT_TYPE_QUER
 public class DataStreamAllroundTestJobFactory {
     private static final ConfigOption<String> TEST_SEMANTICS =
             ConfigOptions.key("test.semantics")
+                    .stringType()
                     .defaultValue("exactly-once")
                     .withDescription(
                             "This configures the semantics to test. Can be 'exactly-once' or 'at-least-once'");
 
     private static final ConfigOption<Boolean> TEST_SIMULATE_FAILURE =
             ConfigOptions.key("test.simulate_failure")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "This configures whether or not to simulate failures by throwing exceptions within the job.");
 
     private static final ConfigOption<Long> TEST_SIMULATE_FAILURE_NUM_RECORDS =
             ConfigOptions.key("test.simulate_failure.num_records")
+                    .longType()
                     .defaultValue(100L)
                     .withDescription(
                             "The number of records to process before throwing an exception, per job execution attempt."
@@ -153,6 +156,7 @@ public class DataStreamAllroundTestJobFactory {
 
     private static final ConfigOption<Long> TEST_SIMULATE_FAILURE_NUM_CHECKPOINTS =
             ConfigOptions.key("test.simulate_failure.num_checkpoints")
+                    .longType()
                     .defaultValue(1L)
                     .withDescription(
                             "The number of complete checkpoints before throwing an exception, per job execution attempt."
@@ -160,6 +164,7 @@ public class DataStreamAllroundTestJobFactory {
 
     private static final ConfigOption<Integer> TEST_SIMULATE_FAILURE_MAX_FAILURES =
             ConfigOptions.key("test.simulate_failure.max_failures")
+                    .intType()
                     .defaultValue(1)
                     .withDescription(
                             "The maximum number of times to fail the job. This also takes into account failures that were not triggered"
@@ -167,35 +172,47 @@ public class DataStreamAllroundTestJobFactory {
                                     + " Only relevant if configured to simulate failures.");
 
     private static final ConfigOption<Long> ENVIRONMENT_CHECKPOINT_INTERVAL =
-            ConfigOptions.key("environment.checkpoint_interval").defaultValue(1000L);
+            ConfigOptions.key("environment.checkpoint_interval").longType().defaultValue(1000L);
 
     private static final ConfigOption<Boolean> ENVIRONMENT_EXTERNALIZE_CHECKPOINT =
-            ConfigOptions.key("environment.externalize_checkpoint").defaultValue(false);
+            ConfigOptions.key("environment.externalize_checkpoint")
+                    .booleanType()
+                    .defaultValue(false);
 
     private static final ConfigOption<String> ENVIRONMENT_EXTERNALIZE_CHECKPOINT_CLEANUP =
-            ConfigOptions.key("environment.externalize_checkpoint.cleanup").defaultValue("retain");
+            ConfigOptions.key("environment.externalize_checkpoint.cleanup")
+                    .stringType()
+                    .defaultValue("retain");
 
     private static final ConfigOption<Integer> ENVIRONMENT_TOLERABLE_DECLINED_CHECKPOINT_NUMBER =
-            ConfigOptions.key("environment.tolerable_declined_checkpoint_number ").defaultValue(0);
+            ConfigOptions.key("environment.tolerable_declined_checkpoint_number ")
+                    .intType()
+                    .defaultValue(0);
 
     private static final ConfigOption<Integer> ENVIRONMENT_PARALLELISM =
-            ConfigOptions.key("environment.parallelism").defaultValue(1);
+            ConfigOptions.key("environment.parallelism").intType().defaultValue(1);
 
     private static final ConfigOption<Integer> ENVIRONMENT_MAX_PARALLELISM =
-            ConfigOptions.key("environment.max_parallelism").defaultValue(128);
+            ConfigOptions.key("environment.max_parallelism").intType().defaultValue(128);
 
     private static final ConfigOption<String> ENVIRONMENT_RESTART_STRATEGY =
-            ConfigOptions.key("environment.restart_strategy").defaultValue("fixed_delay");
+            ConfigOptions.key("environment.restart_strategy")
+                    .stringType()
+                    .defaultValue("fixed_delay");
 
     private static final ConfigOption<Integer> ENVIRONMENT_RESTART_STRATEGY_FIXED_ATTEMPTS =
             ConfigOptions.key("environment.restart_strategy.fixed_delay.attempts")
+                    .intType()
                     .defaultValue(Integer.MAX_VALUE);
 
     private static final ConfigOption<Long> ENVIRONMENT_RESTART_STRATEGY_FIXED_DELAY =
-            ConfigOptions.key("environment.restart_strategy.fixed.delay").defaultValue(0L);
+            ConfigOptions.key("environment.restart_strategy.fixed.delay")
+                    .longType()
+                    .defaultValue(0L);
 
     private static final ConfigOption<String> STATE_BACKEND =
             ConfigOptions.key("state_backend")
+                    .stringType()
                     .defaultValue("hashmap")
                     .withDescription(
                             "Supported values are 'hashmap' for HashMapStateBackend and 'rocks' "
@@ -203,43 +220,49 @@ public class DataStreamAllroundTestJobFactory {
 
     private static final ConfigOption<String> STATE_BACKEND_CHECKPOINT_DIR =
             ConfigOptions.key("state_backend.checkpoint_directory")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription("The checkpoint directory.");
 
     private static final ConfigOption<Boolean> STATE_BACKEND_ROCKS_INCREMENTAL =
             ConfigOptions.key("state_backend.rocks.incremental")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Activate or deactivate incremental snapshots if RocksDBStateBackend is selected.");
 
     private static final ConfigOption<Integer> SEQUENCE_GENERATOR_SRC_KEYSPACE =
-            ConfigOptions.key("sequence_generator_source.keyspace").defaultValue(200);
+            ConfigOptions.key("sequence_generator_source.keyspace").intType().defaultValue(200);
 
     private static final ConfigOption<Integer> SEQUENCE_GENERATOR_SRC_PAYLOAD_SIZE =
-            ConfigOptions.key("sequence_generator_source.payload_size").defaultValue(20);
+            ConfigOptions.key("sequence_generator_source.payload_size").intType().defaultValue(20);
 
     private static final ConfigOption<Long> SEQUENCE_GENERATOR_SRC_SLEEP_TIME =
-            ConfigOptions.key("sequence_generator_source.sleep_time").defaultValue(0L);
+            ConfigOptions.key("sequence_generator_source.sleep_time").longType().defaultValue(0L);
 
     private static final ConfigOption<Long> SEQUENCE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS =
-            ConfigOptions.key("sequence_generator_source.sleep_after_elements").defaultValue(0L);
+            ConfigOptions.key("sequence_generator_source.sleep_after_elements")
+                    .longType()
+                    .defaultValue(0L);
 
     private static final ConfigOption<Long> SEQUENCE_GENERATOR_SRC_EVENT_TIME_MAX_OUT_OF_ORDERNESS =
             ConfigOptions.key("sequence_generator_source.event_time.max_out_of_order")
+                    .longType()
                     .defaultValue(0L);
 
     private static final ConfigOption<Long> SEQUENCE_GENERATOR_SRC_EVENT_TIME_CLOCK_PROGRESS =
             ConfigOptions.key("sequence_generator_source.event_time.clock_progress")
+                    .longType()
                     .defaultValue(100L);
 
     private static final ConfigOption<Long> TUMBLING_WINDOW_OPERATOR_NUM_EVENTS =
-            ConfigOptions.key("tumbling_window_operator.num_events").defaultValue(20L);
+            ConfigOptions.key("tumbling_window_operator.num_events").longType().defaultValue(20L);
 
     private static final ConfigOption<Integer> TEST_SLIDE_FACTOR =
-            ConfigOptions.key("test_slide_factor").defaultValue(3);
+            ConfigOptions.key("test_slide_factor").intType().defaultValue(3);
 
     private static final ConfigOption<Long> TEST_SLIDE_SIZE =
-            ConfigOptions.key("test_slide_size").defaultValue(250L);
+            ConfigOptions.key("test_slide_size").longType().defaultValue(250L);
 
     public static void setupEnvironment(StreamExecutionEnvironment env, ParameterTool pt)
             throws Exception {
@@ -295,7 +318,7 @@ public class DataStreamAllroundTestJobFactory {
                             "Unknown clean up mode for externalized checkpoints: "
                                     + cleanupModeConfig);
             }
-            env.getCheckpointConfig().enableExternalizedCheckpoints(cleanupMode);
+            env.getCheckpointConfig().setExternalizedCheckpointCleanup(cleanupMode);
 
             final int tolerableDeclinedCheckpointNumber =
                     pt.getInt(

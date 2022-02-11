@@ -18,69 +18,64 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import java.util.Objects;
+
 /** The type of checkpoint to perform. */
-public enum CheckpointType {
+public final class CheckpointType implements SnapshotType {
 
     /** A checkpoint, full or incremental. */
-    CHECKPOINT(false, PostCheckpointAction.NONE, "Checkpoint"),
+    public static final CheckpointType CHECKPOINT =
+            new CheckpointType("Checkpoint", SharingFilesStrategy.FORWARD_BACKWARD);
 
-    /** A regular savepoint. */
-    SAVEPOINT(true, PostCheckpointAction.NONE, "Savepoint"),
-
-    /** A savepoint taken while suspending the job. */
-    SAVEPOINT_SUSPEND(true, PostCheckpointAction.SUSPEND, "Suspend Savepoint"),
-
-    /** A savepoint taken while terminating the job. */
-    SAVEPOINT_TERMINATE(true, PostCheckpointAction.TERMINATE, "Terminate Savepoint");
-
-    private final boolean isSavepoint;
-
-    private final PostCheckpointAction postCheckpointAction;
+    public static final CheckpointType FULL_CHECKPOINT =
+            new CheckpointType("Full Checkpoint", SharingFilesStrategy.FORWARD);
 
     private final String name;
 
-    CheckpointType(
-            final boolean isSavepoint,
-            final PostCheckpointAction postCheckpointAction,
-            final String name) {
+    private final SharingFilesStrategy sharingFilesStrategy;
 
-        this.isSavepoint = isSavepoint;
-        this.postCheckpointAction = postCheckpointAction;
+    private CheckpointType(final String name, SharingFilesStrategy sharingFilesStrategy) {
         this.name = name;
+        this.sharingFilesStrategy = sharingFilesStrategy;
     }
 
     public boolean isSavepoint() {
-        return isSavepoint;
-    }
-
-    public boolean isSynchronous() {
-        return postCheckpointAction != PostCheckpointAction.NONE;
-    }
-
-    public PostCheckpointAction getPostCheckpointAction() {
-        return postCheckpointAction;
-    }
-
-    public boolean shouldAdvanceToEndOfTime() {
-        return shouldDrain();
-    }
-
-    public boolean shouldDrain() {
-        return getPostCheckpointAction() == PostCheckpointAction.TERMINATE;
-    }
-
-    public boolean shouldIgnoreEndOfInput() {
-        return getPostCheckpointAction() == PostCheckpointAction.SUSPEND;
+        return false;
     }
 
     public String getName() {
         return name;
     }
 
-    /** What's the intended action after the checkpoint (relevant for stopping with savepoint). */
-    public enum PostCheckpointAction {
-        NONE,
-        SUSPEND,
-        TERMINATE
+    public SharingFilesStrategy getSharingFilesStrategy() {
+        return sharingFilesStrategy;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        CheckpointType type = (CheckpointType) o;
+        return name.equals(type.name) && sharingFilesStrategy == type.sharingFilesStrategy;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name, sharingFilesStrategy);
+    }
+
+    @Override
+    public String toString() {
+        return "CheckpointType{"
+                + "name='"
+                + name
+                + '\''
+                + ", sharingFilesStrategy="
+                + sharingFilesStrategy
+                + '}';
     }
 }

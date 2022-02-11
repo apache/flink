@@ -48,7 +48,7 @@ Elasticsearch 连接器允许将数据写入到 Elasticsearch 引擎的索引中
 ```sql
 CREATE TABLE myUserTable (
   user_id STRING,
-  user_name STRING
+  user_name STRING,
   uv BIGINT,
   pv BIGINT,
   PRIMARY KEY (user_id) NOT ENFORCED
@@ -128,26 +128,11 @@ CREATE TABLE myUserTable (
       <td>用于连接 Elasticsearch 实例的密码。如果配置了<code>username</code>，则此选项也必须配置为非空字符串。</td>
     </tr>
     <tr>
-      <td><h5>failure-handler</h5></td>
+      <td><h5>sink.delivery-guarantee</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">fail</td>
+      <td style="word-wrap: break-word;">NONE</td>
       <td>String</td>
-      <td>对 Elasticsearch 请求失败情况下的失败处理策略。有效策略为：
-      <ul>
-        <li><code>fail</code>：如果请求失败并因此导致作业失败，则抛出异常。</li>
-        <li><code>ignore</code>：忽略失败并放弃请求。</li>
-        <li><code>retry-rejected</code>：重新添加由于队列容量饱和而失败的请求。</li>
-        <li>自定义类名称：使用 ActionRequestFailureHandler 的子类进行失败处理。</li>
-      </ul>
-      </td>
-    </tr>
-    <tr>
-      <td><h5>sink.flush-on-checkpoint</h5></td>
-      <td>可选</td>
-      <td style="word-wrap: break-word;">true</td>
-      <td>Boolean</td>
-      <td>是否在 checkpoint 时执行 flush。禁用后，在 checkpoint 时 sink 将不会等待所有的 pending 请求被 Elasticsearch 确认。因此，sink 不会为请求的 at-least-once 交付提供任何有力保证。
-      </td>
+      <td>提交时可选的传输保障策略。有效值为 <code>NONE</code> 或者 <code>AT_LEAST_ONCE</code>。</td>
     </tr>
     <tr>
       <td><h5>sink.bulk-flush.max-actions</h5></td>
@@ -179,11 +164,11 @@ CREATE TABLE myUserTable (
     <tr>
       <td><h5>sink.bulk-flush.backoff.strategy</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">DISABLED</td>
+      <td style="word-wrap: break-word;">NONE</td>
       <td>String</td>
       <td>指定在由于临时请求错误导致任何 flush 操作失败时如何执行重试。有效策略为：
       <ul>
-        <li><code>DISABLED</code>：不执行重试，即第一次请求错误后失败。</li>
+        <li><code>NONE</code>：不执行重试，即第一次请求错误后失败。</li>
         <li><code>CONSTANT</code>：等待重试之间的回退延迟。</li>
         <li><code>EXPONENTIAL</code>：先等待回退延迟，然后在重试之间指数递增。</li>
       </ul>
@@ -192,23 +177,23 @@ CREATE TABLE myUserTable (
     <tr>
       <td><h5>sink.bulk-flush.backoff.max-retries</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">8</td>
+      <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
       <td>最大回退重试次数。</td>
     </tr>
     <tr>
       <td><h5>sink.bulk-flush.backoff.delay</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">50ms</td>
-      <td>Duration</td>
-      <td>每次回退尝试之间的延迟。对于 <code>CONSTANT</code> 回退策略，该值是每次重试之间的延迟。对于 <code>EXPONENTIAL</code> 回退策略，该值是初始的延迟。</td>
-    </tr>
-    <tr>
-      <td><h5>connection.max-retry-timeout</h5></td>
-      <td>可选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
-      <td>最大重试超时时间。</td>
+      <td>每次退避尝试之间的延迟。对于 <code>CONSTANT</code> 退避策略，该值是每次重试之间的延迟。对于 <code>EXPONENTIAL</code> 退避策略，该值是初始的延迟。</td>
+    </tr>
+    <tr>
+      <td><h5>sink.parallelism</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Integer</td>
+      <td>定义 Elasticsearch sink 算子的并行度。默认情况下，并行度由框架定义为与上游串联的算子相同。</td>
     </tr>
     <tr>
       <td><h5>connection.path-prefix</h5></td>
@@ -216,6 +201,28 @@ CREATE TABLE myUserTable (
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>添加到每个 REST 通信中的前缀字符串，例如，<code>'/v1'</code>。</td>
+    </tr>
+    <tr>
+      <td><h5>connection.request-timeout</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>从连接管理器请求连接的超时时间。超时时间必须大于或者等于 0，如果设置为 0 则是无限超时。</td>
+    </tr>
+    <tr>
+      <td><h5>connection.timeout</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>建立请求的超时时间 。超时时间必须大于或者等于 0 ，如果设置为 0 则是无限超时。</td>
+    </tr>
+    <tr>
+      <td><h5>socket.timeout</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;">(none)</td>
+      <td>Duration</td>
+      <td>等待数据的 socket 的超时时间 (SO_TIMEOUT)。超时时间必须大于或者等于 0，如果设置为 0 则是无限超时。
+      </td>
     </tr>
     <tr>
       <td><h5>format</h5></td>
@@ -234,7 +241,7 @@ CREATE TABLE myUserTable (
 
 ### Key 处理
 
-Elasticsearch sink 可以根据是否定义了主键来确定是在 upsert 模式还是 append 模式下工作。
+Elasticsearch sink 可以根据是否定义了一个主键来确定是在 upsert 模式还是 append 模式下工作。
 如果定义了主键，Elasticsearch sink 将以 upsert 模式工作，该模式可以消费包含 UPDATE/DELETE 消息的查询。
 如果未定义主键，Elasticsearch sink 将以 append 模式工作，该模式只能消费包含 INSERT 消息的查询。
 

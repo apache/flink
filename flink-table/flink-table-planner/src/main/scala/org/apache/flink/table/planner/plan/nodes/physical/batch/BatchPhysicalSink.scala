@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier, ResolvedCatalogTable}
+import org.apache.flink.table.catalog.{CatalogTable, ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable}
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
@@ -43,11 +43,10 @@ class BatchPhysicalSink(
     traitSet: RelTraitSet,
     inputRel: RelNode,
     hints: util.List[RelHint],
-    tableIdentifier: ObjectIdentifier,
-    catalogTable: ResolvedCatalogTable,
+    contextResolvedTable: ContextResolvedTable,
     tableSink: DynamicTableSink,
     abilitySpecs: Array[SinkAbilitySpec])
-  extends Sink(cluster, traitSet, inputRel, hints, tableIdentifier, catalogTable, tableSink)
+  extends Sink(cluster, traitSet, inputRel, hints, contextResolvedTable, tableSink)
   with BatchPhysicalRel {
 
   override def copy(traitSet: RelTraitSet, inputs: util.List[RelNode]): RelNode = {
@@ -56,20 +55,16 @@ class BatchPhysicalSink(
       traitSet,
       inputs.get(0),
       hints,
-      tableIdentifier,
-      catalogTable,
+      contextResolvedTable,
       tableSink,
       abilitySpecs)
   }
 
   override def translateToExecNode(): ExecNode[_] = {
     val tableSinkSpec = new DynamicTableSinkSpec(
-      tableIdentifier,
-      catalogTable,
+      contextResolvedTable,
       util.Arrays.asList(abilitySpecs: _*))
     tableSinkSpec.setTableSink(tableSink)
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-    tableSinkSpec.setReadableConfig(tableConfig.getConfiguration)
 
     new BatchExecSink(
       tableSinkSpec,

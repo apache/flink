@@ -23,11 +23,13 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.execution.librarycache.TestingClassLoaderLease;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.JobResultEntry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
@@ -38,6 +40,7 @@ import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
+import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -88,7 +91,7 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
 
     private TestingFatalErrorHandler fatalErrorHandler;
 
-    private RunningJobsRegistry runningJobsRegistry;
+    private JobResultStore jobResultStore;
 
     @BeforeClass
     public static void setupClass() {
@@ -101,7 +104,7 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
     @Before
     public void setup() {
         leaderElectionService = new TestingLeaderElectionService();
-        runningJobsRegistry = new StandaloneRunningJobsRegistry();
+        jobResultStore = new EmbeddedJobResultStore();
         fatalErrorHandler = new TestingFatalErrorHandler();
     }
 
@@ -662,15 +665,17 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
 
     @Test
     public void testJobAlreadyDone() throws Exception {
-        JobID jobID = new JobID();
+        final JobID jobId = new JobID();
+        final JobResult jobResult =
+                TestingJobResultStore.createJobResult(jobId, ApplicationStatus.UNKNOWN);
+        jobResultStore.createDirtyResult(new JobResultEntry(jobResult));
         try (JobManagerRunner jobManagerRunner =
                 newJobMasterServiceLeadershipRunnerBuilder()
                         .setJobMasterServiceProcessFactory(
                                 TestingJobMasterServiceProcessFactory.newBuilder()
-                                        .setJobId(jobID)
+                                        .setJobId(jobId)
                                         .build())
                         .build()) {
-            runningJobsRegistry.setJobFinished(jobID);
             jobManagerRunner.start();
             leaderElectionService.isLeader(UUID.randomUUID());
 
@@ -721,7 +726,7 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
             return new JobMasterServiceLeadershipRunner(
                     jobMasterServiceProcessFactory,
                     leaderElectionService,
-                    runningJobsRegistry,
+                    jobResultStore,
                     classLoaderLease,
                     fatalErrorHandler);
         }

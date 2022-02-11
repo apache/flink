@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAcce
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.filesystem.RelativeFileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.BiFunctionWithException;
 
@@ -66,7 +67,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.apache.flink.util.Preconditions.checkState;
+import static org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle.UNKNOWN_CHECKPOINTED_SIZE;
 
 /**
  * Base (De)serializer for checkpoint metadata format version 2 and 3.
@@ -104,6 +105,7 @@ public abstract class MetadataV2V3SerializerBase {
     private static final byte CHANGELOG_HANDLE = 8;
     private static final byte CHANGELOG_BYTE_INCREMENT_HANDLE = 9;
     private static final byte CHANGELOG_FILE_INCREMENT_HANDLE = 10;
+    private static final byte INCREMENTAL_STATE_HANDLE = 11;
 
     // ------------------------------------------------------------------------
     //  (De)serialization entry points
@@ -308,12 +310,13 @@ public abstract class MetadataV2V3SerializerBase {
             IncrementalRemoteKeyedStateHandle incrementalKeyedStateHandle =
                     (IncrementalRemoteKeyedStateHandle) stateHandle;
 
-            dos.writeByte(INCREMENTAL_KEY_GROUPS_HANDLE);
+            dos.writeByte(INCREMENTAL_STATE_HANDLE);
 
             dos.writeLong(incrementalKeyedStateHandle.getCheckpointId());
             dos.writeUTF(String.valueOf(incrementalKeyedStateHandle.getBackendIdentifier()));
             dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getStartKeyGroup());
             dos.writeInt(incrementalKeyedStateHandle.getKeyGroupRange().getNumberOfKeyGroups());
+            dos.writeLong(incrementalKeyedStateHandle.getCheckpointedSize());
 
             serializeStreamStateHandle(incrementalKeyedStateHandle.getMetaStateHandle(), dos);
 
@@ -327,6 +330,8 @@ public abstract class MetadataV2V3SerializerBase {
             dos.writeInt(handle.getKeyGroupRange().getStartKeyGroup());
             dos.writeInt(handle.getKeyGroupRange().getNumberOfKeyGroups());
 
+            dos.writeLong(handle.getCheckpointedSize());
+
             dos.writeInt(handle.getMaterializedStateHandles().size());
             for (KeyedStateHandle k : handle.getMaterializedStateHandles()) {
                 serializeKeyedStateHandle(k, dos);
@@ -336,6 +341,8 @@ public abstract class MetadataV2V3SerializerBase {
             for (KeyedStateHandle k : handle.getNonMaterializedStateHandles()) {
                 serializeKeyedStateHandle(k, dos);
             }
+
+            dos.writeLong(handle.getMaterializationID());
 
         } else if (stateHandle instanceof InMemoryChangelogStateHandle) {
             InMemoryChangelogStateHandle handle = (InMemoryChangelogStateHandle) stateHandle;
@@ -395,43 +402,16 @@ public abstract class MetadataV2V3SerializerBase {
             } else {
                 return new KeyGroupsStateHandle(keyGroupRangeOffsets, stateHandle);
             }
-        } else if (INCREMENTAL_KEY_GROUPS_HANDLE == type) {
-
-            long checkpointId = dis.readLong();
-            String backendId = dis.readUTF();
-            int startKeyGroup = dis.readInt();
-            int numKeyGroups = dis.readInt();
-            KeyGroupRange keyGroupRange =
-                    KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
-
-            StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis, context);
-            Map<StateHandleID, StreamStateHandle> sharedStates =
-                    deserializeStreamStateHandleMap(dis, context);
-            Map<StateHandleID, StreamStateHandle> privateStates =
-                    deserializeStreamStateHandleMap(dis, context);
-
-            UUID uuid;
-
-            try {
-                uuid = UUID.fromString(backendId);
-            } catch (Exception ex) {
-                // compatibility with old format pre FLINK-6964:
-                uuid = UUID.nameUUIDFromBytes(backendId.getBytes(StandardCharsets.UTF_8));
-            }
-
-            return new IncrementalRemoteKeyedStateHandle(
-                    uuid,
-                    keyGroupRange,
-                    checkpointId,
-                    sharedStates,
-                    privateStates,
-                    metaDataStateHandle);
+        } else if (INCREMENTAL_KEY_GROUPS_HANDLE == type || INCREMENTAL_STATE_HANDLE == type) {
+            return deserializeIncrementalStateHandle(dis, context, type);
         } else if (CHANGELOG_HANDLE == type) {
 
             int startKeyGroup = dis.readInt();
             int numKeyGroups = dis.readInt();
             KeyGroupRange keyGroupRange =
                     KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
+            long checkpointedSize = dis.readLong();
+
             int baseSize = dis.readInt();
             List<KeyedStateHandle> base = new ArrayList<>(baseSize);
             for (int i = 0; i < baseSize; i++) {
@@ -442,8 +422,11 @@ public abstract class MetadataV2V3SerializerBase {
             for (int i = 0; i < deltaSize; i++) {
                 delta.add((ChangelogStateHandle) deserializeKeyedStateHandle(dis, context));
             }
+
+            long materializationID = dis.readLong();
+
             return new ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl(
-                    base, delta, keyGroupRange);
+                    base, delta, keyGroupRange, materializationID, checkpointedSize);
 
         } else if (CHANGELOG_BYTE_INCREMENT_HANDLE == type) {
             int start = dis.readInt();
@@ -457,7 +440,7 @@ public abstract class MetadataV2V3SerializerBase {
                 int keyGroup = dis.readInt();
                 int bytesSize = dis.readInt();
                 byte[] bytes = new byte[bytesSize];
-                checkState(bytesSize == dis.read(bytes));
+                IOUtils.readFully(dis, bytes, 0, bytesSize);
                 changes.add(new StateChange(keyGroup, bytes));
             }
             return new InMemoryChangelogStateHandle(changes, from, to, keyGroupRange);
@@ -480,6 +463,46 @@ public abstract class MetadataV2V3SerializerBase {
         } else {
             throw new IllegalStateException("Reading invalid KeyedStateHandle, type: " + type);
         }
+    }
+
+    private IncrementalRemoteKeyedStateHandle deserializeIncrementalStateHandle(
+            DataInputStream dis, @Nullable DeserializationContext context, int stateHandleType)
+            throws IOException {
+        long checkpointId = dis.readLong();
+        String backendId = dis.readUTF();
+        int startKeyGroup = dis.readInt();
+        int numKeyGroups = dis.readInt();
+        long checkpointedSize =
+                INCREMENTAL_STATE_HANDLE == stateHandleType
+                        ? dis.readLong()
+                        : UNKNOWN_CHECKPOINTED_SIZE;
+
+        KeyGroupRange keyGroupRange =
+                KeyGroupRange.of(startKeyGroup, startKeyGroup + numKeyGroups - 1);
+
+        StreamStateHandle metaDataStateHandle = deserializeStreamStateHandle(dis, context);
+        Map<StateHandleID, StreamStateHandle> sharedStates =
+                deserializeStreamStateHandleMap(dis, context);
+        Map<StateHandleID, StreamStateHandle> privateStates =
+                deserializeStreamStateHandleMap(dis, context);
+
+        UUID uuid;
+
+        try {
+            uuid = UUID.fromString(backendId);
+        } catch (Exception ex) {
+            // compatibility with old format pre FLINK-6964:
+            uuid = UUID.nameUUIDFromBytes(backendId.getBytes(StandardCharsets.UTF_8));
+        }
+
+        return new IncrementalRemoteKeyedStateHandle(
+                uuid,
+                keyGroupRange,
+                checkpointId,
+                sharedStates,
+                privateStates,
+                metaDataStateHandle,
+                checkpointedSize);
     }
 
     void serializeOperatorStateHandle(OperatorStateHandle stateHandle, DataOutputStream dos)

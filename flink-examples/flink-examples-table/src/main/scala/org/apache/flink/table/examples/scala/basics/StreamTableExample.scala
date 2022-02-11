@@ -55,7 +55,7 @@ object StreamTableExample {
     val result: DataStream[Order] = orderA.unionAll(orderB)
       .select('user, 'product, 'amount)
       .where('amount > 2)
-      .toAppendStream[Order]
+      .toDataStream(classOf[Order])
 
     result.print()
 

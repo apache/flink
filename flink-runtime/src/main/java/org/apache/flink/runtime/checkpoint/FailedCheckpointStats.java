@@ -51,6 +51,8 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
      * @param totalSubtaskCount Total number of subtasks for the checkpoint.
      * @param taskStats Task stats for each involved operator.
      * @param numAcknowledgedSubtasks Number of acknowledged subtasks.
+     * @param checkpointedSize Total persisted data size over all subtasks during the sync and async
+     *     phases of this checkpoint.
      * @param stateSize Total checkpoint state size over all subtasks.
      * @param processedData Processed data during the checkpoint.
      * @param persistedData Persisted data during the checkpoint.
@@ -65,6 +67,7 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
             int totalSubtaskCount,
             Map<JobVertexID, TaskStateStats> taskStats,
             int numAcknowledgedSubtasks,
+            long checkpointedSize,
             long stateSize,
             long processedData,
             long persistedData,
@@ -80,6 +83,7 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
                 numAcknowledgedSubtasks,
                 taskStats,
                 FAILING_REPORT_CALLBACK,
+                checkpointedSize,
                 stateSize,
                 processedData,
                 persistedData,

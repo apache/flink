@@ -46,15 +46,30 @@ public class EntropyInjector {
      * EntropyInjectingFileSystem#getEntropyInjectionKey()}.
      *
      * <p>If the given file system does not implement {@code EntropyInjectingFileSystem}, then this
+     * method returns the same path.
+     */
+    public static Path addEntropy(FileSystem fs, Path path) throws IOException {
+        // check and possibly inject entropy into the path
+        final EntropyInjectingFileSystem efs = getEntropyFs(fs);
+        return efs == null ? path : resolveEntropy(path, efs, true);
+    }
+
+    /**
+     * Handles entropy injection across regular and entropy-aware file systems.
+     *
+     * <p>If the given file system is entropy-aware (a implements {@link
+     * EntropyInjectingFileSystem}), then this method replaces the entropy marker in the path with
+     * random characters. The entropy marker is defined by {@link
+     * EntropyInjectingFileSystem#getEntropyInjectionKey()}.
+     *
+     * <p>If the given file system does not implement {@code EntropyInjectingFileSystem}, then this
      * method delegates to {@link FileSystem#create(Path, WriteMode)} and returns the same path in
      * the resulting {@code OutputStreamAndPath}.
      */
     public static OutputStreamAndPath createEntropyAware(
             FileSystem fs, Path path, WriteMode writeMode) throws IOException {
 
-        // check and possibly inject entropy into the path
-        final EntropyInjectingFileSystem efs = getEntropyFs(fs);
-        final Path processedPath = efs == null ? path : resolveEntropy(path, efs, true);
+        final Path processedPath = addEntropy(fs, path);
 
         // create the stream on the original file system to let the safety net
         // take its effect
@@ -89,7 +104,8 @@ public class EntropyInjector {
     // ------------------------------------------------------------------------
 
     public static boolean isEntropyInjecting(FileSystem fs) {
-        return getEntropyFs(fs) != null;
+        final EntropyInjectingFileSystem entropyFs = getEntropyFs(fs);
+        return entropyFs != null && entropyFs.getEntropyInjectionKey() != null;
     }
 
     @Nullable

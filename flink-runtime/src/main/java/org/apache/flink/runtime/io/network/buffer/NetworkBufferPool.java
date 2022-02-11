@@ -20,12 +20,14 @@ package org.apache.flink.runtime.io.network.buffer;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.memory.MemorySegmentProvider;
 import org.apache.flink.runtime.io.AvailabilityProvider;
+import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.Preconditions;
@@ -43,6 +45,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -60,6 +63,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class NetworkBufferPool
         implements BufferPoolFactory, MemorySegmentProvider, AvailabilityProvider {
 
+    public static final int UNBOUNDED_POOL_SIZE = Integer.MAX_VALUE;
+
+    private static final int USAGE_WARNING_THRESHOLD = 100;
+
     private static final Logger LOG = LoggerFactory.getLogger(NetworkBufferPool.class);
 
     private final int totalNumberOfMemorySegments;
@@ -76,11 +83,15 @@ public class NetworkBufferPool
 
     private final Set<LocalBufferPool> allBufferPools = new HashSet<>();
 
+    private final Set<LocalBufferPool> resizableBufferPools = new HashSet<>();
+
     private int numTotalRequiredBuffers;
 
     private final Duration requestSegmentsTimeout;
 
     private final AvailabilityHelper availabilityHelper = new AvailabilityHelper();
+
+    private int lastCheckedUsage = -1;
 
     @VisibleForTesting
     public NetworkBufferPool(int numberOfSegmentsToAllocate, int segmentSize) {
@@ -149,27 +160,47 @@ public class NetworkBufferPool
                 segmentSize);
     }
 
+    /**
+     * Different from {@link #requestUnpooledMemorySegments} for unpooled segments allocation. This
+     * method and the below {@link #requestPooledMemorySegmentsBlocking} method are designed to be
+     * used from {@link LocalBufferPool} for pooled memory segments allocation. Note that these
+     * methods for pooled memory segments requesting and recycling are prohibited from acquiring the
+     * factoryLock to avoid deadlock.
+     */
     @Nullable
-    public MemorySegment requestMemorySegment() {
+    public MemorySegment requestPooledMemorySegment() {
         synchronized (availableMemorySegments) {
             return internalRequestMemorySegment();
         }
     }
 
-    public List<MemorySegment> requestMemorySegmentsBlocking(int numberOfSegmentsToRequest)
+    public List<MemorySegment> requestPooledMemorySegmentsBlocking(int numberOfSegmentsToRequest)
             throws IOException {
         return internalRequestMemorySegments(numberOfSegmentsToRequest);
     }
 
-    public void recycle(MemorySegment segment) {
+    /**
+     * Corresponding to {@link #requestPooledMemorySegmentsBlocking} and {@link
+     * #requestPooledMemorySegment}, this method is for pooled memory segments recycling.
+     */
+    public void recyclePooledMemorySegment(MemorySegment segment) {
         // Adds the segment back to the queue, which does not immediately free the memory
         // however, since this happens when references to the global pool are also released,
         // making the availableMemorySegments queue and its contained object reclaimable
         internalRecycleMemorySegments(Collections.singleton(checkNotNull(segment)));
     }
 
+    /**
+     * Unpooled memory segments are requested directly from {@link NetworkBufferPool}, as opposed to
+     * pooled segments, that are requested through {@link BufferPool} that was created from this
+     * {@link NetworkBufferPool} (see {@link #createBufferPool}). They are used for example for
+     * exclusive {@link RemoteInputChannel} credits, that are permanently assigned to that channel,
+     * and never returned to any {@link BufferPool}. As opposed to pooled segments, when requested,
+     * unpooled segments needs to be accounted against {@link #numTotalRequiredBuffers}, which might
+     * require redistribution of the segments.
+     */
     @Override
-    public List<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest)
+    public List<MemorySegment> requestUnpooledMemorySegments(int numberOfSegmentsToRequest)
             throws IOException {
         checkArgument(
                 numberOfSegmentsToRequest >= 0,
@@ -187,7 +218,13 @@ public class NetworkBufferPool
             tryRedistributeBuffers(numberOfSegmentsToRequest);
         }
 
-        return internalRequestMemorySegments(numberOfSegmentsToRequest);
+        try {
+            return internalRequestMemorySegments(numberOfSegmentsToRequest);
+        } catch (IOException exception) {
+            revertRequiredBuffers(numberOfSegmentsToRequest);
+            ExceptionUtils.rethrowIOException(exception);
+            return null;
+        }
     }
 
     private List<MemorySegment> internalRequestMemorySegments(int numberOfSegmentsToRequest)
@@ -227,7 +264,7 @@ public class NetworkBufferPool
                 }
             }
         } catch (Throwable e) {
-            recycleMemorySegments(segments, numberOfSegmentsToRequest);
+            internalRecycleMemorySegments(segments);
             ExceptionUtils.rethrowIOException(e);
         }
 
@@ -245,14 +282,17 @@ public class NetworkBufferPool
         return segment;
     }
 
+    /**
+     * Corresponding to {@link #requestUnpooledMemorySegments}, this method is for unpooled memory
+     * segments recycling.
+     */
     @Override
-    public void recycleMemorySegments(Collection<MemorySegment> segments) {
-        recycleMemorySegments(segments, segments.size());
+    public void recycleUnpooledMemorySegments(Collection<MemorySegment> segments) {
+        internalRecycleMemorySegments(segments);
+        revertRequiredBuffers(segments.size());
     }
 
-    private void recycleMemorySegments(Collection<MemorySegment> segments, int size) {
-        internalRecycleMemorySegments(segments);
-
+    private void revertRequiredBuffers(int size) {
         synchronized (factoryLock) {
             numTotalRequiredBuffers -= size;
 
@@ -323,6 +363,63 @@ public class NetworkBufferPool
     public int getNumberOfRegisteredBufferPools() {
         synchronized (factoryLock) {
             return allBufferPools.size();
+        }
+    }
+
+    public long getNumberOfRequestedMemorySegments() {
+        long requestedSegments = 0;
+        synchronized (factoryLock) {
+            for (LocalBufferPool bufferPool : allBufferPools) {
+                requestedSegments += bufferPool.getNumberOfRequestedMemorySegments();
+            }
+        }
+        return requestedSegments;
+    }
+
+    public long getRequestedMemory() {
+        return getNumberOfRequestedMemorySegments() * memorySegmentSize;
+    }
+
+    public int getRequestedSegmentsUsage() {
+        return Math.toIntExact(
+                100L * getNumberOfRequestedMemorySegments() / getTotalNumberOfMemorySegments());
+    }
+
+    @VisibleForTesting
+    Optional<String> getUsageWarning() {
+        int currentUsage = getRequestedSegmentsUsage();
+        Optional<String> message = Optional.empty();
+        // do not log warning if the value hasn't changed to avoid spamming warnings.
+        if (currentUsage >= USAGE_WARNING_THRESHOLD && lastCheckedUsage != currentUsage) {
+            long totalMemory = getTotalMemory();
+            long requestedMemory = getRequestedMemory();
+            long missingMemory = requestedMemory - totalMemory;
+            message =
+                    Optional.of(
+                            String.format(
+                                    "Memory usage [%d%%] is too high to satisfy all of the requests. "
+                                            + "This can severely impact network throughput. "
+                                            + "Please consider increasing available network memory, "
+                                            + "or decreasing configured size of network buffer pools. "
+                                            + "(totalMemory=%s, requestedMemory=%s, missingMemory=%s)",
+                                    currentUsage,
+                                    new MemorySize(totalMemory).toHumanReadableString(),
+                                    new MemorySize(requestedMemory).toHumanReadableString(),
+                                    new MemorySize(missingMemory).toHumanReadableString()));
+        } else if (currentUsage < USAGE_WARNING_THRESHOLD
+                && lastCheckedUsage >= USAGE_WARNING_THRESHOLD) {
+            message =
+                    Optional.of(
+                            String.format("Memory usage [%s%%] went back to normal", currentUsage));
+        }
+        lastCheckedUsage = currentUsage;
+        return message;
+    }
+
+    public void maybeLogUsageWarning() {
+        Optional<String> usageWarning = getUsageWarning();
+        if (usageWarning.isPresent()) {
+            LOG.warn(usageWarning.get());
         }
     }
 
@@ -405,6 +502,10 @@ public class NetworkBufferPool
 
             allBufferPools.add(localBufferPool);
 
+            if (numRequiredBuffers < maxUsedBuffers) {
+                resizableBufferPools.add(localBufferPool);
+            }
+
             redistributeBuffers();
 
             return localBufferPool;
@@ -420,6 +521,7 @@ public class NetworkBufferPool
         synchronized (factoryLock) {
             if (allBufferPools.remove(bufferPool)) {
                 numTotalRequiredBuffers -= bufferPool.getNumberOfRequiredMemorySegments();
+                resizableBufferPools.remove(bufferPool);
 
                 redistributeBuffers();
             }
@@ -441,7 +543,9 @@ public class NetworkBufferPool
             }
 
             // some sanity checks
-            if (allBufferPools.size() > 0 || numTotalRequiredBuffers > 0) {
+            if (allBufferPools.size() > 0
+                    || numTotalRequiredBuffers > 0
+                    || resizableBufferPools.size() > 0) {
                 throw new IllegalStateException(
                         "NetworkBufferPool is not empty after destroying all LocalBufferPools");
             }
@@ -478,12 +582,16 @@ public class NetworkBufferPool
     private void redistributeBuffers() {
         assert Thread.holdsLock(factoryLock);
 
+        if (resizableBufferPools.isEmpty()) {
+            return;
+        }
+
         // All buffers, which are not among the required ones
         final int numAvailableMemorySegment = totalNumberOfMemorySegments - numTotalRequiredBuffers;
 
         if (numAvailableMemorySegment == 0) {
             // in this case, we need to redistribute buffers so that every pool gets its minimum
-            for (LocalBufferPool bufferPool : allBufferPools) {
+            for (LocalBufferPool bufferPool : resizableBufferPools) {
                 bufferPool.setNumBuffers(bufferPool.getNumberOfRequiredMemorySegments());
             }
             return;
@@ -499,7 +607,7 @@ public class NetworkBufferPool
 
         long totalCapacity = 0; // long to avoid int overflow
 
-        for (LocalBufferPool bufferPool : allBufferPools) {
+        for (LocalBufferPool bufferPool : resizableBufferPools) {
             int excessMax =
                     bufferPool.getMaxNumberOfMemorySegments()
                             - bufferPool.getNumberOfRequiredMemorySegments();
@@ -519,7 +627,7 @@ public class NetworkBufferPool
 
         long totalPartsUsed = 0; // of totalCapacity
         int numDistributedMemorySegment = 0;
-        for (LocalBufferPool bufferPool : allBufferPools) {
+        for (LocalBufferPool bufferPool : resizableBufferPools) {
             int excessMax =
                     bufferPool.getMaxNumberOfMemorySegments()
                             - bufferPool.getNumberOfRequiredMemorySegments();

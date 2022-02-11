@@ -43,7 +43,7 @@ abstract class BatchAggTestBase extends AggTestBase(isBatchMode = true) {
 
   val globalOutputType = RowType.of(
     Array[LogicalType](
-      new VarCharType(VarCharType.MAX_LENGTH), new VarCharType(VarCharType.MAX_LENGTH),
+      VarCharType.STRING_TYPE, VarCharType.STRING_TYPE,
       new BigIntType(),
       new DoubleType(),
       new BigIntType()),

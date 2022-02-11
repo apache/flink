@@ -66,14 +66,15 @@ public class PseudoRandomValueSelector {
         this.randomValueSupplier = randomValueSupplier;
     }
 
-    public <T> void select(Configuration configuration, ConfigOption<T> option, T... alternatives) {
+    public <T> T select(Configuration configuration, ConfigOption<T> option, T... alternatives) {
         if (configuration.contains(option)) {
-            return;
+            return configuration.get(option);
         }
         final int choice = randomValueSupplier.apply(alternatives.length);
         T value = alternatives[choice];
         LOG.info("Randomly selected {} for {}", value, option.key());
         configuration.set(option, value);
+        return value;
     }
 
     public static PseudoRandomValueSelector create(Object entryPointSeed) {
@@ -124,10 +125,10 @@ public class PseudoRandomValueSelector {
         return Optional.empty();
     }
 
-    public static <T> void randomize(Configuration conf, ConfigOption<T> option, T... t1) {
+    public static <T> T randomize(Configuration conf, ConfigOption<T> option, T... t1) {
         final String testName = TestNameProvider.getCurrentTestName();
         final PseudoRandomValueSelector valueSelector =
                 PseudoRandomValueSelector.create(testName != null ? testName : "unknown");
-        valueSelector.select(conf, option, t1);
+        return valueSelector.select(conf, option, t1);
     }
 }

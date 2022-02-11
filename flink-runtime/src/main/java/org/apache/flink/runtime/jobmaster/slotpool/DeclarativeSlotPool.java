@@ -87,6 +87,21 @@ public interface DeclarativeSlotPool {
             long currentTime);
 
     /**
+     * Registers the given set of slots at the slot pool.
+     *
+     * @param slots slots to register
+     * @param taskManagerLocation taskManagerLocation is the location of the offering TaskExecutor
+     * @param taskManagerGateway taskManagerGateway is the gateway to talk to the offering
+     *     TaskExecutor
+     * @param currentTime currentTime is the time the slots are being offered
+     */
+    void registerSlots(
+            Collection<? extends SlotOffer> slots,
+            TaskManagerLocation taskManagerLocation,
+            TaskManagerGateway taskManagerGateway,
+            long currentTime);
+
+    /**
      * Returns the slot information for all free slots (slots which can be allocated from the slot
      * pool).
      *

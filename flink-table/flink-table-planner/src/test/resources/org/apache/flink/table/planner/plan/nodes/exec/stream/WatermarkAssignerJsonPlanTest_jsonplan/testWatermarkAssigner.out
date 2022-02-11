@@ -1,50 +1,68 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "WatermarkTable"
-      },
-      "catalogTable" : {
-        "schema.watermark.0.strategy.expr" : "`c` - INTERVAL '5' SECOND",
-        "disable-lookup" : "true",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "bounded" : "false",
-        "schema.1.data-type" : "INT",
-        "schema.2.data-type" : "TIMESTAMP(3)",
-        "connector" : "values",
-        "schema.watermark.0.rowtime" : "c",
-        "schema.watermark.0.strategy.data-type" : "TIMESTAMP(3)",
-        "enable-watermark-push-down" : "false",
-        "schema.0.name" : "a"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`WatermarkTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "INT"
+            }, {
+              "name" : "c",
+              "dataType" : {
+                "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
+                "precision" : 3,
+                "kind" : "ROWTIME"
+              }
+            } ],
+            "watermarkSpecs" : [ {
+              "rowtimeAttribute" : "c",
+              "expression" : {
+                "rexNode" : {
+                  "kind" : "REX_CALL",
+                  "operator" : {
+                    "name" : "-",
+                    "kind" : "MINUS",
+                    "syntax" : "SPECIAL"
+                  },
+                  "operands" : [ {
+                    "kind" : "INPUT_REF",
+                    "inputIndex" : 2,
+                    "type" : "TIMESTAMP(3)"
+                  }, {
+                    "kind" : "LITERAL",
+                    "value" : 5000,
+                    "type" : "INTERVAL SECOND(6) NOT NULL"
+                  } ],
+                  "type" : "TIMESTAMP(3)"
+                },
+                "serializableString" : "`c` - INTERVAL '5' SECOND"
+              }
+            } ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "disable-lookup" : "true",
+            "connector" : "values",
+            "bounded" : "false",
+            "enable-watermark-push-down" : "false"
+          }
+        }
       }
     },
-    "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "INT"
-      }, {
-        "c" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `b` INT, `c` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, WatermarkTable]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "id" : 2,
+    "type" : "stream-exec-watermark-assigner_1",
     "watermarkExpr" : {
       "kind" : "REX_CALL",
       "operator" : {
@@ -55,29 +73,15 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
-        "type" : {
-          "typeName" : "TIMESTAMP",
-          "nullable" : true,
-          "precision" : 3
-        }
+        "type" : "TIMESTAMP(3)"
       }, {
         "kind" : "LITERAL",
         "value" : 5000,
-        "type" : {
-          "typeName" : "INTERVAL_SECOND",
-          "nullable" : false,
-          "precision" : 2,
-          "scale" : 6
-        }
+        "type" : "INTERVAL SECOND(6) NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : true,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3)"
     },
     "rowtimeFieldIndex" : 2,
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -87,15 +91,16 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "BIGINT"
+        "name" : "a",
+        "fieldType" : "BIGINT"
       }, {
-        "b" : "INT"
+        "name" : "b",
+        "fieldType" : "INT"
       }, {
-        "c" : {
+        "name" : "c",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }
@@ -103,26 +108,34 @@
     },
     "description" : "WatermarkAssigner(rowtime=[c], watermark=[(c - 5000:INTERVAL SECOND)])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 3,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "sink"
-      },
-      "catalogTable" : {
-        "table-sink-class" : "DEFAULT",
-        "schema.2.data-type" : "TIMESTAMP(3)",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "schema.0.name" : "a",
-        "schema.1.data-type" : "INT"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`sink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "INT"
+            }, {
+              "name" : "c",
+              "dataType" : "TIMESTAMP(3)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "table-sink-class" : "DEFAULT"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -132,15 +145,16 @@
     } ],
     "outputType" : {
       "type" : "ROW",
-      "nullable" : true,
       "fields" : [ {
-        "a" : "BIGINT"
+        "name" : "a",
+        "fieldType" : "BIGINT"
       }, {
-        "b" : "INT"
+        "name" : "b",
+        "fieldType" : "INT"
       }, {
-        "c" : {
+        "name" : "c",
+        "fieldType" : {
           "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
           "precision" : 3,
           "kind" : "ROWTIME"
         }

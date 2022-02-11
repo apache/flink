@@ -23,8 +23,12 @@ import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.MaybeOffloaded;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor.Offloaded;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
+import org.apache.flink.runtime.jobgraph.DistributionPattern;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 
@@ -36,6 +40,8 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 public class IntermediateResult {
+
+    private final IntermediateDataSet intermediateDataSet;
 
     private final IntermediateDataSetID id;
 
@@ -63,12 +69,14 @@ public class IntermediateResult {
             shuffleDescriptorCache;
 
     public IntermediateResult(
-            IntermediateDataSetID id,
+            IntermediateDataSet intermediateDataSet,
             ExecutionJobVertex producer,
             int numParallelProducers,
             ResultPartitionType resultType) {
 
-        this.id = checkNotNull(id);
+        this.intermediateDataSet = checkNotNull(intermediateDataSet);
+        this.id = checkNotNull(intermediateDataSet.getId());
+
         this.producer = checkNotNull(producer);
 
         checkArgument(numParallelProducers >= 1);
@@ -148,6 +156,26 @@ public class IntermediateResult {
 
     public ResultPartitionType getResultType() {
         return resultType;
+    }
+
+    int getNumParallelProducers() {
+        return numParallelProducers;
+    }
+
+    ExecutionJobVertex getConsumerExecutionJobVertex() {
+        final JobEdge consumer = checkNotNull(intermediateDataSet.getConsumer());
+        final JobVertexID consumerJobVertexId = consumer.getTarget().getID();
+        return checkNotNull(getProducer().getGraph().getJobVertex(consumerJobVertexId));
+    }
+
+    public DistributionPattern getConsumingDistributionPattern() {
+        final JobEdge consumer = checkNotNull(intermediateDataSet.getConsumer());
+        return consumer.getDistributionPattern();
+    }
+
+    public boolean isBroadcast() {
+        final JobEdge consumer = checkNotNull(intermediateDataSet.getConsumer());
+        return consumer.isBroadcast();
     }
 
     public int getConnectionIndex() {

@@ -1,60 +1,50 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MyTable"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MyTable`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "b",
+              "dataType" : "INT NOT NULL"
+            }, {
+              "name" : "c",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "d",
+              "dataType" : "TIMESTAMP(3)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "bounded" : "false"
+          }
+        }
       },
-      "catalogTable" : {
-        "schema.3.data-type" : "TIMESTAMP(3)",
-        "schema.2.data-type" : "VARCHAR(2147483647)",
-        "schema.3.name" : "d",
-        "connector" : "values",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "c",
-        "schema.1.name" : "b",
-        "bounded" : "false",
-        "schema.0.name" : "a",
-        "schema.1.data-type" : "INT NOT NULL"
-      },
-      "sourceAbilitySpecs" : [ {
+      "abilities" : [ {
         "type" : "FilterPushDown",
         "predicates" : [ ]
       } ]
     },
-    "id" : 1,
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "b" : "INT NOT NULL"
-      }, {
-        "c" : "VARCHAR(2147483647)"
-      }, {
-        "d" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647), `d` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[]]], fields=[a, b, c, d])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
-      "type" : {
-        "typeName" : "BIGINT",
-        "nullable" : true
-      }
+      "type" : "BIGINT"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -65,23 +55,13 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
-        "type" : {
-          "typeName" : "BIGINT",
-          "nullable" : true
-        }
+        "type" : "BIGINT"
       } ],
-      "type" : {
-        "typeName" : "VARCHAR",
-        "nullable" : true,
-        "precision" : 2147483647
-      }
+      "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "INPUT_REF",
       "inputIndex" : 1,
-      "type" : {
-        "typeName" : "INTEGER",
-        "nullable" : false
-      }
+      "type" : "INT NOT NULL"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -95,31 +75,17 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       }, {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       }, {
         "kind" : "INPUT_REF",
         "inputIndex" : 3,
-        "type" : {
-          "typeName" : "TIMESTAMP",
-          "nullable" : true,
-          "precision" : 3
-        }
+        "type" : "TIMESTAMP(3)"
       } ],
-      "type" : {
-        "typeName" : "VARCHAR",
-        "nullable" : true,
-        "precision" : 2147483647
-      }
+      "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -133,24 +99,13 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
-        "type" : {
-          "typeName" : "VARCHAR",
-          "nullable" : true,
-          "precision" : 2147483647
-        }
+        "type" : "VARCHAR(2147483647)"
       }, {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "VARCHAR",
-        "nullable" : true,
-        "precision" : 2147483647
-      }
+      "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -171,37 +126,19 @@
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 2,
-          "type" : {
-            "typeName" : "VARCHAR",
-            "nullable" : true,
-            "precision" : 2147483647
-          }
+          "type" : "VARCHAR(2147483647)"
         }, {
           "kind" : "LITERAL",
           "value" : "1",
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : false
-          }
+          "type" : "INT NOT NULL"
         }, {
           "kind" : "LITERAL",
           "value" : "5",
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : false
-          }
+          "type" : "INT NOT NULL"
         } ],
-        "type" : {
-          "typeName" : "VARCHAR",
-          "nullable" : true,
-          "precision" : 2147483647
-        }
+        "type" : "VARCHAR(2147483647)"
       } ],
-      "type" : {
-        "typeName" : "VARCHAR",
-        "nullable" : true,
-        "precision" : 2147483647
-      }
+      "type" : "VARCHAR(2147483647)"
     }, {
       "kind" : "REX_CALL",
       "operator" : {
@@ -215,24 +152,13 @@
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 3,
-        "type" : {
-          "typeName" : "TIMESTAMP",
-          "nullable" : true,
-          "precision" : 3
-        }
+        "type" : "TIMESTAMP(3)"
       }, {
         "kind" : "LITERAL",
         "value" : "1000",
-        "type" : {
-          "typeName" : "INTEGER",
-          "nullable" : false
-        }
+        "type" : "INT NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "TIMESTAMP",
-        "nullable" : true,
-        "precision" : 3
-      }
+      "type" : "TIMESTAMP(3)"
     } ],
     "condition" : {
       "kind" : "REX_CALL",
@@ -268,27 +194,15 @@
             "operands" : [ {
               "kind" : "INPUT_REF",
               "inputIndex" : 0,
-              "type" : {
-                "typeName" : "BIGINT",
-                "nullable" : true
-              }
+              "type" : "BIGINT"
             } ],
-            "type" : {
-              "typeName" : "BIGINT",
-              "nullable" : false
-            }
+            "type" : "BIGINT NOT NULL"
           }, {
             "kind" : "LITERAL",
             "value" : "0",
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : false
-            }
+            "type" : "INT NOT NULL"
           } ],
-          "type" : {
-            "typeName" : "BOOLEAN",
-            "nullable" : false
-          }
+          "type" : "BOOLEAN NOT NULL"
         }, {
           "kind" : "REX_CALL",
           "operator" : {
@@ -306,39 +220,21 @@
             "operands" : [ {
               "kind" : "INPUT_REF",
               "inputIndex" : 0,
-              "type" : {
-                "typeName" : "BIGINT",
-                "nullable" : true
-              }
+              "type" : "BIGINT"
             }, {
               "kind" : "INPUT_REF",
               "inputIndex" : 1,
-              "type" : {
-                "typeName" : "INTEGER",
-                "nullable" : false
-              }
+              "type" : "INT NOT NULL"
             } ],
-            "type" : {
-              "typeName" : "BIGINT",
-              "nullable" : true
-            }
+            "type" : "BIGINT"
           }, {
             "kind" : "LITERAL",
             "value" : "100",
-            "type" : {
-              "typeName" : "INTEGER",
-              "nullable" : false
-            }
+            "type" : "INT NOT NULL"
           } ],
-          "type" : {
-            "typeName" : "BOOLEAN",
-            "nullable" : true
-          }
+          "type" : "BOOLEAN"
         } ],
-        "type" : {
-          "typeName" : "BOOLEAN",
-          "nullable" : true
-        }
+        "type" : "BOOLEAN"
       }, {
         "kind" : "REX_CALL",
         "operator" : {
@@ -349,29 +245,16 @@
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 1,
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : false
-          }
+          "type" : "INT NOT NULL"
         }, {
           "kind" : "LITERAL",
           "value" : "10",
-          "type" : {
-            "typeName" : "INTEGER",
-            "nullable" : false
-          }
+          "type" : "INT NOT NULL"
         } ],
-        "type" : {
-          "typeName" : "BOOLEAN",
-          "nullable" : false
-        }
+        "type" : "BOOLEAN NOT NULL"
       } ],
-      "type" : {
-        "typeName" : "BOOLEAN",
-        "nullable" : true
-      }
+      "type" : "BOOLEAN"
     },
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -379,60 +262,49 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "a1" : "VARCHAR(2147483647)"
-      }, {
-        "b" : "INT NOT NULL"
-      }, {
-        "b1" : "VARCHAR(2147483647)"
-      }, {
-        "c1" : "VARCHAR(2147483647)"
-      }, {
-        "c2" : "VARCHAR(2147483647)"
-      }, {
-        "d1" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
-    "description" : "Calc(select=[a, CAST(a) AS a1, b, udf2(b, b, d) AS b1, udf3(c, b) AS c1, udf4(SUBSTRING(c, 1, 5)) AS c2, udf5(d, 1000) AS d1], where=[(((udf1(a) > 0) OR ((a * b) < 100)) AND (b > 10))])"
+    "outputType" : "ROW<`a` BIGINT, `a1` VARCHAR(2147483647), `b` INT NOT NULL, `b1` VARCHAR(2147483647), `c1` VARCHAR(2147483647), `c2` VARCHAR(2147483647), `d1` TIMESTAMP(3)>",
+    "description" : "Calc(select=[a, CAST(a AS VARCHAR(2147483647)) AS a1, b, udf2(b, b, d) AS b1, udf3(c, b) AS c1, udf4(SUBSTRING(c, 1, 5)) AS c2, udf5(d, 1000) AS d1], where=[(((udf1(a) > 0) OR ((a * b) < 100)) AND (b > 10))])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 3,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
-      "identifier" : {
-        "catalogName" : "default_catalog",
-        "databaseName" : "default_database",
-        "tableName" : "MySink"
-      },
-      "catalogTable" : {
-        "schema.5.name" : "c2",
-        "schema.0.data-type" : "BIGINT",
-        "schema.2.name" : "b",
-        "schema.1.name" : "a1",
-        "schema.6.data-type" : "TIMESTAMP(3)",
-        "schema.4.name" : "c1",
-        "schema.1.data-type" : "VARCHAR(2147483647)",
-        "schema.3.data-type" : "VARCHAR(2147483647)",
-        "table-sink-class" : "DEFAULT",
-        "schema.2.data-type" : "INT",
-        "schema.3.name" : "b1",
-        "connector" : "values",
-        "schema.6.name" : "d1",
-        "schema.5.data-type" : "VARCHAR(2147483647)",
-        "schema.4.data-type" : "VARCHAR(2147483647)",
-        "schema.0.name" : "a"
+      "table" : {
+        "identifier" : "`default_catalog`.`default_database`.`MySink`",
+        "resolvedTable" : {
+          "schema" : {
+            "columns" : [ {
+              "name" : "a",
+              "dataType" : "BIGINT"
+            }, {
+              "name" : "a1",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "b",
+              "dataType" : "INT"
+            }, {
+              "name" : "b1",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "c1",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "c2",
+              "dataType" : "VARCHAR(2147483647)"
+            }, {
+              "name" : "d1",
+              "dataType" : "TIMESTAMP(3)"
+            } ],
+            "watermarkSpecs" : [ ]
+          },
+          "partitionKeys" : [ ],
+          "options" : {
+            "connector" : "values",
+            "table-sink-class" : "DEFAULT"
+          }
+        }
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -440,30 +312,7 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : {
-      "type" : "ROW",
-      "nullable" : true,
-      "fields" : [ {
-        "a" : "BIGINT"
-      }, {
-        "a1" : "VARCHAR(2147483647)"
-      }, {
-        "b" : "INT NOT NULL"
-      }, {
-        "b1" : "VARCHAR(2147483647)"
-      }, {
-        "c1" : "VARCHAR(2147483647)"
-      }, {
-        "c2" : "VARCHAR(2147483647)"
-      }, {
-        "d1" : {
-          "type" : "TIMESTAMP_WITHOUT_TIME_ZONE",
-          "nullable" : true,
-          "precision" : 3,
-          "kind" : "REGULAR"
-        }
-      } ]
-    },
+    "outputType" : "ROW<`a` BIGINT, `a1` VARCHAR(2147483647), `b` INT NOT NULL, `b1` VARCHAR(2147483647), `c1` VARCHAR(2147483647), `c2` VARCHAR(2147483647), `d1` TIMESTAMP(3)>",
     "description" : "Sink(table=[default_catalog.default_database.MySink], fields=[a, a1, b, b1, c1, c2, d1])"
   } ],
   "edges" : [ {

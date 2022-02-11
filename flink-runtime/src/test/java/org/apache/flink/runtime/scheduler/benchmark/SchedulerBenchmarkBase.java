@@ -18,7 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.benchmark;
 
-import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 
 import java.util.concurrent.ScheduledExecutorService;
 

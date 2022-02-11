@@ -49,7 +49,7 @@ public class KeyGroupsStateHandleTest {
         byte[] dummy = new byte[10];
         StreamStateHandle streamHandle = new ByteStreamStateHandle("test", dummy);
         KeyGroupsStateHandle handle = new KeyGroupsStateHandle(offsets, streamHandle);
-        // return null if the the keygroup intersection is empty.
+        // return null if the keygroup intersection is empty.
         KeyGroupRange newRange = new KeyGroupRange(8, 11);
         assertNull(handle.getIntersection(newRange));
     }

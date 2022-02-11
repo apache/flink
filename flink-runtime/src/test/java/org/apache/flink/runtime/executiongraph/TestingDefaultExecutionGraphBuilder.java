@@ -41,7 +41,7 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
-import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -74,7 +74,8 @@ public class TestingDefaultExecutionGraphBuilder {
     private CheckpointIDCounter checkpointIdCounter = new StandaloneCheckpointIDCounter();
     private ExecutionDeploymentListener executionDeploymentListener =
             NoOpExecutionDeploymentListener.get();
-    private ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {};
+    private ExecutionStateUpdateListener executionStateUpdateListener =
+            (execution, previousState, newState) -> {};
     private VertexParallelismStore vertexParallelismStore;
 
     private TestingDefaultExecutionGraphBuilder() {}
@@ -156,7 +157,8 @@ public class TestingDefaultExecutionGraphBuilder {
         return this;
     }
 
-    public DefaultExecutionGraph build() throws JobException, JobExecutionException {
+    private DefaultExecutionGraph build(boolean isDynamicGraph)
+            throws JobException, JobExecutionException {
         return DefaultExecutionGraphBuilder.buildGraph(
                 jobGraph,
                 jobMasterConfig,
@@ -179,6 +181,15 @@ public class TestingDefaultExecutionGraphBuilder {
                 new DefaultVertexAttemptNumberStore(),
                 Optional.ofNullable(vertexParallelismStore)
                         .orElseGet(() -> SchedulerBase.computeVertexParallelismStore(jobGraph)),
-                () -> new CheckpointStatsTracker(0, new UnregisteredMetricsGroup()));
+                () -> new CheckpointStatsTracker(0, new UnregisteredMetricsGroup()),
+                isDynamicGraph);
+    }
+
+    public DefaultExecutionGraph build() throws JobException, JobExecutionException {
+        return build(false);
+    }
+
+    public DefaultExecutionGraph buildDynamicGraph() throws JobException, JobExecutionException {
+        return build(true);
     }
 }

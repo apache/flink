@@ -66,6 +66,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
             SingleInputGate gate,
             int channelIndex,
             ResultPartitionID partitionId,
+            int consumedSubpartitionIndex,
             ResultPartitionManager partitionManager,
             TaskEventPublisher taskEventPublisher,
             ConnectionManager connectionManager,
@@ -74,7 +75,15 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
             int networkBuffersPerChannel,
             InputChannelMetrics metrics) {
 
-        super(gate, channelIndex, partitionId, initialBackoff, maxBackoff, null, null);
+        super(
+                gate,
+                channelIndex,
+                partitionId,
+                consumedSubpartitionIndex,
+                initialBackoff,
+                maxBackoff,
+                null,
+                null);
 
         this.partitionManager = checkNotNull(partitionManager);
         this.taskEventPublisher = checkNotNull(taskEventPublisher);
@@ -97,7 +106,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
     }
 
     @Override
-    public void requestSubpartition(int subpartitionIndex) throws IOException {
+    public void requestSubpartition() throws IOException {
         // Nothing to do here
     }
 
@@ -154,6 +163,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 inputGate,
                 getChannelIndex(),
                 partitionId,
+                consumedSubpartitionIndex,
                 checkNotNull(producerAddress),
                 connectionManager,
                 initialBackoff,
@@ -169,6 +179,7 @@ class UnknownInputChannel extends InputChannel implements ChannelStateHolder {
                 inputGate,
                 getChannelIndex(),
                 partitionId,
+                consumedSubpartitionIndex,
                 partitionManager,
                 taskEventPublisher,
                 initialBackoff,

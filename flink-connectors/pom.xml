@@ -52,7 +52,10 @@ under the License.
 		<module>flink-connector-cassandra</module>
 		<module>flink-connector-kafka</module>
 		<module>flink-connector-gcp-pubsub</module>
+		<module>flink-connector-aws-base</module>
 		<module>flink-connector-kinesis</module>
+		<module>flink-connector-aws-kinesis-data-streams</module>
+		<module>flink-connector-aws-kinesis-firehose</module>
 		<module>flink-connector-base</module>
 		<module>flink-file-sink-common</module>
 		<module>flink-connector-files</module>
@@ -102,6 +105,7 @@ under the License.
 				<module>flink-sql-connector-hive-2.3.6</module>
 				<module>flink-sql-connector-hive-3.1.2</module>
 				<module>flink-sql-connector-kafka</module>
+				<module>flink-sql-connector-aws-kinesis-data-streams</module>
 				<module>flink-sql-connector-kinesis</module>
 				<module>flink-sql-connector-rabbitmq</module>
 			</modules>

@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -74,7 +75,12 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
 
     public BatchExecMultipleInput(
             List<InputProperty> inputProperties, ExecNode<?> rootNode, String description) {
-        super(inputProperties, rootNode.getOutputType(), description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecMultipleInput.class),
+                inputProperties,
+                rootNode.getOutputType(),
+                description);
         this.rootNode = rootNode;
     }
 
@@ -100,7 +106,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
 
         final MultipleInputTransformation<RowData> multipleInputTransform =
                 new MultipleInputTransformation<>(
-                        getDescription(),
+                        createTransformationName(planner.getTableConfig()),
                         new BatchMultipleInputStreamOperatorFactory(
                                 inputTransformAndInputSpecPairs.stream()
                                         .map(Pair::getValue)
@@ -109,6 +115,8 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
                                 generator.getTailWrapper()),
                         InternalTypeInfo.of(getOutputType()),
                         generator.getParallelism());
+        multipleInputTransform.setDescription(
+                createTransformationDescription(planner.getTableConfig()));
         inputTransformAndInputSpecPairs.forEach(
                 input -> multipleInputTransform.addInput(input.getKey()));
 

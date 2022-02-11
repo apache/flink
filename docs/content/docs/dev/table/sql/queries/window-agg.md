@@ -199,7 +199,8 @@ The following shows a cascading window aggregation where the first window aggreg
 ```sql
 -- tumbling 5 minutes for each supplier_id
 CREATE VIEW window1 AS
-SELECT window_start, window_end, window_time as rowtime, SUM(price) as partial_price
+-- Note: The window start and window end fields of inner Window TVF are optional in the select clause. However, if they appear in the clause, they need to be aliased to prevent name conflicting with the window start and window end of the outer Window TVF.
+SELECT window_start as window_5mintumble_start, window_end as window_5mintumble_end, window_time as rowtime, SUM(price) as partial_price
   FROM TABLE(
     TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '5' MINUTES))
   GROUP BY supplier_id, window_start, window_end, window_time;

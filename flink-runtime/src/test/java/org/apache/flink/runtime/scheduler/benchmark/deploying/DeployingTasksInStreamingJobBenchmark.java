@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler.benchmark.deploying;
 
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -38,6 +39,7 @@ public class DeployingTasksInStreamingJobBenchmark extends DeployingTasksBenchma
         for (ExecutionJobVertex ejv : executionGraph.getVerticesTopologically()) {
             for (ExecutionVertex ev : ejv.getTaskVertices()) {
                 Execution execution = ev.getCurrentExecutionAttempt();
+                execution.transitionState(ExecutionState.SCHEDULED);
                 execution.deploy();
             }
         }

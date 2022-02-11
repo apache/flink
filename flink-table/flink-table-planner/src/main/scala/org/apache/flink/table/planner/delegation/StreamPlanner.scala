@@ -22,12 +22,13 @@ import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.graph.StreamGraph
-import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
+import org.apache.flink.table.api.internal.CompiledPlanInternal
+import org.apache.flink.table.api.{CompiledPlan, ExplainDetail, TableConfig, TableException}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
-import org.apache.flink.table.planner.operations.PlannerQueryOperation
+import org.apache.flink.table.operations.{ModifyOperation, Operation}
+import org.apache.flink.table.planner.plan.ExecNodeGraphCompiledPlan
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.processor.ExecNodeGraphProcessor
@@ -38,7 +39,6 @@ import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
-import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.sql.SqlExplainLevel
 
 import java.util
@@ -81,43 +81,15 @@ class StreamPlanner(
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
-    require(operations.nonEmpty, "operations should not be empty")
-    validateAndOverrideConfiguration()
-    val sinkRelNodes = operations.map {
-      case queryOperation: QueryOperation =>
-        val relNode = getRelBuilder.queryOperation(queryOperation).build()
-        relNode match {
-          // SQL: explain plan for insert into xx
-          case modify: LogicalTableModify =>
-            // convert LogicalTableModify to CatalogSinkModifyOperation
-            val qualifiedName = modify.getTable.getQualifiedName
-            require(qualifiedName.size() == 3, "the length of qualified name should be 3.")
-            val modifyOperation = new CatalogSinkModifyOperation(
-              ObjectIdentifier.of(qualifiedName.get(0), qualifiedName.get(1), qualifiedName.get(2)),
-              new PlannerQueryOperation(modify.getInput)
-            )
-            translateToRel(modifyOperation)
-          case _ =>
-            relNode
-        }
-      case modifyOperation: ModifyOperation =>
-        translateToRel(modifyOperation)
-      case o => throw new TableException(s"Unsupported operation: ${o.getClass.getCanonicalName}")
-    }
-    val optimizedRelNodes = optimize(sinkRelNodes)
-    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-
-    val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
-
-    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
-      .asInstanceOf[StreamGraph]
+    val (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph) = getExplainGraphs(operations)
 
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")
     sb.append(System.lineSeparator)
     sinkRelNodes.foreach { sink =>
-      sb.append(FlinkRelOptUtil.toString(sink))
+      // use EXPPLAN_ATTRIBUTES to make the ast result more readable
+      // and to keep the previous behavior
+      sb.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
       sb.append(System.lineSeparator)
     }
 
@@ -157,9 +129,27 @@ class StreamPlanner(
     new StreamPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+  override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlanInternal = {
     validateAndOverrideConfiguration()
-    val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
+    val relNodes = modifyOperations.map(translateToRel)
+    val optimizedRelNodes = optimize(relNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
+    cleanupInternalConfigurations()
+
+    new ExecNodeGraphCompiledPlan(createSerdeContext, execGraph)
+  }
+
+  override def translatePlan(plan: CompiledPlanInternal): util.List[Transformation[_]] = {
+    validateAndOverrideConfiguration()
+    val execGraph = plan.asInstanceOf[ExecNodeGraphCompiledPlan].getExecNodeGraph
+    val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
+    transformations
+  }
+
+  override def explainPlan(plan: CompiledPlanInternal, extraDetails: ExplainDetail*): String = {
+    validateAndOverrideConfiguration()
+    val execGraph = plan.asInstanceOf[ExecNodeGraphCompiledPlan].getExecNodeGraph
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
 

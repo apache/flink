@@ -44,6 +44,7 @@ import org.apache.flink.configuration.GlobalConfiguration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.core.execution.DefaultExecutorServiceLoader;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.plugin.PluginUtils;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -559,11 +560,14 @@ public class CliFrontend {
 
         final boolean advanceToEndOfEventTime = stopOptions.shouldAdvanceToEndOfEventTime();
 
+        final SavepointFormatType formatType = stopOptions.getFormatType();
         logAndSysout(
                 (advanceToEndOfEventTime ? "Draining job " : "Suspending job ")
                         + "\""
                         + jobId
-                        + "\" with a savepoint.");
+                        + "\" with a "
+                        + formatType
+                        + " savepoint.");
 
         final CustomCommandLine activeCommandLine = validateAndGetActiveCommandLine(commandLine);
         runClusterAction(
@@ -575,7 +579,10 @@ public class CliFrontend {
                         savepointPath =
                                 clusterClient
                                         .stopWithSavepoint(
-                                                jobId, advanceToEndOfEventTime, targetDirectory)
+                                                jobId,
+                                                advanceToEndOfEventTime,
+                                                targetDirectory,
+                                                formatType)
                                         .get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
                     } catch (Exception e) {
                         throw new FlinkException(
@@ -624,14 +631,23 @@ public class CliFrontend {
                 targetDirectory = null;
             }
 
+            final SavepointFormatType formatType = cancelOptions.getFormatType();
             if (targetDirectory == null) {
                 logAndSysout(
                         "Cancelling job "
                                 + jobId
-                                + " with savepoint to default savepoint directory.");
+                                + " with "
+                                + formatType
+                                + " savepoint to default savepoint directory.");
             } else {
                 logAndSysout(
-                        "Cancelling job " + jobId + " with savepoint to " + targetDirectory + '.');
+                        "Cancelling job "
+                                + jobId
+                                + " with "
+                                + formatType
+                                + " savepoint to "
+                                + targetDirectory
+                                + '.');
             }
 
             runClusterAction(
@@ -642,7 +658,7 @@ public class CliFrontend {
                         try {
                             savepointPath =
                                     clusterClient
-                                            .cancelWithSavepoint(jobId, targetDirectory)
+                                            .cancelWithSavepoint(jobId, targetDirectory, formatType)
                                             .get(clientTimeout.toMillis(), TimeUnit.MILLISECONDS);
                         } catch (Exception e) {
                             throw new FlinkException("Could not cancel job " + jobId + '.', e);
@@ -751,18 +767,26 @@ public class CliFrontend {
             runClusterAction(
                     activeCommandLine,
                     commandLine,
-                    clusterClient -> triggerSavepoint(clusterClient, jobId, savepointDirectory));
+                    clusterClient ->
+                            triggerSavepoint(
+                                    clusterClient,
+                                    jobId,
+                                    savepointDirectory,
+                                    savepointOptions.getFormatType()));
         }
     }
 
     /** Sends a SavepointTriggerMessage to the job manager. */
     private void triggerSavepoint(
-            ClusterClient<?> clusterClient, JobID jobId, String savepointDirectory)
+            ClusterClient<?> clusterClient,
+            JobID jobId,
+            String savepointDirectory,
+            SavepointFormatType formatType)
             throws FlinkException {
         logAndSysout("Triggering savepoint for job " + jobId + '.');
 
         CompletableFuture<String> savepointPathFuture =
-                clusterClient.triggerSavepoint(jobId, savepointDirectory);
+                clusterClient.triggerSavepoint(jobId, savepointDirectory, formatType);
 
         logAndSysout("Waiting for response...");
 

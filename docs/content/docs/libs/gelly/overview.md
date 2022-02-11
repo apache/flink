@@ -52,7 +52,7 @@ Add the following dependency to your `pom.xml` to use Gelly.
 {{< /tab >}}
 {{< /tabs >}}
 
-Note that Gelly is not part of the binary distribution. See [linking]({{< ref "docs/dev/datastream/project-configuration" >}}) for
+Note that Gelly is not part of the binary distribution. See [linking]({{< ref "docs/dev/configuration/overview" >}}) for
 instructions on packaging Gelly libraries into Flink user programs.
 
 The remaining sections provide a description of available methods and present several examples of how to use Gelly and how to mix it with the Flink DataSet API.

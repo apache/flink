@@ -114,9 +114,11 @@ class StateChangeFsUploader implements StateChangeUploader {
     }
 
     private LocalResult upload(Path path, Collection<UploadTask> tasks) throws IOException {
-        try (FSDataOutputStream fsStream = fileSystem.create(path, NO_OVERWRITE)) {
+        boolean wrappedStreamClosed = false;
+        FSDataOutputStream fsStream = fileSystem.create(path, NO_OVERWRITE);
+        try {
             fsStream.write(compression ? 1 : 0);
-            try (OutputStreamWithPos stream = wrap(fsStream); ) {
+            try (OutputStreamWithPos stream = wrap(fsStream)) {
                 final Map<UploadTask, Map<StateChangeSet, Long>> tasksOffsets = new HashMap<>();
                 for (UploadTask task : tasks) {
                     tasksOffsets.put(task, format.write(stream, task.changeSets));
@@ -125,6 +127,12 @@ class StateChangeFsUploader implements StateChangeUploader {
                 // WARN: streams have to be closed before returning the results
                 // otherwise JM may receive invalid handles
                 return new LocalResult(tasksOffsets, handle);
+            } finally {
+                wrappedStreamClosed = true;
+            }
+        } finally {
+            if (!wrappedStreamClosed) {
+                fsStream.close();
             }
         }
     }

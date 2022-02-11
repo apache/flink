@@ -51,6 +51,7 @@ public class JobManagerOptions {
     })
     public static final ConfigOption<String> ADDRESS =
             key("jobmanager.rpc.address")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "The config parameter defining the network address to connect to"
@@ -86,6 +87,7 @@ public class JobManagerOptions {
     })
     public static final ConfigOption<Integer> PORT =
             key("jobmanager.rpc.port")
+                    .intType()
                     .defaultValue(6123)
                     .withDescription(
                             "The config parameter defining the network port to connect to"
@@ -252,6 +254,7 @@ public class JobManagerOptions {
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
     public static final ConfigOption<Integer> MAX_ATTEMPTS_HISTORY_SIZE =
             key("jobmanager.execution.attempts-history-size")
+                    .intType()
                     .defaultValue(16)
                     .withDeprecatedKeys("job-manager.max-attempts-history-size")
                     .withDescription(
@@ -288,6 +291,7 @@ public class JobManagerOptions {
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
     public static final ConfigOption<String> ARCHIVE_DIR =
             key("jobmanager.archive.fs.dir")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "Dictionary for JobManager to store the archives of completed jobs.");
@@ -296,6 +300,7 @@ public class JobManagerOptions {
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
     public static final ConfigOption<Long> JOB_STORE_CACHE_SIZE =
             key("jobstore.cache-size")
+                    .longType()
                     .defaultValue(50L * 1024L * 1024L)
                     .withDescription(
                             "The job store cache size in bytes which is used to keep completed jobs in memory.");
@@ -304,6 +309,7 @@ public class JobManagerOptions {
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
     public static final ConfigOption<Long> JOB_STORE_EXPIRATION_TIME =
             key("jobstore.expiration-time")
+                    .longType()
                     .defaultValue(60L * 60L)
                     .withDescription(
                             "The time in seconds after which a completed job expires and is purged from the job store.");
@@ -312,9 +318,36 @@ public class JobManagerOptions {
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
     public static final ConfigOption<Integer> JOB_STORE_MAX_CAPACITY =
             key("jobstore.max-capacity")
+                    .intType()
                     .defaultValue(Integer.MAX_VALUE)
                     .withDescription(
-                            "The max number of completed jobs that can be kept in the job store.");
+                            "The max number of completed jobs that can be kept in the job store. "
+                                    + "NOTICE: if memory store keeps too many jobs in session cluster, it may cause FullGC or OOM in jm.");
+
+    /** Config parameter determining the job store implementation in session cluster. */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<JobStoreType> JOB_STORE_TYPE =
+            key("jobstore.type")
+                    .enumType(JobStoreType.class)
+                    .defaultValue(JobStoreType.File)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Determines which job store implementation is used in session cluster. Accepted values are:")
+                                    .list(
+                                            text(
+                                                    "'File': the file job store keeps the archived execution graphs in files"),
+                                            text(
+                                                    "'Memory': the memory job store keeps the archived execution graphs in memory. You"
+                                                            + " may need to limit the %s to mitigate FullGC or OOM when there are too many graphs",
+                                                    code(JOB_STORE_MAX_CAPACITY.key())))
+                                    .build());
+
+    /** Type of job store implementation. */
+    public enum JobStoreType {
+        File,
+        Memory
+    }
 
     /**
      * Flag indicating whether JobManager would retrieve canonical host name of TaskManager during
@@ -323,6 +356,7 @@ public class JobManagerOptions {
     @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
     public static final ConfigOption<Boolean> RETRIEVE_TASK_MANAGER_HOSTNAME =
             key("jobmanager.retrieve-taskmanager-hostname")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "Flag indicating whether JobManager would retrieve canonical "
@@ -361,6 +395,7 @@ public class JobManagerOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
             key("slot.request.timeout")
+                    .longType()
                     .defaultValue(5L * 60L * 1000L)
                     .withDescription(
                             "The timeout in milliseconds for requesting a slot from Slot Pool.");
@@ -369,6 +404,7 @@ public class JobManagerOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
     public static final ConfigOption<Long> SLOT_IDLE_TIMEOUT =
             key("slot.idle.timeout")
+                    .longType()
                     // default matches heartbeat.timeout so that sticky allocation is not lost on
                     // timeouts for local recovery
                     .defaultValue(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT.defaultValue())
@@ -387,13 +423,16 @@ public class JobManagerOptions {
                                     .list(
                                             text("'Ng': new generation scheduler"),
                                             text(
-                                                    "'Adaptive': adaptive scheduler; supports reactive mode"))
+                                                    "'Adaptive': adaptive scheduler; supports reactive mode"),
+                                            text(
+                                                    "'AdaptiveBatch': adaptive batch scheduler, which can automatically decide parallelisms of job vertices for batch jobs"))
                                     .build());
 
     /** Type of scheduler implementation. */
     public enum SchedulerType {
         Ng,
-        Adaptive
+        Adaptive,
+        AdaptiveBatch
     }
 
     @Documentation.Section(Documentation.Sections.EXPERT_SCHEDULING)
@@ -476,9 +515,85 @@ public class JobManagerOptions {
                     + "We aim at removing this flag eventually.")
     public static final ConfigOption<Boolean> PARTITION_RELEASE_DURING_JOB_EXECUTION =
             key("jobmanager.partition.release-during-job-execution")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "Controls whether partitions should already be released during the job execution.");
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MIN_PARALLELISM =
+            key("jobmanager.scheduler.adaptive-batch.min-parallelism")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s",
+                                            code(SCHEDULER.key()),
+                                            code(SchedulerType.AdaptiveBatch.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM =
+            key("jobmanager.scheduler.adaptive-batch.max-parallelism")
+                    .intType()
+                    .defaultValue(128)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s",
+                                            code(SCHEDULER.key()),
+                                            code(SchedulerType.AdaptiveBatch.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<MemorySize> ADAPTIVE_BATCH_SCHEDULER_DATA_VOLUME_PER_TASK =
+            key("jobmanager.scheduler.adaptive-batch.data-volume-per-task")
+                    .memoryType()
+                    .defaultValue(MemorySize.ofMebiBytes(1024))
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The size of data volume to expect each task instance to process if %s has been set to %s",
+                                            code(SCHEDULER.key()),
+                                            code(SchedulerType.AdaptiveBatch.name()))
+                                    .build());
+
+    @Documentation.Section({
+        Documentation.Sections.EXPERT_SCHEDULING,
+        Documentation.Sections.ALL_JOB_MANAGER
+    })
+    public static final ConfigOption<Integer> ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM =
+            key("jobmanager.scheduler.adaptive-batch.source-parallelism.default")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "The default parallelism of source vertices if %s has been set to %s",
+                                            code(SCHEDULER.key()),
+                                            code(SchedulerType.AdaptiveBatch.name()))
+                                    .build());
+
+    /**
+     * The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.
+     */
+    @Documentation.Section(Documentation.Sections.ALL_JOB_MANAGER)
+    public static final ConfigOption<String> JOB_MANAGER_RESOURCE_ID =
+            key("jobmanager.resource-id")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The JobManager's ResourceID. If not configured, the ResourceID will be generated randomly.");
 
     // ---------------------------------------------------------------------------------------------
 

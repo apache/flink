@@ -19,7 +19,7 @@ package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
+import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
@@ -29,25 +29,32 @@ import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.ThrowingRunnable;
 
 import org.apache.http.HttpHost;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.bulk.BackoffPolicy;
+import org.elasticsearch.action.bulk.BulkProcessor;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.get.GetRequest;
 import org.elasticsearch.action.get.GetResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.core.TimeValue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testcontainers.containers.output.Slf4jLogConsumer;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
-import org.testcontainers.utility.DockerImageName;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -68,20 +75,12 @@ class ElasticsearchWriterITCase {
 
     @Container
     private static final ElasticsearchContainer ES_CONTAINER =
-            new ElasticsearchContainer(DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_7))
-                    .withLogConsumer(new Slf4jLogConsumer(LOG));
+            ElasticsearchUtil.createElasticsearchContainer(
+                    DockerImageVersions.ELASTICSEARCH_7, LOG);
 
     private RestHighLevelClient client;
     private TestClientBase context;
     private MetricListener metricListener;
-
-    private final BulkRequestConsumerFactory bulkRequestConsumerFactory =
-            (client) ->
-                    (bulkRequest, bulkResponseActionListener) ->
-                            client.bulkAsync(
-                                    bulkRequest,
-                                    RequestOptions.DEFAULT,
-                                    bulkResponseActionListener);
 
     @BeforeEach
     void setUp() {
@@ -104,14 +103,7 @@ class ElasticsearchWriterITCase {
         final String index = "test-bulk-flush-without-checkpoint";
         final int flushAfterNActions = 5;
         final BulkProcessorConfig bulkProcessorConfig =
-                new BulkProcessorConfig(
-                        flushAfterNActions,
-                        -1,
-                        -1,
-                        FlushBackoffType.NONE,
-                        0,
-                        0,
-                        bulkRequestConsumerFactory);
+                new BulkProcessorConfig(flushAfterNActions, -1, -1, FlushBackoffType.NONE, 0, 0);
 
         try (final ElasticsearchWriter<Tuple2<Integer, String>> writer =
                 createWriter(index, false, bulkProcessorConfig)) {
@@ -144,8 +136,7 @@ class ElasticsearchWriterITCase {
 
         // Configure bulk processor to flush every 1s;
         final BulkProcessorConfig bulkProcessorConfig =
-                new BulkProcessorConfig(
-                        -1, -1, 1000, FlushBackoffType.NONE, 0, 0, bulkRequestConsumerFactory);
+                new BulkProcessorConfig(-1, -1, 1000, FlushBackoffType.NONE, 0, 0);
 
         try (final ElasticsearchWriter<Tuple2<Integer, String>> writer =
                 createWriter(index, false, bulkProcessorConfig)) {
@@ -163,8 +154,7 @@ class ElasticsearchWriterITCase {
     void testWriteOnCheckpoint() throws Exception {
         final String index = "test-bulk-flush-with-checkpoint";
         final BulkProcessorConfig bulkProcessorConfig =
-                new BulkProcessorConfig(
-                        -1, -1, -1, FlushBackoffType.NONE, 0, 0, bulkRequestConsumerFactory);
+                new BulkProcessorConfig(-1, -1, -1, FlushBackoffType.NONE, 0, 0);
 
         // Enable flush on checkpoint
         try (final ElasticsearchWriter<Tuple2<Integer, String>> writer =
@@ -192,14 +182,7 @@ class ElasticsearchWriterITCase {
                         metricListener.getMetricGroup(), operatorIOMetricGroup);
         final int flushAfterNActions = 2;
         final BulkProcessorConfig bulkProcessorConfig =
-                new BulkProcessorConfig(
-                        flushAfterNActions,
-                        -1,
-                        -1,
-                        FlushBackoffType.NONE,
-                        0,
-                        0,
-                        bulkRequestConsumerFactory);
+                new BulkProcessorConfig(flushAfterNActions, -1, -1, FlushBackoffType.NONE, 0, 0);
 
         try (final ElasticsearchWriter<Tuple2<Integer, String>> writer =
                 createWriter(index, false, bulkProcessorConfig, metricGroup)) {
@@ -226,14 +209,7 @@ class ElasticsearchWriterITCase {
         final String index = "test-current-send-time";
         final int flushAfterNActions = 2;
         final BulkProcessorConfig bulkProcessorConfig =
-                new BulkProcessorConfig(
-                        flushAfterNActions,
-                        -1,
-                        -1,
-                        FlushBackoffType.NONE,
-                        0,
-                        0,
-                        bulkRequestConsumerFactory);
+                new BulkProcessorConfig(flushAfterNActions, -1, -1, FlushBackoffType.NONE, 0, 0);
 
         try (final ElasticsearchWriter<Tuple2<Integer, String>> writer =
                 createWriter(index, false, bulkProcessorConfig)) {
@@ -268,9 +244,70 @@ class ElasticsearchWriterITCase {
                 TestEmitter.jsonEmitter(index, context.getDataFieldName()),
                 flushOnCheckpoint,
                 bulkProcessorConfig,
-                new NetworkClientConfig(null, null, null),
+                new TestBulkProcessorBuilderFactory(),
+                new NetworkClientConfig(null, null, null, null, null, null),
                 metricGroup,
                 new TestMailbox());
+    }
+
+    private static class TestBulkProcessorBuilderFactory implements BulkProcessorBuilderFactory {
+        @Override
+        public BulkProcessor.Builder apply(
+                RestHighLevelClient client,
+                BulkProcessorConfig bulkProcessorConfig,
+                BulkProcessor.Listener listener) {
+            BulkProcessor.Builder builder =
+                    BulkProcessor.builder(
+                            new BulkRequestConsumerFactory() { // This cannot be inlined as a lambda
+                                // because then deserialization fails
+                                @Override
+                                public void accept(
+                                        BulkRequest bulkRequest,
+                                        ActionListener<BulkResponse> bulkResponseActionListener) {
+                                    client.bulkAsync(
+                                            bulkRequest,
+                                            RequestOptions.DEFAULT,
+                                            bulkResponseActionListener);
+                                }
+                            },
+                            listener);
+
+            if (bulkProcessorConfig.getBulkFlushMaxActions() != -1) {
+                builder.setBulkActions(bulkProcessorConfig.getBulkFlushMaxActions());
+            }
+
+            if (bulkProcessorConfig.getBulkFlushMaxMb() != -1) {
+                builder.setBulkSize(
+                        new ByteSizeValue(
+                                bulkProcessorConfig.getBulkFlushMaxMb(), ByteSizeUnit.MB));
+            }
+
+            if (bulkProcessorConfig.getBulkFlushInterval() != -1) {
+                builder.setFlushInterval(new TimeValue(bulkProcessorConfig.getBulkFlushInterval()));
+            }
+
+            BackoffPolicy backoffPolicy;
+            final TimeValue backoffDelay =
+                    new TimeValue(bulkProcessorConfig.getBulkFlushBackOffDelay());
+            final int maxRetryCount = bulkProcessorConfig.getBulkFlushBackoffRetries();
+            switch (bulkProcessorConfig.getFlushBackoffType()) {
+                case CONSTANT:
+                    backoffPolicy = BackoffPolicy.constantBackoff(backoffDelay, maxRetryCount);
+                    break;
+                case EXPONENTIAL:
+                    backoffPolicy = BackoffPolicy.exponentialBackoff(backoffDelay, maxRetryCount);
+                    break;
+                case NONE:
+                    backoffPolicy = BackoffPolicy.noBackoff();
+                    break;
+                default:
+                    throw new IllegalArgumentException(
+                            "Received unknown backoff policy type "
+                                    + bulkProcessorConfig.getFlushBackoffType());
+            }
+            builder.setBackoffPolicy(backoffPolicy);
+            return builder;
+        }
     }
 
     private static class TestClient extends TestClientBase {

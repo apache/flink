@@ -20,16 +20,17 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.operators.sort.SortLimitOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -58,7 +59,12 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecSortLimit.class),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.sortSpec = sortSpec;
         this.limitStart = limitStart;
         this.limitEnd = limitEnd;
@@ -86,9 +92,10 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData>
         SortLimitOperator operator =
                 new SortLimitOperator(isGlobal, limitStart, limitEnd, genComparator);
 
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                createTransformationName(planner.getTableConfig()),
+                createTransformationDescription(planner.getTableConfig()),
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of(inputType),
                 inputTransform.getParallelism());

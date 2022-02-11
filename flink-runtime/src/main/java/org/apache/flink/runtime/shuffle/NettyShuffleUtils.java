@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.shuffle;
 
+import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 
@@ -63,15 +64,15 @@ public class NettyShuffleUtils {
             final int sortShuffleMinBuffers,
             final int numSubpartitions,
             final ResultPartitionType type) {
-        int min =
-                type.isBlocking() && numSubpartitions >= sortShuffleMinParallelism
-                        ? sortShuffleMinBuffers
-                        : numSubpartitions + 1;
+        boolean isSortShuffle = type.isBlocking() && numSubpartitions >= sortShuffleMinParallelism;
+        int min = isSortShuffle ? sortShuffleMinBuffers : numSubpartitions + 1;
         int max =
                 type.isBounded()
                         ? numSubpartitions * configuredNetworkBuffersPerChannel
                                 + numFloatingBuffersPerGate
-                        : Integer.MAX_VALUE;
+                        : (isSortShuffle
+                                ? Math.max(min, 4 * numSubpartitions)
+                                : NetworkBufferPool.UNBOUNDED_POOL_SIZE);
         // for each upstream hash-based blocking/pipelined subpartition, at least one buffer is
         // needed even the configured network buffers per channel is 0 and this behavior is for
         // performance. If it's not guaranteed that each subpartition can get at least one buffer,

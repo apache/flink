@@ -25,13 +25,15 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.MiniClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
@@ -54,10 +56,8 @@ import org.junit.rules.TemporaryFolder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -65,13 +65,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.either;
 import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -98,31 +95,6 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
     private MiniClusterClient clusterClient;
 
     private JobGraph jobGraph;
-
-    @Test
-    public void suspendWithSavepointWithoutComplicationsShouldSucceedAndLeadJobToFinished()
-            throws Exception {
-        stopWithSavepointNormalExecutionHelper(false);
-    }
-
-    private void stopWithSavepointNormalExecutionHelper(final boolean terminate) throws Exception {
-        setUpJobGraph(NoOpBlockingStreamTask.class, RestartStrategies.noRestart());
-
-        final CompletableFuture<String> savepointLocationFuture = stopWithSavepoint(terminate);
-
-        assertThat(getJobStatus(), equalTo(JobStatus.RUNNING));
-
-        finishingLatch.trigger();
-
-        final String savepointLocation = savepointLocationFuture.get();
-        assertThat(getJobStatus(), equalTo(JobStatus.FINISHED));
-
-        final List<Path> savepoints;
-        try (Stream<Path> savepointFiles = Files.list(savepointDirectory)) {
-            savepoints = savepointFiles.map(Path::getFileName).collect(Collectors.toList());
-        }
-        assertThat(savepoints, hasItem(Paths.get(savepointLocation).getFileName()));
-    }
 
     @Test
     public void throwingExceptionOnCallbackWithNoRestartsShouldFailTheSuspend() throws Exception {
@@ -243,7 +215,8 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
                 .stopWithSavepoint(
                         jobGraph.getJobID(),
                         savepointDirectory.toAbsolutePath().toString(),
-                        terminate);
+                        terminate,
+                        SavepointFormatType.CANONICAL);
     }
 
     private JobStatus getJobStatus() throws InterruptedException, ExecutionException {
@@ -343,9 +316,9 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         public CompletableFuture<Boolean> triggerCheckpointAsync(
                 CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             final long checkpointId = checkpointMetaData.getCheckpointId();
-            final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
+            final SnapshotType checkpointType = checkpointOptions.getCheckpointType();
 
-            if (checkpointType.isSynchronous()) {
+            if (checkpointType.isSavepoint() && ((SavepointType) checkpointType).isSynchronous()) {
                 synchronousSavepointId = checkpointId;
                 syncSavepointId.compareAndSet(-1, synchronousSavepointId);
             }
@@ -368,11 +341,6 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
                 long checkpointId, long latestCompletedCheckpointId) {
             return CompletableFuture.completedFuture(null);
         }
-
-        @Override
-        protected void finishTask() {
-            mailboxProcessor.allActionsCompleted();
-        }
     }
 
     /** A {@link StreamTask} that simply waits to be terminated normally. */
@@ -392,14 +360,6 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
             } else {
                 controller.suspendDefaultAction();
                 mailboxProcessor.suspend();
-            }
-        }
-
-        @Override
-        public void finishTask() throws Exception {
-            finishingLatch.await();
-            if (suspension != null) {
-                suspension.resume();
             }
         }
     }

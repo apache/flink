@@ -30,11 +30,15 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
+import org.apache.flink.runtime.state.CheckpointStateToolset;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
+import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.BiFunctionWithException;
@@ -335,22 +339,9 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
     public void notifyCheckpointComplete(
             long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning)
             throws Exception {
-        try {
-            if (!isRunning.get()) {
-                LOG.debug(
-                        "Ignoring notification of complete checkpoint {} for not-running task {}",
-                        checkpointId,
-                        taskName);
-            } else {
-                LOG.debug(
-                        "Notification of completed checkpoint {} for task {}",
-                        checkpointId,
-                        taskName);
-                operatorChain.notifyCheckpointComplete(checkpointId);
-            }
-        } finally {
-            env.getTaskStateManager().notifyCheckpointComplete(checkpointId);
-        }
+
+        notifyCheckpoint(
+                checkpointId, operatorChain, isRunning, Task.NotifyCheckpointOperation.COMPLETE);
     }
 
     @Override
@@ -358,37 +349,87 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
             long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning)
             throws Exception {
 
+        notifyCheckpoint(
+                checkpointId, operatorChain, isRunning, Task.NotifyCheckpointOperation.ABORT);
+    }
+
+    @Override
+    public void notifyCheckpointSubsumed(
+            long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning)
+            throws Exception {
+
+        notifyCheckpoint(
+                checkpointId, operatorChain, isRunning, Task.NotifyCheckpointOperation.SUBSUME);
+    }
+
+    private void notifyCheckpoint(
+            long checkpointId,
+            OperatorChain<?, ?> operatorChain,
+            Supplier<Boolean> isRunning,
+            Task.NotifyCheckpointOperation notifyCheckpointOperation)
+            throws Exception {
+
+        Exception previousException = null;
         try {
             if (!isRunning.get()) {
                 LOG.debug(
-                        "Ignoring notification of aborted checkpoint {} for not-running task {}",
+                        "Ignoring notification of checkpoint {} {} for not-running task {}",
+                        notifyCheckpointOperation,
                         checkpointId,
                         taskName);
             } else {
                 LOG.debug(
-                        "Notification of aborted checkpoint {} for task {}",
+                        "Notification of checkpoint {} {} for task {}",
+                        notifyCheckpointOperation,
                         checkpointId,
                         taskName);
 
-                boolean canceled = cancelAsyncCheckpointRunnable(checkpointId);
+                if (notifyCheckpointOperation.equals(Task.NotifyCheckpointOperation.ABORT)) {
+                    boolean canceled = cancelAsyncCheckpointRunnable(checkpointId);
 
-                if (!canceled) {
-                    if (checkpointId > lastCheckpointId) {
-                        // only record checkpoints that have not triggered on task side.
-                        abortedCheckpointIds.add(checkpointId);
+                    if (!canceled) {
+                        if (checkpointId > lastCheckpointId) {
+                            // only record checkpoints that have not triggered on task side.
+                            abortedCheckpointIds.add(checkpointId);
+                        }
                     }
+
+                    channelStateWriter.abort(
+                            checkpointId,
+                            new CancellationException("checkpoint aborted via notification"),
+                            false);
                 }
 
-                channelStateWriter.abort(
-                        checkpointId,
-                        new CancellationException("checkpoint aborted via notification"),
-                        false);
-
-                operatorChain.notifyCheckpointAborted(checkpointId);
+                try {
+                    switch (notifyCheckpointOperation) {
+                        case ABORT:
+                            operatorChain.notifyCheckpointAborted(checkpointId);
+                            break;
+                        case COMPLETE:
+                            operatorChain.notifyCheckpointComplete(checkpointId);
+                            break;
+                        case SUBSUME:
+                            operatorChain.notifyCheckpointSubsumed(checkpointId);
+                    }
+                } catch (Exception e) {
+                    previousException = ExceptionUtils.firstOrSuppressed(e, previousException);
+                }
             }
         } finally {
-            env.getTaskStateManager().notifyCheckpointAborted(checkpointId);
+            try {
+                switch (notifyCheckpointOperation) {
+                    case ABORT:
+                        env.getTaskStateManager().notifyCheckpointAborted(checkpointId);
+                        break;
+                    case COMPLETE:
+                        env.getTaskStateManager().notifyCheckpointComplete(checkpointId);
+                }
+            } catch (Exception e) {
+                previousException = ExceptionUtils.firstOrSuppressed(e, previousException);
+            }
         }
+
+        ExceptionUtils.tryRethrowException(previousException);
     }
 
     @Override
@@ -674,9 +715,13 @@ class SubtaskCheckpointCoordinatorImpl implements SubtaskCheckpointCoordinator {
         }
 
         @Override
-        public CheckpointStreamFactory.CheckpointStateOutputStream createTaskOwnedStateStream()
-                throws IOException {
+        public CheckpointStateOutputStream createTaskOwnedStateStream() throws IOException {
             return delegate.createTaskOwnedStateStream();
+        }
+
+        @Override
+        public CheckpointStateToolset createTaskOwnedCheckpointStateToolset() {
+            return delegate.createTaskOwnedCheckpointStateToolset();
         }
     }
 

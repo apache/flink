@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -74,6 +75,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -121,7 +123,14 @@ public class PendingCheckpointTest {
         // Forced checkpoints cannot be subsumed
         CheckpointProperties forced =
                 new CheckpointProperties(
-                        true, CheckpointType.SAVEPOINT, false, false, false, false, false);
+                        true,
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false);
         PendingCheckpoint pending = createPendingCheckpoint(forced);
         assertFalse(pending.canBeSubsumed());
 
@@ -135,7 +144,14 @@ public class PendingCheckpointTest {
         // Non-forced checkpoints can be subsumed
         CheckpointProperties subsumed =
                 new CheckpointProperties(
-                        false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+                        false,
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false);
         pending = createPendingCheckpoint(subsumed);
         assertFalse(pending.canBeSubsumed());
     }
@@ -143,7 +159,8 @@ public class PendingCheckpointTest {
     @Test
     public void testSyncSavepointCannotBeSubsumed() throws Exception {
         // Forced checkpoints cannot be subsumed
-        CheckpointProperties forced = CheckpointProperties.forSyncSavepoint(true, false);
+        CheckpointProperties forced =
+                CheckpointProperties.forSyncSavepoint(true, false, SavepointFormatType.CANONICAL);
         PendingCheckpoint pending = createPendingCheckpoint(forced);
         assertFalse(pending.canBeSubsumed());
 
@@ -163,7 +180,14 @@ public class PendingCheckpointTest {
     public void testCompletionFuture() throws Exception {
         CheckpointProperties props =
                 new CheckpointProperties(
-                        false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+                        false,
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false);
 
         // Abort declined
         PendingCheckpoint pending = createPendingCheckpoint(props);
@@ -219,11 +243,11 @@ public class PendingCheckpointTest {
     public void testAbortDiscardsState() throws Exception {
         CheckpointProperties props =
                 new CheckpointProperties(
-                        false, CheckpointType.CHECKPOINT, false, false, false, false, false);
+                        false, CheckpointType.CHECKPOINT, false, false, false, false, false, false);
         QueueExecutor executor = new QueueExecutor();
 
         OperatorState state = mock(OperatorState.class);
-        doNothing().when(state).registerSharedStates(any(SharedStateRegistry.class));
+        doNothing().when(state).registerSharedStates(any(SharedStateRegistry.class), eq(0L));
 
         // Abort declined
         PendingCheckpoint pending = createPendingCheckpoint(props, executor);
@@ -378,7 +402,7 @@ public class PendingCheckpointTest {
     public void testSetCanceller() throws Exception {
         final CheckpointProperties props =
                 new CheckpointProperties(
-                        false, CheckpointType.CHECKPOINT, true, true, true, true, true);
+                        false, CheckpointType.CHECKPOINT, true, true, true, true, true, false);
 
         PendingCheckpoint aborted = createPendingCheckpoint(props);
         abort(aborted, CheckpointFailureReason.CHECKPOINT_DECLINED);

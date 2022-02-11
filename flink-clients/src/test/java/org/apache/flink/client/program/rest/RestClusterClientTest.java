@@ -21,12 +21,14 @@ package org.apache.flink.client.program.rest;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.client.deployment.ClusterClientFactory;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.deployment.StandaloneClusterId;
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestOptions;
@@ -107,12 +109,15 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 
 import javax.annotation.Nonnull;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -153,7 +158,7 @@ import static org.junit.Assert.fail;
 public class RestClusterClientTest extends TestLogger {
 
     private final DispatcherGateway mockRestfulGateway =
-            new TestingDispatcherGateway.Builder().build();
+            TestingDispatcherGateway.newBuilder().build();
 
     private GatewayRetriever<DispatcherGateway> mockGatewayRetriever;
 
@@ -714,6 +719,45 @@ public class RestClusterClientTest extends TestLogger {
                     assertThat(cause.isPresent(), is(true));
                     assertThat(cause.get().getMessage(), equalTo("expected"));
                 }
+            }
+        }
+    }
+
+    @Test(timeout = 120_000)
+    public void testJobSubmissionWithoutUserArtifact() throws Exception {
+        try (final TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(new TestJobSubmitHandler())) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+
+                restClusterClient.submitJob(jobGraph).get();
+            }
+        }
+    }
+
+    @Test(timeout = 120_000)
+    public void testJobSubmissionWithUserArtifact() throws Exception {
+        try (final TestRestServerEndpoint restServerEndpoint =
+                createRestServerEndpoint(new TestJobSubmitHandler())) {
+            try (RestClusterClient<?> restClusterClient =
+                    createRestClusterClient(restServerEndpoint.getServerAddress().getPort())) {
+
+                TemporaryFolder temporaryFolder = new TemporaryFolder();
+                temporaryFolder.create();
+                File file = temporaryFolder.newFile();
+                Files.write(file.toPath(), "hello world".getBytes(ConfigConstants.DEFAULT_CHARSET));
+
+                // Add file path with scheme
+                jobGraph.addUserArtifact(
+                        "file",
+                        new DistributedCache.DistributedCacheEntry(file.toURI().toString(), false));
+
+                // Add file path without scheme
+                jobGraph.addUserArtifact(
+                        "file2",
+                        new DistributedCache.DistributedCacheEntry(file.toURI().getPath(), false));
+
+                restClusterClient.submitJob(jobGraph).get();
             }
         }
     }

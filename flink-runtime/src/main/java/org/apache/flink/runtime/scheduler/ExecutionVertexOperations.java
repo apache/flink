@@ -25,7 +25,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import java.util.concurrent.CompletableFuture;
 
 /** Operations on the {@link ExecutionVertex}. */
-interface ExecutionVertexOperations {
+public interface ExecutionVertexOperations {
 
     void deploy(ExecutionVertex executionVertex) throws JobException;
 

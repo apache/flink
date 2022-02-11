@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
@@ -125,7 +126,8 @@ public interface SchedulerNG extends AutoCloseableAsync {
 
     // ------------------------------------------------------------------------
 
-    CompletableFuture<String> triggerSavepoint(@Nullable String targetDirectory, boolean cancelJob);
+    CompletableFuture<String> triggerSavepoint(
+            @Nullable String targetDirectory, boolean cancelJob, SavepointFormatType formatType);
 
     CompletableFuture<String> triggerCheckpoint();
 
@@ -144,7 +146,8 @@ public interface SchedulerNG extends AutoCloseableAsync {
 
     void declineCheckpoint(DeclineCheckpoint decline);
 
-    CompletableFuture<String> stopWithSavepoint(String targetDirectory, boolean terminate);
+    CompletableFuture<String> stopWithSavepoint(
+            String targetDirectory, boolean terminate, SavepointFormatType formatType);
 
     // ------------------------------------------------------------------------
     //  Operator Coordinator related methods

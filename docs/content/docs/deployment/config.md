@@ -153,6 +153,10 @@ The JobManager ensures consistency during recovery across TaskManagers. For the 
 
 {{< generated/common_high_availability_section >}}
 
+**Options for the Job Result Store in high-availability setups**
+
+{{< generated/common_high_availability_jrs_section >}}
+
 **Options for high-availability setups with ZooKeeper**
 
 {{< generated/common_high_availability_zk_section >}}
@@ -340,6 +344,17 @@ Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/de
 Advanced options to tune RocksDB and RocksDB checkpoints.
 
 {{< generated/expert_rocksdb_section >}}
+
+### State Changelog Options
+
+Please refer to [State Backends]({{< ref "docs/ops/state/state_backends#enabling-changelog" >}}) for information on
+using State Changelog. {{< hint warning >}} The feature is in experimental status. {{< /hint >}} {{<
+generated/state_backend_changelog_section >}}
+
+#### FileSystem-based Changelog options
+
+These settings take effect when the `state.backend.changelog.storage`  is set to `filesystem` (see [above](#state-backend-changelog-storage)).
+{{< generated/fs_state_changelog_configuration >}}
 
 **RocksDB Configurable Options**
 

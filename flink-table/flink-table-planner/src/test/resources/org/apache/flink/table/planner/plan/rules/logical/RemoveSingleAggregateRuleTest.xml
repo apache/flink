@@ -16,12 +16,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-	<TestCase name="testRemoveSingleAggregateRule">
-		<Resource name="sql">
-			<![CDATA[select (select count(x)-1 from foo where foo.y=bar.i) from bar]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
+  <TestCase name="testRemoveSingleAggregateRule">
+    <Resource name="sql">
+      <![CDATA[select (select count(x)-1 from foo where foo.y=bar.i) from bar]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
 LogicalProject(EXPR$0=[$SCALAR_QUERY({
 LogicalProject(EXPR$0=[-($0, 1)])
   LogicalAggregate(group=[{}], agg#0=[COUNT($0)])
@@ -31,10 +31,10 @@ LogicalProject(EXPR$0=[-($0, 1)])
 })])
 +- LogicalTableScan(table=[[default_catalog, default_database, bar, source: [TestTableSource(i, s)]]])
 ]]>
-		</Resource>
-		<Resource name="optimized rel plan">
-			<![CDATA[
-Calc(select=[-(CASE(IS NULL($f1), 0:BIGINT, $f1), 1) AS EXPR$0])
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[-(CASE(IS NULL($f1), 0, $f1), 1) AS EXPR$0])
 +- HashJoin(joinType=[LeftOuterJoin], where=[=(i, y)], select=[i, y, $f1], build=[right])
    :- Exchange(distribution=[hash[i]])
    :  +- Calc(select=[i])
@@ -45,6 +45,6 @@ Calc(select=[-(CASE(IS NULL($f1), 0:BIGINT, $f1), 1) AS EXPR$0])
             +- Calc(select=[x, y], where=[IS NOT NULL(y)])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, foo, source: [TestTableSource(x, y)]]], fields=[x, y])
 ]]>
-		</Resource>
-	</TestCase>
+    </Resource>
+  </TestCase>
 </Root>

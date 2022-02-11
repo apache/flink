@@ -105,6 +105,8 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     /** Current {@link SequenceNumber}. */
     private SequenceNumber activeSequenceNumber = INITIAL_SQN;
 
+    private SequenceNumber lastAppendedSequenceNumber = INITIAL_SQN;
+
     /**
      * {@link SequenceNumber} before which changes will NOT be requested, exclusive. Increased after
      * materialization.
@@ -172,14 +174,17 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
 
     @Override
     public SequenceNumber lastAppendedSequenceNumber() {
-        LOG.trace("query {} sqn: {}", logId, activeSequenceNumber);
-        SequenceNumber tmp = activeSequenceNumber;
         // the returned current sequence number must be able to distinguish between the changes
         // appended before and after this call so we need to use the next sequence number
         // At the same time, we don't want to increment SQN on each append (to avoid too many
         // objects and segments in the resulting file).
         rollover();
-        return tmp;
+        LOG.trace(
+                "query {} sqn, last: {}, active: {}",
+                logId,
+                lastAppendedSequenceNumber,
+                activeSequenceNumber);
+        return lastAppendedSequenceNumber;
     }
 
     @Override
@@ -205,7 +210,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
             SequenceNumberRange range = SequenceNumberRange.generic(from, activeSequenceNumber);
             if (range.size() == readyToReturn.size()) {
                 checkState(toUpload.isEmpty());
-                return completedFuture(buildHandle(keyGroupRange, readyToReturn));
+                return completedFuture(buildHandle(keyGroupRange, readyToReturn, 0L));
             } else {
                 CompletableFuture<ChangelogStateHandleStreamImpl> future =
                         new CompletableFuture<>();
@@ -285,6 +290,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         notUploaded.put(
                 activeSequenceNumber,
                 new StateChangeSet(logId, activeSequenceNumber, activeChangeSet));
+        lastAppendedSequenceNumber = activeSequenceNumber;
         activeSequenceNumber = activeSequenceNumber.next();
         LOG.debug("bump active sqn to {}", activeSequenceNumber);
         activeChangeSet = new ArrayList<>();
@@ -302,19 +308,26 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     }
 
     private static ChangelogStateHandleStreamImpl buildHandle(
-            KeyGroupRange keyGroupRange, NavigableMap<SequenceNumber, UploadResult> results) {
+            KeyGroupRange keyGroupRange,
+            NavigableMap<SequenceNumber, UploadResult> results,
+            long incrementalSize) {
         List<Tuple2<StreamStateHandle, Long>> tuples = new ArrayList<>();
         long size = 0;
         for (UploadResult uploadResult : results.values()) {
             tuples.add(Tuple2.of(uploadResult.getStreamStateHandle(), uploadResult.getOffset()));
             size += uploadResult.getSize();
         }
-        return new ChangelogStateHandleStreamImpl(tuples, keyGroupRange, size);
+        return new ChangelogStateHandleStreamImpl(tuples, keyGroupRange, size, incrementalSize);
     }
 
     @VisibleForTesting
     SequenceNumber lastAppendedSqnUnsafe() {
         return activeSequenceNumber;
+    }
+
+    @VisibleForTesting
+    public SequenceNumber getLowestSequenceNumber() {
+        return lowestSequenceNumber;
     }
 
     private void ensureCanPersist(SequenceNumber from) throws IOException {
@@ -356,11 +369,14 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
         }
 
         public boolean onSuccess(List<UploadResult> uploadResults) {
+            long incrementalSize = 0L;
             for (UploadResult uploadResult : uploadResults) {
                 if (changeRange.contains(uploadResult.sequenceNumber)) {
                     uploaded.put(uploadResult.sequenceNumber, uploadResult);
+                    incrementalSize += uploadResult.getSize();
                     if (uploaded.size() == changeRange.size()) {
-                        completionFuture.complete(buildHandle(keyGroupRange, uploaded));
+                        completionFuture.complete(
+                                buildHandle(keyGroupRange, uploaded, incrementalSize));
                         return true;
                     }
                 }

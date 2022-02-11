@@ -21,34 +21,37 @@ package org.apache.flink.kubernetes.highavailability;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
+import org.apache.flink.api.common.state.ListState;
+import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.kubernetes.KubernetesResource;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
-import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
-import org.apache.flink.kubernetes.utils.Constants;
-import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -57,14 +60,10 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.notNullValue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for recovering from savepoint when Kubernetes HA is enabled. The savepoint will be
@@ -91,8 +90,6 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase extends TestLo
                             .setNumberSlotsPerTaskManager(1)
                             .build());
 
-    private FlinkKubeClient flinkKubeClient;
-
     private ClusterClient<?> clusterClient;
 
     private String savepointPath;
@@ -100,28 +97,20 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase extends TestLo
     @Before
     public void setup() throws Exception {
         clusterClient = miniClusterResource.getClusterClient();
-        flinkKubeClient = kubernetesResource.getFlinkKubeClient();
         savepointPath = temporaryFolder.newFolder("savepoints").getAbsolutePath();
-    }
-
-    @After
-    public void teardown() throws Exception {
-        flinkKubeClient
-                .deleteConfigMapsByLabels(
-                        KubernetesUtils.getConfigMapLabels(
-                                CLUSTER_ID, LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY))
-                .get();
     }
 
     @Test
     public void testRecoverFromSavepoint() throws Exception {
         final JobGraph jobGraph = createJobGraph();
-        clusterClient.submitJob(jobGraph).get(TIMEOUT, TimeUnit.MILLISECONDS);
+        clusterClient
+                .submitJob(jobGraph)
+                .get(TestingUtils.infiniteTime().toMilliseconds(), TimeUnit.MILLISECONDS);
 
         // Wait until all tasks running and getting a successful savepoint
         CommonTestUtils.waitUntilCondition(
                 () -> triggerSavepoint(clusterClient, jobGraph.getJobID(), savepointPath) != null,
-                Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
+                Deadline.fromNow(TestingUtils.infiniteDuration()),
                 1000);
 
         // Trigger savepoint 2
@@ -141,20 +130,8 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase extends TestLo
         jobGraphWithSavepoint.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepoint2Path));
         clusterClient.submitJob(jobGraphWithSavepoint).get(TIMEOUT, TimeUnit.MILLISECONDS);
-        CommonTestUtils.waitUntilCondition(
-                () -> clusterClient.getJobStatus(jobId).get() == JobStatus.RUNNING,
-                Deadline.fromNow(Duration.ofMillis(TIMEOUT)),
-                1000);
 
-        // The savepoint 2 should be added to jobmanager leader ConfigMap
-        final String jobManagerConfigMapName = CLUSTER_ID + "-" + jobId + "-jobmanager-leader";
-        final Optional<KubernetesConfigMap> optional =
-                flinkKubeClient.getConfigMap(jobManagerConfigMapName);
-        assertThat(optional.isPresent(), is(true));
-        final String checkpointIdKey =
-                KubernetesCheckpointStoreUtil.INSTANCE.checkpointIDToName(2L);
-        assertThat(optional.get().getData().get(checkpointIdKey), is(notNullValue()));
-        assertThat(optional.get().getData().get(Constants.CHECKPOINT_COUNTER_KEY), is("3"));
+        assertThat(clusterClient.requestJobResult(jobId).join().isSuccess()).isTrue();
     }
 
     private Configuration getConfiguration() {
@@ -177,7 +154,7 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase extends TestLo
         try {
             return String.valueOf(
                     clusterClient
-                            .triggerSavepoint(jobID, path)
+                            .triggerSavepoint(jobID, path, SavepointFormatType.CANONICAL)
                             .get(TIMEOUT, TimeUnit.MILLISECONDS));
         } catch (Exception ex) {
             // ignore
@@ -226,9 +203,13 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase extends TestLo
         return sEnv.getStreamGraph().getJobGraph();
     }
 
-    private static final class InfiniteSourceFunction extends RichParallelSourceFunction<Integer> {
+    private static final class InfiniteSourceFunction extends RichParallelSourceFunction<Integer>
+            implements CheckpointedFunction {
 
         private static final long serialVersionUID = 1L;
+
+        private final ListStateDescriptor<Integer> hasExecutedBeforeStateDescriptor =
+                new ListStateDescriptor<>("hasExecutedBefore", BasicTypeInfo.INT_TYPE_INFO);
 
         private volatile boolean running = true;
 
@@ -247,6 +228,25 @@ public class KubernetesHighAvailabilityRecoverFromSavepointITCase extends TestLo
         @Override
         public void cancel() {
             running = false;
+        }
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {}
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            final ListState<Integer> stateFromSavepoint =
+                    context.getOperatorStateStore()
+                            .getUnionListState(hasExecutedBeforeStateDescriptor);
+
+            // if we have state, then we resume from a savepoint --> stop the execution then
+            if (stateFromSavepoint.get().iterator().hasNext()) {
+                running = false;
+            }
+
+            stateFromSavepoint.clear();
+            // mark this subtask as executed before
+            stateFromSavepoint.add(getRuntimeContext().getIndexOfThisSubtask());
         }
     }
 }

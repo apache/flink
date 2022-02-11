@@ -94,9 +94,8 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
         return checkpointTimestamp;
     }
 
-    private CheckpointStreamFactory.CheckpointStateOutputStream openAndRegisterNewStream()
-            throws Exception {
-        CheckpointStreamFactory.CheckpointStateOutputStream cout =
+    private CheckpointStateOutputStream openAndRegisterNewStream() throws Exception {
+        CheckpointStateOutputStream cout =
                 streamFactory.createCheckpointStateOutputStream(CheckpointedStateScope.EXCLUSIVE);
 
         closableRegistry.registerCloseable(cout);
@@ -160,7 +159,7 @@ public class StateSnapshotContextSynchronousImpl implements StateSnapshotContext
 
         Preconditions.checkNotNull(stream);
 
-        CheckpointStreamFactory.CheckpointStateOutputStream delegate = stream.getDelegate();
+        CheckpointStateOutputStream delegate = stream.getDelegate();
 
         if (closableRegistry.unregisterCloseable(delegate)) {
             delegate.close();

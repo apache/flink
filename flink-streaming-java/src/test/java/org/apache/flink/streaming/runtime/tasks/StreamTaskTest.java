@@ -21,12 +21,14 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -36,6 +38,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -46,6 +50,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.AvailabilityTestResultPartitionWriter;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
@@ -85,6 +90,7 @@ import org.apache.flink.runtime.state.TaskStateManager;
 import org.apache.flink.runtime.state.TaskStateManagerImpl;
 import org.apache.flink.runtime.state.changelog.inmemory.InMemoryStateChangelogStorage;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
+import org.apache.flink.runtime.state.ttl.mock.MockStateBackend;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
@@ -97,7 +103,6 @@ import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.runtime.util.TestingTaskManagerRuntimeInfo;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -197,6 +202,7 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.sameInstance;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -219,60 +225,66 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testSavepointSuspendCompleted() throws Exception {
         testSyncSavepointWithEndInput(
-                StreamTask::notifyCheckpointCompleteAsync, CheckpointType.SAVEPOINT_SUSPEND, false);
+                StreamTask::notifyCheckpointCompleteAsync,
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
+                false);
     }
 
     @Test
     public void testSavepointTerminateCompleted() throws Exception {
         testSyncSavepointWithEndInput(
                 StreamTask::notifyCheckpointCompleteAsync,
-                CheckpointType.SAVEPOINT_TERMINATE,
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
                 true);
     }
 
     @Test
     public void testSavepointSuspendedAborted() throws Exception {
+        thrown.expect(FlinkRuntimeException.class);
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (task, id) ->
                         task.abortCheckpointOnBarrier(
                                 id,
                                 new CheckpointException(
                                         UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
-                CheckpointType.SAVEPOINT_SUSPEND,
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
                 false);
     }
 
     @Test
     public void testSavepointTerminateAborted() throws Exception {
         thrown.expect(FlinkRuntimeException.class);
-        thrown.expectMessage("Stop-with-savepoint --drain failed.");
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (task, id) ->
                         task.abortCheckpointOnBarrier(
                                 id,
                                 new CheckpointException(
                                         UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
-                CheckpointType.SAVEPOINT_TERMINATE,
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
                 true);
     }
 
     @Test
     public void testSavepointSuspendAbortedAsync() throws Exception {
+        thrown.expect(FlinkRuntimeException.class);
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
-                CheckpointType.SAVEPOINT_SUSPEND,
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
                 false);
     }
 
     @Test
     public void testSavepointTerminateAbortedAsync() throws Exception {
         thrown.expect(FlinkRuntimeException.class);
-        thrown.expectMessage("Stop-with-savepoint --drain failed.");
+        thrown.expectMessage("Stop-with-savepoint failed.");
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
-                CheckpointType.SAVEPOINT_TERMINATE,
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
                 true);
     }
 
@@ -288,7 +300,7 @@ public class StreamTaskTest extends TestLogger {
      */
     private void testSyncSavepointWithEndInput(
             BiConsumerWithException<StreamTask<?, ?>, Long, IOException> savepointResult,
-            CheckpointType checkpointType,
+            SnapshotType checkpointType,
             boolean expectEndInput)
             throws Exception {
         StreamTaskMailboxTestHarness<String> harness =
@@ -618,6 +630,39 @@ public class StreamTaskTest extends TestLogger {
 
         streamTask.finishInput();
         task.waitForTaskCompletion(false);
+    }
+
+    @Test
+    public void testForceFullSnapshotOnIncompatibleStateBackend() throws Exception {
+        try (StreamTaskMailboxTestHarness<Integer> harness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                OneInputStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .modifyStreamConfig(
+                                config -> config.setStateBackend(new OnlyIncrementalStateBackend()))
+                        .addInput(BasicTypeInfo.INT_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(new StreamMap<>(value -> null))
+                        .build()) {
+            final IllegalStateException exception =
+                    assertThrows(
+                            IllegalStateException.class,
+                            () -> {
+                                harness.streamTask.triggerCheckpointAsync(
+                                        new CheckpointMetaData(42L, 1L),
+                                        CheckpointOptions.forConfig(
+                                                CheckpointType.FULL_CHECKPOINT,
+                                                getDefault(),
+                                                true,
+                                                false,
+                                                0L));
+                            });
+            assertThat(
+                    exception.getMessage(),
+                    equalTo(
+                            "Configured state backend (OnlyIncrementalStateBackend) does not"
+                                    + " support enforcing a full snapshot. If you are restoring in"
+                                    + " NO_CLAIM mode, please consider choosing either CLAIM or"
+                                    + " LEGACY restore mode."));
+        }
     }
 
     /**
@@ -990,7 +1035,8 @@ public class StreamTaskTest extends TestLogger {
         assertFalse(ClosingOperator.closed.get());
 
         // close operators directly, so that task is still fully running
-        harness.streamTask.operatorChain.finishOperators(harness.streamTask.getActionExecutor());
+        harness.streamTask.operatorChain.finishOperators(
+                harness.streamTask.getActionExecutor(), StopMode.DRAIN);
         harness.streamTask.operatorChain.closeAllOperators();
         harness.streamTask.notifyCheckpointCompleteAsync(2);
         harness.streamTask.runMailboxStep();
@@ -1052,7 +1098,7 @@ public class StreamTaskTest extends TestLogger {
             harness.processElement(new StreamRecord<>(1));
 
             harness.streamTask.operatorChain.finishOperators(
-                    harness.streamTask.getActionExecutor());
+                    harness.streamTask.getActionExecutor(), StopMode.DRAIN);
             harness.streamTask.operatorChain.closeAllOperators();
             assertTrue(ClosingOperator.closed.get());
 
@@ -1333,7 +1379,7 @@ public class StreamTaskTest extends TestLogger {
                             completeFutureTask,
                             sleepTimeInsideMail,
                             sleepTimeOutsideMail,
-                            ioMetricGroup.getBackPressuredTimePerSecond());
+                            ioMetricGroup.getSoftBackPressuredTimePerSecond());
             // Make sure WaitingThread is started after Task starts processing.
             executor.submit(
                     waitingThread::start,
@@ -1344,10 +1390,10 @@ public class StreamTaskTest extends TestLogger {
             task.invoke();
             long totalDuration = System.currentTimeMillis() - startTs;
             assertThat(
-                    ioMetricGroup.getBackPressuredTimePerSecond().getCount(),
+                    ioMetricGroup.getSoftBackPressuredTimePerSecond().getCount(),
                     greaterThanOrEqualTo(sleepTimeOutsideMail));
             assertThat(
-                    ioMetricGroup.getBackPressuredTimePerSecond().getCount(),
+                    ioMetricGroup.getSoftBackPressuredTimePerSecond().getCount(),
                     Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
             assertThat(ioMetricGroup.getIdleTimeMsPerSecond().getCount(), is(0L));
             assertEquals(numberOfProcessCalls, inputProcessor.currentNumProcessCalls);
@@ -1406,7 +1452,8 @@ public class StreamTaskTest extends TestLogger {
             assertThat(
                     ioMetricGroup.getIdleTimeMsPerSecond().getCount(),
                     Matchers.lessThanOrEqualTo(totalDuration - sleepTimeInsideMail));
-            assertThat(ioMetricGroup.getBackPressuredTimePerSecond().getCount(), is(0L));
+            assertThat(ioMetricGroup.getSoftBackPressuredTimePerSecond().getCount(), is(0L));
+            assertThat(ioMetricGroup.getHardBackPressuredTimePerSecond().getCount(), is(0L));
         } finally {
             if (waitingThread != null) {
                 waitingThread.join();
@@ -1557,15 +1604,7 @@ public class StreamTaskTest extends TestLogger {
                 new StreamTaskMailboxTestHarnessBuilder<>(
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
-                                })
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                         .setupOutputForSingletonOperatorChain(
                                 new CheckpointCompleteRecordOperator())
                         .build()) {
@@ -1591,15 +1630,7 @@ public class StreamTaskTest extends TestLogger {
                                 OneInputStreamTask::new, BasicTypeInfo.STRING_TYPE_INFO)
                         .addInput(BasicTypeInfo.STRING_TYPE_INFO, 3)
                         .setTaskStateSnapshot(3, new TaskStateSnapshot())
-                        .modifyStreamConfig(
-                                config -> {
-                                    config.setCheckpointingEnabled(true);
-                                    config.getConfiguration()
-                                            .set(
-                                                    ExecutionCheckpointingOptions
-                                                            .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                    true);
-                                })
+                        .modifyStreamConfig(config -> config.setCheckpointingEnabled(true))
                         .setupOutputForSingletonOperatorChain(
                                 new CheckpointCompleteRecordOperator())
                         .build()) {
@@ -2365,7 +2396,7 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
-        public void registerSharedStates(SharedStateRegistry stateRegistry) {}
+        public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {}
 
         @Override
         public void discardState() {
@@ -2375,6 +2406,11 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public long getStateSize() {
             return 0L;
+        }
+
+        @Override
+        public long getCheckpointedSize() {
+            return getStateSize();
         }
     }
 
@@ -2650,6 +2686,18 @@ public class StreamTaskTest extends TestLogger {
 
         public List<Long> getNotifiedCheckpoint() {
             return notifiedCheckpoint;
+        }
+    }
+
+    private static final class OnlyIncrementalStateBackend extends MockStateBackend {
+        @Override
+        public boolean supportsNoClaimRestoreMode() {
+            return false;
+        }
+
+        @Override
+        public String toString() {
+            return "OnlyIncrementalStateBackend";
         }
     }
 }

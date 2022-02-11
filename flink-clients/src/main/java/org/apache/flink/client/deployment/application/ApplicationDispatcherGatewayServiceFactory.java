@@ -26,11 +26,13 @@ import org.apache.flink.runtime.dispatcher.Dispatcher;
 import org.apache.flink.runtime.dispatcher.DispatcherFactory;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.dispatcher.PartialDispatcherServices;
-import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobGraphStore;
+import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobPersistenceComponents;
 import org.apache.flink.runtime.dispatcher.runner.AbstractDispatcherLeaderProcess;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherGatewayService;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
+import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.FlinkRuntimeException;
 
@@ -83,7 +85,9 @@ public class ApplicationDispatcherGatewayServiceFactory
     public AbstractDispatcherLeaderProcess.DispatcherGatewayService create(
             DispatcherId fencingToken,
             Collection<JobGraph> recoveredJobs,
-            JobGraphWriter jobGraphWriter) {
+            Collection<JobResult> recoveredDirtyJobResults,
+            JobGraphWriter jobGraphWriter,
+            JobResultStore jobResultStore) {
 
         final List<JobID> recoveredJobIds = getRecoveredJobIds(recoveredJobs);
 
@@ -94,6 +98,7 @@ public class ApplicationDispatcherGatewayServiceFactory
                             rpcService,
                             fencingToken,
                             recoveredJobs,
+                            recoveredDirtyJobResults,
                             (dispatcherGateway, scheduledExecutor, errorHandler) ->
                                     new ApplicationDispatcherBootstrap(
                                             application,
@@ -102,8 +107,8 @@ public class ApplicationDispatcherGatewayServiceFactory
                                             dispatcherGateway,
                                             scheduledExecutor,
                                             errorHandler),
-                            PartialDispatcherServicesWithJobGraphStore.from(
-                                    partialDispatcherServices, jobGraphWriter));
+                            PartialDispatcherServicesWithJobPersistenceComponents.from(
+                                    partialDispatcherServices, jobGraphWriter, jobResultStore));
         } catch (Exception e) {
             throw new FlinkRuntimeException("Could not create the Dispatcher rpc endpoint.", e);
         }

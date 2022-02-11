@@ -27,24 +27,20 @@ import org.apache.flink.table.api.dataview.ListView;
 import org.apache.flink.table.api.dataview.MapView;
 import org.apache.flink.table.data.binary.LazyBinaryFormat;
 import org.apache.flink.table.dataview.NullSerializer;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
+import org.apache.flink.table.runtime.dataview.ListViewSpec;
+import org.apache.flink.table.runtime.dataview.MapViewSpec;
 import org.apache.flink.table.runtime.typeutils.ExternalSerializer;
-import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.FieldsDataType;
-import org.apache.flink.table.types.KeyValueDataType;
 import org.apache.flink.table.types.inference.TypeTransformation;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.StructuredType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 
-import javax.annotation.Nullable;
-
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
 import java.util.function.Function;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.ROW;
@@ -138,55 +134,16 @@ public final class DataViewUtils {
 
     // --------------------------------------------------------------------------------------------
 
-    public static boolean isDataView(LogicalType t, Class<? extends DataView> viewClass) {
+    private static String createStateId(int fieldIndex, String fieldName) {
+        return "agg" + fieldIndex + "$" + fieldName;
+    }
+
+    private static boolean isDataView(LogicalType t, Class<? extends DataView> viewClass) {
         return t.is(STRUCTURED_TYPE)
                 && ((StructuredType) t)
                         .getImplementationClass()
                         .map(viewClass::isAssignableFrom)
                         .orElse(false);
-    }
-
-    /**
-     * Check if the given data type represents a {@link ListView}. This method must be in sync with
-     * {@link ListView#newListViewDataType(DataType)}.
-     */
-    public static boolean isListViewDataType(DataType dataType) {
-        return dataType.getConversionClass().equals(ListView.class)
-                && dataType instanceof FieldsDataType
-                && dataType.getChildren().size() == 1
-                && dataType.getChildren().get(0) instanceof CollectionDataType;
-    }
-
-    public static DataType extractElementDataTypeForListView(DataType dataType) {
-        if (!isListViewDataType(dataType)) {
-            throw new TableException(
-                    "The given type: " + dataType + " is not the expected type for ListView.");
-        }
-        CollectionDataType collectionDataType = (CollectionDataType) dataType.getChildren().get(0);
-        return collectionDataType.getElementDataType();
-    }
-
-    /**
-     * Check if the given data type represents a {@link MapView}. This method must be in sync with
-     * {@link MapView#newMapViewDataType(DataType, DataType)}.
-     */
-    public static boolean isMapViewDataType(DataType dataType) {
-        return dataType.getConversionClass().equals(MapView.class)
-                && dataType instanceof FieldsDataType
-                && dataType.getChildren().size() == 1
-                && dataType.getChildren().get(0) instanceof KeyValueDataType;
-    }
-
-    public static KeyValueDataType extractKeyValueDataTypeForMapView(DataType dataType) {
-        if (!isMapViewDataType(dataType)) {
-            throw new TableException(
-                    "The given type: " + dataType + " is not the expected type for MapView.");
-        }
-        return (KeyValueDataType) dataType.getChildren().get(0);
-    }
-
-    private static String createStateId(int fieldIndex, String fieldName) {
-        return "agg" + fieldIndex + "$" + fieldName;
     }
 
     // --------------------------------------------------------------------------------------------
@@ -211,116 +168,6 @@ public final class DataViewUtils {
     }
 
     // --------------------------------------------------------------------------------------------
-
-    /** Information about a {@link DataView} stored in state. */
-    public abstract static class DataViewSpec implements Serializable {
-
-        private static final long serialVersionUID = 1L;
-
-        private final String stateId;
-
-        private final int fieldIndex;
-
-        private final DataType dataType;
-
-        private DataViewSpec(String stateId, int fieldIndex, DataType dataType) {
-            this.stateId = stateId;
-            this.fieldIndex = fieldIndex;
-            this.dataType = dataType;
-        }
-
-        public String getStateId() {
-            return stateId;
-        }
-
-        public int getFieldIndex() {
-            return fieldIndex;
-        }
-
-        public DataType getDataType() {
-            return dataType;
-        }
-    }
-
-    /** Specification for a {@link ListView}. */
-    public static class ListViewSpec extends DataViewSpec {
-
-        private final @Nullable TypeSerializer<?> elementSerializer;
-
-        public ListViewSpec(String stateId, int fieldIndex, DataType dataType) {
-            this(stateId, fieldIndex, dataType, null);
-        }
-
-        @Deprecated
-        public ListViewSpec(
-                String stateId,
-                int fieldIndex,
-                DataType dataType,
-                TypeSerializer<?> elementSerializer) {
-            super(stateId, fieldIndex, dataType);
-            this.elementSerializer = elementSerializer;
-        }
-
-        public DataType getElementDataType() {
-            final CollectionDataType arrayDataType = (CollectionDataType) getDataType();
-            return arrayDataType.getElementDataType();
-        }
-
-        public Optional<TypeSerializer<?>> getElementSerializer() {
-            return Optional.ofNullable(elementSerializer);
-        }
-    }
-
-    /** Specification for a {@link MapView}. */
-    public static class MapViewSpec extends DataViewSpec {
-
-        private final boolean containsNullKey;
-
-        private final @Nullable TypeSerializer<?> keySerializer;
-
-        private final @Nullable TypeSerializer<?> valueSerializer;
-
-        public MapViewSpec(
-                String stateId, int fieldIndex, DataType dataType, boolean containsNullKey) {
-            this(stateId, fieldIndex, dataType, containsNullKey, null, null);
-        }
-
-        @Deprecated
-        public MapViewSpec(
-                String stateId,
-                int fieldIndex,
-                DataType dataType,
-                boolean containsNullKey,
-                TypeSerializer<?> keySerializer,
-                TypeSerializer<?> valueSerializer) {
-            super(stateId, fieldIndex, dataType);
-            this.containsNullKey = containsNullKey;
-            this.keySerializer = keySerializer;
-            this.valueSerializer = valueSerializer;
-        }
-
-        public DataType getKeyDataType() {
-            final KeyValueDataType mapDataType = (KeyValueDataType) getDataType();
-            return mapDataType.getKeyDataType();
-        }
-
-        public DataType getValueDataType() {
-            final KeyValueDataType mapDataType = (KeyValueDataType) getDataType();
-            return mapDataType.getValueDataType();
-        }
-
-        public Optional<TypeSerializer<?>> getKeySerializer() {
-            return Optional.ofNullable(keySerializer);
-        }
-
-        public Optional<TypeSerializer<?>> getValueSerializer() {
-            return Optional.ofNullable(valueSerializer);
-        }
-
-        public boolean containsNullKey() {
-            return containsNullKey;
-        }
-    }
 
     /** Specification for a special {@link MapView} for deduplication. */
     public static class DistinctViewSpec extends MapViewSpec {

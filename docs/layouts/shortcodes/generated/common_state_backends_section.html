@@ -54,7 +54,7 @@
             <td><h5>taskmanager.state.local.root-dirs</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The config parameter defining the root directories for storing file-based state for local recovery. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does not support local recovery and ignore this option</td>
+            <td>The config parameter defining the root directories for storing file-based state for local recovery. Local recovery currently only covers keyed state backends. Currently, MemoryStateBackend does not support local recovery and ignores this option. If not configured it will default to &lt;WORKING_DIR&gt;/localState. The &lt;WORKING_DIR&gt; can be configured via <code class="highlighter-rouge">process.taskmanager.working-dir</code></td>
         </tr>
     </tbody>
 </table>

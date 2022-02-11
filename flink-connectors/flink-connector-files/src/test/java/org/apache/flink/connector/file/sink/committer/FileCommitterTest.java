@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.file.sink.committer;
 
+import org.apache.flink.api.connector.sink2.Committer.CommitRequest;
+import org.apache.flink.api.connector.sink2.mocks.MockCommitRequest;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.connector.file.sink.utils.FileSinkTestUtils;
 import org.apache.flink.connector.file.sink.utils.NoOpBucketWriter;
@@ -28,9 +30,11 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -43,15 +47,16 @@ public class FileCommitterTest {
         StubBucketWriter stubBucketWriter = new StubBucketWriter();
         FileCommitter fileCommitter = new FileCommitter(stubBucketWriter);
 
-        FileSinkCommittable fileSinkCommittable =
-                new FileSinkCommittable(new FileSinkTestUtils.TestPendingFileRecoverable());
-        List<FileSinkCommittable> toRetry =
-                fileCommitter.commit(Collections.singletonList(fileSinkCommittable));
+        MockCommitRequest<FileSinkCommittable> fileSinkCommittable =
+                new MockCommitRequest<>(
+                        new FileSinkCommittable(
+                                new FileSinkTestUtils.TestPendingFileRecoverable()));
+        fileCommitter.commit(Collections.singletonList(fileSinkCommittable));
 
         assertEquals(1, stubBucketWriter.getRecoveredPendingFiles().size());
         assertEquals(0, stubBucketWriter.getNumCleanUp());
         assertTrue(stubBucketWriter.getRecoveredPendingFiles().get(0).isCommitted());
-        assertEquals(0, toRetry.size());
+        assertEquals(0, fileSinkCommittable.getNumberOfRetries());
     }
 
     @Test
@@ -59,14 +64,15 @@ public class FileCommitterTest {
         StubBucketWriter stubBucketWriter = new StubBucketWriter();
         FileCommitter fileCommitter = new FileCommitter(stubBucketWriter);
 
-        FileSinkCommittable fileSinkCommittable =
-                new FileSinkCommittable(new FileSinkTestUtils.TestInProgressFileRecoverable());
-        List<FileSinkCommittable> toRetry =
-                fileCommitter.commit(Collections.singletonList(fileSinkCommittable));
+        MockCommitRequest<FileSinkCommittable> fileSinkCommittable =
+                new MockCommitRequest<>(
+                        new FileSinkCommittable(
+                                new FileSinkTestUtils.TestInProgressFileRecoverable()));
+        fileCommitter.commit(Collections.singletonList(fileSinkCommittable));
 
         assertEquals(0, stubBucketWriter.getRecoveredPendingFiles().size());
         assertEquals(1, stubBucketWriter.getNumCleanUp());
-        assertEquals(0, toRetry.size());
+        assertEquals(0, fileSinkCommittable.getNumberOfRetries());
     }
 
     @Test
@@ -74,23 +80,28 @@ public class FileCommitterTest {
         StubBucketWriter stubBucketWriter = new StubBucketWriter();
         FileCommitter fileCommitter = new FileCommitter(stubBucketWriter);
 
-        List<FileSinkCommittable> committables =
-                Arrays.asList(
-                        new FileSinkCommittable(new FileSinkTestUtils.TestPendingFileRecoverable()),
-                        new FileSinkCommittable(new FileSinkTestUtils.TestPendingFileRecoverable()),
-                        new FileSinkCommittable(
-                                new FileSinkTestUtils.TestInProgressFileRecoverable()),
-                        new FileSinkCommittable(new FileSinkTestUtils.TestPendingFileRecoverable()),
-                        new FileSinkCommittable(
-                                new FileSinkTestUtils.TestInProgressFileRecoverable()));
-        List<FileSinkCommittable> toRetry = fileCommitter.commit(committables);
+        Collection<CommitRequest<FileSinkCommittable>> committables =
+                Stream.of(
+                                new FileSinkCommittable(
+                                        new FileSinkTestUtils.TestPendingFileRecoverable()),
+                                new FileSinkCommittable(
+                                        new FileSinkTestUtils.TestPendingFileRecoverable()),
+                                new FileSinkCommittable(
+                                        new FileSinkTestUtils.TestInProgressFileRecoverable()),
+                                new FileSinkCommittable(
+                                        new FileSinkTestUtils.TestPendingFileRecoverable()),
+                                new FileSinkCommittable(
+                                        new FileSinkTestUtils.TestInProgressFileRecoverable()))
+                        .map(MockCommitRequest::new)
+                        .collect(Collectors.toList());
+        fileCommitter.commit(committables);
 
         assertEquals(3, stubBucketWriter.getRecoveredPendingFiles().size());
         assertEquals(2, stubBucketWriter.getNumCleanUp());
         stubBucketWriter
                 .getRecoveredPendingFiles()
                 .forEach(pendingFile -> assertTrue(pendingFile.isCommitted()));
-        assertEquals(0, toRetry.size());
+        assertTrue(committables.stream().allMatch(c -> c.getNumberOfRetries() == 0));
     }
 
     // ------------------------------- Mock Classes --------------------------------

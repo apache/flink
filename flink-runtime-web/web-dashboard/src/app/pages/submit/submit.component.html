@@ -47,9 +47,7 @@
               <div *ngFor="let entries of jar.entry">
                 {{ entries.name }}
               </div>
-              <div *ngIf="jar.entry.length === 0">
-                -
-              </div>
+              <div *ngIf="jar.entry.length === 0">-</div>
             </td>
             <td class="delete-jar">
               <a

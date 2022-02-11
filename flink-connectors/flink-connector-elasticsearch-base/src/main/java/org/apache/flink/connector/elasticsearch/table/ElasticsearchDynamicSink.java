@@ -144,7 +144,20 @@ class ElasticsearchDynamicSink implements DynamicTableSink {
             builder.setConnectionPathPrefix(config.getPathPrefix().get());
         }
 
-        return SinkProvider.of(builder.build());
+        if (config.getConnectionRequestTimeout().isPresent()) {
+            builder.setConnectionRequestTimeout(
+                    (int) config.getConnectionRequestTimeout().get().getSeconds());
+        }
+
+        if (config.getConnectionTimeout().isPresent()) {
+            builder.setConnectionTimeout((int) config.getConnectionTimeout().get().getSeconds());
+        }
+
+        if (config.getSocketTimeout().isPresent()) {
+            builder.setSocketTimeout((int) config.getSocketTimeout().get().getSeconds());
+        }
+
+        return SinkProvider.of(builder.build(), config.getParallelism().orElse(null));
     }
 
     @Override

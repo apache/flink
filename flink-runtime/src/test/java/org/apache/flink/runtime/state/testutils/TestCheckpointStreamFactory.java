@@ -18,9 +18,13 @@
 
 package org.apache.flink.runtime.state.testutils;
 
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.StreamStateHandle;
 
+import java.io.IOException;
+import java.util.List;
 import java.util.function.Supplier;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -40,5 +44,16 @@ public class TestCheckpointStreamFactory implements CheckpointStreamFactory {
     public CheckpointStateOutputStream createCheckpointStateOutputStream(
             CheckpointedStateScope scope) {
         return supplier.get();
+    }
+
+    @Override
+    public boolean canFastDuplicate(StreamStateHandle stateHandle, CheckpointedStateScope scope) {
+        return false;
+    }
+
+    @Override
+    public List<StreamStateHandle> duplicate(
+            List<StreamStateHandle> stateHandles, CheckpointedStateScope scope) throws IOException {
+        throw new UnsupportedOperationException();
     }
 }

@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
@@ -30,8 +29,10 @@ import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.operators.sort.StreamSortOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -46,6 +47,8 @@ import java.util.Collections;
  * to this node in product environment, an exception will be thrown.
  */
 public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
+
+    private static final String SORT_TRANSFORMATION = "sort";
 
     @Experimental
     public static final ConfigOption<Boolean> TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED =
@@ -63,7 +66,12 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecSort.class),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.sortSpec = sortSpec;
     }
 
@@ -86,9 +94,9 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
         Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                createTransformationMeta(SORT_TRANSFORMATION, config),
                 sortOperator,
                 InternalTypeInfo.of(inputType),
                 inputTransform.getParallelism());

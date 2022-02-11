@@ -32,14 +32,16 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -56,12 +58,14 @@ import java.util.Collections;
 /** Stream {@link ExecNode} for unbounded python group table aggregate. */
 public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
     private static final Logger LOG =
             LoggerFactory.getLogger(StreamExecPythonGroupTableAggregate.class);
 
     private static final String PYTHON_STREAM_TABLE_AGGREGATE_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate."
                     + "PythonStreamGroupTableAggregateOperator";
+
     private final int[] grouping;
     private final AggregateCall[] aggCalls;
     private final boolean[] aggCallNeedRetractions;
@@ -77,7 +81,12 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecPythonGroupTableAggregate.class),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.grouping = grouping;
         this.aggCalls = aggCalls;
         this.aggCallNeedRetractions = aggCallNeedRetractions;
@@ -111,11 +120,10 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
                         true, // isStateBackendDataViews
                         true); // needDistinctInfo
         int inputCountIndex = aggInfoList.getIndexOfCountStar();
-        Tuple2<PythonAggregateFunctionInfo[], DataViewUtils.DataViewSpec[][]>
-                aggInfosAndDataViewSpecs =
-                        CommonPythonUtil.extractPythonAggregateFunctionInfos(aggInfoList, aggCalls);
+        Tuple2<PythonAggregateFunctionInfo[], DataViewSpec[][]> aggInfosAndDataViewSpecs =
+                CommonPythonUtil.extractPythonAggregateFunctionInfos(aggInfoList, aggCalls);
         PythonAggregateFunctionInfo[] pythonFunctionInfos = aggInfosAndDataViewSpecs.f0;
-        DataViewUtils.DataViewSpec[][] dataViewSpecs = aggInfosAndDataViewSpecs.f1;
+        DataViewSpec[][] dataViewSpecs = aggInfosAndDataViewSpecs.f1;
         Configuration config = CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonTableAggregateFunctionOperator(
@@ -130,9 +138,10 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
                         inputCountIndex);
 
         OneInputTransformation<RowData, RowData> transform =
-                new OneInputTransformation<>(
+                ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getDescription(),
+                        createTransformationName(config),
+                        createTransformationDescription(config),
                         pythonOperator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
@@ -155,7 +164,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
             RowType inputRowType,
             RowType outputRowType,
             PythonAggregateFunctionInfo[] aggregateFunctions,
-            DataViewUtils.DataViewSpec[][] dataViewSpecs,
+            DataViewSpec[][] dataViewSpecs,
             long minIdleStateRetentionTime,
             long maxIdleStateRetentionTime,
             boolean generateUpdateBefore,
@@ -168,7 +177,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
                             RowType.class,
                             RowType.class,
                             PythonAggregateFunctionInfo[].class,
-                            DataViewUtils.DataViewSpec[][].class,
+                            DataViewSpec[][].class,
                             int[].class,
                             int.class,
                             boolean.class,

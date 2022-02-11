@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
@@ -32,6 +33,8 @@ import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
@@ -51,7 +54,6 @@ import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.time.ZoneId;
@@ -63,9 +65,16 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stream {@link ExecNode} for WindowRank. */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@ExecNodeMetadata(
+        name = "stream-exec-window-rank",
+        version = 1,
+        producedTransformations = StreamExecWindowRank.WINDOW_RANK_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecWindowRank extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
+    public static final String WINDOW_RANK_TRANSFORMATION = "window-rank";
 
     private static final long WINDOW_RANK_MEMORY_RATIO = 100;
 
@@ -105,13 +114,14 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
             RowType outputType,
             String description) {
         this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecWindowRank.class),
                 rankType,
                 partitionSpec,
                 sortSpec,
                 rankRange,
                 outputRankNumber,
                 windowing,
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -119,17 +129,18 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
 
     @JsonCreator
     public StreamExecWindowRank(
+            @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
             @JsonProperty(FIELD_NAME_RANK_TYPE) RankType rankType,
             @JsonProperty(FIELD_NAME_PARTITION_SPEC) PartitionSpec partitionSpec,
             @JsonProperty(FIELD_NAME_SORT_SPEC) SortSpec sortSpec,
             @JsonProperty(FIELD_NAME_RANK_RANG) RankRange rankRange,
             @JsonProperty(FIELD_NAME_OUTPUT_RANK_NUMBER) boolean outputRankNumber,
             @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
-            @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.rankType = checkNotNull(rankType);
         this.partitionSpec = checkNotNull(partitionSpec);
@@ -234,7 +245,8 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getDescription(),
+                        createTransformationMeta(
+                                WINDOW_RANK_TRANSFORMATION, planner.getTableConfig()),
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),

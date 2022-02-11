@@ -20,10 +20,11 @@ package org.apache.flink.state.api.output;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
@@ -56,7 +57,7 @@ public final class SnapshotUtils {
 
         CheckpointOptions options =
                 CheckpointOptions.forConfig(
-                        CheckpointType.SAVEPOINT,
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL),
                         AbstractFsCheckpointStorageAccess.encodePathAsReference(savepointPath),
                         isExactlyOnceMode,
                         isUnalignedCheckpoint,

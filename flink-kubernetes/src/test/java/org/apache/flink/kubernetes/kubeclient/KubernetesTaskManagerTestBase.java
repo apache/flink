@@ -39,6 +39,8 @@ public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
 
     protected static final int TOTAL_PROCESS_MEMORY = 1184;
     protected static final double TASK_MANAGER_CPU = 2.0;
+    protected static final double TASK_MANAGER_CPU_LIMIT_FACTOR = 1.5;
+    protected static final double TASK_MANAGER_MEMORY_LIMIT_FACTOR = 2.0;
 
     protected TaskExecutorProcessSpec taskExecutorProcessSpec;
 
@@ -60,8 +62,14 @@ public class KubernetesTaskManagerTestBase extends KubernetesPodTestBase {
                         flinkConfig.setString(
                                 ResourceManagerOptions.CONTAINERIZED_TASK_MANAGER_ENV_PREFIX + k,
                                 v));
-        this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_LABELS, userLabels);
-        this.flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_NODE_SELECTOR, nodeSelector);
+        flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_LABELS, userLabels);
+        flinkConfig.set(KubernetesConfigOptions.TASK_MANAGER_NODE_SELECTOR, nodeSelector);
+        flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR,
+                TASK_MANAGER_CPU_LIMIT_FACTOR);
+        flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_MEMORY_LIMIT_FACTOR,
+                TASK_MANAGER_MEMORY_LIMIT_FACTOR);
     }
 
     @Override

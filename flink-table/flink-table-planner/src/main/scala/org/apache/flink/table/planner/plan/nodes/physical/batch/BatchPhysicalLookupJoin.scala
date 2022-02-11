@@ -79,7 +79,7 @@ class BatchPhysicalLookupJoin(
     new BatchExecLookupJoin(
       JoinTypeUtil.getFlinkJoinType(joinType),
       remainingCondition.orNull,
-      new TemporalTableSourceSpec(temporalTable, FlinkRelOptUtil.getTableConfigFromContext(this)),
+      new TemporalTableSourceSpec(temporalTable),
       allLookupKeys.map(item => (Int.box(item._1), item._2)).asJava,
       projectionOnTemporalTable,
       filterOnTemporalTable,

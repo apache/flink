@@ -21,14 +21,13 @@ package org.apache.flink.table.planner.delegation
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
-import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.config.OptimizerConfigOptions
+import org.apache.flink.table.api.internal.CompiledPlanInternal
 import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{CatalogSinkModifyOperation, ModifyOperation, Operation, QueryOperation}
-import org.apache.flink.table.planner.operations.PlannerQueryOperation
+import org.apache.flink.table.operations.{ModifyOperation, Operation}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
@@ -40,7 +39,6 @@ import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
 
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelCollationTraitDef
-import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.sql.SqlExplainLevel
 
 import java.util
@@ -92,43 +90,15 @@ class BatchPlanner(
   }
 
   override def explain(operations: util.List[Operation], extraDetails: ExplainDetail*): String = {
-    require(operations.nonEmpty, "operations should not be empty")
-    validateAndOverrideConfiguration()
-    val sinkRelNodes = operations.map {
-      case queryOperation: QueryOperation =>
-        val relNode = getRelBuilder.queryOperation(queryOperation).build()
-        relNode match {
-          // SQL: explain plan for insert into xx
-          case modify: LogicalTableModify =>
-            // convert LogicalTableModify to CatalogSinkModifyOperation
-            val qualifiedName = modify.getTable.getQualifiedName
-            require(qualifiedName.size() == 3, "the length of qualified name should be 3.")
-            val modifyOperation = new CatalogSinkModifyOperation(
-              ObjectIdentifier.of(qualifiedName.get(0), qualifiedName.get(1), qualifiedName.get(2)),
-              new PlannerQueryOperation(modify.getInput)
-            )
-            translateToRel(modifyOperation)
-          case _ =>
-            relNode
-        }
-      case modifyOperation: ModifyOperation =>
-        translateToRel(modifyOperation)
-      case o => throw new TableException(s"Unsupported operation: ${o.getClass.getCanonicalName}")
-    }
-    val optimizedRelNodes = optimize(sinkRelNodes)
-    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-
-    val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
-
-    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
-      .asInstanceOf[StreamGraph]
+    val (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph) = getExplainGraphs(operations)
 
     val sb = new StringBuilder
     sb.append("== Abstract Syntax Tree ==")
     sb.append(System.lineSeparator)
     sinkRelNodes.foreach { sink =>
-      sb.append(FlinkRelOptUtil.toString(sink))
+      // use EXPPLAN_ATTRIBUTES to make the ast result more readable
+      // and to keep the previous behavior
+      sb.append(FlinkRelOptUtil.toString(sink, SqlExplainLevel.EXPPLAN_ATTRIBUTES))
       sb.append(System.lineSeparator)
     }
 
@@ -164,9 +134,17 @@ class BatchPlanner(
     new BatchPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
-    throw new TableException("This method is not supported for batch planner now.")
-  }
+  override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlanInternal =
+    throw new UnsupportedOperationException(
+      "The batch planner doesn't support the persisted plan feature.")
+
+  override def translatePlan(plan: CompiledPlanInternal): util.List[Transformation[_]] =
+    throw new UnsupportedOperationException(
+      "The batch planner doesn't support the persisted plan feature.")
+
+  override def explainPlan(plan: CompiledPlanInternal, extraDetails: ExplainDetail*): String =
+    throw new UnsupportedOperationException(
+      "The batch planner doesn't support the persisted plan feature.")
 
   override def validateAndOverrideConfiguration(): Unit = {
     super.validateAndOverrideConfiguration()

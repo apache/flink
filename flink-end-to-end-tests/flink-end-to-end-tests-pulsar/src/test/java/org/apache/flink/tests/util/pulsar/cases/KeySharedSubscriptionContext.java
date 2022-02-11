@@ -18,6 +18,7 @@
 
 package org.apache.flink.tests.util.pulsar.cases;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.pulsar.source.PulsarSource;
@@ -28,14 +29,17 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicRange;
 import org.apache.flink.connector.pulsar.source.enumerator.topic.range.FixedRangeGenerator;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContext;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
-import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
+import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
+import org.apache.flink.connector.testframe.external.source.TestingSourceSettings;
 import org.apache.flink.tests.util.pulsar.common.KeyedPulsarPartitionDataWriter;
 
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.util.Murmur3_32Hash;
 
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
@@ -46,11 +50,9 @@ import static org.apache.flink.connector.pulsar.testutils.runtime.container.Puls
 import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_SERVICE_URL;
 import static org.apache.pulsar.client.api.Schema.STRING;
 
-/**
- * We would consuming from test splits by using {@link SubscriptionType#Key_Shared} subscription.
- */
+/** We would consume from test splits by using {@link SubscriptionType#Key_Shared} subscription. */
 public class KeySharedSubscriptionContext extends PulsarTestContext<String> {
-    private static final long serialVersionUID = 3246516520107893983L;
+    private static final long serialVersionUID = 1L;
 
     private int index = 0;
 
@@ -61,7 +63,12 @@ public class KeySharedSubscriptionContext extends PulsarTestContext<String> {
     private final String key2;
 
     public KeySharedSubscriptionContext(PulsarTestEnvironment environment) {
-        super(environment);
+        this(environment, Collections.emptyList());
+    }
+
+    public KeySharedSubscriptionContext(
+            PulsarTestEnvironment environment, List<URL> connectorJarPaths) {
+        super(environment, connectorJarPaths);
 
         // Init message keys.
         this.key1 = randomAlphabetic(8);
@@ -78,7 +85,7 @@ public class KeySharedSubscriptionContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public Source<String, ?, ?> createSource(Boundedness boundedness) {
+    public Source<String, ?, ?> createSource(TestingSourceSettings sourceSettings) {
         int keyHash = keyHash(key1);
         TopicRange range = new TopicRange(keyHash, keyHash);
 
@@ -92,7 +99,7 @@ public class KeySharedSubscriptionContext extends PulsarTestContext<String> {
                         .setSubscriptionType(SubscriptionType.Key_Shared)
                         .setSubscriptionName("pulsar-key-shared")
                         .setRangeGenerator(new FixedRangeGenerator(singletonList(range)));
-        if (boundedness == Boundedness.BOUNDED) {
+        if (sourceSettings.getBoundedness() == Boundedness.BOUNDED) {
             // Using latest stop cursor for making sure the source could be stopped.
             builder.setBoundedStopCursor(StopCursor.latest());
         }
@@ -101,7 +108,8 @@ public class KeySharedSubscriptionContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public SourceSplitDataWriter<String> createSourceSplitDataWriter() {
+    public ExternalSystemSplitDataWriter<String> createSourceSplitDataWriter(
+            TestingSourceSettings sourceSettings) {
         String topicName = "pulsar-" + index + "-key-shared";
         operator.createTopic(topicName, 1);
         index++;
@@ -115,8 +123,14 @@ public class KeySharedSubscriptionContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public List<String> generateTestData(int splitIndex, long seed) {
+    public List<String> generateTestData(
+            TestingSourceSettings sourceSettings, int splitIndex, long seed) {
         return generateStringTestData(splitIndex, seed);
+    }
+
+    @Override
+    public TypeInformation<String> getProducedType() {
+        return TypeInformation.of(String.class);
     }
 
     @Override

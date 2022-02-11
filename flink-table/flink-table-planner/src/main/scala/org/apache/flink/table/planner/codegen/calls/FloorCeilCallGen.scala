@@ -22,7 +22,6 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{TIMESTAMP_DATA, getE
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
-
 import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange
 import org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange._
 
@@ -34,6 +33,8 @@ import java.util.TimeZone
   */
 class FloorCeilCallGen(
     arithmeticMethod: Method,
+    arithmeticIntegralMethod: Option[Method] = None,
+    decimalMethod: Option[Method] = None,
     temporalMethod: Option[Method] = None)
   extends MethodCallGen(arithmeticMethod) {
 
@@ -49,7 +50,7 @@ class FloorCeilCallGen(
         case LogicalTypeRoot.DECIMAL =>
           generateCallIfArgsNotNull(ctx, returnType, operands) {
             operandResultTerms =>
-              s"${qualifyMethod(arithmeticMethod)}(${operandResultTerms.mkString(", ")})"
+              s"${qualifyMethod(decimalMethod.get)}(${operandResultTerms.mkString(", ")})"
           }
         case _ =>
           operands.head // no floor/ceil necessary
@@ -98,13 +99,14 @@ class FloorCeilCallGen(
                 case LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE =>
                   val longTerm = s"${terms.head}.getMillisecond()"
                   s"""
-                     |$TIMESTAMP_DATA.fromEpochMillis(${qualifyMethod(arithmeticMethod)}(
-                     |  $longTerm,
-                     |  (long) ${unit.startUnit.multiplier.intValue()}))
+                     |$TIMESTAMP_DATA.fromEpochMillis(
+                     |  ${qualifyMethod(arithmeticIntegralMethod.get)}(
+                     |    $longTerm,
+                     |    (long) ${unit.startUnit.multiplier.intValue()}))
                    """.stripMargin
                 case _ =>
                   s"""
-                     |${qualifyMethod(arithmeticMethod)}(
+                     |${qualifyMethod(arithmeticIntegralMethod.get)}(
                      |  ($internalType) ${terms.head},
                      |  ($internalType) ${unit.startUnit.multiplier.intValue()})
                      |""".stripMargin

@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.flink.runtime.executiongraph.VertexGroupComputeUtil.uniqueVertexGroups;
 import static org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil.buildRawRegions;
-import static org.apache.flink.runtime.executiongraph.failover.flip1.PipelinedRegionComputeUtil.uniqueRegions;
 
 /** Utils for computing {@link LogicalPipelinedRegion}s. */
 public final class LogicalPipelinedRegionComputeUtil {
@@ -43,7 +43,7 @@ public final class LogicalPipelinedRegionComputeUtil {
 
         // Since LogicalTopology is a DAG, there is no need to do cycle detection nor to merge
         // regions on cycles.
-        return uniqueRegions(vertexToRegion);
+        return uniqueVertexGroups(vertexToRegion);
     }
 
     private static Iterable<LogicalResult> getNonReconnectableConsumedResults(

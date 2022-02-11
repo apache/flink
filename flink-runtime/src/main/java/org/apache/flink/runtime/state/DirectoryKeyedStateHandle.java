@@ -64,6 +64,11 @@ public class DirectoryKeyedStateHandle implements KeyedStateHandle {
     }
 
     @Override
+    public long getCheckpointedSize() {
+        return getStateSize();
+    }
+
+    @Override
     public KeyedStateHandle getIntersection(KeyGroupRange otherKeyGroupRange) {
         return this.keyGroupRange.getIntersection(otherKeyGroupRange).getNumberOfKeyGroups() > 0
                 ? this
@@ -71,7 +76,7 @@ public class DirectoryKeyedStateHandle implements KeyedStateHandle {
     }
 
     @Override
-    public void registerSharedStates(SharedStateRegistry stateRegistry) {
+    public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {
         // Nothing to do, this is for local use only.
     }
 

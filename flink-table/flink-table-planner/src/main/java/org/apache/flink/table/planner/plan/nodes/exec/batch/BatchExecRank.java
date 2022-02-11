@@ -21,13 +21,14 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.SortUtil;
 import org.apache.flink.table.runtime.operators.sort.RankOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -57,7 +58,12 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecRank.class),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.partitionFields = partitionFields;
         this.sortFields = sortFields;
         this.rankStart = rankStart;
@@ -93,9 +99,10 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
                         rankEnd,
                         outputRankNumber);
 
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                createTransformationName(planner.getTableConfig()),
+                createTransformationDescription(planner.getTableConfig()),
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of((RowType) getOutputType()),
                 inputTransform.getParallelism());

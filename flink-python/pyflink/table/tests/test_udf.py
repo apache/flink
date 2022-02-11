@@ -17,8 +17,10 @@
 ################################################################################
 import datetime
 import os
+import sys
 import unittest
 
+import pytest
 import pytz
 
 from pyflink.table import DataTypes, expressions as expr
@@ -52,8 +54,9 @@ class UserDefinedFunctionTests(object):
 
         # check memory limit is set
         @udf(result_type=DataTypes.BIGINT())
-        def check_memory_limit():
-            assert os.environ['_PYTHON_WORKER_MEMORY_LIMIT'] is not None
+        def check_memory_limit(exec_mode):
+            if exec_mode == "process":
+                assert os.environ['_PYTHON_WORKER_MEMORY_LIMIT'] is not None
             return 1
 
         table_sink = source_sink_utils.TestAppendSink(
@@ -62,10 +65,13 @@ class UserDefinedFunctionTests(object):
              DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
+        execution_mode = self.t_env.get_config().get_configuration().get_string(
+            "python.execution-mode", "process")
+
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         t.where(add_one(t.b) <= 3).select(
             add_one(t.a), subtract_one(t.b), add(t.a, t.c), add_one_callable(t.a),
-            add_one_partial(t.a), check_memory_limit(), t.a) \
+            add_one_partial(t.a), check_memory_limit(execution_mode), t.a) \
             .execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[2, 1, 4, 2, 2, 1, 1]", "+I[4, 0, 12, 4, 4, 1, 3]"])
@@ -217,7 +223,14 @@ class UserDefinedFunctionTests(object):
 
     def test_open(self):
         self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'true')
-        subtract = udf(Subtract(), result_type=DataTypes.BIGINT())
+        execution_mode = self.t_env.get_config().get_configuration().get_string(
+            "python.execution-mode", None)
+
+        if execution_mode == "process":
+            subtract = udf(SubtractWithMetrics(), result_type=DataTypes.BIGINT())
+        else:
+            subtract = udf(Subtract(), result_type=DataTypes.BIGINT())
+
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b'], [DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
@@ -765,12 +778,12 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
         self.t_env.create_temporary_system_function("add_one", add_one)
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table SELECT "
-                                                   "a, "
-                                                   "add_one(b) "
-                                                   "FROM source_table")
+        json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table SELECT "
+                                                      "a, "
+                                                      "add_one(b) "
+                                                      "FROM source_table")
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
         import glob
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]
@@ -781,6 +794,22 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
 class PyFlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
                                            PyFlinkBatchTableTestCase):
     pass
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+class PyFlinkEmbeddedMultiThreadTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
+    def setUp(self):
+        super(PyFlinkEmbeddedMultiThreadTests, self).setUp()
+        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
+                                                               "multi-thread")
+
+
+@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+class PyFlinkEmbeddedSubInterpreterTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
+    def setUp(self):
+        super(PyFlinkEmbeddedSubInterpreterTests, self).setUp()
+        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
+                                                               "sub-interpreter")
 
 
 # test specify the input_types
@@ -795,7 +824,7 @@ class SubtractOne(ScalarFunction):
         return i - 1
 
 
-class Subtract(ScalarFunction, unittest.TestCase):
+class SubtractWithMetrics(ScalarFunction, unittest.TestCase):
 
     def open(self, function_context):
         self.subtracted_value = 1
@@ -806,6 +835,18 @@ class Subtract(ScalarFunction, unittest.TestCase):
     def eval(self, i):
         # counter
         self.counter.inc(i)
+        self.counter_sum += i
+        return i - self.subtracted_value
+
+
+class Subtract(ScalarFunction, unittest.TestCase):
+
+    def open(self, function_context):
+        self.subtracted_value = 1
+        self.counter_sum = 0
+
+    def eval(self, i):
+        # counter
         self.counter_sum += i
         return i - self.subtracted_value
 

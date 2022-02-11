@@ -18,14 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.utils
 
-import java.util.Collections
-import org.apache.calcite.plan.hep.{HepPlanner, HepProgramBuilder}
-import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rel.logical.LogicalCalc
-import org.apache.calcite.rel.rules._
-import org.apache.calcite.rex.RexNode
-import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
-import org.apache.flink.api.common.{JobID, TaskInfo}
+import org.apache.flink.api.common.TaskInfo
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext
 import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMapFunction}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -33,13 +26,15 @@ import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.{EnvironmentSettings, TableConfig, TableException, ValidationException}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
 import org.apache.flink.table.data.util.DataFormatConverters
 import org.apache.flink.table.data.util.DataFormatConverters.DataFormatConverter
-import org.apache.flink.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.table.delegation.ExpressionParser
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -49,13 +44,21 @@ import org.apache.flink.table.types.AbstractDataType
 import org.apache.flink.table.types.logical.{RowType, VarCharType}
 import org.apache.flink.table.types.utils.TypeConversions
 import org.apache.flink.types.Row
+
+import org.apache.calcite.plan.hep.{HepPlanner, HepProgramBuilder}
+import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.logical.LogicalCalc
+import org.apache.calcite.rel.rules._
+import org.apache.calcite.rex.RexNode
+import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{After, Before, Rule}
 
+import java.util.Collections
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.collection.mutable.ListBuffer
 
 abstract class ExpressionTestBase {
 
@@ -87,8 +90,7 @@ abstract class ExpressionTestBase {
 
   // setup test utils
   private val tableName = "testTable"
-  protected val nullable = "null"
-  protected val notNullable = "not null"
+  protected val nullable = "NULL"
 
   // used for accurate exception information checking.
   val expectedException: ExpectedException = ExpectedException.none()
@@ -98,6 +100,10 @@ abstract class ExpressionTestBase {
 
   @Before
   def prepare(): Unit = {
+    config.getConfiguration.set(
+      ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
+      ExecutionConfigOptions.LegacyCastBehaviour.DISABLED
+    )
     if (containsLegacyTypes) {
       val ds = env.fromCollection(Collections.emptyList[Row](), typeInfo)
       tEnv.createTemporaryView(tableName, ds, typeInfo.getFieldNames.map(api.$): _*)
@@ -276,7 +282,8 @@ abstract class ExpressionTestBase {
   }
 
   private def testTableApiTestExpr(tableApiString: String, expected: String): Unit = {
-    addTableApiTestExpr(ExpressionParser.parseExpression(tableApiString), expected, validExprs)
+    addTableApiTestExpr(
+      ExpressionParser.INSTANCE.parseExpression(tableApiString), expected, validExprs)
   }
 
   private def addSqlTestExpr(
@@ -348,7 +355,7 @@ abstract class ExpressionTestBase {
           assertEquals(
             s"Wrong result $original optimized to: [$optimizedExpr]",
             expected,
-            if (actual == null) "null" else actual)
+            if (actual == null) "NULL" else actual)
       }
   }
 
@@ -367,7 +374,7 @@ abstract class ExpressionTestBase {
 
     // generate code
     val resultType = RowType.of(Seq.fill(rexNodes.size)(
-      new VarCharType(VarCharType.MAX_LENGTH)): _*)
+      VarCharType.STRING_TYPE): _*)
 
     val exprs = stringTestExprs.map(exprGenerator.generateExpression)
     val genExpr = exprGenerator.generateResultExpression(exprs, resultType, classOf[BinaryRowData])

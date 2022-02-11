@@ -61,32 +61,7 @@ public class JobTaskVertexTest {
 
         assertEquals(target.getInputs().get(0).getSource(), source.getProducedDataSets().get(0));
 
-        assertEquals(1, source.getProducedDataSets().get(0).getConsumers().size());
-        assertEquals(target, source.getProducedDataSets().get(0).getConsumers().get(0).getTarget());
-    }
-
-    @Test
-    public void testConnectMultipleTargets() {
-        JobVertex source = new JobVertex("source");
-        JobVertex target1 = new JobVertex("target1");
-        JobVertex target2 = new JobVertex("target2");
-        target1.connectNewDataSetAsInput(
-                source, DistributionPattern.POINTWISE, ResultPartitionType.PIPELINED);
-        target2.connectDataSetAsInput(
-                source.getProducedDataSets().get(0), DistributionPattern.ALL_TO_ALL);
-
-        assertTrue(source.isInputVertex());
-        assertFalse(source.isOutputVertex());
-        assertFalse(target1.isInputVertex());
-        assertTrue(target1.isOutputVertex());
-        assertFalse(target2.isInputVertex());
-        assertTrue(target2.isOutputVertex());
-
-        assertEquals(1, source.getNumberOfProducedIntermediateDataSets());
-        assertEquals(2, source.getProducedDataSets().get(0).getConsumers().size());
-
-        assertEquals(target1.getInputs().get(0).getSource(), source.getProducedDataSets().get(0));
-        assertEquals(target2.getInputs().get(0).getSource(), source.getProducedDataSets().get(0));
+        assertEquals(target, source.getProducedDataSets().get(0).getConsumer().getTarget());
     }
 
     @Test

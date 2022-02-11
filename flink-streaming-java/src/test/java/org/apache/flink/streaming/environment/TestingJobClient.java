@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 
 import javax.annotation.Nullable;
 
@@ -55,12 +56,15 @@ public class TestingJobClient implements JobClient {
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
+            boolean advanceToEndOfEventTime,
+            @Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
         return CompletableFuture.completedFuture("null");
     }
 
     @Override
-    public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
+    public CompletableFuture<String> triggerSavepoint(
+            @Nullable String savepointDirectory, SavepointFormatType formatType) {
         return CompletableFuture.completedFuture("null");
     }
 

@@ -22,7 +22,6 @@ from pyflink.common import Row, RowKind
 from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerKeyStateDataViewStore
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.table import AggregateFunction, FunctionContext, TableAggregateFunction
 from pyflink.table.udf import ImperativeAggregateFunction
 
@@ -409,7 +408,7 @@ class GroupAggFunctionBase(object):
     def __init__(self,
                  aggs_handle: AggsHandleFunctionBase,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,
@@ -455,7 +454,7 @@ class GroupAggFunction(GroupAggFunctionBase):
     def __init__(self,
                  aggs_handle: AggsHandleFunction,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,
@@ -550,7 +549,7 @@ class GroupTableAggFunction(GroupAggFunctionBase):
     def __init__(self,
                  aggs_handle: TableAggsHandleFunction,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  generate_update_before: bool,
                  state_cleaning_enabled: bool,

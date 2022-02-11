@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -41,6 +42,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public class ResourceManagerProcessContext {
     private final Configuration rmConfig;
+    private final ResourceID resourceId;
     private final ResourceManagerRuntimeServicesConfiguration rmRuntimeServicesConfig;
     private final RpcService rpcService;
     private final HighAvailabilityServices highAvailabilityServices;
@@ -54,6 +56,7 @@ public class ResourceManagerProcessContext {
 
     public ResourceManagerProcessContext(
             Configuration rmConfig,
+            ResourceID resourceId,
             ResourceManagerRuntimeServicesConfiguration rmRuntimeServicesConfig,
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
@@ -65,6 +68,7 @@ public class ResourceManagerProcessContext {
             SlotManagerMetricGroup slotManagerMetricGroup,
             Executor ioExecutor) {
         this.rmConfig = checkNotNull(rmConfig);
+        this.resourceId = checkNotNull(resourceId);
         this.rmRuntimeServicesConfig = checkNotNull(rmRuntimeServicesConfig);
         this.rpcService = checkNotNull(rpcService);
         this.highAvailabilityServices = checkNotNull(highAvailabilityServices);
@@ -80,6 +84,10 @@ public class ResourceManagerProcessContext {
 
     public Configuration getRmConfig() {
         return rmConfig;
+    }
+
+    public ResourceID getResourceId() {
+        return resourceId;
     }
 
     public ResourceManagerRuntimeServicesConfiguration getRmRuntimeServicesConfig() {

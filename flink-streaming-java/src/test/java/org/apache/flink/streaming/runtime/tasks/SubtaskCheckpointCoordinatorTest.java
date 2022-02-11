@@ -21,6 +21,7 @@ package org.apache.flink.streaming.runtime.tasks;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
@@ -29,6 +30,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriterImpl;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
@@ -54,6 +57,7 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
+import org.apache.flink.streaming.api.operators.StreamTaskStateInitializerImpl;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
@@ -77,7 +81,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
 import static org.apache.flink.shaded.guava30.com.google.common.util.concurrent.MoreExecutors.newDirectExecutorService;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -91,11 +94,10 @@ public class SubtaskCheckpointCoordinatorTest {
     public void testInitCheckpoint() throws IOException, CheckpointException {
         assertTrue(initCheckpoint(true, CHECKPOINT));
         assertFalse(initCheckpoint(false, CHECKPOINT));
-        assertFalse(initCheckpoint(false, SAVEPOINT));
+        assertFalse(initCheckpoint(false, SavepointType.savepoint(SavepointFormatType.CANONICAL)));
     }
 
-    private boolean initCheckpoint(
-            boolean unalignedCheckpointEnabled, CheckpointType checkpointType)
+    private boolean initCheckpoint(boolean unalignedCheckpointEnabled, SnapshotType checkpointType)
             throws IOException, CheckpointException {
         class MockWriter extends ChannelStateWriterImpl.NoOpChannelStateWriter {
             private boolean started;
@@ -113,7 +115,7 @@ public class SubtaskCheckpointCoordinatorTest {
         coordinator.initInputsCheckpoint(
                 1L,
                 unalignedCheckpointEnabled
-                        ? CheckpointOptions.unaligned(locationReference)
+                        ? CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, locationReference)
                         : CheckpointOptions.alignedNoTimeout(checkpointType, locationReference));
         return writer.started;
     }
@@ -172,7 +174,8 @@ public class SubtaskCheckpointCoordinatorTest {
             coordinator.checkpointState(
                     new CheckpointMetaData(0, 0),
                     new CheckpointOptions(
-                            SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
+                            SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                            CheckpointStorageLocationReference.getDefault()),
                     new CheckpointMetricsBuilder(),
                     operatorChain,
                     false,
@@ -215,7 +218,9 @@ public class SubtaskCheckpointCoordinatorTest {
                     };
 
             CheckpointOptions forcedAlignedOptions =
-                    CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault())
+                    CheckpointOptions.unaligned(
+                                    CheckpointType.CHECKPOINT,
+                                    CheckpointStorageLocationReference.getDefault())
                             .withUnalignedUnsupported();
             coordinator.checkpointState(
                     new CheckpointMetaData(checkpointId, 0),
@@ -243,12 +248,59 @@ public class SubtaskCheckpointCoordinatorTest {
             coordinator.checkpointState(
                     new CheckpointMetaData(0, 0),
                     new CheckpointOptions(
-                            SAVEPOINT, CheckpointStorageLocationReference.getDefault()),
+                            SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                            CheckpointStorageLocationReference.getDefault()),
                     new CheckpointMetricsBuilder(),
                     new RegularOperatorChain<>(
                             new NoOpStreamTask<>(new DummyEnvironment()), new NonRecordWriter<>()),
                     false,
                     () -> true);
+        }
+    }
+
+    @Test
+    public void testNotifyCheckpointSubsumed() throws Exception {
+        TestTaskStateManager stateManager = new TestTaskStateManager();
+        MockEnvironment mockEnvironment =
+                MockEnvironment.builder().setTaskStateManager(stateManager).build();
+
+        try (SubtaskCheckpointCoordinatorImpl subtaskCheckpointCoordinator =
+                (SubtaskCheckpointCoordinatorImpl)
+                        new MockSubtaskCheckpointCoordinatorBuilder()
+                                .setEnvironment(mockEnvironment)
+                                .setUnalignedCheckpointEnabled(true)
+                                .build()) {
+
+            StreamMap<String, String> streamMap =
+                    new StreamMap<>((MapFunction<String, String>) value -> value);
+            streamMap.setProcessingTimeService(new TestProcessingTimeService());
+            final OperatorChain<String, AbstractStreamOperator<String>> operatorChain =
+                    operatorChain(streamMap);
+            StreamTaskStateInitializerImpl stateInitializer =
+                    new StreamTaskStateInitializerImpl(mockEnvironment, new TestStateBackend());
+            operatorChain.initializeStateAndOpenOperators(stateInitializer);
+
+            long checkpointId = 42L;
+
+            subtaskCheckpointCoordinator
+                    .getChannelStateWriter()
+                    .start(checkpointId, CheckpointOptions.forCheckpointWithDefaultLocation());
+            subtaskCheckpointCoordinator.checkpointState(
+                    new CheckpointMetaData(checkpointId, System.currentTimeMillis()),
+                    CheckpointOptions.forCheckpointWithDefaultLocation(),
+                    new CheckpointMetricsBuilder(),
+                    operatorChain,
+                    false,
+                    () -> false);
+
+            long notifySubsumeCheckpointId = checkpointId + 1L;
+            // notify checkpoint aborted before execution.
+            subtaskCheckpointCoordinator.notifyCheckpointSubsumed(
+                    notifySubsumeCheckpointId, operatorChain, () -> true);
+            assertEquals(
+                    notifySubsumeCheckpointId,
+                    ((TestStateBackend.TestKeyedStateBackend<?>) streamMap.getKeyedStateBackend())
+                            .getSubsumeCheckpointId());
         }
     }
 

@@ -54,7 +54,8 @@ public class KubernetesResourceManagerFactory
         final KubernetesResourceManagerDriverConfiguration
                 kubernetesResourceManagerDriverConfiguration =
                         new KubernetesResourceManagerDriverConfiguration(
-                                configuration.getString(KubernetesConfigOptions.CLUSTER_ID));
+                                configuration.getString(KubernetesConfigOptions.CLUSTER_ID),
+                                webInterfaceUrl);
 
         return new KubernetesResourceManagerDriver(
                 configuration,
