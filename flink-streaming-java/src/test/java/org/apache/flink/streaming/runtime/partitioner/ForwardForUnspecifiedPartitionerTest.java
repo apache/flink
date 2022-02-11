@@ -31,17 +31,14 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/** Test for {@link ForwardForConsecutiveHashPartitioner}. */
-public class ForwardForConsecutiveHashPartitionerTest extends TestLogger {
+/** Test for {@link ForwardForUnspecifiedPartitioner}. */
+public class ForwardForUnspecifiedPartitionerTest extends TestLogger {
 
     @Test
     public void testConvertToForwardPartitioner() {
         JobGraph jobGraph =
                 StreamPartitionerTestUtils.createJobGraph(
-                        "group1",
-                        "group1",
-                        new ForwardForConsecutiveHashPartitioner<>(
-                                new KeyGroupStreamPartitioner<>(record -> 0L, 100)));
+                        "group1", "group1", new ForwardForUnspecifiedPartitioner<>());
         List<JobVertex> jobVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
         assertThat(jobVertices.size(), is(1));
         JobVertex vertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
@@ -52,19 +49,16 @@ public class ForwardForConsecutiveHashPartitionerTest extends TestLogger {
     }
 
     @Test
-    public void testConvertToHashPartitioner() {
+    public void testConvertToRescalePartitioner() {
         JobGraph jobGraph =
                 StreamPartitionerTestUtils.createJobGraph(
-                        "group1",
-                        "group2",
-                        new ForwardForConsecutiveHashPartitioner<>(
-                                new KeyGroupStreamPartitioner<>(record -> 0L, 100)));
+                        "group1", "group2", new ForwardForUnspecifiedPartitioner<>());
         List<JobVertex> jobVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
         assertThat(jobVertices.size(), is(2));
         JobVertex sourceVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
 
         StreamConfig sourceConfig = new StreamConfig(sourceVertex.getConfiguration());
         StreamEdge edge = sourceConfig.getNonChainedOutputs(getClass().getClassLoader()).get(0);
-        assertThat(edge.getPartitioner(), instanceOf(KeyGroupStreamPartitioner.class));
+        assertThat(edge.getPartitioner(), instanceOf(RescalePartitioner.class));
     }
 }
