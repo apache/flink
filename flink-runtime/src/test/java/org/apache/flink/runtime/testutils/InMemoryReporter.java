@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -209,7 +210,7 @@ public class InMemoryReporter implements MetricReporter {
 
     private Stream<Entry<String, Metric>> getMetricStream(JobID jobId) {
         return metrics.entrySet().stream()
-                .filter(gr -> getJobId(gr.getKey()).equals(jobId.toString()))
+                .filter(gr -> Objects.equals(getJobId(gr.getKey()), jobId.toString()))
                 .flatMap(this::getGroupMetricStream);
     }
 
