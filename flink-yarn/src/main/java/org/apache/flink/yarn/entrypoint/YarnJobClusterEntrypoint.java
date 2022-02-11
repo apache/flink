@@ -36,7 +36,13 @@ import org.apache.hadoop.yarn.api.ApplicationConstants;
 import java.io.IOException;
 import java.util.Map;
 
-/** Entry point for Yarn per-job clusters. */
+/**
+ * Entry point for Yarn per-job clusters.
+ *
+ * @deprecated Per-mode has been deprecated in Flink 1.15 and will be removed in the future. Please
+ *     use application mode instead.
+ */
+@Deprecated
 public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
 
     public YarnJobClusterEntrypoint(Configuration configuration) {
@@ -65,6 +71,10 @@ public class YarnJobClusterEntrypoint extends JobClusterEntrypoint {
     // ------------------------------------------------------------------------
 
     public static void main(String[] args) {
+
+        LOG.warn(
+                "Job Clusters are deprecated since Flink 1.15. Please use an Application Cluster/Application Mode instead.");
+
         // startup checks and logging
         EnvironmentInformation.logEnvironmentInfo(
                 LOG, YarnJobClusterEntrypoint.class.getSimpleName(), args);

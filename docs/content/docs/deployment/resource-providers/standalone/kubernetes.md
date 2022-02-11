@@ -133,14 +133,6 @@ with the `kubectl` command:
     $ kubectl delete -f jobmanager-job.yaml
 ```
 
-### Per-Job Mode
-
-{{< hint info >}}
-For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
-{{< /hint >}}
-
-Flink on Standalone Kubernetes does not support the Per-Job Cluster Mode.
-
 ### Session Mode
 
 {{< hint info >}}

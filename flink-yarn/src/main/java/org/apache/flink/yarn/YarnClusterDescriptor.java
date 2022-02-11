@@ -469,6 +469,9 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
     public ClusterClientProvider<ApplicationId> deployJobCluster(
             ClusterSpecification clusterSpecification, JobGraph jobGraph, boolean detached)
             throws ClusterDeploymentException {
+
+        LOG.warn(
+                "Job Clusters are deprecated since Flink 1.15. Please use an Application Cluster/Application Mode instead.");
         try {
             return deployInternal(
                     clusterSpecification,

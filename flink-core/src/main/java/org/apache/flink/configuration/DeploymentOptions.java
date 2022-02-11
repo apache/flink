@@ -45,7 +45,7 @@ public class DeploymentOptions {
                                     .list(
                                             text("remote"),
                                             text("local"),
-                                            text("yarn-per-job"),
+                                            text("yarn-per-job (deprecated)"),
                                             text("yarn-session"),
                                             text("kubernetes-session"))
                                     .text(

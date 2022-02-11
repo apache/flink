@@ -89,7 +89,7 @@ To shut down the cluster, either terminate (e.g. with `CTRL-C`) the JobManager a
 The Flink image contains a regular Flink distribution with its default configuration and a standard entry point script.
 You can run its entry point in the following modes:
 * [JobManager]({{< ref "docs/concepts/glossary" >}}#flink-jobmanager) for [a Session cluster](#starting-a-session-cluster-on-docker)
-* [JobManager]({{< ref "docs/concepts/glossary" >}}#flink-jobmanager) for [a Application cluster](#application-mode-on-docker)
+* [JobManager]({{< ref "docs/concepts/glossary" >}}#flink-jobmanager) for [an Application cluster](#application-mode-on-docker)
 * [TaskManager]({{< ref "docs/concepts/glossary" >}}#flink-taskmanager) for any cluster
 
 This allows you to deploy a standalone cluster (Session or Application Mode) in any containerised environment, for example:
@@ -201,14 +201,6 @@ You can provide the following additional command line arguments to the cluster e
   Additionally you can specify this argument to allow that savepoint state is skipped which cannot be restored.
 
 If the main function of the user job main class accepts arguments, you can also pass them at the end of the `docker run` command.
-
-### Per-Job Mode
-
-{{< hint info >}}
-For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
-{{< /hint >}}
-
-Per-Job Mode is not supported by Flink on Docker.
 
 ### Session Mode
 
