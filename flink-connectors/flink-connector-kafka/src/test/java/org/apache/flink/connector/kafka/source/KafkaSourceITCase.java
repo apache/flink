@@ -20,6 +20,9 @@ package org.apache.flink.connector.kafka.source;
 
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.ListAccumulator;
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -37,6 +40,7 @@ import org.apache.flink.connectors.test.common.junit.annotations.TestEnv;
 import org.apache.flink.connectors.test.common.testsuites.SourceTestSuiteBase;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamMap;
@@ -68,10 +72,12 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Unite test class for {@link KafkaSource}. */
 public class KafkaSourceITCase {
@@ -252,6 +258,52 @@ public class KafkaSourceITCase {
                             "testBasicReadWithoutGroupId");
             executeAndVerify(env, stream);
         }
+
+        @Test
+        public void testPerPartitionWatermark() throws Throwable {
+            String watermarkTopic = "watermarkTestTopic-" + UUID.randomUUID();
+            KafkaSourceTestEnv.createTestTopic(watermarkTopic, 2, 1);
+            List<ProducerRecord<String, Integer>> records =
+                    Arrays.asList(
+                            new ProducerRecord<>(watermarkTopic, 0, 100L, null, 100),
+                            new ProducerRecord<>(watermarkTopic, 0, 200L, null, 200),
+                            new ProducerRecord<>(watermarkTopic, 0, 300L, null, 300),
+                            new ProducerRecord<>(watermarkTopic, 1, 150L, null, 150),
+                            new ProducerRecord<>(watermarkTopic, 1, 250L, null, 250),
+                            new ProducerRecord<>(watermarkTopic, 1, 350L, null, 350));
+            KafkaSourceTestEnv.produceToKafka(records);
+            KafkaSource<PartitionAndValue> source =
+                    KafkaSource.<PartitionAndValue>builder()
+                            .setBootstrapServers(KafkaSourceTestEnv.brokerConnectionStrings)
+                            .setTopics(watermarkTopic)
+                            .setGroupId("watermark-test")
+                            .setDeserializer(new TestingKafkaRecordDeserializationSchema(false))
+                            .setStartingOffsets(OffsetsInitializer.earliest())
+                            .setBounded(OffsetsInitializer.latest())
+                            .build();
+            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+            env.setParallelism(1);
+            env.fromSource(
+                            source,
+                            WatermarkStrategy.forGenerator(
+                                    (context) -> new OnEventWatermarkGenerator()),
+                            "testPerPartitionWatermark")
+                    .process(
+                            new ProcessFunction<PartitionAndValue, Long>() {
+                                @Override
+                                public void processElement(
+                                        PartitionAndValue value,
+                                        ProcessFunction<PartitionAndValue, Long>.Context ctx,
+                                        Collector<Long> out) {
+                                    assertTrue(
+                                            ctx.timestamp()
+                                                    >= ctx.timerService().currentWatermark(),
+                                            "Event time should never behind watermark "
+                                                    + "because of per-split watermark multiplexing logic");
+                                }
+                            });
+            env.execute();
+        }
     }
 
     /** Integration test based on connector testing framework. */
@@ -390,5 +442,16 @@ public class KafkaSourceITCase {
                                         "The %d-th value for partition %s should be %d", i, tp, i));
                     }
                 });
+    }
+
+    private static class OnEventWatermarkGenerator
+            implements WatermarkGenerator<PartitionAndValue> {
+        @Override
+        public void onEvent(PartitionAndValue event, long eventTimestamp, WatermarkOutput output) {
+            output.emitWatermark(new Watermark(eventTimestamp));
+        }
+
+        @Override
+        public void onPeriodicEmit(WatermarkOutput output) {}
     }
 }
