@@ -29,6 +29,7 @@ import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContextImpl;
+import org.apache.flink.connector.pulsar.sink.writer.delayer.MessageDelayer;
 import org.apache.flink.connector.pulsar.sink.writer.message.PulsarMessage;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
@@ -67,6 +68,7 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
     private final PulsarSerializationSchema<IN> serializationSchema;
     private final TopicMetadataListener metadataListener;
     private final TopicRouter<IN> topicRouter;
+    private final MessageDelayer<IN> messageDelayer;
     private final DeliveryGuarantee deliveryGuarantee;
     private final PulsarSinkContext sinkContext;
     private final MailboxExecutor mailboxExecutor;
@@ -92,11 +94,13 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
             PulsarSerializationSchema<IN> serializationSchema,
             TopicMetadataListener metadataListener,
             TopicRouter<IN> topicRouter,
+            MessageDelayer<IN> messageDelayer,
             InitContext initContext) {
         this.sinkConfiguration = checkNotNull(sinkConfiguration);
         this.serializationSchema = checkNotNull(serializationSchema);
         this.metadataListener = checkNotNull(metadataListener);
         this.topicRouter = checkNotNull(topicRouter);
+        this.messageDelayer = checkNotNull(messageDelayer);
         checkNotNull(initContext);
 
         this.deliveryGuarantee = sinkConfiguration.getDeliveryGuarantee();
@@ -135,6 +139,12 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
 
         // Create message builder for sending message.
         TypedMessageBuilder<?> builder = createMessageBuilder(topic, context, message);
+
+        // Message Delay delivery.
+        long deliverAt = messageDelayer.deliverAt(element, sinkContext);
+        if (deliverAt > 0) {
+            builder.deliverAt(deliverAt);
+        }
 
         // Perform message sending.
         if (deliveryGuarantee == DeliveryGuarantee.NONE) {

@@ -25,6 +25,7 @@ import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.common.config.PulsarConfigBuilder;
 import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
+import org.apache.flink.connector.pulsar.sink.writer.delayer.MessageDelayer;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRoutingMode;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSchemaWrapper;
@@ -101,6 +102,7 @@ public class PulsarSinkBuilder<IN> {
     private TopicMetadataListener metadataListener;
     private TopicRoutingMode topicRoutingMode;
     private TopicRouter<IN> topicRouter;
+    private MessageDelayer<IN> messageDelayer;
 
     // private builder constructor.
     PulsarSinkBuilder() {
@@ -231,6 +233,17 @@ public class PulsarSinkBuilder<IN> {
     }
 
     /**
+     * Set a message delayer for enable Pulsar message delay delivery.
+     *
+     * @param messageDelayer The delayer which would defined when to send the message to consumer.
+     * @return this PulsarSinkBuilder.
+     */
+    public PulsarSinkBuilder<IN> delaySendingMessage(MessageDelayer<IN> messageDelayer) {
+        this.messageDelayer = checkNotNull(messageDelayer);
+        return this;
+    }
+
+    /**
      * Set an arbitrary property for the PulsarSink and Pulsar Producer. The valid keys can be found
      * in {@link PulsarSinkOptions} and {@link PulsarOptions}.
      *
@@ -331,6 +344,10 @@ public class PulsarSinkBuilder<IN> {
             this.topicRoutingMode = TopicRoutingMode.ROUND_ROBIN;
         }
 
+        if (messageDelayer == null) {
+            this.messageDelayer = MessageDelayer.never();
+        }
+
         // This is an unmodifiable configuration for Pulsar.
         // We don't use Pulsar's built-in configure classes for compatible requirement.
         SinkConfiguration sinkConfiguration =
@@ -341,7 +358,8 @@ public class PulsarSinkBuilder<IN> {
                 serializationSchema,
                 metadataListener,
                 topicRoutingMode,
-                topicRouter);
+                topicRouter,
+                messageDelayer);
     }
 
     // ------------- private helpers  --------------

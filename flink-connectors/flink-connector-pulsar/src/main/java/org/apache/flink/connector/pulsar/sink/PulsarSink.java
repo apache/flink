@@ -28,6 +28,7 @@ import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittableSeriali
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommitter;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.PulsarWriter;
+import org.apache.flink.connector.pulsar.sink.writer.delayer.MessageDelayer;
 import org.apache.flink.connector.pulsar.sink.writer.router.KeyHashTopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.router.RoundRobinTopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
@@ -82,6 +83,7 @@ public class PulsarSink<IN> implements TwoPhaseCommittingSink<IN, PulsarCommitta
     private final SinkConfiguration sinkConfiguration;
     private final PulsarSerializationSchema<IN> serializationSchema;
     private final TopicMetadataListener metadataListener;
+    private final MessageDelayer<IN> messageDelayer;
     private final TopicRouter<IN> topicRouter;
 
     PulsarSink(
@@ -89,10 +91,12 @@ public class PulsarSink<IN> implements TwoPhaseCommittingSink<IN, PulsarCommitta
             PulsarSerializationSchema<IN> serializationSchema,
             TopicMetadataListener metadataListener,
             TopicRoutingMode topicRoutingMode,
-            TopicRouter<IN> topicRouter) {
+            TopicRouter<IN> topicRouter,
+            MessageDelayer<IN> messageDelayer) {
         this.sinkConfiguration = checkNotNull(sinkConfiguration);
         this.serializationSchema = checkNotNull(serializationSchema);
         this.metadataListener = checkNotNull(metadataListener);
+        this.messageDelayer = checkNotNull(messageDelayer);
         checkNotNull(topicRoutingMode);
 
         // Create topic router supplier.
@@ -119,7 +123,12 @@ public class PulsarSink<IN> implements TwoPhaseCommittingSink<IN, PulsarCommitta
     @Override
     public PrecommittingSinkWriter<IN, PulsarCommittable> createWriter(InitContext initContext) {
         return new PulsarWriter<>(
-                sinkConfiguration, serializationSchema, metadataListener, topicRouter, initContext);
+                sinkConfiguration,
+                serializationSchema,
+                metadataListener,
+                topicRouter,
+                messageDelayer,
+                initContext);
     }
 
     @Internal
