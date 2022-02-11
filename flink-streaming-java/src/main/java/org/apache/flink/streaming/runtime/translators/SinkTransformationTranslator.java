@@ -110,13 +110,11 @@ public class SinkTransformationTranslator<Input, Output>
         }
 
         private void expand() {
-            // Reset the environment parallelism temporarily to configure the sub topology
-            // parallelism
-            executionEnvironment.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT);
 
             final int sizeBefore = executionEnvironment.getTransformations().size();
 
             DataStream<T> prewritten = inputStream;
+
             if (sink instanceof WithPreWriteTopology) {
                 prewritten =
                         adjustTransformations(
@@ -134,9 +132,6 @@ public class SinkTransformationTranslator<Input, Output>
                                         CommittableMessageTypeInfo.noOutput(),
                                         new SinkWriterOperatorFactory<>(sink)));
             }
-
-            // Restore the previous parallelism of the environment before transforming
-            executionEnvironment.setParallelism(environmentParallelism);
 
             final List<Transformation<?>> sinkTransformations =
                     executionEnvironment
@@ -176,6 +171,7 @@ public class SinkTransformationTranslator<Input, Output>
                                 precommitted,
                                 ((WithPreCommitTopology<T, CommT>) sink)::addPreCommitTopology);
             }
+
             DataStream<CommittableMessage<CommT>> committed =
                     adjustTransformations(
                             precommitted,
@@ -184,6 +180,7 @@ public class SinkTransformationTranslator<Input, Output>
                                             COMMITTER_NAME,
                                             typeInformation,
                                             new CommitterOperatorFactory<>(committingSink)));
+
             if (sink instanceof WithPostCommitTopology) {
                 DataStream<CommittableMessage<CommT>> postcommitted = addFailOverRegion(committed);
                 adjustTransformations(
@@ -207,13 +204,34 @@ public class SinkTransformationTranslator<Input, Output>
                             StreamExchangeMode.BATCH));
         }
 
+        /**
+         * Since user may set specific parallelism on sub topologies, we have to pay attention to
+         * the priority of parallelism at different levels, i.e. sub topologies customized
+         * parallelism > sinkTransformation customized parallelism > environment customized
+         * parallelism. In order to satisfy this rule and keep these customized parallelism values,
+         * the environment parallelism will be set to be {@link ExecutionConfig#PARALLELISM_DEFAULT}
+         * before adjusting transformations. SubTransformations, constructed after that, will have
+         * either the default value or customized value. In this way, any customized value will be
+         * discriminated from the default value and, for any subTransformation with the default
+         * parallelism value, we will then be able to let it inherit the parallelism value from the
+         * previous sinkTransformation. After adjustment of transformations is closed, the
+         * environment parallelism will be restored back to its original value to keep the
+         * customized parallelism value at environment level.
+         */
         private <I, R> R adjustTransformations(
                 DataStream<I> inputStream, Function<DataStream<I>, R> action) {
+
+            // Reset the environment parallelism temporarily before adjusting transformations,
+            // we can therefore be aware of any customized parallelism of the sub topology
+            // set by users during the adjustment.
+            executionEnvironment.setParallelism(ExecutionConfig.PARALLELISM_DEFAULT);
+
             int numTransformsBefore = executionEnvironment.getTransformations().size();
             R result = action.apply(inputStream);
             List<Transformation<?>> transformations = executionEnvironment.getTransformations();
             List<Transformation<?>> expandedTransformations =
                     transformations.subList(numTransformsBefore, transformations.size());
+
             for (Transformation<?> subTransformation : expandedTransformations) {
                 // Skip overwriting the parallelism for the global committer
                 if (subTransformation.getName() == null
@@ -224,40 +242,59 @@ public class SinkTransformationTranslator<Input, Output>
                                                 .GLOBAL_COMMITTER_TRANSFORMATION_NAME)) {
                     subTransformation.setParallelism(transformation.getParallelism());
                 }
+
                 concatUid(
                         subTransformation,
                         Transformation::getUid,
                         Transformation::setUid,
                         subTransformation.getName());
+
                 concatProperty(
                         subTransformation,
                         Transformation::getCoLocationGroupKey,
                         Transformation::setCoLocationGroupKey);
+
                 concatProperty(subTransformation, Transformation::getName, Transformation::setName);
+
                 concatProperty(
                         subTransformation,
                         Transformation::getDescription,
                         Transformation::setDescription);
+
                 Optional<SlotSharingGroup> ssg = transformation.getSlotSharingGroup();
+
                 if (ssg.isPresent() && !subTransformation.getSlotSharingGroup().isPresent()) {
                     subTransformation.setSlotSharingGroup(ssg.get());
                 }
+
+                // remember that the environment parallelism has been set to be default
+                // at the beginning. SubTransformations, whose parallelism has been
+                // customized, will skip this part. The customized parallelism value set by user
+                // will therefore be kept.
                 if (subTransformation.getParallelism() == ExecutionConfig.PARALLELISM_DEFAULT) {
-                    // The parallelism of the transformation is by default the env parallelism, or
-                    // it is overwritten by the user.
+                    // In this case, the subTransformation does not contain any customized
+                    // parallelism value and will therefore inherit the parallelism value
+                    // from the sinkTransformation.
                     subTransformation.setParallelism(transformation.getParallelism());
                 }
+
                 if (subTransformation.getMaxParallelism() < 0
                         && transformation.getMaxParallelism() > 0) {
                     subTransformation.setMaxParallelism(transformation.getMaxParallelism());
                 }
+
                 if (transformation.getChainingStrategy() == null
                         || !(subTransformation instanceof PhysicalTransformation)) {
                     continue;
                 }
+
                 ((PhysicalTransformation<?>) subTransformation)
                         .setChainingStrategy(transformation.getChainingStrategy());
             }
+
+            // Restore the previous parallelism of the environment before adjusting transformations
+            executionEnvironment.setParallelism(environmentParallelism);
+
             return result;
         }
 
