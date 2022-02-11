@@ -43,10 +43,10 @@ public class FsStateChangelogWriterSqnTest {
     @Parameterized.Parameters(name = "{0}")
     public static List<WriterSqnTestSettings> getSettings() {
         return asList(
-                of(StateChangelogWriter::lastAppendedSequenceNumber, "lastAppendedSequenceNumber")
+                of(StateChangelogWriter::nextSequenceNumber, "nextSequenceNumber")
                         .withAppendCall(false)
                         .expectIncrement(false),
-                of(StateChangelogWriter::lastAppendedSequenceNumber, "lastAppendedSequenceNumber")
+                of(StateChangelogWriter::nextSequenceNumber, "nextSequenceNumber")
                         .withAppendCall(true)
                         .expectIncrement(true),
                 of(FsStateChangelogWriterSqnTest::persistAll, "persist")
@@ -146,7 +146,7 @@ public class FsStateChangelogWriterSqnTest {
     }
 
     private static void truncateLast(FsStateChangelogWriter writer) {
-        writer.truncate(writer.lastAppendedSequenceNumber());
+        writer.truncate(writer.nextSequenceNumber());
     }
 
     private static void truncateAll(FsStateChangelogWriter writer) {
