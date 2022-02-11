@@ -29,6 +29,7 @@ import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType;
 import org.apache.flink.contrib.streaming.state.RocksDBOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
@@ -122,7 +123,7 @@ public class TimersSavepointITCase {
         client.submitJob(jobGraph).get();
         waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobGraph.getJobID(), false);
         CompletableFuture<String> savepointPathFuture =
-                client.triggerSavepoint(jobGraph.getJobID(), null);
+                client.triggerSavepoint(jobGraph.getJobID(), null, SavepointFormatType.CANONICAL);
 
         String jobmanagerSavepointPath = savepointPathFuture.get(2, TimeUnit.SECONDS);
 

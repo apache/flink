@@ -39,7 +39,7 @@ library makes when [dealing with lateness](#handling-lateness-in-event-time) in 
 
 ## Getting Started
 
-If you want to jump right in, [set up a Flink program]({{< ref "docs/dev/datastream/project-configuration" >}}) and
+If you want to jump right in, [set up a Flink program]({{< ref "docs/dev/configuration/overview" >}}) and
 add the FlinkCEP dependency to the `pom.xml` of your project.
 
 {{< tabs "3b3e4675-dd86-4b2d-8487-9c8711f234b3" >}}
@@ -51,7 +51,8 @@ add the FlinkCEP dependency to the `pom.xml` of your project.
 {{< /tab >}}
 {{< /tabs >}}
 
-FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+FlinkCEP is not part of the binary distribution. See how to link with it for cluster execution 
+[here]({{< ref "docs/dev/configuration/overview" >}}).
 
 Now you can start writing your first CEP program using the Pattern API.
 

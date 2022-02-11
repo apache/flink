@@ -18,13 +18,14 @@
 
 package org.apache.flink.runtime.rest.handler.job.savepoints;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.rest.handler.async.OperationResult;
 import org.apache.flink.runtime.rest.handler.job.AsynchronousJobOperationKey;
+import org.apache.flink.util.function.TriFunction;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 
 /** Utility functions used in tests. */
@@ -38,9 +39,15 @@ public final class SavepointTestUtilities {
      * @param keyReference the reference to set to the operation key
      * @return function which sets the reference once called
      */
-    public static BiFunction<AsynchronousJobOperationKey, String, CompletableFuture<Acknowledge>>
+    public static TriFunction<
+                    AsynchronousJobOperationKey,
+                    String,
+                    SavepointFormatType,
+                    CompletableFuture<Acknowledge>>
             setReferenceToOperationKey(AtomicReference<AsynchronousJobOperationKey> keyReference) {
-        return (AsynchronousJobOperationKey operationKey, String directory) -> {
+        return (AsynchronousJobOperationKey operationKey,
+                String directory,
+                SavepointFormatType formatType) -> {
             keyReference.set(operationKey);
             return CompletableFuture.completedFuture(Acknowledge.get());
         };

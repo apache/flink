@@ -44,7 +44,7 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.curator4.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.curator5.com.google.common.collect.Iterables;
 
 import javax.annotation.Nullable;
 

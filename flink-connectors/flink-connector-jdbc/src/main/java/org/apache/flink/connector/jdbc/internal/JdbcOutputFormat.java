@@ -406,6 +406,11 @@ public class JdbcOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementExe
                         : connectionProvider.getConnection());
     }
 
+    /** Returns configured {@code JdbcExecutionOptions}. */
+    public JdbcExecutionOptions getExecutionOptions() {
+        return executionOptions;
+    }
+
     @VisibleForTesting
     public Connection getConnection() {
         return connectionProvider.getConnection();

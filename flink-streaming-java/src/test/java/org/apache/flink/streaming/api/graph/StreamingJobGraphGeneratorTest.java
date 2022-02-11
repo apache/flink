@@ -638,6 +638,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
     @Test
     public void testExchangeModeBatch() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
         env.setBufferTimeout(-1);
         // fromElements -> Map -> Print
         DataStream<Integer> sourceDataStream = env.fromElements(1, 2, 3);
@@ -782,11 +783,6 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 return actual.getProducedDataSets().get(0).getResultType();
             }
         };
-    }
-
-    @Test(expected = UnsupportedOperationException.class)
-    public void testConflictExchangeModeWithBufferTimeout() {
-        testCompatibleExchangeModeWithBufferTimeout(StreamExchangeMode.BATCH);
     }
 
     @Test
@@ -1247,11 +1243,8 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         final JobVertex map1Vertex = verticesMatched.get(2);
         final JobVertex map2Vertex = verticesMatched.get(3);
 
-        // vertices in the same region should be in the same slot sharing group
-        assertSameSlotSharingGroup(source1Vertex, map1Vertex);
-
         // vertices in different regions should be in different slot sharing groups
-        assertDistinctSharingGroups(source1Vertex, source2Vertex, map2Vertex);
+        assertDistinctSharingGroups(source1Vertex, source2Vertex, map2Vertex, map1Vertex);
     }
 
     @Test
@@ -1509,6 +1502,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
     private StreamGraph createStreamGraphForSlotSharingTest() {
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setBufferTimeout(-1);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 
         final DataStream<Integer> source1 = env.fromElements(1, 2, 3).name("source1");
         source1.rebalance().map(v -> v).name("map1");

@@ -177,11 +177,12 @@ public class StreamOperatorSnapshotRestoreTest extends TestLogger {
         int subtaskIdx = 0;
 
         LocalRecoveryDirectoryProvider directoryProvider =
-                new LocalRecoveryDirectoryProviderImpl(
-                        temporaryFolder.newFolder(), jobID, jobVertexID, subtaskIdx);
+                mode == ONLY_JM_RECOVERY
+                        ? null
+                        : new LocalRecoveryDirectoryProviderImpl(
+                                temporaryFolder.newFolder(), jobID, jobVertexID, subtaskIdx);
 
-        LocalRecoveryConfig localRecoveryConfig =
-                new LocalRecoveryConfig(mode != ONLY_JM_RECOVERY, directoryProvider);
+        LocalRecoveryConfig localRecoveryConfig = new LocalRecoveryConfig(directoryProvider);
 
         MockEnvironment mockEnvironment =
                 new MockEnvironmentBuilder()

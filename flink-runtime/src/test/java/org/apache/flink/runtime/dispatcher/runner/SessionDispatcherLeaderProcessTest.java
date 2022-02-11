@@ -422,6 +422,7 @@ public class SessionDispatcherLeaderProcessTest {
         dispatcherServiceFactory =
                 createFactoryBasedOnGenericSupplier(() -> testingDispatcherService);
 
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
         try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess =
                 createDispatcherLeaderProcess()) {
             dispatcherLeaderProcess.start();
@@ -430,10 +431,12 @@ public class SessionDispatcherLeaderProcessTest {
             dispatcherLeaderProcess.getDispatcherGateway().get();
 
             // now remove the Job from the JobGraphStore and notify the dispatcher service
-            jobGraphStore.removeJobGraph(JOB_GRAPH.getJobID());
+            jobGraphStore.globalCleanupAsync(JOB_GRAPH.getJobID(), executorService).join();
             dispatcherLeaderProcess.onRemovedJobGraph(JOB_GRAPH.getJobID());
 
-            assertThat(terminateJobFuture).isCompletedWithValue(JOB_GRAPH.getJobID());
+            assertThat(terminateJobFuture.get()).isEqualTo(JOB_GRAPH.getJobID());
+        } finally {
+            assertThat(executorService.shutdownNow()).isEmpty();
         }
     }
 

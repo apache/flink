@@ -31,8 +31,6 @@ import org.apache.flink.runtime.blob.TransientBlobService;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
-import org.apache.flink.runtime.checkpoint.CheckpointType.PostCheckpointAction;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -118,6 +116,8 @@ import org.apache.flink.runtime.taskexecutor.rpc.RpcPartitionStateChecker;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcTaskOperatorEventGateway;
 import org.apache.flink.runtime.taskexecutor.slot.SlotActions;
+import org.apache.flink.runtime.taskexecutor.slot.SlotAllocationSnapshot;
+import org.apache.flink.runtime.taskexecutor.slot.SlotAllocationSnapshotPersistenceService;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotActiveException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotNotFoundException;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -238,6 +238,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     private final LeaderRetrievalService resourceManagerLeaderRetriever;
 
+    private final SlotAllocationSnapshotPersistenceService slotAllocationSnapshotPersistenceService;
+
     // ------------------------------------------------------------------------
 
     private final HardwareDescription hardwareDescription;
@@ -336,6 +338,9 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
         ScheduledExecutorService sampleExecutor =
                 Executors.newSingleThreadScheduledExecutor(sampleThreadFactory);
         this.threadInfoSampleService = new ThreadInfoSampleService(sampleExecutor);
+
+        this.slotAllocationSnapshotPersistenceService =
+                taskExecutorServices.getSlotAllocationSnapshotPersistenceService();
     }
 
     private HeartbeatManager<Void, TaskExecutorHeartbeatPayload>
@@ -424,6 +429,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                     new FileCache(
                             taskManagerConfiguration.getTmpDirectories(),
                             taskExecutorBlobService.getPermanentBlobService());
+
+            tryLoadLocalAllocationSnapshots();
         } catch (Exception e) {
             handleStartTaskExecutorServicesException(e);
         }
@@ -952,13 +959,6 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 checkpointTimestamp,
                 executionAttemptID);
 
-        final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
-        if (checkpointType.getPostCheckpointAction() == PostCheckpointAction.TERMINATE
-                && !(checkpointType.isSynchronous() && checkpointType.isSavepoint())) {
-            throw new IllegalArgumentException(
-                    "Only synchronous savepoints are allowed to advance the watermark to MAX.");
-        }
-
         final Task task = taskSlotTable.getTask(executionAttemptID);
 
         if (task != null) {
@@ -1075,11 +1075,33 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
             return FutureUtils.completedExceptionally(new TaskManagerException(message));
         }
 
+        tryPersistAllocationSnapshot(
+                new SlotAllocationSnapshot(
+                        slotId, jobId, targetAddress, allocationId, resourceProfile));
+
         try {
-            allocateSlot(slotId, jobId, allocationId, resourceProfile);
-        } catch (SlotAllocationException sae) {
-            return FutureUtils.completedExceptionally(sae);
+            final boolean isConnected =
+                    allocateSlotForJob(jobId, slotId, allocationId, resourceProfile, targetAddress);
+
+            if (isConnected) {
+                offerSlotsToJobManager(jobId);
+            }
+
+            return CompletableFuture.completedFuture(Acknowledge.get());
+        } catch (SlotAllocationException e) {
+            log.debug("Could not allocate slot for allocation id {}.", allocationId, e);
+            return FutureUtils.completedExceptionally(e);
         }
+    }
+
+    private boolean allocateSlotForJob(
+            JobID jobId,
+            SlotID slotId,
+            AllocationID allocationId,
+            ResourceProfile resourceProfile,
+            String targetAddress)
+            throws SlotAllocationException {
+        allocateSlot(slotId, jobId, allocationId, resourceProfile);
 
         final JobTable.Job job;
 
@@ -1105,15 +1127,10 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                 onFatalError(new Exception("Could not free slot " + slotId));
             }
 
-            return FutureUtils.completedExceptionally(
-                    new SlotAllocationException("Could not create new job.", e));
+            throw new SlotAllocationException("Could not create new job.", e);
         }
 
-        if (job.isConnected()) {
-            offerSlotsToJobManager(jobId);
-        }
-
-        return CompletableFuture.completedFuture(Acknowledge.get());
+        return job.isConnected();
     }
 
     private TaskExecutorJobServices registerNewJobAndCreateServices(
@@ -1159,22 +1176,28 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     @Override
     public CompletableFuture<Acknowledge> freeSlot(
             AllocationID allocationId, Throwable cause, Time timeout) {
-        freeSlotInternal(allocationId, cause);
+        // only respond to freeing slots when not shutting down to avoid freeing slot allocation
+        // information
+        if (isRunning()) {
+            freeSlotInternal(allocationId, cause);
+        }
 
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override
     public void freeInactiveSlots(JobID jobId, Time timeout) {
-        log.debug("Freeing inactive slots for job {}.", jobId);
+        if (isRunning()) {
+            log.debug("Freeing inactive slots for job {}.", jobId);
 
-        // need a copy to prevent ConcurrentModificationExceptions
-        final ImmutableList<TaskSlot<Task>> inactiveSlots =
-                ImmutableList.copyOf(taskSlotTable.getAllocatedSlots(jobId));
-        for (TaskSlot<Task> slot : inactiveSlots) {
-            freeSlotInternal(
-                    slot.getAllocationId(),
-                    new FlinkException("Slot was re-claimed by resource manager."));
+            // need a copy to prevent ConcurrentModificationExceptions
+            final ImmutableList<TaskSlot<Task>> inactiveSlots =
+                    ImmutableList.copyOf(taskSlotTable.getAllocatedSlots(jobId));
+            for (TaskSlot<Task> slot : inactiveSlots) {
+                freeSlotInternal(
+                        slot.getAllocationId(),
+                        new FlinkException("Slot was re-claimed by resource manager."));
+            }
         }
     }
 
@@ -1910,6 +1933,8 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
             final int slotIndex = taskSlotTable.freeSlot(allocationId, cause);
 
+            slotAllocationSnapshotPersistenceService.deleteAllocationSnapshot(slotIndex);
+
             if (slotIndex != -1) {
 
                 if (isConnectedToResourceManager()) {
@@ -2022,6 +2047,45 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
                                     "%s is no longer allocated by job %s.",
                                     allocationID, allocatedSlotReport.getJobId())));
         }
+    }
+
+    private void tryPersistAllocationSnapshot(SlotAllocationSnapshot slotAllocationSnapshot) {
+        try {
+            slotAllocationSnapshotPersistenceService.persistAllocationSnapshot(
+                    slotAllocationSnapshot);
+        } catch (IOException e) {
+            log.debug("Cannot persist the slot allocation snapshot {}.", slotAllocationSnapshot, e);
+        }
+    }
+
+    /**
+     * This method tries to repopulate the {@link JobTable} and {@link TaskSlotTable} from the local
+     * filesystem in a best-effort manner.
+     */
+    private void tryLoadLocalAllocationSnapshots() {
+        Collection<SlotAllocationSnapshot> slotAllocationSnapshots =
+                slotAllocationSnapshotPersistenceService.loadAllocationSnapshots();
+
+        log.debug("Recovered slot allocation snapshots {}.", slotAllocationSnapshots);
+
+        final Set<AllocationID> allocatedSlots = new HashSet<>();
+        for (SlotAllocationSnapshot slotAllocationSnapshot : slotAllocationSnapshots) {
+            try {
+                allocateSlotForJob(
+                        slotAllocationSnapshot.getJobId(),
+                        slotAllocationSnapshot.getSlotID(),
+                        slotAllocationSnapshot.getAllocationId(),
+                        slotAllocationSnapshot.getResourceProfile(),
+                        slotAllocationSnapshot.getJobTargetAddress());
+
+            } catch (SlotAllocationException e) {
+                log.debug("Cannot reallocate restored slot {}.", slotAllocationSnapshot, e);
+            }
+
+            allocatedSlots.add(slotAllocationSnapshot.getAllocationId());
+        }
+
+        localStateStoresManager.retainLocalStateForAllocations(allocatedSlots);
     }
 
     // ------------------------------------------------------------------------

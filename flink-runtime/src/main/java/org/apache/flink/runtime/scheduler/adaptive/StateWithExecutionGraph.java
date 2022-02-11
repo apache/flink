@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -221,7 +222,8 @@ abstract class StateWithExecutionGraph implements State {
                 jobId, jobVertexId, keyGroupRange, registrationName);
     }
 
-    CompletableFuture<String> triggerSavepoint(String targetDirectory, boolean cancelJob) {
+    CompletableFuture<String> triggerSavepoint(
+            String targetDirectory, boolean cancelJob, SavepointFormatType formatType) {
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
         StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
@@ -237,7 +239,7 @@ abstract class StateWithExecutionGraph implements State {
         }
 
         return checkpointCoordinator
-                .triggerSavepoint(targetDirectory)
+                .triggerSavepoint(targetDirectory, formatType)
                 .thenApply(CompletedCheckpoint::getExternalPointer)
                 .handleAsync(
                         (path, throwable) -> {
@@ -322,7 +324,7 @@ abstract class StateWithExecutionGraph implements State {
     abstract void onGloballyTerminalState(JobStatus globallyTerminalState);
 
     /** Context of the {@link StateWithExecutionGraph} state. */
-    interface Context {
+    interface Context extends StateTransitions.ToFinished {
 
         /**
          * Run the given action if the current state equals the expected state.
@@ -347,13 +349,5 @@ abstract class StateWithExecutionGraph implements State {
          * @return the main thread executor
          */
         Executor getMainThreadExecutor();
-
-        /**
-         * Transitions into the {@link Finished} state.
-         *
-         * @param archivedExecutionGraph archivedExecutionGraph which is passed to the {@link
-         *     Finished} state
-         */
-        void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
     }
 }

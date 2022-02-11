@@ -111,3 +111,19 @@ MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="$PROFILE "
 export MVN_GLOBAL_OPTIONS="${MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR} "
 # use google mirror everywhere
 MVN_GLOBAL_OPTIONS+="--settings $MAVEN_MIRROR_CONFIG_FILE ${NPM_PROXY_PROFILE_ACTIVATION} "
+
+print_system_info() {
+    echo "CPU information"
+    lscpu
+
+    echo "Memory information"
+    cat /proc/meminfo
+
+    echo "Disk information"
+    df -hH
+
+    echo "Running build as"
+    whoami
+}
+
+print_system_info

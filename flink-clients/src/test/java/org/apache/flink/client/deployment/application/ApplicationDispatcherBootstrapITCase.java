@@ -214,11 +214,11 @@ public class ApplicationDispatcherBootstrapITCase {
         assertThat(
                         jobResultStore.hasDirtyJobResultEntry(
                                 ApplicationDispatcherBootstrap.ZERO_JOB_ID))
-                .isTrue();
+                .isFalse();
         assertThat(
                         jobResultStore.hasCleanJobResultEntry(
                                 ApplicationDispatcherBootstrap.ZERO_JOB_ID))
-                .isFalse();
+                .isTrue();
     }
 
     @Test

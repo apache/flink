@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.graph.SimpleTransformationTranslator;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -45,17 +46,19 @@ public class PartitionTransformationTranslator<OUT>
     @Override
     protected Collection<Integer> translateForBatchInternal(
             final PartitionTransformation<OUT> transformation, final Context context) {
-        return translateInternal(transformation, context);
+        return translateInternal(transformation, context, true);
     }
 
     @Override
     protected Collection<Integer> translateForStreamingInternal(
             final PartitionTransformation<OUT> transformation, final Context context) {
-        return translateInternal(transformation, context);
+        return translateInternal(transformation, context, false);
     }
 
     private Collection<Integer> translateInternal(
-            final PartitionTransformation<OUT> transformation, final Context context) {
+            final PartitionTransformation<OUT> transformation,
+            final Context context,
+            boolean supportsBatchExchange) {
         checkNotNull(transformation);
         checkNotNull(context);
 
@@ -70,13 +73,17 @@ public class PartitionTransformationTranslator<OUT>
 
         List<Integer> resultIds = new ArrayList<>();
 
+        StreamExchangeMode exchangeMode = transformation.getExchangeMode();
+        // StreamExchangeMode#BATCH has no effect in streaming mode so we can safely reset it to
+        // UNDEFINED and let Flink decide on the best exchange mode.
+        if (!supportsBatchExchange && exchangeMode == StreamExchangeMode.BATCH) {
+            exchangeMode = StreamExchangeMode.UNDEFINED;
+        }
+
         for (Integer inputId : context.getStreamNodeIds(input)) {
             final int virtualId = Transformation.getNewNodeId();
             streamGraph.addVirtualPartitionNode(
-                    inputId,
-                    virtualId,
-                    transformation.getPartitioner(),
-                    transformation.getExchangeMode());
+                    inputId, virtualId, transformation.getPartitioner(), exchangeMode);
             resultIds.add(virtualId);
         }
         return resultIds;

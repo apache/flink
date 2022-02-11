@@ -246,7 +246,7 @@ public class FlinkContainersBuilder {
 
     private GenericContainer<?> buildZookeeperContainer() {
         return configureContainer(
-                new GenericContainer<>(DockerImageName.parse("zookeeper").withTag("3.4.14")),
+                new GenericContainer<>(DockerImageName.parse("zookeeper").withTag("3.5.9")),
                 ZOOKEEPER_HOSTNAME,
                 "Zookeeper");
     }

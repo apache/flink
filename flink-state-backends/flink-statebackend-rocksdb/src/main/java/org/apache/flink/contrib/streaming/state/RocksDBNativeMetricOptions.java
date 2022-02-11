@@ -44,33 +44,39 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
     public static final ConfigOption<Boolean> MONITOR_NUM_IMMUTABLE_MEM_TABLES =
             ConfigOptions.key(RocksDBProperty.NumImmutableMemTable.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription("Monitor the number of immutable memtables in RocksDB.");
 
     public static final ConfigOption<Boolean> MONITOR_MEM_TABLE_FLUSH_PENDING =
             ConfigOptions.key(RocksDBProperty.MemTableFlushPending.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription("Monitor the number of pending memtable flushes in RocksDB.");
 
     public static final ConfigOption<Boolean> TRACK_COMPACTION_PENDING =
             ConfigOptions.key(RocksDBProperty.CompactionPending.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Track pending compactions in RocksDB. Returns 1 if a compaction is pending, 0 otherwise.");
 
     public static final ConfigOption<Boolean> MONITOR_BACKGROUND_ERRORS =
             ConfigOptions.key(RocksDBProperty.BackgroundErrors.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription("Monitor the number of background errors in RocksDB.");
 
     public static final ConfigOption<Boolean> MONITOR_CUR_SIZE_ACTIVE_MEM_TABLE =
             ConfigOptions.key(RocksDBProperty.CurSizeActiveMemTable.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Monitor the approximate size of the active memtable in bytes.");
 
     public static final ConfigOption<Boolean> MONITOR_CUR_SIZE_ALL_MEM_TABLE =
             ConfigOptions.key(RocksDBProperty.CurSizeAllMemTables.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Monitor the approximate size of the active and unflushed immutable memtables"
@@ -78,6 +84,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
     public static final ConfigOption<Boolean> MONITOR_SIZE_ALL_MEM_TABLES =
             ConfigOptions.key(RocksDBProperty.SizeAllMemTables.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Monitor the approximate size of the active, unflushed immutable, "
@@ -85,34 +92,40 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
     public static final ConfigOption<Boolean> MONITOR_NUM_ENTRIES_ACTIVE_MEM_TABLE =
             ConfigOptions.key(RocksDBProperty.NumEntriesActiveMemTable.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription("Monitor the total number of entries in the active memtable.");
 
     public static final ConfigOption<Boolean> MONITOR_NUM_ENTRIES_IMM_MEM_TABLES =
             ConfigOptions.key(RocksDBProperty.NumEntriesImmMemTables.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Monitor the total number of entries in the unflushed immutable memtables.");
 
     public static final ConfigOption<Boolean> MONITOR_NUM_DELETES_ACTIVE_MEM_TABLE =
             ConfigOptions.key(RocksDBProperty.NumDeletesActiveMemTable.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Monitor the total number of delete entries in the active memtable.");
 
     public static final ConfigOption<Boolean> MONITOR_NUM_DELETES_IMM_MEM_TABLE =
             ConfigOptions.key(RocksDBProperty.NumDeletesImmMemTables.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Monitor the total number of delete entries in the unflushed immutable memtables.");
 
     public static final ConfigOption<Boolean> ESTIMATE_NUM_KEYS =
             ConfigOptions.key(RocksDBProperty.EstimateNumKeys.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription("Estimate the number of keys in RocksDB.");
 
     public static final ConfigOption<Boolean> ESTIMATE_TABLE_READERS_MEM =
             ConfigOptions.key(RocksDBProperty.EstimateTableReadersMem.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Estimate the memory used for reading SST tables, excluding memory"
@@ -120,11 +133,13 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
     public static final ConfigOption<Boolean> MONITOR_NUM_SNAPSHOTS =
             ConfigOptions.key(RocksDBProperty.NumSnapshots.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription("Monitor the number of unreleased snapshots of the database.");
 
     public static final ConfigOption<Boolean> MONITOR_NUM_LIVE_VERSIONS =
             ConfigOptions.key(RocksDBProperty.NumLiveVersions.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Monitor number of live versions. Version is an internal data structure. "
@@ -133,12 +148,14 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
     public static final ConfigOption<Boolean> ESTIMATE_LIVE_DATA_SIZE =
             ConfigOptions.key(RocksDBProperty.EstimateLiveDataSize.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Estimate of the amount of live data in bytes (usually smaller than sst files size due to space amplification).");
 
     public static final ConfigOption<Boolean> MONITOR_TOTAL_SST_FILES_SIZE =
             ConfigOptions.key(RocksDBProperty.TotalSstFilesSize.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Monitor the total size (bytes) of all SST files of all versions."
@@ -154,6 +171,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
     public static final ConfigOption<Boolean> ESTIMATE_PENDING_COMPACTION_BYTES =
             ConfigOptions.key(RocksDBProperty.EstimatePendingCompactionBytes.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Estimated total number of bytes compaction needs to rewrite to get all levels "
@@ -161,16 +179,19 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
     public static final ConfigOption<Boolean> MONITOR_NUM_RUNNING_COMPACTIONS =
             ConfigOptions.key(RocksDBProperty.NumRunningCompactions.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription("Monitor the number of currently running compactions.");
 
     public static final ConfigOption<Boolean> MONITOR_NUM_RUNNING_FLUSHES =
             ConfigOptions.key(RocksDBProperty.NumRunningFlushes.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription("Monitor the number of currently running flushes.");
 
     public static final ConfigOption<Boolean> MONITOR_ACTUAL_DELAYED_WRITE_RATE =
             ConfigOptions.key(RocksDBProperty.ActualDelayedWriteRate.getConfigKey())
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Monitor the current actual delayed write rate. 0 means no delay.");
@@ -204,6 +225,7 @@ public class RocksDBNativeMetricOptions implements Serializable {
 
     public static final ConfigOption<Boolean> COLUMN_FAMILY_AS_VARIABLE =
             ConfigOptions.key(METRICS_COLUMN_FAMILY_AS_VARIABLE_KEY)
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription("Whether to expose the column family as a variable.");
 

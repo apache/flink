@@ -42,12 +42,14 @@ import org.apache.flink.state.api.input.UnionStateInputFormat;
 import org.apache.flink.state.api.input.operator.KeyedStateReaderOperator;
 import org.apache.flink.state.api.runtime.MutableConfig;
 import org.apache.flink.state.api.runtime.SavepointLoader;
-import org.apache.flink.state.api.runtime.metadata.SavepointMetadata;
+import org.apache.flink.state.api.runtime.metadata.SavepointMetadataV2;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.windows.Window;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Comparator;
@@ -57,11 +59,41 @@ import java.util.Comparator;
 public class SavepointReader {
 
     /**
-     * Loads an existing savepoint. Useful if you want to querythe state of an existing application.
+     * Loads an existing savepoint. Useful if you want to query the state of an existing
+     * application. The savepoint will be read using the state backend defined via the clusters
+     * configuration.
+     *
+     * @param env The execution environment used to transform the savepoint.
+     * @param path The path to an existing savepoint on disk.
+     * @return A {@link SavepointReader}.
+     */
+    public static SavepointReader read(StreamExecutionEnvironment env, String path)
+            throws IOException {
+        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(path);
+
+        int maxParallelism =
+                metadata.getOperatorStates().stream()
+                        .map(OperatorState::getMaxParallelism)
+                        .max(Comparator.naturalOrder())
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Savepoint must contain at least one operator state."));
+
+        SavepointMetadataV2 savepointMetadata =
+                new SavepointMetadataV2(
+                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
+        return new SavepointReader(env, savepointMetadata, null);
+    }
+
+    /**
+     * Loads an existing savepoint. Useful if you want to query the state of an existing
+     * application.
      *
      * @param env The execution environment used to transform the savepoint.
      * @param path The path to an existing savepoint on disk.
      * @param stateBackend The state backend of the savepoint.
+     * @return A {@link SavepointReader}.
      */
     public static SavepointReader read(
             StreamExecutionEnvironment env, String path, StateBackend stateBackend)
@@ -77,8 +109,8 @@ public class SavepointReader {
                                         new RuntimeException(
                                                 "Savepoint must contain at least one operator state."));
 
-        SavepointMetadata savepointMetadata =
-                new SavepointMetadata(
+        SavepointMetadataV2 savepointMetadata =
+                new SavepointMetadataV2(
                         maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
         return new SavepointReader(env, savepointMetadata, stateBackend);
     }
@@ -90,20 +122,21 @@ public class SavepointReader {
      * The savepoint metadata, which maintains the current set of existing / newly added operator
      * states.
      */
-    private final SavepointMetadata metadata;
+    private final SavepointMetadataV2 metadata;
 
     /**
      * The state backend that was previously used to write existing operator states in this
-     * savepoint. This is also the state backend that will be used when writing again this existing
-     * savepoint.
+     * savepoint. If null, the reader will use the state backend defined via the cluster
+     * configuration.
      */
-    private final StateBackend stateBackend;
+    @Nullable private final StateBackend stateBackend;
 
     SavepointReader(
-            StreamExecutionEnvironment env, SavepointMetadata metadata, StateBackend stateBackend) {
+            StreamExecutionEnvironment env,
+            SavepointMetadataV2 metadata,
+            @Nullable StateBackend stateBackend) {
         Preconditions.checkNotNull(env, "The execution environment must not be null");
         Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
-        Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
 
         this.env = env;
         this.metadata = metadata;
@@ -124,7 +157,12 @@ public class SavepointReader {
             throws IOException {
         OperatorState operatorState = metadata.getOperatorState(uid);
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
-        ListStateInputFormat<T> inputFormat = new ListStateInputFormat<>(operatorState, descriptor);
+        ListStateInputFormat<T> inputFormat =
+                new ListStateInputFormat<>(
+                        operatorState,
+                        MutableConfig.of(env.getConfiguration()),
+                        stateBackend,
+                        descriptor);
         return SourceBuilder.fromFormat(env, inputFormat, typeInfo);
     }
 
@@ -147,7 +185,12 @@ public class SavepointReader {
 
         OperatorState operatorState = metadata.getOperatorState(uid);
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, serializer);
-        ListStateInputFormat<T> inputFormat = new ListStateInputFormat<>(operatorState, descriptor);
+        ListStateInputFormat<T> inputFormat =
+                new ListStateInputFormat<>(
+                        operatorState,
+                        MutableConfig.of(env.getConfiguration()),
+                        stateBackend,
+                        descriptor);
         return SourceBuilder.fromFormat(env, inputFormat, typeInfo);
     }
 
@@ -166,7 +209,11 @@ public class SavepointReader {
         OperatorState operatorState = metadata.getOperatorState(uid);
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, typeInfo);
         UnionStateInputFormat<T> inputFormat =
-                new UnionStateInputFormat<>(operatorState, descriptor);
+                new UnionStateInputFormat<>(
+                        operatorState,
+                        MutableConfig.of(env.getConfiguration()),
+                        stateBackend,
+                        descriptor);
         return SourceBuilder.fromFormat(env, inputFormat, typeInfo);
     }
 
@@ -190,7 +237,11 @@ public class SavepointReader {
         OperatorState operatorState = metadata.getOperatorState(uid);
         ListStateDescriptor<T> descriptor = new ListStateDescriptor<>(name, serializer);
         UnionStateInputFormat<T> inputFormat =
-                new UnionStateInputFormat<>(operatorState, descriptor);
+                new UnionStateInputFormat<>(
+                        operatorState,
+                        MutableConfig.of(env.getConfiguration()),
+                        stateBackend,
+                        descriptor);
         return SourceBuilder.fromFormat(env, inputFormat, typeInfo);
     }
 
@@ -217,7 +268,11 @@ public class SavepointReader {
         MapStateDescriptor<K, V> descriptor =
                 new MapStateDescriptor<>(name, keyTypeInfo, valueTypeInfo);
         BroadcastStateInputFormat<K, V> inputFormat =
-                new BroadcastStateInputFormat<>(operatorState, descriptor);
+                new BroadcastStateInputFormat<>(
+                        operatorState,
+                        MutableConfig.of(env.getConfiguration()),
+                        stateBackend,
+                        descriptor);
         return SourceBuilder.fromFormat(
                 env, inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
     }
@@ -251,7 +306,11 @@ public class SavepointReader {
         MapStateDescriptor<K, V> descriptor =
                 new MapStateDescriptor<>(name, keySerializer, valueSerializer);
         BroadcastStateInputFormat<K, V> inputFormat =
-                new BroadcastStateInputFormat<>(operatorState, descriptor);
+                new BroadcastStateInputFormat<>(
+                        operatorState,
+                        MutableConfig.of(env.getConfiguration()),
+                        stateBackend,
+                        descriptor);
         return SourceBuilder.fromFormat(
                 env, inputFormat, new TupleTypeInfo<>(keyTypeInfo, valueTypeInfo));
     }

@@ -55,7 +55,7 @@
 		<dependency>
 			<!-- Ensures that flink-table-planner is built beforehand, in order to bundle the jar -->
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-planner-loader-bundle</artifactId>
 			<version>${project.version}</version>
 			<!-- We don't want any production code from flink-table-planner-loader to reference flink-table-planner directly -->
 			<scope>runtime</scope>
@@ -89,14 +89,12 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
 					<classpathDependencyExcludes>
-						<!-- flink-table-planner_${scala.binary.version} is declared as runtime scope,
-						so surefire will include it in the test classpath.
-						But because the planner-loader and the planner_${scala.binary.version} jars are exclusive,
+						<!-- The planner-loader and the planner_${scala.binary.version} jars are exclusive,
 						that is you can have only one of them at the same time in the classpath,
 						we need to exclude the planner_${scala.binary.version} from the test classpath
 						in order to execute the loader tests correctly.
 						-->
-						<exclude>org.apache.flink:flink-table-planner_${scala.binary.version}</exclude>
+						<exclude>org.apache.flink:flink-table-planner-loader-bundle</exclude>
 					</classpathDependencyExcludes>
 				</configuration>
 			</plugin>
@@ -114,9 +112,8 @@
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.apache.flink</groupId>
-									<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+									<artifactId>flink-table-planner-loader-bundle</artifactId>
 									<version>${project.version}</version>
-									<classifier>loader-bundle</classifier>
 									<type>jar</type>
 									<overWrite>true</overWrite>
 									<destFileName>flink-table-planner.jar</destFileName>
@@ -140,7 +137,7 @@
 						<configuration>
 							<filters>
 								<filter>
-									<artifact>org.apache.flink:flink-table-planner</artifact>
+									<artifact>org.apache.flink:flink-table-planner-loader-bundle</artifact>
 									<includes>
 										<include>META-INF/NOTICE</include>
 										<include>META-INF/licenses/**</include>
@@ -149,8 +146,7 @@
 							</filters>
 							<artifactSet>
 								<includes>
-									<!-- Because of the filter above, this inclusion is just adding NOTICE and licenses -->
-									<include>org.apache.flink:flink-table-planner</include>
+									<include>org.apache.flink:flink-table-planner-loader-bundle</include>
 								</includes>
 							</artifactSet>
 						</configuration>

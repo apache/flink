@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -36,6 +37,7 @@ import java.util.function.Function;
 import static org.apache.flink.table.api.DataTypes.STRING;
 
 /** {@link RowData} to {@link String} converter using {@link CastRule}. */
+@Internal
 public final class RowDataToStringConverterImpl implements RowDataToStringConverter {
 
     private final Function<RowData, String>[] columnConverters;

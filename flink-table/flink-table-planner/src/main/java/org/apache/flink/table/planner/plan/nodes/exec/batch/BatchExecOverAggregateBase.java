@@ -22,6 +22,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
@@ -44,11 +45,13 @@ public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
     protected final OverSpec overSpec;
 
     public BatchExecOverAggregateBase(
+            int id,
+            ExecNodeContext context,
             OverSpec overSpec,
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(id, context, Collections.singletonList(inputProperty), outputType, description);
         this.overSpec = overSpec;
     }
 

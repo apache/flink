@@ -38,7 +38,6 @@ public class TestingCheckpointRecoveryFactory implements CheckpointRecoveryFacto
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobId,
             int maxNumberOfCheckpointsToRetain,
-            ClassLoader userClassLoader,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor) {
         return store;

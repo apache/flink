@@ -17,21 +17,18 @@
 
 package org.apache.flink.connector.kafka.sink;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.api.connector.sink.GlobalCommitter;
-import org.apache.flink.api.connector.sink.InitContextInitializationContextAdapter;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.StatefulSink;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.metrics.MetricGroup;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Properties;
-import java.util.function.Supplier;
 
 /**
  * Flink Sink to produce data into a Kafka topic. The sink supports all delivery guarantees
@@ -57,7 +54,9 @@ import java.util.function.Supplier;
  * @see KafkaSinkBuilder on how to construct a KafkaSink
  */
 @PublicEvolving
-public class KafkaSink<IN> implements Sink<IN, KafkaCommittable, KafkaWriterState, Void> {
+public class KafkaSink<IN>
+        implements StatefulSink<IN, KafkaWriterState>,
+                TwoPhaseCommittingSink<IN, KafkaCommittable> {
 
     private final DeliveryGuarantee deliveryGuarantee;
 
@@ -86,45 +85,48 @@ public class KafkaSink<IN> implements Sink<IN, KafkaCommittable, KafkaWriterStat
         return new KafkaSinkBuilder<>();
     }
 
+    @Internal
     @Override
-    public SinkWriter<IN, KafkaCommittable, KafkaWriterState> createWriter(
-            InitContext context, List<KafkaWriterState> states) throws IOException {
-        final Supplier<MetricGroup> metricGroupSupplier =
-                () -> context.metricGroup().addGroup("user");
+    public Committer<KafkaCommittable> createCommitter() throws IOException {
+        return new KafkaCommitter(kafkaProducerConfig);
+    }
+
+    @Internal
+    @Override
+    public SimpleVersionedSerializer<KafkaCommittable> getCommittableSerializer() {
+        return new KafkaCommittableSerializer();
+    }
+
+    @Internal
+    @Override
+    public KafkaWriter<IN> createWriter(InitContext context) throws IOException {
+        return new KafkaWriter<IN>(
+                deliveryGuarantee,
+                kafkaProducerConfig,
+                transactionalIdPrefix,
+                context,
+                recordSerializer,
+                context.asSerializationSchemaInitializationContext(),
+                Collections.emptyList());
+    }
+
+    @Internal
+    @Override
+    public KafkaWriter<IN> restoreWriter(
+            InitContext context, Collection<KafkaWriterState> recoveredState) throws IOException {
         return new KafkaWriter<>(
                 deliveryGuarantee,
                 kafkaProducerConfig,
                 transactionalIdPrefix,
                 context,
                 recordSerializer,
-                new InitContextInitializationContextAdapter(
-                        context.getUserCodeClassLoader(), metricGroupSupplier),
-                states);
+                context.asSerializationSchemaInitializationContext(),
+                recoveredState);
     }
 
+    @Internal
     @Override
-    public Optional<Committer<KafkaCommittable>> createCommitter() throws IOException {
-        return Optional.of(new KafkaCommitter(kafkaProducerConfig));
-    }
-
-    @Override
-    public Optional<GlobalCommitter<KafkaCommittable, Void>> createGlobalCommitter()
-            throws IOException {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<KafkaCommittable>> getCommittableSerializer() {
-        return Optional.of(new KafkaCommittableSerializer());
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<Void>> getGlobalCommittableSerializer() {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<KafkaWriterState>> getWriterStateSerializer() {
-        return Optional.of(new KafkaWriterStateSerializer());
+    public SimpleVersionedSerializer<KafkaWriterState> getWriterStateSerializer() {
+        return new KafkaWriterStateSerializer();
     }
 }

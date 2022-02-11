@@ -20,7 +20,7 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
@@ -35,7 +35,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
-import org.apache.flink.streaming.runtime.operators.sink.SinkOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
@@ -46,7 +46,7 @@ import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -194,9 +194,9 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         // Test kafka producer.
         DynamicTableSink.SinkRuntimeProvider provider =
                 actualUpsertKafkaSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider, instanceOf(SinkProvider.class));
-        final SinkProvider sinkFunctionProvider = (SinkProvider) provider;
-        final Sink<RowData, ?, ?, ?> sink = sinkFunctionProvider.createSink();
+        assertThat(provider, instanceOf(SinkV2Provider.class));
+        final SinkV2Provider sinkFunctionProvider = (SinkV2Provider) provider;
+        final Sink<RowData> sink = sinkFunctionProvider.createSink();
         assertThat(sink, instanceOf(KafkaSink.class));
     }
 
@@ -241,17 +241,17 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
         sinkProvider.consumeDataStream(env.fromElements(new BinaryRowData(1)));
         final StreamOperatorFactory<?> sinkOperatorFactory =
                 env.getStreamGraph().getStreamNodes().stream()
-                        .filter(n -> n.getOperatorName().contains("Sink"))
+                        .filter(n -> n.getOperatorName().contains("Writer"))
                         .findFirst()
                         .orElseThrow(
                                 () ->
                                         new RuntimeException(
                                                 "Expected operator with name Sink in stream graph."))
                         .getOperatorFactory();
-        assertThat(sinkOperatorFactory, instanceOf(SinkOperatorFactory.class));
-        assertThat(
-                ((SinkOperatorFactory) sinkOperatorFactory).getSink(),
-                instanceOf(ReducingUpsertSink.class));
+        assertThat(sinkOperatorFactory, instanceOf(SinkWriterOperatorFactory.class));
+        org.apache.flink.api.connector.sink2.Sink sink =
+                ((SinkWriterOperatorFactory) sinkOperatorFactory).getSink();
+        assertThat(sink, instanceOf(ReducingUpsertSink.class));
     }
 
     @Test
@@ -278,8 +278,8 @@ public class UpsertKafkaDynamicTableFactoryTest extends TestLogger {
 
         final DynamicTableSink.SinkRuntimeProvider provider =
                 actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        assertThat(provider, instanceOf(SinkProvider.class));
-        final SinkProvider sinkProvider = (SinkProvider) provider;
+        assertThat(provider, instanceOf(SinkV2Provider.class));
+        final SinkV2Provider sinkProvider = (SinkV2Provider) provider;
         assertTrue(sinkProvider.getParallelism().isPresent());
         assertEquals(100, (long) sinkProvider.getParallelism().get());
     }

@@ -31,6 +31,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -206,10 +208,19 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
     }
 
     @Override
-    public void cleanupJobData(JobID jobID) throws Exception {
-        logger.info("Clean up the high availability data for job {}.", jobID);
-        internalCleanupJobData(jobID);
-        logger.info("Finished cleaning up the high availability data for job {}.", jobID);
+    public CompletableFuture<Void> globalCleanupAsync(JobID jobID, Executor executor) {
+        return CompletableFuture.runAsync(
+                () -> {
+                    logger.info("Clean up the high availability data for job {}.", jobID);
+                    try {
+                        internalCleanupJobData(jobID);
+                    } catch (Exception e) {
+                        throw new CompletionException(e);
+                    }
+                    logger.info(
+                            "Finished cleaning up the high availability data for job {}.", jobID);
+                },
+                executor);
     }
 
     /**
@@ -264,7 +275,7 @@ public abstract class AbstractHaServices implements HighAvailabilityServices {
 
     /**
      * Clean up the meta data in the distributed system(e.g. Zookeeper, Kubernetes ConfigMap) for
-     * the specified Job.
+     * the specified Job. Method implementations need to be thread-safe.
      *
      * @param jobID The identifier of the job to cleanup.
      * @throws Exception when do the cleanup operation on external storage.

@@ -189,24 +189,6 @@ under the License.
 			<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
 		</dependency>
 
-		<dependency>
-			<!-- Utility to scan classpaths -->
-			<groupId>org.reflections</groupId>
-			<artifactId>reflections</artifactId>
-			<version>0.9.10</version>
-			<scope>compile</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>com.google.code.findbugs</groupId>
-					<artifactId>annotations</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.guava</groupId>
-					<artifactId>guava</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
-
 		<!-- Test dependencies -->
 
 		<dependency>
@@ -372,9 +354,6 @@ under the License.
 
 							<!-- For legacy string expressions in Table API -->
 							<include>org.scala-lang.modules:scala-parser-combinators_${scala.binary.version}</include>
-
-							<!-- ReflectionsUtil -->
-							<include>org.reflections:reflections</include>
 						</includes>
 					</artifactSet>
 					<relocations>
@@ -410,11 +389,6 @@ under the License.
 							<shadedPattern>org.apache.flink.table.shaded.com.jayway</shadedPattern>
 						</relocation>
 
-						<!-- Other table dependencies -->
-						<relocation>
-							<pattern>org.reflections</pattern>
-							<shadedPattern>org.apache.flink.table.shaded.org.reflections</shadedPattern>
-						</relocation>
 						<relocation>
 							<!-- icu4j's dependencies -->
 							<pattern>com.ibm.icu</pattern>
@@ -422,45 +396,6 @@ under the License.
 						</relocation>
 					</relocations>
 				</configuration>
-				<executions>
-					<!-- The order on these executions matters, as the shade-flink-distribution overwrites the original jar -->
-					<execution>
-						<id>shade-flink</id>
-						<!-- Disabled to enforce shade-loader-bundle to run first -->
-						<phase>none</phase>
-					</execution>
-					<execution>
-						<!-- This configuration is essentially the same as shade-distribution,
-						but it writes another jar to a separate file and it includes scala.
-						This jar is used by flink-table-planner-loader -->
-						<id>shade-loader-bundle</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadedArtifactAttached>true</shadedArtifactAttached>
-							<shadedClassifierName>loader-bundle</shadedClassifierName>
-							<artifactSet>
-								<includes combine.children="append">
-									<!-- flink-table-planner scala dependencies -->
-									<include>org.scala-lang:*</include>
-									<include>org.apache.flink:flink-scala_${scala.binary.version}</include>
-								</includes>
-							</artifactSet>
-						</configuration>
-					</execution>
-					<execution>
-						<id>shade-distribution</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadedArtifactAttached>false</shadedArtifactAttached>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 
 			<!-- Scala Code Style, most of the configuration done via plugin management -->

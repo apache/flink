@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
@@ -113,7 +114,7 @@ public abstract class SavepointTestBase extends AbstractTestBase {
             throws RuntimeException {
         try {
             String dirPath = getTempDirPath(new AbstractID().toHexString());
-            return client.triggerSavepoint(jobID, dirPath);
+            return client.triggerSavepoint(jobID, dirPath, SavepointFormatType.CANONICAL);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

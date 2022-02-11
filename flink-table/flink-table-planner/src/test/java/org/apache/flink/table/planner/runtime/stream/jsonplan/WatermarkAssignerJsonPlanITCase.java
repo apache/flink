@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
@@ -53,9 +54,10 @@ public class WatermarkAssignerJsonPlanITCase extends JsonPlanTestBase {
 
         File sinkPath = createTestCsvSinkTable("MySink", "a int", "b bigint", "ts timestamp(3)");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan("insert into MySink select a, b, ts from MyTable where b = 3");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        CompiledPlan compiledPlan =
+                tableEnv.compilePlanSql(
+                        "insert into MySink select a, b, ts from MyTable where b = 3");
+        tableEnv.executePlan(compiledPlan).await();
 
         assertResult(
                 Arrays.asList(

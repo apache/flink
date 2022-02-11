@@ -80,7 +80,6 @@ public class KubernetesCheckpointRecoveryFactory implements CheckpointRecoveryFa
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobID,
             int maxNumberOfCheckpointsToRetain,
-            ClassLoader userClassLoader,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor)
             throws Exception {

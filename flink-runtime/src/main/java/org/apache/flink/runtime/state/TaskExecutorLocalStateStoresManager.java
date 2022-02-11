@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.ShutdownHookUtil;
 
 import org.slf4j.Logger;
@@ -34,9 +35,15 @@ import javax.annotation.concurrent.GuardedBy;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 /**
  * This class holds the all {@link TaskLocalStateStoreImpl} objects for a task executor (manager).
@@ -46,6 +53,8 @@ public class TaskExecutorLocalStateStoresManager {
     /** Logger for this class. */
     private static final Logger LOG =
             LoggerFactory.getLogger(TaskExecutorLocalStateStoresManager.class);
+
+    public static final String ALLOCATION_DIR_PREFIX = "aid_";
 
     /**
      * This map holds all local state stores for tasks running on the task manager / executor that
@@ -59,7 +68,7 @@ public class TaskExecutorLocalStateStoresManager {
     private final boolean localRecoveryEnabled;
 
     /** This is the root directory for all local state of this task manager / executor. */
-    private final File[] localStateRootDirectories;
+    private final Reference<File[]> localStateRootDirectories;
 
     /** Executor that runs the discarding of released state objects. */
     private final Executor discardExecutor;
@@ -74,9 +83,14 @@ public class TaskExecutorLocalStateStoresManager {
 
     public TaskExecutorLocalStateStoresManager(
             boolean localRecoveryEnabled,
-            @Nonnull File[] localStateRootDirectories,
+            @Nonnull Reference<File[]> localStateRootDirectories,
             @Nonnull Executor discardExecutor)
             throws IOException {
+
+        LOG.debug(
+                "Start {} with local state root directories {}.",
+                getClass().getSimpleName(),
+                localStateRootDirectories);
 
         this.taskStateStoresByAllocationID = new HashMap<>();
         this.localRecoveryEnabled = localRecoveryEnabled;
@@ -85,7 +99,7 @@ public class TaskExecutorLocalStateStoresManager {
         this.lock = new Object();
         this.closed = false;
 
-        for (File localStateRecoveryRootDir : localStateRootDirectories) {
+        for (File localStateRecoveryRootDir : localStateRootDirectories.deref()) {
 
             if (!localStateRecoveryRootDir.exists()
                     && !localStateRecoveryRootDir.mkdirs()
@@ -138,15 +152,17 @@ public class TaskExecutorLocalStateStoresManager {
 
             if (taskLocalStateStore == null) {
 
-                // create the allocation base dirs, one inside each root dir.
-                File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
-
-                LocalRecoveryDirectoryProviderImpl directoryProvider =
-                        new LocalRecoveryDirectoryProviderImpl(
-                                allocationBaseDirectories, jobId, jobVertexID, subtaskIndex);
+                LocalRecoveryDirectoryProviderImpl directoryProvider = null;
+                if (localRecoveryEnabled) {
+                    // create the allocation base dirs, one inside each root dir.
+                    File[] allocationBaseDirectories = allocationBaseDirectories(allocationID);
+                    directoryProvider =
+                            new LocalRecoveryDirectoryProviderImpl(
+                                    allocationBaseDirectories, jobId, jobVertexID, subtaskIndex);
+                }
 
                 LocalRecoveryConfig localRecoveryConfig =
-                        new LocalRecoveryConfig(localRecoveryEnabled, directoryProvider);
+                        new LocalRecoveryConfig(directoryProvider);
 
                 taskLocalStateStore =
                         localRecoveryConfig.isLocalRecoveryEnabled()
@@ -191,7 +207,6 @@ public class TaskExecutorLocalStateStoresManager {
     }
 
     public void releaseLocalStateForAllocationId(@Nonnull AllocationID allocationID) {
-
         if (LOG.isDebugEnabled()) {
             LOG.debug("Releasing local state under allocation id {}.", allocationID);
         }
@@ -212,29 +227,85 @@ public class TaskExecutorLocalStateStoresManager {
         cleanupAllocationBaseDirs(allocationID);
     }
 
+    /**
+     * Retains the given set of allocations. All other allocations will be released.
+     *
+     * @param allocationsToRetain
+     */
+    public void retainLocalStateForAllocations(Set<AllocationID> allocationsToRetain) {
+        final Collection<AllocationID> allocationIds = findStoredAllocations();
+
+        allocationIds.stream()
+                .filter(allocationId -> !allocationsToRetain.contains(allocationId))
+                .forEach(this::releaseLocalStateForAllocationId);
+    }
+
+    private Collection<AllocationID> findStoredAllocations() {
+        final Set<AllocationID> storedAllocations = new HashSet<>();
+        for (File localStateRootDirectory : localStateRootDirectories.deref()) {
+            try {
+                final Collection<Path> allocationDirectories =
+                        listAllocationDirectoriesIn(localStateRootDirectory);
+
+                for (Path allocationDirectory : allocationDirectories) {
+                    final String hexString =
+                            allocationDirectory
+                                    .getFileName()
+                                    .toString()
+                                    .substring(ALLOCATION_DIR_PREFIX.length());
+                    storedAllocations.add(AllocationID.fromHexString(hexString));
+                }
+            } catch (IOException ioe) {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Could not list local state directory {}. This entails that some orphaned local state might not be cleaned up properly.",
+                            localStateRootDirectory,
+                            ioe);
+                } else {
+                    LOG.info(
+                            "Could not list local state directory {}. This entails that some orphaned local state might not be cleaned up properly.",
+                            localStateRootDirectory);
+                }
+            }
+        }
+
+        return storedAllocations;
+    }
+
+    @VisibleForTesting
+    @Nonnull
+    static Collection<Path> listAllocationDirectoriesIn(File localStateRootDirectory)
+            throws IOException {
+        return Files.list(localStateRootDirectory.toPath())
+                .filter(path -> path.getFileName().toString().startsWith(ALLOCATION_DIR_PREFIX))
+                .collect(Collectors.toList());
+    }
+
     public void shutdown() {
-
-        HashMap<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> toRelease;
-
         synchronized (lock) {
             if (closed) {
                 return;
             }
 
             closed = true;
-            toRelease = new HashMap<>(taskStateStoresByAllocationID);
             taskStateStoresByAllocationID.clear();
         }
 
-        ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
-
         LOG.info("Shutting down TaskExecutorLocalStateStoresManager.");
 
-        for (Map.Entry<AllocationID, Map<JobVertexSubtaskKey, OwnedTaskLocalStateStore>> entry :
-                toRelease.entrySet()) {
+        ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), LOG);
 
-            doRelease(entry.getValue().values());
-            cleanupAllocationBaseDirs(entry.getKey());
+        if (localStateRootDirectories.isOwned()) {
+            for (File localStateRootDirectory : localStateRootDirectories.deref()) {
+                try {
+                    FileUtils.deleteDirectory(localStateRootDirectory);
+                } catch (IOException ioe) {
+                    LOG.warn(
+                            "Could not delete local state directory {}.",
+                            localStateRootDirectory,
+                            ioe);
+                }
+            }
         }
     }
 
@@ -245,20 +316,21 @@ public class TaskExecutorLocalStateStoresManager {
 
     @VisibleForTesting
     File[] getLocalStateRootDirectories() {
-        return localStateRootDirectories;
+        return localStateRootDirectories.deref();
     }
 
     @VisibleForTesting
     String allocationSubDirString(AllocationID allocationID) {
-        return "aid_" + allocationID.toHexString();
+        return ALLOCATION_DIR_PREFIX + allocationID.toHexString();
     }
 
     private File[] allocationBaseDirectories(AllocationID allocationID) {
         final String allocationSubDirString = allocationSubDirString(allocationID);
-        final File[] allocationDirectories = new File[localStateRootDirectories.length];
-        for (int i = 0; i < localStateRootDirectories.length; ++i) {
+        final File[] derefLocalStateRootDirectories = localStateRootDirectories.deref();
+        final File[] allocationDirectories = new File[derefLocalStateRootDirectories.length];
+        for (int i = 0; i < derefLocalStateRootDirectories.length; ++i) {
             allocationDirectories[i] =
-                    new File(localStateRootDirectories[i], allocationSubDirString);
+                    new File(derefLocalStateRootDirectories[i], allocationSubDirString);
         }
         return allocationDirectories;
     }

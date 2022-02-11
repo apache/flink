@@ -33,6 +33,7 @@ public class OptimizerOptions {
      */
     public static final ConfigOption<Integer> DELIMITED_FORMAT_MAX_LINE_SAMPLES =
             key("compiler.delimited-informat.max-line-samples")
+                    .intType()
                     .defaultValue(10)
                     .withDescription(
                             "The maximum number of line samples taken by the compiler for delimited inputs. The samples"
@@ -46,6 +47,7 @@ public class OptimizerOptions {
      */
     public static final ConfigOption<Integer> DELIMITED_FORMAT_MIN_LINE_SAMPLES =
             key("compiler.delimited-informat.min-line-samples")
+                    .intType()
                     .defaultValue(2)
                     .withDescription(
                             "The minimum number of line samples taken by the compiler for delimited inputs. The samples"
@@ -60,6 +62,7 @@ public class OptimizerOptions {
      */
     public static final ConfigOption<Integer> DELIMITED_FORMAT_MAX_SAMPLE_LEN =
             key("compiler.delimited-informat.max-sample-len")
+                    .intType()
                     .defaultValue(2097152)
                     .withDescription(
                             "The maximal length of a line sample that the compiler takes for delimited inputs. If the"

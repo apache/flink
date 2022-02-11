@@ -23,6 +23,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptorFactory;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionStateUpdateListener;
 import org.apache.flink.runtime.executiongraph.VertexAttemptNumberStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 
@@ -44,6 +45,8 @@ public interface ExecutionGraphFactory {
      *     attempts of previous runs
      * @param vertexParallelismStore vertexMaxParallelismStore keeping information about the vertex
      *     max parallelism settings
+     * @param executionStateUpdateListener listener for state transitions of the individual
+     *     executions
      * @param log log to use for logging
      * @return restored {@link ExecutionGraph}
      * @throws Exception if the {@link ExecutionGraph} could not be created and restored
@@ -57,6 +60,7 @@ public interface ExecutionGraphFactory {
             long initializationTimestamp,
             VertexAttemptNumberStore vertexAttemptNumberStore,
             VertexParallelismStore vertexParallelismStore,
+            ExecutionStateUpdateListener executionStateUpdateListener,
             Logger log)
             throws Exception;
 }

@@ -30,7 +30,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 
-import org.apache.commons.io.FileUtils;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
@@ -92,19 +91,8 @@ public class TaskManagerProcessFailureStreamingRecoveryITCase
         // write result to temporary file
         result.addSink(new CheckpointedSink(DATA_COUNT));
 
-        try {
-            // blocking call until execution is done
-            env.execute();
-
-            // TODO: Figure out why this fails when ran with other tests
-            // Check whether checkpoints have been cleaned up properly
-            // assertDirectoryEmpty(tempCheckpointDir);
-        } finally {
-            // clean up
-            if (tempCheckpointDir.exists()) {
-                FileUtils.deleteDirectory(tempCheckpointDir);
-            }
-        }
+        // blocking call until execution is done
+        env.execute();
     }
 
     private static class SleepyDurableGenerateSequence extends RichParallelSourceFunction<Long>

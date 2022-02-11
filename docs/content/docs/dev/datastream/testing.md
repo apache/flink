@@ -149,11 +149,8 @@ For this Flink comes with a collection of so called test harnesses, which can be
 * `TwoInputStreamOperatorTestHarness` (for operators of `ConnectedStreams` of two `DataStream`s)
 * `KeyedTwoInputStreamOperatorTestHarness` (for operators on `ConnectedStreams` of two `KeyedStream`s)
 
-To use the test harnesses a set of additional dependencies (test scoped) is needed.
-
-{{< artifact flink-test-utils withTestScope >}}
-{{< artifact flink-runtime withTestScope >}}
-{{< artifact flink-streaming-java withTestScope withTestClassifier >}}
+To use the test harnesses a set of additional dependencies is needed. Refer to the 
+[configuration]({{< ref "docs/dev/configuration/testing" >}}) section for more detail. 
 
 Now, the test harnesses can be used to push records and watermarks into your user-defined functions or custom operators, control processing time and finally assert on the output of the operator (including side outputs).
 

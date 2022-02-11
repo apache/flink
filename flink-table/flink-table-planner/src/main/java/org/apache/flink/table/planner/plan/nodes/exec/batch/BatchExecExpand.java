@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExpand;
 import org.apache.flink.table.types.logical.RowType;
@@ -38,9 +39,10 @@ public class BatchExecExpand extends CommonExecExpand implements BatchExecNode<R
             RowType outputType,
             String description) {
         super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecExpand.class),
                 projects,
                 false, // retainHeader
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

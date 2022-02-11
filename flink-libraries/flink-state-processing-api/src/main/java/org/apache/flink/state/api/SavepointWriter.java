@@ -38,6 +38,8 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.functions.sink.OutputFormatSinkFunction;
 import org.apache.flink.util.Preconditions;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.util.Collections;
 import java.util.Comparator;
@@ -54,10 +56,40 @@ public class SavepointWriter {
 
     /**
      * Loads an existing savepoint. Useful if you want to modify or extend the state of an existing
+     * application. The savepoint will be written using the state backend defined via the clusters
+     * configuration.
+     *
+     * @param path The path to an existing savepoint on disk.
+     * @return A {@link SavepointWriter}.
+     * @see #fromExistingSavepoint(String, StateBackend)
+     * @see #withConfiguration(ConfigOption, Object)
+     */
+    public static SavepointWriter fromExistingSavepoint(String path) throws IOException {
+        CheckpointMetadata metadata = SavepointLoader.loadSavepointMetadata(path);
+
+        int maxParallelism =
+                metadata.getOperatorStates().stream()
+                        .map(OperatorState::getMaxParallelism)
+                        .max(Comparator.naturalOrder())
+                        .orElseThrow(
+                                () ->
+                                        new RuntimeException(
+                                                "Savepoint must contain at least one operator state."));
+
+        SavepointMetadataV2 savepointMetadata =
+                new SavepointMetadataV2(
+                        maxParallelism, metadata.getMasterStates(), metadata.getOperatorStates());
+        return new SavepointWriter(savepointMetadata, null);
+    }
+
+    /**
+     * Loads an existing savepoint. Useful if you want to modify or extend the state of an existing
      * application.
      *
      * @param path The path to an existing savepoint on disk.
      * @param stateBackend The state backend of the savepoint.
+     * @return A {@link SavepointWriter}.
+     * @see #fromExistingSavepoint(String)
      */
     public static SavepointWriter fromExistingSavepoint(String path, StateBackend stateBackend)
             throws IOException {
@@ -79,11 +111,35 @@ public class SavepointWriter {
     }
 
     /**
+     * Creates a new savepoint. The savepoint will be written using the state backend defined via
+     * the clusters configuration.
+     *
+     * @param maxParallelism The max parallelism of the savepoint.
+     * @return A {@link SavepointWriter}.
+     * @see #newSavepoint(StateBackend, int)
+     * @see #withConfiguration(ConfigOption, Object)
+     */
+    public static SavepointWriter newSavepoint(int maxParallelism) {
+        Preconditions.checkArgument(
+                maxParallelism > 0 && maxParallelism <= UPPER_BOUND_MAX_PARALLELISM,
+                "Maximum parallelism must be between 1 and "
+                        + UPPER_BOUND_MAX_PARALLELISM
+                        + ". Found: "
+                        + maxParallelism);
+
+        SavepointMetadataV2 metadata =
+                new SavepointMetadataV2(
+                        maxParallelism, Collections.emptyList(), Collections.emptyList());
+        return new SavepointWriter(metadata, null);
+    }
+
+    /**
      * Creates a new savepoint.
      *
      * @param stateBackend The state backend of the savepoint used for keyed state.
      * @param maxParallelism The max parallelism of the savepoint.
-     * @return A new savepoint.
+     * @return A {@link SavepointWriter}.
+     * @see #newSavepoint(int)
      */
     public static SavepointWriter newSavepoint(StateBackend stateBackend, int maxParallelism) {
         Preconditions.checkArgument(
@@ -106,13 +162,12 @@ public class SavepointWriter {
     protected final SavepointMetadataV2 metadata;
 
     /** The state backend to use when writing this savepoint. */
-    protected final StateBackend stateBackend;
+    @Nullable protected final StateBackend stateBackend;
 
     private final Configuration configuration;
 
-    private SavepointWriter(SavepointMetadataV2 metadata, StateBackend stateBackend) {
+    private SavepointWriter(SavepointMetadataV2 metadata, @Nullable StateBackend stateBackend) {
         Preconditions.checkNotNull(metadata, "The savepoint metadata must not be null");
-        Preconditions.checkNotNull(stateBackend, "The state backend must not be null");
         this.metadata = metadata;
         this.stateBackend = stateBackend;
         this.configuration = new Configuration();

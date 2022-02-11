@@ -25,6 +25,7 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.rest.RestClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -134,7 +135,13 @@ public class RMQSourceITCase {
                 Deadline.fromNow(Duration.ofSeconds(10)),
                 5L);
 
-        clusterClient.stopWithSavepoint(JOB_ID, false, tmp.newFolder().getAbsolutePath()).get();
+        clusterClient
+                .stopWithSavepoint(
+                        JOB_ID,
+                        false,
+                        tmp.newFolder().getAbsolutePath(),
+                        SavepointFormatType.CANONICAL)
+                .get();
     }
 
     @Test

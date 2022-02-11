@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -224,12 +225,14 @@ public interface JobMasterGateway
      *
      * @param targetDirectory to which to write the savepoint data or null if the default savepoint
      *     directory should be used
+     * @param formatType binary format for the savepoint
      * @param timeout for the rpc call
      * @return Future which is completed with the savepoint path once completed
      */
     CompletableFuture<String> triggerSavepoint(
             @Nullable final String targetDirectory,
             final boolean cancelJob,
+            final SavepointFormatType formatType,
             @RpcTimeout final Time timeout);
 
     /**
@@ -251,6 +254,7 @@ public interface JobMasterGateway
      */
     CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory,
+            final SavepointFormatType formatType,
             final boolean terminate,
             @RpcTimeout final Time timeout);
 

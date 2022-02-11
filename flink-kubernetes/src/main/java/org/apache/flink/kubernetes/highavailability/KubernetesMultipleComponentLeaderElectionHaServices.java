@@ -28,7 +28,7 @@ import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.blob.BlobStoreService;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.highavailability.AbstractHaServices;
-import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
+import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.DefaultLeaderElectionService;
 import org.apache.flink.runtime.leaderelection.DefaultMultipleComponentLeaderElectionService;
@@ -45,6 +45,7 @@ import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
+import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -81,9 +82,14 @@ public class KubernetesMultipleComponentLeaderElectionHaServices extends Abstrac
             Executor executor,
             Configuration config,
             BlobStoreService blobStoreService,
-            FatalErrorHandler fatalErrorHandler) {
+            FatalErrorHandler fatalErrorHandler)
+            throws IOException {
 
-        super(config, executor, blobStoreService, new EmbeddedJobResultStore());
+        super(
+                config,
+                executor,
+                blobStoreService,
+                FileSystemJobResultStore.fromConfiguration(config));
         this.kubeClient = checkNotNull(kubeClient);
         this.clusterId = checkNotNull(config.get(KubernetesConfigOptions.CLUSTER_ID));
         this.fatalErrorHandler = checkNotNull(fatalErrorHandler);

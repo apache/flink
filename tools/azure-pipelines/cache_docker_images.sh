@@ -21,14 +21,14 @@
 # includes testcontainer images, kafka, elasticearch, etc.
 #
 
-if [ -z "$DOCKER_IMAGES_CACHE_FOLDER" ]
+if [ -z "${DOCKER_IMAGES_CACHE_FOLDER:-}" ]
 then
     echo "\$DOCKER_IMAGES_CACHE_FOLDER must be set to cache the testing docker images. Exiting"
     exit 1
 fi
 
 # This is the pattern that determines which containers we save.
-DOCKER_IMAGE_CACHE_PATTERN="testcontainers|kafka|elasticsearch|postgres|mysql"
+DOCKER_IMAGE_CACHE_PATTERN="testcontainers|kafka|elasticsearch|postgres|mysql|pulsar|cassandra"
 
 # The path to the tar file that will contain the saved docker images.
 DOCKER_IMAGES_CACHE_PATH="${DOCKER_IMAGES_CACHE_FOLDER}/cache.tar"

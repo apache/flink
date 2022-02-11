@@ -20,7 +20,7 @@ package org.apache.flink.runtime.leaderelection;
 
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
 /** Factory for {@link ZooKeeperMultipleComponentLeaderElectionDriver}. */
 public class ZooKeeperMultipleComponentLeaderElectionDriverFactory

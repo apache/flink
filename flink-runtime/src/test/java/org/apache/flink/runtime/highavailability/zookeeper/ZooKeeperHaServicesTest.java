@@ -34,9 +34,9 @@ import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.flink.shaded.curator4.org.apache.curator.retry.RetryNTimes;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.flink.shaded.curator5.org.apache.curator.retry.RetryNTimes;
 
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -173,7 +173,7 @@ public class ZooKeeperHaServicesTest extends TestLogger {
                 haServices -> {
                     final List<String> childrenBefore = client.getChildren().forPath(path);
 
-                    haServices.cleanupJobData(jobID);
+                    haServices.globalCleanupAsync(jobID, Executors.directExecutor()).join();
 
                     final List<String> childrenAfter = client.getChildren().forPath(path);
 

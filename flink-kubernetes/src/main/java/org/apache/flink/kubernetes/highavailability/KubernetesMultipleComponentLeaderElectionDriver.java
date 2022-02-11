@@ -105,6 +105,8 @@ public class KubernetesMultipleComponentLeaderElectionDriver
                         configMapName, new ConfigMapCallbackHandlerImpl(), watchExecutor);
 
         leaderElector.run();
+
+        LOG.debug("Starting the {} for config map {}.", getClass().getSimpleName(), configMapName);
     }
 
     @Override

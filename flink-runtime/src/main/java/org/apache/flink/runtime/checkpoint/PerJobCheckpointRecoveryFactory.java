@@ -74,7 +74,6 @@ public class PerJobCheckpointRecoveryFactory<T extends CompletedCheckpointStore>
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobId,
             int maxNumberOfCheckpointsToRetain,
-            ClassLoader userClassLoader,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor) {
         return store.compute(

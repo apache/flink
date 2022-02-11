@@ -146,6 +146,15 @@ public class CliFrontendParser {
     static final Option SAVEPOINT_DISPOSE_OPTION =
             new Option("d", "dispose", true, "Path of savepoint to dispose.");
 
+    static final Option SAVEPOINT_FORMAT_OPTION =
+            new Option(
+                    "type",
+                    true,
+                    "Describes the binary format in which a savepoint should be taken. Supported"
+                            + " options: [canonical - a common format for all state backends, allow"
+                            + " for changing state backends, native = a specific format for the"
+                            + " chosen state backend, might be faster to take and restore from.");
+
     // list specific options
     static final Option RUNNING_OPTION =
             new Option("r", "running", false, "Show only running programs and their JobIDs");
@@ -302,6 +311,8 @@ public class CliFrontendParser {
         SAVEPOINT_ALLOW_NON_RESTORED_OPTION.setRequired(false);
         SAVEPOINT_RESTORE_MODE.setRequired(false);
 
+        SAVEPOINT_FORMAT_OPTION.setRequired(false);
+
         ZOOKEEPER_NAMESPACE_OPTION.setRequired(false);
         ZOOKEEPER_NAMESPACE_OPTION.setArgName("zookeeperNamespace");
 
@@ -397,20 +408,23 @@ public class CliFrontendParser {
     }
 
     static Options getCancelCommandOptions() {
-        Options options = buildGeneralOptions(new Options());
-        return options.addOption(CANCEL_WITH_SAVEPOINT_OPTION);
+        return buildGeneralOptions(new Options())
+                .addOption(CANCEL_WITH_SAVEPOINT_OPTION)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     static Options getStopCommandOptions() {
         return buildGeneralOptions(new Options())
                 .addOption(STOP_WITH_SAVEPOINT_PATH)
-                .addOption(STOP_AND_DRAIN);
+                .addOption(STOP_AND_DRAIN)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     static Options getSavepointCommandOptions() {
-        Options options = buildGeneralOptions(new Options());
-        options.addOption(SAVEPOINT_DISPOSE_OPTION);
-        return options.addOption(JAR_OPTION);
+        return buildGeneralOptions(new Options())
+                .addOption(SAVEPOINT_DISPOSE_OPTION)
+                .addOption(JAR_OPTION)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -41,6 +41,12 @@ public class TestingUtils {
         return Time.milliseconds(Integer.MAX_VALUE);
     }
 
+    public static Duration infiniteDuration() {
+        // we cannot use Long.MAX_VALUE because the Duration stores it in nanosecond resolution and
+        // calculations will easily cause overflows --> 1 year should be long enough for "infinity"
+        return Duration.ofDays(365L);
+    }
+
     public static synchronized ScheduledExecutorService defaultExecutor() {
         if (sharedExecutorInstance == null || sharedExecutorInstance.isShutdown()) {
             sharedExecutorInstance = Executors.newSingleThreadScheduledExecutor();

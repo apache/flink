@@ -24,6 +24,7 @@ import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -33,6 +34,7 @@ import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.client.JobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.dispatcher.cleanup.TestingCleanupRunnerFactory;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
@@ -58,7 +60,6 @@ import org.apache.flink.runtime.jobmaster.factories.DefaultJobMasterServiceProce
 import org.apache.flink.runtime.jobmaster.factories.JobManagerJobMetricGroupFactory;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFactory;
 import org.apache.flink.runtime.jobmaster.factories.TestingJobMasterServiceFactory;
-import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGateway;
 import org.apache.flink.runtime.jobmaster.utils.TestingJobMasterGatewayBuilder;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingLeaderElectionService;
@@ -87,11 +88,10 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
-import org.apache.flink.util.function.ThrowingRunnable;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.assertj.core.api.Assertions;
 import org.hamcrest.Matchers;
-import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -109,11 +109,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -126,8 +124,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
@@ -176,8 +173,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
             JobManagerRunnerFactory jobManagerRunnerFactory)
             throws Exception {
         final TestingDispatcher dispatcher =
-                new TestingDispatcherBuilder()
-                        .setHaServices(haServices)
+                createTestingDispatcherBuilder()
+                        .setHighAvailabilityServices(haServices)
                         .setHeartbeatServices(heartbeatServices)
                         .setJobManagerRunnerFactory(jobManagerRunnerFactory)
                         .setJobGraphWriter(haServices.getJobGraphStore())
@@ -244,11 +241,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
     @Test
     public void testDuplicateJobSubmissionWithRunningJobId() throws Exception {
         dispatcher =
-                new TestingDispatcherBuilder()
+                createTestingDispatcherBuilder()
                         .setJobManagerRunnerFactory(
                                 new ExpectedJobIdJobManagerRunnerFactory(
                                         jobId, createdJobManagerRunnerLatch))
-                        .setInitialJobGraphs(Collections.singleton(jobGraph))
+                        .setRecoveredJobs(Collections.singleton(jobGraph))
                         .build();
         dispatcher.start();
         final DispatcherGateway dispatcherGateway =
@@ -346,7 +343,11 @@ public class DispatcherTest extends AbstractDispatcherTest {
         try {
             dispatcherGateway
                     .triggerSavepointAndGetLocation(
-                            jobId, "file:///tmp/savepoint", TriggerSavepointMode.SAVEPOINT, TIMEOUT)
+                            jobId,
+                            "file:///tmp/savepoint",
+                            SavepointFormatType.CANONICAL,
+                            TriggerSavepointMode.SAVEPOINT,
+                            TIMEOUT)
                     .get();
             fail("Previous statement should have failed");
         } catch (ExecutionException t) {
@@ -468,7 +469,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final CompletableFuture<JobManagerRunnerResult> jobTerminationFuture =
                 new CompletableFuture<>();
         dispatcher =
-                new TestingDispatcherBuilder()
+                createTestingDispatcherBuilder()
                         .setJobManagerRunnerFactory(
                                 new FinishingJobManagerRunnerFactory(
                                         jobTerminationFuture, () -> {}))
@@ -504,8 +505,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
     @Test
     public void testJobManagerRunnerInitializationFailureFailsJob() throws Exception {
-        final TestingJobManagerRunnerFactory testingJobManagerRunnerFactory =
-                new TestingJobManagerRunnerFactory();
+        final TestingJobMasterServiceLeadershipRunnerFactory testingJobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
 
         dispatcher =
                 createAndStartDispatcher(
@@ -666,13 +667,12 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final FlinkException testException = new FlinkException("Test exception");
         jobMasterLeaderElectionService.isLeader(UUID.randomUUID());
 
-        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                new TestingJobManagerRunnerFactory();
+        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
         dispatcher =
-                new TestingDispatcherBuilder()
+                createTestingDispatcherBuilder()
                         .setJobManagerRunnerFactory(jobManagerRunnerFactory)
-                        .setInitialJobGraphs(
-                                Collections.singleton(JobGraphTestUtils.emptyJobGraph()))
+                        .setRecoveredJobs(Collections.singleton(JobGraphTestUtils.emptyJobGraph()))
                         .build();
 
         dispatcher.start();
@@ -715,81 +715,55 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final JobResult jobResult =
                 TestingJobResultStore.createSuccessfulJobResult(jobGraph.getJobID());
         dispatcher =
-                new TestingDispatcherBuilder()
-                        .setInitialJobGraphs(Collections.singleton(jobGraph))
-                        .setDirtyJobResults(Collections.singleton(jobResult))
+                createTestingDispatcherBuilder()
+                        .setRecoveredJobs(Collections.singleton(jobGraph))
+                        .setRecoveredDirtyJobs(Collections.singleton(jobResult))
                         .build();
     }
 
-    /** Tests that a failing {@link JobManagerRunner} will be properly cleaned up. */
     @Test
-    public void testFailingJobManagerRunnerCleanup() throws Exception {
-        final FlinkException testException = new FlinkException("Test exception.");
-        final ArrayBlockingQueue<Optional<Exception>> queue = new ArrayBlockingQueue<>(2);
+    public void testJobCleanupWithoutRecoveredJobGraph() throws Exception {
+        final JobID jobIdOfRecoveredDirtyJobs = new JobID();
+        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory();
+        final TestingCleanupRunnerFactory cleanupRunnerFactory = new TestingCleanupRunnerFactory();
 
-        final BlockingJobManagerRunnerFactory blockingJobManagerRunnerFactory =
-                new BlockingJobManagerRunnerFactory(
-                        () -> {
-                            final Optional<Exception> maybeException = queue.take();
-                            if (maybeException.isPresent()) {
-                                throw maybeException.get();
-                            }
-                        });
-
-        final BlockingQueue<String> cleanUpEvents = new LinkedBlockingQueue<>();
-
-        // Track cleanup - ha-services
-        final CompletableFuture<JobID> cleanupJobData = new CompletableFuture<>();
-        haServices.setCleanupJobDataFuture(cleanupJobData);
-        cleanupJobData.thenAccept(jobId -> cleanUpEvents.add(CLEANUP_HA_SERVICES));
-
-        // Track cleanup - job-graph
-        final TestingJobGraphStore jobGraphStore =
-                TestingJobGraphStore.newBuilder()
-                        .setReleaseJobGraphConsumer(
-                                jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_RELEASE))
-                        .setRemoveJobGraphConsumer(
-                                jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_REMOVE))
-                        .build();
-        jobGraphStore.start(null);
-        haServices.setJobGraphStore(jobGraphStore);
-
-        // Track cleanup - job result store
-        haServices.setJobResultStore(
-                TestingJobResultStore.builder()
-                        .withMarkResultAsCleanConsumer(
-                                jobID -> cleanUpEvents.add(CLEANUP_JOB_RESULT_STORE))
-                        .build());
-
+        final OneShotLatch dispatcherBootstrapLatch = new OneShotLatch();
         dispatcher =
-                createAndStartDispatcher(
-                        heartbeatServices, haServices, blockingJobManagerRunnerFactory);
+                createTestingDispatcherBuilder()
+                        .setJobManagerRunnerFactory(jobManagerRunnerFactory)
+                        .setCleanupRunnerFactory(cleanupRunnerFactory)
+                        .setRecoveredDirtyJobs(
+                                Collections.singleton(
+                                        new JobResult.Builder()
+                                                .jobId(jobIdOfRecoveredDirtyJobs)
+                                                .applicationStatus(ApplicationStatus.SUCCEEDED)
+                                                .netRuntime(1)
+                                                .build()))
+                        .setDispatcherBootstrapFactory(
+                                (ignoredDispatcherGateway,
+                                        ignoredScheduledExecutor,
+                                        ignoredFatalErrorHandler) -> {
+                                    dispatcherBootstrapLatch.trigger();
+                                    return new NoOpDispatcherBootstrap();
+                                })
+                        .build();
 
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
+        dispatcher.start();
 
-        // submit and fail during job master runner construction
-        queue.offer(Optional.of(testException));
-        try {
-            dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
-            fail("A FlinkException is expected");
-        } catch (Throwable expectedException) {
-            assertThat(expectedException, containsCause(FlinkException.class));
-            assertThat(expectedException, containsMessage(testException.getMessage()));
-            // make sure we've cleaned up in correct order (including HA)
-            assertThat(
-                    new ArrayList<>(cleanUpEvents),
-                    equalTo(Arrays.asList(CLEANUP_JOB_GRAPH_REMOVE, CLEANUP_HA_SERVICES)));
-        }
+        dispatcherBootstrapLatch.await();
 
-        // don't fail this time
-        queue.offer(Optional.empty());
-        // submit job again
-        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
-        blockingJobManagerRunnerFactory.setJobStatus(JobStatus.RUNNING);
+        final TestingJobManagerRunner cleanupRunner =
+                cleanupRunnerFactory.takeCreatedJobManagerRunner();
+        assertThat(
+                "The CleanupJobManagerRunner has the wrong job ID attached.",
+                cleanupRunner.getJobID(),
+                is(jobIdOfRecoveredDirtyJobs));
 
-        // Ensure job is running
-        awaitStatus(dispatcherGateway, jobId, JobStatus.RUNNING);
+        assertThat(
+                "No JobMaster should have been started.",
+                jobManagerRunnerFactory.getQueueSize(),
+                is(0));
     }
 
     @Test
@@ -800,7 +774,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
         haServices.setJobGraphStore(submittedJobGraphStore);
 
         dispatcher =
-                new TestingDispatcherBuilder().setJobGraphWriter(submittedJobGraphStore).build();
+                createTestingDispatcherBuilder().setJobGraphWriter(submittedJobGraphStore).build();
 
         dispatcher.start();
 
@@ -904,14 +878,22 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         final TestingJobGraphStore testingJobGraphStore =
                 TestingJobGraphStore.newBuilder()
-                        .setRemoveJobGraphConsumer(removeJobGraphFuture::complete)
-                        .setReleaseJobGraphConsumer(releaseJobGraphFuture::complete)
+                        .setGlobalCleanupFunction(
+                                (jobId, executor) -> {
+                                    removeJobGraphFuture.complete(jobId);
+                                    return FutureUtils.completedVoidFuture();
+                                })
+                        .setLocalCleanupFunction(
+                                (jobId, executor) -> {
+                                    releaseJobGraphFuture.complete(jobId);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .build();
         testingJobGraphStore.start(null);
 
         dispatcher =
-                new TestingDispatcherBuilder()
-                        .setInitialJobGraphs(Collections.singleton(jobGraph))
+                createTestingDispatcherBuilder()
+                        .setRecoveredJobs(Collections.singleton(jobGraph))
                         .setJobGraphWriter(testingJobGraphStore)
                         .build();
         dispatcher.start();
@@ -1090,8 +1072,8 @@ public class DispatcherTest extends AbstractDispatcherTest {
         final PermanentBlobKey blobKey2 = blobServer.putPermanent(jobId2, fileContent);
 
         dispatcher =
-                new TestingDispatcherBuilder()
-                        .setInitialJobGraphs(Collections.singleton(new JobGraph(jobId1, "foobar")))
+                createTestingDispatcherBuilder()
+                        .setRecoveredJobs(Collections.singleton(new JobGraph(jobId1, "foobar")))
                         .build();
 
         Assertions.assertThat(blobServer.getFile(jobId1, blobKey1)).hasBinaryContent(fileContent);
@@ -1136,16 +1118,22 @@ public class DispatcherTest extends AbstractDispatcherTest {
 
         // Track cleanup - ha-services
         final CompletableFuture<JobID> cleanupJobData = new CompletableFuture<>();
-        haServices.setCleanupJobDataFuture(cleanupJobData);
+        haServices.setGlobalCleanupFuture(cleanupJobData);
         cleanupJobData.thenAccept(jobId -> cleanUpEvents.add(CLEANUP_HA_SERVICES));
 
         // Track cleanup - job-graph
         final TestingJobGraphStore jobGraphStore =
                 TestingJobGraphStore.newBuilder()
-                        .setReleaseJobGraphConsumer(
-                                jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_RELEASE))
-                        .setRemoveJobGraphConsumer(
-                                jobId -> cleanUpEvents.add(CLEANUP_JOB_GRAPH_REMOVE))
+                        .setLocalCleanupFunction(
+                                (jobId, executor) -> {
+                                    cleanUpEvents.add(CLEANUP_JOB_GRAPH_RELEASE);
+                                    return FutureUtils.completedVoidFuture();
+                                })
+                        .setGlobalCleanupFunction(
+                                (jobId, executor) -> {
+                                    cleanUpEvents.add(CLEANUP_JOB_GRAPH_REMOVE);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .build();
         jobGraphStore.start(null);
         haServices.setJobGraphStore(jobGraphStore);
@@ -1158,7 +1146,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                         assertThat(
                                                 "All cleanup tasks should have been finished before marking the job as clean.",
                                                 cleanUpEvents,
-                                                IsIterableContainingInAnyOrder.containsInAnyOrder(
+                                                containsInAnyOrder(
                                                         CLEANUP_HA_SERVICES,
                                                         CLEANUP_JOB_GRAPH_REMOVE,
                                                         CLEANUP_JOB_MANAGER_RUNNER)))
@@ -1336,70 +1324,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
                 return future.whenComplete((r, t) -> super.closeAsync());
             }
             return super.closeAsync();
-        }
-    }
-
-    private static final class BlockingJobManagerRunnerFactory
-            extends TestingJobManagerRunnerFactory {
-
-        @Nonnull private final ThrowingRunnable<Exception> jobManagerRunnerCreationLatch;
-        private TestingJobManagerRunner testingRunner;
-
-        BlockingJobManagerRunnerFactory(
-                @Nonnull ThrowingRunnable<Exception> jobManagerRunnerCreationLatch) {
-            this.jobManagerRunnerCreationLatch = jobManagerRunnerCreationLatch;
-        }
-
-        @Override
-        public TestingJobManagerRunner createJobManagerRunner(
-                JobGraph jobGraph,
-                Configuration configuration,
-                RpcService rpcService,
-                HighAvailabilityServices highAvailabilityServices,
-                HeartbeatServices heartbeatServices,
-                JobManagerSharedServices jobManagerSharedServices,
-                JobManagerJobMetricGroupFactory jobManagerJobMetricGroupFactory,
-                FatalErrorHandler fatalErrorHandler,
-                long initializationTimestamp)
-                throws Exception {
-            jobManagerRunnerCreationLatch.run();
-
-            this.testingRunner =
-                    super.createJobManagerRunner(
-                            jobGraph,
-                            configuration,
-                            rpcService,
-                            highAvailabilityServices,
-                            heartbeatServices,
-                            jobManagerSharedServices,
-                            jobManagerJobMetricGroupFactory,
-                            fatalErrorHandler,
-                            initializationTimestamp);
-
-            TestingJobMasterGateway testingJobMasterGateway =
-                    new TestingJobMasterGatewayBuilder()
-                            .setRequestJobSupplier(
-                                    () ->
-                                            CompletableFuture.completedFuture(
-                                                    new ExecutionGraphInfo(
-                                                            ArchivedExecutionGraph
-                                                                    .createFromInitializingJob(
-                                                                            jobGraph.getJobID(),
-                                                                            jobGraph.getName(),
-                                                                            JobStatus.RUNNING,
-                                                                            null,
-                                                                            null,
-                                                                            1337))))
-                            .build();
-            testingRunner.completeJobMasterGatewayFuture(testingJobMasterGateway);
-            return testingRunner;
-        }
-
-        public void setJobStatus(JobStatus newStatus) {
-            Preconditions.checkState(
-                    testingRunner != null,
-                    "JobManagerRunner must be created before this method is available");
-            this.testingRunner.setJobStatus(newStatus);
         }
     }
 

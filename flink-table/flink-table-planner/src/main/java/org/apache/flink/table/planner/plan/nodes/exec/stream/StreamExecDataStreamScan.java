@@ -29,6 +29,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -54,6 +55,7 @@ import static org.apache.flink.table.typeutils.TimeIndicatorTypeInfo.ROWTIME_STR
 /** Stream {@link ExecNode} to connect a given {@link DataStream} and consume data from it. */
 public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, MultipleTransformationTranslator<RowData> {
+
     private final DataStream<?> dataStream;
     private final DataType sourceType;
     private final int[] fieldIndexes;
@@ -68,7 +70,12 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
             List<String> qualifiedName,
             RowType outputType,
             String description) {
-        super(Collections.emptyList(), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecDataStreamScan.class),
+                Collections.emptyList(),
+                outputType,
+                description);
         this.dataStream = dataStream;
         this.sourceType = sourceType;
         this.fieldIndexes = fieldIndexes;
@@ -109,8 +116,10 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
                             (RowType) getOutputType(),
                             qualifiedName,
                             (detailName, simplifyName) ->
-                                    getFormattedOperatorName(detailName, simplifyName, config),
-                            (description) -> getFormattedOperatorDescription(description, config),
+                                    createFormattedTransformationName(
+                                            detailName, simplifyName, config),
+                            (description) ->
+                                    createFormattedTransformationDescription(description, config),
                             JavaScalaConversionUtil.toScala(rowtimeExpr),
                             extractElement,
                             resetElement);

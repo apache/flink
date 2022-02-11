@@ -25,9 +25,11 @@ import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.ExplainDetail;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.ResultKind;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.StatementSet;
@@ -151,6 +153,7 @@ import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -199,6 +202,8 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     + "USE CATALOG, USE [CATALOG.]DATABASE, SHOW CATALOGS, SHOW DATABASES, SHOW TABLES, SHOW [USER] FUNCTIONS, SHOW PARTITIONS"
                     + "CREATE VIEW, DROP VIEW, SHOW VIEWS, INSERT, DESCRIBE, LOAD MODULE, UNLOAD "
                     + "MODULE, USE MODULES, SHOW [FULL] MODULES.";
+    private static final String UNSUPPORTED_QUERY_IN_COMPILE_PLAN_SQL_MSG =
+            "Unsupported SQL query! compilePlanSql() only accepts a single SQL statement of type INSERT";
 
     protected TableEnvironmentImpl(
             CatalogManager catalogManager,
@@ -750,6 +755,36 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public StatementSet createStatementSet() {
         return new StatementSetImpl(this);
+    }
+
+    @Override
+    public CompiledPlan loadPlan(PlanReference planReference) throws IOException {
+        return planner.loadPlan(planReference);
+    }
+
+    @Override
+    public CompiledPlan compilePlanSql(String stmt) {
+        List<Operation> operations = getParser().parse(stmt);
+
+        if (operations.size() != 1 || !(operations.get(0) instanceof ModifyOperation)) {
+            throw new TableException(UNSUPPORTED_QUERY_IN_COMPILE_PLAN_SQL_MSG);
+        }
+
+        return planner.compilePlan(Collections.singletonList((ModifyOperation) operations.get(0)));
+    }
+
+    @Override
+    public TableResult executePlan(CompiledPlan plan) {
+        CompiledPlanInternal planInternal = (CompiledPlanInternal) plan;
+        List<Transformation<?>> transformations = planner.translatePlan(planInternal);
+        List<String> sinkIdentifierNames =
+                deduplicateSinkIdentifierNames(planInternal.getSinkIdentifiers());
+        return executeInternal(transformations, sinkIdentifierNames);
+    }
+
+    @Override
+    public CompiledPlan compilePlan(List<ModifyOperation> operations) {
+        return planner.compilePlan(operations);
     }
 
     @Override
@@ -1494,14 +1529,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     /**
-     * extract sink identifier names from {@link ModifyOperation}s.
-     *
-     * <p>If there are multiple ModifyOperations have same name, an index suffix will be added at
-     * the end of the name to ensure each name is unique.
+     * extract sink identifier names from {@link ModifyOperation}s and deduplicate them with {@link
+     * #deduplicateSinkIdentifierNames(List)}.
      */
     private List<String> extractSinkIdentifierNames(List<ModifyOperation> operations) {
         List<String> tableNames = new ArrayList<>(operations.size());
-        Map<String, Integer> tableNameToCount = new HashMap<>();
         for (ModifyOperation operation : operations) {
             if (operation instanceof SinkModifyOperation) {
                 String fullName =
@@ -1510,11 +1542,23 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 .getIdentifier()
                                 .asSummaryString();
                 tableNames.add(fullName);
-                tableNameToCount.put(fullName, tableNameToCount.getOrDefault(fullName, 0) + 1);
             } else {
                 throw new UnsupportedOperationException("Unsupported operation: " + operation);
             }
         }
+        return deduplicateSinkIdentifierNames(tableNames);
+    }
+
+    /**
+     * Deduplicate sink identifier names. If there are multiple tables with the same name, an index
+     * suffix will be added at the end of the name to ensure each name is unique.
+     */
+    private List<String> deduplicateSinkIdentifierNames(List<String> tableNames) {
+        Map<String, Integer> tableNameToCount = new HashMap<>();
+        for (String fullName : tableNames) {
+            tableNameToCount.put(fullName, tableNameToCount.getOrDefault(fullName, 0) + 1);
+        }
+
         Map<String, Integer> tableNameToIndex = new HashMap<>();
         return tableNames.stream()
                 .map(
@@ -1860,40 +1904,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public String getJsonPlan(String stmt) {
-        List<Operation> operations = getParser().parse(stmt);
-        if (operations.size() != 1) {
-            throw new TableException(
-                    "Unsupported SQL query! getJsonPlan() only accepts a single INSERT statement.");
-        }
-        Operation operation = operations.get(0);
-        List<ModifyOperation> modifyOperations = new ArrayList<>(1);
-        if (operation instanceof ModifyOperation) {
-            modifyOperations.add((ModifyOperation) operation);
-        } else {
-            throw new TableException("Only INSERT is supported now.");
-        }
-        return getJsonPlan(modifyOperations);
-    }
-
-    @Override
-    public String getJsonPlan(List<ModifyOperation> operations) {
-        return planner.getJsonPlan(operations);
-    }
-
-    @Override
-    public String explainJsonPlan(String jsonPlan, ExplainDetail... extraDetails) {
-        return planner.explainJsonPlan(jsonPlan, extraDetails);
-    }
-
-    @Override
-    public TableResult executeJsonPlan(String jsonPlan) {
-        List<Transformation<?>> transformations = planner.translateJsonPlan(jsonPlan);
-        List<String> sinkIdentifierNames = new ArrayList<>();
-        for (int i = 0; i < transformations.size(); ++i) {
-            // TODO serialize the sink table names to json plan ?
-            sinkIdentifierNames.add("sink" + i);
-        }
-        return executeInternal(transformations, sinkIdentifierNames);
+    public String explainPlan(CompiledPlan compiledPlan, ExplainDetail... extraDetails) {
+        return planner.explainPlan((CompiledPlanInternal) compiledPlan, extraDetails);
     }
 }

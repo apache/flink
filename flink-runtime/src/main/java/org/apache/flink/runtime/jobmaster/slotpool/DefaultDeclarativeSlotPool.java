@@ -51,6 +51,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -181,10 +182,22 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             TaskManagerGateway taskManagerGateway,
             long currentTime) {
 
-        LOG.debug(
-                "Received {} slot offers from TaskExecutor {}.",
-                offers.size(),
-                taskManagerLocation);
+        LOG.debug("Received {} slot offers from TaskExecutor {}.", offers, taskManagerLocation);
+
+        return internalOfferSlots(
+                offers,
+                taskManagerLocation,
+                taskManagerGateway,
+                currentTime,
+                this::matchWithOutstandingRequirement);
+    }
+
+    private Collection<SlotOffer> internalOfferSlots(
+            Collection<? extends SlotOffer> offers,
+            TaskManagerLocation taskManagerLocation,
+            TaskManagerGateway taskManagerGateway,
+            long currentTime,
+            Function<ResourceProfile, Optional<ResourceProfile>> matchingCondition) {
         final Collection<SlotOffer> acceptedSlotOffers = new ArrayList<>();
         final Collection<AllocatedSlot> acceptedSlots = new ArrayList<>();
 
@@ -195,7 +208,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             } else {
                 Optional<AllocatedSlot> acceptedSlot =
                         matchOfferWithOutstandingRequirements(
-                                offer, taskManagerLocation, taskManagerGateway);
+                                offer, taskManagerLocation, taskManagerGateway, matchingCondition);
                 if (acceptedSlot.isPresent()) {
                     acceptedSlotOffers.add(offer);
                     acceptedSlots.add(acceptedSlot.get());
@@ -219,16 +232,40 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         return acceptedSlotOffers;
     }
 
+    @Override
+    public void registerSlots(
+            Collection<? extends SlotOffer> slots,
+            TaskManagerLocation taskManagerLocation,
+            TaskManagerGateway taskManagerGateway,
+            long currentTime) {
+        LOG.debug("Register slots {} from TaskManager {}.", slots, taskManagerLocation);
+        internalOfferSlots(
+                slots,
+                taskManagerLocation,
+                taskManagerGateway,
+                currentTime,
+                this::matchWithOutstandingRequirementOrSelf);
+    }
+
+    private Optional<ResourceProfile> matchWithOutstandingRequirementOrSelf(
+            ResourceProfile resourceProfile) {
+        final Optional<ResourceProfile> match = matchWithOutstandingRequirement(resourceProfile);
+
+        if (match.isPresent()) {
+            return match;
+        } else {
+            return Optional.of(resourceProfile);
+        }
+    }
+
     private Optional<AllocatedSlot> matchOfferWithOutstandingRequirements(
             SlotOffer slotOffer,
             TaskManagerLocation taskManagerLocation,
-            TaskManagerGateway taskManagerGateway) {
+            TaskManagerGateway taskManagerGateway,
+            Function<ResourceProfile, Optional<ResourceProfile>> matchingCondition) {
 
         final Optional<ResourceProfile> match =
-                requirementMatcher.match(
-                        slotOffer.getResourceProfile(),
-                        totalResourceRequirements,
-                        fulfilledResourceRequirements::getResourceCount);
+                matchingCondition.apply(slotOffer.getResourceProfile());
 
         if (match.isPresent()) {
             final ResourceProfile matchedRequirement = match.get();
@@ -250,6 +287,14 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             return Optional.of(allocatedSlot);
         }
         return Optional.empty();
+    }
+
+    private Optional<ResourceProfile> matchWithOutstandingRequirement(
+            ResourceProfile resourceProfile) {
+        return requirementMatcher.match(
+                resourceProfile,
+                totalResourceRequirements,
+                fulfilledResourceRequirements::getResourceCount);
     }
 
     @VisibleForTesting

@@ -21,7 +21,7 @@
 #set -Eexuo pipefail
 set -o pipefail
 
-if [[ -z $FLINK_DIR ]]; then
+if [[ -z "${FLINK_DIR:-}" ]]; then
     echo "FLINK_DIR needs to point to a Flink distribution directory"
     exit 1
 fi
@@ -51,7 +51,7 @@ cd $TEST_ROOT
 
 source "${TEST_INFRA_DIR}/common_utils.sh"
 
-NODENAME=${NODENAME:-`hostname -f`}
+NODENAME=${NODENAME:-"localhost"}
 
 # REST_PROTOCOL and CURL_SSL_ARGS can be modified in common_ssl.sh if SSL is activated
 # they should be used in curl command to query Flink REST API

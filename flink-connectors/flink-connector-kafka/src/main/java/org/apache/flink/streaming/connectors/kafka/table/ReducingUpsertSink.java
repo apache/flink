@@ -17,18 +17,16 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import org.apache.flink.api.connector.sink.Committer;
-import org.apache.flink.api.connector.sink.GlobalCommitter;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.function.SerializableFunction;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
+import java.util.Collection;
 
 /**
  * A wrapper of a {@link Sink}. It will buffer the data emitted by the wrapper {@link SinkWriter}
@@ -37,16 +35,16 @@ import java.util.Optional;
  * <p>The sink provides eventual consistency guarantees without the need of a two-phase protocol
  * because the updates are idempotent therefore duplicates have no effect.
  */
-class ReducingUpsertSink<WriterState> implements Sink<RowData, Void, WriterState, Void> {
+class ReducingUpsertSink<WriterState> implements StatefulSink<RowData, WriterState> {
 
-    private final Sink<RowData, ?, WriterState, ?> wrappedSink;
+    private final StatefulSink<RowData, WriterState> wrappedSink;
     private final DataType physicalDataType;
     private final int[] keyProjection;
     private final SinkBufferFlushMode bufferFlushMode;
     private final SerializableFunction<RowData, RowData> valueCopyFunction;
 
     ReducingUpsertSink(
-            Sink<RowData, ?, WriterState, ?> wrappedSink,
+            StatefulSink<RowData, WriterState> wrappedSink,
             DataType physicalDataType,
             int[] keyProjection,
             SinkBufferFlushMode bufferFlushMode,
@@ -59,10 +57,10 @@ class ReducingUpsertSink<WriterState> implements Sink<RowData, Void, WriterState
     }
 
     @Override
-    public SinkWriter<RowData, Void, WriterState> createWriter(
-            InitContext context, List<WriterState> states) throws IOException {
-        final SinkWriter<RowData, ?, WriterState> wrapperWriter =
-                wrappedSink.createWriter(context, states);
+    public StatefulSinkWriter<RowData, WriterState> createWriter(InitContext context)
+            throws IOException {
+        final StatefulSinkWriter<RowData, WriterState> wrapperWriter =
+                wrappedSink.createWriter(context);
         return new ReducingUpsertWriter<>(
                 wrapperWriter,
                 physicalDataType,
@@ -73,27 +71,21 @@ class ReducingUpsertSink<WriterState> implements Sink<RowData, Void, WriterState
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<WriterState>> getWriterStateSerializer() {
+    public StatefulSinkWriter<RowData, WriterState> restoreWriter(
+            InitContext context, Collection<WriterState> recoveredState) throws IOException {
+        final StatefulSinkWriter<RowData, WriterState> wrapperWriter =
+                wrappedSink.restoreWriter(context, recoveredState);
+        return new ReducingUpsertWriter<>(
+                wrapperWriter,
+                physicalDataType,
+                keyProjection,
+                bufferFlushMode,
+                context.getProcessingTimeService(),
+                valueCopyFunction);
+    }
+
+    @Override
+    public SimpleVersionedSerializer<WriterState> getWriterStateSerializer() {
         return wrappedSink.getWriterStateSerializer();
-    }
-
-    @Override
-    public Optional<Committer<Void>> createCommitter() throws IOException {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<GlobalCommitter<Void, Void>> createGlobalCommitter() throws IOException {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<Void>> getCommittableSerializer() {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<SimpleVersionedSerializer<Void>> getGlobalCommittableSerializer() {
-        return Optional.empty();
     }
 }

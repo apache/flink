@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -132,12 +133,14 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     @Nonnull private final Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier;
 
     @Nonnull
-    private final BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction;
+    private final TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
+            triggerSavepointFunction;
 
     @Nonnull private final Supplier<CompletableFuture<String>> triggerCheckpointFunction;
 
     @Nonnull
-    private final BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction;
+    private final TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
+            stopWithSavepointFunction;
 
     @Nonnull private final BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer;
 
@@ -234,10 +237,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
             @Nonnull Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier,
             @Nonnull Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier,
             @Nonnull
-                    BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction,
+                    TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
+                            triggerSavepointFunction,
             @Nonnull Supplier<CompletableFuture<String>> triggerCheckpointFunction,
             @Nonnull
-                    BiFunction<String, Boolean, CompletableFuture<String>>
+                    TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
                             stopWithSavepointFunction,
             @Nonnull BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer,
             @Nonnull
@@ -406,8 +410,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     @Override
     public CompletableFuture<String> triggerSavepoint(
-            @Nullable final String targetDirectory, final boolean cancelJob, final Time timeout) {
-        return triggerSavepointFunction.apply(targetDirectory, cancelJob);
+            @Nullable final String targetDirectory,
+            final boolean cancelJob,
+            final SavepointFormatType formatType,
+            final Time timeout) {
+        return triggerSavepointFunction.apply(targetDirectory, cancelJob, formatType);
     }
 
     @Override
@@ -417,8 +424,11 @@ public class TestingJobMasterGateway implements JobMasterGateway {
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            @Nullable final String targetDirectory, final boolean terminate, final Time timeout) {
-        return stopWithSavepointFunction.apply(targetDirectory, terminate);
+            @Nullable final String targetDirectory,
+            final SavepointFormatType formatType,
+            final boolean terminate,
+            final Time timeout) {
+        return stopWithSavepointFunction.apply(targetDirectory, terminate, formatType);
     }
 
     @Override

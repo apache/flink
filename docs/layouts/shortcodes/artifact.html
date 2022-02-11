@@ -23,6 +23,7 @@ under the License.
 */}}
 {{ $scalaVersion := "" }}
 {{ $testScope := "" }}
+{{ $providedScope := "" }}
 {{ $testClassifier := "" }}
 
 {{ $artifactId := .Get 0 }}
@@ -34,6 +35,8 @@ under the License.
     {{ $scalaVersion = "true" }}
   {{ else if eq . "withTestScope" }}
     {{ $testScope = "true" }}
+  {{ else if eq . "withProvidedScope" }}
+    {{ $providedScope = "true" }}
   {{ else if eq . "withTestClassifier" }}
     {{ $testClassifier = "true" }}
   {{ else }}
@@ -51,7 +54,8 @@ under the License.
     <span class="nt">&ltgroupId&gt</span>org.apache.flink<span class="nt">&lt/groupId&gt</span>
     <span class="nt">&ltartifactId&gt</span>{{- $artifactId -}}<span class="nt">&lt/artifactId&gt</span>
     <span class="nt">&ltversion&gt</span>{{- site.Params.Version -}}<span class="nt">&lt/version&gt</span>{{ if ne $testScope "" }}    
-    <span class="nt">&ltscope&gt</span>test<span class="nt">&lt/scope&gt</span>{{ end }}{{ if ne $testClassifier "" }}    
+    <span class="nt">&ltscope&gt</span>test<span class="nt">&lt/scope&gt</span>{{ end }}{{ if ne $providedScope "" }}
+    <span class="nt">&ltscope&gt</span>provided<span class="nt">&lt/scope&gt</span>{{ end }}{{ if ne $testClassifier "" }}
     <span class="nt">&ltclassifier&gt</span>tests<span class="nt">&lt/classifier&gt</span>{{ end }}
 <span class="nt">&lt/dependency&gt</span></code></pre></div>
 <div class="book-hint info" style="text-align:center;display:none" copyable="flink-module" copyattribute="{{ $hash }}">

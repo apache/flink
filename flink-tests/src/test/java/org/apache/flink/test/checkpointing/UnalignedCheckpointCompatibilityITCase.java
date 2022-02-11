@@ -22,7 +22,9 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -57,7 +59,6 @@ import static java.util.Collections.emptyMap;
 import static org.apache.flink.configuration.CheckpointingOptions.CHECKPOINTS_DIRECTORY;
 import static org.apache.flink.configuration.CheckpointingOptions.MAX_RETAINED_CHECKPOINTS;
 import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -78,7 +79,7 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
     private static final int PARALLELISM = 1;
 
     private final boolean startAligned;
-    private final CheckpointType type;
+    private final SnapshotType type;
 
     private static MiniClusterWithClientResource miniCluster;
 
@@ -87,12 +88,12 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
         return new Object[][] {
             {CHECKPOINT, true},
             {CHECKPOINT, false},
-            {SAVEPOINT, true},
-            {SAVEPOINT, false},
+            {SavepointType.savepoint(SavepointFormatType.CANONICAL), true},
+            {SavepointType.savepoint(SavepointFormatType.CANONICAL), false},
         };
     }
 
-    public UnalignedCheckpointCompatibilityITCase(CheckpointType type, boolean startAligned) {
+    public UnalignedCheckpointCompatibilityITCase(SnapshotType type, boolean startAligned) {
         this.startAligned = startAligned;
         this.type = type;
     }
@@ -152,7 +153,8 @@ public class UnalignedCheckpointCompatibilityITCase extends TestLogger {
                         .getJobExecutionResult()
                         .thenApply(JobExecutionResult::getAllAccumulatorResults);
         Future<String> savepointFuture =
-                jobClient.stopWithSavepoint(false, tempFolder().toURI().toString());
+                jobClient.stopWithSavepoint(
+                        false, tempFolder().toURI().toString(), SavepointFormatType.CANONICAL);
         return new Tuple2<>(savepointFuture.get(), accFuture.get());
     }
 

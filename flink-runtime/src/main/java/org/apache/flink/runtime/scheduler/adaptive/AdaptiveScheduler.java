@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
@@ -79,7 +80,6 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.scheduler.DefaultOperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
@@ -98,6 +98,7 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
+import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExceptionUtils;
@@ -167,7 +168,6 @@ public class AdaptiveScheduler
 
     private final Executor ioExecutor;
     private final ClassLoader userCodeClassLoader;
-    private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
     private final CheckpointsCleaner checkpointsCleaner;
     private final CompletedCheckpointStore completedCheckpointStore;
@@ -191,7 +191,6 @@ public class AdaptiveScheduler
     private final Duration resourceStabilizationTimeout;
 
     private final ExecutionGraphFactory executionGraphFactory;
-    private final JobStatusStore jobStatusStore;
 
     private State state = new Created(this, LOG);
 
@@ -205,6 +204,8 @@ public class AdaptiveScheduler
     private BackgroundTask<ExecutionGraph> backgroundTask = BackgroundTask.finishedBackgroundTask();
 
     private final SchedulerExecutionMode executionMode;
+
+    private final DeploymentStateTimeMetrics deploymentTimeMetrics;
 
     public AdaptiveScheduler(
             JobGraph jobGraph,
@@ -240,17 +241,11 @@ public class AdaptiveScheduler
         this.ioExecutor = ioExecutor;
         this.userCodeClassLoader = userCodeClassLoader;
         this.restartBackoffTimeStrategy = restartBackoffTimeStrategy;
-        this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
         this.fatalErrorHandler = fatalErrorHandler;
         this.checkpointsCleaner = checkpointsCleaner;
         this.completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStoreIfCheckpointingIsEnabled(
-                        jobGraph,
-                        configuration,
-                        userCodeClassLoader,
-                        checkpointRecoveryFactory,
-                        ioExecutor,
-                        LOG);
+                        jobGraph, configuration, checkpointRecoveryFactory, ioExecutor, LOG);
         this.checkpointIdCounter =
                 SchedulerUtils.createCheckpointIDCounterIfCheckpointingIsEnabled(
                         jobGraph, checkpointRecoveryFactory);
@@ -261,8 +256,6 @@ public class AdaptiveScheduler
 
         this.componentMainThreadExecutor = mainThreadExecutor;
 
-        this.jobStatusStore = new JobStatusStore(initializationTimestamp);
-
         this.scaleUpController = new ReactiveScaleUpController(configuration);
 
         this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
@@ -271,17 +264,25 @@ public class AdaptiveScheduler
 
         this.executionGraphFactory = executionGraphFactory;
 
+        final JobStatusStore jobStatusStore = new JobStatusStore(initializationTimestamp);
         final Collection<JobStatusListener> tmpJobStatusListeners = new ArrayList<>();
         tmpJobStatusListeners.add(Preconditions.checkNotNull(jobStatusListener));
         tmpJobStatusListeners.add(jobStatusStore);
+
+        final MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings =
+                MetricOptions.JobStatusMetricsSettings.fromConfiguration(configuration);
+
+        deploymentTimeMetrics =
+                new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
 
         SchedulerBase.registerJobMetrics(
                 jobManagerJobMetricGroup,
                 jobStatusStore,
                 () -> (long) numRestarts,
+                deploymentTimeMetrics,
                 tmpJobStatusListeners::add,
                 initializationTimestamp,
-                MetricOptions.JobStatusMetricsSettings.fromConfiguration(configuration));
+                jobStatusMetricsSettings);
 
         jobStatusListeners = Collections.unmodifiableCollection(tmpJobStatusListeners);
     }
@@ -600,12 +601,12 @@ public class AdaptiveScheduler
 
     @Override
     public CompletableFuture<String> triggerSavepoint(
-            @Nullable String targetDirectory, boolean cancelJob) {
+            @Nullable String targetDirectory, boolean cancelJob, SavepointFormatType formatType) {
         return state.tryCall(
                         StateWithExecutionGraph.class,
                         stateWithExecutionGraph ->
                                 stateWithExecutionGraph.triggerSavepoint(
-                                        targetDirectory, cancelJob),
+                                        targetDirectory, cancelJob, formatType),
                         "triggerSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(
@@ -670,10 +671,11 @@ public class AdaptiveScheduler
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            @Nullable String targetDirectory, boolean terminate) {
+            @Nullable String targetDirectory, boolean terminate, SavepointFormatType formatType) {
         return state.tryCall(
                         Executing.class,
-                        executing -> executing.stopWithSavepoint(targetDirectory, terminate),
+                        executing ->
+                                executing.stopWithSavepoint(targetDirectory, terminate, formatType),
                         "stopWithSavepoint")
                 .orElse(
                         FutureUtils.completedExceptionally(
@@ -784,26 +786,6 @@ public class AdaptiveScheduler
 
     private ResourceCounter calculateDesiredResources() {
         return slotAllocator.calculateRequiredSlots(jobInformation.getVertices());
-    }
-
-    @Override
-    public void goToExecuting(ExecutionGraph executionGraph) {
-        final ExecutionGraphHandler executionGraphHandler =
-                new ExecutionGraphHandler(
-                        executionGraph, LOG, ioExecutor, componentMainThreadExecutor);
-        final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new DefaultOperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
-        operatorCoordinatorHandler.initializeOperatorCoordinators(componentMainThreadExecutor);
-        operatorCoordinatorHandler.startAllOperatorCoordinators();
-
-        transitionToState(
-                new Executing.Factory(
-                        executionGraph,
-                        executionGraphHandler,
-                        operatorCoordinatorHandler,
-                        LOG,
-                        this,
-                        userCodeClassLoader));
     }
 
     @Override
@@ -1026,6 +1008,7 @@ public class AdaptiveScheduler
                 initializationTimestamp,
                 vertexAttemptNumberStore,
                 adjustedParallelismStore,
+                deploymentTimeMetrics,
                 LOG);
     }
 
@@ -1102,7 +1085,12 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public Executor getMainThreadExecutor() {
+    public Executor getIOExecutor() {
+        return ioExecutor;
+    }
+
+    @Override
+    public ComponentMainThreadExecutor getMainThreadExecutor() {
         return componentMainThreadExecutor;
     }
 
@@ -1152,6 +1140,7 @@ public class AdaptiveScheduler
         Preconditions.checkState(
                 state.getClass() != targetState.getStateClass(),
                 "Attempted to transition into the very state the scheduler is already in.");
+        componentMainThreadExecutor.assertRunningInMainThread();
 
         try {
             isTransitioningState = true;

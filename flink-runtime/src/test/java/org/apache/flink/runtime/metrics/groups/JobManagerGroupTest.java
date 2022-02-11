@@ -26,6 +26,7 @@ import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.dump.QueryScopeInfo;
 import org.apache.flink.runtime.metrics.util.DummyCharacterFilter;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.Test;
 
@@ -62,12 +63,12 @@ public class JobManagerGroupTest extends TestLogger {
 
         assertEquals(2, group.numRegisteredJobMetricGroups());
 
-        group.removeJob(jid1);
+        group.localCleanupAsync(jid1, Executors.directExecutor()).join();
 
         assertTrue(jmJobGroup11.isClosed());
         assertEquals(1, group.numRegisteredJobMetricGroups());
 
-        group.removeJob(jid2);
+        group.localCleanupAsync(jid2, Executors.directExecutor()).join();
 
         assertTrue(jmJobGroup21.isClosed());
         assertEquals(0, group.numRegisteredJobMetricGroups());

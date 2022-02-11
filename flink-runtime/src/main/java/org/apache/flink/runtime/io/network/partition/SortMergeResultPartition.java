@@ -31,7 +31,6 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
 import org.apache.flink.runtime.io.network.buffer.BufferPool;
 import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
-import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.function.SupplierWithException;
 
@@ -85,10 +84,22 @@ public class SortMergeResultPartition extends ResultPartition {
     private final int networkBufferSize;
 
     /** File writer for this result partition. */
-    private final PartitionedFileWriter fileWriter;
+    @GuardedBy("lock")
+    private PartitionedFileWriter fileWriter;
+
+    /**
+     * Selected storage path to be used by this result partition to store shuffle data file and
+     * index file.
+     */
+    private final String resultFileBasePath;
 
     /** Subpartition orders of coping data from {@link SortBuffer} and writing to file. */
     private final int[] subpartitionOrder;
+
+    /**
+     * A shared buffer pool to allocate buffers from when reading data from this result partition.
+     */
+    private final BatchShuffleReadBufferPool readBufferPool;
 
     /**
      * Data read scheduler for this result partition which schedules data read of all subpartitions.
@@ -132,6 +143,8 @@ public class SortMergeResultPartition extends ResultPartition {
                 bufferCompressor,
                 bufferPoolFactory);
 
+        this.resultFileBasePath = checkNotNull(resultFileBasePath);
+        this.readBufferPool = checkNotNull(readBufferPool);
         this.networkBufferSize = readBufferPool.getBufferSize();
         // because IO scheduling will always try to read data in file offset order for better IO
         // performance, when writing data to file, we use a random subpartition order to avoid
@@ -141,19 +154,25 @@ public class SortMergeResultPartition extends ResultPartition {
         this.readScheduler =
                 new SortMergeResultPartitionReadScheduler(
                         numSubpartitions, readBufferPool, readIOExecutor, lock);
-
-        PartitionedFileWriter fileWriter = null;
-        try {
-            // allocate at most 4M heap memory for caching of index entries
-            fileWriter = new PartitionedFileWriter(numSubpartitions, 4194304, resultFileBasePath);
-        } catch (Throwable throwable) {
-            ExceptionUtils.rethrow(throwable);
-        }
-        this.fileWriter = fileWriter;
     }
 
     @Override
     public void setup() throws IOException {
+        synchronized (lock) {
+            if (isReleased()) {
+                throw new IOException("Result partition has been released.");
+            }
+            try {
+                // allocate at most 4M heap memory for caching of index entries
+                fileWriter =
+                        new PartitionedFileWriter(numSubpartitions, 4194304, resultFileBasePath);
+            } catch (Throwable throwable) {
+                throw new IOException("Failed to create file writer.", throwable);
+            }
+        }
+
+        // initialize the buffer pool eagerly to avoid reporting errors such as OOM too late
+        readBufferPool.initialize();
         super.setup();
 
         int expectedWriteBuffers = NUM_WRITE_BUFFER_BYTES / networkBufferSize;
@@ -191,7 +210,7 @@ public class SortMergeResultPartition extends ResultPartition {
     @Override
     protected void releaseInternal() {
         synchronized (lock) {
-            if (resultFile == null) {
+            if (resultFile == null && fileWriter != null) {
                 fileWriter.releaseQuietly();
             }
 
@@ -409,10 +428,9 @@ public class SortMergeResultPartition extends ResultPartition {
             checkState(!isReleased(), "Result partition is already released.");
 
             resultFile = fileWriter.finish();
+            super.finish();
             LOG.info("New partitioned file produced: {}.", resultFile);
         }
-
-        super.finish();
     }
 
     private void releaseWriteBuffers() {
@@ -444,6 +462,10 @@ public class SortMergeResultPartition extends ResultPartition {
             checkElementIndex(subpartitionIndex, numSubpartitions, "Subpartition not found.");
             checkState(!isReleased(), "Partition released.");
             checkState(isFinished(), "Trying to read unfinished blocking partition.");
+
+            if (!resultFile.isReadable()) {
+                throw new PartitionNotFoundException(getPartitionId());
+            }
 
             return readScheduler.createSubpartitionReader(
                     availabilityListener, subpartitionIndex, resultFile);

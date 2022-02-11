@@ -31,27 +31,32 @@ public class PrometheusPushGatewayReporterOptions {
 
     public static final ConfigOption<String> HOST =
             ConfigOptions.key("host")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription("The PushGateway server host.");
 
     public static final ConfigOption<Integer> PORT =
             ConfigOptions.key("port")
+                    .intType()
                     .defaultValue(-1)
                     .withDescription("The PushGateway server port.");
 
     public static final ConfigOption<String> JOB_NAME =
             ConfigOptions.key("jobName")
+                    .stringType()
                     .defaultValue("")
                     .withDescription("The job name under which metrics will be pushed");
 
     public static final ConfigOption<Boolean> RANDOM_JOB_NAME_SUFFIX =
             ConfigOptions.key("randomJobNameSuffix")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "Specifies whether a random suffix should be appended to the job name.");
 
     public static final ConfigOption<Boolean> DELETE_ON_SHUTDOWN =
             ConfigOptions.key("deleteOnShutdown")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             Description.builder()
@@ -65,6 +70,7 @@ public class PrometheusPushGatewayReporterOptions {
 
     public static final ConfigOption<Boolean> FILTER_LABEL_VALUE_CHARACTER =
             ConfigOptions.key("filterLabelValueCharacters")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             Description.builder()
@@ -81,6 +87,7 @@ public class PrometheusPushGatewayReporterOptions {
 
     public static final ConfigOption<String> GROUPING_KEY =
             ConfigOptions.key("groupingKey")
+                    .stringType()
                     .defaultValue("")
                     .withDescription(
                             Description.builder()

@@ -40,6 +40,9 @@ Dependencies
 
 {{< sql_download_table "elastic" >}}
 
+The Elasticsearch connector is not part of the binary distribution.
+See how to link with it for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
+
 How to create an Elasticsearch table
 ----------------
 

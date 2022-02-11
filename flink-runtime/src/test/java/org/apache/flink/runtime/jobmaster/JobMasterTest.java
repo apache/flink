@@ -32,6 +32,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -639,6 +640,9 @@ public class JobMasterTest extends TestLogger {
 
             return new AllocatedSlotReport(jobId, allocatedSlotInfos);
         }
+
+        @Override
+        public void setIsJobRestarting(boolean isJobRestarting) {}
 
         @Override
         public void releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
@@ -1469,15 +1473,15 @@ public class JobMasterTest extends TestLogger {
     }
 
     /**
-     * Tests that the timeout in {@link JobMasterGateway#triggerSavepoint(String, boolean, Time)} is
-     * respected.
+     * Tests that the timeout in {@link JobMasterGateway#triggerSavepoint(String, boolean,
+     * SavepointFormatType, Time)} is respected.
      */
     @Test
     public void testTriggerSavepointTimeout() throws Exception {
         final TestingSchedulerNG testingSchedulerNG =
                 TestingSchedulerNG.newBuilder()
                         .setTriggerSavepointFunction(
-                                (ignoredA, ignoredB) -> new CompletableFuture<>())
+                                (ignoredA, ignoredB, formatType) -> new CompletableFuture<>())
                         .build();
 
         final JobMaster jobMaster =
@@ -1495,9 +1499,11 @@ public class JobMasterTest extends TestLogger {
             final JobMasterGateway jobMasterGateway =
                     jobMaster.getSelfGateway(JobMasterGateway.class);
             final CompletableFuture<String> savepointFutureLowTimeout =
-                    jobMasterGateway.triggerSavepoint("/tmp", false, Time.milliseconds(1));
+                    jobMasterGateway.triggerSavepoint(
+                            "/tmp", false, SavepointFormatType.CANONICAL, Time.milliseconds(1));
             final CompletableFuture<String> savepointFutureHighTimeout =
-                    jobMasterGateway.triggerSavepoint("/tmp", false, RpcUtils.INF_TIMEOUT);
+                    jobMasterGateway.triggerSavepoint(
+                            "/tmp", false, SavepointFormatType.CANONICAL, RpcUtils.INF_TIMEOUT);
 
             try {
                 savepointFutureLowTimeout.get(testingTimeout.getSize(), testingTimeout.getUnit());
@@ -1917,6 +1923,65 @@ public class JobMasterTest extends TestLogger {
         schedulerTerminationFuture.complete(null);
 
         jobMasterTerminationFuture.get();
+    }
+
+    @Test
+    public void testJobMasterAcceptsSlotsWhenJobIsRestarting() throws Exception {
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofDays(1));
+        final int numberSlots = 1;
+        final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withConfiguration(configuration)
+                        .createJobMaster();
+
+        try {
+            jobMaster.start();
+
+            final JobMasterGateway jobMasterGateway =
+                    jobMaster.getSelfGateway(JobMasterGateway.class);
+
+            final LocalUnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
+                    new LocalUnresolvedTaskManagerLocation();
+            registerSlotsAtJobMaster(
+                    numberSlots,
+                    jobMasterGateway,
+                    jobGraph.getJobID(),
+                    new TestingTaskExecutorGatewayBuilder()
+                            .setAddress("firstTaskManager")
+                            .createTestingTaskExecutorGateway(),
+                    unresolvedTaskManagerLocation);
+
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            jobMasterGateway.requestJobStatus(testingTimeout).get()
+                                    == JobStatus.RUNNING,
+                    Deadline.fromNow(TimeUtils.toDuration(testingTimeout)));
+
+            jobMasterGateway.disconnectTaskManager(
+                    unresolvedTaskManagerLocation.getResourceID(),
+                    new FlinkException("Test exception."));
+
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            jobMasterGateway.requestJobStatus(testingTimeout).get()
+                                    == JobStatus.RESTARTING,
+                    Deadline.fromNow(TimeUtils.toDuration(testingTimeout)));
+
+            assertThat(
+                    registerSlotsAtJobMaster(
+                            numberSlots,
+                            jobMasterGateway,
+                            jobGraph.getJobID(),
+                            new TestingTaskExecutorGatewayBuilder()
+                                    .setAddress("secondTaskManager")
+                                    .createTestingTaskExecutorGateway(),
+                            new LocalUnresolvedTaskManagerLocation()),
+                    hasSize(numberSlots));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
     }
 
     private void runJobFailureWhenTaskExecutorTerminatesTest(

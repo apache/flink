@@ -19,10 +19,14 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.scheduler.DefaultOperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
+import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -33,6 +37,7 @@ import javax.annotation.Nullable;
 
 import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -47,15 +52,15 @@ public class CreatingExecutionGraph implements State {
 
     private final Context context;
 
-    private final Logger log;
+    private final Logger logger;
 
     public CreatingExecutionGraph(
             Context context,
             CompletableFuture<ExecutionGraphWithVertexParallelism>
                     executionGraphWithParallelismFuture,
-            Logger log) {
+            Logger logger) {
         this.context = context;
-        this.log = log;
+        this.logger = logger;
 
         FutureUtils.assertNoException(
                 executionGraphWithParallelismFuture.handle(
@@ -74,7 +79,7 @@ public class CreatingExecutionGraph implements State {
             @Nullable ExecutionGraphWithVertexParallelism executionGraphWithVertexParallelism,
             @Nullable Throwable throwable) {
         if (throwable != null) {
-            log.info(
+            logger.info(
                     "Failed to go from {} to {} because the ExecutionGraph creation failed.",
                     CreatingExecutionGraph.class.getSimpleName(),
                     Executing.class.getSimpleName(),
@@ -90,11 +95,27 @@ public class CreatingExecutionGraph implements State {
                     context.tryToAssignSlots(executionGraphWithVertexParallelism);
 
             if (result.isSuccess()) {
-                log.debug(
+                logger.debug(
                         "Successfully reserved and assigned the required slots for the ExecutionGraph.");
-                context.goToExecuting(result.getExecutionGraph());
+                final ExecutionGraph executionGraph = result.getExecutionGraph();
+                final ExecutionGraphHandler executionGraphHandler =
+                        new ExecutionGraphHandler(
+                                executionGraph,
+                                getLogger(),
+                                context.getIOExecutor(),
+                                context.getMainThreadExecutor());
+                final OperatorCoordinatorHandler operatorCoordinatorHandler =
+                        new DefaultOperatorCoordinatorHandler(
+                                executionGraph, this::handleGlobalFailure);
+                operatorCoordinatorHandler.initializeOperatorCoordinators(
+                        context.getMainThreadExecutor());
+                operatorCoordinatorHandler.startAllOperatorCoordinators();
+                context.goToExecuting(
+                        result.getExecutionGraph(),
+                        executionGraphHandler,
+                        operatorCoordinatorHandler);
             } else {
-                log.debug(
+                logger.debug(
                         "Failed to reserve and assign the required slots. Waiting for new resources.");
                 context.goToWaitingForResources();
             }
@@ -128,28 +149,14 @@ public class CreatingExecutionGraph implements State {
 
     @Override
     public Logger getLogger() {
-        return log;
+        return logger;
     }
 
     /** Context for the {@link CreatingExecutionGraph} state. */
-    interface Context {
-
-        /**
-         * Transitions into the {@link Finished} state.
-         *
-         * @param archivedExecutionGraph archivedExecutionGraph representing the final job state
-         */
-        void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
-
-        /**
-         * Transitions into the {@link Executing} state.
-         *
-         * @param executionGraph executionGraph which is passed to the {@link Executing} state
-         */
-        void goToExecuting(ExecutionGraph executionGraph);
-
-        /** Transitions into the {@link WaitingForResources} state. */
-        void goToWaitingForResources();
+    interface Context
+            extends StateTransitions.ToExecuting,
+                    StateTransitions.ToFinished,
+                    StateTransitions.ToWaitingForResources {
 
         /**
          * Creates the {@link ArchivedExecutionGraph} for the given job status and cause. Cause can
@@ -184,6 +191,20 @@ public class CreatingExecutionGraph implements State {
          */
         AssignmentResult tryToAssignSlots(
                 ExecutionGraphWithVertexParallelism executionGraphWithVertexParallelism);
+
+        /**
+         * Gets the I/O executor.
+         *
+         * @return the I/O executor
+         */
+        Executor getIOExecutor();
+
+        /**
+         * Gets the main thread executor.
+         *
+         * @return the main thread executor
+         */
+        ComponentMainThreadExecutor getMainThreadExecutor();
     }
 
     /**

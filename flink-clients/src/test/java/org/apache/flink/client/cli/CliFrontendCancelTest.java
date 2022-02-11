@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.cli.util.MockedCliFrontend;
 import org.apache.flink.client.program.TestingClusterClient;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.messages.Acknowledge;
 
@@ -32,6 +33,8 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 
@@ -100,7 +103,7 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
             String[] parameters = {"-s", jid.toString()};
             TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
             clusterClient.setCancelWithSavepointFunction(
-                    (jobID, savepointDirectory) -> {
+                    (jobID, savepointDirectory, formatType) -> {
                         assertNull(savepointDirectory);
                         cancelWithSavepointLatch.trigger();
                         return CompletableFuture.completedFuture(savepointDirectory);
@@ -119,8 +122,31 @@ public class CliFrontendCancelTest extends CliFrontendTestBase {
             String[] parameters = {"-s", "targetDirectory", jid.toString()};
             TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
             clusterClient.setCancelWithSavepointFunction(
-                    (jobID, savepointDirectory) -> {
+                    (jobID, savepointDirectory, formatType) -> {
                         assertNotNull(savepointDirectory);
+                        cancelWithSavepointLatch.trigger();
+                        return CompletableFuture.completedFuture(savepointDirectory);
+                    });
+            MockedCliFrontend testFrontend = new MockedCliFrontend(clusterClient);
+            testFrontend.cancel(parameters);
+            cancelWithSavepointLatch.await();
+        }
+
+        {
+            // Cancel with savepoint (with target directory)
+            JobID jid = new JobID();
+
+            OneShotLatch cancelWithSavepointLatch = new OneShotLatch();
+
+            final SavepointFormatType expectedFormatType = SavepointFormatType.NATIVE;
+            String[] parameters = {
+                "-s", "targetDirectory", jid.toString(), "-type", expectedFormatType.toString()
+            };
+            TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
+            clusterClient.setCancelWithSavepointFunction(
+                    (jobID, savepointDirectory, formatType) -> {
+                        assertNotNull(savepointDirectory);
+                        assertThat(formatType, equalTo(expectedFormatType));
                         cancelWithSavepointLatch.trigger();
                         return CompletableFuture.completedFuture(savepointDirectory);
                     });

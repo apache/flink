@@ -254,6 +254,12 @@ public interface OperatorCoordinator extends CheckpointListener, AutoCloseable {
          * JVM's classpath.
          */
         ClassLoader getUserCodeClassloader();
+
+        /**
+         * Get the {@link CoordinatorStore} instance for sharring information between {@link
+         * OperatorCoordinator}s.
+         */
+        CoordinatorStore getCoordinatorStore();
     }
 
     // ------------------------------------------------------------------------

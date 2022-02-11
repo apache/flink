@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.leaderelection;
 
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.Executors;
 
@@ -30,6 +32,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -200,6 +203,68 @@ class DefaultMultipleComponentLeaderElectionServiceTest {
 
         } finally {
             leaderElectionService.close();
+        }
+    }
+
+    @Test
+    public void allKnownLeaderInformationDoesNotBlock() throws Exception {
+        final TestingMultipleComponentLeaderElectionDriver leaderElectionDriver =
+                TestingMultipleComponentLeaderElectionDriver.newBuilder().build();
+        final DefaultMultipleComponentLeaderElectionService leaderElectionService =
+                new DefaultMultipleComponentLeaderElectionService(
+                        fatalErrorHandlerExtension.getTestingFatalErrorHandler(),
+                        new TestingMultipleComponentLeaderElectionDriverFactory(
+                                leaderElectionDriver),
+                        java.util.concurrent.Executors.newSingleThreadScheduledExecutor());
+        try {
+            leaderElectionDriver.grantLeadership();
+
+            final String knownLeaderInformationComponent = "knownLeaderInformationComponent";
+            final BlockingLeaderElectionEventHandler knownLeaderElectionEventHandler =
+                    new BlockingLeaderElectionEventHandler();
+            leaderElectionService.registerLeaderElectionEventHandler(
+                    knownLeaderInformationComponent, knownLeaderElectionEventHandler);
+            final BlockingLeaderElectionEventHandler unknownLeaderElectionEventHandler =
+                    new BlockingLeaderElectionEventHandler();
+            leaderElectionService.registerLeaderElectionEventHandler(
+                    "unknownLeaderInformationComponent", unknownLeaderElectionEventHandler);
+
+            // make sure that this call succeeds w/o blocking
+            leaderElectionService.notifyAllKnownLeaderInformation(
+                    Collections.singleton(
+                            LeaderInformationWithComponentId.create(
+                                    knownLeaderInformationComponent,
+                                    LeaderInformation.known(UUID.randomUUID(), "localhost"))));
+
+            knownLeaderElectionEventHandler.unblock();
+            unknownLeaderElectionEventHandler.unblock();
+        } finally {
+            leaderElectionService.close();
+        }
+    }
+
+    private static final class BlockingLeaderElectionEventHandler
+            implements LeaderElectionEventHandler {
+
+        private final OneShotLatch waitingLatch = new OneShotLatch();
+
+        @Override
+        public void onGrantLeadership(UUID newLeaderSessionId) {}
+
+        @Override
+        public void onRevokeLeadership() {}
+
+        @Override
+        public void onLeaderInformationChange(LeaderInformation leaderInformation) {
+            try {
+                waitingLatch.await();
+            } catch (InterruptedException e) {
+                ExceptionUtils.checkInterrupted(e);
+            }
+        }
+
+        void unblock() {
+            waitingLatch.trigger();
         }
     }
 

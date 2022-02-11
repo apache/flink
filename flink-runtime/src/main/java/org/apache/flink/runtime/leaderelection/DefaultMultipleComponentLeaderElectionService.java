@@ -235,12 +235,17 @@ public class DefaultMultipleComponentLeaderElectionService
                     leaderElectionEventHandlers.get(componentId);
 
             if (leaderElectionEventHandler != null) {
-                leadershipOperationExecutor.execute(
-                        () ->
-                                leaderElectionEventHandler.onLeaderInformationChange(
-                                        leaderInformation));
+                sendLeaderInformationChange(leaderElectionEventHandler, leaderInformation);
             }
         }
+    }
+
+    @GuardedBy("lock")
+    private void sendLeaderInformationChange(
+            LeaderElectionEventHandler leaderElectionEventHandler,
+            LeaderInformation leaderInformation) {
+        leadershipOperationExecutor.execute(
+                () -> leaderElectionEventHandler.onLeaderInformationChange(leaderInformation));
     }
 
     @Override
@@ -264,13 +269,13 @@ public class DefaultMultipleComponentLeaderElectionService
                             leaderElectionEventHandlers.entrySet()) {
                 final String leaderName = leaderNameLeaderElectionEventHandlerPair.getKey();
                 if (leaderInformationByName.containsKey(leaderName)) {
-                    leaderNameLeaderElectionEventHandlerPair
-                            .getValue()
-                            .onLeaderInformationChange(leaderInformationByName.get(leaderName));
+                    sendLeaderInformationChange(
+                            leaderNameLeaderElectionEventHandlerPair.getValue(),
+                            leaderInformationByName.get(leaderName));
                 } else {
-                    leaderNameLeaderElectionEventHandlerPair
-                            .getValue()
-                            .onLeaderInformationChange(LeaderInformation.empty());
+                    sendLeaderInformationChange(
+                            leaderNameLeaderElectionEventHandlerPair.getValue(),
+                            LeaderInformation.empty());
                 }
             }
         }

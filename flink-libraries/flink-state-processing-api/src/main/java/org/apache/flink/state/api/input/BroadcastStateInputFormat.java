@@ -21,9 +21,13 @@ package org.apache.flink.state.api.input;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.state.MapStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.state.OperatorStateBackend;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.Preconditions;
+
+import javax.annotation.Nullable;
 
 import java.util.Map;
 import java.util.stream.StreamSupport;
@@ -45,11 +49,16 @@ public class BroadcastStateInputFormat<K, V> extends OperatorStateInputFormat<Tu
      * Creates an input format for reading broadcast state from an operator in a savepoint.
      *
      * @param operatorState The state to be queried.
+     * @param configuration The cluster configuration for restoring the backend.
+     * @param backend The state backend used to restore the state.
      * @param descriptor The descriptor for this state, providing a name and serializer.
      */
     public BroadcastStateInputFormat(
-            OperatorState operatorState, MapStateDescriptor<K, V> descriptor) {
-        super(operatorState, true);
+            OperatorState operatorState,
+            Configuration configuration,
+            @Nullable StateBackend backend,
+            MapStateDescriptor<K, V> descriptor) {
+        super(operatorState, configuration, backend, true);
 
         this.descriptor =
                 Preconditions.checkNotNull(descriptor, "The state descriptor must not be null");

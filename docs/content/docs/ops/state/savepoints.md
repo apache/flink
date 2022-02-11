@@ -46,13 +46,6 @@ In contrast to all this, Savepoints are created, owned, and deleted by the user.
 changing parallelism, forking a second job like for a red/blue deployment, and so on. Of course, Savepoints must survive job termination. Conceptually, Savepoints can be a bit more expensive to produce and restore and focus
 more on portability and support for the previously mentioned changes to the job.
 
-Flink's savepoint binary format is unified across all state backends. That means you can take a savepoint with one state backend and then restore it using another.
-
-{{< hint info >}}
-State backends did not start producing a common format until version 1.13. Therefore, if you want to switch the state backend you should first upgrade your Flink version then
-take a savepoint with the new version, and only after that, you can restore it with a different state backend.
-{{< /hint >}}
-
 ## Assigning Operator IDs
 
 It is **highly recommended** that you adjust your programs as described in this section in order to be able to upgrade your programs in the future. The main required change is to manually specify operator IDs via the **`uid(String)`** method. These IDs are used to scope the state of each operator.
@@ -149,13 +142,44 @@ checkpointing timeline, which means that you stop the original job before runnin
 savepoint. 
 {{< /hint >}}
 
+#### Savepoint format
+
+You can choose between two binary formats of a savepoint:
+
+* canonical format - a format that has been unified across all state backends, which lets you take a
+  savepoint with one state backend and then restore it using another. This is the most stable
+  format, that is targeted at maintaining the most compatibility with previous versions, schemas,
+  modifications etc. 
+  
+{{< hint info >}}
+State backends did not start producing a common canonical format until version 1.13. Therefore, if
+you want to switch the state backend you should first upgrade your Flink version then take a
+savepoint with the new version, and only after that, you can restore it with a different state
+backend.
+{{< /hint >}}
+
+* native format - the downside of the canonical format is that often it is slow to take and restore
+  from. Native format creates a snapshot in the format specific for the used state backend (e.g. SST
+  files for RocksDB).
+
+{{< hint info >}}
+The possibility to trigger a savepoint in the native format was introduced in Flink 1.15. Up until
+then savepoints were created in the canonical format.
+{{< /hint >}}
+
 #### Trigger a Savepoint
 
 ```shell
 $ bin/flink savepoint :jobId [:targetDirectory]
 ```
 
-This will trigger a savepoint for the job with ID `:jobId`, and returns the path of the created savepoint. You need this path to restore and dispose savepoints.
+This will trigger a savepoint for the job with ID `:jobId`, and returns the path of the created
+savepoint. You need this path to restore and dispose savepoints. You can also pass a type in which
+the savepoint should be taken. If not specified the savepoint will be taken in canonical format.
+
+```shell
+$ bin/flink savepoint -type [native/canonical] :jobId [:targetDirectory]
+```
 
 #### Trigger a Savepoint with YARN
 
@@ -164,7 +188,6 @@ $ bin/flink savepoint :jobId [:targetDirectory] -yid :yarnAppId
 ```
 
 This will trigger a savepoint for the job with ID `:jobId` and YARN application ID `:yarnAppId`, and returns the path of the created savepoint.
-
 #### Stopping a Job with Savepoint
 
 ```shell
@@ -246,10 +269,18 @@ the snapshot, while others still depend on it.
   {{< img src="/fig/restore-mode-claim.svg" alt="CLAIM restore mode" width="70%" >}}
 </div>
 
-{{< hint info >}}
-Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk_<x>`. Flink does not
+{{< hint warning >}}
+**Attention:**
+1. Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk_<x>`. Flink does not
 take ownership of the `<checkpoint_dir>/<job_id>` directory, but only the `chk_<x>`. The directory
 of the old job will not be deleted by Flink
+
+2. [Native](#savepoint-format) format supports incremental RocksDB savepoints. For those savepoints Flink puts all
+SST files inside the savepoints directory. This means such savepoints are self-contained and relocatable.
+However, when restored in CLAIM mode, subsequent checkpoints might reuse some SST files, which
+in turn might block deleting the savepoints directory at the time the savepoint is subsumed. Later
+on Flink will delete the reused shared SST files, but it won't retry deleting the savepoints directory.
+Therefore, it is possible Flink leaves an empty savepoints directory if it was restored in CLAIM mode.    
 {{< /hint >}}
 
 **LEGACY**

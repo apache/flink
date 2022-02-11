@@ -18,19 +18,21 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
+import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,54 +48,44 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
-    /** The unique identifier for each ExecNode in the json plan. */
-    @JsonIgnore private final int id;
+    private final String description;
 
-    @JsonIgnore private final String description;
+    private final LogicalType outputType;
 
-    @JsonIgnore private final LogicalType outputType;
+    private final List<InputProperty> inputProperties;
 
-    @JsonIgnore private final List<InputProperty> inputProperties;
+    private List<ExecEdge> inputEdges;
 
-    @JsonIgnore private List<ExecEdge> inputEdges;
+    private transient Transformation<T> transformation;
 
-    @JsonIgnore private transient Transformation<T> transformation;
+    /** Holds the context information (id, name, version) as deserialized from a JSON plan. */
+    @JsonProperty(value = FIELD_NAME_TYPE, access = JsonProperty.Access.WRITE_ONLY)
+    private final ExecNodeContext context;
 
-    /** This is used to assign a unique ID to every ExecNode. */
-    private static Integer idCounter = 0;
-
-    /** Generate an unique ID for ExecNode. */
-    public static int getNewNodeId() {
-        idCounter++;
-        return idCounter;
+    /**
+     * Retrieves the default context from the {@link ExecNodeMetadata} annotation to be serialized
+     * into the JSON plan.
+     */
+    @JsonProperty(value = FIELD_NAME_TYPE, access = JsonProperty.Access.READ_ONLY, index = 1)
+    protected final ExecNodeContext getContextFromAnnotation() {
+        return ExecNodeContext.newContext(this.getClass()).withId(getId());
     }
 
-    /** Reset the id counter to 0. */
-    @VisibleForTesting
-    public static void resetIdCounter() {
-        idCounter = 0;
-    }
-
-    // used for json creator
     protected ExecNodeBase(
             int id,
+            ExecNodeContext context,
             List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
-        this.id = id;
+        this.context = checkNotNull(context).withId(id);
         this.inputProperties = checkNotNull(inputProperties);
         this.outputType = checkNotNull(outputType);
         this.description = checkNotNull(description);
     }
 
-    protected ExecNodeBase(
-            List<InputProperty> inputProperties, LogicalType outputType, String description) {
-        this(getNewNodeId(), inputProperties, outputType, description);
-    }
-
     @Override
     public final int getId() {
-        return id;
+        return context.getId();
     }
 
     @Override
@@ -167,40 +159,74 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                                                 == InputProperty.DistributionType.SINGLETON);
     }
 
-    public String getOperatorName(TableConfig config) {
-        return getOperatorName(config.getConfiguration());
-    }
-
-    public String getOperatorName(Configuration config) {
-        return getFormattedOperatorName(getDescription(), getSimplifiedName(), config);
-    }
-
     @JsonIgnore
     protected String getSimplifiedName() {
         return getClass().getSimpleName().replace("StreamExec", "").replace("BatchExec", "");
     }
 
-    protected String getOperatorDescription(TableConfig config) {
-        return getOperatorDescription(config.getConfiguration());
+    protected String createTransformationUid(String operatorName) {
+        return context.generateUid(operatorName);
     }
 
-    protected String getOperatorDescription(Configuration config) {
-        return getFormattedOperatorDescription(getDescription(), config);
+    protected String createTransformationName(TableConfig config) {
+        return createTransformationName(config.getConfiguration());
     }
 
-    protected String getFormattedOperatorDescription(String description, Configuration config) {
-        if (config.getBoolean(
-                OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
-            return String.format("[%d]:%s", id, description);
+    protected String createTransformationName(ReadableConfig config) {
+        return createFormattedTransformationName(getDescription(), getSimplifiedName(), config);
+    }
+
+    protected String createTransformationDescription(TableConfig config) {
+        return createTransformationDescription(config.getConfiguration());
+    }
+
+    protected String createTransformationDescription(ReadableConfig config) {
+        return createFormattedTransformationDescription(getDescription(), config);
+    }
+
+    protected TransformationMetadata createTransformationMeta(
+            String operatorName, TableConfig config) {
+        return createTransformationMeta(operatorName, config.getConfiguration());
+    }
+
+    protected TransformationMetadata createTransformationMeta(
+            String operatorName, ReadableConfig config) {
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
+            return new TransformationMetadata(
+                    createTransformationName(config), createTransformationDescription(config));
+        } else {
+            // Only classes supporting metadata util need to set the uid
+            return new TransformationMetadata(
+                    createTransformationUid(operatorName),
+                    createTransformationName(config),
+                    createTransformationDescription(config));
+        }
+    }
+
+    protected TransformationMetadata createTransformationMeta(
+            String operatorName, String detailName, String simplifiedName, ReadableConfig config) {
+        final String name = createFormattedTransformationName(detailName, simplifiedName, config);
+        final String desc = createFormattedTransformationDescription(detailName, config);
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
+            return new TransformationMetadata(name, desc);
+        } else {
+            // Only classes supporting metadata util need to set the uid
+            return new TransformationMetadata(createTransformationUid(operatorName), name, desc);
+        }
+    }
+
+    protected String createFormattedTransformationDescription(
+            String description, ReadableConfig config) {
+        if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+            return String.format("[%d]:%s", getId(), description);
         }
         return description;
     }
 
-    protected String getFormattedOperatorName(
-            String detailName, String simplifiedName, Configuration config) {
-        if (config.getBoolean(
-                OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
-            return String.format("%s[%d]", simplifiedName, id);
+    protected String createFormattedTransformationName(
+            String detailName, String simplifiedName, ReadableConfig config) {
+        if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+            return String.format("%s[%d]", simplifiedName, getId());
         }
         return detailName;
     }

@@ -39,8 +39,10 @@ import org.apache.flink.table.planner.connectors.TransformationScanProvider;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -55,17 +57,21 @@ import java.util.Collections;
  */
 public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         implements MultipleTransformationTranslator<RowData> {
+
+    public static final String SOURCE_TRANSFORMATION = "source";
+
     public static final String FIELD_NAME_SCAN_TABLE_SOURCE = "scanTableSource";
 
     @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE)
     private final DynamicTableSourceSpec tableSourceSpec;
 
     protected CommonExecTableSourceScan(
-            DynamicTableSourceSpec tableSourceSpec,
             int id,
+            ExecNodeContext context,
+            DynamicTableSourceSpec tableSourceSpec,
             LogicalType outputType,
             String description) {
-        super(id, Collections.emptyList(), outputType, description);
+        super(id, context, Collections.emptyList(), outputType, description);
         this.tableSourceSpec = tableSourceSpec;
     }
 
@@ -81,7 +87,8 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         final StreamExecutionEnvironment env = planner.getExecEnv();
-        final String operatorName = getOperatorName(planner.getTableConfig());
+        final TransformationMetadata meta =
+                createTransformationMeta(SOURCE_TRANSFORMATION, planner.getTableConfig());
         final InternalTypeInfo<RowData> outputTypeInfo =
                 InternalTypeInfo.of((RowType) getOutputType());
         final ScanTableSource tableSource =
@@ -96,17 +103,16 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                             env,
                             function,
                             sourceFunctionProvider.isBounded(),
-                            operatorName,
+                            meta.getName(),
                             outputTypeInfo);
-            transformation.setDescription(getOperatorDescription(planner.getTableConfig()));
-            return transformation;
+            return meta.fill(transformation);
         } else if (provider instanceof InputFormatProvider) {
             final InputFormat<RowData, ?> inputFormat =
                     ((InputFormatProvider) provider).createInputFormat();
             final Transformation<RowData> transformation =
-                    createInputFormatTransformation(env, inputFormat, outputTypeInfo, operatorName);
-            transformation.setDescription(getOperatorDescription(planner.getTableConfig()));
-            return transformation;
+                    createInputFormatTransformation(
+                            env, inputFormat, outputTypeInfo, meta.getName());
+            return meta.fill(transformation);
         } else if (provider instanceof SourceProvider) {
             final Source<RowData, ?, ?> source = ((SourceProvider) provider).createSource();
             // TODO: Push down watermark strategy to source scan
@@ -114,19 +120,20 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
                     env.fromSource(
                                     source,
                                     WatermarkStrategy.noWatermarks(),
-                                    operatorName,
+                                    meta.getName(),
                                     outputTypeInfo)
                             .getTransformation();
-            transformation.setDescription(getOperatorDescription(planner.getTableConfig()));
-            return transformation;
+            return meta.fill(transformation);
         } else if (provider instanceof DataStreamScanProvider) {
             Transformation<RowData> transformation =
                     ((DataStreamScanProvider) provider).produceDataStream(env).getTransformation();
+            meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
             return transformation;
         } else if (provider instanceof TransformationScanProvider) {
             final Transformation<RowData> transformation =
                     ((TransformationScanProvider) provider).createTransformation();
+            meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
             return transformation;
         } else {

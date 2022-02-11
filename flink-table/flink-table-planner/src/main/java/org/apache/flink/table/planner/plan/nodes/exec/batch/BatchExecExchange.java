@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.codegen.HashCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.HashDistribution;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.RequiredDistribution;
@@ -60,7 +61,12 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
     @Nullable private StreamExchangeMode requiredExchangeMode;
 
     public BatchExecExchange(InputProperty inputProperty, RowType outputType, String description) {
-        super(getNewNodeId(), Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecExchange.class),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
     }
 
     public void setRequiredExchangeMode(@Nullable StreamExchangeMode requiredExchangeMode) {

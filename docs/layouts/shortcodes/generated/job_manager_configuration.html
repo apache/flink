@@ -186,7 +186,13 @@
             <td><h5>jobstore.max-capacity</h5></td>
             <td style="word-wrap: break-word;">2147483647</td>
             <td>Integer</td>
-            <td>The max number of completed jobs that can be kept in the job store.</td>
+            <td>The max number of completed jobs that can be kept in the job store. NOTICE: if memory store keeps too many jobs in session cluster, it may cause FullGC or OOM in jm.</td>
+        </tr>
+        <tr>
+            <td><h5>jobstore.type</h5></td>
+            <td style="word-wrap: break-word;">File</td>
+            <td><p>Enum</p></td>
+            <td>Determines which job store implementation is used in session cluster. Accepted values are:<ul><li>'File': the file job store keeps the archived execution graphs in files</li><li>'Memory': the memory job store keeps the archived execution graphs in memory. You may need to limit the <code class="highlighter-rouge">jobstore.max-capacity</code> to mitigate FullGC or OOM when there are too many graphs</li></ul><br /><br />Possible values:<ul><li>"File"</li><li>"Memory"</li></ul></td>
         </tr>
         <tr>
             <td><h5>scheduler-mode</h5></td>
