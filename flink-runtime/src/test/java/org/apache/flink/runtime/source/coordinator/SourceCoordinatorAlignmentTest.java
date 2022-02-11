@@ -59,6 +59,35 @@ public class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
     }
 
     @Test
+    public void testWatermarkAlignmentWithIdleness() throws Exception {
+        try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
+            SourceCoordinator<?, ?> sourceCoordinator1 =
+                    getAndStartNewSourceCoordinator(
+                            new WatermarkAlignmentParams(1000L, "group1", Long.MAX_VALUE),
+                            closeableRegistry);
+
+            int subtask0 = 0;
+            int subtask1 = 1;
+            reportWatermarkEvent(sourceCoordinator1, subtask0, 42);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1042);
+
+            reportWatermarkEvent(sourceCoordinator1, subtask1, 44);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1042);
+            assertLatestWatermarkAlignmentEvent(subtask1, 1042);
+
+            // subtask0 becomes idle
+            reportWatermarkEvent(sourceCoordinator1, subtask0, Long.MAX_VALUE);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1044);
+            assertLatestWatermarkAlignmentEvent(subtask1, 1044);
+
+            // subtask0 becomes active again
+            reportWatermarkEvent(sourceCoordinator1, subtask0, 42);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1042);
+            assertLatestWatermarkAlignmentEvent(subtask1, 1042);
+        }
+    }
+
+    @Test
     public void testWatermarkAlignmentWithTwoGroups() throws Exception {
         try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
             long maxDrift = 1000L;

@@ -129,6 +129,66 @@ public class SourceOperatorAlignmentTest {
     }
 
     @Test
+    public void testWatermarkAlignmentWithIdleness() throws Exception {
+        // we use a separate context, because we need to enable idleness
+        try (SourceOperatorTestContext context =
+                new SourceOperatorTestContext(
+                        true,
+                        WatermarkStrategy.forGenerator(
+                                        ctx ->
+                                                new PunctuatedGenerator(
+                                                        PunctuatedGenerator.GenerationMode.ODD))
+                                .withTimestampAssigner((r, t) -> r),
+                        new WatermarkAlignmentParams(100, "group1", 1))) {
+            final SourceOperator<Integer, MockSourceSplit> operator = context.getOperator();
+            operator.initializeState(context.createStateContext());
+            operator.open();
+            MockSourceSplit newSplit = new MockSourceSplit(2);
+            int record1 = 1;
+            newSplit.addRecord(record1);
+
+            operator.handleOperatorEvent(
+                    new AddSplitEvent<>(
+                            Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
+
+            CollectingDataOutput<Integer> actualOutput = new CollectingDataOutput<>();
+            List<Integer> expectedOutput = new ArrayList<>();
+
+            assertThat(operator.emitNext(actualOutput), is(DataInputStatus.MORE_AVAILABLE));
+            expectedOutput.add(record1);
+            context.getTimeService().advance(1);
+            assertLatestReportedWatermarkEvent(context, record1);
+            assertOutput(actualOutput, expectedOutput);
+            assertTrue(operator.isAvailable());
+
+            // source becomes idle, it should report Long.MAX_VALUE as the watermark
+            assertThat(operator.emitNext(actualOutput), is(DataInputStatus.NOTHING_AVAILABLE));
+            context.getTimeService().advance(1);
+            assertLatestReportedWatermarkEvent(context, Long.MAX_VALUE);
+
+            // it is easier to create a new split than add records the old one. The old one is
+            // serialized, when sending the AddSplitEvent, so it is not as easy as
+            // newSplit.addRecord
+            newSplit = new MockSourceSplit(3);
+            int record2 = 2; // even timestamp -> no watermarks
+            newSplit.addRecord(record2);
+
+            operator.handleOperatorEvent(
+                    new AddSplitEvent<>(
+                            Collections.singletonList(newSplit), new MockSourceSplitSerializer()));
+
+            assertThat(operator.emitNext(actualOutput), is(DataInputStatus.MORE_AVAILABLE));
+            expectedOutput.add(record2);
+            context.getTimeService().advance(1);
+            // becomes active again, should go back to the previously emitted
+            // watermark, as the record2 does not emit watermarks
+            assertLatestReportedWatermarkEvent(context, record1);
+            assertOutput(actualOutput, expectedOutput);
+            assertTrue(operator.isAvailable());
+        }
+    }
+
+    @Test
     public void testStopWhileWaitingForWatermarkAlignment() throws Exception {
         testWatermarkAlignment();
 
@@ -181,6 +241,11 @@ public class SourceOperatorAlignmentTest {
     }
 
     private void assertLatestReportedWatermarkEvent(long expectedWatermark) {
+        assertLatestReportedWatermarkEvent(this.context, expectedWatermark);
+    }
+
+    private void assertLatestReportedWatermarkEvent(
+            SourceOperatorTestContext context, long expectedWatermark) {
         List<OperatorEvent> events =
                 context.getGateway().getEventsSent().stream()
                         .filter(event -> event instanceof ReportedWatermarkEvent)
@@ -191,9 +256,39 @@ public class SourceOperatorAlignmentTest {
     }
 
     private static class PunctuatedGenerator implements WatermarkGenerator<Integer> {
+
+        private enum GenerationMode {
+            ALL,
+            ODD
+        }
+
+        private GenerationMode mode;
+
+        public PunctuatedGenerator() {
+            this(GenerationMode.ALL);
+        }
+
+        public PunctuatedGenerator(GenerationMode mode) {
+            this.mode = mode;
+        }
+
         @Override
         public void onEvent(Integer event, long eventTimestamp, WatermarkOutput output) {
-            output.emitWatermark(new Watermark(eventTimestamp));
+            final boolean shouldGenerate;
+            switch (mode) {
+                case ALL:
+                    shouldGenerate = true;
+                    break;
+                case ODD:
+                    shouldGenerate = eventTimestamp % 2 == 1;
+                    break;
+                default:
+                    throw new IllegalArgumentException("Unknown mode: " + mode);
+            }
+
+            if (shouldGenerate) {
+                output.emitWatermark(new Watermark(eventTimestamp));
+            }
         }
 
         @Override
