@@ -107,6 +107,7 @@ under the License.
 				<module>flink-sql-connector-kafka</module>
 				<module>flink-sql-connector-aws-kinesis-data-streams</module>
 				<module>flink-sql-connector-kinesis</module>
+				<module>flink-sql-connector-pulsar</module>
 				<module>flink-sql-connector-rabbitmq</module>
 			</modules>
 		</profile>
