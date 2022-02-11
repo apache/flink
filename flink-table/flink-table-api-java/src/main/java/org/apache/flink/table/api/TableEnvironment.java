@@ -35,7 +35,6 @@ import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
 import org.apache.flink.table.types.AbstractDataType;
 
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Optional;
@@ -1269,12 +1268,11 @@ public interface TableEnvironment {
      *
      * <p>Note: The compiled plan feature is not supported in batch mode.
      *
-     * @throws IOException if the plan cannot be loaded from the filesystem, or from classpath
-     *     resources.
-     * @throws TableException if the plan is invalid.
+     * @throws TableException if the plan cannot be loaded from the filesystem, or from classpath
+     *     resources, or if the plan is invalid.
      */
     @Experimental
-    CompiledPlan loadPlan(PlanReference planReference) throws IOException, TableException;
+    CompiledPlan loadPlan(PlanReference planReference) throws TableException;
 
     /**
      * Compiles a SQL DML statement into a {@link CompiledPlan}.
@@ -1318,7 +1316,7 @@ public interface TableEnvironment {
      * @see #executePlan(CompiledPlan)
      */
     @Experimental
-    default TableResult executePlan(PlanReference planReference) throws IOException {
+    default TableResult executePlan(PlanReference planReference) throws TableException {
         return executePlan(loadPlan(planReference));
     }
 

@@ -62,7 +62,7 @@ public class ExecNodeGraphCompiledPlan implements CompiledPlanInternal {
     }
 
     @Override
-    public void writeToFile(File file, boolean ignoreIfExists) throws IOException {
+    public void writeToFile(File file, boolean ignoreIfExists) {
         if (file.exists()) {
             if (ignoreIfExists) {
                 return;

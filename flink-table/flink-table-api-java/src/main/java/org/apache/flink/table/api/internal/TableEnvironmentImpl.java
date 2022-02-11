@@ -764,8 +764,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public CompiledPlan loadPlan(PlanReference planReference) throws IOException {
-        return planner.loadPlan(planReference);
+    public CompiledPlan loadPlan(PlanReference planReference) {
+        try {
+            return planner.loadPlan(planReference);
+        } catch (IOException e) {
+            throw new TableException("Cannot load the plan " + planReference, e);
+        }
     }
 
     @Override
@@ -777,14 +781,6 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         }
 
         return planner.compilePlan(Collections.singletonList((ModifyOperation) operations.get(0)));
-    }
-
-    private TableResultInternal executePlan(String filePath) {
-        try {
-            return (TableResultInternal) executePlan(PlanReference.fromFile(filePath));
-        } catch (IOException e) {
-            throw new TableException(String.format("Cannot load plan '%s'", filePath), e);
-        }
     }
 
     @Override
@@ -801,11 +797,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         File file = Paths.get(filePath).toFile();
         if (file.exists()) {
             if (ifNotExists) {
-                try {
-                    return loadPlan(PlanReference.fromFile(filePath));
-                } catch (IOException e) {
-                    throw new TableException("Cannot load the plan file '" + filePath + "'", e);
-                }
+                return loadPlan(PlanReference.fromFile(filePath));
             }
 
             if (!tableConfig.getConfiguration().get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
@@ -831,12 +823,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             + ". This is a bug, please file an issue.");
         }
 
-        try {
-            compiledPlan.writeToFile(file, false);
-        } catch (IOException e) {
-            throw new TableException(
-                    "Cannot write the compiled plan to file '" + filePath + "'", e);
-        }
+        compiledPlan.writeToFile(file, false);
         return compiledPlan;
     }
 
@@ -1409,7 +1396,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             executeInternal(createTableASOperation.getCreateTableOperation());
             return executeInternal(createTableASOperation.toSinkModifyOperation(catalogManager));
         } else if (operation instanceof ExecutePlanOperation) {
-            return executePlan(((ExecutePlanOperation) operation).getFilePath());
+            ExecutePlanOperation executePlanOperation = (ExecutePlanOperation) operation;
+            return (TableResultInternal)
+                    executePlan(PlanReference.fromFile(executePlanOperation.getFilePath()));
         } else if (operation instanceof CompilePlanOperation) {
             CompilePlanOperation compilePlanOperation = (CompilePlanOperation) operation;
             compilePlanAndWrite(
