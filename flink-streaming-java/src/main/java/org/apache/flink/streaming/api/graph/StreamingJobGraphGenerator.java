@@ -68,7 +68,9 @@ import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
@@ -905,10 +907,13 @@ public class StreamingJobGraphGenerator {
 
         for (StreamEdge edge : chainableOutputs) {
             StreamPartitioner<?> partitioner = edge.getPartitioner();
-            if (partitioner instanceof ForwardForConsecutiveHashPartitioner) {
+            if (partitioner instanceof ForwardForConsecutiveHashPartitioner
+                    || partitioner instanceof ForwardForUnspecifiedPartitioner) {
                 checkState(
                         streamGraph.getExecutionConfig().isDynamicGraph(),
-                        "ForwardForConsecutiveHashPartitioner should only be used in dynamic graph.");
+                        String.format(
+                                "%s should only be used in dynamic graph.",
+                                partitioner.getClass().getSimpleName()));
                 edge.setPartitioner(new ForwardPartitioner<>());
             }
         }
@@ -921,6 +926,11 @@ public class StreamingJobGraphGenerator {
                 edge.setPartitioner(
                         ((ForwardForConsecutiveHashPartitioner<?>) partitioner)
                                 .getHashPartitioner());
+            } else if (partitioner instanceof ForwardForUnspecifiedPartitioner) {
+                checkState(
+                        streamGraph.getExecutionConfig().isDynamicGraph(),
+                        "ForwardForUnspecifiedPartitioner should only be used in dynamic graph.");
+                edge.setPartitioner(new RescalePartitioner<>());
             }
         }
     }
