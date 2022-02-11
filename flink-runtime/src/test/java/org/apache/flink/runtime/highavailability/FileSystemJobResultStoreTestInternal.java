@@ -162,6 +162,7 @@ public class FileSystemJobResultStoreTestInternal {
         final FileSystemJobResultStore.JsonJobResultEntry deserializedEntry =
                 MAPPER.readValue(dirtyFile, FileSystemJobResultStore.JsonJobResultEntry.class);
         assertThat(dirtyFile).isFile().content().containsPattern("\"version\":1");
+        assertThat(deserializedEntry.getVersion()).isEqualTo(1);
     }
 
     @Test
