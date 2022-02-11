@@ -284,8 +284,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
         field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
         t_env.register_table_sink("Sink",
                                   source_sink_utils.TestAppendSink(field_names, field_types))
-        t_env.insert_into("Sink", table)
-        t_env.execute("test_from_data_stream")
+        table.execute_insert("Sink").wait()
         result = source_sink_utils.results()
         expected = ['+I[1, Hi, Hello]', '+I[2, Hello, Hi]']
         self.assert_equals(result, expected)
@@ -295,8 +294,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
         table = t_env.from_data_stream(ds, col('a'), col('b'), col('c'))
         t_env.register_table_sink("ExprSink",
                                   source_sink_utils.TestAppendSink(field_names, field_types))
-        t_env.insert_into("ExprSink", table)
-        t_env.execute("test_from_data_stream_with_expr")
+        table.execute_insert("ExprSink").wait()
         result = source_sink_utils.results()
         self.assert_equals(result, expected)
 
