@@ -180,7 +180,7 @@ class TestingDispatcher extends Dispatcher {
         private RpcService rpcService = new TestingRpcService();
         private DispatcherId fencingToken = DispatcherId.generate();
         private Collection<JobGraph> recoveredJobs = Collections.emptyList();
-        private Collection<JobResult> recoveredDirtyJobs = Collections.emptyList();
+        @Nullable private Collection<JobResult> recoveredDirtyJobs = null;
         private HighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServices();
 
@@ -232,7 +232,7 @@ class TestingDispatcher extends Dispatcher {
             return this;
         }
 
-        public Builder setRecoveredDirtyJobs(Collection<JobResult> recoveredDirtyJobs) {
+        public Builder setRecoveredDirtyJobs(@Nullable Collection<JobResult> recoveredDirtyJobs) {
             this.recoveredDirtyJobs = recoveredDirtyJobs;
             return this;
         }
@@ -359,7 +359,9 @@ class TestingDispatcher extends Dispatcher {
                     rpcService,
                     fencingToken,
                     recoveredJobs,
-                    recoveredDirtyJobs,
+                    recoveredDirtyJobs == null
+                            ? jobResultStore.getDirtyResults()
+                            : recoveredDirtyJobs,
                     configuration,
                     highAvailabilityServices,
                     resourceManagerGatewayRetriever,
