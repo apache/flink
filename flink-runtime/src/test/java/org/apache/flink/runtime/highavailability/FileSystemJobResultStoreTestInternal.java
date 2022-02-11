@@ -30,6 +30,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.File;
 import java.io.IOException;
@@ -53,6 +55,36 @@ public class FileSystemJobResultStoreTestInternal {
     public void setupTest() throws IOException {
         Path path = new Path(temporaryFolder.toURI());
         fileSystemJobResultStore = new FileSystemJobResultStore(path.getFileSystem(), path, false);
+    }
+
+    @Test
+    public void testHasValidJobResultStoreEntryExtension() {
+        assertThat(
+                        FileSystemJobResultStore.hasValidJobResultStoreEntryExtension(
+                                "test" + FileSystemJobResultStore.FILE_EXTENSION))
+                .isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"test.txt", "", "test.zip"})
+    public void testHasInvalidJobResultStoreEntryExtension(String filename) {
+        assertThat(FileSystemJobResultStore.hasValidJobResultStoreEntryExtension(filename))
+                .isFalse();
+    }
+
+    @Test
+    public void testHasValidDirtyJobResultStoreEntryExtension() {
+        assertThat(
+                        FileSystemJobResultStore.hasValidDirtyJobResultStoreEntryExtension(
+                                "test" + FileSystemJobResultStore.DIRTY_FILE_EXTENSION))
+                .isTrue();
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"test.json", "test.txt", "", "test.zip"})
+    public void testHasInvalidDirtyJobResultStoreEntryExtension(String filename) {
+        assertThat(FileSystemJobResultStore.hasValidDirtyJobResultStoreEntryExtension(filename))
+                .isFalse();
     }
 
     @Test
@@ -160,7 +192,10 @@ public class FileSystemJobResultStoreTestInternal {
         final List<JobID> cleanResults = new ArrayList<>();
 
         final File[] cleanFiles =
-                temporaryFolder.listFiles((dir, name) -> !name.endsWith("_DIRTY.json"));
+                temporaryFolder.listFiles(
+                        (dir, name) ->
+                                !FileSystemJobResultStore.hasValidDirtyJobResultStoreEntryExtension(
+                                        name));
         assert cleanFiles != null;
         for (File cleanFile : cleanFiles) {
             final FileSystemJobResultStore.JsonJobResultEntry entry =
@@ -179,7 +214,8 @@ public class FileSystemJobResultStoreTestInternal {
      */
     private File expectedDirtyFile(JobResultEntry entry) {
         return new File(
-                temporaryFolder.toURI().getPath(), entry.getJobId().toString() + "_DIRTY.json");
+                temporaryFolder.toURI().getPath(),
+                entry.getJobId().toString() + FileSystemJobResultStore.DIRTY_FILE_EXTENSION);
     }
 
     /**
@@ -189,6 +225,8 @@ public class FileSystemJobResultStoreTestInternal {
      * @return The expected clean file.
      */
     private File expectedCleanFile(JobResultEntry entry) {
-        return new File(temporaryFolder.toURI().getPath(), entry.getJobId().toString() + ".json");
+        return new File(
+                temporaryFolder.toURI().getPath(),
+                entry.getJobId().toString() + FileSystemJobResultStore.FILE_EXTENSION);
     }
 }
