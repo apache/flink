@@ -113,7 +113,7 @@ public class ManuallyTriggeredScheduledExecutorService implements ScheduledExecu
     }
 
     @Override
-    public boolean awaitTermination(long timeout, TimeUnit unit) {
+    public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
         return true;
     }
 
