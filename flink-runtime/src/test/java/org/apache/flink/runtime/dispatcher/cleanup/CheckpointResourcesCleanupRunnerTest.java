@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
+import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedThrowable;
 import org.apache.flink.util.concurrent.Executors;
@@ -242,50 +243,117 @@ public class CheckpointResourcesCleanupRunnerTest {
     }
 
     @Test
+    public void testCancellationBeforeStart() throws Exception {
+        final CheckpointResourcesCleanupRunner testInstance =
+                new TestInstanceBuilder().withExecutor(ForkJoinPool.commonPool()).build();
+
+        assertThat(testInstance.cancel(TIMEOUT_FOR_REQUESTS))
+                .failsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(FlinkException.class);
+        assertThat(testInstance.closeAsync())
+                .as("The closeAsync result shouldn't be completed, yet.")
+                .isNotCompleted()
+                .as("The closeAsync result shouldn't be cancelled.")
+                .isNotCancelled();
+    }
+
+    @Test
+    public void testCancellationAfterStart() throws Exception {
+        final HaltingCheckpointRecoveryFactory checkpointRecoveryFactory =
+                new HaltingCheckpointRecoveryFactory(
+                        new CompletableFuture<>(), new CompletableFuture<>());
+        final CheckpointResourcesCleanupRunner testInstance =
+                new TestInstanceBuilder()
+                        .withCheckpointRecoveryFactory(checkpointRecoveryFactory)
+                        .withExecutor(ForkJoinPool.commonPool())
+                        .build();
+        AFTER_START.accept(testInstance);
+        assertThat(testInstance.cancel(TIMEOUT_FOR_REQUESTS))
+                .failsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(FlinkException.class);
+        assertThat(testInstance.closeAsync())
+                .as("The closeAsync result shouldn't be completed, yet.")
+                .isNotCompleted()
+                .as("The closeAsync result shouldn't be cancelled.")
+                .isNotCancelled();
+    }
+
+    @Test
+    public void testCancellationAfterClose() throws Exception {
+        final CheckpointResourcesCleanupRunner testInstance =
+                new TestInstanceBuilder().withExecutor(ForkJoinPool.commonPool()).build();
+        AFTER_CLOSE.accept(testInstance);
+        assertThat(testInstance.cancel(TIMEOUT_FOR_REQUESTS))
+                .failsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(FlinkException.class);
+        assertThat(testInstance.closeAsync())
+                .as("The closeAsync result should be completed by now.")
+                .isCompleted()
+                .as("The closeAsync result shouldn't be cancelled.")
+                .isNotCancelled();
+    }
+
+    @Test
     public void testResultFutureWithSuccessBeforeStart() throws Exception {
-        testResultFutureWithSuccess(BEFORE_START);
+        assertThat(getResultFutureFromTestInstance(createDummySuccessJobResult(), BEFORE_START))
+                .isNotCompleted();
     }
 
     @Test
     public void testResultFutureWithSuccessAfterStart() throws Exception {
-        testResultFutureWithSuccess(AFTER_START);
+        testResultFutureWithSuccessfulResultAfterStart(AFTER_START);
     }
 
     @Test
     public void testResultFutureWithSuccessAfterClose() throws Exception {
-        testResultFutureWithSuccess(AFTER_CLOSE);
+        testResultFutureWithSuccessfulResultAfterStart(AFTER_CLOSE);
     }
 
-    private static void testResultFutureWithSuccess(
+    private void testResultFutureWithSuccessfulResultAfterStart(
             ThrowingConsumer<CheckpointResourcesCleanupRunner, ? extends Exception>
                     preCheckLifecycleHandling)
             throws Exception {
-        testResultFuture(createDummySuccessJobResult(), preCheckLifecycleHandling);
+        final CompletableFuture<JobManagerRunnerResult> actualResult =
+                getResultFutureFromTestInstance(
+                        createDummySuccessJobResult(), preCheckLifecycleHandling);
+
+        assertThat(actualResult)
+                .isCompletedWithValueMatching(
+                        JobManagerRunnerResult::isSuccess,
+                        "The JobManagerRunner should have succeeded.");
     }
 
     @Test
     public void testResultFutureWithErrorBeforeStart() throws Exception {
-        testResultFutureWithError(BEFORE_START);
+        final CompletableFuture<JobManagerRunnerResult> resultFuture =
+                getResultFutureFromTestInstance(
+                        createJobResultWithFailure(
+                                new SerializedThrowable(new Exception("Expected exception"))),
+                        BEFORE_START);
+        assertThat(resultFuture).isNotCompleted();
     }
 
     @Test
     public void testResultFutureWithErrorAfterStart() throws Exception {
-        testResultFutureWithError(AFTER_START);
+        testResultFutureWithErrorAfterStart(AFTER_START);
     }
 
     @Test
     public void testResultFutureWithErrorAfterClose() throws Exception {
-        testResultFutureWithError(AFTER_CLOSE);
+        testResultFutureWithErrorAfterStart(AFTER_CLOSE);
     }
 
-    private static void testResultFutureWithError(
+    private static void testResultFutureWithErrorAfterStart(
             ThrowingConsumer<CheckpointResourcesCleanupRunner, ? extends Exception>
                     preCheckLifecycleHandling)
             throws Exception {
         final SerializedThrowable expectedError =
                 new SerializedThrowable(new Exception("Expected exception"));
         final CompletableFuture<JobManagerRunnerResult> actualResult =
-                testResultFuture(
+                getResultFutureFromTestInstance(
                         createJobResultWithFailure(expectedError), preCheckLifecycleHandling);
 
         assertThat(actualResult)
@@ -301,7 +369,7 @@ public class CheckpointResourcesCleanupRunnerTest {
                         "JobManagerRunner should have failed with expected error");
     }
 
-    private static CompletableFuture<JobManagerRunnerResult> testResultFuture(
+    private static CompletableFuture<JobManagerRunnerResult> getResultFutureFromTestInstance(
             JobResult jobResult,
             ThrowingConsumer<CheckpointResourcesCleanupRunner, ? extends Exception>
                     preCheckLifecycleHandling)
@@ -309,11 +377,6 @@ public class CheckpointResourcesCleanupRunnerTest {
         final CheckpointResourcesCleanupRunner testInstance =
                 new TestInstanceBuilder().withJobResult(jobResult).build();
         preCheckLifecycleHandling.accept(testInstance);
-
-        assertThat(testInstance.getResultFuture())
-                .isCompletedWithValueMatching(
-                        JobManagerRunnerResult::isSuccess,
-                        "The JobManagerRunner should have succeeded.");
 
         return testInstance.getResultFuture();
     }

@@ -27,6 +27,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.DefaultCompletedCheckpointStoreUtils;
+import org.apache.flink.runtime.dispatcher.JobCancellationFailedException;
 import org.apache.flink.runtime.dispatcher.UnavailableDispatcherOperationException;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
@@ -39,7 +40,6 @@ import org.apache.flink.runtime.messages.webmonitor.JobDetails;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.state.SharedStateRegistryFactory;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -70,11 +70,8 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
 
     private final long initializationTimestamp;
 
-    // we have to have two separate futures because closeAsync relies on the completion of
-    // getResultFuture which is always already completed but the cleanupFuture is only
-    // instantiated when calling start
-    private CompletableFuture<Void> cleanupFuture;
-    private final CompletableFuture<Void> closeFuture = new CompletableFuture<>();
+    private final CompletableFuture<Void> cleanupFuture;
+    private final CompletableFuture<JobManagerRunnerResult> resultFuture;
 
     public CheckpointResourcesCleanupRunner(
             JobResult jobResult,
@@ -91,28 +88,33 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
         this.initializationTimestamp = initializationTimestamp;
 
         this.checkpointsCleaner = new CheckpointsCleaner();
+
+        this.resultFuture = new CompletableFuture<>();
+        this.cleanupFuture = resultFuture.thenCompose(ignored -> runCleanupAsync());
+    }
+
+    private CompletableFuture<Void> runCleanupAsync() {
+        return CompletableFuture.runAsync(
+                        () -> {
+                            try {
+                                cleanupCheckpoints();
+                            } catch (Exception e) {
+                                throw new CompletionException(e);
+                            }
+                        },
+                        cleanupExecutor)
+                .thenCompose(ignore -> checkpointsCleaner.closeAsync());
     }
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        return closeFuture;
+        return cleanupFuture;
     }
 
     @Override
     public void start() throws Exception {
-        cleanupFuture =
-                CompletableFuture.runAsync(
-                                () -> {
-                                    try {
-                                        cleanupCheckpoints();
-                                    } catch (Exception e) {
-                                        throw new CompletionException(e);
-                                    }
-                                },
-                                cleanupExecutor)
-                        .thenCompose(ignore -> checkpointsCleaner.closeAsync());
-
-        FutureUtils.forward(cleanupFuture, closeFuture);
+        resultFuture.complete(
+                JobManagerRunnerResult.forSuccess(createExecutionGraphInfoFromJobResult()));
     }
 
     private void cleanupCheckpoints() throws Exception {
@@ -159,8 +161,7 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
 
     @Override
     public CompletableFuture<JobManagerRunnerResult> getResultFuture() {
-        return CompletableFuture.completedFuture(
-                JobManagerRunnerResult.forSuccess(createExecutionGraphInfoFromJobResult()));
+        return resultFuture;
     }
 
     @Override
@@ -170,15 +171,8 @@ public class CheckpointResourcesCleanupRunner implements JobManagerRunner {
 
     @Override
     public CompletableFuture<Acknowledge> cancel(Time timeout) {
-        Preconditions.checkState(
-                cleanupFuture != null,
-                "The CheckpointResourcesCleanupRunner was not started, yet.");
-        if (cleanupFuture.cancel(true)) {
-            return CompletableFuture.completedFuture(Acknowledge.get());
-        }
-
         return FutureUtils.completedExceptionally(
-                new FlinkException("Cleanup task couldn't be cancelled."));
+                new JobCancellationFailedException("Cleanup tasks are not meant to be cancelled."));
     }
 
     @Override

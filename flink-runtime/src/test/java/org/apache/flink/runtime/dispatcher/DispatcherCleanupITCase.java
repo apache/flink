@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
@@ -27,12 +28,16 @@ import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.dispatcher.cleanup.DispatcherResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingRetryStrategies;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.highavailability.JobResultEntry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
+import org.apache.flink.runtime.jobmaster.JobManagerRunner;
 import org.apache.flink.runtime.jobmaster.JobMasterGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -43,6 +48,7 @@ import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.TestingJobGraphStore;
+import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -50,6 +56,7 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import org.hamcrest.CoreMatchers;
 import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -61,9 +68,11 @@ import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -177,6 +186,60 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 () -> haServices.getJobResultStore().hasJobResultEntry(jobId),
                 Deadline.fromNow(Duration.ofMinutes(5)),
                 "The JobResultStore should have this job marked as clean.");
+    }
+
+    @Test
+    public void testCleanupNotCancellable() throws Exception {
+        final JobGraph jobGraph = createJobGraph();
+        final JobID jobId = jobGraph.getJobID();
+
+        final JobResultStore jobResultStore = new EmbeddedJobResultStore();
+        jobResultStore.createDirtyResult(
+                new JobResultEntry(TestingJobResultStore.createSuccessfulJobResult(jobId)));
+        haServices.setJobResultStore(jobResultStore);
+
+        // Instantiates JobManagerRunner
+        final CompletableFuture<Void> jobManagerRunnerCleanupFuture = new CompletableFuture<>();
+        final AtomicReference<JobManagerRunner> jobManagerRunnerEntry = new AtomicReference<>();
+        final JobManagerRunnerRegistry jobManagerRunnerRegistry =
+                TestingJobManagerRunnerRegistry.newSingleJobBuilder(jobManagerRunnerEntry)
+                        .withGlobalCleanupAsyncFunction(
+                                (actualJobId, executor) -> jobManagerRunnerCleanupFuture)
+                        .build();
+
+        final Dispatcher dispatcher =
+                createTestingDispatcherBuilder()
+                        .setJobManagerRunnerRegistry(jobManagerRunnerRegistry)
+                        .build();
+        dispatcher.start();
+
+        toTerminate.add(dispatcher);
+
+        CommonTestUtils.waitUntilCondition(
+                () -> jobManagerRunnerEntry.get() != null,
+                Deadline.fromNow(Duration.ofSeconds(10)),
+                "JobManagerRunner wasn't loaded in time.");
+
+        assertThat(
+                "The JobResultStore should have this job still marked as dirty.",
+                haServices.getJobResultStore().hasDirtyJobResultEntry(jobId),
+                CoreMatchers.is(true));
+
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+
+        try {
+            dispatcherGateway.cancelJob(jobId, TIMEOUT).get();
+            Assert.fail("Should fail because cancelling the cleanup is not allowed.");
+        } catch (ExecutionException e) {
+            assertThat(e, FlinkMatchers.containsCause(JobCancellationFailedException.class));
+        }
+        jobManagerRunnerCleanupFuture.complete(null);
+
+        CommonTestUtils.waitUntilCondition(
+                () -> haServices.getJobResultStore().hasCleanJobResultEntry(jobId),
+                Deadline.fromNow(Duration.ofSeconds(60)),
+                "The JobResultStore should have this job marked as clean now.");
     }
 
     @Test
