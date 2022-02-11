@@ -19,8 +19,10 @@
 package org.apache.flink.table.api.bridge.java.internal;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
+import org.apache.flink.table.api.TablePipeline;
 import org.apache.flink.table.api.bridge.java.StreamStatementSet;
 import org.apache.flink.table.api.internal.StatementSetImpl;
 
@@ -39,24 +41,37 @@ public class StreamStatementSetImpl extends StatementSetImpl<StreamTableEnvironm
     }
 
     @Override
-    public StreamStatementSet addInsert(String targetPath, Table table) {
-        return (StreamStatementSet) super.addInsert(targetPath, table);
+    public StreamStatementSet add(TablePipeline tablePipeline) {
+        return (StreamStatementSet) super.add(tablePipeline);
     }
 
+    @Override
+    public StreamStatementSet addInsert(String targetPath, Table table) {
+        return add(table.insertInto(targetPath));
+    }
+
+    /** {@inheritDoc} */
     @Override
     public StreamStatementSet addInsert(String targetPath, Table table, boolean overwrite) {
-        return (StreamStatementSet) super.addInsert(targetPath, table, overwrite);
+        return add(table.insertInto(targetPath, overwrite));
     }
 
+    /** {@inheritDoc} */
     @Override
     public StreamStatementSet addInsert(TableDescriptor targetDescriptor, Table table) {
-        return (StreamStatementSet) super.addInsert(targetDescriptor, table);
+        return add(table.insertInto(targetDescriptor));
     }
 
+    /** {@inheritDoc} */
     @Override
     public StreamStatementSet addInsert(
             TableDescriptor targetDescriptor, Table table, boolean overwrite) {
-        return (StreamStatementSet) super.addInsert(targetDescriptor, table, overwrite);
+        return add(table.insertInto(targetDescriptor, overwrite));
+    }
+
+    @Override
+    public StreamStatementSet printExplain(ExplainDetail... extraDetails) {
+        return (StreamStatementSet) super.printExplain(extraDetails);
     }
 
     @Override

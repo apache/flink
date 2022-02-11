@@ -21,7 +21,7 @@ package org.apache.flink.table.api.bridge.scala.internal
 import org.apache.flink.annotation.Internal
 import org.apache.flink.table.api.bridge.scala.StreamStatementSet
 import org.apache.flink.table.api.internal.StatementSetImpl
-import org.apache.flink.table.api.{Table, TableDescriptor}
+import org.apache.flink.table.api.{ExplainDetail, Table, TableDescriptor, TablePipeline}
 
 /** Implementation for [[StreamStatementSet]]. */
 @Internal
@@ -29,32 +29,31 @@ class StreamStatementSetImpl(tableEnvironment: StreamTableEnvironmentImpl)
     extends StatementSetImpl[StreamTableEnvironmentImpl](tableEnvironment)
     with StreamStatementSet {
 
-  override def addInsertSql(statement: String): StreamStatementSet = {
+  override def addInsertSql(statement: String): StreamStatementSet =
     super.addInsertSql(statement).asInstanceOf[StreamStatementSet]
-  }
 
-  override def addInsert(targetPath: String, table: Table): StreamStatementSet = {
+  override def add(tablePipeline: TablePipeline): StreamStatementSet =
+    super.add(tablePipeline).asInstanceOf[StreamStatementSet]
+
+  override def addInsert(targetPath: String, table: Table): StreamStatementSet =
     super.addInsert(targetPath, table).asInstanceOf[StreamStatementSet]
-  }
 
-  override def addInsert(
-      targetPath: String,
-      table: Table,
-      overwrite: Boolean)
-    : StreamStatementSet = {
+  override def addInsert(targetPath: String, table: Table, overwrite: Boolean): StreamStatementSet =
     super.addInsert(targetPath, table, overwrite).asInstanceOf[StreamStatementSet]
-  }
 
-  override def addInsert(targetDescriptor: TableDescriptor, table: Table): StreamStatementSet = {
+  override def addInsert(targetDescriptor: TableDescriptor, table: Table): StreamStatementSet =
     super.addInsert(targetDescriptor, table).asInstanceOf[StreamStatementSet]
-  }
 
   override def addInsert(
-      targetDescriptor: TableDescriptor,
-      table: Table,
-      overwrite: Boolean)
-    : StreamStatementSet = {
+                          targetDescriptor: TableDescriptor,
+                          table: Table,
+                          overwrite: Boolean)
+  : StreamStatementSet =
     super.addInsert(targetDescriptor, table, overwrite).asInstanceOf[StreamStatementSet]
+
+  override def printExplain(extraDetails: ExplainDetail*): StreamStatementSet = {
+    System.out.println(super.explain(extraDetails: _*))
+    this
   }
 
   override def attachAsDataStream(): Unit = {

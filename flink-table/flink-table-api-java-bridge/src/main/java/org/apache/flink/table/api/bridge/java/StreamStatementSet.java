@@ -21,9 +21,11 @@ package org.apache.flink.table.api.bridge.java;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
+import org.apache.flink.table.api.TablePipeline;
 
 /**
  * A {@link StatementSet} that integrates with the Java-specific {@link DataStream} API.
@@ -38,18 +40,26 @@ import org.apache.flink.table.api.TableDescriptor;
 @PublicEvolving
 public interface StreamStatementSet extends StatementSet {
 
+    /** {@inheritDoc} */
     @Override
     StreamStatementSet addInsertSql(String statement);
 
+    /** {@inheritDoc} */
     @Override
+    StreamStatementSet add(TablePipeline tablePipeline);
+
+    /** {@inheritDoc} */
     StreamStatementSet addInsert(String targetPath, Table table);
 
+    /** {@inheritDoc} */
     @Override
     StreamStatementSet addInsert(String targetPath, Table table, boolean overwrite);
 
+    /** {@inheritDoc} */
     @Override
     StreamStatementSet addInsert(TableDescriptor targetDescriptor, Table table);
 
+    /** {@inheritDoc} */
     @Override
     StreamStatementSet addInsert(TableDescriptor targetDescriptor, Table table, boolean overwrite);
 
@@ -62,4 +72,8 @@ public interface StreamStatementSet extends StatementSet {
      * <p>The added statements will be cleared after calling this method.
      */
     void attachAsDataStream();
+
+    /** {@inheritDoc} */
+    @Override
+    StreamStatementSet printExplain(ExplainDetail... extraDetails);
 }
