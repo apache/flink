@@ -218,7 +218,7 @@ public class DispatcherTest extends AbstractDispatcherTest {
     public void testDuplicateJobSubmissionWithGloballyTerminatedJobId() throws Exception {
         final JobResult jobResult =
                 TestingJobResultStore.createJobResult(
-                        jobGraph.getJobID(), ApplicationStatus.UNKNOWN);
+                        jobGraph.getJobID(), ApplicationStatus.SUCCEEDED);
         haServices.getJobResultStore().createDirtyResult(new JobResultEntry(jobResult));
         dispatcher =
                 createAndStartDispatcher(
