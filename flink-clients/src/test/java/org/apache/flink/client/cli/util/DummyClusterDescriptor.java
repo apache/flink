@@ -54,7 +54,8 @@ public class DummyClusterDescriptor<T> implements ClusterDescriptor<T> {
     @Override
     public ClusterClientProvider<T> deployApplicationCluster(
             final ClusterSpecification clusterSpecification,
-            final ApplicationConfiguration applicationConfiguration) {
+            final ApplicationConfiguration applicationConfiguration,
+            final boolean detached) {
         throw new UnsupportedOperationException("Application Mode not supported.");
     }
 

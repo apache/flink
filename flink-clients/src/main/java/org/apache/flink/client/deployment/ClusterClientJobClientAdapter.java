@@ -54,7 +54,7 @@ public class ClusterClientJobClientAdapter<ClusterID>
 
     private final JobID jobID;
 
-    private final ClassLoader classLoader;
+    @Nullable private ClassLoader classLoader;
 
     public ClusterClientJobClientAdapter(
             final ClusterClientProvider<ClusterID> clusterClientProvider,
@@ -63,6 +63,12 @@ public class ClusterClientJobClientAdapter<ClusterID>
         this.jobID = checkNotNull(jobID);
         this.clusterClientProvider = checkNotNull(clusterClientProvider);
         this.classLoader = classLoader;
+    }
+
+    public ClusterClientJobClientAdapter(
+            final ClusterClientProvider<ClusterID> clusterClientProvider, final JobID jobID) {
+        this.jobID = checkNotNull(jobID);
+        this.clusterClientProvider = checkNotNull(clusterClientProvider);
     }
 
     @Override

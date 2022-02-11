@@ -64,7 +64,8 @@ public class StandaloneClusterDescriptor implements ClusterDescriptor<Standalone
     @Override
     public ClusterClientProvider<StandaloneClusterId> deployApplicationCluster(
             final ClusterSpecification clusterSpecification,
-            final ApplicationConfiguration applicationConfiguration) {
+            final ApplicationConfiguration applicationConfiguration,
+            final boolean detached) {
         throw new UnsupportedOperationException(
                 "Application Mode not supported by standalone deployments.");
     }

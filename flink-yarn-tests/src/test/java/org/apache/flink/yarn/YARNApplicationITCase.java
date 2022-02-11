@@ -109,7 +109,8 @@ public class YARNApplicationITCase extends YarnTestBase {
                     yarnClusterDescriptor
                             .deployApplicationCluster(
                                     clusterSpecification,
-                                    ApplicationConfiguration.fromConfiguration(configuration))
+                                    ApplicationConfiguration.fromConfiguration(configuration),
+                                    false)
                             .getClusterClient()) {
 
                 ApplicationId applicationId = clusterClient.getClusterId();

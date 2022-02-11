@@ -67,7 +67,8 @@ public interface ClusterDescriptor<T> extends AutoCloseable {
      */
     ClusterClientProvider<T> deployApplicationCluster(
             final ClusterSpecification clusterSpecification,
-            final ApplicationConfiguration applicationConfiguration)
+            final ApplicationConfiguration applicationConfiguration,
+            final boolean detached)
             throws ClusterDeploymentException;
 
     /**

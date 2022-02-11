@@ -175,7 +175,8 @@ public class KubernetesClusterDescriptor implements ClusterDescriptor<String> {
     @Override
     public ClusterClientProvider<String> deployApplicationCluster(
             final ClusterSpecification clusterSpecification,
-            final ApplicationConfiguration applicationConfiguration)
+            final ApplicationConfiguration applicationConfiguration,
+            final boolean detached)
             throws ClusterDeploymentException {
         if (client.getService(KubernetesService.ServiceType.REST_SERVICE, clusterId).isPresent()) {
             throw new ClusterDeploymentException(

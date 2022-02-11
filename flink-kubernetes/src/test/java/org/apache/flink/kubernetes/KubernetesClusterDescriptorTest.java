@@ -136,7 +136,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
                 PipelineOptions.JARS, Collections.singletonList("local:///path/of/user.jar"));
         flinkConfig.set(DeploymentOptions.TARGET, KubernetesDeploymentTarget.APPLICATION.getName());
         try {
-            descriptor.deployApplicationCluster(clusterSpecification, appConfig);
+            descriptor.deployApplicationCluster(clusterSpecification, appConfig, false);
         } catch (Exception ignored) {
         }
 
@@ -155,7 +155,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
         assertThrows(
                 "Only \"local\" is supported as schema for application mode.",
                 IllegalArgumentException.class,
-                () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig));
+                () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig, false));
     }
 
     @Test
@@ -167,7 +167,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
         assertThrows(
                 "The Flink cluster " + CLUSTER_ID + " already exists.",
                 ClusterDeploymentException.class,
-                () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig));
+                () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig, false));
     }
 
     @Test
@@ -178,7 +178,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
         assertThrows(
                 "Expected deployment.target=kubernetes-application",
                 ClusterDeploymentException.class,
-                () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig));
+                () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig, false));
     }
 
     @Test
@@ -190,7 +190,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
         assertThrows(
                 "Should only have one jar",
                 IllegalArgumentException.class,
-                () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig));
+                () -> descriptor.deployApplicationCluster(clusterSpecification, appConfig, false));
     }
 
     @Test
@@ -204,7 +204,7 @@ public class KubernetesClusterDescriptorTest extends KubernetesClientTestBase {
 
         final ClusterClient<String> clusterClient =
                 descriptor
-                        .deployApplicationCluster(clusterSpecification, appConfig)
+                        .deployApplicationCluster(clusterSpecification, appConfig, false)
                         .getClusterClient();
 
         final String address = CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX + "." + NAMESPACE;

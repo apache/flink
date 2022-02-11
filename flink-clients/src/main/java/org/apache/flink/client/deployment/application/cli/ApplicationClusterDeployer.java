@@ -19,17 +19,29 @@
 package org.apache.flink.client.deployment.application.cli;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.cli.ApplicationDeployer;
+import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.deployment.ClusterClientFactory;
+import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
+import org.apache.flink.client.program.ClusterClientProvider;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.client.JobExecutionException;
+import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.function.FunctionWithException;
+import org.apache.flink.util.function.SupplierWithException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.apache.flink.configuration.DeploymentOptions.SHUTDOWN_ON_APPLICATION_FINISH;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -64,8 +76,80 @@ public class ApplicationClusterDeployer implements ApplicationDeployer {
             final ClusterSpecification clusterSpecification =
                     clientFactory.getClusterSpecification(configuration);
 
-            clusterDescriptor.deployApplicationCluster(
-                    clusterSpecification, applicationConfiguration);
+            final ExecutionConfigAccessor configAccessor =
+                    ExecutionConfigAccessor.fromConfiguration(configuration);
+
+            if (!configAccessor.getDetachedMode()) {
+                configuration.setBoolean(SHUTDOWN_ON_APPLICATION_FINISH, false);
+            }
+
+            ClusterClientProvider<ClusterID> clusterClientProvider =
+                    clusterDescriptor.deployApplicationCluster(
+                            clusterSpecification,
+                            applicationConfiguration,
+                            configAccessor.getDetachedMode());
+
+            if (configAccessor.getDetachedMode()) {
+                LOG.debug(
+                        "The client is in detached mode and will exit directly once application is accepted.");
+                return;
+            }
+
+            Thread shutdownHook =
+                    ShutdownHookUtil.addShutdownHook(
+                            () -> {
+                                clusterClientProvider.getClusterClient().shutDownCluster();
+                            },
+                            ApplicationClusterDeployer.class.getSimpleName(),
+                            LOG);
+
+            JobID jobID =
+                    clusterClientProvider.getClusterClient().listJobs().get().stream()
+                            .findFirst()
+                            .get()
+                            .getJobId();
+
+            ClusterClientJobClientAdapter adapter =
+                    new ClusterClientJobClientAdapter<>(clusterClientProvider, jobID);
+
+            waitUtilTargetStatusReached(
+                    jobID,
+                    () -> (JobStatus) adapter.getJobStatus().get(),
+                    JobStatus::isGloballyTerminalState);
+
+            LOG.info("Shutting down the cluster.");
+            clusterClientProvider.getClusterClient().shutDownCluster();
+            LOG.info("Flink cluster has been shut down.");
+
+            ShutdownHookUtil.removeShutdownHook(
+                    shutdownHook, ApplicationClusterDeployer.class.getSimpleName(), LOG);
+        }
+    }
+
+    @VisibleForTesting
+    public static void waitUtilTargetStatusReached(
+            JobID jobID,
+            SupplierWithException<JobStatus, Exception> jobStatusSupplier,
+            FunctionWithException<JobStatus, Boolean, Exception> isInTargetStatusFunction)
+            throws JobExecutionException {
+        LOG.debug("Wait until target status reached.");
+        try {
+            JobStatus status = jobStatusSupplier.get();
+            while (!isInTargetStatusFunction.apply(status)) {
+                Thread.sleep(1000);
+                status = jobStatusSupplier.get();
+            }
+            if (status == JobStatus.FAILED) {
+                throw new JobExecutionException(
+                        jobID,
+                        "Errors on job execution, more details could be found on JobManager log.");
+            }
+        } catch (JobExecutionException executionException) {
+            throw executionException;
+        } catch (Throwable throwable) {
+            ExceptionUtils.checkInterrupted(throwable);
+            throw new RuntimeException(
+                    "Error while waiting for job to reach target status", throwable);
         }
     }
 }
