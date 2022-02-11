@@ -18,10 +18,14 @@
 
 package org.apache.flink.connector.base.source.reader;
 
+import org.apache.flink.api.common.eventtime.WatermarkGenerator;
+import org.apache.flink.api.common.eventtime.WatermarkOutput;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
+import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
 import org.apache.flink.connector.base.source.reader.mocks.MockSourceReader;
@@ -37,11 +41,23 @@ import org.apache.flink.connector.testutils.source.reader.SourceReaderTestBase;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.core.testutils.CommonTestUtils;
+import org.apache.flink.runtime.source.event.AddSplitEvent;
+import org.apache.flink.streaming.api.operators.SourceOperator;
+import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
+import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
+import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
+import org.hamcrest.MatcherAssert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -50,6 +66,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
+import static org.apache.flink.streaming.api.operators.source.TestingSourceOperator.createTestOperator;
+import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -57,6 +75,8 @@ import static org.junit.Assert.assertTrue;
 
 /** A unit test class for {@link SourceReaderBase}. */
 public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(SourceReaderBaseTest.class);
 
     @Rule public ExpectedException expectedException = ExpectedException.none();
 
@@ -235,6 +255,91 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
                 InputStatus.MORE_AVAILABLE, sourceReader.pollNext(new TestingReaderOutput<>()));
     }
 
+    @Test
+    public void testPerSplitWatermarkWithEmitBeforeSplitAddition() throws Exception {
+        testPerSplitWatermark(true);
+    }
+
+    @Test
+    public void testPerSplitWatermarkWithoutEmitBeforeSplitAddition() throws Exception {
+        testPerSplitWatermark(false);
+    }
+
+    private void testPerSplitWatermark(boolean emitRecordBeforeSplitAddition) throws Exception {
+        MockSplitReader mockSplitReader =
+                MockSplitReader.newBuilder()
+                        .setNumRecordsPerSplitPerFetch(3)
+                        .setBlockingFetch(true)
+                        .build();
+
+        MockSourceReader reader =
+                new MockSourceReader(
+                        new FutureCompletingBlockingQueue<>(),
+                        () -> mockSplitReader,
+                        new Configuration(),
+                        new TestingReaderContext());
+
+        SourceOperator<Integer, MockSourceSplit> sourceOperator =
+                createTestOperator(
+                        reader,
+                        WatermarkStrategy.forGenerator(
+                                (context) -> new OnEventWatermarkGenerator()),
+                        true);
+
+        MockSourceSplit splitA = new MockSourceSplit(0, 0, 3);
+        splitA.addRecord(100);
+        splitA.addRecord(200);
+        splitA.addRecord(300);
+
+        MockSourceSplit splitB = new MockSourceSplit(1, 0, 3);
+        splitB.addRecord(150);
+        splitB.addRecord(250);
+        splitB.addRecord(350);
+
+        WatermarkCollectingDataOutput output = new WatermarkCollectingDataOutput();
+
+        if (emitRecordBeforeSplitAddition) {
+            sourceOperator.emitNext(output);
+        }
+
+        AddSplitEvent<MockSourceSplit> addSplitsEvent =
+                new AddSplitEvent<>(Arrays.asList(splitA, splitB), new MockSourceSplitSerializer());
+        sourceOperator.handleOperatorEvent(addSplitsEvent);
+
+        // First 3 records from split A should not generate any watermarks
+        CommonTestUtils.waitUtil(
+                () -> {
+                    try {
+                        sourceOperator.emitNext(output);
+                    } catch (Exception e) {
+                        LOG.warn("Exception caught at emitting records", e);
+                        return false;
+                    }
+                    return output.numRecords == 3;
+                },
+                Duration.ofSeconds(10),
+                String.format(
+                        "%d out of 3 records are received within timeout", output.numRecords));
+        assertTrue(output.watermarks.isEmpty());
+
+        CommonTestUtils.waitUtil(
+                () -> {
+                    try {
+                        sourceOperator.emitNext(output);
+                    } catch (Exception e) {
+                        LOG.warn("Exception caught at emitting records", e);
+                        return false;
+                    }
+                    return output.numRecords == 6;
+                },
+                Duration.ofSeconds(10),
+                String.format(
+                        "%d out of 6 records are received within timeout", output.numRecords));
+
+        assertEquals(3, output.watermarks.size());
+        MatcherAssert.assertThat(output.watermarks, contains(150L, 250L, 300L));
+    }
+
     // ---------------- helper methods -----------------
 
     @Override
@@ -374,5 +479,38 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
                 }
             }
         }
+    }
+
+    private static class OnEventWatermarkGenerator implements WatermarkGenerator<Integer> {
+
+        @Override
+        public void onEvent(Integer event, long eventTimestamp, WatermarkOutput output) {
+            output.emitWatermark(new org.apache.flink.api.common.eventtime.Watermark(event));
+        }
+
+        @Override
+        public void onPeriodicEmit(WatermarkOutput output) {}
+    }
+
+    private static class WatermarkCollectingDataOutput
+            implements PushingAsyncDataInput.DataOutput<Integer> {
+        int numRecords = 0;
+        final List<Long> watermarks = new ArrayList<>();
+
+        @Override
+        public void emitRecord(StreamRecord<Integer> streamRecord) {
+            numRecords++;
+        }
+
+        @Override
+        public void emitWatermark(Watermark watermark) throws Exception {
+            watermarks.add(watermark.getTimestamp());
+        }
+
+        @Override
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
+
+        @Override
+        public void emitLatencyMarker(LatencyMarker latencyMarker) {}
     }
 }

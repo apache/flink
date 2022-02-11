@@ -62,6 +62,7 @@ import org.apache.flink.util.function.FunctionWithException;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -143,6 +144,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private final CompletableFuture<Void> finished = new CompletableFuture<>();
     private final SourceOperatorAvailabilityHelper availabilityHelper =
             new SourceOperatorAvailabilityHelper();
+
+    private final List<SplitT> outputPendingSplits = new ArrayList<>();
 
     private enum OperatingMode {
         READING,
@@ -356,10 +359,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private DataInputStatus emitNextNotReading(DataOutput<OUT> output) throws Exception {
         switch (operatingMode) {
             case OUTPUT_NOT_INITIALIZED:
-                currentMainOutput = eventTimeLogic.createMainOutput(output);
-                initializeLatencyMarkerEmitter(output);
-                lastInvokedOutput = output;
-                this.operatingMode = OperatingMode.READING;
+                initializeMainOutput(output);
                 return convertToInternalStatus(sourceReader.pollNext(currentMainOutput));
             case SOURCE_STOPPED:
                 this.operatingMode = OperatingMode.DATA_FINISHED;
@@ -371,6 +371,21 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
             case READING:
             default:
                 throw new IllegalStateException("Unknown operating mode: " + operatingMode);
+        }
+    }
+
+    private void initializeMainOutput(DataOutput<OUT> output) {
+        currentMainOutput = eventTimeLogic.createMainOutput(output);
+        initializeLatencyMarkerEmitter(output);
+        lastInvokedOutput = output;
+        // Create per-split output for pending splits added before main output is initialized
+        createOutputForSplits(outputPendingSplits);
+        this.operatingMode = OperatingMode.READING;
+    }
+
+    private void createOutputForSplits(List<SplitT> newSplits) {
+        for (SplitT split : newSplits) {
+            currentMainOutput.createOutputForSplit(split.splitId());
         }
     }
 
@@ -454,17 +469,31 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     @SuppressWarnings("unchecked")
     public void handleOperatorEvent(OperatorEvent event) {
         if (event instanceof AddSplitEvent) {
-            try {
-                sourceReader.addSplits(((AddSplitEvent<SplitT>) event).splits(splitSerializer));
-            } catch (IOException e) {
-                throw new FlinkRuntimeException("Failed to deserialize the splits.", e);
-            }
+            handleAddSplitsEvent(((AddSplitEvent<SplitT>) event));
         } else if (event instanceof SourceEventWrapper) {
             sourceReader.handleSourceEvents(((SourceEventWrapper) event).getSourceEvent());
         } else if (event instanceof NoMoreSplitsEvent) {
             sourceReader.notifyNoMoreSplits();
         } else {
             throw new IllegalStateException("Received unexpected operator event " + event);
+        }
+    }
+
+    private void handleAddSplitsEvent(AddSplitEvent<SplitT> event) {
+        try {
+            List<SplitT> newSplits = event.splits(splitSerializer);
+            if (operatingMode == OperatingMode.OUTPUT_NOT_INITIALIZED) {
+                // For splits arrived before the main output is initialized, store them into the
+                // pending list. Outputs of these splits will be created once the main output is
+                // ready.
+                outputPendingSplits.addAll(newSplits);
+            } else {
+                // Create output directly for new splits if the main output is already initialized.
+                createOutputForSplits(newSplits);
+            }
+            sourceReader.addSplits(newSplits);
+        } catch (IOException e) {
+            throw new FlinkRuntimeException("Failed to deserialize the splits.", e);
         }
     }
 
