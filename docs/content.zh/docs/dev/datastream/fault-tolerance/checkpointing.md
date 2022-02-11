@@ -55,7 +55,7 @@ Checkpoint 其他的属性包括：
   - *checkpoint 超时*：如果 checkpoint 执行的时间超过了该配置的阈值，还在进行中的 checkpoint 操作就会被取消。
 
   - *checkpoints 之间的最小时间*：该属性定义在 checkpoint 之间需要多久的时间，以确保流应用在 checkpoint 之间有足够的进展。如果值设置为了 *5000*，
-    无论 checkpoint 持续时间与间隔是多久，在前一个 checkpoint 完成时的至少五秒后才会开始下一个 checkpoint。
+    无论 checkpoint 持续时间与间隔是多久，在前一个 checkpoint 完成至少五秒后才会开始下一个 checkpoint。
 
     往往使用“checkpoints 之间的最小时间”来配置应用会比 checkpoint 间隔容易很多，因为 "checkpoints 之间的最小时间" 在 checkpoint 的执行时间超过平均值时不会受到影响（例如如果目标的存储系统忽然变得很慢）。
 
