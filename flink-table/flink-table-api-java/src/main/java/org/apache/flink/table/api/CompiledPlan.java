@@ -56,7 +56,7 @@ import java.nio.file.Paths;
  * @see PlanReference
  */
 @Experimental
-public interface CompiledPlan {
+public interface CompiledPlan extends Explainable<CompiledPlan> {
 
     // --- Writer methods
 
@@ -112,23 +112,9 @@ public interface CompiledPlan {
     /** Returns the Flink version used to compile the plan. */
     FlinkVersion getFlinkVersion();
 
-    /**
-     * Returns the AST of the specified statement and the execution plan to compute the result of
-     * the given statement.
-     *
-     * <p>Shorthand for {@link TableEnvironment#explainPlan(CompiledPlan, ExplainDetail...)}.
-     */
-    String explain(ExplainDetail... explainDetails);
-
     /** Like {@link #asJsonString()}, but prints the result to {@link System#out}. */
     default CompiledPlan printJsonString() {
         System.out.println(this.asJsonString());
-        return this;
-    }
-
-    /** Like {@link #explain(ExplainDetail...)}, but prints the result to {@link System#out}. */
-    default CompiledPlan printExplain(ExplainDetail... explainDetails) {
-        System.out.println(this.explain(explainDetails));
         return this;
     }
 }
