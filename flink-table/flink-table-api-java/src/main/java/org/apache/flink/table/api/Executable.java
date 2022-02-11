@@ -22,7 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.config.TableConfigOptions;
 
 /**
- * This interface represents an executable object.
+ * Represents an artifact that can be executed.
  *
  * @see #execute()
  */

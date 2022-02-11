@@ -36,7 +36,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.internal.{TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
+import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentImpl, TableEnvironmentInternal, TableImpl}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, GenericInMemoryCatalog, ObjectIdentifier}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.delegation.{Executor, ExecutorFactory}
@@ -890,7 +890,7 @@ abstract class TableTestUtilBase(test: TableTestBase, isStreamingMode: Boolean) 
       withRowType: Boolean,
       expectedPlans: Array[PlanKind],
       assertSqlEqualsOrExpandFunc: () => Unit): Unit = {
-    val testStmtSet = stmtSet.asInstanceOf[TestingStatementSet]
+    val testStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
 
     val relNodes = testStmtSet.getOperations.map(getPlanner.translateToRel)
     if (relNodes.isEmpty) {
@@ -1502,73 +1502,7 @@ class TestingTableEnvironment private(
     super.createTable(tableOperation)
   }
 
-  override def createStatementSet(): StatementSet = new TestingStatementSet(this)
-}
-
-class TestingStatementSet(tEnv: TestingTableEnvironment) extends StatementSet {
-
-  private val operations: util.List[ModifyOperation] = new util.ArrayList[ModifyOperation]
-
-  def getOperations: util.List[ModifyOperation] = operations
-
-  override def addInsertSql(statement: String): StatementSet = {
-    val operations = tEnv.getParser.parse(statement)
-
-    if (operations.size != 1) {
-      throw new TableException("Only single statement is supported.")
-    }
-
-    operations.get(0) match {
-      case op: ModifyOperation =>
-        this.operations.add(op)
-      case _ =>
-        throw new TableException("Only insert statement is supported now.")
-    }
-    this
-  }
-
-  override def addInsert(targetPath: String, table: Table): StatementSet = {
-    this.addInsert(targetPath, table, overwrite = false)
-  }
-
-  override def addInsert(targetPath: String, table: Table, overwrite: Boolean): StatementSet = {
-    val unresolvedIdentifier = tEnv.getParser.parseIdentifier(targetPath)
-    val objectIdentifier = tEnv.getCatalogManager.qualifyIdentifier(unresolvedIdentifier)
-    val resolvedTable = tEnv.getCatalogManager.getTable(objectIdentifier).get()
-
-    operations.add(new SinkModifyOperation(
-      resolvedTable,
-      table.getQueryOperation,
-      util.Collections.emptyMap[String, String],
-      overwrite,
-      util.Collections.emptyMap[String, String]))
-    this
-  }
-
-  override def addInsert(descriptor: TableDescriptor, table: Table): StatementSet = {
-    throw new TableException("Not implemented")
-  }
-
-  override def addInsert(
-      targetDescriptor: TableDescriptor,
-      table: Table,
-      overwrite: Boolean): StatementSet = {
-    throw new TableException("Not implemented")
-  }
-
-  override def explain(extraDetails: ExplainDetail*): String = {
-    tEnv.explainInternal(operations.map(o => o.asInstanceOf[Operation]), extraDetails: _*)
-  }
-
-  override def execute(): TableResult = {
-    try {
-      tEnv.executeInternal(operations)
-    } finally {
-      operations.clear()
-    }
-  }
-
-  override def compilePlan(): CompiledPlan = null
+  override def createStatementSet(): StatementSet = super.createStatementSet()
 }
 
 object TestingTableEnvironment {

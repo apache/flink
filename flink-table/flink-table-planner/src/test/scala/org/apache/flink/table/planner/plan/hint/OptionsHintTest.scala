@@ -19,12 +19,13 @@
 package org.apache.flink.table.planner.plan.hint
 
 import org.apache.flink.table.api.config.TableConfigOptions
+import org.apache.flink.table.api.internal.StatementSetImpl
 import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.catalog.{CatalogViewImpl, ObjectPath}
 import org.apache.flink.table.planner.JHashMap
 import org.apache.flink.table.planner.plan.hint.OptionsHintTest.{IS_BOUNDED, Param}
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
-import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil, TestingStatementSet}
+import org.apache.flink.table.planner.utils.{OptionsTableSink, TableTestBase, TableTestUtil}
 
 import org.hamcrest.Matchers._
 import org.junit.Assert.{assertEquals, assertThat}
@@ -92,7 +93,7 @@ class OptionsHintTest(param: Param)
          |""".stripMargin
     val stmtSet = util.tableEnv.createStatementSet()
     stmtSet.addInsertSql(sql)
-    val testStmtSet = stmtSet.asInstanceOf[TestingStatementSet]
+    val testStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
     val relNodes = testStmtSet.getOperations.map(util.getPlanner.translateToRel)
     assertThat(relNodes.length, is(1))
     assert(relNodes.head.isInstanceOf[LogicalLegacySink])

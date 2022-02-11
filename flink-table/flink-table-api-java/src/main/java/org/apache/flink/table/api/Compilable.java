@@ -21,7 +21,7 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.Experimental;
 
 /**
- * This interface represents an object that can be compiled to a {@link CompiledPlan}.
+ * Represents an artifact that can be compiled to a {@link CompiledPlan}.
  *
  * @see #compilePlan()
  * @see CompiledPlan

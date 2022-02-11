@@ -31,6 +31,7 @@ import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.TablePipeline;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.WindowGroupedTable;
@@ -48,7 +49,6 @@ import org.apache.flink.table.expressions.resolver.LookupCallResolver;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.functions.TemporalTableFunctionImpl;
 import org.apache.flink.table.operations.JoinQueryOperation.JoinType;
-import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.utils.OperationExpressionsUtils;
@@ -550,29 +550,28 @@ public class TableImpl implements Table {
     }
 
     @Override
-    public TableResult executeInsert(String tablePath) {
-        return executeInsert(tablePath, false);
+    public TablePipeline insertInto(String tablePath) {
+        return insertInto(tablePath, false);
     }
 
     @Override
-    public TableResult executeInsert(String tablePath, boolean overwrite) {
+    public TablePipeline insertInto(String tablePath, boolean overwrite) {
         UnresolvedIdentifier unresolvedIdentifier =
                 tableEnvironment.getParser().parseIdentifier(tablePath);
         ObjectIdentifier objectIdentifier =
                 tableEnvironment.getCatalogManager().qualifyIdentifier(unresolvedIdentifier);
         ContextResolvedTable contextResolvedTable =
                 tableEnvironment.getCatalogManager().getTableOrError(objectIdentifier);
-
-        return executeInsert(contextResolvedTable, overwrite);
+        return insertInto(contextResolvedTable, overwrite);
     }
 
     @Override
-    public TableResult executeInsert(TableDescriptor descriptor) {
-        return executeInsert(descriptor, false);
+    public TablePipeline insertInto(TableDescriptor descriptor) {
+        return insertInto(descriptor, false);
     }
 
     @Override
-    public TableResult executeInsert(TableDescriptor descriptor, boolean overwrite) {
+    public TablePipeline insertInto(TableDescriptor descriptor, boolean overwrite) {
         final SchemaTranslator.ConsumingResult schemaTranslationResult =
                 SchemaTranslator.createConsumingResult(
                         tableEnvironment.getCatalogManager().getDataTypeFactory(),
@@ -587,20 +586,18 @@ public class TableImpl implements Table {
                         .getCatalogManager()
                         .resolveCatalogTable(updatedDescriptor.toCatalogTable());
 
-        return executeInsert(ContextResolvedTable.anonymous(resolvedCatalogBaseTable), overwrite);
+        return insertInto(ContextResolvedTable.anonymous(resolvedCatalogBaseTable), overwrite);
     }
 
-    private TableResultInternal executeInsert(
-            ContextResolvedTable contextResolvedTable, boolean overwrite) {
-        ModifyOperation operation =
+    private TablePipeline insertInto(ContextResolvedTable contextResolvedTable, boolean overwrite) {
+        return new TablePipelineImpl(
+                tableEnvironment,
                 new SinkModifyOperation(
                         contextResolvedTable,
                         getQueryOperation(),
                         Collections.emptyMap(),
                         overwrite,
-                        Collections.emptyMap());
-
-        return tableEnvironment.executeInternal(Collections.singletonList(operation));
+                        Collections.emptyMap()));
     }
 
     @Override

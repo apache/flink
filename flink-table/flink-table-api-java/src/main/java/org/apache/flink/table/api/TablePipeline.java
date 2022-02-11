@@ -19,29 +19,21 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+
+import java.util.Optional;
 
 /**
- * Represents an artifact that can be explained using a summary string.
+ * Describes a complete pipeline from one or more source tables to a sink table.
  *
- * @see #explain(ExplainDetail...)
+ * @see Table#insertInto(String)
  */
 @PublicEvolving
-public interface Explainable<SELF extends Explainable<SELF>> {
+public interface TablePipeline extends Explainable<TablePipeline>, Executable, Compilable {
 
     /**
-     * Returns the AST of this object and the execution plan to compute the result of the given
-     * statement.
-     *
-     * @param extraDetails The extra explain details which the result of this method should include,
-     *     e.g. estimated cost, changelog mode for streaming
-     * @return AST and the execution plan.
+     * @return The sink table's {@link ObjectIdentifier}, if any. The result is empty for anonymous
+     *     sink tables that haven't been registered before.
      */
-    String explain(ExplainDetail... extraDetails);
-
-    /** Like {@link #explain(ExplainDetail...)}, but piping the result to {@link System#out}. */
-    @SuppressWarnings("unchecked")
-    default SELF printExplain(ExplainDetail... extraDetails) {
-        System.out.println(explain(extraDetails));
-        return (SELF) this;
-    }
+    Optional<ObjectIdentifier> getSinkIdentifier();
 }
