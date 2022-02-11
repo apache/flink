@@ -467,15 +467,13 @@ You can customize the Flink image in several ways:
 [Docker Compose](https://docs.docker.com/compose/) is a way to run a group of Docker containers locally.
 The next sections show examples of configuration files to run Flink.
 
-#### Usage
+#### General 
 
-* Create the `yaml` files with the container configuration, check examples for:
-  * [Application cluster](#app-cluster-yml)
-  * [Session cluster](#session-cluster-yml)
-
-  See also [the Flink Docker image tags](#image-tags) and [how to customize the Flink Docker image](#advanced-customization)
-  for usage in the configuration files.
-
+* Create the docker-compose.yaml file. Please check the examples in the sections below:
+    * [Application Mode](#app-cluster-yml)
+    * [Session Mode](#session-cluster-yml)
+    * [Session Mode with SQL Client](#session-cluster-sql-yaml)
+    
 * Launch a cluster in the foreground (use `-d` for background)
 
     ```sh
@@ -497,36 +495,21 @@ The next sections show examples of configuration files to run Flink.
 * Kill the cluster
 
     ```sh
-    $ docker-compose kill
+    $ docker-compose down
     ```
 
 * Access Web UI
 
   When the cluster is running, you can visit the web UI at [http://localhost:8081](http://localhost:8081).
-  You can also use the web UI to submit a job to a *Session cluster*.
 
-* To submit a job to a *Session cluster* via the command line, you can either
+#### Application Mode
 
-  * use [Flink CLI]({{< ref "docs/deployment/cli" >}}) on the host if it is installed:
+In application mode you start a Flink cluster that is dedicated to run only the Flink Jobs which have been bundled with the images.
+Hence, you need to build a dedicated Flink Image per application. 
+Please check [here](#application-mode-on-docker) for the details.
+See also [how to specify the JobManager arguments](#jobmanager-additional-command-line-arguments) in the `command` for the `jobmanager` service.
 
-    ```sh
-    $ ./bin/flink run --detached --class ${JOB_CLASS_NAME} /job.jar
-    ```
-
-  * or copy the JAR to the JobManager container and submit the job using the [CLI]({{< ref "docs/deployment/cli" >}}) from there, for example:
-
-    ```sh
-    $ JOB_CLASS_NAME="com.job.ClassName"
-    $ JM_CONTAINER=$(docker ps --filter name=jobmanager --format={{.ID}}))
-    $ docker cp path/to/jar "${JM_CONTAINER}":/job.jar
-    $ docker exec -t -i "${JM_CONTAINER}" flink run -d -c ${JOB_CLASS_NAME} /job.jar
-    ```
-
-Here, we provide the <a id="app-cluster-yml">`docker-compose.yml`</a> for *Application Cluster*.
-
-Note: For the Application Mode cluster, the artifacts must be available in the Flink containers, check details [here](#application-mode-on-docker).
-See also [how to specify the JobManager arguments](#jobmanager-additional-command-line-arguments)
-in the `command` for the `jobmanager` service.
+<a id="app-cluster-yml">`docker-compose.yml`</a> for *Application Mode*.
 
 ```yaml
 version: "2.2"
@@ -560,9 +543,11 @@ services:
         parallelism.default: 2
 ```
 
+#### Session Mode
 
-As well as the <a id="session-cluster-yml">`docker-compose.yml`</a> for *Session Cluster*:
+In Session Mode you use docker-compose to spin up a long-running Flink Cluster to which you can then submit Jobs.
 
+<a id="session-cluster-yml">`docker-compose.yml`</a> for *Session Mode*:
 
 ```yaml
 version: "2.2"
@@ -589,7 +574,61 @@ services:
         jobmanager.rpc.address: jobmanager
         taskmanager.numberOfTaskSlots: 2
 ```
+#### Flink SQL Client with Session Cluster 
 
+In this example, you spin up a long-running session cluster and a Flink SQL CLI which uses this clusters to submit jobs to. 
+
+<a id="session-cluster-sql-yaml">`docker-compose.yml`</a> for Flink SQL Client with *Session Cluster*:
+
+```yaml
+version: "2.2"
+services:
+  jobmanager:
+    image: flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+
+  taskmanager:
+    image: flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
+    depends_on:
+      - jobmanager
+    command: taskmanager
+    scale: 1
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+        taskmanager.numberOfTaskSlots: 2
+  sql-client:
+    image: flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
+    command: bin/sql-client.sh
+    depends_on:
+      - jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: jobmanager
+```
+* In order to start the SQL Client run
+  ```sh
+  docker-compose run sql-client
+  ```
+  You can then start creating tables and queries those.
+
+* Note, that all required dependencies (e.g. for connectors) need to be available in the cluster as well as the client. 
+  For example, if you would like to use the Kafka Connector create a custom image with the following Dockerfile
+  ```Dockerfile
+  FROM flink:{{< stable >}}{{< version >}}-scala{{< scala_version >}}{{< /stable >}}{{< unstable >}}latest{{< /unstable >}}
+  RUN wget -P /opt/flink/lib https://repo.maven.apache.org/maven2/org/apache/flink/flink-sql-connector-kafka_2.12/{{< stable >}}{{< version >}}/flink-sql-connector-kafka_scala{{< scala_version >}}-{{< stable >}}{{< version >}}.jar
+  ```
+  and reference it (e.g via the `build`) command in the Dockerfile.
+  and reference it (e.g via the `build`) command in the Dockerfile. 
+  SQL Commands like `ADD JAR` will not work for JARs located on the host machine as they only work with the local filesystem, which in this case is Docker's overlay filesystem. 
 
 ### Flink with Docker Swarm
 
