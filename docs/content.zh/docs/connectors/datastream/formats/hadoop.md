@@ -55,7 +55,7 @@ under the License.
 
 ## Using Hadoop InputFormats
 
-要在 Flink 中使用 Hadoop `InputFormats`，必须首先使用 `HadoopInputs` 工具类的 `readHadoopFile` 或 `createHadoopInput` 包装 Input Format。
+在 Flink 中使用 Hadoop `InputFormats`，必须首先使用 `HadoopInputs` 工具类的 `readHadoopFile` 或 `createHadoopInput` 包装 Input Format。
 前者用于从 `FileInputFormat` 派生的 Input Format，而后者必须用于通用的 Input Format。
 生成的 `InputFormat` 可通过使用 `ExecutionEnvironmen#createInput` 创建数据源。
 
