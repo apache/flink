@@ -19,6 +19,7 @@
 package org.apache.flink.connector.pulsar.sink.writer.context;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.connector.sink2.Sink.InitContext;
 import org.apache.flink.api.connector.sink2.SinkWriter.Context;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
@@ -32,12 +33,14 @@ public class PulsarSinkContextAdapter implements PulsarSinkContext {
     private final int numberOfParallelSubtasks;
     private final int parallelInstanceId;
     private final boolean enableSchemaEvolution;
-    private Long timestamp;
+    private final ProcessingTimeService processingTimeService;
+    private Long eventTime;
 
     public PulsarSinkContextAdapter(InitContext initContext, SinkConfiguration sinkConfiguration) {
         this.parallelInstanceId = initContext.getSubtaskId();
         this.numberOfParallelSubtasks = initContext.getNumberOfParallelSubtasks();
         this.enableSchemaEvolution = sinkConfiguration.isEnableSchemaEvolution();
+        this.processingTimeService = initContext.getProcessingTimeService();
     }
 
     @Override
@@ -57,12 +60,17 @@ public class PulsarSinkContextAdapter implements PulsarSinkContext {
 
     @Nullable
     @Override
-    public Long timestamp() {
-        return timestamp;
+    public Long eventTime() {
+        return eventTime;
+    }
+
+    @Override
+    public long processTime() {
+        return processingTimeService.getCurrentProcessingTime();
     }
 
     /** Dynamic update the time by Flink sink writer context. */
     public void updateTimestamp(Context context) {
-        this.timestamp = context.timestamp();
+        this.eventTime = context.timestamp();
     }
 }
