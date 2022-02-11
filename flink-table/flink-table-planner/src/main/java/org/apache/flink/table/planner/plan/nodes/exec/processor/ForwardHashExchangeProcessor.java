@@ -43,11 +43,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  * same parallelism). Once the parallelism is changed, the FORWARD behavior will be broken, and the
  * result will be wrong.
  *
- * <p>In order to meet the needs of flexible parallelism changing, a special {@link
- * BatchExecExchange} (with KEEP_INPUT_AS_IS distribution flag) will be added for the {@link
- * ExecNode} as its input. And then the runtime will decide which partitioner can be used when
- * adaptive scheduler is enabled: FORWARD partitioner if the parallelism is the same, or HASH
- * partitioner if the parallelism is different.
+ * <p>In order to meet the needs of flexible parallelism changing by adaptive scheduler, a special
+ * {@link BatchExecExchange} (with KEEP_INPUT_AS_IS distribution flag) will be added for the {@link
+ * ExecNode} as its input. And then the StreamingJobGraphGenerator will decide which partitioner can
+ * be used when dynamic-graph is enabled: FORWARD partitioner if nodes are chainable, else HASH
+ * partitioner.
  *
  * <p>Its works only for batch job when dynamic-graph is enabled.
  */
@@ -80,7 +80,7 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
                                 continue;
                             }
                             ExecEdge edge = node.getInputEdges().get(i);
-                            if (!hasExchangeInput(edge)) {
+                            if (!isExchangeInput(edge)) {
                                 InputProperty newInputProperty =
                                         InputProperty.builder()
                                                 .requiredDistribution(
@@ -125,7 +125,7 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
         return execGraph;
     }
 
-    private boolean hasExchangeInput(ExecEdge edge) {
+    private boolean isExchangeInput(ExecEdge edge) {
         return edge.getSource() instanceof CommonExecExchange;
     }
 

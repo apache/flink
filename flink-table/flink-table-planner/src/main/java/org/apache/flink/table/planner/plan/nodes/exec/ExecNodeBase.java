@@ -24,7 +24,6 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
@@ -145,18 +144,13 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         visitor.visit(this);
     }
 
-    /** Whether there is singleton exchange node as input. */
+    /** Whether singleton distribution is required. */
     protected boolean inputsContainSingleton() {
-        return getInputEdges().stream()
-                .map(ExecEdge::getSource)
+        return getInputProperties().stream()
                 .anyMatch(
-                        i ->
-                                i instanceof CommonExecExchange
-                                        && i.getInputProperties()
-                                                        .get(0)
-                                                        .getRequiredDistribution()
-                                                        .getType()
-                                                == InputProperty.DistributionType.SINGLETON);
+                        p ->
+                                p.getRequiredDistribution().getType()
+                                        == InputProperty.DistributionType.SINGLETON);
     }
 
     @JsonIgnore
