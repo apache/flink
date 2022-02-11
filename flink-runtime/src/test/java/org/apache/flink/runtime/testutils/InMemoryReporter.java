@@ -28,6 +28,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,10 +52,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.configuration.MetricOptions.SCOPE_NAMING_JM_JOB;
-import static org.apache.flink.configuration.MetricOptions.SCOPE_NAMING_OPERATOR;
-import static org.apache.flink.configuration.MetricOptions.SCOPE_NAMING_TASK;
-import static org.apache.flink.configuration.MetricOptions.SCOPE_NAMING_TM_JOB;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -169,15 +166,15 @@ public class InMemoryReporter implements MetricReporter {
     }
 
     private String getSubtaskId(OperatorMetricGroup g) {
-        return g.getScopeComponents()[g.getScopeComponents().length - 1];
+        return g.getAllVariables().get(ScopeFormat.SCOPE_TASK_SUBTASK_INDEX);
     }
 
     private String getOperatorName(MetricGroup g) {
-        return g.getScopeComponents()[g.getScopeComponents().length - 2];
+        return g.getAllVariables().get(ScopeFormat.SCOPE_OPERATOR_NAME);
     }
 
     private String getJobId(MetricGroup g) {
-        return g.getScopeComponents()[0];
+        return g.getAllVariables().get(ScopeFormat.SCOPE_JOB_ID);
     }
 
     @Override
@@ -252,14 +249,6 @@ public class InMemoryReporter implements MetricReporter {
         configuration.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX + "mini_cluster_resource_reporter." + ID,
                 id.toString());
-        configuration.set(SCOPE_NAMING_JM_JOB, "<job_id>.<host>.jobmanager.<job_name>");
-        configuration.set(SCOPE_NAMING_TM_JOB, "<job_id>.<host>.taskmanager.<tm_id>.<job_name>");
-        configuration.set(
-                SCOPE_NAMING_TASK,
-                "<job_id>/<host>.taskmanager.<tm_id>.<job_name>.<task_name>.<subtask_index>");
-        configuration.set(
-                SCOPE_NAMING_OPERATOR,
-                "<job_id>.<host>.taskmanager.<tm_id>.<job_name>.<operator_name>.<subtask_index>");
         return configuration;
     }
 
