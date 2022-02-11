@@ -123,8 +123,10 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
         // randomize ITTests for enabling state change log
         if (isConfigurationSupportedByChangelog(miniCluster.getConfiguration())) {
             if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
-                conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
-                miniCluster.overrideRestoreModeForRandomizedChangelogStateBackend();
+                if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
+                    conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
+                    miniCluster.overrideRestoreModeForRandomizedChangelogStateBackend();
+                }
             } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {
                 boolean enabled =
                         randomize(conf, StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true, false);
