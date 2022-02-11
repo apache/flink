@@ -79,7 +79,7 @@ public class MetricUtilsTest extends TestLogger {
 
         final RpcService rpcService =
                 MetricUtils.startRemoteMetricsRpcService(
-                        configuration, "localhost", RpcSystem.load());
+                        configuration, "localhost", null, RpcSystem.load());
 
         try {
             final int threadPriority =
