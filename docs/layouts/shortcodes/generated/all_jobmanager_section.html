@@ -33,6 +33,18 @@
             <td>Dictionary for JobManager to store the archives of completed jobs.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.cleanup.max-delay</h5></td>
+            <td style="word-wrap: break-word;">1 h</td>
+            <td>Duration</td>
+            <td>The cleanup of each job is retried up to the point where it succeeds. The maximum delay marks the maximum amount of time used for a retry interval up to which the retry interval increases exponentially.</td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.cleanup.min-delay</h5></td>
+            <td style="word-wrap: break-word;">1 s</td>
+            <td>Duration</td>
+            <td>The cleanup of each job is retried up to the point where it succeeds. The minimum delay is used for the first retry of a cleanup task. The delay will increase exponentially.</td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.execution.attempts-history-size</h5></td>
             <td style="word-wrap: break-word;">16</td>
             <td>Integer</td>

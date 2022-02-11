@@ -26,6 +26,7 @@ import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.DispatcherResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.TestingCleanupRunnerFactory;
+import org.apache.flink.runtime.dispatcher.cleanup.TestingRetryStrategies;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultStore;
@@ -345,6 +346,7 @@ class TestingDispatcher extends Dispatcher {
         private ResourceCleanerFactory createDefaultResourceCleanerFactory() {
             return new DispatcherResourceCleanerFactory(
                     ioExecutor,
+                    TestingRetryStrategies.NO_RETRY_STRATEGY,
                     jobManagerRunnerRegistry,
                     jobGraphWriter,
                     blobServer,

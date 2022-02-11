@@ -84,6 +84,7 @@ public class DispatcherResourceCleanerFactoryTest {
         testInstance =
                 new DispatcherResourceCleanerFactory(
                         Executors.directExecutor(),
+                        TestingRetryStrategies.NO_RETRY_STRATEGY,
                         createJobManagerRunnerRegistry(),
                         createJobGraphWriter(),
                         blobServer,
