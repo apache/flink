@@ -107,7 +107,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-python-group-window-aggregate",
         version = 1,
-        producedTransformations = StreamExecGroupWindowAggregate.GROUP_WINDOW_TRANSFORMATION,
+        producedTransformations =
+                StreamExecGroupWindowAggregate.GROUP_WINDOW_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBase {

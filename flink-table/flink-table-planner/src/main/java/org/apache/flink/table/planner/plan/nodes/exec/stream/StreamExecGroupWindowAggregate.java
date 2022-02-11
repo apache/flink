@@ -111,7 +111,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
             "table.exec.mini-batch.enabled",
             "table.exec.mini-batch.size"
         },
-        producedTransformations = StreamExecGroupWindowAggregate.GROUP_WINDOW_TRANSFORMATION,
+        producedTransformations =
+                StreamExecGroupWindowAggregate.GROUP_WINDOW_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
@@ -119,7 +120,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     private static final Logger LOGGER =
             LoggerFactory.getLogger(StreamExecGroupWindowAggregate.class);
 
-    public static final String GROUP_WINDOW_TRANSFORMATION = "group-window-aggregate";
+    public static final String GROUP_WINDOW_AGGREGATE_TRANSFORMATION = "group-window-aggregate";
 
     public static final String FIELD_NAME_WINDOW = "window";
     public static final String FIELD_NAME_NAMED_WINDOW_PROPERTIES = "namedWindowProperties";
@@ -282,7 +283,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
                         createTransformationMeta(
-                                GROUP_WINDOW_TRANSFORMATION, planner.getTableConfig()),
+                                GROUP_WINDOW_AGGREGATE_TRANSFORMATION, planner.getTableConfig()),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
