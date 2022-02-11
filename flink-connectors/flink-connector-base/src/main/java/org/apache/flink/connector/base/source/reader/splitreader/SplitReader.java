@@ -50,6 +50,11 @@ public interface SplitReader<E, SplitT extends SourceSplit> {
     /**
      * Handle the split changes. This call should be non-blocking.
      *
+     * <p>For the consistency of internal state in SourceReaderBase, if an invalid split is added to
+     * the reader (for example splits without any records), it should be put back into {@link
+     * RecordsWithSplitIds} as finished splits so that SourceReaderBase could be able to clean up
+     * resources created for it.
+     *
      * @param splitsChanges the split changes that the SplitReader needs to handle.
      */
     void handleSplitsChanges(SplitsChange<SplitT> splitsChanges);
