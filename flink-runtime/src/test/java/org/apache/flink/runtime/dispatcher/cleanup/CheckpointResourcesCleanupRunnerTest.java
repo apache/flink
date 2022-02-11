@@ -33,7 +33,6 @@ import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.UnavailableDispatcherOperationException;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.jobmaster.JobManagerRunnerResult;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
@@ -47,18 +46,24 @@ import org.apache.flink.util.function.ThrowingConsumer;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ForkJoinPool;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * {@code CheckpointResourcesCleanupRunnerTest} tests the {@link CheckpointResourcesCleanupRunner}
  * implementation.
  */
 public class CheckpointResourcesCleanupRunnerTest {
+
+    private static final Time TIMEOUT_FOR_REQUESTS = Time.milliseconds(0);
+    private static final Duration TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY = Duration.ofMinutes(60);
 
     private static final ThrowingConsumer<CheckpointResourcesCleanupRunner, ? extends Exception>
             BEFORE_START = ignored -> {};
@@ -135,14 +140,14 @@ public class CheckpointResourcesCleanupRunnerTest {
 
         assertThat(completedCheckpointStoreShutdownFuture)
                 .as("The CompletedCheckpointStore should have been shut down properly.")
-                .succeedsWithin(Duration.ofMillis(100))
+                .succeedsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
                 .isEqualTo(JobStatus.FINISHED);
         assertThat(checkpointIdCounterShutdownFuture)
                 .as("The CheckpointIDCounter should have been shut down properly.")
-                .succeedsWithin(Duration.ofMillis(100))
+                .succeedsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
                 .isEqualTo(JobStatus.FINISHED);
 
-        assertThat(testInstance.closeAsync()).succeedsWithin(Duration.ofMillis(100));
+        assertThat(testInstance.closeAsync()).succeedsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY);
     }
 
     @Test
@@ -182,11 +187,11 @@ public class CheckpointResourcesCleanupRunnerTest {
 
         assertThat(checkpointIdCounterShutdownFuture)
                 .as("The CheckpointIDCounter should have been shut down properly.")
-                .succeedsWithin(Duration.ofMillis(100))
+                .succeedsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
                 .isEqualTo(JobStatus.FINISHED);
 
         assertThat(testInstance.closeAsync())
-                .failsWithin(Duration.ofMillis(100))
+                .failsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(RuntimeException.class);
     }
@@ -228,11 +233,11 @@ public class CheckpointResourcesCleanupRunnerTest {
 
         assertThat(completedCheckpointStoreShutdownFuture)
                 .as("The CompletedCheckpointStore should have been shut down properly.")
-                .succeedsWithin(Duration.ofMillis(100))
+                .succeedsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
                 .isEqualTo(JobStatus.FINISHED);
 
         assertThat(testInstance.closeAsync())
-                .failsWithin(Duration.ofMillis(100))
+                .failsWithin(TIMEOUT_FOR_RESULTS_WITH_CONCURRENCY)
                 .withThrowableOfType(ExecutionException.class)
                 .withCauseInstanceOf(RuntimeException.class);
     }
@@ -285,12 +290,16 @@ public class CheckpointResourcesCleanupRunnerTest {
                         createJobResultWithFailure(expectedError), preCheckLifecycleHandling);
 
         assertThat(actualResult)
-                .succeedsWithin(Duration.ZERO)
-                .extracting(JobManagerRunnerResult::getExecutionGraphInfo)
-                .extracting(ExecutionGraphInfo::getArchivedExecutionGraph)
-                .extracting(AccessExecutionGraph::getFailureInfo)
-                .extracting(ErrorInfo::getException)
-                .isEqualTo(expectedError);
+                .isCompletedWithValueMatching(
+                        jobManagerRunnerResult ->
+                                Objects.requireNonNull(
+                                                jobManagerRunnerResult
+                                                        .getExecutionGraphInfo()
+                                                        .getArchivedExecutionGraph()
+                                                        .getFailureInfo())
+                                        .getException()
+                                        .equals(expectedError),
+                        "JobManagerRunner should have failed with expected error");
     }
 
     private static CompletableFuture<JobManagerRunnerResult> testResultFuture(
@@ -303,9 +312,9 @@ public class CheckpointResourcesCleanupRunnerTest {
         preCheckLifecycleHandling.accept(testInstance);
 
         assertThat(testInstance.getResultFuture())
-                .succeedsWithin(Duration.ZERO)
-                .extracting(JobManagerRunnerResult::isSuccess)
-                .isEqualTo(true);
+                .isCompletedWithValueMatching(
+                        JobManagerRunnerResult::isSuccess,
+                        "The JobManagerRunner should have succeeded.");
 
         return testInstance.getResultFuture();
     }
@@ -342,10 +351,9 @@ public class CheckpointResourcesCleanupRunnerTest {
         final CheckpointResourcesCleanupRunner testInstance = new TestInstanceBuilder().build();
         preCheckLifecycleHandling.accept(testInstance);
 
-        assertThat(testInstance.getJobMasterGateway())
-                .failsWithin(Duration.ZERO)
-                .withThrowableOfType(ExecutionException.class)
-                .withCauseInstanceOf(UnavailableDispatcherOperationException.class);
+        assertThatThrownBy(() -> testInstance.getJobMasterGateway().get())
+                .isInstanceOf(ExecutionException.class)
+                .hasCauseExactlyInstanceOf(UnavailableDispatcherOperationException.class);
     }
 
     @Test
@@ -354,10 +362,7 @@ public class CheckpointResourcesCleanupRunnerTest {
                 createDummySuccessJobResult(),
                 System.currentTimeMillis(),
                 actualExecutionGraphInfo ->
-                        assertThat(actualExecutionGraphInfo)
-                                .extracting(ExecutionGraphInfo::getExceptionHistory)
-                                .asList()
-                                .isEmpty());
+                        !actualExecutionGraphInfo.getExceptionHistory().iterator().hasNext());
     }
 
     @Test
@@ -365,10 +370,7 @@ public class CheckpointResourcesCleanupRunnerTest {
         testRequestJobExecutionGraph(
                 createDummySuccessJobResult(),
                 System.currentTimeMillis(),
-                actualExecutionGraph ->
-                        assertThat(actualExecutionGraph)
-                                .extracting(AccessExecutionGraph::getJobName)
-                                .isEqualTo("unknown"));
+                actualExecutionGraph -> actualExecutionGraph.getJobName().equals("unknown"));
     }
 
     @Test
@@ -378,9 +380,7 @@ public class CheckpointResourcesCleanupRunnerTest {
                 jobResult,
                 System.currentTimeMillis(),
                 actualExecutionGraph ->
-                        assertThat(actualExecutionGraph)
-                                .extracting(AccessExecutionGraph::getJobID)
-                                .isEqualTo(jobResult.getJobId()));
+                        actualExecutionGraph.getJobID().equals(jobResult.getJobId()));
     }
 
     @Test
@@ -390,9 +390,9 @@ public class CheckpointResourcesCleanupRunnerTest {
                 jobResult,
                 System.currentTimeMillis(),
                 actualExecutionGraph ->
-                        assertThat(actualExecutionGraph)
-                                .extracting(AccessExecutionGraph::getState)
-                                .isEqualTo(jobResult.getApplicationStatus().deriveJobStatus()));
+                        actualExecutionGraph
+                                .getState()
+                                .equals(jobResult.getApplicationStatus().deriveJobStatus()));
     }
 
     @Test
@@ -402,8 +402,8 @@ public class CheckpointResourcesCleanupRunnerTest {
                 createDummySuccessJobResult(),
                 initializationTimestamp,
                 actualExecutionGraph ->
-                        assertThat(actualExecutionGraph.getStatusTimestamp(JobStatus.INITIALIZING))
-                                .isEqualTo(initializationTimestamp));
+                        actualExecutionGraph.getStatusTimestamp(JobStatus.INITIALIZING)
+                                == initializationTimestamp);
     }
 
     @Test
@@ -415,29 +415,26 @@ public class CheckpointResourcesCleanupRunnerTest {
                 jobResult,
                 System.currentTimeMillis(),
                 actualExecutionGraph ->
-                        assertThat(actualExecutionGraph)
-                                .extracting(AccessExecutionGraph::getFailureInfo)
-                                .extracting(ErrorInfo::getException)
-                                .isEqualTo(expectedError));
+                        Objects.requireNonNull(actualExecutionGraph.getFailureInfo())
+                                .getException()
+                                .equals(expectedError));
     }
 
     private static void testRequestJobExecutionGraph(
             JobResult jobResult,
             long initializationTimestamp,
-            ThrowingConsumer<AccessExecutionGraph, ? extends Exception> assertion) {
+            Function<AccessExecutionGraph, Boolean> assertion) {
         testRequestJob(
                 jobResult,
                 initializationTimestamp,
                 actualExecutionGraphInfo ->
-                        assertThat(actualExecutionGraphInfo)
-                                .extracting(ExecutionGraphInfo::getArchivedExecutionGraph)
-                                .satisfies(assertion::accept));
+                        assertion.apply(actualExecutionGraphInfo.getArchivedExecutionGraph()));
     }
 
     private static void testRequestJob(
             JobResult jobResult,
             long initializationTimestamp,
-            ThrowingConsumer<ExecutionGraphInfo, ? extends Exception> assertion) {
+            Function<ExecutionGraphInfo, Boolean> assertion) {
         final CheckpointResourcesCleanupRunner testInstance =
                 new TestInstanceBuilder()
                         .withJobResult(jobResult)
@@ -445,8 +442,8 @@ public class CheckpointResourcesCleanupRunnerTest {
                         .build();
 
         final CompletableFuture<ExecutionGraphInfo> response =
-                testInstance.requestJob(Time.milliseconds(0));
-        assertThat(response).succeedsWithin(Duration.ZERO).satisfies(assertion::accept);
+                testInstance.requestJob(TIMEOUT_FOR_REQUESTS);
+        assertThat(response).isCompletedWithValueMatching(assertion::apply);
     }
 
     private static JobResult createDummySuccessJobResult() {
