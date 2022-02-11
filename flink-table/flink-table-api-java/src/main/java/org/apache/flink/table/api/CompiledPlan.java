@@ -99,7 +99,9 @@ public interface CompiledPlan {
      *
      * @param file the target file
      * @param ignoreIfExists If a plan exists in the given file and this flag is set, no operation
-     *     is executed and the plan is not overwritten. An exception is thrown otherwise.
+     *     is executed and the plan is not overwritten. An exception is thrown otherwise. If this
+     *     flag is not set and {@link TableConfigOptions#PLAN_FORCE_RECOMPILE} is set, the plan file
+     *     will be overwritten.
      * @throws IOException if the file cannot be written.
      * @throws TableException if {@code ignoreIfExists} is false and a plan already exists.
      */

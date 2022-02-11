@@ -811,13 +811,11 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             if (!tableConfig.getConfiguration().get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
                 throw new TableException(
                         String.format(
-                                "Cannot overwrite the plan file '%s', as the option '%s' is disabled. "
+                                "Cannot overwrite the plan file '%s'. "
                                         + "Either manually remove the file or, "
                                         + "if you're debugging your job, "
                                         + "set the option '%s' to true",
-                                filePath,
-                                TableConfigOptions.PLAN_FORCE_RECOMPILE.key(),
-                                TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
+                                filePath, TableConfigOptions.PLAN_FORCE_RECOMPILE.key()));
             }
         }
 
