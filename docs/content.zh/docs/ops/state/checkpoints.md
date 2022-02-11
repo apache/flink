@@ -146,7 +146,7 @@ env.getCheckpointConfig().setCheckpointStorage(
 
 ### Checkpoint 与 Savepoint 的区别
 
-Checkpoint 与 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 有一些区别，体现在 checkpoint
+Checkpoint 与 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 有一些区别，体现在 checkpoint 用法上：
 - 使用 state backend 特定的数据格式，可能以增量方式存储。
 - 不支持 Flink 的特定功能，比如扩缩容。
 
