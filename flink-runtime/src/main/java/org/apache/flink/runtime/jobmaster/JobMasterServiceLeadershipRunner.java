@@ -21,6 +21,7 @@ package org.apache.flink.runtime.jobmaster;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.dispatcher.JobCancellationFailedException;
 import org.apache.flink.runtime.execution.librarycache.LibraryCacheManager;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.jobmaster.factories.JobMasterServiceProcessFactory;
@@ -192,7 +193,7 @@ public class JobMasterServiceLeadershipRunner implements JobManagerRunner, Leade
                     .exceptionally(
                             e -> {
                                 throw new CompletionException(
-                                        new FlinkException(
+                                        new JobCancellationFailedException(
                                                 "Cancellation failed.",
                                                 ExceptionUtils.stripCompletionException(e)));
                             });
