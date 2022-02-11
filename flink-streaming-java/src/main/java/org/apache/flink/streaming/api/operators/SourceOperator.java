@@ -170,7 +170,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
     private CompletableFuture<Void> waitingForAlignmentFuture =
             CompletableFuture.completedFuture(null);
 
-    private @Nullable LatencyMarkerEmitter<OUT> latencyMarerEmitter;
+    private @Nullable LatencyMarkerEmitter<OUT> latencyMarkerEmitter;
 
     public SourceOperator(
             FunctionWithException<SourceReaderContext, SourceReader<OUT, SplitT>, Exception>
@@ -334,8 +334,8 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
         if (eventTimeLogic != null) {
             eventTimeLogic.stopPeriodicWatermarkEmits();
         }
-        if (latencyMarerEmitter != null) {
-            latencyMarerEmitter.close();
+        if (latencyMarkerEmitter != null) {
+            latencyMarkerEmitter.close();
         }
     }
 
@@ -433,7 +433,7 @@ public class SourceOperator<OUT, SplitT extends SourceSplit> extends AbstractStr
                                 .getConfiguration()
                                 .getLong(MetricOptions.LATENCY_INTERVAL);
         if (latencyTrackingInterval > 0) {
-            latencyMarerEmitter =
+            latencyMarkerEmitter =
                     new LatencyMarkerEmitter<>(
                             getProcessingTimeService(),
                             output::emitLatencyMarker,
