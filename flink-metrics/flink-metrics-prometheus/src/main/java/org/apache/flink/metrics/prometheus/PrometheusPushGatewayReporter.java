@@ -30,7 +30,6 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.exporter.PushGateway;
 
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
 
@@ -47,25 +46,15 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
     private final String jobName;
     private final Map<String, String> groupingKey;
     private final boolean deleteOnShutdown;
+    @VisibleForTesting final URL hostUrl;
 
     PrometheusPushGatewayReporter(
-            String host,
-            int port,
+            URL hostUrl,
             String jobName,
             Map<String, String> groupingKey,
             final boolean deleteOnShutdown) {
-        this.pushGateway = new PushGateway(host + ':' + port);
-        this.jobName = Preconditions.checkNotNull(jobName);
-        this.groupingKey = Preconditions.checkNotNull(groupingKey);
-        this.deleteOnShutdown = deleteOnShutdown;
-    }
-
-    PrometheusPushGatewayReporter(
-            String hostUrl,
-            String jobName,
-            Map<String, String> groupingKey,
-            final boolean deleteOnShutdown) {
-        this.pushGateway = new PushGateway(tryCreateUrl(hostUrl));
+        this.hostUrl = hostUrl;
+        this.pushGateway = new PushGateway(hostUrl);
         this.jobName = Preconditions.checkNotNull(jobName);
         this.groupingKey = Preconditions.checkNotNull(groupingKey);
         this.deleteOnShutdown = deleteOnShutdown;
@@ -98,18 +87,5 @@ public class PrometheusPushGatewayReporter extends AbstractPrometheusReporter im
             }
         }
         super.close();
-    }
-
-    private static URL tryCreateUrl(String hostUrl) {
-        try {
-            return new URL(hostUrl);
-        } catch (MalformedURLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @VisibleForTesting
-    PushGateway getPushGateway() {
-        return pushGateway;
     }
 }

@@ -19,7 +19,6 @@
 package org.apache.flink.metrics.prometheus;
 
 import org.apache.flink.metrics.MetricConfig;
-import org.apache.flink.mock.Whitebox;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
@@ -63,9 +62,8 @@ public class PrometheusPushGatewayReporterTest extends TestLogger {
         metricConfig.setProperty(HOST.key(), "localhost");
         metricConfig.setProperty(PORT.key(), "18080");
         PrometheusPushGatewayReporter reporter = factory.createMetricReporter(metricConfig);
-        String gatewayBaseURL =
-                (String) Whitebox.getInternalState(reporter.getPushGateway(), "gatewayBaseURL");
-        Assert.assertEquals(gatewayBaseURL, "http://localhost:18080/metrics/");
+        String gatewayBaseURL = factory.createMetricReporter(metricConfig).hostUrl.toString();
+        Assert.assertEquals(gatewayBaseURL, "http://localhost:18080");
     }
 
     @Test
@@ -74,9 +72,8 @@ public class PrometheusPushGatewayReporterTest extends TestLogger {
         MetricConfig metricConfig = new MetricConfig();
         metricConfig.setProperty(HOST_URL.key(), "https://localhost:18080");
         PrometheusPushGatewayReporter reporter = factory.createMetricReporter(metricConfig);
-        String gatewayBaseURL =
-                (String) Whitebox.getInternalState(reporter.getPushGateway(), "gatewayBaseURL");
-        Assert.assertEquals(gatewayBaseURL, "https://localhost:18080/metrics/");
+        String gatewayBaseURL = factory.createMetricReporter(metricConfig).hostUrl.toString();
+        Assert.assertEquals(gatewayBaseURL, "https://localhost:18080");
     }
 
     @Test
@@ -86,10 +83,8 @@ public class PrometheusPushGatewayReporterTest extends TestLogger {
         metricConfig.setProperty(HOST_URL.key(), "https://localhost:18080");
         metricConfig.setProperty(HOST.key(), "localhost1");
         metricConfig.setProperty(PORT.key(), "18081");
-        PrometheusPushGatewayReporter reporter = factory.createMetricReporter(metricConfig);
-        String gatewayBaseURL =
-                (String) Whitebox.getInternalState(reporter.getPushGateway(), "gatewayBaseURL");
-        Assert.assertEquals(gatewayBaseURL, "https://localhost:18080/metrics/");
+        String gatewayBaseURL = factory.createMetricReporter(metricConfig).hostUrl.toString();
+        Assert.assertEquals(gatewayBaseURL, "https://localhost:18080");
     }
 
     @Test
@@ -100,6 +95,11 @@ public class PrometheusPushGatewayReporterTest extends TestLogger {
                 IllegalArgumentException.class, () -> factory.createMetricReporter(metricConfig));
 
         metricConfig.setProperty(HOST.key(), "localhost");
+        Assert.assertThrows(
+                IllegalArgumentException.class, () -> factory.createMetricReporter(metricConfig));
+
+        metricConfig.clear();
+        metricConfig.setProperty(PORT.key(), "18080");
         Assert.assertThrows(
                 IllegalArgumentException.class, () -> factory.createMetricReporter(metricConfig));
     }

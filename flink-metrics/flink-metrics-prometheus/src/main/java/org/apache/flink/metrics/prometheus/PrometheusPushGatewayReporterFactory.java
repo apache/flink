@@ -27,6 +27,8 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -67,10 +69,10 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
         String hostUrlConfig = metricConfig.getString(HOST_URL.key(), HOST_URL.defaultValue());
 
         final String hostUrl;
-        if (hostUrlConfig != null && !hostUrlConfig.isEmpty()) {
+        if (!StringUtils.isNullOrWhitespaceOnly(hostUrlConfig)) {
             hostUrl = hostUrlConfig;
         } else {
-            if (host == null || host.isEmpty() || port < 1) {
+            if (StringUtils.isNullOrWhitespaceOnly(host) || port < 1) {
                 throw new IllegalArgumentException(
                         "Invalid host/port configuration. Host: " + host + " Port: " + port);
             } else {
@@ -91,7 +93,12 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
                 deleteOnShutdown,
                 groupingKey);
 
-        return new PrometheusPushGatewayReporter(hostUrl, jobName, groupingKey, deleteOnShutdown);
+        try {
+            return new PrometheusPushGatewayReporter(
+                    new URL(hostUrl), jobName, groupingKey, deleteOnShutdown);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @VisibleForTesting
