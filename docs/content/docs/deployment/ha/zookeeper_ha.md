@@ -101,7 +101,7 @@ zookeeper.sasl.login-context-name: Client
 ```
 
 For more information on Flink configuration for Kerberos security, please refer to the [security section of the Flink configuration page]({{< ref "docs/deployment/config" >}}#security).
-You can also find further details on [how Flink sets up Kerberos-based security internally]({{< ref "docs/deployment/security/security-kerberos" >}}).
+You can also find further details on [how Flink sets up Kerberos-based security internally]({{< ref "docs/deployment/security/kerberos" >}}).
 
 {{< top >}}
 
