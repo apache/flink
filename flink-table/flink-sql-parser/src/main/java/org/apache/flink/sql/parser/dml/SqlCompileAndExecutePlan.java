@@ -18,9 +18,11 @@
 
 package org.apache.flink.sql.parser.dml;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -37,16 +39,16 @@ import java.util.List;
  * AST node for {@code COMPILE AND EXECUTE PLAN 'planfile' FOR [DML]}. DML can be either a {@link
  * RichSqlInsert} or a {@link SqlStatementSet}.
  */
+@Internal
 public class SqlCompileAndExecutePlan extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("CompilePlanAndExecute", SqlKind.OTHER);
+            new SqlSpecialOperator("COMPILE PLAN AND EXECUTE", SqlKind.OTHER);
 
-    private final SqlCharStringLiteral planFile;
+    private final SqlNode planFile;
     private SqlNode operand;
 
-    public SqlCompileAndExecutePlan(
-            SqlParserPos pos, SqlCharStringLiteral planFile, SqlNode operand) {
+    public SqlCompileAndExecutePlan(SqlParserPos pos, SqlNode planFile, SqlNode operand) {
 
         super(pos);
         this.planFile = planFile;
@@ -54,7 +56,7 @@ public class SqlCompileAndExecutePlan extends SqlCall {
     }
 
     public String getPlanFile() {
-        return planFile.getValueAs(NlsString.class).getValue();
+        return ((NlsString) SqlLiteral.value(planFile)).getValue();
     }
 
     @Nonnull

@@ -22,8 +22,8 @@ import org.apache.flink.sql.parser.dml.RichSqlInsert;
 import org.apache.flink.sql.parser.dml.SqlStatementSet;
 
 import org.apache.calcite.sql.SqlCall;
-import org.apache.calcite.sql.SqlCharStringLiteral;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlLiteral;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
@@ -43,14 +43,14 @@ import java.util.List;
 public class SqlCompilePlan extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
-            new SqlSpecialOperator("CompilePlan", SqlKind.OTHER);
+            new SqlSpecialOperator("COMPILE PLAN", SqlKind.OTHER);
 
-    private final SqlCharStringLiteral planFile;
+    private final SqlNode planFile;
     private final boolean ifNotExists;
     private SqlNode operand;
 
     public SqlCompilePlan(
-            SqlParserPos pos, SqlCharStringLiteral planFile, boolean ifNotExists, SqlNode operand) {
+            SqlParserPos pos, SqlNode planFile, boolean ifNotExists, SqlNode operand) {
         super(pos);
         this.planFile = planFile;
         this.ifNotExists = ifNotExists;
@@ -58,7 +58,7 @@ public class SqlCompilePlan extends SqlCall {
     }
 
     public String getPlanFile() {
-        return planFile.getValueAs(NlsString.class).getValue();
+        return ((NlsString) SqlLiteral.value(planFile)).getValue();
     }
 
     public boolean isIfNotExists() {

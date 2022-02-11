@@ -1735,7 +1735,7 @@ SqlNode SqlStatementSet() :
 }
 
 /**
-* Parses a explain module statement.
+* Parses an explain module statement.
 */
 SqlNode SqlRichExplain() :
 {
@@ -1766,7 +1766,7 @@ SqlNode SqlRichExplain() :
 }
 
 /**
-* Parses a execute statement.
+* Parses an execute statement.
 */
 SqlNode SqlExecute() :
 {
@@ -1788,18 +1788,17 @@ SqlNode SqlExecute() :
 }
 
 /**
-* Parses a execute plan statement.
+* Parses an execute plan statement.
 */
 SqlNode SqlExecutePlan() :
 {
-    SqlCharStringLiteral filePath;
+    SqlNode filePath;
 }
 {
-    <EXECUTE> <PLAN> <QUOTED_STRING>
-    {
-        String path = SqlParserUtil.parseString(token.image);
-        filePath = SqlLiteral.createCharString(path, getPos());
-    }
+    <EXECUTE> <PLAN>
+
+    filePath = StringLiteral()
+
     {
         return new SqlExecutePlan(getPos(), filePath);
     }
@@ -1811,16 +1810,13 @@ SqlNode SqlExecutePlan() :
 SqlNode SqlCompileAndExecutePlan() :
 {
     SqlParserPos startPos;
-    SqlCharStringLiteral filePath;
+    SqlNode filePath;
     SqlNode operand;
 }
 {
     <COMPILE> <AND> <EXECUTE> <PLAN> { startPos = getPos(); }
 
-    <QUOTED_STRING> {
-        String path = SqlParserUtil.parseString(token.image);
-        filePath = SqlLiteral.createCharString(path, getPos());
-    }
+    filePath = StringLiteral()
 
     <FOR>
 
@@ -1841,17 +1837,14 @@ SqlNode SqlCompileAndExecutePlan() :
 SqlNode SqlCompilePlan() :
 {
     SqlParserPos startPos;
-    SqlCharStringLiteral filePath;
+    SqlNode filePath;
     boolean ifNotExists;
     SqlNode operand;
 }
 {
     <COMPILE> <PLAN> { startPos = getPos(); }
 
-    <QUOTED_STRING> {
-        String path = SqlParserUtil.parseString(token.image);
-        filePath = SqlLiteral.createCharString(path, getPos());
-    }
+    filePath = StringLiteral()
 
     ifNotExists = IfNotExistsOpt()
 
