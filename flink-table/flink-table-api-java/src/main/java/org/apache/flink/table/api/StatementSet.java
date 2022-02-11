@@ -18,9 +18,7 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.types.DataType;
 
@@ -31,7 +29,7 @@ import org.apache.flink.table.types.DataType;
  * <p>The added statements will be cleared when calling the {@link #execute()} method.
  */
 @PublicEvolving
-public interface StatementSet {
+public interface StatementSet extends Explainable<StatementSet>, Compilable, Executable {
 
     /** Adds an {@code INSERT INTO} SQL statement. */
     StatementSet addInsertSql(String statement);
@@ -137,39 +135,4 @@ public interface StatementSet {
      * @param overwrite Indicates whether existing data should be overwritten.
      */
     StatementSet addInsert(TableDescriptor targetDescriptor, Table table, boolean overwrite);
-
-    /**
-     * Returns the AST and the execution plan to compute the result of the all statements.
-     *
-     * @param extraDetails The extra explain details which the explain result should include, e.g.
-     *     estimated cost, changelog mode for streaming, displaying execution plan in json format
-     * @return AST and the execution plan.
-     */
-    String explain(ExplainDetail... extraDetails);
-
-    /**
-     * Executes all statements as one job.
-     *
-     * <p>The added statements will be cleared after calling this method.
-     *
-     * <p>By default, all DML operations are executed asynchronously. Use {@link
-     * TableResult#await()} or {@link TableResult#getJobClient()} to monitor the execution. Set
-     * {@link TableConfigOptions#TABLE_DML_SYNC} for always synchronous execution.
-     */
-    TableResult execute();
-
-    /**
-     * Compiles all statements into a {@link CompiledPlan} that can be executed as one job.
-     *
-     * <p>Compiled plans can be persisted and reloaded across Flink versions. They describe static
-     * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
-     * {@link CompiledPlan} and the website documentation for more information.
-     *
-     * <p>Note: The compiled plan feature is not supported in batch mode.
-     *
-     * @throws TableException if any of the statements is invalid or if the plan cannot be
-     *     persisted.
-     */
-    @Experimental
-    CompiledPlan compilePlan() throws TableException;
 }

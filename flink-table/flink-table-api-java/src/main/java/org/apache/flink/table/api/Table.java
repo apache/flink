@@ -87,7 +87,7 @@ import org.apache.flink.table.types.DataType;
  * }</pre>
  */
 @PublicEvolving
-public interface Table {
+public interface Table extends Explainable<Table>, Executable {
 
     /**
      * Returns the schema of this table.
@@ -1454,24 +1454,4 @@ public interface Table {
      * @param overwrite Indicates whether existing data should be overwritten.
      */
     TableResult executeInsert(TableDescriptor descriptor, boolean overwrite);
-
-    /**
-     * Collects the contents of the current table local client.
-     *
-     * <pre>{@code
-     * Table table = tableEnv.sqlQuery("SELECT * FROM MyTable");
-     * TableResult tableResult = table.execute();
-     * tableResult.print();
-     * }</pre>
-     */
-    TableResult execute();
-
-    /**
-     * Returns the AST of this table and the execution plan to compute the result of this table.
-     *
-     * @param extraDetails The extra explain details which the explain result should include, e.g.
-     *     estimated cost, changelog mode for streaming
-     * @return AST and the execution plan.
-     */
-    String explain(ExplainDetail... extraDetails);
 }
