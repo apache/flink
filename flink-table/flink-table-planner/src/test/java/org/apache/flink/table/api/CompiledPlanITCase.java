@@ -43,15 +43,18 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /** Test for {@link CompiledPlan} and related {@link TableEnvironment} methods. */
 public class CompiledPlanITCase extends JsonPlanTestBase {
 
+    private static final List<String> DATA =
+            Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
+    private static final String[] COLUMNS_DEFINITION =
+            new String[] {"a bigint", "b int", "c varchar"};
+
     @Before
     public void setup() throws Exception {
         super.setup();
 
         String srcTableDdl =
                 "CREATE TABLE MyTable (\n"
-                        + "  a bigint,\n"
-                        + "  b int,\n"
-                        + "  c varchar\n"
+                        + String.join(",", COLUMNS_DEFINITION)
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
                         + "  'bounded' = 'false')";
@@ -59,9 +62,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
 
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
-                        + "  a bigint,\n"
-                        + "  b int,\n"
-                        + "  c varchar\n"
+                        + String.join(",", COLUMNS_DEFINITION)
                         + ") with (\n"
                         + "  'connector' = 'values',\n"
                         + "  'table-sink-class' = 'DEFAULT')";
@@ -86,14 +87,12 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
 
     @Test
     public void testExecutePlan() throws Exception {
-        List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
-        createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
-        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "b int", "c varchar");
+        File sinkPath = createSourceSinkTables();
 
         CompiledPlan plan = tableEnv.compilePlanSql("insert into sink select * from src");
         tableEnv.executePlan(plan).await();
 
-        assertResult(data, sinkPath);
+        assertResult(DATA, sinkPath);
     }
 
     @Test
@@ -101,16 +100,14 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
         Path planPath = Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json");
         FileUtils.createParentDirectories(planPath.toFile());
 
-        List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
-        createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
-        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "b int", "c varchar");
+        File sinkPath = createSourceSinkTables();
 
         CompiledPlan plan = tableEnv.compilePlanSql("insert into sink select * from src");
         plan.writeToFile(planPath);
 
         tableEnv.executeSql(String.format("EXECUTE PLAN '%s'", planPath.toAbsolutePath())).await();
 
-        assertResult(data, sinkPath);
+        assertResult(DATA, sinkPath);
     }
 
     @Test
@@ -120,9 +117,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
                         .toAbsolutePath();
         FileUtils.createParentDirectories(planPath.toFile());
 
-        List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
-        createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
-        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "b int", "c varchar");
+        File sinkPath = createSourceSinkTables();
 
         TableResult tableResult =
                 tableEnv.executeSql(
@@ -143,7 +138,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
 
         tableEnv.executeSql(String.format("EXECUTE PLAN '%s'", planPath)).await();
 
-        assertResult(data, sinkPath);
+        assertResult(DATA, sinkPath);
     }
 
     @Test
@@ -153,10 +148,9 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
                         .toAbsolutePath();
         FileUtils.createParentDirectories(planPath.toFile());
 
-        List<String> inputData = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
-        createTestCsvSourceTable("src", inputData, "a bigint", "b int", "c varchar");
-        File sinkAPath = createTestCsvSinkTable("sinkA", "a bigint", "b int", "c varchar");
-        File sinkBPath = createTestCsvSinkTable("sinkB", "a bigint", "b int", "c varchar");
+        createTestCsvSourceTable("src", DATA, COLUMNS_DEFINITION);
+        File sinkAPath = createTestCsvSinkTable("sinkA", COLUMNS_DEFINITION);
+        File sinkBPath = createTestCsvSinkTable("sinkB", COLUMNS_DEFINITION);
 
         TableResult tableResult =
                 tableEnv.executeSql(
@@ -172,7 +166,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
 
         tableEnv.executeSql(String.format("EXECUTE PLAN '%s'", planPath)).await();
 
-        assertResult(inputData, sinkAPath);
+        assertResult(DATA, sinkAPath);
         assertResult(
                 Arrays.asList(
                         "2,2,hi-something", "3,2,hello-something", "4,3,hello world-something"),
@@ -186,9 +180,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
                         .toAbsolutePath();
         FileUtils.createParentDirectories(planPath.toFile());
 
-        List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
-        createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
-        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "b int", "c varchar");
+        File sinkPath = createSourceSinkTables();
 
         TableResult tableResult =
                 tableEnv.executeSql(
@@ -209,7 +201,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
 
         tableEnv.executeSql(String.format("EXECUTE PLAN '%s'", planPath)).await();
 
-        assertResult(data, sinkPath);
+        assertResult(DATA, sinkPath);
     }
 
     @Test
@@ -221,12 +213,10 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
                         .toAbsolutePath();
         FileUtils.createParentDirectories(planPath.toFile());
 
-        List<String> inputData = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
         List<String> expectedData =
                 Arrays.asList(
                         "2,2,hi-something", "3,2,hello-something", "4,3,hello world-something");
-        createTestCsvSourceTable("src", inputData, "a bigint", "b int", "c varchar");
-        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "b int", "c varchar");
+        File sinkPath = createSourceSinkTables();
 
         TableResult tableResult =
                 tableEnv.executeSql(
@@ -257,9 +247,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
                         .toAbsolutePath();
         FileUtils.createParentDirectories(planPath.toFile());
 
-        List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
-        createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
-        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "b int", "c varchar");
+        File sinkPath = createSourceSinkTables();
 
         tableEnv.executeSql(
                         String.format(
@@ -269,7 +257,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
 
         assertThat(planPath.toFile()).exists();
 
-        assertResult(data, sinkPath);
+        assertResult(DATA, sinkPath);
     }
 
     @Test
@@ -279,10 +267,9 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
                         .toAbsolutePath();
         FileUtils.createParentDirectories(planPath.toFile());
 
-        List<String> inputData = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
-        createTestCsvSourceTable("src", inputData, "a bigint", "b int", "c varchar");
-        File sinkAPath = createTestCsvSinkTable("sinkA", "a bigint", "b int", "c varchar");
-        File sinkBPath = createTestCsvSinkTable("sinkB", "a bigint", "b int", "c varchar");
+        createTestCsvSourceTable("src", DATA, COLUMNS_DEFINITION);
+        File sinkAPath = createTestCsvSinkTable("sinkA", COLUMNS_DEFINITION);
+        File sinkBPath = createTestCsvSinkTable("sinkB", COLUMNS_DEFINITION);
 
         tableEnv.executeSql(
                         String.format(
@@ -295,7 +282,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
 
         assertThat(planPath.toFile()).exists();
 
-        assertResult(inputData, sinkAPath);
+        assertResult(DATA, sinkAPath);
         assertResult(
                 Arrays.asList(
                         "2,2,hi-something", "3,2,hello-something", "4,3,hello world-something"),
@@ -303,7 +290,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testExplainPlan() throws IOException {
+    public void testExplainPlan() {
         String actual =
                 tableEnv.explainPlan(
                         tableEnv.loadPlan(
@@ -339,5 +326,10 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
         assertThatThrownBy(() -> tableEnv.compilePlanSql("insert into sink select * from src"))
                 .isInstanceOf(UnsupportedOperationException.class)
                 .hasMessage("The compiled plan feature is not supported in batch mode.");
+    }
+
+    private File createSourceSinkTables() throws IOException {
+        createTestCsvSourceTable("src", DATA, COLUMNS_DEFINITION);
+        return createTestCsvSinkTable("sink", COLUMNS_DEFINITION);
     }
 }
