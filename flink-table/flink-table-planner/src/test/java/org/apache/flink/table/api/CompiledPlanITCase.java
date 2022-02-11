@@ -16,16 +16,11 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.api.internal;
+package org.apache.flink.table.api;
 
-import org.apache.flink.table.api.CompiledPlan;
-import org.apache.flink.table.api.EnvironmentSettings;
-import org.apache.flink.table.api.ExplainDetail;
-import org.apache.flink.table.api.PlanReference;
-import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.TableException;
-import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
@@ -45,8 +40,8 @@ import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-/** Test for {@link TableEnvironmentInternal}. */
-public class TableEnvironmentInternalTest extends JsonPlanTestBase {
+/** Test for {@link CompiledPlan} and related {@link TableEnvironment} methods. */
+public class CompiledPlanITCase extends JsonPlanTestBase {
 
     @Before
     public void setup() throws Exception {
