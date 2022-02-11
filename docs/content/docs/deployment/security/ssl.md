@@ -1,6 +1,6 @@
 ---
 title: "Encryption and Authentication using SSL"
-weight: 2
+weight: 3
 type: docs
 aliases:
   - /deployment/security/ssl.html
@@ -26,6 +26,12 @@ under the License.
 -->
 
 # Encryption and Authentication using SSL
+
+Flink supports mutual authentication of communication partners and encryption of network communication with SSL for internal and external communication. For internal communication (RPC calls, data transfer, and blob service communication to distribute libraries or other artifacts) all Flink processes (Dispatcher, ResourceManager, JobManager, and TaskManager) perform mutual authentication— senders and receivers validate each other via an SSL certificate. The certificate acts as a shared secret and can be embedded into containers or attached to a YARN setup.
+
+All external communication with Flink services—submitting and controlling applications and accessing the REST interface—happens over REST/HTTP endpoints. You can enable SSL encryption for these connections as well. Mutual authentication can also be enabled. However, the recommended approach is setting up and configuring a dedicated proxy service that controls access to the REST endpoint. The reason is that proxy services offer more authentication and configuration options than Flink. Encryption and authentication for communication to queryable state is not supported yet.
+
+By default, SSL authentication and encryption is not enabled. Since the setup requires several steps, such as generating certificates, setting up TrustStores and KeyStores, and configuring cipher suites, we refer you to the official Flink documentation. The documentation also includes how-tos and tips for different environments, such as standalone clusters, Kubernetes, and YARN.
 
 This page provides instructions on how to enable TLS/SSL authentication and encryption for network 
 communication with and between Flink processes.
@@ -328,23 +334,3 @@ If mutual SSL is enabled:
 ```bash
 $ curl --cacert rest.pem --cert rest.pem flink_url
 ```
-
-## Tips for YARN Deployment
-
-For YARN, you can use the tools of Yarn to help:
-
-  - Configuring security for internal communication is exactly the same as in the example above.
-
-  - To secure the REST endpoint, you need to issue the REST endpoint's certificate such that it is 
-    valid for all hosts that the JobManager may get deployed to. This can be done with a wild card 
-    DNS name, or by adding multiple DNS names.
-
-  - The easiest way to deploy keystores and truststore is by YARN client's *ship files* option (`-yt`).
-    Copy the keystore and truststore files into a local directory (say `deploy-keys/`) and start the 
-    YARN session as follows: `flink run -m yarn-cluster -yt deploy-keys/ flinkapp.jar`
-
-  - When deployed using YARN, Flink's web dashboard is accessible through YARN proxy's Tracking URL.
-    To ensure that the YARN proxy is able to access Flink's HTTPS URL, you need to configure YARN proxy 
-    to accept Flink's SSL certificates.
-    For that, add the custom CA certificate into Java's default truststore on the YARN Proxy node.
-  
