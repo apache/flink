@@ -30,7 +30,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +57,6 @@ import static org.apache.flink.connector.firehose.sink.testutils.KinesisFirehose
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration test suite for the {@code KinesisFirehoseSink} using a localstack container. */
-@Ignore("FLINK-26064")
 public class KinesisFirehoseSinkITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(KinesisFirehoseSinkITCase.class);
@@ -128,10 +126,7 @@ public class KinesisFirehoseSinkITCase {
         generator.sinkTo(kdsSink);
         env.execute("Integration Test");
 
-        List<S3Object> objects =
-                listBucketObjects(
-                        createS3Client(mockFirehoseContainer.getEndpoint(), httpClient),
-                        BUCKET_NAME);
+        List<S3Object> objects = listBucketObjects(s3AsyncClient, BUCKET_NAME);
         assertThat(objects.size()).isEqualTo(NUMBER_OF_ELEMENTS);
         assertThat(
                         readObjectsFromS3Bucket(

@@ -35,6 +35,7 @@ import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.Http2Configuration;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
+import software.amazon.awssdk.http.nio.netty.SdkEventLoopGroup;
 import software.amazon.awssdk.profiles.ProfileFile;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.sts.StsClient;
@@ -273,7 +274,15 @@ public class AWSGeneralUtil {
 
     public static SdkAsyncHttpClient createAsyncHttpClient(
             final AttributeMap config, final NettyNioAsyncHttpClient.Builder httpClientBuilder) {
+        return createAsyncHttpClient(config, httpClientBuilder, SdkEventLoopGroup.builder());
+    }
+
+    public static SdkAsyncHttpClient createAsyncHttpClient(
+            final AttributeMap config,
+            final NettyNioAsyncHttpClient.Builder httpClientBuilder,
+            final SdkEventLoopGroup.Builder sdkEventLoopGroupBuilder) {
         httpClientBuilder
+                .eventLoopGroupBuilder(sdkEventLoopGroupBuilder)
                 .connectionAcquisitionTimeout(CONNECTION_ACQUISITION_TIMEOUT)
                 .http2Configuration(
                         Http2Configuration.builder()
