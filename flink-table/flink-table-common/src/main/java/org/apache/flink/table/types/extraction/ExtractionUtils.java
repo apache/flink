@@ -336,16 +336,53 @@ public final class ExtractionUtils {
     public static Optional<Class<?>> extractSimpleGeneric(
             Class<?> baseClass, Class<?> clazz, int pos) {
         try {
-            if (clazz.getSuperclass() != baseClass) {
+
+            if (null == clazz.getSuperclass()
+                    || !baseClass.isAssignableFrom(clazz.getSuperclass())) {
                 return Optional.empty();
             }
-            final Type t =
-                    ((ParameterizedType) clazz.getGenericSuperclass())
-                            .getActualTypeArguments()[pos];
-            return Optional.ofNullable(toClass(t));
+
+            return getParameterizedTypeClassSimple(clazz, baseClass, pos);
+
         } catch (Exception unused) {
+
             return Optional.empty();
         }
+    }
+
+    /**
+     * Extract a generic parameter class simply from a given class and the position of generic
+     * parameters.
+     *
+     * <p>It will traverse all the super classes to the base class until find the generic parameter
+     * in pos has real class type
+     *
+     * <p>Note: By default, we assume that the generic parameter of the subclass and the * baseClass
+     * are in the same position.
+     *
+     * @param clazz subClass
+     * @param baseClass target super class
+     * @param pos the position of generic parameter
+     */
+    private static Optional<Class<?>> getParameterizedTypeClassSimple(
+            Class<?> clazz, Class<?> baseClass, int pos) {
+        do {
+            if (clazz == baseClass) {
+                break;
+            }
+            Type genericType = clazz.getGenericSuperclass();
+            if (genericType instanceof ParameterizedType) {
+                Type[] actualTypes = ((ParameterizedType) genericType).getActualTypeArguments();
+                if (actualTypes.length > pos) {
+                    Class<?> typeClass = toClass(actualTypes[pos]);
+                    if (null != typeClass) {
+                        return Optional.of(typeClass);
+                    }
+                }
+            }
+        } while (null != (clazz = clazz.getSuperclass()));
+
+        return Optional.empty();
     }
 
     // --------------------------------------------------------------------------------------------
