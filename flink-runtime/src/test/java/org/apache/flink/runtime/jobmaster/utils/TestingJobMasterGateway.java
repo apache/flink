@@ -532,6 +532,12 @@ public class TestingJobMasterGateway implements JobMasterGateway {
     }
 
     @Override
+    public CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
+            OperatorID operatorID, SerializedValue<CoordinationRequest> request) {
+        return deliverCoordinationRequestFunction.apply(operatorID, request);
+    }
+
+    @Override
     public CompletableFuture<CoordinationResponse> deliverCoordinationRequestToCoordinator(
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,

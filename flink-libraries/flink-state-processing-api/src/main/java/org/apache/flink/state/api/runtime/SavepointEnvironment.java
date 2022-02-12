@@ -47,6 +47,8 @@ import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.query.KvStateRegistry;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
@@ -60,6 +62,7 @@ import org.apache.flink.util.UserCodeClassLoader;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 
 import static org.apache.flink.runtime.memory.MemoryManager.DEFAULT_PAGE_SIZE;
@@ -369,5 +372,11 @@ public class SavepointEnvironment implements Environment {
         @Override
         public void sendOperatorEventToCoordinator(
                 OperatorID operator, SerializedValue<OperatorEvent> event) {}
+
+        @Override
+        public CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
+                OperatorID operator, SerializedValue<CoordinationRequest> request) {
+            return CompletableFuture.completedFuture(null);
+        }
     }
 }
