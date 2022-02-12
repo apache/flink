@@ -1,6 +1,6 @@
 ---
 title: Orc
-weight: 9
+weight: 10
 type: docs
 aliases:
   - /zh/dev/table/connectors/formats/orc.html
