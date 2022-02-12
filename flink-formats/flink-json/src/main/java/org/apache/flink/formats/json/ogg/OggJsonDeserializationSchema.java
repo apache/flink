@@ -106,46 +106,24 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
 
     private static RowType createJsonRowType(
             DataType physicalDataType, List<ReadableMetadata> readableMetadata) {
-        DataType payload =
+        DataType root =
                 DataTypes.ROW(
                         DataTypes.FIELD("before", physicalDataType),
                         DataTypes.FIELD("after", physicalDataType),
                         DataTypes.FIELD("op_type", DataTypes.STRING()));
-
-        // append fields that are required for reading metadata in the payload
-        final List<DataTypes.Field> payloadMetadataFields =
-                readableMetadata.stream()
-                        .filter(m -> m.isJsonPayload)
-                        .map(m -> m.requiredJsonField)
-                        .distinct()
-                        .collect(Collectors.toList());
-        payload = DataTypeUtils.appendRowFields(payload, payloadMetadataFields);
-
-        DataType root = payload;
-
         // append fields that are required for reading metadata in the root
         final List<DataTypes.Field> rootMetadataFields =
                 readableMetadata.stream()
-                        .filter(m -> !m.isJsonPayload)
                         .map(m -> m.requiredJsonField)
                         .distinct()
                         .collect(Collectors.toList());
-        root = DataTypeUtils.appendRowFields(root, rootMetadataFields);
-
-        return (RowType) root.getLogicalType();
+        return (RowType) DataTypeUtils.appendRowFields(root, rootMetadataFields).getLogicalType();
     }
 
     private static MetadataConverter[] createMetadataConverters(
             RowType jsonRowType, List<ReadableMetadata> requestedMetadata) {
         return requestedMetadata.stream()
-                .map(
-                        m -> {
-                            if (m.isJsonPayload) {
-                                return convertInPayload(jsonRowType, m);
-                            } else {
-                                return convertInRoot(jsonRowType, m);
-                            }
-                        })
+                .map(m -> convertInRoot(jsonRowType, m))
                 .toArray(MetadataConverter[]::new);
     }
 
@@ -159,11 +137,6 @@ public final class OggJsonDeserializationSchema implements DeserializationSchema
                 return metadata.converter.convert(root, pos);
             }
         };
-    }
-
-    private static MetadataConverter convertInPayload(
-            RowType jsonRowType, ReadableMetadata metadata) {
-        return convertInRoot(jsonRowType, metadata);
     }
 
     private static int findFieldPos(ReadableMetadata metadata, RowType jsonRowType) {

@@ -37,7 +37,7 @@ import java.util.stream.Collectors;
 
 import static java.lang.String.format;
 
-/** Test Filesystem connector with DebeziumJson. */
+/** Test Filesystem connector with OGG Json. */
 public class OggJsonFileSystemITCase extends StreamingTestBase {
 
     private static final List<String> EXPECTED =
@@ -101,7 +101,7 @@ public class OggJsonFileSystemITCase extends StreamingTestBase {
                                 + (isPartition ? ", p int) partitioned by (p) " : ")")
                                 + " with ("
                                 + "'connector'='filesystem',"
-                                + "'format'='debezium-json',"
+                                + "'format'='ogg-json',"
                                 + format("'path'='%s'", path)
                                 + ")");
     }

@@ -26,13 +26,11 @@ import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DynamicTableSource;
-import org.apache.flink.table.data.GenericMapData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.StringData;
-import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.RowKind;
 
 import java.util.Collections;
@@ -49,28 +47,19 @@ public class OggJsonDecodingFormat implements DecodingFormat<DeserializationSche
     // Mutable attributes
     // --------------------------------------------------------------------------------------------
 
-    private static final StringData KEY_SOURCE_TIMESTAMP = StringData.fromString("op_ts");
+    private List<String> metadataKeys;
 
     // --------------------------------------------------------------------------------------------
     // Ogg-specific attributes
     // --------------------------------------------------------------------------------------------
-    private static final StringData KEY_SOURCE_TABLE = StringData.fromString("table");
+
     private final boolean ignoreParseErrors;
     private final TimestampFormat timestampFormat;
-    private List<String> metadataKeys;
 
     public OggJsonDecodingFormat(boolean ignoreParseErrors, TimestampFormat timestampFormat) {
         this.ignoreParseErrors = ignoreParseErrors;
         this.timestampFormat = timestampFormat;
         this.metadataKeys = Collections.emptyList();
-    }
-
-    private static Object readProperty(GenericRowData row, int pos, StringData key) {
-        final GenericMapData map = (GenericMapData) row.getMap(pos);
-        if (map == null) {
-            return null;
-        }
-        return map.get(key);
     }
 
     @Override
@@ -135,11 +124,36 @@ public class OggJsonDecodingFormat implements DecodingFormat<DeserializationSche
 
     /** List of metadata that can be read with this format. */
     enum ReadableMetadata {
+        TABLE(
+                "table",
+                DataTypes.STRING().nullable(),
+                DataTypes.FIELD("table", DataTypes.STRING()),
+                new MetadataConverter() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public Object convert(GenericRowData row, int pos) {
+                        return row.getString(pos);
+                    }
+                }),
+
+        PRIMARY_KEYS(
+                "primary-keys",
+                DataTypes.ARRAY(DataTypes.STRING()).nullable(),
+                DataTypes.FIELD("primary_keys", DataTypes.ARRAY(DataTypes.STRING())),
+                new MetadataConverter() {
+                    private static final long serialVersionUID = 1L;
+
+                    @Override
+                    public Object convert(GenericRowData row, int pos) {
+                        return row.getArray(pos);
+                    }
+                }),
+
         INGESTION_TIMESTAMP(
-                "current_ts",
-                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
-                true,
-                DataTypes.FIELD("current_ts", DataTypes.BIGINT()),
+                "ingestion-timestamp",
+                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(6).nullable(),
+                DataTypes.FIELD("current_ts", DataTypes.STRING()),
                 new MetadataConverter() {
                     private static final long serialVersionUID = 1L;
 
@@ -148,64 +162,32 @@ public class OggJsonDecodingFormat implements DecodingFormat<DeserializationSche
                         if (row.isNullAt(pos)) {
                             return null;
                         }
-                        return TimestampData.fromEpochMillis(row.getLong(pos));
+                        // the timestamp follows the ISO-8601 format
+                        return DateTimeUtils.parseTimestampData(
+                                row.getString(pos).toString(), "yyyy-MM-dd'T'HH:mm:ss.SSSSSS");
                     }
                 }),
 
-        SOURCE_TIMESTAMP(
-                "op_ts",
-                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(3).nullable(),
-                true,
-                DataTypes.FIELD("op_ts", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
+        EVENT_TIMESTAMP(
+                "event-timestamp",
+                DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(6).nullable(),
+                DataTypes.FIELD("op_ts", DataTypes.STRING()),
                 new MetadataConverter() {
                     private static final long serialVersionUID = 1L;
 
                     @Override
                     public Object convert(GenericRowData row, int pos) {
-                        final StringData timestamp =
-                                (StringData) readProperty(row, pos, KEY_SOURCE_TIMESTAMP);
-                        if (timestamp == null) {
+                        if (row.isNullAt(pos)) {
                             return null;
                         }
-                        return TimestampData.fromEpochMillis(Long.parseLong(timestamp.toString()));
-                    }
-                }),
-
-        SOURCE_TABLE(
-                "table",
-                DataTypes.STRING().nullable(),
-                true,
-                DataTypes.FIELD("table", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-                new MetadataConverter() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public Object convert(GenericRowData row, int pos) {
-                        return readProperty(row, pos, KEY_SOURCE_TABLE);
-                    }
-                }),
-
-        SOURCE_PROPERTIES(
-                "source.properties",
-                // key and value of the map are nullable to make handling easier in queries
-                DataTypes.MAP(DataTypes.STRING().nullable(), DataTypes.STRING().nullable())
-                        .nullable(),
-                true,
-                DataTypes.FIELD("source", DataTypes.MAP(DataTypes.STRING(), DataTypes.STRING())),
-                new MetadataConverter() {
-                    private static final long serialVersionUID = 1L;
-
-                    @Override
-                    public Object convert(GenericRowData row, int pos) {
-                        return row.getMap(pos);
+                        // the timestamp format is like "yyyy-MM-dd HH:mm:ss.SSSSSS"
+                        return DateTimeUtils.parseTimestampData(row.getString(pos).toString());
                     }
                 });
 
         final String key;
 
         final DataType dataType;
-
-        final boolean isJsonPayload;
 
         final DataTypes.Field requiredJsonField;
 
@@ -214,12 +196,10 @@ public class OggJsonDecodingFormat implements DecodingFormat<DeserializationSche
         ReadableMetadata(
                 String key,
                 DataType dataType,
-                boolean isJsonPayload,
                 DataTypes.Field requiredJsonField,
                 MetadataConverter converter) {
             this.key = key;
             this.dataType = dataType;
-            this.isJsonPayload = isJsonPayload;
             this.requiredJsonField = requiredJsonField;
             this.converter = converter;
         }

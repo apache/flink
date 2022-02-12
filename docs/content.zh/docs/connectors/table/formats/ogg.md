@@ -3,7 +3,7 @@ title: Ogg
 weight: 8
 type: docs
 aliases:
-  - /dev/table/connectors/formats/ogg.html
+- /dev/table/connectors/formats/ogg.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -29,24 +29,19 @@ under the License.
 {{< label "Changelog-Data-Capture Format" >}} {{< label "Format: Serialization Schema" >}} {{<
 label "Format: Deserialization Schema" >}}
 
-[Oracle GoldenGate](https://www.oracle.com/integration/goldengate/) (a.k.a ogg) is a managed service
-providing a real-time data mesh platform, which uses replication to keep data highly available, and
-enabling real-time analysis. Customers can design, execute, and monitor their data replication and
-stream data processing solutions without the need to allocate or manage compute environments. Ogg
-provides a format schema for changelog and supports to serialize messages using JSON.
+[Oracle GoldenGate](https://www.oracle.com/integration/goldengate/) (a.k.a ogg) 是一个实现异构 IT 环境间数据实时数据集成和复制的综合软件包。
+该产品集支持高可用性解决方案、实时数据集成、事务更改数据捕获、运营和分析企业系统之间的数据复制、转换和验证。Ogg 为变更日志提供了统一的格式结构，并支持使用 JSON 序列化消息。
 
-Flink supports to interpret Ogg JSON as INSERT/UPDATE/DELETE messages into Flink SQL system. This is
-useful in many cases to leverage this feature, such as
+Flink 支持将 Ogg JSON 消息解析为 INSERT/UPDATE/DELETE 消息到 Flink SQL 系统中。在很多情况下，利用这个特性非常有用，例如
 
-- synchronizing incremental data from databases to other systems
-- auditing logs
-- real-time materialized views on databases
-- temporal join changing history of a database table and so on.
+- 将增量数据从数据库同步到其他系统
+- 日志审计
+- 数据库的实时物化视图
+- 关联维度数据库的变更历史，等等
 
-Flink also supports to encode the INSERT/UPDATE/DELETE messages in Flink SQL as Ogg JSON, and emit
-to external systems like Kafka. However, currently Flink can't combine UPDATE_BEFORE and
-UPDATE_AFTER into a single UPDATE message. Therefore, Flink encodes UPDATE_BEFORE and UPDATE_AFTER
-as DELETE and INSERT Ogg messages.
+Flink 还支持将 Flink SQL 中的 INSERT/UPDATE/DELETE 消息编码为 Ogg JSON 格式的消息, 输出到 Kafka 等存储中。
+但需要注意, 目前 Flink 还不支持将 UPDATE_BEFORE 和 UPDATE_AFTER 合并为一条 UPDATE 消息. 因此, Flink 将 UPDATE_BEFORE 和 UPDATE_AFTER
+分别编码为 DELETE 和 INSERT 类型的 Ogg 消息。
 
 Dependencies
 ------------
@@ -55,16 +50,14 @@ Dependencies
 
 {{< sql_download_table "ogg-json" >}}
 
-*Note: please refer
-to [Ogg Kafka Handler documentation](https://docs.oracle.com/en/middleware/goldengate/big-data/19.1/gadbd/using-kafka-handler.html)
-about how to set up an Ogg Kafka handler to synchronize changelog to Kafka topics.*
+*注意: 请参考 [Ogg Kafka Handler documentation](https://docs.oracle.com/en/middleware/goldengate/big-data/19.1/gadbd/using-kafka-handler.html)，
+了解如何设置 Ogg Kafka handler 来将变更日志同步到 Kafka 的 Topic。*
 
 
 How to use Ogg format
 ----------------
 
-Ogg provides a unified format for changelog, here is a simple example for an update operation
-captured from an Oracle `PRODUCTS` table in JSON format:
+Ogg 为变更日志提供了统一的格式, 这是一个 JSON 格式的从 Oracle `PRODUCTS` 表捕获的更新操作的简单示例：
 
 ```json
 {
@@ -91,15 +84,11 @@ captured from an Oracle `PRODUCTS` table in JSON format:
 }
 ```
 
-*Note: please refer
-to [Debezium documentation](https://debezium.io/documentation/reference/1.3/connectors/oracle.html#oracle-events)
-about the meaning of each field.*
+*注意：请参考 [Debezium documentation](https://debezium.io/documentation/reference/1.3/connectors/oracle.html#oracle-events)
+了解每个字段的含义.*
 
-The Oracle `PRODUCTS` table has 4 columns (`id`, `name`, `description` and `weight`). The above JSON
-message is an update change event on the `PRODUCTS` table where the `weight` value of the row
-with `id = 111` is changed from `5.18` to `5.15`. Assuming this messages is synchronized to Kafka
-topic `products_ogg`, then we can use the following DDL to consume this topic and interpret the
-change events.
+Oracle `PRODUCTS` 表 有 4 列 (`id`, `name`, `description` and `weight`). 上面的 JSON 消息是 `PRODUCTS` 表上的一条更新事件，其中 `id = 111` 的行的
+`weight` 值从 `5.18` 更改为 `5.15`. 假设此消息已同步到 Kafka 的 Topic `products_ogg`, 则可以使用以下 DDL 来使用该 Topic 并解析更新事件。
 
 ```sql
 CREATE TABLE topic_products (
@@ -117,8 +106,7 @@ CREATE TABLE topic_products (
 )
 ```
 
-After registering the topic as a Flink table, then you can consume the Ogg messages as a changelog
-source.
+再将 Kafka Topic 注册为 Flink 表之后， 可以将 OGG 消息变为变更日志源。
 
 ```sql
 -- a real-time materialized view on the Oracle "PRODUCTS"
@@ -185,7 +173,7 @@ CREATE TABLE KafkaTable (
   origin_ts TIMESTAMP(3) METADATA FROM 'value.ingestion-timestamp' VIRTUAL,
   event_time TIMESTAMP(3) METADATA FROM 'value.event-timestamp' VIRTUAL,
   origin_table STRING METADATA FROM 'value.table' VIRTUAL,
-  primary_keys ARRAY<STRING> METADATA FROM 'value.primary-keys' VIRTUAL,
+  primary_keys ARRAY<STRING> METADATA FROM 'value.primary_keys' VIRTUAL,
   user_id BIGINT,
   item_id BIGINT,
   behavior STRING
@@ -205,60 +193,59 @@ Format Options
 <table class="table table-bordered">
     <thead>
       <tr>
-        <th class="text-left" style="width: 25%">Option</th>
-        <th class="text-center" style="width: 8%">Required</th>
-        <th class="text-center" style="width: 7%">Default</th>
-        <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-left" style="width: 25%">选项</th>
+        <th class="text-center" style="width: 8%">要求</th>
+        <th class="text-center" style="width: 7%">默认</th>
+        <th class="text-center" style="width: 10%">类型</th>
+        <th class="text-center" style="width: 50%">描述</th>
       </tr>
     </thead>
     <tbody>
     <tr>
       <td><h5>format</h5></td>
-      <td>required</td>
+      <td>必填</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>Specify what format to use, here should be <code>'ogg-json'</code>.</td>
+      <td>指定要使用的格式，此处应为 <code>'ogg-json'</code>.</td>
     </tr>
     <tr>
       <td><h5>ogg-json.ignore-parse-errors</h5></td>
-      <td>optional</td>
+      <td>选填</td>
       <td style="word-wrap: break-word;">false</td>
       <td>Boolean</td>
-      <td>Skip fields and rows with parse errors instead of failing.
-      Fields are set to null in case of errors.</td>
+      <td>当解析异常时，是跳过当前字段或行，还是抛出错误失败（默认为 false，即抛出错误失败）。如果忽略字段的解析异常，则会将该字段值设置为null。</td>
     </tr>
     <tr>
-      <td><h5>ogg-json.timestamp-format.standard</h5></td>
-      <td>optional</td>
-      <td style="word-wrap: break-word;">'SQL'</td>
+      <td><h5>debezium-json.timestamp-format.standard</h5></td>
+      <td>可选</td>
+      <td style="word-wrap: break-word;"><code>'SQL'</code></td>
       <td>String</td>
-      <td>Specify the input and output timestamp format. Currently supported values are <code>'SQL'</code> and <code>'ISO-8601'</code>:
-       <ul>
-         <li>Option <code>'SQL'</code> will parse input timestamp in "yyyy-MM-dd HH:mm:ss.s{precision}" format, e.g '2020-12-30 12:13:14.123' and output timestamp in the same format.</li>
-         <li>Option <code>'ISO-8601'</code>will parse input timestamp in "yyyy-MM-ddTHH:mm:ss.s{precision}" format, e.g '2020-12-30T12:13:14.123' and output timestamp in the same format.</li>
-       </ul>
-       </td>
+      <td>声明输入和输出的时间戳格式。当前支持的格式为<code>'SQL'</code> 以及 <code>'ISO-8601'</code>：
+      <ul>
+        <li>可选参数 <code>'SQL'</code> 将会以 "yyyy-MM-dd HH:mm:ss.s{precision}" 的格式解析时间戳, 例如 '2020-12-30 12:13:14.123'，且会以相同的格式输出。</li>
+        <li>可选参数 <code>'ISO-8601'</code> 将会以 "yyyy-MM-ddTHH:mm:ss.s{precision}" 的格式解析输入时间戳, 例如 '2020-12-30T12:13:14.123' ，且会以相同的格式输出。</li>
+      </ul>
+      </td>
     </tr>
     <tr>
       <td><h5>ogg-json.map-null-key.mode</h5></td>
-      <td>optional</td>
+      <td>选填</td>
       <td style="word-wrap: break-word;"><code>'FAIL'</code></td>
       <td>String</td>
-      <td>Specify the handling mode when serializing null keys for map data. Currently supported values are <code>'FAIL'</code>, <code>'DROP'</code> and <code>'LITERAL'</code>:
+      <td>指定处理 Map 中 key 值为空的方法. 当前支持的值有 <code>'FAIL'</code>, <code>'DROP'</code> 和 <code>'LITERAL'</code>:
       <ul>
-        <li>Option <code>'FAIL'</code> will throw exception when encountering map with null key.</li>
-        <li>Option <code>'DROP'</code> will drop null key entries for map data.</li>
-        <li>Option <code>'LITERAL'</code> will replace null key with string literal. The string literal is defined by <code>ogg-json.map-null-key.literal</code> option.</li>
+        <li>Option <code>'FAIL'</code> 将抛出异常。</li>
+        <li>Option <code>'DROP'</code> 将丢弃 Map 中 key 值为空的数据项。</li>
+        <li>Option <code>'LITERAL'</code> 将使用字符串常量来替换 Map 中的空 key 值。字符串常量的值由 <code>ogg-json.map-null-key.literal</code> 定义。</li>
       </ul>
       </td>
     </tr>
     <tr>
       <td><h5>ogg-json.map-null-key.literal</h5></td>
-      <td>optional</td>
+      <td>选填</td>
       <td style="word-wrap: break-word;">'null'</td>
       <td>String</td>
-      <td>Specify string literal to replace null key when <code>'ogg-json.map-null-key.mode'</code> is LITERAL.</td>
+      <td>当 <code>'ogg-json.map-null-key.mode'</code> 是 LITERAL 的时候，指定字符串常量替换 Map 中的空 key 值。</td>
     </tr>
     </tbody>
 </table>
@@ -266,5 +253,4 @@ Format Options
 Data Type Mapping
 ----------------
 
-Currently, the Ogg format uses JSON format for serialization and deserialization. Please refer
-to [JSON Format documentation]({{< ref "docs/connectors/table/formats/json" >}}#data-type-mapping) for more details about the data type mapping.
+目前, Ogg format 使用 JSON format 进行序列化和反序列化。有关数据类型映射的更多详细信息，请参考 [JSON Format 文档]({{< ref "docs/connectors/table/formats/json" >}}#data-type-mapping)。

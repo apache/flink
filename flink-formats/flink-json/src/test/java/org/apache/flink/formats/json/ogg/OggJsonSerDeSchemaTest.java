@@ -78,6 +78,11 @@ public class OggJsonSerDeSchemaTest {
     }
 
     @Test
+    public void testDeserializationWithMetadata() throws Exception {
+        testDeserializationWithMetadata("ogg-data.txt");
+    }
+
+    @Test
     public void testTombstoneMessages() throws Exception {
         OggJsonDeserializationSchema deserializationSchema =
                 new OggJsonDeserializationSchema(
@@ -90,6 +95,44 @@ public class OggJsonSerDeSchemaTest {
         deserializationSchema.deserialize(null, collector);
         deserializationSchema.deserialize(new byte[] {}, collector);
         assertTrue(collector.list.isEmpty());
+    }
+
+    public void testDeserializationWithMetadata(String resourceFile) throws Exception {
+        // we only read the first line for keeping the test simple
+        final String firstLine = readLines(resourceFile).get(0);
+
+        final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
+
+        final DataType producedDataTypes =
+                DataTypeUtils.appendRowFields(
+                        PHYSICAL_DATA_TYPE,
+                        requestedMetadata.stream()
+                                .map(m -> DataTypes.FIELD(m.key, m.dataType))
+                                .collect(Collectors.toList()));
+        final OggJsonDeserializationSchema deserializationSchema =
+                new OggJsonDeserializationSchema(
+                        PHYSICAL_DATA_TYPE,
+                        requestedMetadata,
+                        InternalTypeInfo.of(producedDataTypes.getLogicalType()),
+                        false,
+                        TimestampFormat.ISO_8601);
+
+        final SimpleCollector collector = new SimpleCollector();
+        deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
+        assertEquals(1, collector.list.size());
+
+        Consumer<RowData> consumer =
+                row -> {
+                    assertEquals(101, row.getInt(0));
+                    assertEquals("scooter", row.getString(1).toString());
+                    assertEquals("Small 2-wheel scooter", row.getString(2).toString());
+                    assertEquals(3.140000104904175, row.getFloat(3), 1e-15);
+                    assertEquals("OGG.TBL_TEST", row.getString(4).toString());
+                    assertEquals("id", row.getArray(5).getString(0).toString());
+                    assertEquals(1589377175766L, row.getTimestamp(6, 6).getMillisecond());
+                    assertEquals(1589384406000L, row.getTimestamp(7, 6).getMillisecond());
+                };
+        consumer.accept(collector.list.get(0));
     }
 
     private void testSerializationDeserialization(String resourceFile) throws Exception {
@@ -200,39 +243,6 @@ public class OggJsonSerDeSchemaTest {
                         "{\"before\":null,\"after\":{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.17},\"op_type\":\"I\"}",
                         "{\"before\":{\"id\":111,\"name\":\"scooter\",\"description\":\"Big 2-wheel scooter \",\"weight\":5.17},\"after\":null,\"op_type\":\"D\"}");
         assertEquals(expected, actual);
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // Utilities
-    // --------------------------------------------------------------------------------------------
-
-    private void testDeserializationWithMetadata(
-            String resourceFile, Consumer<RowData> testConsumer) throws Exception {
-        // we only read the first line for keeping the test simple
-        final String firstLine = readLines(resourceFile).get(0);
-
-        final List<ReadableMetadata> requestedMetadata = Arrays.asList(ReadableMetadata.values());
-
-        final DataType producedDataType =
-                DataTypeUtils.appendRowFields(
-                        PHYSICAL_DATA_TYPE,
-                        requestedMetadata.stream()
-                                .map(m -> DataTypes.FIELD(m.key, m.dataType))
-                                .collect(Collectors.toList()));
-
-        final OggJsonDeserializationSchema deserializationSchema =
-                new OggJsonDeserializationSchema(
-                        PHYSICAL_DATA_TYPE,
-                        requestedMetadata,
-                        InternalTypeInfo.of(producedDataType.getLogicalType()),
-                        false,
-                        TimestampFormat.ISO_8601);
-
-        final SimpleCollector collector = new SimpleCollector();
-        deserializationSchema.deserialize(firstLine.getBytes(StandardCharsets.UTF_8), collector);
-
-        assertEquals(1, collector.list.size());
-        testConsumer.accept(collector.list.get(0));
     }
 
     private static class SimpleCollector implements Collector<RowData> {
