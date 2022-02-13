@@ -27,11 +27,15 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-/** @param <T> */
+/**
+ * This assertion used to compare records in the collect iterator to the target test data with
+ * different semantic(AT_LEAST_ONCE, EXACTLY_ONCE).
+ *
+ * @param <T> The type of records in the test data and collect iterator
+ */
 public class CollectIteratorAssert<T>
         extends AbstractAssert<CollectIteratorAssert<T>, Iterator<T>> {
 
-    private static final int UNSET = -1;
     private final Iterator<T> collectorIterator;
     private final List<RecordsFromSplit<T>> recordsFromSplits = new ArrayList<>();
     private int totalNumRecords;
@@ -61,10 +65,10 @@ public class CollectIteratorAssert<T>
 
         switch (semantic) {
             case AT_LEAST_ONCE:
-                matchAtLeastOnce(collectorIterator, recordsFromSplits);
+                compareWithAtLeastOnceSemantic(collectorIterator, recordsFromSplits);
                 break;
             case EXACTLY_ONCE:
-                matchExactlyOnce(collectorIterator, recordsFromSplits);
+                compareWithExactlyOnceSemantic(collectorIterator, recordsFromSplits);
                 break;
             default:
                 throw new IllegalArgumentException(
@@ -72,7 +76,7 @@ public class CollectIteratorAssert<T>
         }
     }
 
-    private void matchAtLeastOnce(
+    private void compareWithAtLeastOnceSemantic(
             Iterator<T> resultIterator, List<RecordsFromSplit<T>> recordsFromSplits) {
         List<T> duplicateRead = new LinkedList<>();
 
@@ -85,11 +89,11 @@ public class CollectIteratorAssert<T>
                 recordCounter++;
             }
 
-            if (limit != UNSET && recordCounter >= limit) {
+            if (limit != null && recordCounter >= limit) {
                 break;
             }
         }
-        if (limit == UNSET && !hasReachedEnd()) {
+        if (limit == null && !hasReachedEnd()) {
             failWithMessage(
                     generateMismatchDescription(
                             String.format(
@@ -106,7 +110,7 @@ public class CollectIteratorAssert<T>
         }
     }
 
-    private void matchExactlyOnce(
+    private void compareWithExactlyOnceSemantic(
             Iterator<T> resultIterator, List<RecordsFromSplit<T>> recordsFromSplits) {
         int recordCounter = 0;
         while (resultIterator.hasNext()) {

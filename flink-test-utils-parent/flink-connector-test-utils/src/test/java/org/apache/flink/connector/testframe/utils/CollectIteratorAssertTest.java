@@ -34,7 +34,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.connector.testframe.utils.CollectIteratorAssertions.assertThat;
 
-/** Unit test for {@link CollectIteratorAssertTest}. */
+/** Unit tests for {@link CollectIteratorAssertTest}. */
 public class CollectIteratorAssertTest {
     @Nested
     class MultipleSplitDataMatcherTest {
@@ -44,10 +44,17 @@ public class CollectIteratorAssertTest {
         private final List<List<String>> testDataCollection = Arrays.asList(splitA, splitB, splitC);
 
         @Test
-        public void testPositiveCase() {
+        public void testDataMatcherWithExactlyOnceSemantic() {
             final List<String> result = unionLists(splitA, splitB, splitC);
             assertThat(result.iterator())
                     .matchesRecordsFromSource(testDataCollection, CheckpointingMode.EXACTLY_ONCE);
+        }
+
+        @Test
+        public void testDataMatcherWithAtLeastOnceSemantic() {
+            final List<String> result = unionLists(splitA, splitB, splitC, splitA);
+            assertThat(result.iterator())
+                    .matchesRecordsFromSource(testDataCollection, CheckpointingMode.AT_LEAST_ONCE);
         }
 
         @Test

@@ -62,8 +62,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
@@ -92,8 +90,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class SourceTestSuiteBase<T> {
 
     private static final Logger LOG = LoggerFactory.getLogger(SourceTestSuiteBase.class);
-    static ExecutorService executorService =
-            Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 2);
 
     // ----------------------------- Basic test cases ---------------------------------
 
@@ -142,7 +138,7 @@ public abstract class SourceTestSuiteBase<T> {
         try (CollectResultIterator<T> resultIterator = iteratorBuilder.build(jobClient)) {
             // Check test result
             LOG.info("Checking test results");
-            checkResultBySemantic(resultIterator, Arrays.asList(testRecords), semantic, null);
+            checkResultWithSemantic(resultIterator, Arrays.asList(testRecords), semantic, null);
         }
     }
 
@@ -196,7 +192,7 @@ public abstract class SourceTestSuiteBase<T> {
         try (CloseableIterator<T> resultIterator = iteratorBuilder.build(jobClient)) {
             // Check test result
             LOG.info("Checking test results");
-            checkResultBySemantic(resultIterator, testRecordsLists, semantic, null);
+            checkResultWithSemantic(resultIterator, testRecordsLists, semantic, null);
         }
     }
 
@@ -251,7 +247,7 @@ public abstract class SourceTestSuiteBase<T> {
         // Step 4: Validate test data
         try (CloseableIterator<T> resultIterator = iteratorBuilder.build(jobClient)) {
             LOG.info("Checking test results");
-            checkResultBySemantic(resultIterator, testRecordsLists, semantic, null);
+            checkResultWithSemantic(resultIterator, testRecordsLists, semantic, null);
         }
     }
 
@@ -313,7 +309,7 @@ public abstract class SourceTestSuiteBase<T> {
         // Step 4: Validate records before killing TaskManagers
         CloseableIterator<T> iterator = iteratorBuilder.build(jobClient);
         LOG.info("Checking records before killing TaskManagers");
-        checkResultBySemantic(
+        checkResultWithSemantic(
                 iterator,
                 Arrays.asList(testRecordsBeforeFailure),
                 semantic,
@@ -341,7 +337,7 @@ public abstract class SourceTestSuiteBase<T> {
 
         // Step 7: Validate test result
         LOG.info("Checking records after job failover");
-        checkResultBySemantic(
+        checkResultWithSemantic(
                 iterator,
                 Arrays.asList(testRecordsAfterFailure),
                 semantic,
@@ -423,7 +419,7 @@ public abstract class SourceTestSuiteBase<T> {
      * @param semantic the supported semantic, see {@link CheckpointingMode}
      * @param limit expected number of the data to read from the job
      */
-    private void checkResultBySemantic(
+    private void checkResultWithSemantic(
             CloseableIterator<T> resultIterator,
             List<List<T>> testData,
             CheckpointingMode semantic,

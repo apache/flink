@@ -20,7 +20,10 @@ package org.apache.flink.connector.testframe.utils;
 
 import java.util.Iterator;
 
-/** */
+/**
+ * Entry point for assertion methods for {@link CollectIteratorAssert}. Each method in this class is
+ * a static factory.
+ */
 public class CollectIteratorAssertions {
     public static <T> CollectIteratorAssert<T> assertThat(Iterator<T> actual) {
         return new CollectIteratorAssert<>(actual);
