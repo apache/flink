@@ -272,7 +272,7 @@ The computed column is a virtual column which is not stored in the physical data
 CREATE TABLE MyTable (
   MyField1 INT,
   MyField2 STRING,
-  MyField3 BOOLEAN
+  MyField3 BOOLEAN,
   MyField4 AS PROCTIME() -- declares a proctime attribute
 ) WITH (
   ...
