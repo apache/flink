@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.testframe.TestResource;
 import org.apache.flink.connector.testframe.environment.TestEnvironment;
 import org.apache.flink.connector.testframe.external.ExternalContextFactory;
-import org.apache.flink.connector.testframe.junit.annotations.Semantic;
+import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
@@ -100,9 +100,9 @@ public class ConnectorTestingExtension implements BeforeAllCallback, AfterAllCal
         final List<CheckpointingMode[]> semantics =
                 AnnotationSupport.findAnnotatedFieldValues(
                         context.getRequiredTestInstance(),
-                        Semantic.class,
+                        TestSemantics.class,
                         CheckpointingMode[].class);
-        checkExactlyOneAnnotatedField(semantics, Semantic.class);
+        checkExactlyOneAnnotatedField(semantics, TestSemantics.class);
         context.getStore(TEST_RESOURCE_NAMESPACE)
                 .put(SUPPORTED_SEMANTIC_STORE_KEY, semantics.get(0));
 

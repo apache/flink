@@ -34,4 +34,4 @@ import java.lang.annotation.Target;
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 @Experimental
-public @interface Semantic {}
+public @interface TestSemantics {}
