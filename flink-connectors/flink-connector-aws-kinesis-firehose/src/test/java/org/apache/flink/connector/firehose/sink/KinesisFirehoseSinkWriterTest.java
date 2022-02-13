@@ -21,6 +21,7 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connector.base.sink.writer.FixedRateLimitingStrategy;
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
 
 import org.junit.Before;
@@ -63,7 +64,8 @@ public class KinesisFirehoseSinkWriterTest {
                         1000 * 1024,
                         true,
                         "streamName",
-                        sinkProperties);
+                        sinkProperties,
+                        new FixedRateLimitingStrategy(16 * 50));
     }
 
     @Test

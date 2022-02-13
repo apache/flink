@@ -19,8 +19,10 @@ package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.base.sink.AsyncSinkBase;
+import org.apache.flink.connector.base.sink.writer.AIMDRateLimitingStrategy;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connector.base.sink.writer.RateLimitingStrategy;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
@@ -45,6 +47,10 @@ import java.util.Properties;
  */
 @PublicEvolving
 public class KinesisFirehoseSink<InputT> extends AsyncSinkBase<InputT, Record> {
+    private static final int DEFAULT_THROTTLING_INCREASE_RATE = 10;
+
+    private static final int DEFAULT_THROTTLING_INITIAL_RATE = 10;
+    private static final double DEFAULT_THROTTLING_DECREASE_FACTOR = 0.5;
 
     private final boolean failOnError;
     private final String deliveryStreamName;
@@ -106,6 +112,7 @@ public class KinesisFirehoseSink<InputT> extends AsyncSinkBase<InputT, Record> {
                 failOnError,
                 deliveryStreamName,
                 firehoseClientProperties,
+                getDefaultRateLimitingStrategy(),
                 Collections.emptyList());
     }
 
@@ -125,11 +132,20 @@ public class KinesisFirehoseSink<InputT> extends AsyncSinkBase<InputT, Record> {
                 failOnError,
                 deliveryStreamName,
                 firehoseClientProperties,
+                getDefaultRateLimitingStrategy(),
                 recoveredState);
     }
 
     @Override
     public SimpleVersionedSerializer<BufferedRequestState<Record>> getWriterStateSerializer() {
         return new KinesisFirehoseStateSerializer();
+    }
+
+    private RateLimitingStrategy getDefaultRateLimitingStrategy() {
+        return new AIMDRateLimitingStrategy(
+                DEFAULT_THROTTLING_INCREASE_RATE,
+                DEFAULT_THROTTLING_DECREASE_FACTOR,
+                getMaxBatchSize() * getMaxInFlightRequests(),
+                DEFAULT_THROTTLING_INITIAL_RATE);
     }
 }

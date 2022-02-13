@@ -20,6 +20,7 @@ package org.apache.flink.connector.base.sink;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriterStateSerializer;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
+import org.apache.flink.connector.base.sink.writer.FixedRateLimitingStrategy;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.DataInputStream;
@@ -65,7 +66,8 @@ public class ArrayListAsyncSink extends AsyncSinkBase<String, Integer> {
                 getMaxBufferedRequests(),
                 getMaxBatchSizeInBytes(),
                 getMaxTimeInBufferMS(),
-                getMaxRecordSizeInBytes()) {
+                getMaxRecordSizeInBytes(),
+                new FixedRateLimitingStrategy(getMaxBatchSize() * getMaxInFlightRequests())) {
 
             @Override
             protected void submitRequestEntries(

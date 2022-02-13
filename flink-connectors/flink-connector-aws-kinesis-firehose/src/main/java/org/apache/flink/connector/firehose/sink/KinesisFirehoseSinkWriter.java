@@ -24,6 +24,7 @@ import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
 import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
+import org.apache.flink.connector.base.sink.writer.RateLimitingStrategy;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 
@@ -104,7 +105,8 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
             long maxRecordSizeInBytes,
             boolean failOnError,
             String deliveryStreamName,
-            Properties firehoseClientProperties) {
+            Properties firehoseClientProperties,
+            RateLimitingStrategy rateLimitingStrategy) {
         this(
                 elementConverter,
                 context,
@@ -117,6 +119,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
                 failOnError,
                 deliveryStreamName,
                 firehoseClientProperties,
+                rateLimitingStrategy,
                 Collections.emptyList());
     }
 
@@ -132,6 +135,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
             boolean failOnError,
             String deliveryStreamName,
             Properties firehoseClientProperties,
+            RateLimitingStrategy rateLimitingStrategy,
             Collection<BufferedRequestState<Record>> initialStates) {
         super(
                 elementConverter,
@@ -142,6 +146,7 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
                 maxBatchSizeInBytes,
                 maxTimeInBufferMS,
                 maxRecordSizeInBytes,
+                rateLimitingStrategy,
                 initialStates);
         this.failOnError = failOnError;
         this.deliveryStreamName = deliveryStreamName;
