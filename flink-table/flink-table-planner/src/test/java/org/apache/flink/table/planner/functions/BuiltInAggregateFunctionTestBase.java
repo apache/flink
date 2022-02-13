@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.table.api.EnvironmentSettings;
@@ -77,6 +79,9 @@ public class BuiltInAggregateFunctionTestBase {
     public void testFunction() throws Exception {
         final TableEnvironment tEnv =
                 TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        Configuration configuration = tEnv.getConfig().getConfiguration();
+        // see https://issues.apache.org/jira/browse/FLINK-26092
+        configuration.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, false);
         final Table sourceTable = asTable(tEnv, testSpec.sourceRowType, testSpec.sourceRows);
 
         for (final TestItem testItem : testSpec.testItems) {
