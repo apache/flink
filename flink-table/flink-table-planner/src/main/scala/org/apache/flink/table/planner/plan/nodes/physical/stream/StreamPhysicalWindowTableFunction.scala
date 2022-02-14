@@ -21,12 +21,12 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalWindowTableFunction
-import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowTableFunction
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 
 import java.util
 

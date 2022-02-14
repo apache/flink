@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSp
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLookupJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
-import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil, JoinTypeUtil}
+import org.apache.flink.table.planner.plan.utils.{FlinkRexUtil, JoinTypeUtil}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}

@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.codegen.sort
 
 import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.data.{DecimalData, TimestampData}
 import org.apache.flink.table.data.binary.BinaryRowData
+import org.apache.flink.table.data.{DecimalData, TimestampData}
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, SEGMENT, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
