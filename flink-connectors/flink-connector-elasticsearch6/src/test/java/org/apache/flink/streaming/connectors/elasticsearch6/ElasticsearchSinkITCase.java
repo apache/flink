@@ -22,6 +22,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkBase;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
 import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkTestBase;
+import org.apache.flink.streaming.connectors.elasticsearch.testutils.ElasticsearchContainerUtil;
 import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.http.HttpHost;
@@ -32,8 +33,9 @@ import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -41,10 +43,12 @@ import java.util.List;
 /** IT cases for the {@link ElasticsearchSink}. */
 public class ElasticsearchSinkITCase
         extends ElasticsearchSinkTestBase<RestHighLevelClient, HttpHost> {
+    private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchSinkITCase.class);
 
     @ClassRule
     public static ElasticsearchContainer elasticsearchContainer =
-            new ElasticsearchContainer(DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_6));
+            ElasticsearchContainerUtil.createElasticsearchContainer(
+                    DockerImageVersions.ELASTICSEARCH_6, LOG);
 
     @Override
     protected String getClusterName() {
