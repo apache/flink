@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
+import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
@@ -26,7 +27,6 @@ import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.flink.table.catalog.{ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable}
 
 import java.util
 
