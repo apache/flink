@@ -44,7 +44,7 @@ under the License.
 * `SourceReader` 请求需要处理的文件，并从文件系统中读取该文件。
 
 你可能需要指定某种 [format]({{< ref "docs/connectors/datastream/formats/overview" >}}) 与 `File Source` 联合进行解析 CSV、解码AVRO、或者读取 Parquet 列式文件。
-
+<a name="bounded-and-unbounded-streams"></a>
 #### 有界流和无界流
 
 有界的 `File Source`（通过 SplitEnumerator）列出所有文件（一个过滤出隐藏文件的递归目录列表）并读取。
