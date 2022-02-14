@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.connectors.elasticsearch.testutils.ElasticsearchContainerUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
@@ -47,8 +48,9 @@ import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.junit.ClassRule;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
-import org.testcontainers.utility.DockerImageName;
 
 import java.time.Duration;
 import java.time.LocalDate;
@@ -67,10 +69,13 @@ import static org.junit.Assert.assertThat;
 
 /** IT tests for {@link Elasticsearch6DynamicSink}. */
 public class Elasticsearch6DynamicSinkITCase extends TestLogger {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(Elasticsearch6DynamicSinkITCase.class);
 
     @ClassRule
     public static ElasticsearchContainer elasticsearchContainer =
-            new ElasticsearchContainer(DockerImageName.parse(DockerImageVersions.ELASTICSEARCH_6));
+            ElasticsearchContainerUtil.createElasticsearchContainer(
+                    DockerImageVersions.ELASTICSEARCH_6, LOG);
 
     @SuppressWarnings("deprecation")
     protected final Client getClient() {
