@@ -61,6 +61,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
+import io.fabric8.kubernetes.api.model.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -614,6 +615,11 @@ public class KubernetesUtils {
 
     public static String extractLeaderName(String key) {
         return key.substring(LEADER_PREFIX.length());
+    }
+
+    /** Generate namespaced name of the service. */
+    public static String getNamespacedServiceName(Service service) {
+        return service.getMetadata().getName() + "." + service.getMetadata().getNamespace();
     }
 
     private KubernetesUtils() {}
