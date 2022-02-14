@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ExternalCatalogTable;
@@ -176,7 +176,7 @@ class ResolvedCatalogTableSerdeTest {
                                                 FULL_RESOLVED_SCHEMA)))
                 .satisfies(
                         FlinkAssertions.anyCauseMatches(
-                                ValidationException.class,
+                                TableException.class,
                                 "Cannot serialize the table as it's an external inline table"));
     }
 }

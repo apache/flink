@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -77,7 +77,7 @@ final class ResolvedCatalogTableJsonSerializer extends StdSerializer<ResolvedCat
         jsonGenerator.writeStartObject();
 
         if (resolvedCatalogTable.getOrigin() instanceof ExternalCatalogTable) {
-            throw new ValidationException(
+            throw new TableException(
                     "Cannot serialize the table as it's an external inline table. "
                             + "This might be caused by a usage of "
                             + "StreamTableEnvironment#fromDataStream or TableResult#collect, "
@@ -95,7 +95,7 @@ final class ResolvedCatalogTableJsonSerializer extends StdSerializer<ResolvedCat
             try {
                 jsonGenerator.writeObjectField(OPTIONS, resolvedCatalogTable.getOptions());
             } catch (Exception e) {
-                throw new ValidationException(
+                throw new TableException(
                         String.format(
                                 "The table is not serializable as %s#getOptions() failed. "
                                         + "It seems the table is not intended to be stored in a "

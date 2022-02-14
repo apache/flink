@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation;
 import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanRestore;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonPointer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -39,7 +40,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-import static org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanRestore.IDENTIFIER;
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS;
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ContextResolvedTableJsonSerializer.FIELD_NAME_CATALOG_TABLE;
@@ -54,6 +54,9 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatal
 @Internal
 final class ContextResolvedTableJsonDeserializer extends StdDeserializer<ContextResolvedTable> {
     private static final long serialVersionUID = 1L;
+
+    private static final JsonPointer optionsPointer =
+            JsonPointer.compile("/" + FIELD_NAME_CATALOG_TABLE + "/" + OPTIONS);
 
     ContextResolvedTableJsonDeserializer() {
         super(ContextResolvedTable.class);
@@ -77,7 +80,7 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
                                 jsonParser.getCodec(),
                                 ctx)
                         .orElse(null);
-        ResolvedCatalogTable resolvedCatalogTable =
+        final ResolvedCatalogTable resolvedCatalogTable =
                 JsonSerdeUtil.deserializeOptionalField(
                                 objectNode,
                                 FIELD_NAME_CATALOG_TABLE,
@@ -87,39 +90,41 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
                         .orElse(null);
 
         if (identifier == null && resolvedCatalogTable == null) {
-            throw new ValidationException(
+            throw new TableException(
                     String.format(
-                            "The input JSON is invalid because it doesn't contain '%s', nor the '%s'.",
+                            "The input JSON is invalid because it does neither contain '%s' nor '%s'.",
                             FIELD_NAME_IDENTIFIER, FIELD_NAME_CATALOG_TABLE));
         }
 
         if (identifier == null) {
-            if (isLookupForced(planRestoreOption)) {
-                throw missingIdentifier();
-            }
             return ContextResolvedTable.anonymous(resolvedCatalogTable);
         }
 
-        Optional<ContextResolvedTable> contextResolvedTableFromCatalog =
-                isLookupEnabled(planRestoreOption)
-                        ? catalogManager.getTable(identifier)
-                        : Optional.empty();
+        final Optional<ContextResolvedTable> contextResolvedTableFromCatalog =
+                catalogManager.getTable(identifier);
+
+        // If plan has no catalog table field or no options field,
+        // the table is permanent in the catalog and the option is plan all enforced, then fail
+        if ((resolvedCatalogTable == null || objectNode.at(optionsPointer).isMissingNode())
+                && isPlanEnforced(planRestoreOption)
+                && contextResolvedTableFromCatalog
+                        .map(ContextResolvedTable::isPermanent)
+                        .orElse(false)) {
+            throw lookupDisabled(identifier);
+        }
 
         // If we have a schema from the plan and from the catalog, we need to check they match.
         if (contextResolvedTableFromCatalog.isPresent() && resolvedCatalogTable != null) {
-            ResolvedSchema schemaFromPlan = resolvedCatalogTable.getResolvedSchema();
-            ResolvedSchema schemaFromCatalog =
+            final ResolvedSchema schemaFromPlan = resolvedCatalogTable.getResolvedSchema();
+            final ResolvedSchema schemaFromCatalog =
                     contextResolvedTableFromCatalog.get().getResolvedSchema();
             if (!areResolvedSchemasEqual(schemaFromPlan, schemaFromCatalog)) {
                 throw schemaNotMatching(identifier, schemaFromPlan, schemaFromCatalog);
             }
         }
 
+        // We use what is stored inside the catalog,
         if (resolvedCatalogTable == null || isLookupForced(planRestoreOption)) {
-            if (!isLookupEnabled(planRestoreOption)) {
-                throw lookupDisabled(identifier);
-            }
-            // We use what is stored inside the catalog
             return contextResolvedTableFromCatalog.orElseThrow(
                     () -> missingTableFromCatalog(identifier, isLookupForced(planRestoreOption)));
         }
@@ -127,7 +132,7 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
         if (contextResolvedTableFromCatalog.isPresent()) {
             // If no config map is present, then the ContextResolvedTable was serialized with
             // SCHEMA, so we just need to return the catalog query result
-            if (objectNode.at("/" + FIELD_NAME_CATALOG_TABLE + "/" + OPTIONS).isMissingNode()) {
+            if (objectNode.at(optionsPointer).isMissingNode()) {
                 return contextResolvedTableFromCatalog.get();
             }
 
@@ -147,16 +152,16 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
         //  * Columns size and order
         //  * For each column: name, kind (class) and type
         //  * Check partition keys set equality
-        List<Column> columnsFromPlan = schemaFromPlan.getColumns();
-        List<Column> columnsFromCatalog = schemaFromCatalog.getColumns();
+        final List<Column> columnsFromPlan = schemaFromPlan.getColumns();
+        final List<Column> columnsFromCatalog = schemaFromCatalog.getColumns();
 
         if (columnsFromPlan.size() != columnsFromCatalog.size()) {
             return false;
         }
 
         for (int i = 0; i < columnsFromPlan.size(); i++) {
-            Column columnFromPlan = columnsFromPlan.get(i);
-            Column columnFromCatalog = columnsFromCatalog.get(i);
+            final Column columnFromPlan = columnsFromPlan.get(i);
+            final Column columnFromCatalog = columnsFromCatalog.get(i);
             if (!Objects.equals(columnFromPlan.getName(), columnFromCatalog.getName())
                     || !Objects.equals(columnFromPlan.getClass(), columnFromCatalog.getClass())
                     || !Objects.equals(
@@ -169,50 +174,36 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
     }
 
     private boolean isLookupForced(CatalogPlanRestore planRestoreOption) {
-        return planRestoreOption == IDENTIFIER;
+        return planRestoreOption == CatalogPlanRestore.IDENTIFIER;
     }
 
-    private boolean isLookupEnabled(CatalogPlanRestore planRestoreOption) {
-        return planRestoreOption != CatalogPlanRestore.ALL_ENFORCED;
+    private boolean isPlanEnforced(CatalogPlanRestore planRestoreOption) {
+        return planRestoreOption == CatalogPlanRestore.ALL_ENFORCED;
     }
 
-    static ValidationException missingIdentifier() {
-        return new ValidationException(
-                String.format(
-                        "The table cannot be deserialized as no identifier is present in the persisted plan."
-                                + "However, lookup is forced by '%s' = '%s'. "
-                                + "Either allow restoring the table from the catalog with '%s' = '%s' / '%s' "
-                                + "or make sure to not use anonymous tables when generating the plan.",
-                        PLAN_RESTORE_CATALOG_OBJECTS.key(),
-                        IDENTIFIER.name(),
-                        PLAN_RESTORE_CATALOG_OBJECTS.key(),
-                        CatalogPlanRestore.ALL.name(),
-                        CatalogPlanRestore.ALL_ENFORCED.name()));
-    }
-
-    static ValidationException lookupDisabled(ObjectIdentifier objectIdentifier) {
-        return new ValidationException(
+    static TableException lookupDisabled(ObjectIdentifier objectIdentifier) {
+        return new TableException(
                 String.format(
                         "The persisted plan does not include all required catalog metadata for table '%s'. "
                                 + "However, lookup is disabled because option '%s' = '%s'. "
                                 + "Either enable the catalog lookup with '%s' = '%s' / '%s' or "
-                                + "regenerate the plan with '%s' != '%s'. "
+                                + "regenerate the plan with '%s' = '%s'. "
                                 + "Make sure the table is not compiled as a temporary table.",
                         objectIdentifier.asSummaryString(),
                         PLAN_RESTORE_CATALOG_OBJECTS.key(),
                         CatalogPlanRestore.ALL_ENFORCED.name(),
                         PLAN_RESTORE_CATALOG_OBJECTS.key(),
-                        IDENTIFIER.name(),
+                        CatalogPlanRestore.IDENTIFIER.name(),
                         CatalogPlanRestore.ALL.name(),
                         PLAN_COMPILE_CATALOG_OBJECTS.key(),
-                        CatalogPlanCompilation.IDENTIFIER.name()));
+                        CatalogPlanCompilation.ALL.name()));
     }
 
-    static ValidationException schemaNotMatching(
+    static TableException schemaNotMatching(
             ObjectIdentifier objectIdentifier,
             ResolvedSchema schemaFromPlan,
             ResolvedSchema schemaFromCatalog) {
-        return new ValidationException(
+        return new TableException(
                 String.format(
                         "The schema of table '%s' from the persisted plan does not match the "
                                 + "schema loaded from the catalog: '%s' != '%s'. "
@@ -220,16 +211,16 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
                         objectIdentifier.asSummaryString(), schemaFromPlan, schemaFromCatalog));
     }
 
-    static ValidationException missingTableFromCatalog(
+    static TableException missingTableFromCatalog(
             ObjectIdentifier identifier, boolean forcedLookup) {
-        String initialReason;
+        final String initialReason;
         if (forcedLookup) {
             initialReason =
                     String.format(
                             "Cannot resolve table '%s' and catalog lookup is forced because '%s' = '%s'. ",
                             identifier.asSummaryString(),
                             PLAN_RESTORE_CATALOG_OBJECTS.key(),
-                            IDENTIFIER);
+                            CatalogPlanRestore.IDENTIFIER.name());
         } else {
             initialReason =
                     String.format(
@@ -237,7 +228,7 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
                                     + "all required catalog table metadata. ",
                             identifier.asSummaryString());
         }
-        return new ValidationException(
+        return new TableException(
                 initialReason
                         + String.format(
                                 "Make sure a registered catalog contains the table when restoring or "
