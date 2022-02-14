@@ -1711,7 +1711,12 @@ SqlEndStatementSet SqlEndStatementSet() :
 
 /**
 * Parse a statement set.
-* END;
+*
+* STATEMENT SET BEGIN (RichSqlInsert();)+ END
+*
+* Note that when using this parser directive with OrderedQueryOrExpr,
+* you might have choice conflicts because STATEMENT is not a reserved keyword,
+* so it can be an identifier. Using the LOOKAHEAD(2) directive will fix it.
 */
 SqlNode SqlStatementSet() :
 {
@@ -1751,6 +1756,7 @@ SqlNode SqlRichExplain() :
     <EXPLAIN>
     )
     (
+        LOOKAHEAD(2)
         stmt = SqlStatementSet()
         |
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
@@ -1773,6 +1779,7 @@ SqlNode SqlExecute() :
 {
     <EXECUTE>{ startPos = getPos(); }
     (
+        LOOKAHEAD(2)
         stmt = SqlStatementSet()
         |
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
