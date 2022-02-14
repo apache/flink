@@ -128,7 +128,11 @@ The default settings for exclusive buffers and floating buffers should be suffic
 
 The buffer collects records in order to optimize network overhead when sending the data portion to the next subtask. The next subtask should receive all parts of the record before consuming it. 
 
-If the buffer size is too small (i.e. less than one record), this can lead to low throughput since the overhead is still pretty large.  
+If the buffer size is too small, or the buffers are flushed too frequently (`execution.buffer-timeout` configuration parameter), this can lead to decreased throughput 
+since the per-buffer overhead are significantly higher then per-record overheads in the Flink's runtime.
+
+As a rule of thumb, we don't recommend thinking about increasing the buffer size, or the buffer timeout unless you can observe a network bottleneck in your real life workload
+(downstream operator idling, upstream backpressured, output buffer queue is full, downstream input queue is empty).
 
 If the buffer size is too large, this can lead to: 
 - high memory usage
