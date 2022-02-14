@@ -284,7 +284,7 @@ object TableSourceUtil {
     // If resultType is TimeIndicatorTypeInfo, its internal format is long, but cast
     // from Timestamp is java.sql.Timestamp. So we need cast to long first.
     val outputType = DataTypes.TIMESTAMP(3).bridgedTo(classOf[Timestamp])
-    new CallExpression(
+    CallExpression.permanent(
       BuiltInFunctionDefinitions.REINTERPRET_CAST,
       Seq(
         expression.asInstanceOf[ResolvedExpression],

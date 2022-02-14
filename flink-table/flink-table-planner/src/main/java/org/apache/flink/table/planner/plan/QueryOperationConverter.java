@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ConnectorCatalogTable;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -289,10 +290,12 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
         @Override
         public RelNode visit(CalculatedQueryOperation calculatedTable) {
-            FunctionDefinition functionDefinition = calculatedTable.getFunctionDefinition();
-            List<RexNode> parameters = convertToRexNodes(calculatedTable.getArguments());
-            FlinkTypeFactory typeFactory = relBuilder.getTypeFactory();
+            final ContextResolvedFunction resolvedFunction = calculatedTable.getResolvedFunction();
+            final List<RexNode> parameters = convertToRexNodes(calculatedTable.getArguments());
+
+            final FunctionDefinition functionDefinition = resolvedFunction.getDefinition();
             if (functionDefinition instanceof TableFunctionDefinition) {
+                final FlinkTypeFactory typeFactory = relBuilder.getTypeFactory();
                 return convertLegacyTableFunction(
                         calculatedTable,
                         (TableFunctionDefinition) functionDefinition,
@@ -301,10 +304,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
             }
 
             final BridgingSqlFunction sqlFunction =
-                    BridgingSqlFunction.of(
-                            relBuilder.getCluster(),
-                            calculatedTable.getFunctionIdentifier().orElse(null),
-                            calculatedTable.getFunctionDefinition());
+                    BridgingSqlFunction.of(relBuilder.getCluster(), resolvedFunction);
 
             return relBuilder
                     .functionScan(sqlFunction, 0, parameters)
@@ -327,7 +327,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
 
             final TableSqlFunction sqlFunction =
                     new TableSqlFunction(
-                            calculatedTable.getFunctionIdentifier().orElse(null),
+                            calculatedTable.getResolvedFunction().getIdentifier().orElse(null),
                             tableFunction.toString(),
                             tableFunction,
                             resultType,
@@ -688,21 +688,8 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                                     })
                             .collect(Collectors.toList());
 
-            CallExpression newCall;
-            if (callExpression.getFunctionIdentifier().isPresent()) {
-                newCall =
-                        new CallExpression(
-                                callExpression.getFunctionIdentifier().get(),
-                                callExpression.getFunctionDefinition(),
-                                newChildren,
-                                callExpression.getOutputDataType());
-            } else {
-                newCall =
-                        new CallExpression(
-                                callExpression.getFunctionDefinition(),
-                                newChildren,
-                                callExpression.getOutputDataType());
-            }
+            final CallExpression newCall =
+                    callExpression.replaceArgs(newChildren, callExpression.getOutputDataType());
             return convertExprToRexNode(newCall);
         }
 

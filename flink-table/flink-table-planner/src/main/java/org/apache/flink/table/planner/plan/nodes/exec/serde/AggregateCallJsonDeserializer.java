@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
@@ -150,8 +151,8 @@ public class AggregateCallJsonDeserializer extends StdDeserializer<AggregateCall
                     dataTypeFactory,
                     ctx.getTypeFactory(),
                     sqlKind,
-                    FunctionIdentifier.of(name),
-                    definition.get(),
+                    ContextResolvedFunction.permanent(
+                            FunctionIdentifier.of(name), definition.get()),
                     typeInference);
         }
 
@@ -172,8 +173,7 @@ public class AggregateCallJsonDeserializer extends StdDeserializer<AggregateCall
                         dataTypeFactory,
                         ctx.getTypeFactory(),
                         sqlKind,
-                        FunctionIdentifier.of(name),
-                        definition,
+                        ContextResolvedFunction.permanent(FunctionIdentifier.of(name), definition),
                         typeInference);
             } else {
                 String displayName = jsonNode.get(FIELD_NAME_DISPLAY_NAME).asText();
