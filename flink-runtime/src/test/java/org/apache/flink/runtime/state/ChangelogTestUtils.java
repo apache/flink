@@ -89,8 +89,18 @@ public class ChangelogTestUtils {
             return isDiscarded;
         }
 
-        IncrementalStateHandleWrapper copy() {
+        IncrementalStateHandleWrapper deserialize() {
             return new IncrementalStateHandleWrapper(stateHandle.copy());
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            // override original IncrementalRemoteKeyedStateHandle#equals() method via comparing
+            // the memory address directly. This is to ensure state handle generated via
+            // #deserialize is different from the original one, which let the
+            // SharedStateRegistryImpl treat them are different via Objects#equals.
+            // More information can refer to FLINK-26101.
+            return (this == o);
         }
     }
 

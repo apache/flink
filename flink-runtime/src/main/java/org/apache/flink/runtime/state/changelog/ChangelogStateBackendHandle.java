@@ -247,12 +247,19 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
                     return false;
                 }
                 StreamStateHandleWrapper that = (StreamStateHandleWrapper) o;
-                return Objects.equals(keyedStateHandle, that.keyedStateHandle);
+                return Objects.equals(
+                        keyedStateHandle.getStateHandleId(),
+                        that.keyedStateHandle.getStateHandleId());
             }
 
             @Override
             public int hashCode() {
-                return Objects.hash(keyedStateHandle);
+                return Objects.hash(keyedStateHandle.getStateHandleId());
+            }
+
+            @Override
+            public String toString() {
+                return "Wrapped{" + keyedStateHandle + '}';
             }
         }
     }
