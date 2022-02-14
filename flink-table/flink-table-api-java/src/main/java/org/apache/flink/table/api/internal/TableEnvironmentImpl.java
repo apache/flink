@@ -106,6 +106,7 @@ import org.apache.flink.table.operations.ShowViewsOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
+import org.apache.flink.table.operations.TableSourceQueryOperation;
 import org.apache.flink.table.operations.UnloadModuleOperation;
 import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
@@ -357,6 +358,14 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @VisibleForTesting
     public Planner getPlanner() {
         return planner;
+    }
+
+    @Override
+    public Table fromTableSource(TableSource<?> source) {
+        // only accept StreamTableSource and LookupableTableSource here
+        // TODO should add a validation, while StreamTableSource is in flink-table-api-java-bridge
+        // module now
+        return createTable(new TableSourceQueryOperation<>(source, !IS_STREAM_TABLE));
     }
 
     @Override
