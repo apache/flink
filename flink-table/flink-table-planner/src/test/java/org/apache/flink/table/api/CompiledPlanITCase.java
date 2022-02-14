@@ -36,6 +36,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.api.Expressions.$;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -85,7 +86,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testExecutePlan() throws Exception {
+    public void testExecutePlanSql() throws Exception {
         File sinkPath = createSourceSinkTables();
 
         CompiledPlan plan = tableEnv.compilePlanSql("insert into sink select * from src");
@@ -95,7 +96,19 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
     }
 
     @Test
-    public void testExecutePlanSql() throws Exception {
+    public void testExecutePlanTable() throws Exception {
+        List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
+        createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
+        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "b int", "c varchar");
+
+        CompiledPlan plan = tableEnv.from("src").select($("*")).insertInto("sink").compilePlan();
+        tableEnv.executePlan(plan).await();
+
+        assertResult(data, sinkPath);
+    }
+
+    @Test
+    public void testCompileWriteToFileAndThenExecuteSql() throws Exception {
         Path planPath = Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json");
         FileUtils.createParentDirectories(planPath.toFile());
 
