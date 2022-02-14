@@ -116,6 +116,7 @@ abstract class CheckpointIDCounterTestBase {
             // Get the counts
             for (Future<List<Long>> result : resultFutures) {
                 List<Long> counts = result.get();
+                assertStrictlyMonotonous(counts);
                 all.addAll(counts);
             }
 
@@ -124,21 +125,26 @@ abstract class CheckpointIDCounterTestBase {
 
             assertThat(all.size()).isEqualTo(expectedTotal);
 
-            long current = 0;
-            for (long val : all) {
-                // Incrementing counts
-                assertThat(val).isEqualTo(++current);
-            }
+            assertStrictlyMonotonous(all);
 
             // The final count
-            assertThat(counter.get()).isEqualTo(expectedTotal + 1);
-            assertThat(counter.getAndIncrement()).isEqualTo(expectedTotal + 1);
+            final long lastCheckpointId = all.get(all.size() - 1);
+            assertThat(lastCheckpointId).isLessThan(counter.get());
+            assertThat(lastCheckpointId).isLessThan(counter.getAndIncrement());
         } finally {
             if (executor != null) {
                 executor.shutdown();
             }
 
             counter.shutdown(JobStatus.FINISHED);
+        }
+    }
+
+    private static void assertStrictlyMonotonous(List<Long> checkpointIds) {
+        long current = -1;
+        for (long checkpointId : checkpointIds) {
+            assertThat(current).isLessThan(checkpointId);
+            current = checkpointId;
         }
     }
 
