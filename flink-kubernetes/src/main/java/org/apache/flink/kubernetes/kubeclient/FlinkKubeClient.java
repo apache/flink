@@ -76,12 +76,10 @@ public interface FlinkKubeClient extends AutoCloseable {
     /**
      * Get the kubernetes service of the given flink clusterId.
      *
-     * @param serviceType Internal/Rest
-     * @param clusterId cluster id
-     * @return Return the optional rest service of the specified cluster id.
+     * @param serviceName the name of the service
+     * @return Return the optional kubernetes service of the specified name.
      */
-    Optional<KubernetesService> getService(
-            KubernetesService.ServiceType serviceType, String clusterId);
+    Optional<KubernetesService> getService(String serviceName);
 
     /**
      * Get the rest endpoint for access outside cluster.
@@ -207,16 +205,13 @@ public interface FlinkKubeClient extends AutoCloseable {
     /**
      * Update the target ports of the given Kubernetes service.
      *
-     * @param serviceType The service type which needs to be updated
+     * @param serviceName The name of the service which needs to be updated
      * @param portName The port name which needs to be updated
      * @param targetPort The updated target port
      * @return Return the update service target port future
      */
     CompletableFuture<Void> updateServiceTargetPort(
-            KubernetesService.ServiceType serviceType,
-            String clusterId,
-            String portName,
-            int targetPort);
+            String serviceName, String portName, int targetPort);
 
     /** Callback handler for kubernetes resources. */
     interface WatchCallbackHandler<T> {

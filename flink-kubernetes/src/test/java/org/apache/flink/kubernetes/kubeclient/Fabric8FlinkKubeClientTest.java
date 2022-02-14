@@ -30,11 +30,11 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptionsInternal
 import org.apache.flink.kubernetes.configuration.KubernetesDeploymentTarget;
 import org.apache.flink.kubernetes.entrypoint.KubernetesSessionClusterEntrypoint;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
@@ -172,12 +172,10 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
 
         final int expectedRestPort = 9081;
+        final String restServiceName = ExternalServiceDecorator.getExternalServiceName(CLUSTER_ID);
         flinkKubeClient
                 .updateServiceTargetPort(
-                        KubernetesService.ServiceType.REST_SERVICE,
-                        CLUSTER_ID,
-                        Constants.REST_PORT_NAME,
-                        expectedRestPort)
+                        restServiceName, Constants.REST_PORT_NAME, expectedRestPort)
                 .get();
         final int updatedRestPort =
                 getServiceTargetPort(
@@ -190,12 +188,11 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
         this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
 
         final int expectedBlobPort = 9082;
+        final String internalServiceName =
+                InternalServiceDecorator.getInternalServiceName(CLUSTER_ID);
         flinkKubeClient
                 .updateServiceTargetPort(
-                        KubernetesService.ServiceType.INTERNAL_SERVICE,
-                        CLUSTER_ID,
-                        Constants.BLOB_SERVER_PORT_NAME,
-                        expectedBlobPort)
+                        internalServiceName, Constants.BLOB_SERVER_PORT_NAME, expectedBlobPort)
                 .get();
         final int updatedBlobPort =
                 getServiceTargetPort(CLUSTER_ID, Constants.BLOB_SERVER_PORT_NAME);
