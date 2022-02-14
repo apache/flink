@@ -20,6 +20,7 @@ package org.apache.flink.formats.avro.registry.confluent.debezium;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.formats.avro.registry.confluent.debezium.DebeziumAvroDecodingFormat.ReadableMetadata;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -38,12 +39,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static junit.framework.TestCase.assertEquals;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
+import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertThat;
 
@@ -59,6 +63,7 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
 
     private static final RowType ROW_TYPE =
             (RowType) SCHEMA.toPhysicalRowDataType().getLogicalType();
+    private static final List<ReadableMetadata> REQUESTED_METADATA = Collections.emptyList(); // Arrays.asList(ReadableMetadata.values());
 
     private static final String SUBJECT = "test-debezium-avro";
     private static final String REGISTRY_URL = "http://localhost:8081";
@@ -73,7 +78,7 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
 
         DebeziumAvroDeserializationSchema expectedDeser =
                 new DebeziumAvroDeserializationSchema(
-                        ROW_TYPE, InternalTypeInfo.of(ROW_TYPE), REGISTRY_URL, registryConfigs);
+                        fromLogicalToDataType(ROW_TYPE), REQUESTED_METADATA, InternalTypeInfo.of(ROW_TYPE), REGISTRY_URL, registryConfigs);
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
         assertEquals(expectedDeser, actualDeser);
 

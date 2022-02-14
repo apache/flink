@@ -21,17 +21,13 @@ package org.apache.flink.formats.avro.registry.confluent.debezium;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
-import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
-import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
 import org.apache.flink.table.factories.DynamicTableFactory;
@@ -77,30 +73,7 @@ public class DebeziumAvroFormatFactory
         String schemaRegistryURL = formatOptions.get(URL);
         Map<String, ?> optionalPropertiesMap = buildOptionalPropertiesMap(formatOptions);
 
-        return new ProjectableDecodingFormat<DeserializationSchema<RowData>>() {
-            @Override
-            public DeserializationSchema<RowData> createRuntimeDecoder(
-                    DynamicTableSource.Context context,
-                    DataType producedDataType,
-                    int[][] projections) {
-                producedDataType = Projection.of(projections).project(producedDataType);
-                final RowType rowType = (RowType) producedDataType.getLogicalType();
-                final TypeInformation<RowData> producedTypeInfo =
-                        context.createTypeInformation(producedDataType);
-                return new DebeziumAvroDeserializationSchema(
-                        rowType, producedTypeInfo, schemaRegistryURL, optionalPropertiesMap);
-            }
-
-            @Override
-            public ChangelogMode getChangelogMode() {
-                return ChangelogMode.newBuilder()
-                        .addContainedKind(RowKind.INSERT)
-                        .addContainedKind(RowKind.UPDATE_BEFORE)
-                        .addContainedKind(RowKind.UPDATE_AFTER)
-                        .addContainedKind(RowKind.DELETE)
-                        .build();
-            }
-        };
+        return new DebeziumAvroDecodingFormat(schemaRegistryURL, optionalPropertiesMap);
     }
 
     @Override
