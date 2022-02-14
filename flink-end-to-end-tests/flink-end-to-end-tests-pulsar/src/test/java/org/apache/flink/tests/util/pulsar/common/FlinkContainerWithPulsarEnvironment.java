@@ -19,11 +19,11 @@
 package org.apache.flink.tests.util.pulsar.common;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment;
-
-import static org.apache.flink.configuration.TaskManagerOptions.TASK_OFF_HEAP_MEMORY;
 
 /** A Flink Container which would bundles pulsar connector in its classpath. */
 public class FlinkContainerWithPulsarEnvironment extends FlinkContainerTestEnvironment {
@@ -46,8 +46,16 @@ public class FlinkContainerWithPulsarEnvironment extends FlinkContainerTestEnvir
 
     protected static Configuration flinkConfiguration() {
         Configuration configuration = new Configuration();
-        // Increase the off heap memory for avoiding direct buffer memory error on Pulsar e2e tests.
-        configuration.set(TASK_OFF_HEAP_MEMORY, MemorySize.ofMebiBytes(100));
+        // Increase the off heap memory of TaskManager to avoid direct buffer memory error in Pulsar
+        // e2e tests.
+        configuration.set(TaskManagerOptions.TASK_OFF_HEAP_MEMORY, MemorySize.ofMebiBytes(100));
+
+        // Increase the jvm metaspace memory to avoid java.lang.OutOfMemoryError: Metaspace
+        configuration.set(TaskManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(2048));
+        configuration.set(TaskManagerOptions.JVM_METASPACE, MemorySize.ofMebiBytes(512));
+        configuration.set(JobManagerOptions.TOTAL_PROCESS_MEMORY, MemorySize.ofMebiBytes(2048));
+        configuration.set(JobManagerOptions.JVM_METASPACE, MemorySize.ofMebiBytes(512));
+
         return configuration;
     }
 }

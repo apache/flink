@@ -63,7 +63,6 @@ import org.opentest4j.TestAbortedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -74,6 +73,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_COLLECT_DATA_TIMEOUT;
+import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_JOB_STATUS_CHANGE_TIMEOUT;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForJobStatus;
@@ -146,12 +147,18 @@ public abstract class SourceTestSuiteBase<T> {
         CollectIteratorBuilder<T> iteratorBuilder = addCollectSink(stream);
         JobClient jobClient = submitJob(execEnv, "Source Single Split Test");
 
-        // Validate test data
+        // Step 5: Validate test data
         try (CollectResultIterator<T> resultIterator = iteratorBuilder.build(jobClient)) {
             // Check test result
             LOG.info("Checking test results");
             checkResultWithSemantic(resultIterator, Arrays.asList(testRecords), semantic, null);
         }
+
+        // Step 5: Clean up
+        waitForJobStatus(
+                jobClient,
+                Collections.singletonList(JobStatus.FINISHED),
+                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
     }
 
     /**
@@ -330,7 +337,7 @@ public abstract class SourceTestSuiteBase<T> {
             killJob(jobClient);
             throw e;
         }
-        String savepointDir =
+        String savepointPath =
                 jobClient
                         .stopWithSavepoint(
                                 true, testEnv.getCheckpointUri(), SavepointFormatType.CANONICAL)
@@ -338,7 +345,7 @@ public abstract class SourceTestSuiteBase<T> {
         waitForJobStatus(
                 jobClient,
                 Collections.singletonList(JobStatus.FINISHED),
-                Deadline.fromNow(Duration.ofSeconds(30)));
+                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
 
         // Step 5: Generate new test data
         final List<List<T>> newTestRecordCollections = new ArrayList<>();
@@ -351,7 +358,7 @@ public abstract class SourceTestSuiteBase<T> {
         TestEnvironmentSettings restartEnvOptions =
                 TestEnvironmentSettings.builder()
                         .setConnectorJarPaths(externalContext.getConnectorJarPaths())
-                        .setSavepointRestorePath(savepointDir)
+                        .setSavepointRestorePath(savepointPath)
                         .build();
         final StreamExecutionEnvironment restartEnv =
                 testEnv.createExecutionEnvironment(restartEnvOptions);
@@ -368,6 +375,12 @@ public abstract class SourceTestSuiteBase<T> {
         addCollectSink(restartSource);
 
         final JobClient restartJobClient = restartEnv.executeAsync("Restart Test");
+
+        waitForJobStatus(
+                restartJobClient,
+                Collections.singletonList(JobStatus.RUNNING),
+                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+
         try {
             iterator.setJobClient(restartJobClient);
 
@@ -439,7 +452,7 @@ public abstract class SourceTestSuiteBase<T> {
                     () ->
                             queryRestClient.getJobDetails(
                                     testEnv.getRestEndpoint(), jobClient.getJobID()),
-                    Deadline.fromNow(Duration.ofSeconds(30)));
+                    Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
 
             waitUntilCondition(
                     () -> {
@@ -456,7 +469,7 @@ public abstract class SourceTestSuiteBase<T> {
                             return false;
                         }
                     },
-                    Deadline.fromNow(Duration.ofSeconds(30)));
+                    Deadline.fromNow(DEFAULT_COLLECT_DATA_TIMEOUT));
         } finally {
             // Clean up
             killJob(jobClient);
@@ -516,6 +529,12 @@ public abstract class SourceTestSuiteBase<T> {
             LOG.info("Checking test results");
             checkResultWithSemantic(resultIterator, testRecordsLists, semantic, null);
         }
+
+        // Step 5: Clean up
+        waitForJobStatus(
+                jobClient,
+                Collections.singletonList(JobStatus.FINISHED),
+                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
     }
 
     /**
@@ -590,7 +609,7 @@ public abstract class SourceTestSuiteBase<T> {
         waitForJobStatus(
                 jobClient,
                 Collections.singletonList(JobStatus.RUNNING),
-                Deadline.fromNow(Duration.ofSeconds(30)));
+                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
 
         // Step 6: Write test data again to external system
         List<T> testRecordsAfterFailure =
@@ -611,11 +630,11 @@ public abstract class SourceTestSuiteBase<T> {
                 testRecordsAfterFailure.size());
 
         // Step 8: Clean up
-        terminateJob(jobClient, Duration.ofSeconds(30));
+        terminateJob(jobClient);
         waitForJobStatus(
                 jobClient,
                 Collections.singletonList(JobStatus.CANCELED),
-                Deadline.fromNow(Duration.ofSeconds(30)));
+                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
         iterator.close();
     }
 
@@ -736,7 +755,7 @@ public abstract class SourceTestSuiteBase<T> {
                                                 .matchesRecordsFromSource(testData, semantic);
                                         return true;
                                     }))
-                    .succeedsWithin(Duration.ofSeconds(30));
+                    .succeedsWithin(DEFAULT_COLLECT_DATA_TIMEOUT);
         } else {
             CollectIteratorAssertions.assertThat(resultIterator)
                     .matchesRecordsFromSource(testData, semantic);
@@ -761,11 +780,11 @@ public abstract class SourceTestSuiteBase<T> {
     }
 
     private void killJob(JobClient jobClient) throws Exception {
-        terminateJob(jobClient, Duration.ofSeconds(30));
+        terminateJob(jobClient);
         waitForJobStatus(
                 jobClient,
                 Collections.singletonList(JobStatus.CANCELED),
-                Deadline.fromNow(Duration.ofSeconds(30)));
+                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
     }
 
     /** Builder class for constructing {@link CollectResultIterator} of collect sink. */
