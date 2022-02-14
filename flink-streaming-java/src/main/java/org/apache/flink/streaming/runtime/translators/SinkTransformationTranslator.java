@@ -214,7 +214,7 @@ public class SinkTransformationTranslator<Input, Output>
          * either the default value or customized value. In this way, any customized value will be
          * discriminated from the default value and, for any subTransformation with the default
          * parallelism value, we will then be able to let it inherit the parallelism value from the
-         * previous sinkTransformation. After adjustment of transformations is closed, the
+         * previous sinkTransformation. After the adjustment of transformations is closed, the
          * environment parallelism will be restored back to its original value to keep the
          * customized parallelism value at environment level.
          */
