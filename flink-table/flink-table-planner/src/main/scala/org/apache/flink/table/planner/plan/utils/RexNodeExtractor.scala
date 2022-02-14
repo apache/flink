@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
+import org.apache.flink.table.catalog.{CatalogManager, ContextResolvedFunction, FunctionCatalog, FunctionLookup, UnresolvedIdentifier}
 import org.apache.flink.table.data.conversion.{DayTimeIntervalDurationConverter, YearMonthIntervalPeriodConverter}
 import org.apache.flink.table.data.util.DataFormatConverters.{LocalDateConverter, LocalTimeConverter}
 import org.apache.flink.table.expressions.ApiExpressionUtils._
@@ -34,6 +34,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical.YearMonthIntervalType
 import org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime
 import org.apache.flink.util.Preconditions
+
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.fun.{SqlStdOperatorTable, SqlTrimFunction}
@@ -43,6 +44,7 @@ import org.apache.flink.table.functions.{BuiltInFunctionDefinition, FunctionIden
 
 import java.util
 import java.util.{TimeZone, List => JList}
+
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.collection.mutable
@@ -489,11 +491,23 @@ class RexNodeToExpressionConverter(
     } else {
       rexCall.getOperator match {
         case SqlStdOperatorTable.OR =>
-          Option(operands.reduceLeft((l, r) => new CallExpression(OR, Seq(l, r), outputType)))
+          Option(operands.reduceLeft((l, r) =>
+            CallExpression.permanent(
+              OR,
+              Seq(l, r),
+              outputType)))
         case SqlStdOperatorTable.AND =>
-          Option(operands.reduceLeft((l, r) => new CallExpression(AND, Seq(l, r), outputType)))
+          Option(operands.reduceLeft((l, r) =>
+            CallExpression.permanent(
+              AND,
+              Seq(l, r),
+              outputType)))
         case SqlStdOperatorTable.CAST =>
-          Option(new CallExpression(CAST, Seq(operands.head, typeLiteral(outputType)), outputType))
+          Option(
+            CallExpression.permanent(
+              CAST,
+              Seq(operands.head, typeLiteral(outputType)),
+              outputType))
         case _: SqlFunction | _: SqlPostfixOperator =>
           val names = new util.ArrayList[String](rexCall.getOperator.getNameAsId.names)
           names.set(names.size() - 1, replace(names.get(names.size() - 1)))
@@ -529,17 +543,25 @@ class RexNodeToExpressionConverter(
       operands: Seq[ResolvedExpression],
       outputType: DataType): Option[ResolvedExpression] = {
     Try(functionCatalog.lookupFunction(identifier)) match {
-      case Success(f: java.util.Optional[FunctionLookup.Result]) =>
+      case Success(f: java.util.Optional[ContextResolvedFunction]) =>
         if (f.isPresent) {
+          val resolvedFunction = f.get()
           // we should simplify this logic once FLINK-23384 is fixed
-          val identifier = f.get.getFunctionDefinition match {
+          val identifier = resolvedFunction.getDefinition match {
             case funcDefinition: BuiltInFunctionDefinition =>
               FunctionIdentifier.of(funcDefinition.getName)
             case _ =>
-              f.get.getFunctionIdentifier
+              resolvedFunction.getIdentifier.orElse(null)
           }
 
-          Some(new CallExpression(identifier, f.get.getFunctionDefinition, operands, outputType))
+          Some(
+            new CallExpression(
+              resolvedFunction.isTemporary,
+              identifier,
+              resolvedFunction.getDefinition,
+              operands,
+              outputType)
+          )
         } else {
           None
         }

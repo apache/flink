@@ -52,7 +52,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * ResolvedCatalogBaseTable} can be temporary for one catalog, but permanent for another one.
  */
 @Internal
-public class ContextResolvedTable {
+public final class ContextResolvedTable {
 
     private static final AtomicInteger uniqueId = new AtomicInteger(0);
 

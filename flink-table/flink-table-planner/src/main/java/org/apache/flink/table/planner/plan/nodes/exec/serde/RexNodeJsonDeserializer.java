@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
@@ -367,8 +368,7 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
             return BridgingSqlFunction.of(
                     ctx.getFlinkContext(),
                     ctx.getTypeFactory(),
-                    FunctionIdentifier.of(name),
-                    function.get());
+                    ContextResolvedFunction.permanent(FunctionIdentifier.of(name), function.get()));
         }
 
         if (jsonNode.has(FIELD_NAME_FUNCTION_KIND) && jsonNode.has(FIELD_NAME_INSTANCE)) {
@@ -386,8 +386,7 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
                 return BridgingSqlFunction.of(
                         ctx.getFlinkContext(),
                         ctx.getTypeFactory(),
-                        FunctionIdentifier.of(name),
-                        function);
+                        ContextResolvedFunction.permanent(FunctionIdentifier.of(name), function));
             } else {
                 String displayName = jsonNode.get(FIELD_NAME_DISPLAY_NAME).asText();
                 ScalarFunction function =
