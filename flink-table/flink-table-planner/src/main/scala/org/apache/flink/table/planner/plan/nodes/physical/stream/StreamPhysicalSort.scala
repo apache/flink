@@ -20,15 +20,15 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSort
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.Sort
 import org.apache.calcite.rex.RexNode
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSort
-import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import scala.collection.JavaConversions._
 

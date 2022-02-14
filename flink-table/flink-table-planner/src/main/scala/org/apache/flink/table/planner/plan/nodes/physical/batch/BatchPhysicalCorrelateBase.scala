@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.plan.utils.RelExplainUtil
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Correlate, JoinRelType}
-import org.apache.calcite.rel.{RelCollationTraitDef, RelDistribution, RelFieldCollation, RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel._
 import org.apache.calcite.rex.{RexCall, RexNode}
 import org.apache.calcite.util.mapping.{Mapping, MappingType, Mappings}
 

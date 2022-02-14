@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions._
 import org.apache.flink.table.planner.plan.logical.{SliceAttachedWindowingStrategy, WindowAttachedWindowingStrategy, WindowingStrategy}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
