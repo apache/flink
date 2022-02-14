@@ -145,6 +145,8 @@ public class SharedStateRegistryTest {
         // the 1st materialized state would not be discarded since the 2nd changelog state backend
         // handle still use it.
         assertFalse(materializedState1.isDiscarded());
+        // FLINK-26101, check whether the multi registered state not discarded.
+        assertFalse(materializedState2.isDiscarded());
         assertTrue(nonMaterializedState1.isDiscarded());
 
         long materializationId2 = 2L;
