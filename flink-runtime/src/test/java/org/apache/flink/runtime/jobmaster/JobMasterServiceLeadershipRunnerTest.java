@@ -259,7 +259,7 @@ public class JobMasterServiceLeadershipRunnerTest extends TestLogger {
     @Nonnull
     private ExecutionGraphInfo createFailedExecutionGraphInfo(FlinkException testException) {
         return new ExecutionGraphInfo(
-                ArchivedExecutionGraph.createFromInitializingJob(
+                ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                         jobGraph.getJobID(),
                         jobGraph.getName(),
                         JobStatus.FAILED,

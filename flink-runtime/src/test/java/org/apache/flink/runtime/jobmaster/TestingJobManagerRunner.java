@@ -69,7 +69,7 @@ public class TestingJobManagerRunner implements JobManagerRunner {
 
         final ExecutionGraphInfo suspendedExecutionGraphInfo =
                 new ExecutionGraphInfo(
-                        ArchivedExecutionGraph.createFromInitializingJob(
+                        ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                                 jobId, "TestJob", JobStatus.SUSPENDED, null, null, 0L),
                         null);
         terminationFuture.whenComplete(
