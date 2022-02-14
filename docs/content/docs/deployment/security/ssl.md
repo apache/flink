@@ -51,77 +51,10 @@ separately.
 
 ### Internal Connectivity
 
-Flink internal communication refers to all connections made between Flink processes. These include
-RPC calls, data transfer, and blob service communication to distribute libraries or other artifacts.
-For such connections, all Flink processes (i.e. between the Task Managers, between the Task Managers
-and the Flink Master) perform mutual authentication, where senders and receivers validate each other
-via an SSL certificate. The certificate acts as a shared secret and can be embedded into containers
-or attached to your deployment setup. These connections run Flink custom protocols. Users never connect
-directly to internal connectivity endpoints.
 
-Internal connectivity includes:
-
-  - Control messages: RPC between JobManager / TaskManager / Dispatcher / ResourceManager
-  - The data plane: The connections between TaskManagers to exchange data during shuffles, broadcasts, 
-    redistribution, etc
-  - The Blob Service (distribution of libraries and other artifacts)
-
-All internal connections are SSL authenticated and encrypted. The connections use **mutual authentication**, 
-meaning both server and client side of each connection need to present the certificate to each other. 
-The certificate acts effectively as a shared secret when a dedicated CA is used to exclusively sign 
-an internal cert. The certificate for internal communication is not needed by any other party to interact 
-with Flink, and can be simply added to the container images, or attached to the YARN deployment.
-
-  - The easiest way to realize this setup is by generating a dedicated public/private key pair and 
-    self-signed certificate for the Flink deployment. The key and truststore are identical and contains 
-    only that key pair / certificate. An example is [shown below](#example-ssl-setup-standalone-and-kubernetes).
-
-  - In an environment where operators are constrained to use firm-wide Internal CA (cannot generate 
-    self-signed certificates), the recommendation is to still have a dedicated key pair / certificate 
-    for the Flink deployment, signed by that CA. However, the TrustStore must then also contain the 
-    CA's public certificate tho accept the deployment's certificate during the SSL handshake (requirement 
-    in JDK TrustStore implementation).
-    
-    **NOTE:** Because of that, it is critical that you specify the fingerprint of the deployment certificate
-    (`security.ssl.internal.cert.fingerprint`), when it is not self-signed, to pin that certificate 
-    as the only trusted certificate and prevent the TrustStore from trusting all certificates signed 
-    by that CA.
-
-*Note: Because internal connections are mutually authenticated with shared certificates, Flink can 
-skip hostname verification. This makes container-based setups easier.*
 
 ### External Connectivity
 
-Flink external communication refers to all connections made from the outside to Flink processes. This
-includes the web UI and REST commands to start and control running Flink jobs/applications, including
-the communication of the Flink CLI with the JobManager / Dispatcher. These include submitting and controlling
-Flink applications and accessing the REST interface (i.e. the web UI). Most of these connections use
-REST/HTTP endpoints. Some external services used as sources or sinks may use some other network protocol.
-
-You can enable SSL encryption and mutual authentication for external connections. However, the
-recommended approach is setting up and configuring a dedicated proxy service that controls access to
-the REST endpoint because proxy services offer more authentication and configuration options than Flink.
-Encryption and authentication for communication to queryable state is not supported yet.
-
-- external communication - used by the web UI and other user application's to interact with flink
-
-All external connectivity is exposed via an HTTP/REST endpoint, used for example by the web UI and the CLI:
-
-  - Communication with the *Dispatcher* to submit jobs (session clusters)
-  - Communication with the *JobMaster* to inspect and modify a running job/application
-
-The REST endpoints can be configured to require SSL connections. The server will, however, accept 
-connections from any client by default, meaning the REST endpoint does not authenticate the client.
-
-Simple mutual authentication may be enabled by configuration if authentication of connections to the 
-REST endpoint is required, but we recommend deploying a "sidecar proxy":
-Bind the REST endpoint to the loopback interface (or the pod-local interface in Kubernetes) and start 
-a REST proxy that authenticates and forwards the requests to Flink.
-Examples for proxies that Flink users have deployed are [Envoy Proxy](https://www.envoyproxy.io/) or
-[NGINX with MOD_AUTH](http://nginx.org/en/docs/http/ngx_http_auth_request_module.html).
-
-The rationale behind delegating authentication to a proxy is that such proxies offer a wide variety 
-of authentication options and thus better integration into existing infrastructures.
 
 
 ### Queryable State
@@ -129,37 +62,33 @@ of authentication options and thus better integration into existing infrastructu
 Connections to the [queryable state]({{< ref "docs/dev/datastream/fault-tolerance/queryable_state" >}}) 
 endpoints is currently not authenticated or encrypted.
 
-## SSL setup
+## SSL setups
 
 <SVG width='100%' src="/images/security/ssl-mutual-auth.svg" />
 
-<Notes>
+Each participant has a keystore and a truststore, which are files. 
 
-Each participant has a keystore and a truststore.
+A keystore contains a certificate (which contains a public key) and a private key. A truststore 
+contains trusted certificates and certificate chains/authorities. 
 
-A keystore contains a certificate (which contains a public key), and a private key.
-A truststore contains trusted certificates, and certificate chains/authorities.
-Keystores and truststores are files.
+Establishing encrypted, authenticated communication is a multi-step process, shown in the figure. 
+Certificates are exchanged and validated against the truststore, after which the two parties can 
+safely communicate.
 
-Establishing encrypted, authenticated communication is a multi-step process, shown in the figure. Certificates are exchanged and validated against the truststore, after which the two parties can safely communicate.
-
-</Notes>
-
-### Typical SSL setup
+### Typical SSL setup in Flink
 
 For mutually authenticated internal connections:
 
-* keystore and truststore can contain the same dedicated certificate
-* can use wildcard hostnames or addresses
-* can even use the same file for both keystore and truststore
+- a keystore and a truststore can contain the same dedicated certificate 
+- wildcard hostnames or addresses can be used 
+- the same file can be used for both keystore and truststore
 
-<Notes>
+In the case of internal communication between servers in a Flink cluster, a secure setup can be easily 
+established. All that is needed is a single, self-signed certificate that all parties use as both their 
+keystore and truststore.
 
-In the case of internal communication between servers in a Flink cluster, a secure setup can be easily established. All that is needed is a single, self-signed certificate that all parties use as both their keystore and truststore.
-
-You can also use this simple approach to mutual authentication for communication between clients and the Flink Master, if you want. We'll look at the details of securing client connections next.
-
-</Notes>
+You can also use this approach for external communication when establishing mutual authentication for 
+communication between clients and the Flink Master.
 
 ### Configuring keystores and truststores
 
@@ -191,36 +120,6 @@ the set of steps that the keys must follow to do so and the order in which these
 There are numerous cipher suites out there, each one with varying instructions on the encryption and
 decryption process.
 
-{{< hint warning >}}
-The [IETF RFC 7525](https://tools.ietf.org/html/rfc7525) recommends using a specific set of cipher
-suites for strong security. Because these cipher suites were not available on many setups out-of-the-box,
-Flink's default value is set to a slightly weaker but more compatible cipher suite. We recommend that
-SSL setups update to the stronger cipher suites, if possible, by adding the below entry to the Flink
-configuration:
-
-```yaml
-security.ssl.algorithms: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,TLS_DHE_RSA_WITH_AES_256_GCM_SHA384,TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-```
-
-If these cipher suites are not supported on your setup, you will see that Flink processes will not
-be able to connect to each other.
-
-{{< /hint >}}
-
-* Out of the box, Flink uses `TLS_RSA_WITH_AES_128_CBC_SHA`
-* If stronger encryption is available in your environment, we recommend
-
-```
-security.ssl.algorithms: TLS_DHE_RSA_WITH_AES_128_GCM_SHA256,TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, 
-TLS_DHE_RSA_WITH_AES_256_GCM_SHA384, TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-```
-
-<Notes>
-
-Flink defaults to TLS_RSA_WITH_AES_128_CBC_SHA because it is more widely available, but it is weaker
-than the alternatives.
-
-</Notes>
 
 ### Configuring SSL
 
@@ -239,9 +138,7 @@ to disable SSL for that particular connection type:
   - `taskmanager.data.ssl.enabled`: Data communication between TaskManagers
   - `blob.service.ssl.enabled`: Transport of BLOBs from JobManager to TaskManager
   - `akka.ssl.enabled`: Akka-based RPC connections between JobManager / TaskManager / ResourceManager
-
-
-
+  
 ### Configuring SSL for Internal Connectivity
 
 Because internal communication is mutually authenticated between server and client side, keystore and 
