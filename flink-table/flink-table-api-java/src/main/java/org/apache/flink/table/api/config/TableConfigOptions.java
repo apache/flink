@@ -178,14 +178,18 @@ public class TableConfigOptions {
                                 + "functions, or data types will be persisted into the plan during "
                                 + "compilation. A schema allows for detecting incompatible changes "
                                 + "in the catalog during a plan restore operation. However, all "
-                                + "other metadata will still be retrieved from the catalog.")),
+                                + "other metadata will still be retrieved from the catalog. "
+                                + "This option does not apply to anonymous tables, functions and data types, "
+                                + "which will always include schema and options.")),
 
         IDENTIFIER(
                 text(
                         "Only the identifier of catalog tables, functions, or data types will be "
                                 + "persisted into the plan during compilation. All metadata will "
                                 + "be retrieved from the catalog during a restore operation. With "
-                                + "this strategy, plans become less verbose."));
+                                + "this strategy, plans become less verbose. "
+                                + "This option does not apply to anonymous tables, functions and data types, "
+                                + "which will always include schema and options."));
 
         private final InlineElement description;
 

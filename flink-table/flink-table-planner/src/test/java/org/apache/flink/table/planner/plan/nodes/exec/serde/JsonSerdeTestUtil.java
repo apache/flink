@@ -118,28 +118,27 @@ class JsonSerdeTestUtil {
         JsonPointer jsonPointer = pathToPointer(path);
         assertThat(json)
                 .asInstanceOf(type(ObjectNode.class))
-                .as(
-                        "Serialized json '%s' contains at pointer '%s' a not null value",
-                        jsonPointer, json)
+                .as("Serialized json '%s'", json)
                 .matches(
                         o -> {
                             JsonNode node = o.at(jsonPointer);
                             return !node.isMissingNode() && !node.isNull();
-                        });
+                        },
+                        String.format("contains at pointer '%s' a not null value", jsonPointer));
     }
 
     static void assertThatJsonDoesNotContain(JsonNode json, String... path) {
         JsonPointer jsonPointer = pathToPointer(path);
         assertThat(json)
                 .asInstanceOf(type(ObjectNode.class))
-                .as(
-                        "Serialized json '%s' at pointer '%s' return missing node or null node",
-                        jsonPointer, json)
+                .as("Serialized json '%s'", json)
                 .matches(
                         o -> {
                             JsonNode node = o.at(jsonPointer);
                             return node.isMissingNode() || node.isNull();
-                        });
+                        },
+                        String.format(
+                                "at pointer '%s' return missing node or null node", jsonPointer));
     }
 
     private static JsonPointer pathToPointer(String... path) {

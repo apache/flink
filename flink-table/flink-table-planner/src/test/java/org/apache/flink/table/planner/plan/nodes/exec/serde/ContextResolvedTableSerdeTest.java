@@ -163,21 +163,6 @@ public class ContextResolvedTableSerdeTest {
     @DisplayName("Test CatalogPlanCompilation == IDENTIFIER")
     class TestCompileIdentifier {
 
-        @Test
-        void withAnonymousTable() {
-            assertThatThrownBy(
-                            () ->
-                                    JsonSerdeTestUtil.toJson(
-                                            serdeContext(
-                                                    TableConfigOptions.CatalogPlanCompilation
-                                                            .IDENTIFIER,
-                                                    TableConfigOptions.CatalogPlanRestore.ALL),
-                                            ANONYMOUS_CONTEXT_RESOLVED_TABLE))
-                    .satisfies(
-                            anyCauseMatches(
-                                    ValidationException.class, "Cannot serialize anonymous table"));
-        }
-
         @Nested
         @DisplayName("and CatalogPlanRestore == IDENTIFIER")
         class TestRestoreIdentifier {
@@ -186,6 +171,24 @@ public class ContextResolvedTableSerdeTest {
                     serdeContext(
                             TableConfigOptions.CatalogPlanCompilation.IDENTIFIER,
                             TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
+
+            @Test
+            void withAnonymousTable() throws Exception {
+                byte[] actualSerialized =
+                        createObjectWriter(ctx).writeValueAsBytes(ANONYMOUS_CONTEXT_RESOLVED_TABLE);
+
+                assertThatThrownBy(
+                                () ->
+                                        createObjectReader(ctx)
+                                                .readValue(
+                                                        actualSerialized,
+                                                        ContextResolvedTable.class))
+                        .satisfies(
+                                anyCauseMatches(
+                                        ValidationException.class,
+                                        ContextResolvedTableJsonDeserializer.missingIdentifier()
+                                                .getMessage()));
+            }
 
             @Test
             void withTemporaryTable() throws Exception {
@@ -214,6 +217,25 @@ public class ContextResolvedTableSerdeTest {
                     serdeContext(
                             TableConfigOptions.CatalogPlanCompilation.IDENTIFIER,
                             TableConfigOptions.CatalogPlanRestore.ALL);
+
+            @Test
+            void withAnonymousTable() throws Exception {
+                Tuple2<JsonNode, ContextResolvedTable> result =
+                        serDe(ctx, ANONYMOUS_CONTEXT_RESOLVED_TABLE);
+
+                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_IDENTIFIER);
+                assertThatJsonContains(result.f0, FIELD_NAME_CATALOG_TABLE);
+                assertThatJsonContains(
+                        result.f0,
+                        FIELD_NAME_CATALOG_TABLE,
+                        ResolvedCatalogTableJsonSerializer.OPTIONS);
+                assertThatJsonContains(
+                        result.f0,
+                        FIELD_NAME_CATALOG_TABLE,
+                        ResolvedCatalogTableJsonSerializer.COMMENT);
+                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable())
+                        .isEqualTo(ANONYMOUS_CONTEXT_RESOLVED_TABLE.getResolvedTable());
+            }
 
             @Test
             void withTemporaryTable() throws Exception {
@@ -279,6 +301,25 @@ public class ContextResolvedTableSerdeTest {
                     serdeContext(
                             TableConfigOptions.CatalogPlanCompilation.IDENTIFIER,
                             TableConfigOptions.CatalogPlanRestore.ALL_ENFORCED);
+
+            @Test
+            void withAnonymousTable() throws Exception {
+                Tuple2<JsonNode, ContextResolvedTable> result =
+                        serDe(ctx, ANONYMOUS_CONTEXT_RESOLVED_TABLE);
+
+                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_IDENTIFIER);
+                assertThatJsonContains(result.f0, FIELD_NAME_CATALOG_TABLE);
+                assertThatJsonContains(
+                        result.f0,
+                        FIELD_NAME_CATALOG_TABLE,
+                        ResolvedCatalogTableJsonSerializer.OPTIONS);
+                assertThatJsonContains(
+                        result.f0,
+                        FIELD_NAME_CATALOG_TABLE,
+                        ResolvedCatalogTableJsonSerializer.COMMENT);
+                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable())
+                        .isEqualTo(ANONYMOUS_CONTEXT_RESOLVED_TABLE.getResolvedTable());
+            }
 
             @Test
             void deserializationFail() throws Exception {
@@ -423,19 +464,17 @@ public class ContextResolvedTableSerdeTest {
                         serDe(ctx, ANONYMOUS_CONTEXT_RESOLVED_TABLE);
 
                 assertThatJsonDoesNotContain(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonContains(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThatJsonDoesNotContain(
+                assertThatJsonContains(
                         result.f0,
                         FIELD_NAME_CATALOG_TABLE,
                         ResolvedCatalogTableJsonSerializer.OPTIONS);
-                assertThatJsonDoesNotContain(
+                assertThatJsonContains(
                         result.f0,
                         FIELD_NAME_CATALOG_TABLE,
                         ResolvedCatalogTableJsonSerializer.COMMENT);
                 assertThat(result.f1.isAnonymous()).isTrue();
-                assertThat(result.f1.getResolvedSchema()).isEqualTo(CATALOG_TABLE_RESOLVED_SCHEMA);
-                assertThat(result.f1.getResolvedTable().getOptions()).isEmpty();
-                assertThat(result.f1.getResolvedTable().getComment()).isEmpty();
+                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable())
+                        .isEqualTo(ANONYMOUS_CONTEXT_RESOLVED_TABLE.getResolvedTable());
             }
 
             @Test
@@ -488,19 +527,17 @@ public class ContextResolvedTableSerdeTest {
                         serDe(ctx, ANONYMOUS_CONTEXT_RESOLVED_TABLE);
 
                 assertThatJsonDoesNotContain(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonContains(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThatJsonDoesNotContain(
+                assertThatJsonContains(
                         result.f0,
                         FIELD_NAME_CATALOG_TABLE,
                         ResolvedCatalogTableJsonSerializer.OPTIONS);
-                assertThatJsonDoesNotContain(
+                assertThatJsonContains(
                         result.f0,
                         FIELD_NAME_CATALOG_TABLE,
                         ResolvedCatalogTableJsonSerializer.COMMENT);
                 assertThat(result.f1.isAnonymous()).isTrue();
-                assertThat(result.f1.getResolvedSchema()).isEqualTo(CATALOG_TABLE_RESOLVED_SCHEMA);
-                assertThat(result.f1.getResolvedTable().getOptions()).isEmpty();
-                assertThat(result.f1.getResolvedTable().getComment()).isEmpty();
+                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable())
+                        .isEqualTo(ANONYMOUS_CONTEXT_RESOLVED_TABLE.getResolvedTable());
             }
 
             @Test
