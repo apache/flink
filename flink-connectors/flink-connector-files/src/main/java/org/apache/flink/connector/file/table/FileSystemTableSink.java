@@ -86,6 +86,7 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.A
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.COMPACTION_FILE_SIZE;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_INACTIVITY_INTERVAL;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
 import static org.apache.flink.connector.file.table.stream.compact.CompactOperator.convertToUncompacted;
 
@@ -200,7 +201,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable
                 new TableRollingPolicy(
                         !isEncoder || autoCompaction,
                         tableOptions.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
-                        tableOptions.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
+                        tableOptions.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis(),
+                        tableOptions.get(SINK_ROLLING_POLICY_INACTIVITY_INTERVAL).toMillis());
 
         String randomPrefix = "part-" + UUID.randomUUID().toString();
         OutputFileConfig.OutputFileConfigBuilder fileNamingBuilder = OutputFileConfig.builder();
@@ -553,14 +555,20 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         private final boolean rollOnCheckpoint;
         private final long rollingFileSize;
         private final long rollingTimeInterval;
+        private final long inactivityInterval;
 
         public TableRollingPolicy(
-                boolean rollOnCheckpoint, long rollingFileSize, long rollingTimeInterval) {
+                boolean rollOnCheckpoint,
+                long rollingFileSize,
+                long rollingTimeInterval,
+                long inactivityInterval) {
             this.rollOnCheckpoint = rollOnCheckpoint;
             Preconditions.checkArgument(rollingFileSize > 0L);
             Preconditions.checkArgument(rollingTimeInterval > 0L);
+            Preconditions.checkArgument(inactivityInterval > 0L);
             this.rollingFileSize = rollingFileSize;
             this.rollingTimeInterval = rollingTimeInterval;
+            this.inactivityInterval = inactivityInterval;
         }
 
         @Override
@@ -581,7 +589,8 @@ public class FileSystemTableSink extends AbstractFileSystemTable
         @Override
         public boolean shouldRollOnProcessingTime(
                 PartFileInfo<String> partFileState, long currentTime) {
-            return currentTime - partFileState.getCreationTime() >= rollingTimeInterval;
+            return currentTime - partFileState.getCreationTime() >= rollingTimeInterval
+                    || currentTime - partFileState.getLastUpdateTime() >= inactivityInterval;
         }
     }
 

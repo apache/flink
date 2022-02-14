@@ -98,6 +98,7 @@ import java.util.UUID;
 
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_INACTIVITY_INTERVAL;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
 import static org.apache.flink.connector.file.table.stream.compact.CompactOperator.convertToUncompacted;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
@@ -284,7 +285,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         HiveRollingPolicy rollingPolicy =
                 new HiveRollingPolicy(
                         conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
-                        conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
+                        conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis(),
+                        conf.get(SINK_ROLLING_POLICY_INACTIVITY_INTERVAL).toMillis());
 
         boolean autoCompaction = conf.getBoolean(FileSystemConnectorOptions.AUTO_COMPACTION);
         if (autoCompaction) {
@@ -507,12 +509,16 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
         private final long rollingFileSize;
         private final long rollingTimeInterval;
+        private final long inactivityInterval;
 
-        private HiveRollingPolicy(long rollingFileSize, long rollingTimeInterval) {
+        private HiveRollingPolicy(
+                long rollingFileSize, long rollingTimeInterval, long inactivityInterval) {
             Preconditions.checkArgument(rollingFileSize > 0L);
             Preconditions.checkArgument(rollingTimeInterval > 0L);
+            Preconditions.checkArgument(inactivityInterval > 0L);
             this.rollingFileSize = rollingFileSize;
             this.rollingTimeInterval = rollingTimeInterval;
+            this.inactivityInterval = inactivityInterval;
         }
 
         @Override
@@ -530,6 +536,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 PartFileInfo<String> partFileState, long currentTime) {
             try {
                 return currentTime - partFileState.getCreationTime() >= rollingTimeInterval
+                        || currentTime - partFileState.getLastUpdateTime() >= inactivityInterval
                         || partFileState.getSize() > rollingFileSize;
             } catch (IOException e) {
                 throw new UncheckedIOException(e);
