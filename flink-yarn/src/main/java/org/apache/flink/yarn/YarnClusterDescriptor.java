@@ -1294,7 +1294,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
         Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
 
         DelegationTokenManager delegationTokenManager =
-                new KerberosDelegationTokenManager(flinkConfiguration);
+                new KerberosDelegationTokenManager(flinkConfiguration, null, null);
         delegationTokenManager.obtainDelegationTokens(credentials);
 
         ByteBuffer tokens = ByteBuffer.wrap(DelegationTokenConverter.serialize(credentials));
