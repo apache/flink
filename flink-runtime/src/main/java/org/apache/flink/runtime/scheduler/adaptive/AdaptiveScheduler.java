@@ -761,7 +761,7 @@ public class AdaptiveScheduler
     @Override
     public ArchivedExecutionGraph getArchivedExecutionGraph(
             JobStatus jobStatus, @Nullable Throwable cause) {
-        return ArchivedExecutionGraph.createFromInitializingJob(
+        return ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                 jobInformation.getJobID(),
                 jobInformation.getName(),
                 jobStatus,

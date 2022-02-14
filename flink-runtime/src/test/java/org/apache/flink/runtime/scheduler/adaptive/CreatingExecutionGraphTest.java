@@ -210,7 +210,7 @@ public class CreatingExecutionGraphTest extends TestLogger {
         @Override
         public ArchivedExecutionGraph getArchivedExecutionGraph(
                 JobStatus jobStatus, @Nullable Throwable cause) {
-            return ArchivedExecutionGraph.createFromInitializingJob(
+            return ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                     new JobID(), "testJob", jobStatus, cause, null, 0L);
         }
 
