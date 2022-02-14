@@ -119,12 +119,10 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.instanceOf;
@@ -138,12 +136,6 @@ import static org.junit.Assert.fail;
 
 /** Test for the {@link Dispatcher} component. */
 public class DispatcherTest extends AbstractDispatcherTest {
-
-    private static final String CLEANUP_JOB_GRAPH_REMOVE = "job-graph-remove";
-    private static final String CLEANUP_JOB_GRAPH_RELEASE = "job-graph-release";
-    private static final String CLEANUP_JOB_MANAGER_RUNNER = "job-manager-runner";
-    private static final String CLEANUP_HA_SERVICES = "ha-services";
-    private static final String CLEANUP_JOB_RESULT_STORE = "job-result-store";
 
     private JobGraph jobGraph;
 
@@ -1053,16 +1045,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
     }
 
     @Test
-    public void testJobDataAreCleanedUpInCorrectOrderOnFinishedJob() throws Exception {
-        testJobDataAreCleanedUpInCorrectOrder(JobStatus.FINISHED);
-    }
-
-    @Test
-    public void testJobDataAreCleanedUpInCorrectOrderOnFailedJob() throws Exception {
-        testJobDataAreCleanedUpInCorrectOrder(JobStatus.FAILED);
-    }
-
-    @Test
     public void testOnlyRecoveredJobsAreRetainedInTheBlobServer() throws Exception {
         final JobID jobId1 = new JobID();
         final JobID jobId2 = new JobID();
@@ -1111,69 +1093,6 @@ public class DispatcherTest extends AbstractDispatcherTest {
                                 Assertions.assertThat(exception)
                                         .isInstanceOf(RuntimeException.class)
                                         .hasMessage("Test exception."));
-    }
-
-    private void testJobDataAreCleanedUpInCorrectOrder(JobStatus jobStatus) throws Exception {
-        final BlockingQueue<String> cleanUpEvents = new LinkedBlockingQueue<>();
-
-        // Track cleanup - ha-services
-        final CompletableFuture<JobID> cleanupJobData = new CompletableFuture<>();
-        haServices.setGlobalCleanupFuture(cleanupJobData);
-        cleanupJobData.thenAccept(jobId -> cleanUpEvents.add(CLEANUP_HA_SERVICES));
-
-        // Track cleanup - job-graph
-        final TestingJobGraphStore jobGraphStore =
-                TestingJobGraphStore.newBuilder()
-                        .setLocalCleanupFunction(
-                                (jobId, executor) -> {
-                                    cleanUpEvents.add(CLEANUP_JOB_GRAPH_RELEASE);
-                                    return FutureUtils.completedVoidFuture();
-                                })
-                        .setGlobalCleanupFunction(
-                                (jobId, executor) -> {
-                                    cleanUpEvents.add(CLEANUP_JOB_GRAPH_REMOVE);
-                                    return FutureUtils.completedVoidFuture();
-                                })
-                        .build();
-        jobGraphStore.start(null);
-        haServices.setJobGraphStore(jobGraphStore);
-
-        // Track cleanup - job result store
-        haServices.setJobResultStore(
-                TestingJobResultStore.builder()
-                        .withMarkResultAsCleanConsumer(
-                                jobID ->
-                                        assertThat(
-                                                "All cleanup tasks should have been finished before marking the job as clean.",
-                                                cleanUpEvents,
-                                                containsInAnyOrder(
-                                                        CLEANUP_HA_SERVICES,
-                                                        CLEANUP_JOB_GRAPH_REMOVE,
-                                                        CLEANUP_JOB_MANAGER_RUNNER)))
-                        .build());
-
-        final CompletableFuture<JobManagerRunnerResult> resultFuture = new CompletableFuture<>();
-        dispatcher =
-                createAndStartDispatcher(
-                        heartbeatServices,
-                        haServices,
-                        new FinishingJobManagerRunnerFactory(
-                                resultFuture, () -> cleanUpEvents.add(CLEANUP_JOB_MANAGER_RUNNER)));
-
-        final DispatcherGateway dispatcherGateway =
-                dispatcher.getSelfGateway(DispatcherGateway.class);
-        dispatcherGateway.submitJob(jobGraph, TIMEOUT).get();
-        resultFuture.complete(
-                JobManagerRunnerResult.forSuccess(
-                        new ExecutionGraphInfo(
-                                new ArchivedExecutionGraphBuilder()
-                                        .setState(jobStatus)
-                                        .setFailureCause(
-                                                new ErrorInfo(new RuntimeException("expected"), 1L))
-                                        .build())));
-
-        // Wait for job to terminate.
-        dispatcher.getJobTerminationFuture(jobId, TIMEOUT).get();
     }
 
     private static class JobManagerRunnerWithBlockingJobMasterFactory
