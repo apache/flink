@@ -1041,6 +1041,9 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
                             new JobResultEntry(
                                     JobResult.createFrom(
                                             executionGraphInfo.getArchivedExecutionGraph())));
+                    log.info(
+                            "Job {} has been registered for cleanup in the JobResultStore after reaching a terminal state.",
+                            jobId);
                 }
             } catch (IOException e) {
                 fatalErrorHandler.onFatalError(
