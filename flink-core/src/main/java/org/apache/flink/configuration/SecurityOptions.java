@@ -21,6 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 
+import java.time.Duration;
 import java.util.List;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
@@ -122,6 +123,14 @@ public class SecurityOptions {
                                     + "As a consequence, it will not fetch delegation tokens for HDFS and HBase. "
                                     + "You may need to disable this option, if you rely on submission mechanisms, e.g. Apache Oozie, "
                                     + "to handle delegation tokens.");
+
+    @Documentation.Section(Documentation.Sections.SECURITY_AUTH_KERBEROS)
+    public static final ConfigOption<Duration> KERBEROS_RELOGIN_PERIOD =
+            key("security.kerberos.relogin.period")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(1))
+                    .withDescription(
+                            "The time period when keytab login happens automatically in order to always have a valid TGT.");
 
     // ------------------------------------------------------------------------
     //  ZooKeeper Security Options

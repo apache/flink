@@ -68,6 +68,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Matchers;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -97,13 +98,14 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 /** Suite of FlinkKinesisConsumer tests for the methods called throughout the source life cycle. */
 @RunWith(PowerMockRunner.class)
-@PrepareForTest({FlinkKinesisConsumer.class, KinesisConfigUtil.class})
+@PrepareForTest(FlinkKinesisConsumer.class)
 public class FlinkKinesisConsumerTest extends TestLogger {
 
     // ----------------------------------------------------------------------
@@ -324,13 +326,12 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         KinesisDataFetcher mockedFetcher = mockKinesisDataFetcher();
 
         // assume the given config is correct
-        PowerMockito.mockStatic(KinesisConfigUtil.class);
-        PowerMockito.doNothing().when(KinesisConfigUtil.class);
-
-        TestableFlinkKinesisConsumer consumer =
-                new TestableFlinkKinesisConsumer("fakeStream", new Properties(), 10, 2);
-        consumer.open(new Configuration());
-        consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
+        try (MockedStatic<KinesisConfigUtil> kcu = mockStatic(KinesisConfigUtil.class)) {
+            TestableFlinkKinesisConsumer consumer =
+                    new TestableFlinkKinesisConsumer("fakeStream", new Properties(), 10, 2);
+            consumer.open(new Configuration());
+            consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
+        }
     }
 
     @Test
@@ -374,28 +375,28 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
 
         // assume the given config is correct
-        PowerMockito.mockStatic(KinesisConfigUtil.class);
-        PowerMockito.doNothing().when(KinesisConfigUtil.class);
+        try (MockedStatic<KinesisConfigUtil> kcu = mockStatic(KinesisConfigUtil.class)) {
 
-        // ----------------------------------------------------------------------
-        // start to test fetcher's initial state seeding
-        // ----------------------------------------------------------------------
+            // ----------------------------------------------------------------------
+            // start to test fetcher's initial state seeding
+            // ----------------------------------------------------------------------
 
-        TestableFlinkKinesisConsumer consumer =
-                new TestableFlinkKinesisConsumer("fakeStream", new Properties(), 10, 2);
-        consumer.initializeState(initializationContext);
-        consumer.open(new Configuration());
-        consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
+            TestableFlinkKinesisConsumer consumer =
+                    new TestableFlinkKinesisConsumer("fakeStream", new Properties(), 10, 2);
+            consumer.initializeState(initializationContext);
+            consumer.open(new Configuration());
+            consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
 
-        for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard :
-                fakeRestoredState.entrySet()) {
-            Mockito.verify(mockedFetcher)
-                    .registerNewSubscribedShardState(
-                            new KinesisStreamShardState(
-                                    KinesisDataFetcher.convertToStreamShardMetadata(
-                                            restoredShard.getKey()),
-                                    restoredShard.getKey(),
-                                    restoredShard.getValue()));
+            for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard :
+                    fakeRestoredState.entrySet()) {
+                Mockito.verify(mockedFetcher)
+                        .registerNewSubscribedShardState(
+                                new KinesisStreamShardState(
+                                        KinesisDataFetcher.convertToStreamShardMetadata(
+                                                restoredShard.getKey()),
+                                        restoredShard.getKey(),
+                                        restoredShard.getValue()));
+            }
         }
     }
 
@@ -451,40 +452,40 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
 
         // assume the given config is correct
-        PowerMockito.mockStatic(KinesisConfigUtil.class);
-        PowerMockito.doNothing().when(KinesisConfigUtil.class);
+        try (MockedStatic<KinesisConfigUtil> kcu = mockStatic(KinesisConfigUtil.class)) {
 
-        // ----------------------------------------------------------------------
-        // start to test fetcher's initial state seeding
-        // ----------------------------------------------------------------------
+            // ----------------------------------------------------------------------
+            // start to test fetcher's initial state seeding
+            // ----------------------------------------------------------------------
 
-        TestableFlinkKinesisConsumer consumer =
-                new TestableFlinkKinesisConsumer("fakeStream", new Properties(), 10, 2);
-        consumer.initializeState(initializationContext);
-        consumer.open(new Configuration());
-        consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
+            TestableFlinkKinesisConsumer consumer =
+                    new TestableFlinkKinesisConsumer("fakeStream", new Properties(), 10, 2);
+            consumer.initializeState(initializationContext);
+            consumer.open(new Configuration());
+            consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
 
-        for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard :
-                fakeRestoredStateForOthers.entrySet()) {
-            // should never get restored state not belonging to itself
-            Mockito.verify(mockedFetcher, never())
-                    .registerNewSubscribedShardState(
-                            new KinesisStreamShardState(
-                                    KinesisDataFetcher.convertToStreamShardMetadata(
-                                            restoredShard.getKey()),
-                                    restoredShard.getKey(),
-                                    restoredShard.getValue()));
-        }
-        for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard :
-                fakeRestoredState.entrySet()) {
-            // should get restored state belonging to itself
-            Mockito.verify(mockedFetcher)
-                    .registerNewSubscribedShardState(
-                            new KinesisStreamShardState(
-                                    KinesisDataFetcher.convertToStreamShardMetadata(
-                                            restoredShard.getKey()),
-                                    restoredShard.getKey(),
-                                    restoredShard.getValue()));
+            for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard :
+                    fakeRestoredStateForOthers.entrySet()) {
+                // should never get restored state not belonging to itself
+                Mockito.verify(mockedFetcher, never())
+                        .registerNewSubscribedShardState(
+                                new KinesisStreamShardState(
+                                        KinesisDataFetcher.convertToStreamShardMetadata(
+                                                restoredShard.getKey()),
+                                        restoredShard.getKey(),
+                                        restoredShard.getValue()));
+            }
+            for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard :
+                    fakeRestoredState.entrySet()) {
+                // should get restored state belonging to itself
+                Mockito.verify(mockedFetcher)
+                        .registerNewSubscribedShardState(
+                                new KinesisStreamShardState(
+                                        KinesisDataFetcher.convertToStreamShardMetadata(
+                                                restoredShard.getKey()),
+                                        restoredShard.getKey(),
+                                        restoredShard.getValue()));
+            }
         }
     }
 
@@ -564,33 +565,35 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
 
         // assume the given config is correct
-        PowerMockito.mockStatic(KinesisConfigUtil.class);
-        PowerMockito.doNothing().when(KinesisConfigUtil.class);
+        try (MockedStatic<KinesisConfigUtil> kcu = mockStatic(KinesisConfigUtil.class)) {
 
-        // ----------------------------------------------------------------------
-        // start to test fetcher's initial state seeding
-        // ----------------------------------------------------------------------
+            // ----------------------------------------------------------------------
+            // start to test fetcher's initial state seeding
+            // ----------------------------------------------------------------------
 
-        TestableFlinkKinesisConsumer consumer =
-                new TestableFlinkKinesisConsumer("fakeStream", new Properties(), 10, 2);
-        consumer.initializeState(initializationContext);
-        consumer.open(new Configuration());
-        consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
+            TestableFlinkKinesisConsumer consumer =
+                    new TestableFlinkKinesisConsumer("fakeStream", new Properties(), 10, 2);
+            consumer.initializeState(initializationContext);
+            consumer.open(new Configuration());
+            consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
 
-        fakeRestoredState.put(
-                new StreamShardHandle(
-                        "fakeStream2",
-                        new Shard().withShardId(KinesisShardIdGenerator.generateFromShardOrder(2))),
-                SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
-        for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard :
-                fakeRestoredState.entrySet()) {
-            Mockito.verify(mockedFetcher)
-                    .registerNewSubscribedShardState(
-                            new KinesisStreamShardState(
-                                    KinesisDataFetcher.convertToStreamShardMetadata(
-                                            restoredShard.getKey()),
-                                    restoredShard.getKey(),
-                                    restoredShard.getValue()));
+            fakeRestoredState.put(
+                    new StreamShardHandle(
+                            "fakeStream2",
+                            new Shard()
+                                    .withShardId(
+                                            KinesisShardIdGenerator.generateFromShardOrder(2))),
+                    SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM.get());
+            for (Map.Entry<StreamShardHandle, SequenceNumber> restoredShard :
+                    fakeRestoredState.entrySet()) {
+                Mockito.verify(mockedFetcher)
+                        .registerNewSubscribedShardState(
+                                new KinesisStreamShardState(
+                                        KinesisDataFetcher.convertToStreamShardMetadata(
+                                                restoredShard.getKey()),
+                                        restoredShard.getKey(),
+                                        restoredShard.getValue()));
+            }
         }
     }
 
@@ -709,26 +712,26 @@ public class FlinkKinesisConsumerTest extends TestLogger {
         when(mockedFetcher.discoverNewShardsToSubscribe()).thenReturn(shards);
 
         // assume the given config is correct
-        PowerMockito.mockStatic(KinesisConfigUtil.class);
-        PowerMockito.doNothing().when(KinesisConfigUtil.class);
+        try (MockedStatic<KinesisConfigUtil> kcu = mockStatic(KinesisConfigUtil.class)) {
 
-        // ----------------------------------------------------------------------
-        // start to test fetcher's initial state seeding
-        // ----------------------------------------------------------------------
+            // ----------------------------------------------------------------------
+            // start to test fetcher's initial state seeding
+            // ----------------------------------------------------------------------
 
-        TestableFlinkKinesisConsumer consumer =
-                new TestableFlinkKinesisConsumer("fakeStream", new Properties(), 10, 2);
-        consumer.initializeState(initializationContext);
-        consumer.open(new Configuration());
-        consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
+            TestableFlinkKinesisConsumer consumer =
+                    new TestableFlinkKinesisConsumer("fakeStream", new Properties(), 10, 2);
+            consumer.initializeState(initializationContext);
+            consumer.open(new Configuration());
+            consumer.run(Mockito.mock(SourceFunction.SourceContext.class));
 
-        Mockito.verify(mockedFetcher)
-                .registerNewSubscribedShardState(
-                        new KinesisStreamShardState(
-                                KinesisDataFetcher.convertToStreamShardMetadata(
-                                        closedStreamShardHandle),
-                                closedStreamShardHandle,
-                                fakeRestoredState.get(closedStreamShardHandle)));
+            Mockito.verify(mockedFetcher)
+                    .registerNewSubscribedShardState(
+                            new KinesisStreamShardState(
+                                    KinesisDataFetcher.convertToStreamShardMetadata(
+                                            closedStreamShardHandle),
+                                    closedStreamShardHandle,
+                                    fakeRestoredState.get(closedStreamShardHandle)));
+        }
     }
 
     private static final class TestingListState<T> implements ListState<T> {
