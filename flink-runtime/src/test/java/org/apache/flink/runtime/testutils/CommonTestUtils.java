@@ -315,8 +315,8 @@ public class CommonTestUtils {
                 deadline);
     }
 
-    public static void terminateJob(JobClient client, Duration timeout) throws Exception {
-        client.cancel().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+    public static void terminateJob(JobClient client) throws Exception {
+        client.cancel().get();
     }
 
     public static void waitForSubtasksToFinish(

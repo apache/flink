@@ -18,10 +18,14 @@
 
 package org.apache.flink.connector.testframe.utils;
 
+import java.time.Duration;
+
 /** The default configuration values used in connector tests. */
 public class ConnectorTestConstants {
     public static final long METRIC_FETCHER_UPDATE_INTERVAL_MS = 1000L;
-    public static final long SLOT_REQUEST_TIMEOUT_MS = 10000L;
-    public static final long HEARTBEAT_TIMEOUT_MS = 5000L;
+    public static final long SLOT_REQUEST_TIMEOUT_MS = 10_000L;
+    public static final long HEARTBEAT_TIMEOUT_MS = 5_000L;
     public static final long HEARTBEAT_INTERVAL_MS = 1000L;
+    public static final Duration DEFAULT_JOB_STATUS_CHANGE_TIMEOUT = Duration.ofSeconds(30L);
+    public static final Duration DEFAULT_COLLECT_DATA_TIMEOUT = Duration.ofSeconds(120L);
 }
