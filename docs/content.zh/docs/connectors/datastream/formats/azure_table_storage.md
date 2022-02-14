@@ -27,9 +27,9 @@ under the License.
 
 # Azure Table Storage
 
-本例使用 `HadoopInputFormat` 包装器使用现有的 Hadoop input format 实现访问 [Azure's Table Storage](https://docs.microsoft.com/en-us/azure/storage/tables/table-storage-overview).
+本例使用 `HadoopInputFormat` 包装器来使用现有的 Hadoop input format 实现访问 [Azure's Table Storage](https://docs.microsoft.com/en-us/azure/storage/tables/table-storage-overview).
 
-1. 下载并编译 `azure-tables-hadoop` 项目。该项目开发的 input format 在 Maven 中心尚不可用，因此，我们必须自己构建该项目。 
+1. 下载并编译 `azure-tables-hadoop` 项目。该项目开发的 input format 在 Maven 中心尚不存在，因此，我们必须自己构建该项目。 
    执行如下命令：
 
 ```bash
@@ -62,8 +62,8 @@ curl https://flink.apache.org/q/quickstart.sh | bash
 `flink-hadoop-compatibility` 是一个提供 Hadoop input format 包装器的 Flink 包。
 `microsoft-hadoop-azure` 可以将之前构建的部分添加到项目中。
 
-项目现在已经可以开始编码。我们建议将项目导入 IDE，例如 IntelliJ。你应该将其作为 Maven 项目导入。
-浏览到文件 `Job.java`。这是 Flink 作业的初始框架。
+现在可以开始进行项目的编码。我们建议将项目导入 IDE，例如 IntelliJ。你应该将其作为 Maven 项目导入。
+跳转到文件 `Job.java`。这是 Flink 作业的初始框架。
 
 粘贴如下代码：
 
@@ -122,6 +122,6 @@ public class AzureTableExample {
   }
 }
 ```
-该示例展示了如何访问 Azure 表和如何将数据转换为 Flink 的 `DataStream`（更具体地说，集合的类型是 `DataStream<Tuple2<Text, WritableEntity>>`）。使用 `DataStream`，你可以将所有已知的 transformations 应用到 DataStream。
+该示例展示了如何访问 Azure 表和如何将数据转换为 Flink 的 `DataStream`（更具体地说，集合的类型是 `DataStream<Tuple2<Text, WritableEntity>>`）。你可以将所有已知的 transformations 应用到 DataStream 实例。
 
 {{< top >}}
