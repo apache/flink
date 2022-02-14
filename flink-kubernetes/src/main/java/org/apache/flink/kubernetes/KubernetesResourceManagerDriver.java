@@ -27,10 +27,11 @@ import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesResourceManagerDriverConfiguration;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
+import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
+import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.factory.KubernetesTaskManagerFactory;
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesTaskManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.utils.Constants;
@@ -257,25 +258,22 @@ public class KubernetesResourceManagerDriver
                 ResourceManagerUtils.parseRestBindPortFromWebInterfaceUrl(webInterfaceUrl);
         Preconditions.checkArgument(
                 restPort > 0, "Failed to parse rest port from " + webInterfaceUrl);
+        final String restServiceName = ExternalServiceDecorator.getExternalServiceName(clusterId);
         flinkKubeClient
-                .updateServiceTargetPort(
-                        KubernetesService.ServiceType.REST_SERVICE,
-                        clusterId,
-                        Constants.REST_PORT_NAME,
-                        restPort)
+                .updateServiceTargetPort(restServiceName, Constants.REST_PORT_NAME, restPort)
                 .get();
         if (!HighAvailabilityMode.isHighAvailabilityModeActivated(flinkConfig)) {
+            final String internalServiceName =
+                    InternalServiceDecorator.getInternalServiceName(clusterId);
             flinkKubeClient
                     .updateServiceTargetPort(
-                            KubernetesService.ServiceType.INTERNAL_SERVICE,
-                            clusterId,
+                            internalServiceName,
                             Constants.BLOB_SERVER_PORT_NAME,
                             Integer.parseInt(flinkConfig.getString(BlobServerOptions.PORT)))
                     .get();
             flinkKubeClient
                     .updateServiceTargetPort(
-                            KubernetesService.ServiceType.INTERNAL_SERVICE,
-                            clusterId,
+                            internalServiceName,
                             Constants.JOB_MANAGER_RPC_PORT_NAME,
                             flinkConfig.getInteger(JobManagerOptions.PORT))
                     .get();
