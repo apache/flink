@@ -29,53 +29,53 @@ under the License.
 -->
 
 # 文件系统
+<a name="filesystem"></a>
 
-连接器提供了统一的 Source 和 Sink 在 `BATCH` 和 `STREAMING` 两种模式下，连接文件系统对文件进行读或写（包含分区文件）
-由 [Flink `FileSystem` abstraction]({{< ref "docs/deployment/filesystems/overview" >}}) 提供支持。文件系统连接器同时为 `BATCH` 和 `STREAMING` 模式提供了相同的保证，并且被设计的执行过程为 `STREAMING` 模式提供了精确一次（exactly-once）语义。
+连接器提供了 `BATCH` 模式和 `STREAMING` 模式统一的 Source 和 Sink。[Flink `FileSystem` abstraction]({{< ref "docs/deployment/filesystems/overview" >}}) 支持连接器对文件系统进行（分区）文件读写。文件系统连接器为 `BATCH` 和 `STREAMING` 模式提供了相同的保证，而且对 `STREAMING` 模式执行提供了精确一次（exactly-once）语义保证。
 
-连接器支持从任何文件系统（包括分布式的，例如，POSIX、 S3、 HDFS）通过某种数据格式 [format]({{< ref "docs/connectors/datastream/formats/overview" >}}) (例如，Avro、 CSV、 Parquet) 生成一个流或者多个记录，然后对文件进行读取或写入。
+连接器支持对任意（分布式的）文件系统（例如，POSIX、 S3、 HDFS）以某种数据格式 [format]({{< ref "docs/connectors/datastream/formats/overview" >}}) (例如，Avro、 CSV、 Parquet) 对文件进行写入，或者读取后生成数据流或一组记录。
 
-## 文件数据源
+## File Source
 
- `File Source` 是基于 [Source API]({{< ref "docs/dev/datastream/sources" >}}#the-data-source-api) 的，一种读取文件的统一数据源 - 同时支持批和流两种模式。
-可以分为以下两个部分：`SplitEnumerator` 和 `SourceReader`。
+`File Source` 是基于 [Source API]({{< ref "docs/dev/datastream/sources" >}}#the-data-source-api) 同时支持批模式和流模式文件读取的统一数据源。
+`File Source` 分为以下两个部分：`SplitEnumerator` 和 `SourceReader`。
 
-* `SplitEnumerator` 负责发现和识别要读取的文件，并且指派这些文件给 `SourceReader`。
+* `SplitEnumerator` 负责发现和识别需要读取的文件，并将这些文件分配给 `SourceReader` 进行读取。
 * `SourceReader` 请求需要处理的文件，并从文件系统中读取该文件。
 
-你可能需要使用某个格式 [format]({{< ref "docs/connectors/datastream/formats/overview" >}}) 合并文件源，允许你读取 CSV、 AVRO、 Parquet 数据格式文件。
+你可能需要指定某种 [format]({{< ref "docs/connectors/datastream/formats/overview" >}}) 与 `File Source` 联合进行解析 CSV、解码AVRO、或者读取 Parquet 列式文件。
 
 #### 有界流和无界流
 
-有界的 `File Source` 列出所有文件（通过 SplitEnumerator - 一个过滤出隐藏文件的递归目录列表）并读取。
+有界的 `File Source`（通过 SplitEnumerator）列出所有文件（一个过滤出隐藏文件的递归目录列表）并读取。
 
-无界的 `File Source` 是通过定期扫描文件进行创建的。
-在这种情形下，`SplitEnumerator` 将像有界的一样列出所有文件，但是不同的是，经过一个时间间隔之后，重复上述操作。
-对于每一次重复操作，`SplitEnumerator` 会过滤出之前检测过的文件，发送新生成的文件给 `SourceReader`。
+无界的 `File Source` 由配置定期扫描文件的 enumerator 创建。
+在无界的情况下，`SplitEnumerator` 将像有界的 `File Source` 一样列出所有文件，但是不同的是，经过一个时间间隔之后，重复上述操作。
+对于每一次列举操作，`SplitEnumerator` 会过滤掉之前已经检测过的文件，将新扫描到的文件发送给 `SourceReader`。
 
-### 用法
+### 使用方法
 
-你可以通过调用以下 API 建立一个文件数据源：
+你可以通过调用以下 API 建立一个 File Source：
 
 {{< tabs "FileSourceUsage" >}}
 {{< tab "Java" >}}
 ```java
-// reads the contents of a file from a file stream. 
+// 从文件流中读取文件内容
 FileSource.forRecordStreamFormat(StreamFormat,Path...)
         
-// reads batches of records from a file at a time
+// 从文件中一次读取一批记录
 FileSource.forBulkFileFormat(BulkFormat,Path...)
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-你可以通过创建 `FileSource.FileSourceBuilder` 去设置文件数据源的所有参数。
+你可以通过创建 `FileSource.FileSourceBuilder` 去设置 File Source 的所有参数。
 
-对于有界的/批的使用场景，文件数据源需要处理给定路径下的所有文件。
-对于无界的/流的使用场景，文件数据源会定期检查路径下的新文件并读取。
+对于有界/批的使用场景，File Source 需要处理给定路径下的所有文件。
+对于无界/流的使用场景，File Source 会定期检查路径下的新文件并读取。
 
-当你开始创建一个文件数据源时（通过 `FileSource.FileSourceBuilder` 和上述任何一种方法去创建），
-默认的数据源为有界的/批的模式。你可以调用 `AbstractFileSource.AbstractFileSourceBuilder.monitorContinuously(Duration)` 去设置数据源为持续的流模式。
+当你开始创建一个 File Source 时（通过上述任意方法创建的 `FileSource.FileSourceBuilder`），
+默认情况下，数据源为有界/批的模式。你可以调用 `AbstractFileSource.AbstractFileSourceBuilder.monitorContinuously(Duration)` 设置数据源为持续的流模式。
 
 {{< tabs "FileSourceBuilder" >}}
 {{< tab "Java" >}}
@@ -88,17 +88,17 @@ final FileSource<String> source =
 {{< /tab >}}
 {{< /tabs >}}
 
-### 格式化类型
+### Format Types
 
-每个文件的读取都是通过定义了某种文件格式的文件阅读器进行读取的。
+通过文件格式定义的文件阅读器读取每个文件。
 它们定义了解析和读取文件内容的逻辑。数据源支持多个解析类。
 这些接口是实现简单性和灵活性/效率之间的折衷。
 
 *  `StreamFormat` 从文件流中读取文件内容。它是最简单的格式实现，
-   并且提供了许多现成的功能（如检查点逻辑），但是在可应用的优化方面受到限制（例如对象重用，批处理，等等）。
+   并且提供了许多拆箱即用的特性（如检查点逻辑），但是在可应用的优化方面受到限制（例如对象重用，批处理等等）。
 
 * `BulkFormat` 从文件中一次读取一批记录。
-  它是最 "低层次" 的格式实现，但是它提供了最大的灵活性来实现优化。
+  它虽然是最 "底层" 的格式实现，但是提供了优化实现的最大灵活性。
 
 #### TextLine 格式
 
@@ -170,20 +170,18 @@ BulkFormat<SomePojo, FileSourceSplit> bulkFormat =
 {{< tab "Java" >}}
 ```java
 /**
- * A FileEnumerator implementation for hive source, which generates splits based on 
- * HiveTablePartition.
+ * 针对 Hive 数据源的 FileEnumerator 实现类，基于 HiveTablePartition 生成拆分文件
  */
 public class HiveSourceFileEnumerator implements FileEnumerator {
     
-    // reference constructor
+    // 构造函数
     public HiveSourceFileEnumerator(...) {
         ...
     }
 
     /***
-     * Generates all file splits for the relevant files under the given paths. The {@code
-     * minDesiredSplits} is an optional hint indicating how many splits would be necessary to
-     * exploit parallelism properly.
+     * 拆分给定路径下的相关所有文件。{@code
+     * minDesiredSplits} 是一个可选项，代表需要多少次拆分才能正确利用并行度
      */
     @Override
     public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
@@ -195,7 +193,7 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     ...
 
     /***
-     * A factory to create HiveSourceFileEnumerator.
+     * 创建 HiveSourceFileEnumerator 的工厂
      */
     public static class Provider implements FileEnumerator.Provider {
 
@@ -206,7 +204,7 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         }
     }
 }
-// use the customizing file enumeration
+// 使用自定义文件枚举类
 new HiveSource<>(
         ...,
         new HiveSourceFileEnumerator.Provider(
@@ -413,7 +411,7 @@ input.sinkTo(sink)
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters;
 
-// ProtoRecord is a generated protobuf Message class.
+// ProtoRecord 是一个生成 protobuf 的类
 DataStream<ProtoRecord> input = ...;
 
 final FileSink<ProtoRecord> sink = FileSink
@@ -429,7 +427,7 @@ input.sinkTo(sink);
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.formats.parquet.protobuf.ParquetProtoWriters
 
-// ProtoRecord is a generated protobuf Message class.
+// ProtoRecord 是一个生成 protobuf 的类
 val input: DataStream[ProtoRecord] = ...
 
 val sink: FileSink[ProtoRecord] = FileSink
@@ -660,7 +658,7 @@ Configuration conf = ...;
 Properties writerProperties = new Properties();
 
 writerProperties.setProperty("orc.compress", "LZ4");
-// Other ORC supported properties can also be set similarly.
+// 其他 ORC 参数也可以使用类似方式进行设置
 
 final OrcBulkWriterFactory<Person> writerFactory = new OrcBulkWriterFactory<>(
     new PersonVectorizer(schema), writerProperties, conf);
@@ -674,7 +672,7 @@ val conf: Configuration = ...
 val writerProperties: Properties = new Properties()
 
 writerProperties.setProperty("orc.compress", "LZ4")
-// Other ORC supported properties can also be set similarly.
+// 其他 ORC 参数也可以使用类似方式进行设置
 
 val writerFactory = new OrcBulkWriterFactory(
     new PersonVectorizer(schema), writerProperties, conf)
