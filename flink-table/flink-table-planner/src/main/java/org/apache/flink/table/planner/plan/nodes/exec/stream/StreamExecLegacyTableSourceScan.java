@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacyTableSourceScan;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
@@ -64,6 +65,7 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
         implements StreamExecNode<RowData> {
 
     public StreamExecLegacyTableSourceScan(
+            ReadableConfig plannerConfig,
             TableSource<?> tableSource,
             List<String> qualifiedName,
             RowType outputType,
@@ -71,6 +73,8 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecLegacyTableSourceScan.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecLegacyTableSourceScan.class, plannerConfig),
                 tableSource,
                 qualifiedName,
                 outputType,
@@ -81,6 +85,7 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
     @Override
     protected Transformation<RowData> createConversionTransformationIfNeeded(
             PlannerBase planner,
+            ExecNodeConfiguration config,
             Transformation<?> sourceTransform,
             @Nullable RexNode rowtimeExpression) {
 
@@ -99,14 +104,13 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
             }
 
             final CodeGeneratorContext ctx =
-                    new CodeGeneratorContext(planner.getTableConfig())
+                    new CodeGeneratorContext(config.getTableConfig())
                             .setOperatorBaseClass(TableStreamOperator.class);
             // the produced type may not carry the correct precision user defined in DDL, because
             // it may be converted from legacy type. Fix precision using logical schema from DDL.
             // Code generation requires the correct precision of input fields.
             final DataType fixedProducedDataType =
                     TableSourceUtil.fixPrecisionForProducedDataType(tableSource, outputType);
-            final Configuration config = planner.getTableConfig().getConfiguration();
             transformation =
                     ScanUtil.convertToInternalRow(
                             ctx,

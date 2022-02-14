@@ -139,6 +139,9 @@
   }, {
     "id" : 3,
     "type" : "stream-exec-watermark-assigner_1",
+    "configuration" : {
+      "table.exec.source.idle-timeout" : "0 ms"
+    },
     "watermarkExpr" : {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
@@ -272,6 +275,9 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-over-aggregate_1",
+    "configuration" : {
+      "table.exec.state.ttl" : "0 ms"
+    },
     "overSpec" : {
       "partition" : {
         "fields" : [ 1 ]
@@ -539,6 +545,13 @@
   }, {
     "id" : 8,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO",
+      "table.exec.state.ttl" : "0 ms"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",

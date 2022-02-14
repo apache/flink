@@ -21,12 +21,13 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -85,6 +86,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
     private final List<int[]> rightUniqueKeys;
 
     public StreamExecJoin(
+            ReadableConfig plannerConfig,
             JoinSpec joinSpec,
             List<int[]> leftUniqueKeys,
             List<int[]> rightUniqueKeys,
@@ -95,6 +97,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecJoin.class),
+                ExecNodeContext.newPersistedConfig(StreamExecJoin.class, plannerConfig),
                 joinSpec,
                 leftUniqueKeys,
                 rightUniqueKeys,
@@ -107,13 +110,14 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
     public StreamExecJoin(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig config,
             @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
             @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS) List<int[]> leftUniqueKeys,
             @JsonProperty(FIELD_NAME_RIGHT_UNIQUE_KEYS) List<int[]> rightUniqueKeys,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 2);
         this.joinSpec = checkNotNull(joinSpec);
         this.leftUniqueKeys = leftUniqueKeys;
@@ -122,7 +126,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final ExecEdge leftInputEdge = getInputEdges().get(0);
         final ExecEdge rightInputEdge = getInputEdges().get(1);
 
@@ -146,11 +151,11 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
         final JoinInputSideSpec rightInputSpec =
                 JoinUtil.analyzeJoinInput(rightTypeInfo, rightJoinKey, rightUniqueKeys);
 
-        final TableConfig tableConfig = planner.getTableConfig();
         GeneratedJoinCondition generatedCondition =
-                JoinUtil.generateConditionFunction(tableConfig, joinSpec, leftType, rightType);
+                JoinUtil.generateConditionFunction(
+                        config.getTableConfig(), joinSpec, leftType, rightType);
 
-        long minRetentionTime = tableConfig.getMinIdleStateRetentionTime();
+        long minRetentionTime = config.getIdleStateRetentionTime();
 
         AbstractStreamingJoinOperator operator;
         FlinkJoinType joinType = joinSpec.getJoinType();
@@ -187,7 +192,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        createTransformationMeta(JOIN_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(JOIN_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

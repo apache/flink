@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -122,7 +123,7 @@ public class JsonSerdeUtil {
 
     private static Module createFlinkTableJacksonModule() {
         final SimpleModule module = new SimpleModule("Flink table module");
-        ExecNodeMetadataUtil.execNodes().stream()
+        ExecNodeMetadataUtil.execNodes()
                 .forEach(c -> module.registerSubtypes(new NamedType(c, c.getName())));
         registerSerializers(module);
         registerDeserializers(module);
@@ -134,6 +135,8 @@ public class JsonSerdeUtil {
     private static void registerSerializers(SimpleModule module) {
         module.addSerializer(new ExecNodeGraphJsonSerializer());
         module.addSerializer(new FlinkVersionJsonSerializer());
+        // ConfigurationJsonSerializer is needed for Configuration (ReadableConfig) serialization
+        module.addSerializer(new ConfigurationJsonSerializer());
         // ObjectIdentifierJsonSerializer is needed for LogicalType serialization
         module.addSerializer(new ObjectIdentifierJsonSerializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization
@@ -160,6 +163,8 @@ public class JsonSerdeUtil {
     private static void registerDeserializers(SimpleModule module) {
         module.addDeserializer(ExecNodeGraph.class, new ExecNodeGraphJsonDeserializer());
         module.addDeserializer(FlinkVersion.class, new FlinkVersionJsonDeserializer());
+        // ConfigurationJsonSerializer is needed for Configuration (ReadableConfig) deserialization
+        module.addDeserializer(ReadableConfig.class, new ConfigurationJsonDeserializer());
         // ObjectIdentifierJsonDeserializer is needed for LogicalType deserialization
         module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization

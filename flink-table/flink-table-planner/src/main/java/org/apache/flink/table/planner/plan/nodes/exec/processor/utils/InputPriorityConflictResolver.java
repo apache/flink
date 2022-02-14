@@ -87,7 +87,10 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
                 // we should split it into two nodes
                 BatchExecExchange newExchange =
                         new BatchExecExchange(
-                                inputProperty, (RowType) exchange.getOutputType(), "Exchange");
+                                configuration,
+                                inputProperty,
+                                (RowType) exchange.getOutputType(),
+                                "Exchange");
                 newExchange.setRequiredExchangeMode(exchangeMode);
                 newExchange.setInputEdges(exchange.getInputEdges());
                 newNode = newExchange;
@@ -95,6 +98,7 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
                 // create new BatchExecExchange with new inputProperty
                 BatchExecExchange newExchange =
                         new BatchExecExchange(
+                                configuration,
                                 inputProperty,
                                 (RowType) exchange.getOutputType(),
                                 exchange.getDescription());
@@ -138,7 +142,10 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
                         .build();
         BatchExecExchange exchange =
                 new BatchExecExchange(
-                        newInputProperty, (RowType) inputNode.getOutputType(), "Exchange");
+                        configuration,
+                        newInputProperty,
+                        (RowType) inputNode.getOutputType(),
+                        "Exchange");
         exchange.setRequiredExchangeMode(exchangeMode);
         ExecEdge execEdge = ExecEdge.builder().source(inputNode).target(exchange).build();
         exchange.setInputEdges(Collections.singletonList(execEdge));

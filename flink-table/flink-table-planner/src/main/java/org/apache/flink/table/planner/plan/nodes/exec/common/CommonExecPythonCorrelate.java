@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -35,6 +36,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -69,12 +71,13 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
     public CommonExecPythonCorrelate(
             int id,
             ExecNodeContext context,
+            ReadableConfig config,
             FlinkJoinType joinType,
             RexCall invocation,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.joinType = joinType;
         this.invocation = invocation;
@@ -82,7 +85,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -141,7 +145,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonTableFunctionOperator(
             TableConfig tableConfig,
-            Configuration config,
+            Configuration mergedConfig,
             InternalTypeInfo<RowData> inputRowType,
             InternalTypeInfo<RowData> outputRowType,
             PythonFunctionInfo pythonFunctionInfo,
@@ -168,7 +172,7 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                             GeneratedProjection.class);
             return (OneInputStreamOperator<RowData, RowData>)
                     ctor.newInstance(
-                            config,
+                            mergedConfig,
                             pythonFunctionInfo,
                             inputType,
                             udfInputType,

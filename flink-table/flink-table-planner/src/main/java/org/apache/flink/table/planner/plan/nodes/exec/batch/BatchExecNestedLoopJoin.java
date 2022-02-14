@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.codegen.NestedLoopJoinCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -51,6 +52,7 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
     private final boolean singleRowJoin;
 
     public BatchExecNestedLoopJoin(
+            ReadableConfig plannerConfig,
             FlinkJoinType joinType,
             RexNode condition,
             boolean leftIsBuild,
@@ -62,6 +64,7 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecNestedLoopJoin.class),
+                ExecNodeContext.newPersistedConfig(BatchExecNestedLoopJoin.class, plannerConfig),
                 Arrays.asList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);
@@ -73,7 +76,8 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         ExecEdge leftInputEdge = getInputEdges().get(0);
         ExecEdge rightInputEdge = getInputEdges().get(1);
 
@@ -86,10 +90,9 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
         RowType leftType = (RowType) leftInputEdge.getOutputType();
         RowType rightType = (RowType) rightInputEdge.getOutputType();
 
-        TableConfig config = planner.getTableConfig();
         CodeGenOperatorFactory<RowData> operator =
                 new NestedLoopJoinCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(config.getTableConfig()),
                                 singleRowJoin,
                                 leftIsBuild,
                                 leftType,
@@ -106,8 +109,7 @@ public class BatchExecNestedLoopJoin extends ExecNodeBase<RowData>
         long manageMem = 0;
         if (!singleRowJoin) {
             manageMem =
-                    config.getConfiguration()
-                            .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
+                    config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
                             .getBytes();
         }
 

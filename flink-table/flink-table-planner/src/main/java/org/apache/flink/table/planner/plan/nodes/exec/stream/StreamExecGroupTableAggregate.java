@@ -19,10 +19,10 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -72,6 +73,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
     private final boolean needRetraction;
 
     public StreamExecGroupTableAggregate(
+            ReadableConfig plannerConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             boolean[] aggCallNeedRetractions,
@@ -83,6 +85,8 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecGroupTableAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecGroupTableAggregate.class, plannerConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -96,10 +100,9 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final TableConfig tableConfig = planner.getTableConfig();
-
-        if (grouping.length > 0 && tableConfig.getMinIdleStateRetentionTime() < 0) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
+        if (grouping.length > 0 && config.getIdleStateRetentionTime() < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent excessive "
@@ -113,7 +116,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(tableConfig),
+                                new CodeGeneratorContext(config.getTableConfig()),
                                 planner.getRelBuilder(),
                                 JavaScalaConversionUtil.toScala(inputRowType.getChildren()),
                                 // TODO: heap state backend do not copy key currently,
@@ -150,7 +153,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
                         accTypes,
                         inputCountIndex,
                         generateUpdateBefore,
-                        tableConfig.getIdleStateRetention().toMillis());
+                        config.getIdleStateRetentionTime());
         final OneInputStreamOperator<RowData, RowData> operator =
                 new KeyedProcessOperator<>(aggFunction);
 
@@ -158,8 +161,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        createTransformationMeta(
-                                GROUP_TABLE_AGGREGATE_TRANSFORMATION, planner.getTableConfig()),
+                        createTransformationMeta(GROUP_TABLE_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

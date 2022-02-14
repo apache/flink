@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
@@ -34,6 +35,7 @@ import org.apache.flink.table.planner.codegen.HashCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.HashDistribution;
@@ -63,10 +65,15 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
     // if it's None, use value from configuration
     @Nullable private StreamExchangeMode requiredExchangeMode;
 
-    public BatchExecExchange(InputProperty inputProperty, RowType outputType, String description) {
+    public BatchExecExchange(
+            ReadableConfig plannerConfig,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecExchange.class),
+                ExecNodeContext.newPersistedConfig(BatchExecExchange.class, plannerConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -105,7 +112,8 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -132,7 +140,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
             case HASH:
                 partitioner =
                         createHashPartitioner(
-                                ((HashDistribution) requiredDistribution), inputType, planner);
+                                ((HashDistribution) requiredDistribution), inputType, config);
                 parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
                 break;
             case KEEP_INPUT_AS_IS:
@@ -144,9 +152,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                 partitioner =
                         new ForwardForConsecutiveHashPartitioner<>(
                                 createHashPartitioner(
-                                        ((HashDistribution) inputDistribution),
-                                        inputType,
-                                        planner));
+                                        ((HashDistribution) inputDistribution), inputType, config));
                 parallelism = inputTransform.getParallelism();
                 break;
             default:
@@ -163,7 +169,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
     }
 
     private BinaryHashPartitioner createHashPartitioner(
-            HashDistribution hashDistribution, RowType inputType, PlannerBase planner) {
+            HashDistribution hashDistribution, RowType inputType, ExecNodeConfiguration config) {
         int[] keys = hashDistribution.getKeys();
         String[] fieldNames =
                 Arrays.stream(keys)
@@ -171,7 +177,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                         .toArray(String[]::new);
         return new BinaryHashPartitioner(
                 HashCodeGenerator.generateRowHash(
-                        new CodeGeneratorContext(planner.getTableConfig()),
+                        new CodeGeneratorContext(config.getTableConfig()),
                         inputType,
                         "HashPartitioner",
                         keys),

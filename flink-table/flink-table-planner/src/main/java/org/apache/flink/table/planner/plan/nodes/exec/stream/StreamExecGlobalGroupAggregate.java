@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -126,6 +127,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
     protected final Integer indexOfCountStar;
 
     public StreamExecGlobalGroupAggregate(
+            ReadableConfig plannerConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             boolean[] aggCallNeedRetractions,
@@ -139,6 +141,8 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecGlobalGroupAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecGlobalGroupAggregate.class, plannerConfig),
                 grouping,
                 aggCalls,
                 aggCallNeedRetractions,
@@ -155,6 +159,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
     public StreamExecGlobalGroupAggregate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig config,
             @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS) boolean[] aggCallNeedRetractions,
@@ -165,7 +170,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
         this.aggCallNeedRetractions = checkNotNull(aggCallNeedRetractions);
@@ -179,10 +184,9 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final TableConfig tableConfig = planner.getTableConfig();
-
-        if (grouping.length > 0 && tableConfig.getMinIdleStateRetentionTime() < 0) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
+        if (grouping.length > 0 && config.getIdleStateRetentionTime() < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent excessive "
@@ -219,7 +223,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         localAggInfoList,
                         grouping.length,
                         localAggInfoList.getAccTypes(),
-                        tableConfig,
+                        config,
                         planner.getRelBuilder());
 
         final GeneratedAggsHandleFunction globalAggsHandler =
@@ -228,7 +232,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         globalAggInfoList,
                         0, // mergedAccOffset
                         localAggInfoList.getAccTypes(),
-                        tableConfig,
+                        config,
                         planner.getRelBuilder());
 
         final int indexOfCountStar = globalAggInfoList.getIndexOfCountStar();
@@ -246,9 +250,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
         final OneInputStreamOperator<RowData, RowData> operator;
         final boolean isMiniBatchEnabled =
-                tableConfig
-                        .getConfiguration()
-                        .getBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
+                config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
         if (isMiniBatchEnabled) {
             MiniBatchGlobalGroupAggFunction aggFunction =
                     new MiniBatchGlobalGroupAggFunction(
@@ -258,11 +260,11 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                             globalAccTypes,
                             indexOfCountStar,
                             generateUpdateBefore,
-                            tableConfig.getIdleStateRetention().toMillis());
+                            config.getIdleStateRetentionTime());
 
             operator =
                     new KeyedMapBundleOperator<>(
-                            aggFunction, AggregateUtil.createMiniBatchTrigger(tableConfig));
+                            aggFunction, AggregateUtil.createMiniBatchTrigger(config));
         } else {
             throw new TableException("Local-Global optimization is only worked in miniBatch mode");
         }
@@ -271,8 +273,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        createTransformationMeta(
-                                GLOBAL_GROUP_AGGREGATE_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(GLOBAL_GROUP_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
@@ -291,7 +292,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
             AggregateInfoList aggInfoList,
             int mergedAccOffset,
             DataType[] mergedAccExternalTypes,
-            TableConfig config,
+            ExecNodeConfiguration config,
             RelBuilder relBuilder) {
 
         // For local aggregate, the result will be buffered, so copyInputField is true.
@@ -300,7 +301,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
         // then multi-put to state, so copyInputField is true.
         AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(config.getTableConfig()),
                         relBuilder,
                         JavaScalaConversionUtil.toScala(localAggInputRowType.getChildren()),
                         true);

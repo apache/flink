@@ -20,10 +20,12 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -53,6 +55,7 @@ public class StreamExecLimit extends StreamExecRank {
     private final long limitEnd;
 
     public StreamExecLimit(
+            ReadableConfig plannerConfig,
             long limitStart,
             long limitEnd,
             boolean generateUpdateBefore,
@@ -63,6 +66,7 @@ public class StreamExecLimit extends StreamExecRank {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecLimit.class),
+                ExecNodeContext.newPersistedConfig(StreamExecLimit.class, plannerConfig),
                 new ConstantRankRange(limitStart + 1, limitEnd),
                 getRankStrategy(needRetraction),
                 generateUpdateBefore,
@@ -75,6 +79,7 @@ public class StreamExecLimit extends StreamExecRank {
     public StreamExecLimit(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig config,
             @JsonProperty(FIELD_NAME_RANK_RANG) ConstantRankRange rankRange,
             @JsonProperty(FIELD_NAME_RANK_STRATEGY) RankProcessStrategy rankStrategy,
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
@@ -84,6 +89,7 @@ public class StreamExecLimit extends StreamExecRank {
         super(
                 id,
                 context,
+                config,
                 RankType.ROW_NUMBER,
                 PartitionSpec.ALL_IN_ONE,
                 SortSpec.ANY,
@@ -106,11 +112,12 @@ public class StreamExecLimit extends StreamExecRank {
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         if (limitEnd == Long.MAX_VALUE) {
             throw new TableException(
                     "FETCH is missed, which on streaming table is not supported currently.");
         }
-        return super.translateToPlanInternal(planner);
+        return super.translateToPlanInternal(planner, config);
     }
 }

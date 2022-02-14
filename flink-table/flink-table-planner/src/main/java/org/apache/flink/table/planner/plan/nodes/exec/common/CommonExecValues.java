@@ -19,11 +19,13 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.ValuesCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer;
@@ -51,18 +53,20 @@ public abstract class CommonExecValues extends ExecNodeBase<RowData>
     public CommonExecValues(
             int id,
             ExecNodeContext context,
+            ReadableConfig config,
             List<List<RexLiteral>> tuples,
             RowType outputType,
             String description) {
-        super(id, context, Collections.emptyList(), outputType, description);
+        super(id, context, config, Collections.emptyList(), outputType, description);
         this.tuples = tuples;
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final ValuesInputFormat inputFormat =
                 ValuesCodeGenerator.generatorInputFormat(
-                        planner.getTableConfig(),
+                        config.getTableConfig(),
                         (RowType) getOutputType(),
                         tuples,
                         getClass().getSimpleName());
@@ -70,8 +74,7 @@ public abstract class CommonExecValues extends ExecNodeBase<RowData>
                 planner.getExecEnv()
                         .createInput(inputFormat, inputFormat.getProducedType())
                         .getTransformation();
-        createTransformationMeta(VALUES_TRANSFORMATION, planner.getTableConfig())
-                .fill(transformation);
+        createTransformationMeta(VALUES_TRANSFORMATION, config).fill(transformation);
         transformation.setParallelism(1);
         transformation.setMaxParallelism(1);
         return transformation;

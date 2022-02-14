@@ -21,10 +21,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -86,6 +87,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
     private final boolean generateUpdateBefore;
 
     public StreamExecChangelogNormalize(
+            ReadableConfig plannerConfig,
             int[] uniqueKeys,
             boolean generateUpdateBefore,
             InputProperty inputProperty,
@@ -94,6 +96,8 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecChangelogNormalize.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecChangelogNormalize.class, plannerConfig),
                 uniqueKeys,
                 generateUpdateBefore,
                 Collections.singletonList(inputProperty),
@@ -105,19 +109,21 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
     public StreamExecChangelogNormalize(
             @JsonProperty(FIELD_NAME_ID) Integer id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig config,
             @JsonProperty(FIELD_NAME_UNIQUE_KEYS) int[] uniqueKeys,
             @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         this.uniqueKeys = uniqueKeys;
         this.generateUpdateBefore = generateUpdateBefore;
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -125,12 +131,9 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
 
         final OneInputStreamOperator<RowData, RowData> operator;
-        final TableConfig tableConfig = planner.getTableConfig();
-        final long stateIdleTime = tableConfig.getIdleStateRetention().toMillis();
+        final long stateIdleTime = config.getIdleStateRetentionTime();
         final boolean isMiniBatchEnabled =
-                tableConfig
-                        .getConfiguration()
-                        .getBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
+                config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
 
         GeneratedRecordEqualiser generatedEqualiser =
                 new EqualiserCodeGenerator(rowTypeInfo.toRowType())
@@ -148,7 +151,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                             true, // generateInsert
                             false, // inputInsertOnly
                             generatedEqualiser);
-            CountBundleTrigger<RowData> trigger = AggregateUtil.createMiniBatchTrigger(tableConfig);
+            CountBundleTrigger<RowData> trigger = AggregateUtil.createMiniBatchTrigger(config);
             operator = new KeyedMapBundleOperator<>(processFunction, trigger);
         } else {
             ProcTimeDeduplicateKeepLastRowFunction processFunction =
@@ -165,7 +168,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        createTransformationMeta(CHANGELOG_NORMALIZE_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(CHANGELOG_NORMALIZE_TRANSFORMATION, config),
                         operator,
                         rowTypeInfo,
                         inputTransform.getParallelism());

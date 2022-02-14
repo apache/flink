@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecValues
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -57,6 +58,7 @@ class BatchPhysicalValues(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecValues(
+      ShortcutUtils.unwrapConfig(this),
       tuples.asList().map(_.asList()),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription

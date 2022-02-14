@@ -31,6 +31,7 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.TableConfig;
@@ -44,6 +45,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -110,6 +112,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     private final MatchSpec matchSpec;
 
     public StreamExecMatch(
+            ReadableConfig plannerConfig,
             MatchSpec matchSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -117,6 +120,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecMatch.class),
+                ExecNodeContext.newPersistedConfig(StreamExecMatch.class, plannerConfig),
                 matchSpec,
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -127,32 +131,34 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     public StreamExecMatch(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig config,
             @JsonProperty(FIELD_NAME_MATCH_SPEC) MatchSpec matchSpec,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.matchSpec = checkNotNull(matchSpec);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         checkOrderKeys(inputRowType);
-        final TableConfig config = planner.getTableConfig();
         final EventComparator<RowData> eventComparator =
                 createEventComparator(config, inputRowType);
         final Transformation<RowData> timestampedInputTransform =
                 translateOrder(inputTransform, inputRowType);
 
         final Tuple2<Pattern<RowData, RowData>, List<String>> cepPatternAndNames =
-                translatePattern(matchSpec, config, planner.getRelBuilder(), inputRowType);
+                translatePattern(
+                        matchSpec, config.getTableConfig(), planner.getRelBuilder(), inputRowType);
         final Pattern<RowData, RowData> cepPattern = cepPatternAndNames.f0;
 
         // TODO remove this once it is supported in CEP library
@@ -186,7 +192,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
                 NFACompiler.compileFactory(cepPattern, false);
         final MatchCodeGenerator generator =
                 new MatchCodeGenerator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(config.getTableConfig()),
                         planner.getRelBuilder(),
                         false, // nullableInput
                         JavaScalaConversionUtil.toScala(cepPatternAndNames.f1),
@@ -251,12 +257,12 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     }
 
     private EventComparator<RowData> createEventComparator(
-            TableConfig config, RowType inputRowType) {
+            ExecNodeConfiguration config, RowType inputRowType) {
         SortSpec orderKeys = matchSpec.getOrderKeys();
         if (orderKeys.getFieldIndices().length > 1) {
             GeneratedRecordComparator rowComparator =
                     ComparatorCodeGenerator.gen(
-                            config, "RowDataComparator", inputRowType, orderKeys);
+                            config.getTableConfig(), "RowDataComparator", inputRowType, orderKeys);
             return new RowDataEventComparator(rowComparator);
         } else {
             return null;

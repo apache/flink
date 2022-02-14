@@ -19,12 +19,14 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -60,31 +62,33 @@ public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData
     protected CommonExecWindowTableFunction(
             int id,
             ExecNodeContext context,
+            ReadableConfig config,
             TimeAttributeWindowingStrategy windowingStrategy,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.windowingStrategy = checkNotNull(windowingStrategy);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         WindowAssigner<TimeWindow> windowAssigner = createWindowAssigner(windowingStrategy);
         final ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(
-                        windowingStrategy.getTimeAttributeType(), planner.getTableConfig());
+                        windowingStrategy.getTimeAttributeType(), config.getLocalTimeZone());
         WindowTableFunctionOperator windowTableFunctionOperator =
                 new WindowTableFunctionOperator(
                         windowAssigner, windowingStrategy.getTimeAttributeIndex(), shiftTimeZone);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationMeta(WINDOW_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(WINDOW_TRANSFORMATION, planner.getConfiguration()),
                 windowTableFunctionOperator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

@@ -136,6 +136,9 @@
   }, {
     "id" : 3,
     "type" : "stream-exec-watermark-assigner_1",
+    "configuration" : {
+      "table.exec.source.idle-timeout" : "0 ms"
+    },
     "watermarkExpr" : {
       "kind" : "REX_CALL",
       "operator" : {
@@ -186,6 +189,9 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-window-table-function_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "windowing" : {
       "strategy" : "TimeAttribute",
       "window" : {
@@ -442,6 +448,9 @@
   }, {
     "id" : 9,
     "type" : "stream-exec-watermark-assigner_1",
+    "configuration" : {
+      "table.exec.source.idle-timeout" : "0 ms"
+    },
     "watermarkExpr" : {
       "kind" : "REX_CALL",
       "operator" : {
@@ -492,6 +501,9 @@
   }, {
     "id" : 10,
     "type" : "stream-exec-window-table-function_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "windowing" : {
       "strategy" : "TimeAttribute",
       "window" : {
@@ -615,6 +627,9 @@
   }, {
     "id" : 13,
     "type" : "stream-exec-window-join_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "joinSpec" : {
       "joinType" : "INNER",
       "leftKeys" : [ 2 ],
@@ -716,6 +731,13 @@
   }, {
     "id" : 15,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO",
+      "table.exec.state.ttl" : "0 ms"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",

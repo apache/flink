@@ -71,7 +71,7 @@ class StreamPhysicalGroupWindowTableAggregateRule
     val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
 
     val config = cluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    val emitStrategy = WindowEmitStrategy(config, agg.getWindow)
+    val emitStrategy = WindowEmitStrategy(config.getConfiguration, agg.getWindow)
 
     new StreamPhysicalGroupWindowTableAggregate(
       cluster,

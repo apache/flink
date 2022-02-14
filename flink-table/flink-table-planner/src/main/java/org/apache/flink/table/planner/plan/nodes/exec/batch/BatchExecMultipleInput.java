@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.transformations.MultipleInputTransformation;
 import org.apache.flink.table.data.RowData;
@@ -26,6 +27,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -46,7 +48,7 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 /**
  * Batch {@link ExecNode} for multiple input which contains a sub-graph of {@link ExecNode}s. The
  * root node of the sub-graph is {@link #rootNode}, and the leaf nodes of the sub-graph are the
- * output nodes of the {@link #getInputNodes()}.
+ * output nodes of the {@link #getInputEdges()}.
  *
  * <p>The following example shows a graph of {@code ExecNode}s with multiple input node:
  *
@@ -77,6 +79,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
     private final List<ExecEdge> originalEdges;
 
     public BatchExecMultipleInput(
+            ReadableConfig plannerConfig,
             List<InputProperty> inputProperties,
             ExecNode<?> rootNode,
             List<ExecEdge> originalEdges,
@@ -84,6 +87,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecMultipleInput.class),
+                ExecNodeContext.newPersistedConfig(BatchExecMultipleInput.class, plannerConfig),
                 inputProperties,
                 rootNode.getOutputType(),
                 description);
@@ -93,7 +97,8 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final List<Transformation<?>> inputTransforms = new ArrayList<>();
         for (ExecEdge inputEdge : getInputEdges()) {
             inputTransforms.add(inputEdge.translateToPlan(planner));
@@ -114,7 +119,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
 
         final MultipleInputTransformation<RowData> multipleInputTransform =
                 new MultipleInputTransformation<>(
-                        createTransformationName(planner.getTableConfig()),
+                        createTransformationName(config),
                         new BatchMultipleInputStreamOperatorFactory(
                                 inputTransformAndInputSpecPairs.stream()
                                         .map(Pair::getValue)
@@ -123,8 +128,7 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
                                 generator.getTailWrapper()),
                         InternalTypeInfo.of(getOutputType()),
                         generator.getParallelism());
-        multipleInputTransform.setDescription(
-                createTransformationDescription(planner.getTableConfig()));
+        multipleInputTransform.setDescription(createTransformationDescription(config));
         inputTransformAndInputSpecPairs.forEach(
                 input -> multipleInputTransform.addInput(input.getKey()));
 

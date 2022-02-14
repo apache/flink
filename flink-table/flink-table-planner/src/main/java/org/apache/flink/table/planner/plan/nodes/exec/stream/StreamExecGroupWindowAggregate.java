@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
@@ -37,6 +37,7 @@ import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -143,6 +144,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     private final boolean needRetraction;
 
     public StreamExecGroupWindowAggregate(
+            ReadableConfig plannerConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             LogicalWindow window,
@@ -154,6 +156,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecGroupWindowAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecGroupWindowAggregate.class, plannerConfig),
                 grouping,
                 aggCalls,
                 window,
@@ -168,6 +172,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     public StreamExecGroupWindowAggregate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig config,
             @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_WINDOW) LogicalWindow window,
@@ -177,7 +182,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
@@ -188,7 +193,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final boolean isCountWindow;
         if (window instanceof TumblingGroupWindow) {
             isCountWindow = hasRowIntervalType(((TumblingGroupWindow) window).size());
@@ -198,8 +204,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             isCountWindow = false;
         }
 
-        final TableConfig config = planner.getTableConfig();
-        if (isCountWindow && grouping.length > 0 && config.getMinIdleStateRetentionTime() < 0) {
+        if (isCountWindow && grouping.length > 0 && config.getIdleStateRetentionTime() < 0) {
             LOGGER.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent "
@@ -230,7 +235,8 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
         final ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(
-                        window.timeAttribute().getOutputDataType().getLogicalType(), config);
+                        window.timeAttribute().getOutputDataType().getLogicalType(),
+                        config.getLocalTimeZone());
 
         final boolean[] aggCallNeedRetractions = new boolean[aggCalls.length];
         Arrays.fill(aggCallNeedRetractions, needRetraction);
@@ -268,7 +274,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
         final WindowOperator<?, ?> operator =
                 createWindowOperator(
-                        planner.getTableConfig(),
+                        config,
                         aggCodeGenerator,
                         equaliser,
                         accTypes,
@@ -282,8 +288,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        createTransformationMeta(
-                                GROUP_WINDOW_AGGREGATE_TRANSFORMATION, planner.getTableConfig()),
+                        createTransformationMeta(GROUP_WINDOW_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
@@ -304,7 +309,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
     private GeneratedClass<?> createAggsHandler(
             AggregateInfoList aggInfoList,
-            TableConfig config,
+            ExecNodeConfiguration config,
             RelBuilder relBuilder,
             List<LogicalType> fieldTypes,
             ZoneId shiftTimeZone) {
@@ -327,7 +332,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(config.getTableConfig()),
                                 relBuilder,
                                 JavaScalaConversionUtil.toScala(fieldTypes),
                                 false) // copyInputField
@@ -365,7 +370,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
     }
 
     private WindowOperator<?, ?> createWindowOperator(
-            TableConfig tableConfig,
+            ReadableConfig config,
             GeneratedClass<?> aggsHandler,
             GeneratedRecordEqualiser recordEqualiser,
             LogicalType[] accTypes,
@@ -433,7 +438,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
             throw new TableException("Unsupported window: " + window.toString());
         }
 
-        WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(tableConfig, window);
+        WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(config, window);
         if (emitStrategy.produceUpdates()) {
             // mark this operator will send retraction and set new trigger
             builder.produceUpdates()

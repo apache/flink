@@ -91,6 +91,7 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
                                                 .build();
                                 BatchExecExchange newExchange =
                                         new BatchExecExchange(
+                                                context.getPlanner().getConfiguration(),
                                                 newInputProperty,
                                                 (RowType) edge.getOutputType(),
                                                 newInputProperty.toString());

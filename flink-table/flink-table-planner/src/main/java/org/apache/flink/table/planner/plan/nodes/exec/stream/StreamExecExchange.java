@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
@@ -29,6 +30,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -63,10 +65,15 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
 
     public static final String EXCHANGE_TRANSFORMATION = "exchange";
 
-    public StreamExecExchange(InputProperty inputProperty, RowType outputType, String description) {
+    public StreamExecExchange(
+            ReadableConfig plannerConfig,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecExchange.class),
+                ExecNodeContext.newPersistedConfig(StreamExecExchange.class, plannerConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -76,16 +83,18 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
     public StreamExecExchange(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig config,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
 
@@ -118,7 +127,7 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
 
         final Transformation<RowData> transformation =
                 new PartitionTransformation<>(inputTransform, partitioner);
-        createTransformationMeta(EXCHANGE_TRANSFORMATION, planner.getTableConfig())
+        createTransformationMeta(EXCHANGE_TRANSFORMATION, planner.getConfiguration())
                 .fill(transformation);
         transformation.setParallelism(parallelism);
         transformation.setOutputType(InternalTypeInfo.of(getOutputType()));

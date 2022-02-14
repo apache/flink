@@ -19,13 +19,14 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
@@ -48,6 +49,7 @@ public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
     private final List<String> qualifiedName;
 
     public BatchExecBoundedStreamScan(
+            ReadableConfig plannerConfig,
             DataStream<?> dataStream,
             DataType sourceType,
             int[] fieldIndexes,
@@ -57,6 +59,7 @@ public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecBoundedStreamScan.class),
+                ExecNodeContext.newPersistedConfig(BatchExecBoundedStreamScan.class, plannerConfig),
                 Collections.emptyList(),
                 outputType,
                 description);
@@ -68,12 +71,12 @@ public class BatchExecBoundedStreamScan extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final Transformation<?> sourceTransform = dataStream.getTransformation();
-        final Configuration config = planner.getTableConfig().getConfiguration();
         if (needInternalConversion()) {
             return ScanUtil.convertToInternalRow(
-                    new CodeGeneratorContext(planner.getTableConfig()),
+                    new CodeGeneratorContext(config.getTableConfig()),
                     (Transformation<Object>) sourceTransform,
                     fieldIndexes,
                     sourceType,

@@ -68,8 +68,7 @@ class BatchPlanner(
     // deadlock breakup
     processors.add(new DeadlockBreakupProcessor())
     // multiple input creation
-    if (getTableConfig.getConfiguration.getBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
+    if (getConfiguration.get(OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
       processors.add(new MultipleInputNodeCreationProcessor(false))
     }
     processors.add(new ForwardHashExchangeProcessor)

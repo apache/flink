@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonGroupWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
@@ -104,6 +105,7 @@ class BatchPhysicalPythonGroupWindowAggregate(
       InputProperty.hashDistribution(grouping)
     }
     new BatchExecPythonGroupWindowAggregate(
+      ShortcutUtils.unwrapConfig(this),
       grouping,
       grouping ++ auxGrouping,
       aggCalls.toArray,

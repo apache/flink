@@ -22,9 +22,10 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.cost.FlinkCost._
 import org.apache.flink.table.planner.plan.cost.FlinkCostFactory
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLimit
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.fetchToString
 import org.apache.flink.table.planner.plan.utils.SortUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel._
@@ -81,6 +82,7 @@ class BatchPhysicalLimit(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecLimit(
+        ShortcutUtils.unwrapConfig(this),
         limitStart,
         limitEnd,
         isGlobal,

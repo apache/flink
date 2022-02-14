@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecOverAggrega
 import org.apache.flink.table.planner.plan.nodes.exec.spec.{OverSpec, PartitionSpec}
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel._
@@ -71,6 +72,7 @@ class BatchPhysicalOverAggregate(
       InputProperty.hashDistribution(partitionKeyIndices)
     }
     new BatchExecOverAggregate(
+      ShortcutUtils.unwrapConfig(this),
       new OverSpec(
         new PartitionSpec(partitionKeyIndices),
         offsetAndInsensitiveSensitiveGroups.map(OverAggregateUtil.createGroupSpec(_, logicWindow)),

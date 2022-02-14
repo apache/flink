@@ -21,8 +21,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrate
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -83,6 +84,7 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
     private final WindowingStrategy rightWindowing;
 
     public StreamExecWindowJoin(
+            ReadableConfig plannerConfig,
             JoinSpec joinSpec,
             WindowingStrategy leftWindowing,
             WindowingStrategy rightWindowing,
@@ -93,6 +95,7 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecWindowJoin.class),
+                ExecNodeContext.newPersistedConfig(StreamExecWindowJoin.class, plannerConfig),
                 joinSpec,
                 leftWindowing,
                 rightWindowing,
@@ -105,13 +108,14 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
     public StreamExecWindowJoin(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig config,
             @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
             @JsonProperty(FIELD_NAME_LEFT_WINDOWING) WindowingStrategy leftWindowing,
             @JsonProperty(FIELD_NAME_RIGHT_WINDOWING) WindowingStrategy rightWindowing,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 2);
         this.joinSpec = checkNotNull(joinSpec);
         validate(leftWindowing);
@@ -133,7 +137,8 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         int leftWindowEndIndex = ((WindowAttachedWindowingStrategy) leftWindowing).getWindowEnd();
         int rightWindowEndIndex = ((WindowAttachedWindowingStrategy) rightWindowing).getWindowEnd();
         final ExecEdge leftInputEdge = getInputEdges().get(0);
@@ -154,12 +159,13 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
         final InternalTypeInfo<RowData> leftTypeInfo = InternalTypeInfo.of(leftType);
         final InternalTypeInfo<RowData> rightTypeInfo = InternalTypeInfo.of(rightType);
 
-        final TableConfig tableConfig = planner.getTableConfig();
         GeneratedJoinCondition generatedCondition =
-                JoinUtil.generateConditionFunction(tableConfig, joinSpec, leftType, rightType);
+                JoinUtil.generateConditionFunction(
+                        config.getTableConfig(), joinSpec, leftType, rightType);
 
         ZoneId shiftTimeZone =
-                TimeWindowUtil.getShiftTimeZone(leftWindowing.getTimeAttributeType(), tableConfig);
+                TimeWindowUtil.getShiftTimeZone(
+                        leftWindowing.getTimeAttributeType(), config.getLocalTimeZone());
         WindowJoinOperator operator =
                 WindowJoinOperatorBuilder.builder()
                         .leftSerializer(leftTypeInfo.toRowSerializer())
@@ -178,7 +184,7 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
                         leftTransform,
                         rightTransform,
                         createTransformationMeta(
-                                WINDOW_JOIN_TRANSFORMATION, planner.getTableConfig()),
+                                WINDOW_JOIN_TRANSFORMATION, planner.getConfiguration()),
                         operator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());

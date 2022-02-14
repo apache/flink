@@ -20,8 +20,9 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -79,6 +80,7 @@ class StreamPhysicalPythonGroupAggregate(
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
     new StreamExecPythonGroupAggregate(
+      ShortcutUtils.unwrapConfig(this),
       grouping,
       aggCalls.toArray,
       aggCallNeedRetractions,

@@ -129,7 +129,8 @@ public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule 
         RelNode newInput = RelOptRule.convert(input, requiredTraitSet);
         TableConfig config =
                 cluster.getPlanner().getContext().unwrap(FlinkContext.class).getTableConfig();
-        WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(config, agg.getWindow());
+        WindowEmitStrategy emitStrategy =
+                WindowEmitStrategy.apply(config.getConfiguration(), agg.getWindow());
 
         if (emitStrategy.produceUpdates()) {
             throw new TableException(

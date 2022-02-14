@@ -20,12 +20,14 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
@@ -41,18 +43,24 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
         implements BatchExecNode<RowData> {
 
     public BatchExecTableSourceScan(
-            DynamicTableSourceSpec tableSourceSpec, RowType outputType, String description) {
+            ReadableConfig plannerConfig,
+            DynamicTableSourceSpec tableSourceSpec,
+            RowType outputType,
+            String description) {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecTableSourceScan.class),
+                ExecNodeContext.newPersistedConfig(BatchExecTableSourceScan.class, plannerConfig),
                 tableSourceSpec,
                 outputType,
                 description);
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final Transformation<RowData> transformation = super.translateToPlanInternal(planner);
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
+        final Transformation<RowData> transformation =
+                super.translateToPlanInternal(planner, config);
         // the boundedness has been checked via the runtime provider already, so we can safely
         // declare all legacy transformations as bounded to make the stream graph generator happy
         ExecNodeUtil.makeLegacySourceTransformationsBounded(transformation);

@@ -27,6 +27,7 @@ import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
 import org.apache.flink.table.catalog.{ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import java.util
 
@@ -67,6 +68,7 @@ class StreamPhysicalChangelogNormalize(
   override def translateToExecNode(): ExecNode[_] = {
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     new StreamExecChangelogNormalize(
+      ShortcutUtils.unwrapConfig(this),
       uniqueKeys,
       generateUpdateBefore,
       InputProperty.DEFAULT,

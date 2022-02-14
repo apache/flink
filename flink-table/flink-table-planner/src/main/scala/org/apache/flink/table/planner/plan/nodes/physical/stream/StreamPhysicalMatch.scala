@@ -22,10 +22,11 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.MatchRecognize
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.MatchUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil._
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -97,6 +98,7 @@ class StreamPhysicalMatch(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecMatch(
+      ShortcutUtils.unwrapConfig(this),
       MatchUtil.createMatchSpec(logicalMatch),
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),

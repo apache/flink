@@ -19,9 +19,11 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecValues;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -34,18 +36,25 @@ import java.util.List;
 /** Batch {@link ExecNode} that read records from given values. */
 public class BatchExecValues extends CommonExecValues implements BatchExecNode<RowData> {
 
-    public BatchExecValues(List<List<RexLiteral>> tuples, RowType outputType, String description) {
+    public BatchExecValues(
+            ReadableConfig plannerConfig,
+            List<List<RexLiteral>> tuples,
+            RowType outputType,
+            String description) {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecValues.class),
+                ExecNodeContext.newPersistedConfig(BatchExecValues.class, plannerConfig),
                 tuples,
                 outputType,
                 description);
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final Transformation<RowData> transformation = super.translateToPlanInternal(planner);
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
+        final Transformation<RowData> transformation =
+                super.translateToPlanInternal(planner, config);
         // we know the boundedness here, so we can safely declare all legacy transformations as
         // bounded to make the stream graph generator happy
         ExecNodeUtil.makeLegacySourceTransformationsBounded(transformation);

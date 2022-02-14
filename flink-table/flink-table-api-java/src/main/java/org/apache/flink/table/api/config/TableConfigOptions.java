@@ -38,6 +38,7 @@ import static org.apache.flink.configuration.description.TextElement.text;
  */
 @PublicEvolving
 public class TableConfigOptions {
+
     private TableConfigOptions() {}
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)

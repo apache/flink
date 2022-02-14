@@ -22,15 +22,13 @@ import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext
-import org.apache.flink.table.api.{TableConfig, TableSchema}
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier, UnresolvedIdentifier}
 import org.apache.flink.table.data.{GenericRowData, TimestampData}
-import org.apache.flink.table.delegation.Parser
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory, SqlExprToRexConverter, SqlExprToRexConverterFactory}
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
-import org.apache.flink.table.planner.delegation.{ParserImpl, PlannerContext}
-import org.apache.flink.table.planner.parse.CalciteParser
+import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
 import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
@@ -38,17 +36,15 @@ import org.apache.flink.table.utils.CatalogManagerMocks
 
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.ConventionTraitDef
-import org.apache.calcite.rel.`type`.RelDataType
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.util
 import java.util.Collections
-import java.util.function.{Function => JFunction, Supplier => JSupplier}
 
 import org.junit.Assert.{assertEquals, assertTrue}
+import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.Test
 
 /**
   * Tests the generated [[WatermarkGenerator]] from [[WatermarkGeneratorCodeGenerator]].

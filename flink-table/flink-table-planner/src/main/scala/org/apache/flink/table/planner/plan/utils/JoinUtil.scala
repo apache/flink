@@ -29,15 +29,15 @@ import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.satisfyTempora
 import org.apache.flink.table.planner.plan.utils.WindowJoinUtil.satisfyWindowJoin
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition
 import org.apache.flink.table.runtime.operators.join.stream.state.JoinInputSideSpec
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.logical.{LogicalType, RowType}
 
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.rel.core.{Join, JoinInfo, JoinRelType}
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexUtil}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField}
+import org.apache.calcite.rel.core.{Join, JoinInfo, JoinRelType}
+import org.apache.calcite.rex.{RexCall, RexInputRef, RexNode, RexUtil}
 import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.util.ImmutableIntList
 

@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, ExprCodeGenerator, GenerateUtils}
 import org.apache.flink.table.runtime.generated.{GeneratedRecordComparator, RecordComparator}
-import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType, LogicalTypeRoot, RowType}
+import org.apache.flink.table.types.logical._
 
 import org.apache.calcite.avatica.util.DateTimeUtils
 import org.apache.calcite.rex.{RexInputRef, RexWindowBound}

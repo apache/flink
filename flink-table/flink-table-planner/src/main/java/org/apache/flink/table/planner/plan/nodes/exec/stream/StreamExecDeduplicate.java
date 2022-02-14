@@ -21,10 +21,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -105,6 +106,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
     private final boolean generateUpdateBefore;
 
     public StreamExecDeduplicate(
+            ReadableConfig plannerConfig,
             int[] uniqueKeys,
             boolean isRowtime,
             boolean keepLastRow,
@@ -115,6 +117,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecDeduplicate.class),
+                ExecNodeContext.newPersistedConfig(StreamExecDeduplicate.class, plannerConfig),
                 uniqueKeys,
                 isRowtime,
                 keepLastRow,
@@ -128,6 +131,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
     public StreamExecDeduplicate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig config,
             @JsonProperty(FIELD_NAME_UNIQUE_KEYS) int[] uniqueKeys,
             @JsonProperty(FIELD_NAME_IS_ROWTIME) boolean isRowtime,
             @JsonProperty(FIELD_NAME_KEEP_LAST_ROW) boolean keepLastRow,
@@ -135,7 +139,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.uniqueKeys = checkNotNull(uniqueKeys);
         this.isRowtime = isRowtime;
@@ -145,7 +149,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -160,7 +165,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         if (isRowtime) {
             operator =
                     new RowtimeDeduplicateOperatorTranslator(
-                                    planner.getTableConfig(),
+                                    config,
                                     rowTypeInfo,
                                     rowSerializer,
                                     inputRowType,
@@ -170,7 +175,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         } else {
             operator =
                     new ProcTimeDeduplicateOperatorTranslator(
-                                    planner.getTableConfig(),
+                                    config,
                                     rowTypeInfo,
                                     rowSerializer,
                                     inputRowType,
@@ -182,8 +187,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        createTransformationMeta(
-                                DEDUPLICATE_TRANSFORMATION, planner.getTableConfig()),
+                        createTransformationMeta(DEDUPLICATE_TRANSFORMATION, config),
                         operator,
                         rowTypeInfo,
                         inputTransform.getParallelism());
@@ -198,19 +202,19 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
 
     /** Base translator to create deduplicate operator. */
     private abstract static class DeduplicateOperatorTranslator {
-        private final TableConfig tableConfig;
+        private final ReadableConfig config;
         protected final InternalTypeInfo<RowData> rowTypeInfo;
         protected final TypeSerializer<RowData> typeSerializer;
         protected final boolean keepLastRow;
         protected final boolean generateUpdateBefore;
 
         protected DeduplicateOperatorTranslator(
-                TableConfig tableConfig,
+                ReadableConfig config,
                 InternalTypeInfo<RowData> rowTypeInfo,
                 TypeSerializer<RowData> typeSerializer,
                 boolean keepLastRow,
                 boolean generateUpdateBefore) {
-            this.tableConfig = tableConfig;
+            this.config = config;
             this.rowTypeInfo = rowTypeInfo;
             this.typeSerializer = typeSerializer;
             this.keepLastRow = keepLastRow;
@@ -218,33 +222,24 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         }
 
         protected boolean generateInsert() {
-            return tableConfig
-                    .getConfiguration()
-                    .getBoolean(TABLE_EXEC_DEDUPLICATE_INSERT_UPDATE_AFTER_SENSITIVE_ENABLED);
+            return config.get(TABLE_EXEC_DEDUPLICATE_INSERT_UPDATE_AFTER_SENSITIVE_ENABLED);
         }
 
         protected boolean isMiniBatchEnabled() {
-            return tableConfig
-                    .getConfiguration()
-                    .getBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
+            return config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
         }
 
         protected boolean isCompactChanges() {
-            return tableConfig
-                    .getConfiguration()
-                    .getBoolean(TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED);
+            return config.get(TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED);
         }
 
         protected long getMinRetentionTime() {
-            return tableConfig.getMinIdleStateRetentionTime();
+            return config.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis();
         }
 
         protected long getMiniBatchSize() {
             if (isMiniBatchEnabled()) {
-                long size =
-                        tableConfig
-                                .getConfiguration()
-                                .getLong(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE);
+                long size = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE);
                 checkArgument(
                         size > 0,
                         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE.key()
@@ -265,13 +260,13 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         private final RowType inputRowType;
 
         protected RowtimeDeduplicateOperatorTranslator(
-                TableConfig tableConfig,
+                ReadableConfig config,
                 InternalTypeInfo<RowData> rowTypeInfo,
                 TypeSerializer<RowData> typeSerializer,
                 RowType inputRowType,
                 boolean keepLastRow,
                 boolean generateUpdateBefore) {
-            super(tableConfig, rowTypeInfo, typeSerializer, keepLastRow, generateUpdateBefore);
+            super(config, rowTypeInfo, typeSerializer, keepLastRow, generateUpdateBefore);
             this.inputRowType = inputRowType;
         }
 
@@ -330,13 +325,13 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         private final GeneratedRecordEqualiser generatedEqualiser;
 
         protected ProcTimeDeduplicateOperatorTranslator(
-                TableConfig tableConfig,
+                ReadableConfig config,
                 InternalTypeInfo<RowData> rowTypeInfo,
                 TypeSerializer<RowData> typeSerializer,
                 RowType inputRowType,
                 boolean keepLastRow,
                 boolean generateUpdateBefore) {
-            super(tableConfig, rowTypeInfo, typeSerializer, keepLastRow, generateUpdateBefore);
+            super(config, rowTypeInfo, typeSerializer, keepLastRow, generateUpdateBefore);
             generatedEqualiser =
                     new EqualiserCodeGenerator(inputRowType)
                             .generateRecordEqualiser("DeduplicateRowEqualiser");

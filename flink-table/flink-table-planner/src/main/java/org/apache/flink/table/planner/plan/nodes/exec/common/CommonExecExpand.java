@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.common;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ExpandCodeGenerator;
@@ -26,6 +27,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -59,12 +61,13 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
     public CommonExecExpand(
             int id,
             ExecNodeContext context,
+            ReadableConfig config,
             List<List<RexNode>> projects,
             boolean retainHeader,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.projects = checkNotNull(projects);
         checkArgument(
@@ -76,14 +79,15 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
         final CodeGenOperatorFactory<RowData> operatorFactory =
                 ExpandCodeGenerator.generateExpandOperator(
-                        new CodeGeneratorContext(planner.getTableConfig()),
+                        new CodeGeneratorContext(config.getTableConfig()),
                         (RowType) inputEdge.getOutputType(),
                         (RowType) getOutputType(),
                         projects,
@@ -92,7 +96,7 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationMeta(EXPAND_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(EXPAND_TRANSFORMATION, config),
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.plan.logical._
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, WindowEmitStrategy}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -75,6 +76,7 @@ class StreamPhysicalGroupWindowTableAggregate(
   override def translateToExecNode(): ExecNode[_] = {
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
     new StreamExecGroupWindowAggregate(
+      ShortcutUtils.unwrapConfig(this),
       grouping,
       aggCalls.toArray,
       window,

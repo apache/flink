@@ -72,6 +72,10 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-rank_1",
+    "configuration" : {
+      "table.exec.rank.topn-cache-size" : "10000",
+      "table.exec.state.ttl" : "0 ms"
+    },
     "rankType" : "ROW_NUMBER",
     "partition" : {
       "fields" : [ 1 ]
@@ -126,6 +130,13 @@
   }, {
     "id" : 6,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO",
+      "table.exec.state.ttl" : "0 ms"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",

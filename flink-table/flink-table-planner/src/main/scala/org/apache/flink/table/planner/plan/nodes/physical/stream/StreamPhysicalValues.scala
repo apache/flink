@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecValues
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan._
@@ -52,6 +53,7 @@ class StreamPhysicalValues(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecValues(
+      ShortcutUtils.unwrapConfig(this),
       tuples.asList().map(_.asList()),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription

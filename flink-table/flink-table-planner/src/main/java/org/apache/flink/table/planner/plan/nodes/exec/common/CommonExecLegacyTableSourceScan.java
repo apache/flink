@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableException;
@@ -30,6 +31,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
@@ -70,18 +72,20 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
     public CommonExecLegacyTableSourceScan(
             int id,
             ExecNodeContext context,
+            ReadableConfig config,
             TableSource<?> tableSource,
             List<String> qualifiedName,
             RowType outputType,
             String description) {
-        super(id, context, Collections.emptyList(), outputType, description);
+        super(id, context, config, Collections.emptyList(), outputType, description);
         this.tableSource = tableSource;
         this.qualifiedName = qualifiedName;
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final Transformation<?> sourceTransform;
         final StreamExecutionEnvironment env = planner.getExecEnv();
         if (tableSource instanceof InputFormatTableSource) {
@@ -131,7 +135,7 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
                                                 getNameRemapping()));
 
         return createConversionTransformationIfNeeded(
-                planner, sourceTransform, rowtimeExpression.orElse(null));
+                planner, config, sourceTransform, rowtimeExpression.orElse(null));
     }
 
     protected abstract <IN> Transformation<IN> createInput(
@@ -141,6 +145,7 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
 
     protected abstract Transformation<RowData> createConversionTransformationIfNeeded(
             PlannerBase planner,
+            ExecNodeConfiguration config,
             Transformation<?> sourceTransform,
             @Nullable RexNode rowtimeExpression);
 

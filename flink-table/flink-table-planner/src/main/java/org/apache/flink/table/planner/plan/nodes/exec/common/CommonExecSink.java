@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.common;
 import org.apache.flink.api.common.io.OutputFormat;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
@@ -33,7 +33,6 @@ import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.runtime.partitioner.KeyGroupStreamPartitioner;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -50,7 +49,6 @@ import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.connectors.TransformationSinkProvider;
-import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -111,13 +109,14 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
     protected CommonExecSink(
             int id,
             ExecNodeContext context,
+            ReadableConfig config,
             DynamicTableSinkSpec tableSinkSpec,
             ChangelogMode inputChangelogMode,
             boolean isBounded,
             List<InputProperty> inputProperties,
             LogicalType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         this.tableSinkSpec = tableSinkSpec;
         this.inputChangelogMode = inputChangelogMode;
         this.isBounded = isBounded;
@@ -134,7 +133,8 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
     @SuppressWarnings("unchecked")
     protected Transformation<Object> createSinkTransformation(
-            PlannerBase planner,
+            StreamExecutionEnvironment streamExecEnv,
+            ReadableConfig config,
             Transformation<RowData> inputTransform,
             DynamicTableSink tableSink,
             int rowtimeFieldIndex,
@@ -168,13 +168,12 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final boolean needMaterialization = !inputInsertOnly && upsertMaterialize;
 
         Transformation<RowData> sinkTransform =
-                applyConstraintValidations(
-                        inputTransform, planner.getTableConfig(), physicalRowType);
+                applyConstraintValidations(inputTransform, config, physicalRowType);
 
         if (hasPk) {
             sinkTransform =
                     applyKeyBy(
-                            planner.getTableConfig(),
+                            config,
                             sinkTransform,
                             primaryKeys,
                             sinkParallelism,
@@ -186,28 +185,26 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         if (needMaterialization) {
             sinkTransform =
                     applyUpsertMaterialize(
-                            sinkTransform,
-                            primaryKeys,
-                            sinkParallelism,
-                            planner.getTableConfig(),
-                            physicalRowType);
+                            sinkTransform, primaryKeys, sinkParallelism, config, physicalRowType);
         }
 
         return (Transformation<Object>)
                 applySinkProvider(
                         sinkTransform,
-                        planner.getExecEnv(),
+                        streamExecEnv,
                         runtimeProvider,
                         rowtimeFieldIndex,
                         sinkParallelism,
-                        planner.getTableConfig().getConfiguration());
+                        config);
     }
 
     /**
      * Apply an operator to filter or report error to process not-null values for not-null fields.
      */
     private Transformation<RowData> applyConstraintValidations(
-            Transformation<RowData> inputTransform, TableConfig config, RowType physicalRowType) {
+            Transformation<RowData> inputTransform,
+            ReadableConfig config,
+            RowType physicalRowType) {
         final ConstraintEnforcer.Builder validatorBuilder = ConstraintEnforcer.newBuilder();
         final String[] fieldNames = physicalRowType.getFieldNames().toArray(new String[0]);
 
@@ -215,8 +212,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final int[] notNullFieldIndices = getNotNullFieldIndices(physicalRowType);
         if (notNullFieldIndices.length > 0) {
             final ExecutionConfigOptions.NotNullEnforcer notNullEnforcer =
-                    config.getConfiguration()
-                            .get(ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER);
+                    config.get(ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER);
             final List<String> notNullFieldNames =
                     Arrays.stream(notNullFieldIndices)
                             .mapToObj(idx -> fieldNames[idx])
@@ -227,8 +223,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         }
 
         final ExecutionConfigOptions.TypeLengthEnforcer typeLengthEnforcer =
-                config.getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER);
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER);
 
         // Build CHAR/VARCHAR length enforcer
         final List<ConstraintEnforcer.FieldInfo> charFieldInfo =
@@ -260,19 +255,17 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         if (constraintEnforcer != null) {
             final String operatorDesc =
                     createFormattedTransformationDescription(
-                            constraintEnforcer.getOperatorName(), config.getConfiguration());
+                            constraintEnforcer.getOperatorName(), config);
             final String operatorName =
                     createFormattedTransformationName(
-                            constraintEnforcer.getOperatorName(),
-                            "ConstraintEnforcer",
-                            config.getConfiguration());
+                            constraintEnforcer.getOperatorName(), "ConstraintEnforcer", config);
             return ExecNodeUtil.createOneInputTransformation(
                     inputTransform,
                     createTransformationMeta(
                             CONSTRAINT_VALIDATOR_TRANSFORMATION,
                             constraintEnforcer.getOperatorName(),
                             "ConstraintEnforcer",
-                            config.getConfiguration()),
+                            config),
                     constraintEnforcer,
                     getInputTypeInfo(),
                     inputTransform.getParallelism());
@@ -361,7 +354,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
      * messages.
      */
     private Transformation<RowData> applyKeyBy(
-            TableConfig config,
+            ReadableConfig config,
             Transformation<RowData> inputTransform,
             int[] primaryKeys,
             int sinkParallelism,
@@ -369,7 +362,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             boolean inputInsertOnly,
             boolean needMaterialize) {
         final ExecutionConfigOptions.SinkKeyedShuffle sinkShuffleByPk =
-                config.getConfiguration().get(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE);
+                config.get(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE);
         boolean sinkKeyBy = false;
         switch (sinkShuffleByPk) {
             case NONE:
@@ -393,11 +386,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                         selector, KeyGroupRangeAssignment.DEFAULT_LOWER_BOUND_MAX_PARALLELISM);
         Transformation<RowData> partitionedTransform =
                 new PartitionTransformation<>(inputTransform, partitioner);
-        createTransformationMeta(
-                        PARTITIONER_TRANSFORMATION,
-                        "Partitioner",
-                        "Partitioner",
-                        config.getConfiguration())
+        createTransformationMeta(PARTITIONER_TRANSFORMATION, "Partitioner", "Partitioner", config)
                 .fill(partitionedTransform);
         partitionedTransform.setParallelism(sinkParallelism);
         return partitionedTransform;
@@ -407,7 +396,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             Transformation<RowData> inputTransform,
             int[] primaryKeys,
             int sinkParallelism,
-            TableConfig tableConfig,
+            ReadableConfig config,
             RowType physicalRowType) {
         GeneratedRecordEqualiser equaliser =
                 new EqualiserCodeGenerator(physicalRowType)
@@ -415,7 +404,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         SinkUpsertMaterializer operator =
                 new SinkUpsertMaterializer(
                         StateConfigUtil.createTtlConfig(
-                                tableConfig.getIdleStateRetention().toMillis()),
+                                config.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis()),
                         InternalSerializers.create(physicalRowType),
                         equaliser);
         final String[] fieldNames = physicalRowType.getFieldNames().toArray(new String[0]);
@@ -426,10 +415,9 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         final String operatorDesc =
                 createFormattedTransformationDescription(
                         String.format("SinkMaterializer(pk=[%s])", String.join(", ", pkFieldNames)),
-                        tableConfig.getConfiguration());
+                        config);
         final String operatorName =
-                createFormattedTransformationName(
-                        operatorDesc, "SinkMaterializer", tableConfig.getConfiguration());
+                createFormattedTransformationName(operatorDesc, "SinkMaterializer", config);
         OneInputTransformation<RowData, RowData> materializeTransform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
@@ -439,7 +427,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                                         "SinkMaterializer(pk=[%s])",
                                         String.join(", ", pkFieldNames)),
                                 "SinkMaterializer",
-                                tableConfig.getConfiguration()),
+                                config),
                         operator,
                         inputTransform.getOutputType(),
                         sinkParallelism);
@@ -457,7 +445,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             SinkRuntimeProvider runtimeProvider,
             int rowtimeFieldIndex,
             int sinkParallelism,
-            Configuration config) {
+            ReadableConfig config) {
         TransformationMetadata sinkMeta = createTransformationMeta(SINK_TRANSFORMATION, config);
         if (runtimeProvider instanceof DataStreamSinkProvider) {
             Transformation<RowData> sinkTransformation =
@@ -574,7 +562,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             Transformation<RowData> inputTransform,
             int rowtimeFieldIndex,
             int sinkParallelism,
-            Configuration config) {
+            ReadableConfig config) {
         // Don't apply the transformation/operator if there is no rowtimeFieldIndex
         if (rowtimeFieldIndex == -1) {
             return inputTransform;

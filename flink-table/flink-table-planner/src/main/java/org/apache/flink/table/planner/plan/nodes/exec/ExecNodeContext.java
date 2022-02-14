@@ -20,7 +20,12 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -30,9 +35,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DatabindC
 
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -81,10 +90,11 @@ public final class ExecNodeContext {
      * @param id The unique id of the {@link ExecNode}. See {@link ExecNode#getId()}. It can be null
      *     initially and then later set by using {@link #withId(int)} which creates a new instance
      *     of {@link ExecNodeContext} since it's immutable. This way we can satisfy both the {@link
-     *     ExecNodeBase#ExecNodeBase(int, ExecNodeContext, List, LogicalType, String)} ctor, which
-     *     is used for the {@link JsonCreator} ctors, where the {@code id} and the {@code context}
-     *     are read separately, and the {@link ExecNodeBase#getContextFromAnnotation()} which
-     *     creates a new context with a new id provided by: {@link #newNodeId()}.
+     *     ExecNodeBase#ExecNodeBase(int, ExecNodeContext, ReadableConfig, List, LogicalType,
+     *     String)} ctor, which is used for the {@link JsonCreator} ctors, where the {@code id} and
+     *     the {@code context} are read separately, and the {@link
+     *     ExecNodeBase#getContextFromAnnotation()} which creates a new context with a new id
+     *     provided by: {@link #newNodeId()}.
      * @param name The name of the {@link ExecNode}. See {@link ExecNodeMetadata#name()}.
      * @param version The version of the {@link ExecNode}. See {@link ExecNodeMetadata#version()}.
      */
@@ -175,5 +185,38 @@ public final class ExecNodeContext {
                             ExecNodeMetadata.class.getSimpleName()));
         }
         return new ExecNodeContext(metadata.name(), metadata.version());
+    }
+
+    public static <T extends ExecNode<?>> ReadableConfig newPersistedConfig(
+            Class<T> execNodeClass, ReadableConfig plannerConfig) {
+        Map<String, ConfigOption<Object>> configOptions =
+                Stream.concat(
+                                ExecNodeMetadataUtil.TABLE_CONFIG_OPTIONS.stream(),
+                                ExecNodeMetadataUtil.EXECUTION_CONFIG_OPTIONS.stream())
+                        .collect(Collectors.toMap(ConfigOption::key, o -> o));
+
+        Configuration nodeConfiguration = new Configuration();
+        String[] consumedOptions = ExecNodeMetadataUtil.consumedOptions(execNodeClass);
+        if (consumedOptions == null) {
+            return nodeConfiguration;
+        }
+
+        for (String consumedOption : consumedOptions) {
+            ConfigOption<Object> configOption = configOptions.get(consumedOption);
+            if (configOption == null) {
+                throw new IllegalStateException(
+                        String.format(
+                                "ExecNode: %s, consumedOption: %s not listed in [%s].",
+                                execNodeClass.getCanonicalName(),
+                                consumedOption,
+                                String.join(
+                                        ",",
+                                        Arrays.asList(
+                                                TableConfigOptions.class.getSimpleName(),
+                                                ExecutionConfigOptions.class.getSimpleName()))));
+            }
+            nodeConfiguration.set(configOption, plannerConfig.get(configOption));
+        }
+        return nodeConfiguration;
     }
 }

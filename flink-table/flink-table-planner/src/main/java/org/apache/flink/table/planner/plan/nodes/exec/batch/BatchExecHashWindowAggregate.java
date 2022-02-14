@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -67,6 +68,7 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
     private final boolean isFinal;
 
     public BatchExecHashWindowAggregate(
+            ReadableConfig plannerConfig,
             int[] grouping,
             int[] auxGrouping,
             AggregateCall[] aggCalls,
@@ -84,6 +86,8 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecHashWindowAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        BatchExecHashWindowAggregate.class, plannerConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -102,7 +106,8 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -113,11 +118,10 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         null, // aggCallNeedRetractions
                         null); // orderKeyIndexes
-        final TableConfig tableConfig = planner.getTableConfig();
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final HashWindowCodeGenerator hashWindowCodeGenerator =
                 new HashWindowCodeGenerator(
-                        new CodeGeneratorContext(tableConfig),
+                        new CodeGeneratorContext(config.getTableConfig()),
                         planner.getRelBuilder(),
                         window,
                         inputTimeFieldIndex,
@@ -131,9 +135,7 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
                         isMerge,
                         isFinal);
         final int groupBufferLimitSize =
-                tableConfig
-                        .getConfiguration()
-                        .getInteger(ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT);
+                config.get(ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT);
         final Tuple2<Long, Long> windowSizeAndSlideSize = WindowCodeGenerator.getWindowDef(window);
         final GeneratedOperator<OneInputStreamOperator<RowData, RowData>> generatedOperator =
                 hashWindowCodeGenerator.gen(
@@ -145,14 +147,11 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
                         windowSizeAndSlideSize.f1);
 
         final long managedMemory =
-                tableConfig
-                        .getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY)
-                        .getBytes();
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_HASH_AGG_MEMORY).getBytes();
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationName(tableConfig),
-                createTransformationDescription(tableConfig),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),

@@ -19,9 +19,10 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCorrelate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -65,6 +66,7 @@ class StreamPhysicalCorrelate(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecCorrelate(
+      ShortcutUtils.unwrapConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       scan.getCall.asInstanceOf[RexCall],
       condition.orNull,

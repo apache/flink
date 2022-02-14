@@ -20,10 +20,14 @@ package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -37,6 +41,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.assertj.core.api.Condition;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
@@ -103,6 +108,20 @@ public class ExecNodeMetadataUtilTest {
                         new Condition<>(
                                 m -> m.minPlanVersion() == FlinkVersion.v1_15, "minStateVersion"));
 
+        ReadableConfig config =
+                new Configuration()
+                        .set(ExecutionConfigOptions.IDLE_STATE_RETENTION, Duration.ofSeconds(60))
+                        .set(
+                                ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER,
+                                ExecutionConfigOptions.NotNullEnforcer.DROP);
+
+        ReadableConfig persistedConfig =
+                ExecNodeContext.newPersistedConfig(DummyNode.class, config);
+        assertThat(persistedConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION))
+                .isEqualTo(Duration.ofSeconds(60));
+        assertThat(persistedConfig.get(ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER))
+                .isEqualTo(ExecutionConfigOptions.NotNullEnforcer.DROP);
+
         // Using multiple individual ExecNodeMetadata annotations
         ExecNodeMetadataUtil.addTestNode(DummyNodeMultipleAnnotations.class);
         assertThat(ExecNodeMetadataUtil.retrieveExecNode("dummy-node-multiple-annotations", 1))
@@ -119,6 +138,16 @@ public class ExecNodeMetadataUtilTest {
                 .has(
                         new Condition<>(
                                 m -> m.minPlanVersion() == FlinkVersion.v1_15, "minStateVersion"));
+
+        assertThatThrownBy(
+                        () ->
+                                ExecNodeContext.newPersistedConfig(
+                                        DummyNodeMultipleAnnotations.class, config))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessage(
+                        "ExecNode: org.apache.flink.table.planner.plan.utils."
+                                + "ExecNodeMetadataUtilTest.DummyNodeMultipleAnnotations, consumedOption: "
+                                + "option111 not listed in [TableConfigOptions,ExecutionConfigOptions].");
     }
 
     @Test
@@ -177,16 +206,19 @@ public class ExecNodeMetadataUtilTest {
         @ExecNodeMetadata(
                 name = "dummy-node",
                 version = 1,
+                consumedOptions = {"option1", "option2"},
                 minPlanVersion = FlinkVersion.v1_13,
                 minStateVersion = FlinkVersion.v1_13),
         @ExecNodeMetadata(
                 name = "dummy-node",
                 version = 2,
+                consumedOptions = {"option11", "option22"},
                 minPlanVersion = FlinkVersion.v1_14,
                 minStateVersion = FlinkVersion.v1_14),
         @ExecNodeMetadata(
                 name = "dummy-node",
                 version = 3,
+                consumedOptions = {"table.exec.state.ttl", "table.exec.sink.not-null-enforcer"},
                 minPlanVersion = FlinkVersion.v1_15,
                 minStateVersion = FlinkVersion.v1_15)
     })
@@ -195,14 +227,16 @@ public class ExecNodeMetadataUtilTest {
         @JsonCreator
         protected DummyNode(
                 ExecNodeContext context,
+                ReadableConfig config,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, properties, outputType, description);
+            super(10, context, config, properties, outputType, description);
         }
 
         @Override
-        protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        protected Transformation<RowData> translateToPlanInternal(
+                PlannerBase planner, ExecNodeConfiguration config) {
             return null;
         }
     }
@@ -210,16 +244,19 @@ public class ExecNodeMetadataUtilTest {
     @ExecNodeMetadata(
             name = "dummy-node-multiple-annotations",
             version = 1,
+            consumedOptions = {"option1", "option2"},
             minPlanVersion = FlinkVersion.v1_13,
             minStateVersion = FlinkVersion.v1_13)
     @ExecNodeMetadata(
             name = "dummy-node-multiple-annotations",
             version = 2,
+            consumedOptions = {"option11", "option22"},
             minPlanVersion = FlinkVersion.v1_14,
             minStateVersion = FlinkVersion.v1_14)
     @ExecNodeMetadata(
             name = "dummy-node-multiple-annotations",
             version = 3,
+            consumedOptions = {"option111", "option222"},
             minPlanVersion = FlinkVersion.v1_15,
             minStateVersion = FlinkVersion.v1_15)
     private static class DummyNodeMultipleAnnotations extends ExecNodeBase<RowData> {
@@ -227,14 +264,16 @@ public class ExecNodeMetadataUtilTest {
         @JsonCreator
         protected DummyNodeMultipleAnnotations(
                 ExecNodeContext context,
+                ReadableConfig config,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, properties, outputType, description);
+            super(10, context, config, properties, outputType, description);
         }
 
         @Override
-        protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        protected Transformation<RowData> translateToPlanInternal(
+                PlannerBase planner, ExecNodeConfiguration config) {
             return null;
         }
     }
@@ -243,14 +282,16 @@ public class ExecNodeMetadataUtilTest {
 
         protected DummyNodeNoJsonCreator(
                 ExecNodeContext context,
+                ReadableConfig config,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, properties, outputType, description);
+            super(10, context, config, properties, outputType, description);
         }
 
         @Override
-        protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        protected Transformation<RowData> translateToPlanInternal(
+                PlannerBase planner, ExecNodeConfiguration config) {
             return null;
         }
     }
@@ -261,14 +302,16 @@ public class ExecNodeMetadataUtilTest {
         @JsonCreator
         protected DummyNodeNoAnnotation(
                 ExecNodeContext context,
+                ReadableConfig config,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, properties, outputType, description);
+            super(10, context, config, properties, outputType, description);
         }
 
         @Override
-        protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        protected Transformation<RowData> translateToPlanInternal(
+                PlannerBase planner, ExecNodeConfiguration config) {
             return null;
         }
     }
@@ -295,14 +338,16 @@ public class ExecNodeMetadataUtilTest {
         @JsonCreator
         protected DummyNodeBothAnnotations(
                 ExecNodeContext context,
+                ReadableConfig config,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, properties, outputType, description);
+            super(10, context, config, properties, outputType, description);
         }
 
         @Override
-        protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        protected Transformation<RowData> translateToPlanInternal(
+                PlannerBase planner, ExecNodeConfiguration config) {
             return null;
         }
     }

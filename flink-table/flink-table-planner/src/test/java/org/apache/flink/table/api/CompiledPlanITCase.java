@@ -19,6 +19,7 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableResultInternal;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
@@ -36,6 +37,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.Expressions.$;
@@ -316,6 +319,46 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
         String expected = TableTestUtil.readFromResource("/explain/testExplainJsonPlan.out");
         assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
                 .isEqualTo(expected);
+    }
+
+    @Test
+    public void testPersistedConfigOption() throws Exception {
+        Path planPath = Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json");
+        FileUtils.createParentDirectories(planPath.toFile());
+
+        List<String> data =
+                Stream.concat(
+                                DATA.stream(),
+                                Stream.of(
+                                        "4,2,This string is long",
+                                        "5,3,This is an even longer string"))
+                        .collect(Collectors.toList());
+        String[] sinkColumnDefinitions = new String[] {"a bigint", "b int", "c varchar(11)"};
+
+        createTestCsvSourceTable("src", data, COLUMNS_DEFINITION);
+        File sinkPath = createTestCsvSinkTable("sink", sinkColumnDefinitions);
+
+        // Set config option to trim the strings, so it's persisted in the json plan
+        tableEnv.getConfig()
+                .getConfiguration()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER,
+                        ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD);
+        CompiledPlan plan = tableEnv.compilePlanSql("insert into sink select * from src");
+        plan.writeToFile(planPath);
+        // Set config option to trim the strings to IGNORE, to validate that the persisted config
+        // is overriding the environment setting.
+        tableEnv.getConfig()
+                .getConfiguration()
+                .set(
+                        ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER,
+                        ExecutionConfigOptions.TypeLengthEnforcer.IGNORE);
+
+        tableEnv.executeSql(String.format("EXECUTE PLAN '%s'", planPath.toAbsolutePath())).await();
+        List<String> expected =
+                Stream.concat(DATA.stream(), Stream.of("4,2,This string", "5,3,This is an "))
+                        .collect(Collectors.toList());
+        assertResult(expected, sinkPath);
     }
 
     @Test

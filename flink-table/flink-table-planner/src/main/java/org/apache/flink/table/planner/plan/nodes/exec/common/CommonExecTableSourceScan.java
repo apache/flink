@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -40,6 +41,7 @@ import org.apache.flink.table.planner.connectors.TransformationScanProvider;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
@@ -71,10 +73,11 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     protected CommonExecTableSourceScan(
             int id,
             ExecNodeContext context,
+            ReadableConfig config,
             DynamicTableSourceSpec tableSourceSpec,
             LogicalType outputType,
             String description) {
-        super(id, context, Collections.emptyList(), outputType, description);
+        super(id, context, config, Collections.emptyList(), outputType, description);
         this.tableSourceSpec = tableSourceSpec;
     }
 
@@ -88,10 +91,10 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         final StreamExecutionEnvironment env = planner.getExecEnv();
-        final TransformationMetadata meta =
-                createTransformationMeta(SOURCE_TRANSFORMATION, planner.getTableConfig());
+        final TransformationMetadata meta = createTransformationMeta(SOURCE_TRANSFORMATION, config);
         final InternalTypeInfo<RowData> outputTypeInfo =
                 InternalTypeInfo.of((RowType) getOutputType());
         final ScanTableSource tableSource =

@@ -21,10 +21,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -73,6 +74,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
     private final boolean needRetraction;
 
     public StreamExecPythonGroupTableAggregate(
+            ReadableConfig plannerConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             boolean[] aggCallNeedRetractions,
@@ -84,6 +86,8 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecPythonGroupTableAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecPythonGroupTableAggregate.class, plannerConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -96,10 +100,9 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        TableConfig tableConfig = planner.getTableConfig();
-
-        if (grouping.length > 0 && tableConfig.getMinIdleStateRetentionTime() < 0) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
+        if (grouping.length > 0 && config.getIdleStateRetentionTime() < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval "
@@ -124,16 +127,17 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
                 CommonPythonUtil.extractPythonAggregateFunctionInfos(aggInfoList, aggCalls);
         PythonAggregateFunctionInfo[] pythonFunctionInfos = aggInfosAndDataViewSpecs.f0;
         DataViewSpec[][] dataViewSpecs = aggInfosAndDataViewSpecs.f1;
-        Configuration config = CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
+        Configuration mergedConfig =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonTableAggregateFunctionOperator(
-                        config,
+                        mergedConfig,
                         inputRowType,
                         InternalTypeInfo.of(getOutputType()).toRowType(),
                         pythonFunctionInfos,
                         dataViewSpecs,
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
+                        config.getIdleStateRetentionTime(),
+                        config.getMaxIdleStateRetentionTime(),
                         generateUpdateBefore,
                         inputCountIndex);
 
@@ -146,7 +150,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
 
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(mergedConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
 
@@ -160,7 +164,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonTableAggregateFunctionOperator(
-            Configuration config,
+            ReadableConfig config,
             RowType inputRowType,
             RowType outputRowType,
             PythonAggregateFunctionInfo[] aggregateFunctions,

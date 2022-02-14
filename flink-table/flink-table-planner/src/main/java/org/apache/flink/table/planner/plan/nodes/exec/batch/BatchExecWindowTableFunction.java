@@ -19,11 +19,13 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecWindowTableFunction;
@@ -36,6 +38,7 @@ public class BatchExecWindowTableFunction extends CommonExecWindowTableFunction
         implements BatchExecNode<RowData> {
 
     public BatchExecWindowTableFunction(
+            ReadableConfig plannerConfig,
             TimeAttributeWindowingStrategy windowingStrategy,
             InputProperty inputProperty,
             RowType outputType,
@@ -43,6 +46,8 @@ public class BatchExecWindowTableFunction extends CommonExecWindowTableFunction
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecWindowTableFunction.class),
+                ExecNodeContext.newPersistedConfig(
+                        BatchExecWindowTableFunction.class, plannerConfig),
                 windowingStrategy,
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -50,10 +55,11 @@ public class BatchExecWindowTableFunction extends CommonExecWindowTableFunction
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         if (windowingStrategy.isProctime()) {
             throw new TableException("Processing time Window TableFunction is not supported yet.");
         }
-        return super.translateToPlanInternal(planner);
+        return super.translateToPlanInternal(planner, config);
     }
 }

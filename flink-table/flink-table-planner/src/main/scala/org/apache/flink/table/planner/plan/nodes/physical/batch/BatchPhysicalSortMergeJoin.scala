@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortMergeJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, JoinTypeUtil, JoinUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 
 import org.apache.calcite.plan._
@@ -173,6 +174,7 @@ class BatchPhysicalSortMergeJoin(
       FlinkTypeFactory.toLogicalRowType(right.getRowType))
 
     new BatchExecSortMergeJoin(
+      ShortcutUtils.unwrapConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       joinSpec.getLeftKeys,
       joinSpec.getRightKeys,

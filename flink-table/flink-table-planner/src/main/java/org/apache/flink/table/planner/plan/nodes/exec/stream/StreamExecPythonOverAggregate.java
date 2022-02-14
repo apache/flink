@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -35,6 +36,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -92,6 +94,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
     private final OverSpec overSpec;
 
     public StreamExecPythonOverAggregate(
+            ReadableConfig plannerConfig,
             OverSpec overSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -99,6 +102,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecPythonOverAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecPythonOverAggregate.class, plannerConfig),
                 overSpec,
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -109,18 +114,20 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
     public StreamExecPythonOverAggregate(
             int id,
             ExecNodeContext context,
+            ReadableConfig config,
             OverSpec overSpec,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.overSpec = checkNotNull(overSpec);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         if (overSpec.getGroups().size() > 1) {
             throw new TableException("All aggregates must be computed on the same window.");
         }
@@ -137,8 +144,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         }
 
         final int[] partitionKeys = overSpec.getPartition().getFieldIndices();
-        final TableConfig tableConfig = planner.getTableConfig();
-        if (partitionKeys.length > 0 && tableConfig.getMinIdleStateRetentionTime() < 0) {
+        if (partitionKeys.length > 0 && config.getIdleStateRetentionTime() < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent "
@@ -176,7 +182,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         }
         long precedingOffset = -1 * (long) boundValue;
         Configuration mergedConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
                         inputTransform,
@@ -187,10 +193,10 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                         precedingOffset,
                         group.isRows(),
                         partitionKeys,
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
+                        config.getIdleStateRetentionTime(),
+                        config.getMaxIdleStateRetentionTime(),
                         mergedConfig,
-                        tableConfig);
+                        planner.getTableConfig());
 
         if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(mergedConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);

@@ -415,7 +415,7 @@ object LookupJoinCodeGenerator {
   /**
     * Generates a [[TableFunctionResultFuture]] that can be passed to Java compiler.
     *
-    * @param config The TableConfig
+    * @param config The configuration.
     * @param name Class name of the table function collector. Must not be unique but has to be a
     *             valid Java class identifier.
     * @param leftInputType The type information of the element being collected

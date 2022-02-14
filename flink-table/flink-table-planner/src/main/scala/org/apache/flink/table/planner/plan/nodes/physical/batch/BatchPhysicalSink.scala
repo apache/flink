@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.table.catalog.{CatalogTable, ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable}
+import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSink
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -67,6 +67,7 @@ class BatchPhysicalSink(
     tableSinkSpec.setTableSink(tableSink)
 
     new BatchExecSink(
+      ShortcutUtils.unwrapConfig(this),
       tableSinkSpec,
       // the input records will not trigger any output of a sink because it has no output,
       // so it's dam behavior is BLOCKING

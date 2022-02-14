@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSp
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalLookupJoin
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil, JoinTypeUtil}
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil
+import org.apache.flink.table.planner.utils.{JavaScalaConversionUtil, ShortcutUtils}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptTable, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -77,6 +77,7 @@ class BatchPhysicalLookupJoin(
     }
 
     new BatchExecLookupJoin(
+      ShortcutUtils.unwrapConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       remainingCondition.orNull,
       new TemporalTableSourceSpec(temporalTable),

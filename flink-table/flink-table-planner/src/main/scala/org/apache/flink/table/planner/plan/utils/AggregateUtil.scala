@@ -17,8 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.flink.configuration.ReadableConfig
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
-import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions._
@@ -1033,9 +1034,8 @@ object AggregateUtil extends Enumeration {
   /**
     * Creates a MiniBatch trigger depends on the config.
     */
-  def createMiniBatchTrigger(tableConfig: TableConfig): CountBundleTrigger[RowData] = {
-    val size = tableConfig.getConfiguration.getLong(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE)
+  def createMiniBatchTrigger(config: ReadableConfig): CountBundleTrigger[RowData] = {
+    val size = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE)
     if (size <= 0) {
       throw new IllegalArgumentException(
         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE + " must be > 0.")

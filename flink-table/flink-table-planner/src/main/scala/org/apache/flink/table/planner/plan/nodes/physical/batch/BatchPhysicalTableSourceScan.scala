@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpe
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -74,6 +75,7 @@ class BatchPhysicalTableSourceScan(
     tableSourceSpec.setTableSource(tableSourceTable.tableSource)
 
     new BatchExecTableSourceScan(
+      ShortcutUtils.unwrapConfig(this),
       tableSourceSpec,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

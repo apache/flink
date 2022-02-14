@@ -21,7 +21,8 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecUnion
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelDistribution.Type.{ANY, BROADCAST_DISTRIBUTED, HASH_DISTRIBUTED, RANDOM_DISTRIBUTED, RANGE_DISTRIBUTED, ROUND_ROBIN_DISTRIBUTED, SINGLETON}
@@ -95,6 +96,7 @@ class BatchPhysicalUnion(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecUnion(
+      ShortcutUtils.unwrapConfig(this),
       getInputs.map(_ => InputProperty.DEFAULT),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription

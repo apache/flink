@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -82,6 +83,7 @@ class BatchPhysicalLocalHashWindowAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecHashWindowAggregate(
+      ShortcutUtils.unwrapConfig(this),
       grouping,
       auxGrouping,
       getAggCallList.toArray,

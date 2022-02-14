@@ -30,7 +30,7 @@ import org.apache.flink.table.runtime.hashtable.{LongHashPartition, LongHybridHa
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.join.HashJoinType
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
-import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, _}
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 
 /**

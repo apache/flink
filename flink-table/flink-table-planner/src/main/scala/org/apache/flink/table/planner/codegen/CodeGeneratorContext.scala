@@ -27,18 +27,18 @@ import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
 import org.apache.flink.table.planner.utils.InternalConfigOptions
-import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.runtime.typeutils.{ExternalSerializer, InternalSerializers}
 import org.apache.flink.table.runtime.util.collections._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.util.InstantiationUtil
 
+import java.time.ZoneId
 import java.util.TimeZone
 import java.util.function.{Supplier => JSupplier}
-import java.time.ZoneId
 
 import scala.collection.mutable
 

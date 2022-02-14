@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -32,6 +32,7 @@ import org.apache.flink.table.planner.plan.logical.WindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfiguration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -89,6 +90,7 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
     private final WindowingStrategy windowing;
 
     public StreamExecWindowDeduplicate(
+            ReadableConfig plannerConfig,
             int[] partitionKeys,
             int orderKey,
             boolean keepLastRow,
@@ -99,6 +101,8 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecWindowDeduplicate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecWindowDeduplicate.class, plannerConfig),
                 partitionKeys,
                 orderKey,
                 keepLastRow,
@@ -112,6 +116,7 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
     public StreamExecWindowDeduplicate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig config,
             @JsonProperty(FIELD_NAME_PARTITION_KEYS) int[] partitionKeys,
             @JsonProperty(FIELD_NAME_ORDER_KEY) int orderKey,
             @JsonProperty(FIELD_NAME_KEEP_LAST_ROW) boolean keepLastRow,
@@ -119,7 +124,7 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, config, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.partitionKeys = checkNotNull(partitionKeys);
         this.orderKey = orderKey;
@@ -129,7 +134,8 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfiguration config) {
         // validate window strategy
         if (!windowing.isRowtime()) {
             throw new TableException("Processing time Window Deduplication is not supported yet.");
@@ -146,9 +152,9 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
         Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        TableConfig tableConfig = planner.getTableConfig();
         ZoneId shiftTimeZone =
-                TimeWindowUtil.getShiftTimeZone(windowing.getTimeAttributeType(), tableConfig);
+                TimeWindowUtil.getShiftTimeZone(
+                        windowing.getTimeAttributeType(), config.getLocalTimeZone());
 
         RowType inputType = (RowType) inputEdge.getOutputType();
         RowDataKeySelector selector =
@@ -169,7 +175,7 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        createTransformationMeta(WINDOW_DEDUPLICATE_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(WINDOW_DEDUPLICATE_TRANSFORMATION, config),
                         SimpleOperatorFactory.of(operator),
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism(),
