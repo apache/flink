@@ -37,7 +37,7 @@ The site can be viewed at http://localhost:1313/
 Configuration descriptions are auto generated from code. To trigger the generation you need to run in the project root:
 
 ```
-mvn -Pgenerate-config-docs install -DskipTests -Dcheckstyle.skip -Drat.skip -Dscalastyle.skip -Denforcer.skip=true -Dspotless.check.skip=true -Dskip.npm=true -DskipITs=true -Dmaven.javadoc.skip=true -Djapicmp.skip=true
+mvn -Pgenerate-config-docs install -Dfast -DskipTests
 ```
 
 The resulting html files will be written to `layouts/shortcodes/generated`. Tables are regenerated each time the command is invoked.
