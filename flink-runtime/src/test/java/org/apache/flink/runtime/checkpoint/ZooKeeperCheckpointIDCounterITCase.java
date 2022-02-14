@@ -24,6 +24,7 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -35,16 +36,21 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestBase {
 
-    private static final ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
+    private static ZooKeeperTestEnvironment zookeeper;
+
+    @BeforeAll
+    public static void setUp() throws Exception {
+        zookeeper = new ZooKeeperTestEnvironment(1);
+    }
 
     @AfterAll
     private static void tearDown() throws Exception {
-        ZooKeeper.shutdown();
+        zookeeper.shutdown();
     }
 
     @BeforeEach
     private void cleanUp() throws Exception {
-        ZooKeeper.deleteAll();
+        zookeeper.deleteAll();
     }
 
     /** Tests that counter node is removed from ZooKeeper after shutdown. */
@@ -53,7 +59,7 @@ class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestBase {
         ZooKeeperCheckpointIDCounter counter = createCheckpointIdCounter();
         counter.start();
 
-        CuratorFramework client = ZooKeeper.getClient();
+        CuratorFramework client = zookeeper.getClient();
         assertThat(client.checkExists().forPath(counter.getPath())).isNotNull();
 
         counter.shutdown(JobStatus.FINISHED);
@@ -66,7 +72,7 @@ class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestBase {
         ZooKeeperCheckpointIDCounter counter = createCheckpointIdCounter();
         counter.start();
 
-        CuratorFramework client = ZooKeeper.getClient();
+        CuratorFramework client = zookeeper.getClient();
         assertThat(client.checkExists().forPath(counter.getPath())).isNotNull();
 
         counter.shutdown(JobStatus.SUSPENDED);
@@ -76,6 +82,6 @@ class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestBase {
     @Override
     protected ZooKeeperCheckpointIDCounter createCheckpointIdCounter() throws Exception {
         return new ZooKeeperCheckpointIDCounter(
-                ZooKeeper.getClient(), new DefaultLastStateConnectionStateListener());
+                zookeeper.getClient(), new DefaultLastStateConnectionStateListener());
     }
 }
