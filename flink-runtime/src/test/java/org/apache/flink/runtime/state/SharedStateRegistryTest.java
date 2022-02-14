@@ -112,8 +112,8 @@ public class SharedStateRegistryTest {
         ChangelogTestUtils.IncrementalStateHandleWrapper materializedStateBase1 =
                 createDummyIncrementalStateHandle(materializationId1);
 
-        // we copy the state handle due to FLINK-25479 to mock on JM side
-        IncrementalStateHandleWrapper materializedState1 = materializedStateBase1.copy();
+        // we deserialize the state handle due to FLINK-25479 to mock on JM side
+        IncrementalStateHandleWrapper materializedState1 = materializedStateBase1.deserialize();
         ChangelogStateHandleWrapper nonMaterializedState1 = createDummyChangelogStateHandle(1, 2);
         long materializationId = 1L;
         long checkpointId1 = 41;
@@ -128,7 +128,7 @@ public class SharedStateRegistryTest {
         sharedStateRegistry.checkpointCompleted(checkpointId1);
         sharedStateRegistry.unregisterUnusedState(checkpointId1);
 
-        IncrementalStateHandleWrapper materializedState2 = materializedStateBase1.copy();
+        IncrementalStateHandleWrapper materializedState2 = materializedStateBase1.deserialize();
         ChangelogStateHandleWrapper nonMaterializedState2 = createDummyChangelogStateHandle(2, 3);
         long checkpointId2 = 42;
         ChangelogStateBackendHandleImpl changelogStateBackendHandle2 =
@@ -145,13 +145,15 @@ public class SharedStateRegistryTest {
         // the 1st materialized state would not be discarded since the 2nd changelog state backend
         // handle still use it.
         assertFalse(materializedState1.isDiscarded());
+        // FLINK-26101, check whether the multi registered state not discarded.
+        assertFalse(materializedState2.isDiscarded());
         assertTrue(nonMaterializedState1.isDiscarded());
 
         long materializationId2 = 2L;
         IncrementalStateHandleWrapper materializedStateBase2 =
                 createDummyIncrementalStateHandle(materializationId2);
 
-        IncrementalStateHandleWrapper materializedState3 = materializedStateBase2.copy();
+        IncrementalStateHandleWrapper materializedState3 = materializedStateBase2.deserialize();
         long checkpointId3 = 43L;
         ChangelogStateBackendHandleImpl changelogStateBackendHandle3 =
                 new ChangelogStateBackendHandleImpl(

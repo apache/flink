@@ -408,7 +408,7 @@ public class IncrementalRemoteKeyedStateHandle implements IncrementalKeyedStateH
         return "IncrementalRemoteKeyedStateHandle{"
                 + "backendIdentifier="
                 + backendIdentifier
-                + "stateHandleId="
+                + ", stateHandleId="
                 + stateHandleId
                 + ", keyGroupRange="
                 + keyGroupRange
