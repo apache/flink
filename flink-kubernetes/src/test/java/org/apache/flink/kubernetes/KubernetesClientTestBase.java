@@ -211,6 +211,7 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
                 new ServiceBuilder()
                         .editOrNewMetadata()
                         .withName(ExternalServiceDecorator.getExternalServiceName(CLUSTER_ID))
+                        .withNamespace(NAMESPACE)
                         .endMetadata()
                         .editOrNewSpec()
                         .withType(serviceExposedType.name())

@@ -31,7 +31,6 @@ import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPodsWatcher;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesWatch;
 import org.apache.flink.kubernetes.kubeclient.services.ServiceType;
-import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.util.ExceptionUtils;
@@ -42,14 +41,11 @@ import org.apache.flink.util.concurrent.FutureUtils;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
-import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
-import io.fabric8.kubernetes.api.model.NodeAddress;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
-import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
@@ -184,21 +180,13 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
             return Optional.empty();
         }
         final Service service = restService.get().getInternalResource();
-        final int restPort = getRestPortFromExternalService(service);
 
         final KubernetesConfigOptions.ServiceExposedType serviceExposedType =
                 ServiceType.classify(service);
 
-        // Return the external service.namespace directly when using ClusterIP.
-        if (serviceExposedType.isClusterIP()) {
-            return Optional.of(
-                    new Endpoint(
-                            ExternalServiceDecorator.getNamespacedExternalServiceName(
-                                    clusterId, namespace),
-                            restPort));
-        }
-
-        return getRestEndPointFromService(service, restPort);
+        return serviceExposedType
+                .serviceType()
+                .getRestEndpoint(service, internalClient, nodePortAddressType);
     }
 
     @Override
@@ -431,97 +419,5 @@ public class Fabric8FlinkKubeClient implements FlinkKubeClient {
                         resource.getMetadata()
                                 .setOwnerReferences(
                                         Collections.singletonList(deploymentOwnerReference)));
-    }
-
-    /** Get rest port from the external Service. */
-    private int getRestPortFromExternalService(Service externalService) {
-        final List<ServicePort> servicePortCandidates =
-                externalService.getSpec().getPorts().stream()
-                        .filter(x -> x.getName().equals(Constants.REST_PORT_NAME))
-                        .collect(Collectors.toList());
-
-        if (servicePortCandidates.isEmpty()) {
-            throw new RuntimeException(
-                    "Failed to find port \""
-                            + Constants.REST_PORT_NAME
-                            + "\" in Service \""
-                            + ExternalServiceDecorator.getExternalServiceName(this.clusterId)
-                            + "\"");
-        }
-
-        final ServicePort externalServicePort = servicePortCandidates.get(0);
-
-        final KubernetesConfigOptions.ServiceExposedType externalServiceType =
-                KubernetesConfigOptions.ServiceExposedType.valueOf(
-                        externalService.getSpec().getType());
-
-        switch (externalServiceType) {
-            case ClusterIP:
-            case LoadBalancer:
-                return externalServicePort.getPort();
-            case NodePort:
-                return externalServicePort.getNodePort();
-            default:
-                throw new RuntimeException("Unrecognized Service type: " + externalServiceType);
-        }
-    }
-
-    private Optional<Endpoint> getRestEndPointFromService(Service service, int restPort) {
-        if (service.getStatus() == null) {
-            return Optional.empty();
-        }
-
-        LoadBalancerStatus loadBalancer = service.getStatus().getLoadBalancer();
-        boolean hasExternalIP =
-                service.getSpec() != null
-                        && service.getSpec().getExternalIPs() != null
-                        && !service.getSpec().getExternalIPs().isEmpty();
-
-        if (loadBalancer != null) {
-            return getLoadBalancerRestEndpoint(loadBalancer, restPort);
-        } else if (hasExternalIP) {
-            final String address = service.getSpec().getExternalIPs().get(0);
-            if (address != null && !address.isEmpty()) {
-                return Optional.of(new Endpoint(address, restPort));
-            }
-        }
-        return Optional.empty();
-    }
-
-    private Optional<Endpoint> getLoadBalancerRestEndpoint(
-            LoadBalancerStatus loadBalancer, int restPort) {
-        boolean hasIngress =
-                loadBalancer.getIngress() != null && !loadBalancer.getIngress().isEmpty();
-        String address;
-        if (hasIngress) {
-            address = loadBalancer.getIngress().get(0).getIp();
-            // Use hostname when the ip address is null
-            if (address == null || address.isEmpty()) {
-                address = loadBalancer.getIngress().get(0).getHostname();
-            }
-        } else {
-            // Use node port. Node port is accessible on any node within kubernetes cluster. We'll
-            // only consider IPs with the configured address type.
-            address =
-                    internalClient.nodes().list().getItems().stream()
-                            .flatMap(node -> node.getStatus().getAddresses().stream())
-                            .filter(
-                                    nodeAddress ->
-                                            nodePortAddressType
-                                                    .name()
-                                                    .equals(nodeAddress.getType()))
-                            .map(NodeAddress::getAddress)
-                            .filter(ip -> !ip.isEmpty())
-                            .findAny()
-                            .orElse(null);
-            if (address == null) {
-                LOG.warn(
-                        "Unable to find any node ip with type [{}]. Please see [{}] config option for more details.",
-                        nodePortAddressType,
-                        KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE.key());
-            }
-        }
-        boolean noAddress = address == null || address.isEmpty();
-        return noAddress ? Optional.empty() : Optional.of(new Endpoint(address, restPort));
     }
 }
