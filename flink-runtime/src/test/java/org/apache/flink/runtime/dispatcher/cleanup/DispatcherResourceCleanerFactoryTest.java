@@ -60,8 +60,6 @@ public class DispatcherResourceCleanerFactoryTest {
 
     private CompletableFuture<JobID> jobManagerRunnerRegistryLocalCleanupFuture;
     private CompletableFuture<Void> jobManagerRunnerRegistryLocalCleanupResultFuture;
-    private CompletableFuture<JobID> jobManagerRunnerRegistryGlobalCleanupFuture;
-    private CompletableFuture<Void> jobManagerRunnerRegistryGlobalCleanupResultFuture;
 
     private CompletableFuture<JobID> jobGraphWriterLocalCleanupFuture;
     private CompletableFuture<JobID> jobGraphWriterGlobalCleanupFuture;
@@ -96,19 +94,11 @@ public class DispatcherResourceCleanerFactoryTest {
         jobManagerRunnerRegistryLocalCleanupFuture = new CompletableFuture<>();
         jobManagerRunnerRegistryLocalCleanupResultFuture = new CompletableFuture<>();
 
-        jobManagerRunnerRegistryGlobalCleanupFuture = new CompletableFuture<>();
-        jobManagerRunnerRegistryGlobalCleanupResultFuture = new CompletableFuture<>();
-
         return TestingJobManagerRunnerRegistry.builder()
                 .withLocalCleanupAsyncFunction(
                         (jobId, executor) -> {
                             jobManagerRunnerRegistryLocalCleanupFuture.complete(jobId);
                             return jobManagerRunnerRegistryLocalCleanupResultFuture;
-                        })
-                .withGlobalCleanupAsyncFunction(
-                        (jobId, executor) -> {
-                            jobManagerRunnerRegistryGlobalCleanupFuture.complete(jobId);
-                            return jobManagerRunnerRegistryGlobalCleanupResultFuture;
                         })
                 .build();
     }
@@ -143,8 +133,7 @@ public class DispatcherResourceCleanerFactoryTest {
 
     @Test
     public void testLocalResourceCleaning() {
-        assertGlobalCleanupNotTriggered();
-        assertLocalCleanupNotTriggered();
+        assertCleanupNotTriggered();
 
         final CompletableFuture<Void> cleanupResultFuture =
                 testInstance
@@ -152,15 +141,24 @@ public class DispatcherResourceCleanerFactoryTest {
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .cleanupAsync(JOB_ID);
 
-        assertGlobalCleanupNotTriggered();
-        assertLocalCleanupTriggeredWaitingForJobManagerRunnerRegistry();
-
+        assertWaitingForPrioritizedCleanupToFinish();
         assertThat(cleanupResultFuture).isNotCompleted();
 
+        // makes the prioritized JobManagerRunner cleanup result terminate so that other cleanups
+        // are triggered
         jobManagerRunnerRegistryLocalCleanupResultFuture.complete(null);
 
-        assertGlobalCleanupNotTriggered();
-        assertLocalCleanupTriggered();
+        assertThat(jobManagerRunnerRegistryLocalCleanupFuture).isCompleted();
+
+        assertThat(jobGraphWriterLocalCleanupFuture).isCompleted();
+        assertThat(jobGraphWriterGlobalCleanupFuture).isNotDone();
+
+        assertThat(blobServer.getLocalCleanupFuture()).isCompleted();
+        assertThat(blobServer.getGlobalCleanupFuture()).isNotDone();
+
+        assertThat(highAvailabilityServicesGlobalCleanupFuture).isNotDone();
+
+        assertJobMetricGroupCleanedUp();
 
         assertThat(cleanupResultFuture).isCompleted();
     }
@@ -168,8 +166,7 @@ public class DispatcherResourceCleanerFactoryTest {
     @Test
     public void testGlobalResourceCleaning()
             throws ExecutionException, InterruptedException, TimeoutException {
-        assertGlobalCleanupNotTriggered();
-        assertLocalCleanupNotTriggered();
+        assertCleanupNotTriggered();
 
         final CompletableFuture<Void> cleanupResultFuture =
                 testInstance
@@ -177,60 +174,55 @@ public class DispatcherResourceCleanerFactoryTest {
                                 ComponentMainThreadExecutorServiceAdapter.forMainThread())
                         .cleanupAsync(JOB_ID);
 
-        assertLocalCleanupNotTriggered();
-        assertGlobalCleanupTriggeredWaitingForJobManagerRunnerRegistry();
+        assertWaitingForPrioritizedCleanupToFinish();
+        assertThat(cleanupResultFuture).isNotCompleted();
 
-        jobManagerRunnerRegistryGlobalCleanupResultFuture.complete(null);
+        // makes the prioritized JobManagerRunner cleanup result terminate so that other cleanups
+        // are triggered
+        jobManagerRunnerRegistryLocalCleanupResultFuture.complete(null);
 
-        assertGlobalCleanupTriggered();
-        assertLocalCleanupNotTriggered();
+        assertThat(jobManagerRunnerRegistryLocalCleanupFuture).isCompleted();
+
+        assertThat(jobGraphWriterLocalCleanupFuture).isNotDone();
+        assertThat(jobGraphWriterGlobalCleanupFuture).isCompleted();
+
+        assertThat(blobServer.getLocalCleanupFuture()).isNotDone();
+        assertThat(blobServer.getGlobalCleanupFuture()).isCompleted();
+
+        assertThat(highAvailabilityServicesGlobalCleanupFuture).isCompleted();
+
+        assertJobMetricGroupCleanedUp();
 
         assertThat(cleanupResultFuture).isCompleted();
     }
 
-    private void assertLocalCleanupNotTriggered() {
+    private void assertCleanupNotTriggered() {
         assertThat(jobManagerRunnerRegistryLocalCleanupFuture).isNotDone();
+
+        assertNoRegularCleanupsTriggered();
+    }
+
+    private void assertWaitingForPrioritizedCleanupToFinish() {
+        assertThat(jobManagerRunnerRegistryLocalCleanupFuture).isCompleted();
+
+        assertNoRegularCleanupsTriggered();
+    }
+
+    private void assertNoRegularCleanupsTriggered() {
         assertThat(jobGraphWriterLocalCleanupFuture).isNotDone();
+        assertThat(jobGraphWriterGlobalCleanupFuture).isNotDone();
+
         assertThat(blobServer.getLocalCleanupFuture()).isNotDone();
+        assertThat(blobServer.getGlobalCleanupFuture()).isNotDone();
+
+        assertThat(highAvailabilityServicesGlobalCleanupFuture).isNotDone();
+
+        // check whether the registered job is still listed
         assertThat(jobManagerMetricGroup.numRegisteredJobMetricGroups()).isEqualTo(1);
     }
 
-    private void assertLocalCleanupTriggeredWaitingForJobManagerRunnerRegistry() {
-        assertThat(jobManagerRunnerRegistryLocalCleanupFuture).isCompleted();
-
-        // the JobManagerRunnerRegistry needs to be cleaned up first
-        assertThat(jobGraphWriterLocalCleanupFuture).isNotDone();
-        assertThat(blobServer.getLocalCleanupFuture()).isNotDone();
-        assertThat(jobManagerMetricGroup.numRegisteredJobMetricGroups()).isEqualTo(1);
-    }
-
-    private void assertGlobalCleanupNotTriggered() {
-        assertThat(jobGraphWriterGlobalCleanupFuture).isNotDone();
-        assertThat(blobServer.getGlobalCleanupFuture()).isNotDone();
-        assertThat(highAvailabilityServicesGlobalCleanupFuture).isNotDone();
-    }
-
-    private void assertGlobalCleanupTriggeredWaitingForJobManagerRunnerRegistry() {
-        assertThat(jobManagerRunnerRegistryGlobalCleanupFuture).isCompleted();
-
-        // the JobManagerRunnerRegistry needs to be cleaned up first
-        assertThat(jobGraphWriterGlobalCleanupFuture).isNotDone();
-        assertThat(blobServer.getGlobalCleanupFuture()).isNotDone();
-        assertThat(highAvailabilityServicesGlobalCleanupFuture).isNotDone();
-    }
-
-    private void assertLocalCleanupTriggered() {
-        assertThat(jobManagerRunnerRegistryLocalCleanupFuture).isCompleted();
-        assertThat(jobGraphWriterLocalCleanupFuture).isCompleted();
-        assertThat(blobServer.getLocalCleanupFuture()).isCompleted();
+    private void assertJobMetricGroupCleanedUp() {
         assertThat(jobManagerMetricGroup.numRegisteredJobMetricGroups()).isEqualTo(0);
-    }
-
-    private void assertGlobalCleanupTriggered() {
-        assertThat(jobManagerRunnerRegistryGlobalCleanupFuture).isCompleted();
-        assertThat(jobGraphWriterGlobalCleanupFuture).isCompleted();
-        assertThat(blobServer.getGlobalCleanupFuture()).isCompleted();
-        assertThat(highAvailabilityServicesGlobalCleanupFuture).isCompleted();
     }
 
     private static class CleanableBlobServer extends BlobServer {

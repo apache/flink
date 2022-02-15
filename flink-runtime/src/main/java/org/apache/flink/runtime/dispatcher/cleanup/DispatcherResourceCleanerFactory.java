@@ -101,13 +101,13 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
     @Override
     public ResourceCleaner createGlobalResourceCleaner(
             ComponentMainThreadExecutor mainThreadExecutor) {
-
         return DefaultResourceCleaner.forGloballyCleanableResources(
                         mainThreadExecutor, cleanupExecutor, retryStrategy)
-                .withPrioritizedCleanup(jobManagerRunnerRegistry)
+                .withPrioritizedCleanup(ofLocalResource(jobManagerRunnerRegistry))
                 .withRegularCleanup(jobGraphWriter)
                 .withRegularCleanup(blobServer)
                 .withRegularCleanup(highAvailabilityServices)
+                .withRegularCleanup(ofLocalResource(jobManagerMetricGroup))
                 .build();
     }
 
@@ -116,5 +116,18 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
                 Integer.MAX_VALUE,
                 config.get(JobManagerOptions.JOB_CLEANUP_MINIMUM_DELAY),
                 config.get(JobManagerOptions.JOB_CLEANUP_MAXIMUM_DELAY));
+    }
+
+    /**
+     * A simple wrapper for the resources that don't have any artifacts that can outlive the {@link
+     * org.apache.flink.runtime.dispatcher.Dispatcher}, but we still want to clean up their local
+     * state when we terminate globally.
+     *
+     * @param localResource Local resource that we want to clean during a global cleanup.
+     * @return Globally cleanable resource.
+     */
+    private static GloballyCleanableResource ofLocalResource(
+            LocallyCleanableResource localResource) {
+        return localResource::localCleanupAsync;
     }
 }
