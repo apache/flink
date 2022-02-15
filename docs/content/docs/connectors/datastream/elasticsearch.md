@@ -382,6 +382,47 @@ Configuring how temporary request errors are retried is also supported:
 
 More information about Elasticsearch can be found [here](https://elastic.co).
 
+## Elasticsearch Source
+
+The Elasticsearch Source allows to read an entire Elasticsearch index. The code snippet below shows how to build an Elasticsearch Source that reads documents as String values.
+
+{{< tabs "dd8808460-7ae4-4802-a96d-5285db62c25a" >}}
+{{< tab "Java" >}}
+Elasticsearch 7:
+
+```java
+Elasticsearch7Source<String> source = Elasticsearch7Source.<String>builder()
+    .setHosts(new HttpHost("localhost:9200"))
+    .setIndexName("my-index")
+    .setDeserializationSchema(new Elasticsearch7SearchHitDeserializationSchema<String>() {
+        @Override
+        public void deserialize(SearchHit record, Collector<String> out) {
+            out.collect(record.getSourceAsString());
+        }
+
+        @Override
+        public TypeInformation<String> getProducedType() {
+            return TypeInformation.of(String.class);
+        }
+    })
+    .build();
+}
+```
+{{< /tab >}}
+{{< /tabs >}}
+The following properties are **required** for building an Elasticsearch Source:
+- Elasticsearch hosts, configured by ```setHosts(HttpHost... )```
+- Elasticsearch index to read, configured by ```setIndex(String)```
+- DeserializationSchema to parse Elasticsearch's ```SearchHit```, configured by ```setDeserializationSchema(Elasticsearch7SearchHitDeserializationSchema<OUT>)```
+
+### Additional Properties
+In addition to the properties described above you can configure further specifics of the Source using these methods:
+- ```setPitKeepAlive(Duration)``` sets the Keep Alive for the Elasticsearch Point-In-Time (PIT), for further information please refer to the official [Elasticsearch documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/point-in-time-api.html)
+- ```setNumberOfSearchSlices(int)``` sets the total number of Elasticsearch search slices which corresponds to the number of Splits in the source, for further information please refer to the official [Elasticsearch documentation](https://www.elastic.co/guide/en/elasticsearch/reference/current/paginate-search-results.html#slice-scroll)
+
+### Boundedness
+The Elasticsearch Source currently only supports reading an index as a bounded stream.
+
 ## Packaging the Elasticsearch Connector into an Uber-Jar
 
 For the execution of your Flink program, it is recommended to build a

@@ -46,7 +46,7 @@ See how to link with it for cluster execution [here]({{< ref "docs/dev/configura
 How to create an Elasticsearch table
 ----------------
 
-The example below shows how to create an Elasticsearch sink table:
+The example below shows how to create an Elasticsearch **sink** table:
 
 ```sql
 CREATE TABLE myUserTable (
@@ -61,6 +61,19 @@ CREATE TABLE myUserTable (
   'index' = 'users'
 );
 ```
+
+For Elasticsearch 7.x, the connector also supports a Source. The example below shows how to create an Elasticsearch **source** table.
+
+```sql
+CREATE TABLE numberTable (
+  number INTEGER
+) WITH (
+  'connector' = 'elasticsearch-7-src',
+  'hosts' = 'http://localhost:9200',
+  'index' = 'numbers'
+);
+```
+
 
 Connector Options
 ----------------
@@ -87,6 +100,7 @@ Connector Options
       <ul>
       <li><code>elasticsearch-6</code>: connect to Elasticsearch 6.x cluster.</li>
       <li><code>elasticsearch-7</code>: connect to Elasticsearch 7.x cluster.</li>
+      <li><code>elasticsearch-7-src</code>: connect to Elasticsearch 7.x cluster in Source mode.</li>
       </ul></td>
     </tr>
     <tr>
@@ -215,6 +229,45 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>Integer</td>
       <td>Defines the parallelism of the Elasticsearch sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
+    </tr>
+    <tr>
+      <td><h5>source.num-slices</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">2</td>
+      <td>Integer</td>
+      <td>Defines the number of Elasticsearch search slices. By default, the number of slices is set to 2.</td>
+    </tr>
+    <tr>
+      <td><h5>source.pit-keep-alive</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">PT5M</td>
+      <td>Duration</td>
+      <td>Defines the keep-alive duration for the Elasticsearch Point-In-Time (PIT) used by the source. By default, the keep-alive is set to 5 minutes.</td>
+    </tr>
+    <tr>
+      <td><h5>source.fail-on-missing-fields</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Optional flag to specify whether to fail the deserialization if a field is missing or not, false by default.</td>
+    </tr>
+    <tr>
+      <td><h5>source.ignore-parse-errors</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">false</td>
+      <td>Boolean</td>
+      <td>Optional flag to skip fields and rows with parse errors instead of failing. Fields are set to null in case of errors, false by default.</td>
+    </tr>
+    <tr>
+      <td><h5>source.timestamp-format.standard</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">SQL</td>
+      <td>String</td>
+      <td>Optional flag to specify timestamp format, SQL by default. Valid options are:
+        <ul>
+          <li><code>SQL</code>: will parse input timestamp in <code>yyyy-MM-dd HH:mm:ss.s{precision}</code> format and output timestamp in the same format.</li>
+          <li><code>ISO-8601</code>: will parse input timestamp in <code>yyyy-MM-ddTHH:mm:ss.s{precision}</code> format and output timestamp in the same format.</li>
+        </ul>
     </tr>
     <tr>
       <td><h5>connection.path-prefix</h5></td>
