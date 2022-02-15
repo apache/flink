@@ -51,7 +51,6 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
     private final Supplier<Collection<JobManagerRunner>> getJobManagerRunnersSupplier;
     private final Function<JobID, JobManagerRunner> unregisterFunction;
     private final BiFunction<JobID, Executor, CompletableFuture<Void>> localCleanupAsyncFunction;
-    private final BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupAsyncFunction;
 
     private TestingJobManagerRunnerRegistry(
             Function<JobID, Boolean> isRegisteredFunction,
@@ -61,8 +60,7 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
             Supplier<Set<JobID>> getRunningJobIdsSupplier,
             Supplier<Collection<JobManagerRunner>> getJobManagerRunnersSupplier,
             Function<JobID, JobManagerRunner> unregisterFunction,
-            BiFunction<JobID, Executor, CompletableFuture<Void>> localCleanupAsyncFunction,
-            BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupAsyncFunction) {
+            BiFunction<JobID, Executor, CompletableFuture<Void>> localCleanupAsyncFunction) {
         this.isRegisteredFunction = isRegisteredFunction;
         this.registerConsumer = registerConsumer;
         this.getFunction = getFunction;
@@ -71,7 +69,6 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
         this.getJobManagerRunnersSupplier = getJobManagerRunnersSupplier;
         this.unregisterFunction = unregisterFunction;
         this.localCleanupAsyncFunction = localCleanupAsyncFunction;
-        this.globalCleanupAsyncFunction = globalCleanupAsyncFunction;
     }
 
     @Override
@@ -112,11 +109,6 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
     @Override
     public CompletableFuture<Void> localCleanupAsync(JobID jobId, Executor executor) {
         return localCleanupAsyncFunction.apply(jobId, executor);
-    }
-
-    @Override
-    public CompletableFuture<Void> globalCleanupAsync(JobID jobId, Executor executor) {
-        return globalCleanupAsyncFunction.apply(jobId, executor);
     }
 
     public static Builder builder() {
@@ -164,11 +156,11 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
                         actualJobId ->
                                 unregisterFromReference(singleRunnerReference, actualJobId)
                                         .orElseThrow(throwNoSuchElementException(actualJobId)))
-                .withGlobalCleanupAsyncFunction(
-                        (actualJobId, ignoredExecutor) ->
-                                cleanup(singleRunnerReference, actualJobId))
                 .withLocalCleanupAsyncFunction(
-                        (actualJobId, executor) -> cleanup(singleRunnerReference, actualJobId));
+                        (actualJobId, executor) ->
+                                unregisterFromReference(singleRunnerReference, actualJobId)
+                                        .map(JobManagerRunner::closeAsync)
+                                        .orElse(FutureUtils.completedVoidFuture()));
     }
 
     private static Optional<JobManagerRunner> unregisterFromReference(
@@ -177,13 +169,6 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
                 .map(JobManagerRunner::getJobID)
                 .filter(actualJobId::equals)
                 .map(ignored -> singleRunnerReference.getAndSet(null));
-    }
-
-    private static CompletableFuture<Void> cleanup(
-            AtomicReference<JobManagerRunner> singleRunnerReference, JobID actualJobId) {
-        return unregisterFromReference(singleRunnerReference, actualJobId)
-                .map(JobManagerRunner::closeAsync)
-                .orElse(FutureUtils.completedVoidFuture());
     }
 
     private static Supplier<NoSuchElementException> throwNoSuchElementException(JobID jobId) {
@@ -251,12 +236,6 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
             return this;
         }
 
-        public Builder withGlobalCleanupAsyncFunction(
-                BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupAsyncFunction) {
-            this.globalCleanupAsyncFunction = globalCleanupAsyncFunction;
-            return this;
-        }
-
         public TestingJobManagerRunnerRegistry build() {
             return new TestingJobManagerRunnerRegistry(
                     isRegisteredFunction,
@@ -266,8 +245,7 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
                     getRunningJobIdsSupplier,
                     getJobManagerRunnersSupplier,
                     unregisterFunction,
-                    localCleanupAsyncFunction,
-                    globalCleanupAsyncFunction);
+                    localCleanupAsyncFunction);
         }
     }
 }
