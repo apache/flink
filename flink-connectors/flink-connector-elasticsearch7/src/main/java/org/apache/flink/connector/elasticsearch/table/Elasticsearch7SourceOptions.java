@@ -48,26 +48,26 @@ public class Elasticsearch7SourceOptions {
                     .withDescription("Elasticsearch index to retrieve from.");
 
     public static final ConfigOption<Integer> NUMBER_OF_SLICES_OPTION =
-            ConfigOptions.key("num-slices")
+            ConfigOptions.key("source.num-slices")
                     .intType()
                     .defaultValue(2)
                     .withDescription("Number of search slices.");
 
     public static final ConfigOption<Duration> PIT_KEEP_ALIVE_OPTION =
-            ConfigOptions.key("pit-keep-alive")
+            ConfigOptions.key("source.pit-keep-alive")
                     .durationType()
                     .defaultValue(Duration.ofMinutes(5))
                     .withDescription("Keep-alive duration for Elasticsearch PIT");
 
     public static final ConfigOption<Boolean> FAIL_ON_MISSING_FIELDS =
-            ConfigOptions.key("fail-on-missing-fields")
+            ConfigOptions.key("source.fail-on-missing-fields")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Optional flag to specify whether to fail if a field is missing or not, false by default.");
 
     public static final ConfigOption<Boolean> IGNORE_PARSE_ERRORS =
-            ConfigOptions.key("ignore-parse-errors")
+            ConfigOptions.key("source.ignore-parse-errors")
                     .booleanType()
                     .defaultValue(false)
                     .withDescription(
@@ -75,7 +75,7 @@ public class Elasticsearch7SourceOptions {
                                     + "fields are set to null in case of errors, false by default.");
 
     public static final ConfigOption<String> TIMESTAMP_FORMAT =
-            ConfigOptions.key("timestamp-format.standard")
+            ConfigOptions.key("source.timestamp-format.standard")
                     .stringType()
                     .defaultValue("SQL")
                     .withDescription(
