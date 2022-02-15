@@ -25,41 +25,41 @@ under the License.
 # Execution Mode
 
 The Python API supports different runtime execution modes from which you can choose depending on the
-requirements of your use case and the characteristics of your job. The python runtime execution mode
-will decide how to execute your customized python functions.
+requirements of your use case and the characteristics of your job. The Python runtime execution mode
+defines how to execute your customized Python functions.
 
-Before release-1.15, there is the only execution mode called `PROCESS` execution mode. The `PROCESS`
+Prior to release-1.15, there is the only execution mode called `PROCESS` execution mode. The `PROCESS`
 mode means that the Python user-defined functions will be executed in separate Python process.
 
 In release-1.15, there are another two execution modes called `MULTI-THREAD` execution mode and
 `SUB-INTERPRETER` execution mode. The `MULTI-THREAD` mode means that the Python user-defined functions
 will be executed in the same thread as Java Operator, but it will be affected by GIL performance.
-The `SUB-INTERPRETER` mode means that the Python user-defined functions will be executed in python
+The `SUB-INTERPRETER` mode means that the Python user-defined functions will be executed in Python
 different sub-interpreters rather than different threads of one interpreter, which can largely overcome
-the effects of the GIL, but it maybe fail in some CPython extensions libraries, such as numpy, tensorflow. 
+the effects of the GIL, but it may fail in some CPython extensions libraries, such as numpy, tensorflow. 
 
 ## When can/should I use MULTI-THREAD execution mode or SUB-INTERPRETER execution mode?
 
 The purpose of the introduction of `MULTI-THREAD` mode and `SUB-INTERPRETER` mode is to overcome the
 overhead of serialization/deserialization and network communication caused in `PROCESS` mode.
-So if performance is not your concern, or the computing logic of your customized python functions is
+So if performance is not your concern, or the computing logic of your customized Python functions is
 the performance bottleneck of the job, `PROCESS` mode will be the best choice as `PROCESS` mode provides
 the best isolation compared to `MULTI-THREAD` mode and `SUB-INTERPRETER` mode.
 
 Compared to `MULTI-THREAD` execution mode, `SUB-INTERPRETER` execution mode can largely overcome the
-effects of the GIL, so it can get better performance. but `SUB-INTERPRETER` maybe fail in some CPython
-extensions libraries, such as numpy, tensorflow.
+effects of the GIL, so it can get better performance. However, `SUB-INTERPRETER` may fail in some CPython
+extensions libraries, such as numpy, tensorflow. In this case, you should use `PROCESS` mode or `MULTI-THREAD` mode.
 
-## Configuring python execution mode
+## Configuring Python execution mode
 
 The execution mode can be configured via the `python.execution-mode` setting.
 There are three possible values:
 
  - `PROCESS`: The Python user-defined functions will be executed in separate Python process. (default)
  - `MULTI-THREAD`: The Python user-defined functions will be executed in the same thread as Java Operator.
- - `SUB-INTERPRETER`: The Python user-defined functions will be executed in python different sub-interpreters.
+ - `SUB-INTERPRETER`: The Python user-defined functions will be executed in Python different sub-interpreters.
 
-You could specify the python execution mode using Python Table API as following:
+You could specify the Python execution mode using Python Table API as following:
 
 ```python
 # Specify `PROCESS` mode
@@ -73,8 +73,9 @@ table_env.get_config().get_configuration().set_string("python.execution-mode", "
 ```
 
 {{< hint info >}}
-if the python operator dose not support `MULTI-THREAD` and `SUB-INTERPRETER` execution mode, we will still use `PROCESS` execution mode.
-Currently, pyflink only support general python udf in `MULTI-THREAD` or `SUB-INTERPRETER` execution mode.
+Currently, it still doesn't support to execute Python UDFs in `MULTI-THREAD` and `SUB-INTERPRETER` execution mode
+in all places. It will fall back to `PROCESS` execution mode in these cases. So it may happen that you configure a job
+to execute in `MULTI-THREAD` or `SUB-INTERPRETER` execution modes, however, it's actually executed in `PROCESS` execution mode.
 {{< /hint >}}
 
 ## Execution Behavior
@@ -87,14 +88,14 @@ details, please refer to the FLIP that introduced this feature:
 #### PROCESS Execution Mode
 
 In `PROCESS` execution mode, the Python user-defined functions will be executed in separate Python Worker process.
-The Java Operator Process communicates with the Python Worker Process using various Grpc Services.
+The Java operator process communicates with the Python worker process using various Grpc services.
 
 {{< img src="/fig/pyflink_process_execution_mode.png" alt="Process Execution Mode" >}}
 
 #### MULTI-THREAD and SUB-INTERPRETER Execution Mode
 
 In `MULTI-THREAD` and `SUB-INTERPRETER` execution mode, the Python user-defined functions will be executed in
-the same process as Java Operators. PyFlink takes use of third part library [PEMJA](https://github.com/alibaba/pemja) to
+the same process as Java operators. PyFlink takes use of third part library [PEMJA](https://github.com/alibaba/pemja) to
 embed Python in Java Application.
 
 {{< img src="/fig/pyflink_embedded_execution_mode.png" alt="Embedded Execution Mode" >}}
