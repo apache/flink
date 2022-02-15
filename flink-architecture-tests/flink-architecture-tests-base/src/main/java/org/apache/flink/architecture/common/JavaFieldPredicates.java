@@ -84,6 +84,19 @@ public class JavaFieldPredicates {
     }
 
     /**
+     * Match the {@link Class} of the {@link JavaField}'s assignability.
+     *
+     * @param clazz the Class type to check for assignability
+     * @return a {@link DescribedPredicate} that returns {@code true}, if the respective {@link
+     *     JavaField} is assignable to the supplied {@code clazz}.
+     */
+    public static DescribedPredicate<JavaField> isAssignableTo(Class<?> clazz) {
+        return DescribedPredicate.describe(
+                "is assignable to " + clazz.getSimpleName(),
+                field -> field.getRawType().isAssignableTo(clazz));
+    }
+
+    /**
      * Match the single Annotation of the {@link JavaField}.
      *
      * @return A {@link DescribedPredicate} returning true, if and only if the tested {@link
