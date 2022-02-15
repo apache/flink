@@ -1244,7 +1244,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
             return failValidation(TestType.ERROR_TABLE_API, dataType, src);
         }
 
-        private CastTestSpecBuilder failSQLValidation(DataType dataType, Object src) {
+        private CastTestSpecBuilder failSqlValidation(DataType dataType, Object src) {
             return failValidation(TestType.ERROR_TABLE_API, dataType, src);
         }
 
