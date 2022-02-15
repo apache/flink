@@ -31,6 +31,7 @@ import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
 
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -173,6 +174,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 
     /** This test hangs when running it in your IDE. */
     @Test
+    @Ignore
     public void testFlinkKafkaProducerFailBeforeNotify() throws Exception {
         String topic = "flink-kafka-producer-fail-before-notify";
 
