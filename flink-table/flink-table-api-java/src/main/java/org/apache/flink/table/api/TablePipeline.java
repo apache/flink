@@ -19,10 +19,20 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.ObjectIdentifier;
+
+import java.util.Optional;
 
 /**
  * This interface describes a pipeline created from a single {@code INSERT INTO} statement, created
  * either using Table APIs or SQL.
  */
 @PublicEvolving
-public interface TablePipeline extends Explainable<TablePipeline>, Executable, Compilable {}
+public interface TablePipeline extends Explainable<TablePipeline>, Executable, Compilable {
+
+    /**
+     * @return the sink {@link ObjectIdentifier}, if any.
+     */
+    Optional<ObjectIdentifier> getSinkIdentifier();
+
+}

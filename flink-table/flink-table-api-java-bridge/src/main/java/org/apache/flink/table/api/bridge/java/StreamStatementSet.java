@@ -40,26 +40,21 @@ import org.apache.flink.table.api.TablePipeline;
 @PublicEvolving
 public interface StreamStatementSet extends StatementSet {
 
-    /** {@inheritDoc} */
-    @Override
-    StreamStatementSet addInsertSql(String statement);
-
-    /** {@inheritDoc} */
     @Override
     StreamStatementSet add(TablePipeline tablePipeline);
 
-    /** {@inheritDoc} */
+    @Override
+    StreamStatementSet addInsertSql(String statement);
+
+    @Override
     StreamStatementSet addInsert(String targetPath, Table table);
 
-    /** {@inheritDoc} */
     @Override
     StreamStatementSet addInsert(String targetPath, Table table, boolean overwrite);
 
-    /** {@inheritDoc} */
     @Override
     StreamStatementSet addInsert(TableDescriptor targetDescriptor, Table table);
 
-    /** {@inheritDoc} */
     @Override
     StreamStatementSet addInsert(TableDescriptor targetDescriptor, Table table, boolean overwrite);
 
@@ -73,7 +68,6 @@ public interface StreamStatementSet extends StatementSet {
      */
     void attachAsDataStream();
 
-    /** {@inheritDoc} */
     @Override
     StreamStatementSet printExplain(ExplainDetail... extraDetails);
 }

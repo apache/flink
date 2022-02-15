@@ -23,7 +23,11 @@ import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TablePipeline;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.ModifyOperation;
+import org.apache.flink.table.operations.SinkModifyOperation;
+
+import java.util.Optional;
 
 import static java.util.Collections.singletonList;
 
@@ -55,5 +59,28 @@ class TablePipelineImpl implements TablePipeline {
     @Override
     public String explain(ExplainDetail... extraDetails) {
         return tableEnvironment.explainInternal(singletonList(operation), extraDetails);
+    }
+
+    @Override
+    public Optional<ObjectIdentifier> getSinkIdentifier() {
+        if (this.operation instanceof SinkModifyOperation) {
+            SinkModifyOperation sinkModifyOperation = (SinkModifyOperation) this.operation;
+            if (!sinkModifyOperation.getContextResolvedTable().isAnonymous()) {
+                return Optional.of(sinkModifyOperation.getContextResolvedTable().getIdentifier());
+            }
+        }
+        return Optional.empty();
+    }
+
+    @Override
+    public String toString() {
+        if (this.operation instanceof SinkModifyOperation) {
+            return "TablePipeline with sink table '"
+                    + ((SinkModifyOperation) this.operation)
+                            .getContextResolvedTable()
+                            .getIdentifier()
+                    + "'";
+        }
+        return "TablePipeline with sink '" + operation.getClass().getSimpleName() + "'";
     }
 }

@@ -29,11 +29,11 @@ import org.apache.flink.annotation.PublicEvolving;
 @PublicEvolving
 public interface StatementSet extends Explainable<StatementSet>, Compilable, Executable {
 
-    /** Adds an {@code INSERT INTO} SQL statement. */
-    StatementSet addInsertSql(String statement);
-
     /** Adds a {@link TablePipeline}. */
     StatementSet add(TablePipeline tablePipeline);
+
+    /** Adds an {@code INSERT INTO} SQL statement. */
+    StatementSet addInsertSql(String statement);
 
     /**
      * Shorthand for {@code statementSet.add(table.insertInto(targetPath))}.

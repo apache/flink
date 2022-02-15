@@ -35,9 +35,9 @@ import org.apache.flink.table.api.{ExplainDetail, StatementSet, Table, TableDesc
 @PublicEvolving
 trait StreamStatementSet extends StatementSet {
 
-  override def addInsertSql(statement: String): StreamStatementSet
-
   override def add(tablePipeline: TablePipeline): StreamStatementSet
+
+  override def addInsertSql(statement: String): StreamStatementSet
 
   override def addInsert(targetPath: String, table: Table): StreamStatementSet
 

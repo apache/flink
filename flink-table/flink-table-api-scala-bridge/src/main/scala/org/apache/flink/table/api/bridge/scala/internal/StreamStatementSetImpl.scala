@@ -29,30 +29,38 @@ class StreamStatementSetImpl(tableEnvironment: StreamTableEnvironmentImpl)
     extends StatementSetImpl[StreamTableEnvironmentImpl](tableEnvironment)
     with StreamStatementSet {
 
-  override def addInsertSql(statement: String): StreamStatementSet =
-    super.addInsertSql(statement).asInstanceOf[StreamStatementSet]
-
-  override def add(tablePipeline: TablePipeline): StreamStatementSet =
+  override def add(tablePipeline: TablePipeline): StreamStatementSet = {
     super.add(tablePipeline).asInstanceOf[StreamStatementSet]
+  }
 
-  override def addInsert(targetPath: String, table: Table): StreamStatementSet =
+  override def addInsertSql(statement: String): StreamStatementSet = {
+    super.addInsertSql(statement).asInstanceOf[StreamStatementSet]
+  }
+
+  override def addInsert(targetPath: String, table: Table): StreamStatementSet = {
     super.addInsert(targetPath, table).asInstanceOf[StreamStatementSet]
-
-  override def addInsert(targetPath: String, table: Table, overwrite: Boolean): StreamStatementSet =
-    super.addInsert(targetPath, table, overwrite).asInstanceOf[StreamStatementSet]
-
-  override def addInsert(targetDescriptor: TableDescriptor, table: Table): StreamStatementSet =
-    super.addInsert(targetDescriptor, table).asInstanceOf[StreamStatementSet]
+  }
 
   override def addInsert(
-                          targetDescriptor: TableDescriptor,
-                          table: Table,
-                          overwrite: Boolean)
-  : StreamStatementSet =
+    targetPath: String, table: Table, overwrite: Boolean)
+  : StreamStatementSet = {
+    super.addInsert(targetPath, table, overwrite).asInstanceOf[StreamStatementSet]
+  }
+
+  override def addInsert(targetDescriptor: TableDescriptor, table: Table): StreamStatementSet = {
+    super.addInsert(targetDescriptor, table).asInstanceOf[StreamStatementSet]
+  }
+
+  override def addInsert(
+    targetDescriptor: TableDescriptor,
+    table: Table,
+    overwrite: Boolean)
+  : StreamStatementSet = {
     super.addInsert(targetDescriptor, table, overwrite).asInstanceOf[StreamStatementSet]
+  }
 
   override def printExplain(extraDetails: ExplainDetail*): StreamStatementSet = {
-    System.out.println(super.explain(extraDetails: _*))
+    println(super.explain(extraDetails: _*))
     this
   }
 

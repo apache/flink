@@ -97,14 +97,12 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
 
     @Test
     public void testExecutePlanTable() throws Exception {
-        List<String> data = Arrays.asList("1,1,hi", "2,1,hello", "3,2,hello world");
-        createTestCsvSourceTable("src", data, "a bigint", "b int", "c varchar");
-        File sinkPath = createTestCsvSinkTable("sink", "a bigint", "b int", "c varchar");
+        File sinkPath = createSourceSinkTables();
 
         CompiledPlan plan = tableEnv.from("src").select($("*")).insertInto("sink").compilePlan();
         tableEnv.executePlan(plan).await();
 
-        assertResult(data, sinkPath);
+        assertResult(DATA, sinkPath);
     }
 
     @Test

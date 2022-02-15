@@ -52,6 +52,12 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
     }
 
     @Override
+    public StatementSet add(TablePipeline tablePipeline) {
+        operations.add(((TablePipelineImpl) tablePipeline).getOperation());
+        return this;
+    }
+
+    @Override
     public StatementSet addInsertSql(String statement) {
         List<Operation> operations = tableEnvironment.getParser().parse(statement);
 
@@ -65,12 +71,6 @@ public class StatementSetImpl<E extends TableEnvironmentInternal> implements Sta
         } else {
             throw new TableException("Only insert statement is supported now.");
         }
-        return this;
-    }
-
-    @Override
-    public StatementSet add(TablePipeline tablePipeline) {
-        operations.add(((TablePipelineImpl) tablePipeline).getOperation());
         return this;
     }
 

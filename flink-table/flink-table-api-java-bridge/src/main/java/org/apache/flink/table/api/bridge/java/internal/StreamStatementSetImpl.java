@@ -36,13 +36,13 @@ public class StreamStatementSetImpl extends StatementSetImpl<StreamTableEnvironm
     }
 
     @Override
-    public StreamStatementSet addInsertSql(String statement) {
-        return (StreamStatementSet) super.addInsertSql(statement);
+    public StreamStatementSet add(TablePipeline tablePipeline) {
+        return (StreamStatementSet) super.add(tablePipeline);
     }
 
     @Override
-    public StreamStatementSet add(TablePipeline tablePipeline) {
-        return (StreamStatementSet) super.add(tablePipeline);
+    public StreamStatementSet addInsertSql(String statement) {
+        return (StreamStatementSet) super.addInsertSql(statement);
     }
 
     @Override
@@ -50,19 +50,16 @@ public class StreamStatementSetImpl extends StatementSetImpl<StreamTableEnvironm
         return add(table.insertInto(targetPath));
     }
 
-    /** {@inheritDoc} */
     @Override
     public StreamStatementSet addInsert(String targetPath, Table table, boolean overwrite) {
         return add(table.insertInto(targetPath, overwrite));
     }
 
-    /** {@inheritDoc} */
     @Override
     public StreamStatementSet addInsert(TableDescriptor targetDescriptor, Table table) {
         return add(table.insertInto(targetDescriptor));
     }
 
-    /** {@inheritDoc} */
     @Override
     public StreamStatementSet addInsert(
             TableDescriptor targetDescriptor, Table table, boolean overwrite) {
