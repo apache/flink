@@ -165,6 +165,55 @@ WatermarkStrategy
 {{< /tab >}}
 {{< /tabs >}}
 
+## Watermark alignment _`Beta`_
+
+In the previous paragraph we discussed a situation when splits/partitions/shards or sources are idle
+and can stall increasing watermarks. On the other side of the spectrum, a split/partition/shard or
+source may process records very fast and in turn increase its watermark relatively faster than the
+others. This on its own is not a problem per se. However, for downstream operators that are using
+watermarks to emit some data it can actually become a problem. Such downstream operator (like
+windowed joins on aggregations) might need to buffer excessive amount of data, as the minimal
+watermark from all of its inputs is held back by the lagging source instance. All records emitted by
+the fast source will hence have to be buffered in the said downstream operator state, which can lead
+into uncontrollable growth of the operator's state.
+
+In order to address the issue, you can enable watermark alignment, which will make sure no
+sources/splits/shards/partitions increase their watermarks too far ahead of the rest. You can enable
+alignment for every source separately:
+
+
+{{< tabs >}}
+{{< tab "Java" >}}
+```java
+WatermarkStrategy
+        .<Tuple2<Long, String>>forBoundedOutOfOrderness(Duration.ofSeconds(20))
+        .withWatermarkAlignment("alignment-group-1", Duration.ofSeconds(20), Duration.ofSeconds(1));
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+WatermarkStrategy
+  .forBoundedOutOfOrderness[(Long, String)](Duration.ofSeconds(20))
+  .withWatermarkAlignment("alignment-group-1", Duration.ofSeconds(20), Duration.ofSeconds(1))
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+When enabling the alignment, you need to tell Flink, which group should the source belong and what
+is the maximal drift from the current minimal watermarks across all sources belonging to that group.
+The third parameter describes how often the current maximal watermark should be updated. The
+downside of frequent updates is that there will be more RPC messages travelling between TMs and the
+JM.
+
+In order to achieve the alignment Flink will pause consuming from the source/task, which generated
+watermark that is too far into the future. In the meantime it will continue reading records from
+other sources/tasks which can move the combined watermark forward and that way unblock the faster
+one.
+
+{{< hint warning >}}
+**Note:** As of 1.15, Flink supports aligning across tasks of the same source and/or different
+sources. It does not support aligning splits/partitions/shards in the same task.
+{{< /hint >}}
 
 <a name="writing-watermarkgenerators"></a>
 
