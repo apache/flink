@@ -102,7 +102,7 @@ Kafka Source 提供了 3 种 Topic / Partition 的订阅方式：
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 KafkaSource.<String>builder()
-        .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringSerializer.class));
+        .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class));
 ```
 
 ### 起始消费位点
