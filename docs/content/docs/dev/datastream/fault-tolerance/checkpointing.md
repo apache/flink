@@ -269,7 +269,7 @@ checkpointed after the `finish` method will be discarded and not be available af
 
 Any operator that is prepared to be rescaled should work well with tasks that partially finish.
 Restoring from a checkpoint where only a subset of tasks finished is equivalent to restoring such a
-task with the number of new subtasks equal to the number of finished tasks.
+task with the number of new subtasks equal to the number of running tasks.
 
 ### Waiting for the final checkpoint before task exit
 
