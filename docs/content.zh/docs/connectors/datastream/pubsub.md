@@ -150,4 +150,21 @@ env.addSource(pubsubSource)
 
 Sink function 会把准备发到 PubSub 的信息短暂地缓存以提高性能。每次 checkpoint 前，它会刷新缓冲区，并且只有当所有信息成功发送到 PubSub 之后，checkpoint 才会成功完成。
 
+## 常见问题
+
+由于Pulsar Connector大量依赖
+[PulsarClient](https://pulsar.apache.org/docs/en/client-libraries-java/) 和
+[PulsarAdmin](https://pulsar.apache.org/docs/en/admin-api-overview/) 来实现相关功能，有时Flink Job出现
+可能是由于Pulsar broker版本过低或者配置不合适导致的。调试配置或升级pulsar可能会解决部分问题。
+
+
+### 当数据量很小时，source读数据出现大约10s延迟
+
+当Pulsar Source从一个数据量很小的topic读取数据时，用户可能会观测到消息间出现10秒钟的间隔。这是由于Pulsar Source
+会将从broker读到的消息暂存至等待队列中，只有当队列中消息数量达到了 `PulsarSourceOptions.PULSAR_MAX_FETCH_RECORDS`
+才会向下游算子发送数据。如果数据量一直很小，那么就会在等待直到等待时长超过`PULSAR_MAX_FETCH_TIME`规定的值 (默认10秒钟)时
+也向下游算子发送数据。
+
+为了避免这种情况，用户需要改变两个配置项的值。
+
 {{< top >}}
