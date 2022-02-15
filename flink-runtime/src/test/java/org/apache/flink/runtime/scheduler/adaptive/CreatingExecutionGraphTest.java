@@ -32,9 +32,11 @@ import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.Executors;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import javax.annotation.Nullable;
 
@@ -43,17 +45,14 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link CreatingExecutionGraph} state. */
+@ExtendWith(TestLoggerExtension.class)
 public class CreatingExecutionGraphTest extends TestLogger {
 
     @Test
@@ -68,7 +67,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
-                            assertThat(archivedExecutionGraph.getState(), is(JobStatus.CANCELED)));
+                            assertThat(archivedExecutionGraph.getState())
+                                    .isEqualTo(JobStatus.CANCELED));
 
             creatingExecutionGraph.cancel();
         }
@@ -86,7 +86,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
-                            assertThat(archivedExecutionGraph.getState(), is(JobStatus.SUSPENDED)));
+                            assertThat(archivedExecutionGraph.getState())
+                                    .isEqualTo(JobStatus.SUSPENDED));
 
             creatingExecutionGraph.suspend(new FlinkException("Job has been suspended."));
         }
@@ -104,7 +105,8 @@ public class CreatingExecutionGraphTest extends TestLogger {
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
-                            assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
+                            assertThat(archivedExecutionGraph.getState())
+                                    .isEqualTo(JobStatus.FAILED));
 
             creatingExecutionGraph.handleGlobalFailure(new FlinkException("Test exception"));
         }
@@ -115,16 +117,16 @@ public class CreatingExecutionGraphTest extends TestLogger {
         try (MockCreatingExecutionGraphContext context = new MockCreatingExecutionGraphContext()) {
             final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
                     executionGraphWithVertexParallelismFuture = new CompletableFuture<>();
-            final CreatingExecutionGraph creatingExecutionGraph =
-                    new CreatingExecutionGraph(
-                            context,
-                            executionGraphWithVertexParallelismFuture,
-                            log,
-                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+            new CreatingExecutionGraph(
+                    context,
+                    executionGraphWithVertexParallelismFuture,
+                    log,
+                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
 
             context.setExpectFinished(
                     archivedExecutionGraph ->
-                            assertThat(archivedExecutionGraph.getState(), is(JobStatus.FAILED)));
+                            assertThat(archivedExecutionGraph.getState())
+                                    .isEqualTo(JobStatus.FAILED));
 
             executionGraphWithVertexParallelismFuture.completeExceptionally(
                     new FlinkException("Test exception"));
@@ -136,12 +138,11 @@ public class CreatingExecutionGraphTest extends TestLogger {
         try (MockCreatingExecutionGraphContext context = new MockCreatingExecutionGraphContext()) {
             final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
                     executionGraphWithVertexParallelismFuture = new CompletableFuture<>();
-            final CreatingExecutionGraph creatingExecutionGraph =
-                    new CreatingExecutionGraph(
-                            context,
-                            executionGraphWithVertexParallelismFuture,
-                            log,
-                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+            new CreatingExecutionGraph(
+                    context,
+                    executionGraphWithVertexParallelismFuture,
+                    log,
+                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
 
             context.setTryToAssignSlotsFunction(
                     ignored -> CreatingExecutionGraph.AssignmentResult.notPossible());
@@ -157,13 +158,12 @@ public class CreatingExecutionGraphTest extends TestLogger {
     public void testSuccessfulSlotAssignmentTransitionsToExecuting() throws Exception {
         try (MockCreatingExecutionGraphContext context = new MockCreatingExecutionGraphContext()) {
             final CompletableFuture<CreatingExecutionGraph.ExecutionGraphWithVertexParallelism>
-                    executionGraphWithvertexParallelismFuture = new CompletableFuture<>();
-            final CreatingExecutionGraph creatingExecutionGraph =
-                    new CreatingExecutionGraph(
-                            context,
-                            executionGraphWithvertexParallelismFuture,
-                            log,
-                            CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
+                    executionGraphWithVertexParallelismFuture = new CompletableFuture<>();
+            new CreatingExecutionGraph(
+                    context,
+                    executionGraphWithVertexParallelismFuture,
+                    log,
+                    CreatingExecutionGraphTest::createTestingOperatorCoordinatorHandler);
 
             final StateTrackingMockExecutionGraph executionGraph =
                     new StateTrackingMockExecutionGraph();
@@ -171,9 +171,9 @@ public class CreatingExecutionGraphTest extends TestLogger {
             context.setTryToAssignSlotsFunction(CreatingExecutionGraphTest::successfulAssignment);
             context.setExpectedExecuting(
                     actualExecutionGraph ->
-                            assertThat(actualExecutionGraph, sameInstance(executionGraph)));
+                            assertThat(actualExecutionGraph).isEqualTo(executionGraph));
 
-            executionGraphWithvertexParallelismFuture.complete(
+            executionGraphWithVertexParallelismFuture.complete(
                     CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
                             executionGraph, new TestingVertexParallelism()));
         }
@@ -200,24 +200,14 @@ public class CreatingExecutionGraphTest extends TestLogger {
 
             context.setTryToAssignSlotsFunction(CreatingExecutionGraphTest::successfulAssignment);
             context.setExpectedExecuting(
-                    ignored -> {
-                        // This just lets us transition to executing.
-                    });
-
-            final AtomicBoolean contextGlobalFailureHandlerCalled = new AtomicBoolean(false);
-            context.setGlobalFailureHandler(
-                    t -> {
-                        contextGlobalFailureHandlerCalled.set(true);
-                    });
+                    actualExecutionGraph ->
+                            assertThat(actualExecutionGraph).isEqualTo(executionGraph));
 
             executionGraphWithVertexParallelismFuture.complete(
                     CreatingExecutionGraph.ExecutionGraphWithVertexParallelism.create(
                             executionGraph, new TestingVertexParallelism()));
 
-            operatorCoordinatorGlobalFailureHandlerRef
-                    .get()
-                    .handleGlobalFailure(new RuntimeException("Test."));
-            assertTrue(contextGlobalFailureHandlerCalled.get());
+            assertThat(operatorCoordinatorGlobalFailureHandlerRef.get()).isSameAs(context);
         }
     }
 
