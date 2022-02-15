@@ -23,6 +23,9 @@ import org.apache.flink.api.connector.sink.Sink.InitContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.common.config.PulsarConfiguration;
+import org.apache.flink.connector.pulsar.sink.writer.PulsarWriter;
+import org.apache.flink.connector.pulsar.sink.writer.router.MessageKeyHash;
+import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSchemaWrapper;
 
 import org.apache.pulsar.client.api.Schema;
 
@@ -31,6 +34,7 @@ import java.util.Objects;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_BATCHING_MAX_MESSAGES;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_MAX_RECOMMIT_TIMES;
+import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_MESSAGE_KEY_HASH;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_DELIVERY_GUARANTEE;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_SCHEMA_EVOLUTION;
@@ -45,6 +49,7 @@ public class SinkConfiguration extends PulsarConfiguration {
     private final long transactionTimeoutMillis;
     private final long topicMetadataRefreshInterval;
     private final int partitionSwitchSize;
+    private final MessageKeyHash messageKeyHash;
     private final boolean enableSchemaEvolution;
     private final int maxPendingMessages;
     private final int maxRecommitTimes;
@@ -56,12 +61,13 @@ public class SinkConfiguration extends PulsarConfiguration {
         this.transactionTimeoutMillis = getLong(PULSAR_WRITE_TRANSACTION_TIMEOUT);
         this.topicMetadataRefreshInterval = getLong(PULSAR_TOPIC_METADATA_REFRESH_INTERVAL);
         this.partitionSwitchSize = getInteger(PULSAR_BATCHING_MAX_MESSAGES);
+        this.messageKeyHash = get(PULSAR_MESSAGE_KEY_HASH);
         this.enableSchemaEvolution = get(PULSAR_WRITE_SCHEMA_EVOLUTION);
         this.maxPendingMessages = get(PULSAR_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS);
         this.maxRecommitTimes = get(PULSAR_MAX_RECOMMIT_TIMES);
     }
 
-    /** The delivery guarantee changes the behavior of {@code PulsarWriter}. */
+    /** The delivery guarantee changes the behavior of {@link PulsarWriter}. */
     public DeliveryGuarantee getDeliveryGuarantee() {
         return deliveryGuarantee;
     }
@@ -92,9 +98,14 @@ public class SinkConfiguration extends PulsarConfiguration {
         return partitionSwitchSize;
     }
 
+    /** The message key's hash logic for routing the message into one Pulsar partition. */
+    public MessageKeyHash getMessageKeyHash() {
+        return messageKeyHash;
+    }
+
     /**
      * If we should serialize and send the message with a specified Pulsar {@link Schema} instead
-     * the default {@link Schema#BYTES}. This switch is only used for {@code PulsarSchemaWrapper}.
+     * the default {@link Schema#BYTES}. This switch is only used for {@link PulsarSchemaWrapper}.
      */
     public boolean isEnableSchemaEvolution() {
         return enableSchemaEvolution;
@@ -129,6 +140,7 @@ public class SinkConfiguration extends PulsarConfiguration {
                 && topicMetadataRefreshInterval == that.topicMetadataRefreshInterval
                 && partitionSwitchSize == that.partitionSwitchSize
                 && enableSchemaEvolution == that.enableSchemaEvolution
+                && messageKeyHash == that.messageKeyHash
                 && maxPendingMessages == that.maxPendingMessages
                 && maxRecommitTimes == that.maxRecommitTimes;
     }
@@ -140,6 +152,7 @@ public class SinkConfiguration extends PulsarConfiguration {
                 transactionTimeoutMillis,
                 topicMetadataRefreshInterval,
                 partitionSwitchSize,
+                messageKeyHash,
                 enableSchemaEvolution,
                 maxPendingMessages,
                 maxRecommitTimes);
