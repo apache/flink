@@ -30,6 +30,7 @@ import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.MessagePathParameter;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
+import org.apache.flink.runtime.rest.messages.job.metrics.AggregatedMetric;
 import org.apache.flink.runtime.rest.messages.job.metrics.AggregatedMetricsResponseBody;
 import org.apache.flink.runtime.rest.messages.job.metrics.AggregatedSubtaskMetricsHeaders;
 import org.apache.flink.runtime.rest.messages.job.metrics.AggregatedSubtaskMetricsParameters;
@@ -40,6 +41,9 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -56,16 +60,15 @@ public class MetricQuerier {
         restClient = new RestClient(configuration, Executors.newCachedThreadPool());
     }
 
-    public JobDetailsInfo getJobDetails(TestEnvironment.Endpoint endpoint, JobID jobId)
-            throws Exception {
+    public static JobDetailsInfo getJobDetails(
+            RestClient client, TestEnvironment.Endpoint endpoint, JobID jobId) throws Exception {
         String jmAddress = endpoint.getAddress();
         int jmPort = endpoint.getPort();
 
         final JobMessageParameters params = new JobMessageParameters();
         params.jobPathParameter.resolve(jobId);
 
-        return restClient
-                .sendRequest(
+        return client.sendRequest(
                         jmAddress,
                         jmPort,
                         JobDetailsHeaders.getInstance(),
@@ -120,10 +123,11 @@ public class MetricQuerier {
             TestEnvironment.Endpoint endpoint,
             JobID jobId,
             String sourceOrSinkName,
-            String metricName)
+            String metricName,
+            String filter)
             throws Exception {
         // get job details, including the vertex id
-        JobDetailsInfo jobDetailsInfo = getJobDetails(endpoint, jobId);
+        JobDetailsInfo jobDetailsInfo = getJobDetails(restClient, endpoint, jobId);
 
         // get the vertex id for source/sink operator
         JobDetailsInfo.JobVertexDetailsInfo vertex =
@@ -143,8 +147,8 @@ public class MetricQuerier {
                 metricsResponseBody.getMetrics().stream()
                         .filter(
                                 m ->
-                                        m.getId().endsWith(metricName)
-                                                && m.getId().contains(sourceOrSinkName))
+                                        filterByMetricName(
+                                                m.getId(), sourceOrSinkName, metricName, filter))
                         .map(m -> m.getId())
                         .collect(Collectors.joining(","));
 
@@ -157,6 +161,27 @@ public class MetricQuerier {
 
         AggregatedMetricsResponseBody metricsResponse =
                 getMetrics(endpoint, jobId, vertexId, queryParam);
-        return metricsResponse.getMetrics().iterator().next().getSum();
+
+        Collection<AggregatedMetric> metrics = metricsResponse.getMetrics();
+        if (metrics == null || metrics.isEmpty()) {
+            throw new IllegalStateException(
+                    String.format(
+                            "Cannot find metric[%s] for operator [%s] with filter [%s].",
+                            metricName, sourceOrSinkName, filter));
+        }
+        return metrics.iterator().next().getSum();
+    }
+
+    private boolean filterByMetricName(
+            String metricName,
+            String sourceOrSinkName,
+            String targetMetricName,
+            @Nullable String filter) {
+        boolean filterByName =
+                metricName.endsWith(targetMetricName) && metricName.contains(sourceOrSinkName);
+        if (!StringUtils.isNullOrWhitespaceOnly(filter)) {
+            return filterByName && metricName.contains(filter);
+        }
+        return filterByName;
     }
 }
