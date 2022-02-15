@@ -21,6 +21,7 @@ package org.apache.flink.kubernetes.kubeclient.decorators;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptionsInternal;
+import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkPod;
 import org.apache.flink.kubernetes.kubeclient.parameters.AbstractKubernetesParameters;
@@ -156,6 +157,7 @@ public class FlinkConfMountDecorator extends AbstractKubernetesStepDecorator {
         // Remove some configuration options that should not be taken to cluster side.
         clusterSideConfig.removeConfig(KubernetesConfigOptions.KUBE_CONFIG_FILE);
         clusterSideConfig.removeConfig(DeploymentOptionsInternal.CONF_DIR);
+        clusterSideConfig.removeConfig(RestOptions.BIND_ADDRESS);
         return clusterSideConfig.toMap();
     }
 
