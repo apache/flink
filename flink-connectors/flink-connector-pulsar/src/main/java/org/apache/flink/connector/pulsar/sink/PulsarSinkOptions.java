@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.common.config.PulsarOptions;
+import org.apache.flink.connector.pulsar.sink.writer.router.MessageKeyHash;
 
 import org.apache.pulsar.client.api.CompressionType;
 
@@ -38,12 +39,13 @@ import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PRODUCER_CONFIG_PREFIX;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.SINK_CONFIG_PREFIX;
+import static org.apache.flink.connector.pulsar.sink.writer.router.MessageKeyHash.MURMUR3_32_HASH;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_BATCHING_MAX_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES;
 import static org.apache.pulsar.client.impl.conf.ProducerConfigurationData.DEFAULT_MAX_PENDING_MESSAGES_ACROSS_PARTITIONS;
 
 /**
- * Configurations for PulsarSink. All the options list here could be configured in {@code
+ * Configurations for PulsarSink. All the options list here could be configured in {@link
  * PulsarSinkBuilder#setConfig(ConfigOption, Object)}. The {@link PulsarOptions} is also required
  * for pulsar source.
  *
@@ -99,6 +101,13 @@ public final class PulsarSinkOptions {
                     .withDescription(
                             "Auto update the topic metadata in a fixed interval (in ms). The default value is 30 minutes.");
 
+    public static final ConfigOption<MessageKeyHash> PULSAR_MESSAGE_KEY_HASH =
+            ConfigOptions.key(SINK_CONFIG_PREFIX + "messageKeyHash")
+                    .enumType(MessageKeyHash.class)
+                    .defaultValue(MURMUR3_32_HASH)
+                    .withDescription(
+                            "The hash policy for routing message by calculating the hash code of message key.");
+
     public static final ConfigOption<Boolean> PULSAR_WRITE_SCHEMA_EVOLUTION =
             ConfigOptions.key(SINK_CONFIG_PREFIX + "enableSchemaEvolution")
                     .booleanType()
@@ -106,7 +115,8 @@ public final class PulsarSinkOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "If you enable this option, we would consume and deserialize the message by using Pulsar's %s.",
+                                            "If you enable this option and use PulsarSerializationSchema.pulsarSchema(),"
+                                                    + " we would consume and deserialize the message by using Pulsar's %s.",
                                             code("Schema"))
                                     .build());
 
