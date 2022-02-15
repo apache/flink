@@ -314,7 +314,6 @@ public final class PulsarOptions {
                                             "If the duration passes without a response from a broker, the connection attempt is dropped.")
                                     .build());
 
-    // TODO This option would be exposed by Pulsar's ClientBuilder in the next Pulsar release.
     public static final ConfigOption<Integer> PULSAR_REQUEST_TIMEOUT_MS =
             ConfigOptions.key(CLIENT_CONFIG_PREFIX + "requestTimeoutMs")
                     .intType()

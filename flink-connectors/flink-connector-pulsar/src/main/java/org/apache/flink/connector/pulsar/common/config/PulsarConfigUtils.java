@@ -31,6 +31,7 @@ import org.apache.pulsar.client.api.ProxyProtocol;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.function.Consumer;
@@ -66,6 +67,7 @@ import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULS
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_PROXY_SERVICE_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_READ_TIMEOUT;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_REQUEST_TIMEOUT;
+import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_REQUEST_TIMEOUT_MS;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SERVICE_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_SSL_PROVIDER;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS;
@@ -149,6 +151,14 @@ public final class PulsarConfigUtils {
                 configuration,
                 PULSAR_CONNECTION_TIMEOUT_MS,
                 v -> builder.connectionTimeout(v, MILLISECONDS));
+        setOptionValue(
+                configuration,
+                PULSAR_REQUEST_TIMEOUT_MS,
+                v -> {
+                    HashMap<String, Object> config = new HashMap<>(1);
+                    config.put("requestTimeoutMs", v);
+                    builder.loadConf(config);
+                });
         setOptionValue(
                 configuration,
                 PULSAR_INITIAL_BACKOFF_INTERVAL_NANOS,
