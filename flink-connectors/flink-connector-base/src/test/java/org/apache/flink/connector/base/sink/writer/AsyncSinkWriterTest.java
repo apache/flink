@@ -38,6 +38,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.connector.base.sink.writer.AsyncSinkWriterTestUtils.assertThatBufferStatesAreEqual;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -602,6 +603,39 @@ public class AsyncSinkWriterTest {
                                         .buildWithState(states))
                 .withMessageContaining(
                         "State contains record of size 100 which exceeds sink maximum record size 15.");
+    }
+
+    @Test
+    public void testRestoreFromMultipleStates() throws IOException {
+        List<BufferedRequestState<Integer>> states =
+                Arrays.asList(
+                        new BufferedRequestState<>(
+                                Arrays.asList(
+                                        new RequestEntryWrapper<>(1, 1),
+                                        new RequestEntryWrapper<>(2, 1),
+                                        new RequestEntryWrapper<>(3, 1))),
+                        new BufferedRequestState<>(
+                                Arrays.asList(
+                                        new RequestEntryWrapper<>(4, 1),
+                                        new RequestEntryWrapper<>(5, 1))),
+                        new BufferedRequestState<>(
+                                Collections.singletonList(new RequestEntryWrapper<>(6, 1))));
+
+        AsyncSinkWriterImpl sink =
+                new AsyncSinkWriterImplBuilder().context(sinkInitContext).buildWithState(states);
+
+        List<BufferedRequestState<Integer>> bufferedRequestStates = sink.snapshotState(1);
+        // After snapshotting state, all entries are merged into a single BufferedRequestState
+        assertThat(bufferedRequestStates).hasSize(1);
+
+        BufferedRequestState<Integer> snapshotState = bufferedRequestStates.get(0);
+        assertThat(snapshotState.getBufferedRequestEntries()).hasSize(6);
+        assertThat(snapshotState.getStateSize()).isEqualTo(6);
+        assertThat(
+                        snapshotState.getBufferedRequestEntries().stream()
+                                .map(RequestEntryWrapper::getRequestEntry)
+                                .collect(Collectors.toList()))
+                .containsExactlyInAnyOrder(1, 2, 3, 4, 5, 6);
     }
 
     @Test
