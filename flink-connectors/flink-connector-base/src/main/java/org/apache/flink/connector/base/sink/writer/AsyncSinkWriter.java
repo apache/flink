@@ -271,7 +271,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
                                     throw exception;
                                 },
                                 "A fatal exception occurred in the sink that cannot be recovered from or should not be retried.");
-        initialize(states);
+
+        initializeState(states);
     }
 
     private void registerCallback() {
@@ -429,17 +430,13 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         return Collections.singletonList(new BufferedRequestState<>((bufferedRequestEntries)));
     }
 
-    protected void initialize(Collection<BufferedRequestState<RequestEntryT>> states) {
-        if (states.isEmpty()) {
-            return;
+    private void initializeState(Collection<BufferedRequestState<RequestEntryT>> states) {
+        for (BufferedRequestState<RequestEntryT> state : states) {
+            initializeState(state);
         }
+    }
 
-        if (states.size() > 1) {
-            throw new IllegalStateException(
-                    "Writer failed to initialize due to multiple initial states.");
-        }
-
-        BufferedRequestState<RequestEntryT> state = states.iterator().next();
+    private void initializeState(BufferedRequestState<RequestEntryT> state) {
         this.bufferedRequestEntries.addAll(state.getBufferedRequestEntries());
 
         for (RequestEntryWrapper<RequestEntryT> wrapper : bufferedRequestEntries) {
@@ -451,7 +448,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
             }
         }
 
-        this.bufferedRequestEntriesTotalSizeInBytes = state.getStateSize();
+        this.bufferedRequestEntriesTotalSizeInBytes += state.getStateSize();
     }
 
     @Override
