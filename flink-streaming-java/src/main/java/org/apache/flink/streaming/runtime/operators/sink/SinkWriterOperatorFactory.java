@@ -45,16 +45,26 @@ public final class SinkWriterOperatorFactory<InputT, CommT>
                 YieldingOperatorFactory<CommittableMessage<CommT>> {
 
     private final Sink<InputT> sink;
+    private final boolean isBatchMode;
+    private final boolean isCheckpointingEnabled;
 
-    public SinkWriterOperatorFactory(Sink<InputT> sink) {
+    public SinkWriterOperatorFactory(
+            Sink<InputT> sink, boolean isBatchMode, boolean isCheckpointingEnabled) {
         this.sink = checkNotNull(sink);
+        this.isBatchMode = isBatchMode;
+        this.isCheckpointingEnabled = isCheckpointingEnabled;
     }
 
     public <T extends StreamOperator<CommittableMessage<CommT>>> T createStreamOperator(
             StreamOperatorParameters<CommittableMessage<CommT>> parameters) {
         try {
             final SinkWriterOperator<InputT, CommT> writerOperator =
-                    new SinkWriterOperator<>(sink, processingTimeService, getMailboxExecutor());
+                    new SinkWriterOperator<>(
+                            sink,
+                            processingTimeService,
+                            getMailboxExecutor(),
+                            isBatchMode,
+                            isCheckpointingEnabled);
             writerOperator.setup(
                     parameters.getContainingTask(),
                     parameters.getStreamConfig(),

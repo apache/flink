@@ -64,8 +64,12 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
     private final SimpleVersionedSerializer<CommT> committableSerializer;
     private final Committer<CommT> committer;
     private final boolean emitDownstream;
+    private final boolean isCheckpointingOrBatchModeEnabled;
     private CommittableCollector<CommT> committableCollector;
     private long lastCompletedCheckpointId = -1;
+
+    private boolean endInput = false;
+    private boolean finalEmission = false;
 
     /** The operator's state descriptor. */
     private static final ListStateDescriptor<byte[]> STREAMING_COMMITTER_RAW_STATES_DESC =
@@ -79,8 +83,10 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
             ProcessingTimeService processingTimeService,
             SimpleVersionedSerializer<CommT> committableSerializer,
             Committer<CommT> committer,
-            boolean emitDownstream) {
+            boolean emitDownstream,
+            boolean isCheckpointingOrBatchModeEnabled) {
         this.emitDownstream = emitDownstream;
+        this.isCheckpointingOrBatchModeEnabled = isCheckpointingOrBatchModeEnabled;
         this.processingTimeService = checkNotNull(processingTimeService);
         this.committableSerializer = checkNotNull(committableSerializer);
         this.committer = checkNotNull(committer);
@@ -123,20 +129,31 @@ class CommitterOperator<CommT> extends AbstractStreamOperator<CommittableMessage
 
     @Override
     public void endInput() throws Exception {
-        Collection<? extends CommittableManager<CommT>> endOfInputCommittables =
-                committableCollector.getEndOfInputCommittables();
+        endInput = true;
+        final CommittableManager<CommT> endOfInputCommittable =
+                committableCollector.getEndOfInputCommittable();
         // indicates batch
-        if (endOfInputCommittables != null) {
+        if (endOfInputCommittable != null) {
             do {
-                for (CommittableManager<CommT> endOfInputCommittable : endOfInputCommittables) {
-                    commitAndEmit(endOfInputCommittable, false);
-                }
+                commitAndEmit(endOfInputCommittable, false);
             } while (!committableCollector.isFinished());
+        }
+        if (!isCheckpointingOrBatchModeEnabled) {
+            notifyCheckpointComplete(
+                    lastCompletedCheckpointId == -1 ? 1 : lastCompletedCheckpointId + 1);
         }
     }
 
     @Override
     public void notifyCheckpointComplete(long checkpointId) throws Exception {
+        // If a streaming job finishes and a savepoint is triggered afterwards we do not want to
+        // flush again
+        if (finalEmission) {
+            return;
+        }
+        if (endInput) {
+            finalEmission = true;
+        }
         super.notifyCheckpointComplete(checkpointId);
         lastCompletedCheckpointId = Math.max(lastCompletedCheckpointId, checkpointId);
         commitAndEmitCheckpoints();
