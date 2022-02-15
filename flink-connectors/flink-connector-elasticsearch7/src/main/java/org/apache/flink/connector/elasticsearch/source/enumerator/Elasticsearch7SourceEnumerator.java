@@ -44,7 +44,10 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -74,6 +77,10 @@ public class Elasticsearch7SourceEnumerator
 
     private RestHighLevelClient client;
 
+    private final LinkedHashMap<Integer, String> readersAwaitingSplit;
+
+    private boolean isInitialized = false;
+
     public Elasticsearch7SourceEnumerator(
             Elasticsearch7SourceConfiguration sourceConfiguration,
             NetworkClientConfig networkClientConfig,
@@ -90,6 +97,7 @@ public class Elasticsearch7SourceEnumerator
         this.networkClientConfig = networkClientConfig;
         this.context = context;
         this.splits = new ArrayList<>(restoredSplits);
+        this.readersAwaitingSplit = new LinkedHashMap<>();
     }
 
     @Override
@@ -116,24 +124,8 @@ public class Elasticsearch7SourceEnumerator
 
     @Override
     public void handleSplitRequest(int subtaskId, @Nullable String hostname) {
-        if (!context.registeredReaders().containsKey(subtaskId)) {
-            // reader failed between sending the request and now. skip this request.
-            return;
-        }
-
-        final String hostInfo =
-                hostname == null ? "(no host locality info)" : "(on host '" + hostname + "')";
-        LOG.info("Subtask {} {} is requesting a file source split", subtaskId, hostInfo);
-
-        final Optional<Elasticsearch7Split> nextSplit = getNextSplit();
-        if (nextSplit.isPresent()) {
-            final Elasticsearch7Split split = nextSplit.get();
-            context.assignSplit(split, subtaskId);
-            LOG.info("Assigned split to subtask {} : {}", subtaskId, split);
-        } else {
-            context.signalNoMoreSplits(subtaskId);
-            LOG.info("No more splits available for subtask {}", subtaskId);
-        }
+        readersAwaitingSplit.put(subtaskId, hostname);
+        assignSplits();
     }
 
     @Override
@@ -183,6 +175,41 @@ public class Elasticsearch7SourceEnumerator
                 IntStream.range(0, sourceConfiguration.getNumberOfSlices())
                         .mapToObj(i -> new Elasticsearch7Split(pitId, i))
                         .collect(Collectors.toCollection(ArrayList::new));
+
+        isInitialized = true;
+        assignSplits();
+    }
+
+    private void assignSplits() {
+        final Iterator<Map.Entry<Integer, String>> waitingReaders =
+                readersAwaitingSplit.entrySet().iterator();
+
+        while (waitingReaders.hasNext()) {
+            final Map.Entry<Integer, String> nextReader = waitingReaders.next();
+
+            // reader failed between sending the request and now
+            if (!context.registeredReaders().containsKey(nextReader.getKey())) {
+                waitingReaders.remove();
+                continue;
+            }
+
+            final int subtaskId = nextReader.getKey();
+            final Optional<Elasticsearch7Split> nextSplit = getNextSplit();
+            if (nextSplit.isPresent()) {
+                final Elasticsearch7Split split = nextSplit.get();
+                context.assignSplit(split, subtaskId);
+                LOG.info("Assigned split to subtask {} : {}", subtaskId, split);
+                waitingReaders.remove();
+            } else {
+                if (isInitialized) {
+                    context.signalNoMoreSplits(subtaskId);
+                    LOG.info("No more splits available for subtask {}", subtaskId);
+                    waitingReaders.remove();
+                } else {
+                    break;
+                }
+            }
+        }
     }
 
     private Optional<Elasticsearch7Split> getNextSplit() {
