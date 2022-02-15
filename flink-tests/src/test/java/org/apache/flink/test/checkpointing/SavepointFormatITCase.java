@@ -83,13 +83,17 @@ public class SavepointFormatITCase {
             new LoggerAuditingExtension(SavepointFormatITCase.class, Level.INFO);
 
     private static List<Arguments> parameters() {
-        // iterate through all combinations of backends, isIncremental, isChangelogEnabled
+        // iterate through all valid combinations of backends, isIncremental, isChangelogEnabled
         List<Arguments> result = new LinkedList<>();
         for (BiFunction<Boolean, Boolean, StateBackendConfig> builder :
                 StateBackendConfig.builders) {
             for (boolean incremental : new boolean[] {true, false}) {
                 for (boolean changelog : new boolean[] {true, false}) {
                     for (SavepointFormatType formatType : SavepointFormatType.values()) {
+                        if (changelog && formatType == SavepointFormatType.NATIVE) {
+                            // not supported
+                            continue;
+                        }
                         result.add(Arguments.of(formatType, builder.apply(incremental, changelog)));
                     }
                 }

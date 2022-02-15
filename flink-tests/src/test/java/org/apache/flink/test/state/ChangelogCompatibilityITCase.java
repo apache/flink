@@ -86,10 +86,12 @@ public class ChangelogCompatibilityITCase {
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CANONICAL_SAVEPOINT)
                         .allowRestore(true),
+                // taking native savepoints is not supported with changelog
                 TestCase.startWithChangelog(true)
                         .restoreWithChangelog(true)
                         .from(RestoreSource.NATIVE_SAVEPOINT)
-                        .allowRestore(true),
+                        .allowSave(false)
+                        .allowRestore(false),
                 TestCase.startWithChangelog(true)
                         .restoreWithChangelog(true)
                         .from(RestoreSource.CHECKPOINT)
@@ -98,10 +100,24 @@ public class ChangelogCompatibilityITCase {
 
     @Test
     public void testRestore() throws Exception {
-        JobGraph initialGraph = addGraph(initEnvironment());
-        String restoreSourceLocation = checkpointAndStop(initialGraph);
+        runAndStoreIfAllowed().ifPresent(this::restoreAndValidate);
+    }
 
-        restoreAndValidate(restoreSourceLocation);
+    private Optional<String> runAndStoreIfAllowed() throws Exception {
+        JobGraph initialGraph = addGraph(initEnvironment());
+        try {
+            String location = tryCheckpointAndStop(initialGraph);
+            if (!testCase.allowStore) {
+                fail(testCase.describeStore());
+            }
+            return Optional.of(location);
+        } catch (Exception e) {
+            if (testCase.allowStore) {
+                throw e;
+            } else {
+                return Optional.empty();
+            }
+        }
     }
 
     private StreamExecutionEnvironment initEnvironment() {
@@ -122,7 +138,7 @@ public class ChangelogCompatibilityITCase {
         return env.getStreamGraph().getJobGraph();
     }
 
-    private String checkpointAndStop(JobGraph jobGraph) throws Exception {
+    private String tryCheckpointAndStop(JobGraph jobGraph) throws Exception {
         ClusterClient<?> client = miniClusterResource.getClusterClient();
         submit(jobGraph, client);
         if (testCase.restoreSource == RestoreSource.CHECKPOINT) {
@@ -141,32 +157,18 @@ public class ChangelogCompatibilityITCase {
         }
     }
 
-    private void restoreAndValidate(String location) throws Exception {
+    private void restoreAndValidate(String location) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableChangelogStateBackend(testCase.restoreWithChangelog);
         JobGraph jobGraph = addGraph(env);
         jobGraph.setSavepointRestoreSettings(forPath(location));
 
-        boolean restored = tryRun(jobGraph);
-
-        if (restored && !testCase.allowRestore) {
-            fail(
-                    String.format(
-                            "restoring from %s taken with changelog.enabled=%b should NOT be allowed with changelog.enabled=%b",
-                            testCase.restoreSource,
-                            testCase.startWithChangelog,
-                            testCase.restoreWithChangelog));
-        } else if (!restored && testCase.allowRestore) {
-            fail(
-                    String.format(
-                            "restoring from %s taken with changelog.enabled=%b should be allowed with changelog.enabled=%b",
-                            testCase.restoreSource,
-                            testCase.startWithChangelog,
-                            testCase.restoreWithChangelog));
+        if (tryRun(jobGraph) != testCase.allowRestore) {
+            fail(testCase.describeRestore());
         }
     }
 
-    private boolean tryRun(JobGraph jobGraph) throws Exception {
+    private boolean tryRun(JobGraph jobGraph) {
         try {
             submit(jobGraph, miniClusterResource.getClusterClient());
             miniClusterResource.getClusterClient().cancel(jobGraph.getJobID()).get();
@@ -175,7 +177,7 @@ public class ChangelogCompatibilityITCase {
             if (isValidationError(e)) {
                 return false;
             } else {
-                throw e;
+                throw new RuntimeException(e);
             }
         }
     }
@@ -191,7 +193,8 @@ public class ChangelogCompatibilityITCase {
         boolean startWithChangelog;
         boolean restoreWithChangelog;
         RestoreSource restoreSource;
-        boolean allowRestore;
+        boolean allowStore = true;
+        boolean allowRestore = false;
 
         public static TestCase startWithChangelog(boolean changelogEnabled) {
             TestCase testCase = new TestCase();
@@ -214,11 +217,35 @@ public class ChangelogCompatibilityITCase {
             return this;
         }
 
+        public TestCase allowSave(boolean allowSave) {
+            this.allowStore = allowSave;
+            return this;
+        }
+
         @Override
         public String toString() {
             return String.format(
-                    "startWithChangelog=%s, restoreWithChangelog=%s, restoreFrom=%s, allowRestore=%s",
-                    startWithChangelog, restoreWithChangelog, restoreSource, allowRestore);
+                    "startWithChangelog=%s, restoreWithChangelog=%s, restoreFrom=%s, allowStore=%s, allowRestore=%s",
+                    startWithChangelog,
+                    restoreWithChangelog,
+                    restoreSource,
+                    allowStore,
+                    allowRestore);
+        }
+
+        private String describeStore() {
+            return String.format(
+                    "taking %s with changelog.enabled=%b should be %s",
+                    restoreSource, startWithChangelog, allowStore ? "allowed" : "disallowed");
+        }
+
+        private String describeRestore() {
+            return String.format(
+                    "restoring from %s taken with changelog.enabled=%b should be %s with changelog.enabled=%b",
+                    restoreSource,
+                    allowRestore ? "allowed" : "disallowed",
+                    startWithChangelog,
+                    restoreWithChangelog);
         }
     }
 
