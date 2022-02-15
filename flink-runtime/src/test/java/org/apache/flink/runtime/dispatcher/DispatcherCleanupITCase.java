@@ -203,7 +203,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
         final AtomicReference<JobManagerRunner> jobManagerRunnerEntry = new AtomicReference<>();
         final JobManagerRunnerRegistry jobManagerRunnerRegistry =
                 TestingJobManagerRunnerRegistry.newSingleJobBuilder(jobManagerRunnerEntry)
-                        .withGlobalCleanupAsyncFunction(
+                        .withLocalCleanupAsyncFunction(
                                 (actualJobId, executor) -> jobManagerRunnerCleanupFuture)
                         .build();
 
