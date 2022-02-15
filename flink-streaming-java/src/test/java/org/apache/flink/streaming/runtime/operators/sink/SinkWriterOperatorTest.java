@@ -57,13 +57,18 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SinkWriterOperatorTest {
 
+    private static final boolean STREAMING_MODE = false;
+    private static final boolean CHECKPOINTING_ENABLED = true;
+
     @Test
     void testNotEmitCommittablesWithoutCommitter() throws Exception {
         final TestSink.DefaultSinkWriter<Integer> sinkWriter = new TestSink.DefaultSinkWriter<>();
         final OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>> testHarness =
                 new OneInputStreamOperatorTestHarness<>(
                         new SinkWriterOperatorFactory<>(
-                                TestSink.newBuilder().setWriter(sinkWriter).build().asV2()));
+                                TestSink.newBuilder().setWriter(sinkWriter).build().asV2(),
+                                STREAMING_MODE,
+                                CHECKPOINTING_ENABLED));
         testHarness.open();
         testHarness.processElement(1, 1);
 
@@ -85,7 +90,9 @@ class SinkWriterOperatorTest {
         final OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>> testHarness =
                 new OneInputStreamOperatorTestHarness<>(
                         new SinkWriterOperatorFactory<>(
-                                TestSink.newBuilder().setWriter(writer).build().asV2()));
+                                TestSink.newBuilder().setWriter(writer).build().asV2(),
+                                STREAMING_MODE,
+                                CHECKPOINTING_ENABLED));
         testHarness.open();
 
         testHarness.processWatermark(initialTime);
@@ -111,7 +118,9 @@ class SinkWriterOperatorTest {
                                         .setDefaultCommitter()
                                         .setWriter(new TimeBasedBufferingSinkWriter())
                                         .build()
-                                        .asV2()));
+                                        .asV2(),
+                                STREAMING_MODE,
+                                CHECKPOINTING_ENABLED));
 
         testHarness.open();
 
@@ -139,7 +148,9 @@ class SinkWriterOperatorTest {
         final OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>> testHarness =
                 new OneInputStreamOperatorTestHarness<>(
                         new SinkWriterOperatorFactory<>(
-                                TestSink.newBuilder().setDefaultCommitter().build().asV2()));
+                                TestSink.newBuilder().setDefaultCommitter().build().asV2(),
+                                STREAMING_MODE,
+                                CHECKPOINTING_ENABLED));
 
         testHarness.open();
         assertThat(testHarness.getOutput()).isEmpty();
@@ -158,7 +169,7 @@ class SinkWriterOperatorTest {
     void testEmitOnEndOfInputInBatchMode() throws Exception {
         final SinkWriterOperatorFactory<Integer, Integer> writerOperatorFactory =
                 new SinkWriterOperatorFactory<>(
-                        TestSink.newBuilder().setDefaultCommitter().build().asV2());
+                        TestSink.newBuilder().setDefaultCommitter().build().asV2(), true, false);
         final OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>> testHarness =
                 new OneInputStreamOperatorTestHarness<>(writerOperatorFactory);
 
@@ -168,12 +179,6 @@ class SinkWriterOperatorTest {
         testHarness.processElement(1, 1);
         testHarness.endInput();
         assertBasicOutput(testHarness.getOutput(), 1, Long.MAX_VALUE);
-
-        // Not flush new records during snapshot barrier
-        testHarness.processElement(2, 2);
-        testHarness.prepareSnapshotPreBarrier(1);
-        assertThat(testHarness.getOutput()).hasSize(2);
-        testHarness.close();
     }
 
     @ParameterizedTest
@@ -214,9 +219,11 @@ class SinkWriterOperatorTest {
 
         // this will flush out the committables that were restored
         restoredTestHarness.endInput();
+        final long checkpointId = 2;
+        restoredTestHarness.prepareSnapshotPreBarrier(checkpointId);
 
         if (stateful) {
-            assertBasicOutput(restoredTestHarness.getOutput(), 2, Long.MAX_VALUE);
+            assertBasicOutput(restoredTestHarness.getOutput(), 2, checkpointId);
         } else {
             assertThat(fromOutput(restoredTestHarness.getOutput()).get(0).asRecord().getValue())
                     .isInstanceOf(CommittableSummary.class)
@@ -263,6 +270,7 @@ class SinkWriterOperatorTest {
 
         // this will flush out the committables that were restored from previous sink
         compatibleWriterOperator.endInput();
+        compatibleWriterOperator.prepareSnapshotPreBarrier(1);
 
         OperatorSubtaskState operatorStateWithoutPreviousState =
                 compatibleWriterOperator.snapshot(1L, 1L);
@@ -288,9 +296,47 @@ class SinkWriterOperatorTest {
 
         // this will flush out the committables that were restored
         restoredSinkOperator.endInput();
+        restoredSinkOperator.prepareSnapshotPreBarrier(2);
 
         assertEmitted(expectedOutput2, restoredSinkOperator.getOutput());
         restoredSinkOperator.close();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testHandleEndInputInStreamingMode(boolean isCheckpointingEnabled) throws Exception {
+        final TestSink.DefaultSinkWriter<Integer> sinkWriter = new TestSink.DefaultSinkWriter<>();
+        final OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new SinkWriterOperatorFactory<>(
+                                TestSink.newBuilder()
+                                        .setWriter(sinkWriter)
+                                        .setDefaultCommitter()
+                                        .build()
+                                        .asV2(),
+                                STREAMING_MODE,
+                                isCheckpointingEnabled));
+        testHarness.open();
+        testHarness.processElement(1, 1);
+
+        assertThat(testHarness.getOutput()).isEmpty();
+        final String record = "(1,1," + Long.MIN_VALUE + ")";
+        assertThat(sinkWriter.elements).containsOnly(record);
+
+        testHarness.endInput();
+
+        if (isCheckpointingEnabled) {
+            testHarness.prepareSnapshotPreBarrier(1);
+        }
+
+        // Ensure after the final emission no emission is possible anymore to prevent empty updates
+        testHarness.prepareSnapshotPreBarrier(2);
+        testHarness.endInput();
+
+        assertEmitted(Collections.singletonList(record), testHarness.getOutput());
+        assertThat(sinkWriter.elements).isEmpty();
+
+        testHarness.close();
     }
 
     @SuppressWarnings("unchecked")
@@ -327,7 +373,8 @@ class SinkWriterOperatorTest {
             builder.withWriterState();
         }
         final SinkWriterOperatorFactory<Integer, Integer> writerOperatorFactory =
-                new SinkWriterOperatorFactory<>(builder.build().asV2());
+                new SinkWriterOperatorFactory<>(
+                        builder.build().asV2(), STREAMING_MODE, CHECKPOINTING_ENABLED);
         return new OneInputStreamOperatorTestHarness<>(writerOperatorFactory);
     }
 
@@ -344,7 +391,8 @@ class SinkWriterOperatorTest {
             builder.withWriterState();
         }
         final SinkWriterOperatorFactory<Integer, Integer> writerOperatorFactory =
-                new SinkWriterOperatorFactory<>(builder.build().asV2());
+                new SinkWriterOperatorFactory<>(
+                        builder.build().asV2(), STREAMING_MODE, CHECKPOINTING_ENABLED);
         return new OneInputStreamOperatorTestHarness<>(writerOperatorFactory);
     }
 
