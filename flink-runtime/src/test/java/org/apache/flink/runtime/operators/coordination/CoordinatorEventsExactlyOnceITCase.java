@@ -84,7 +84,9 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -280,6 +282,22 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
         }
     }
 
+    private static final class IntegerRequest implements CoordinationRequest {
+        final int value;
+
+        private IntegerRequest(int value) {
+            this.value = value;
+        }
+    }
+
+    private static final class IntegerResponse implements CoordinationResponse {
+        final int value;
+
+        private IntegerResponse(int value) {
+            this.value = value;
+        }
+    }
+
     // ------------------------------------------------------------------------
 
     /**
@@ -292,7 +310,8 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
      * concurrency against the scheduler thread that calls this coordinator implements a simple
      * mailbox that moves the method handling into a separate thread, but keeps the order.
      */
-    private static final class EventSendingCoordinator implements OperatorCoordinator {
+    private static final class EventSendingCoordinator
+            implements OperatorCoordinator, CoordinationRequestHandler {
 
         private final Context context;
 
@@ -532,6 +551,17 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                 context.failJob(new Exception("test failure"));
             }
         }
+
+        @Override
+        public CompletableFuture<CoordinationResponse> handleCoordinationRequest(
+                CoordinationRequest request) {
+            if (request instanceof IntegerRequest) {
+                int value = ((IntegerRequest) request).value;
+                return CompletableFuture.completedFuture(new IntegerResponse(value + 1));
+            } else {
+                throw new UnsupportedOperationException("Unsupported request type: " + request);
+            }
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -565,6 +595,17 @@ public class CoordinatorEventsExactlyOnceITCase extends TestLogger {
                     .getOperatorCoordinatorEventGateway()
                     .sendOperatorEventToCoordinator(
                             operatorID, new SerializedValue<>(new StartEvent()));
+
+            // verify the request & response communication
+            CoordinationResponse response =
+                    getEnvironment()
+                            .getOperatorCoordinatorEventGateway()
+                            .sendRequestToCoordinator(
+                                    operatorID, new SerializedValue<>(new IntegerRequest(100)))
+                            .get();
+
+            assertThat(response, instanceOf(IntegerResponse.class));
+            assertEquals(101, ((IntegerResponse) response).value);
 
             // poor-man's mailbox
             Object next;
