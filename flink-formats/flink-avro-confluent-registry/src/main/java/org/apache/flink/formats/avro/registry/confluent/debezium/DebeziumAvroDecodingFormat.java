@@ -61,7 +61,8 @@ public class DebeziumAvroDecodingFormat
     private final String schemaRegistryURL;
     private final Map<String, ?> optionalPropertiesMap;
 
-    public DebeziumAvroDecodingFormat(String schemaRegistryURL, Map<String, ?> optionalPropertiesMap) {
+    public DebeziumAvroDecodingFormat(
+            String schemaRegistryURL, Map<String, ?> optionalPropertiesMap) {
         this.schemaRegistryURL = schemaRegistryURL;
         this.optionalPropertiesMap = optionalPropertiesMap;
         this.metadataKeys = Collections.emptyList();
@@ -69,9 +70,7 @@ public class DebeziumAvroDecodingFormat
 
     @Override
     public DeserializationSchema<RowData> createRuntimeDecoder(
-            DynamicTableSource.Context context,
-            DataType physicalDataType,
-            int[][] projections) {
+            DynamicTableSource.Context context, DataType physicalDataType, int[][] projections) {
         physicalDataType = Projection.of(projections).project(physicalDataType);
 
         final List<ReadableMetadata> readableMetadata =
@@ -94,7 +93,11 @@ public class DebeziumAvroDecodingFormat
                 context.createTypeInformation(producedDataType);
 
         return new DebeziumAvroDeserializationSchema(
-                physicalDataType, readableMetadata, producedTypeInfo, schemaRegistryURL, optionalPropertiesMap);
+                physicalDataType,
+                readableMetadata,
+                producedTypeInfo,
+                schemaRegistryURL,
+                optionalPropertiesMap);
     }
 
     @Override
@@ -209,7 +212,9 @@ public class DebeziumAvroDecodingFormat
                         Map<StringData, StringData> result = new HashMap<>();
                         for (int i = 0; i < SOURCE_PROPERTY_FIELDS.length; i++) {
                             Object value = row.getField(i);
-                            result.put(StringData.fromString(SOURCE_PROPERTY_FIELDS[i].getName()), value == null ? null : StringData.fromString(value.toString()));
+                            result.put(
+                                    StringData.fromString(SOURCE_PROPERTY_FIELDS[i].getName()),
+                                    value == null ? null : StringData.fromString(value.toString()));
                         }
                         return new GenericMapData(result);
                     }
@@ -236,22 +241,24 @@ public class DebeziumAvroDecodingFormat
     }
 
     private static final DataTypes.Field[] SOURCE_PROPERTY_FIELDS = {
-            DataTypes.FIELD("version", DataTypes.STRING()),
-            DataTypes.FIELD("connector", DataTypes.STRING()),
-            DataTypes.FIELD("name", DataTypes.STRING()),
-            DataTypes.FIELD("ts_ms", DataTypes.TIMESTAMP(3)),
-            DataTypes.FIELD("snapshot", DataTypes.STRING().nullable()),
-            DataTypes.FIELD("db", DataTypes.STRING()),
-            DataTypes.FIELD("sequence", DataTypes.STRING().nullable()),
-            DataTypes.FIELD("schema", DataTypes.STRING()),
-            DataTypes.FIELD("table", DataTypes.STRING()),
-            DataTypes.FIELD("txId", DataTypes.STRING().nullable()),
-            DataTypes.FIELD("scn", DataTypes.STRING().nullable()),
-            DataTypes.FIELD("commit_scn", DataTypes.STRING().nullable()),
-            DataTypes.FIELD("lcr_position", DataTypes.STRING().nullable())
+        DataTypes.FIELD("version", DataTypes.STRING()),
+        DataTypes.FIELD("connector", DataTypes.STRING()),
+        DataTypes.FIELD("name", DataTypes.STRING()),
+        DataTypes.FIELD("ts_ms", DataTypes.TIMESTAMP(3)),
+        DataTypes.FIELD("snapshot", DataTypes.STRING().nullable()),
+        DataTypes.FIELD("db", DataTypes.STRING()),
+        DataTypes.FIELD("sequence", DataTypes.STRING().nullable()),
+        DataTypes.FIELD("schema", DataTypes.STRING()),
+        DataTypes.FIELD("table", DataTypes.STRING()),
+        DataTypes.FIELD("txId", DataTypes.STRING().nullable()),
+        DataTypes.FIELD("scn", DataTypes.STRING().nullable()),
+        DataTypes.FIELD("commit_scn", DataTypes.STRING().nullable()),
+        DataTypes.FIELD("lcr_position", DataTypes.STRING().nullable())
     };
-    private static final Map<String, Integer> SOURCE_PROPERTY_POSITION = IntStream
-            .range(0, SOURCE_PROPERTY_FIELDS.length).boxed()
-            .collect(Collectors.toMap(i -> SOURCE_PROPERTY_FIELDS[i].getName(), i -> i));
-    private static final DataTypes.Field SOURCE_FIELD = DataTypes.FIELD("source", DataTypes.ROW(SOURCE_PROPERTY_FIELDS));
+    private static final Map<String, Integer> SOURCE_PROPERTY_POSITION =
+            IntStream.range(0, SOURCE_PROPERTY_FIELDS.length)
+                    .boxed()
+                    .collect(Collectors.toMap(i -> SOURCE_PROPERTY_FIELDS[i].getName(), i -> i));
+    private static final DataTypes.Field SOURCE_FIELD =
+            DataTypes.FIELD("source", DataTypes.ROW(SOURCE_PROPERTY_FIELDS));
 }

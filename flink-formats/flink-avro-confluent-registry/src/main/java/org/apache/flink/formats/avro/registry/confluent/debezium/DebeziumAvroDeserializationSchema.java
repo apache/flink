@@ -93,7 +93,8 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
             String schemaRegistryUrl,
             @Nullable Map<String, ?> registryConfigs) {
         this.producedTypeInfo = producedTypeInfo;
-        RowType debeziumAvroRowType = createDebeziumAvroRowType(physicalDataType, requestedMetadata);
+        RowType debeziumAvroRowType =
+                createDebeziumAvroRowType(physicalDataType, requestedMetadata);
 
         this.avroDeserializer =
                 new AvroRowDataDeserializationSchema(
@@ -105,19 +106,25 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
                         producedTypeInfo);
 
         this.hasMetadata = requestedMetadata.size() > 0;
-        this.metadataConverters = requestedMetadata.stream().map(m -> {
-            final int rootPosition = debeziumAvroRowType.getFieldNames().indexOf(m.requiredAvroField.getName());
-            return new MetadataConverter() {
-                @Override
-                public Object convert(GenericRowData row, int pos) {
-                    Object result = row.getField(rootPosition);
-                    if (result instanceof GenericRowData) {
-                        result = m.converter.convert((GenericRowData) result, pos);
-                    }
-                    return result;
-                }
-            };
-        }).toArray(MetadataConverter[]::new);
+        this.metadataConverters =
+                requestedMetadata.stream()
+                        .map(
+                                m -> {
+                                    final int rootPosition =
+                                            debeziumAvroRowType
+                                                    .getFieldNames()
+                                                    .indexOf(m.requiredAvroField.getName());
+                                    return (MetadataConverter) (row, pos) -> {
+                                        Object result = row.getField(rootPosition);
+                                        if (result instanceof GenericRowData) {
+                                            result =
+                                                    m.converter.convert(
+                                                            (GenericRowData) result, pos);
+                                        }
+                                        return result;
+                                    };
+                                })
+                        .toArray(MetadataConverter[]::new);
     }
 
     @VisibleForTesting
@@ -205,7 +212,8 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
 
         for (int metadataPos = 0; metadataPos < metadataArity; metadataPos++) {
             producedRow.setField(
-                    physicalArity + metadataPos, metadataConverters[metadataPos].convert(rootRow, metadataPos));
+                    physicalArity + metadataPos,
+                    metadataConverters[metadataPos].convert(rootRow, metadataPos));
         }
 
         out.collect(producedRow);
@@ -240,7 +248,8 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
         return Objects.hash(avroDeserializer, producedTypeInfo, hasMetadata);
     }
 
-    public static RowType createDebeziumAvroRowType(DataType databaseSchema, List<ReadableMetadata> readableMetadata) {
+    public static RowType createDebeziumAvroRowType(
+            DataType databaseSchema, List<ReadableMetadata> readableMetadata) {
         // Debezium Avro contains other information, e.g. "source", "ts_ms"
         DataType payload =
                 DataTypes.ROW(
@@ -262,8 +271,8 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
     // --------------------------------------------------------------------------------------------
 
     /**
-     * Converter that extracts a metadata field from the row payload that comes out of the
-     * Avro schema and converts it to the desired data type.
+     * Converter that extracts a metadata field from the row payload that comes out of the Avro
+     * schema and converts it to the desired data type.
      */
     interface MetadataConverter extends Serializable {
         Object convert(GenericRowData row, int pos);

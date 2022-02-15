@@ -167,7 +167,7 @@ metadata fields for its value format.
     <tr>
       <td><code>schema</code></td>
       <td><code>STRING NULL</code></td>
-      <td>JSON string describing the schema of the payload. Null if the schema is not included in
+      <td><i>(only available in <code>'debezium-json'</code> format.)</i> JSON string describing the schema of the payload. Null if the schema is not included in
       the Debezium record.</td>
     </tr>
     <tr>

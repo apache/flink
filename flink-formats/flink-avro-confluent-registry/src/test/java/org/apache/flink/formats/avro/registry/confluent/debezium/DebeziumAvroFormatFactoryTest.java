@@ -63,7 +63,8 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
 
     private static final RowType ROW_TYPE =
             (RowType) SCHEMA.toPhysicalRowDataType().getLogicalType();
-    private static final List<ReadableMetadata> REQUESTED_METADATA = Collections.emptyList(); // Arrays.asList(ReadableMetadata.values());
+    private static final List<ReadableMetadata> REQUESTED_METADATA =
+            Collections.emptyList(); // Arrays.asList(ReadableMetadata.values());
 
     private static final String SUBJECT = "test-debezium-avro";
     private static final String REGISTRY_URL = "http://localhost:8081";
@@ -78,7 +79,11 @@ public class DebeziumAvroFormatFactoryTest extends TestLogger {
 
         DebeziumAvroDeserializationSchema expectedDeser =
                 new DebeziumAvroDeserializationSchema(
-                        fromLogicalToDataType(ROW_TYPE), REQUESTED_METADATA, InternalTypeInfo.of(ROW_TYPE), REGISTRY_URL, registryConfigs);
+                        fromLogicalToDataType(ROW_TYPE),
+                        REQUESTED_METADATA,
+                        InternalTypeInfo.of(ROW_TYPE),
+                        REGISTRY_URL,
+                        registryConfigs);
         DeserializationSchema<RowData> actualDeser = createDeserializationSchema(options);
         assertEquals(expectedDeser, actualDeser);
 

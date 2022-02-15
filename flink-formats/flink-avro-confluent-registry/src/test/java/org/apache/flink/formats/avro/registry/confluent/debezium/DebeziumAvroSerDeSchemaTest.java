@@ -75,7 +75,8 @@ public class DebeziumAvroSerDeSchemaTest {
                                     FIELD("description", STRING()),
                                     FIELD("weight", DOUBLE()))
                             .getLogicalType();
-    private static final List<ReadableMetadata> requestedMetadata = Collections.emptyList(); // Arrays.asList(ReadableMetadata.values());
+    private static final List<ReadableMetadata> requestedMetadata =
+            Collections.emptyList(); // Arrays.asList(ReadableMetadata.values());
 
     private static final Schema DEBEZIUM_SCHEMA_COMPATIBLE_TEST =
             new Schema.Parser().parse(new String(readBytesFromFile("debezium-test-schema.json")));
