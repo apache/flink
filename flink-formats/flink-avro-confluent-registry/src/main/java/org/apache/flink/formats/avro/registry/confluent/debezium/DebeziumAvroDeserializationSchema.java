@@ -114,15 +114,16 @@ public final class DebeziumAvroDeserializationSchema implements DeserializationS
                                             debeziumAvroRowType
                                                     .getFieldNames()
                                                     .indexOf(m.requiredAvroField.getName());
-                                    return (MetadataConverter) (row, pos) -> {
-                                        Object result = row.getField(rootPosition);
-                                        if (result instanceof GenericRowData) {
-                                            result =
-                                                    m.converter.convert(
-                                                            (GenericRowData) result, pos);
-                                        }
-                                        return result;
-                                    };
+                                    return (MetadataConverter)
+                                            (row, pos) -> {
+                                                Object result = row.getField(rootPosition);
+                                                if (result instanceof GenericRowData) {
+                                                    result =
+                                                            m.converter.convert(
+                                                                    (GenericRowData) result, pos);
+                                                }
+                                                return result;
+                                            };
                                 })
                         .toArray(MetadataConverter[]::new);
     }
