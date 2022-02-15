@@ -84,4 +84,13 @@ public class KafkaSinkE2ECase extends SinkTestSuiteBase<String> {
                                     .toURL()));
 
     public KafkaSinkE2ECase() throws Exception {}
+
+    @Disabled("Skip metric test until FLINK-26126 fixed")
+    @TestTemplate
+    @Override
+    public void testMetrics(
+            TestEnvironment testEnv,
+            DataStreamSinkExternalContext<String> externalContext,
+            CheckpointingMode semantic)
+            throws Exception {}
 }

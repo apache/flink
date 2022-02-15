@@ -205,6 +205,15 @@ public class KafkaSinkITCase extends TestLogger {
         @TestContext
         KafkaSinkExternalContextFactory sinkContext =
                 new KafkaSinkExternalContextFactory(kafka.getContainer(), Collections.emptyList());
+
+        @Disabled("Skip metric test until FLINK-26126 fixed")
+        @TestTemplate
+        @Override
+        public void testMetrics(
+                TestEnvironment testEnv,
+                DataStreamSinkExternalContext<String> externalContext,
+                CheckpointingMode semantic)
+                throws Exception {}
     }
 
     @Test
