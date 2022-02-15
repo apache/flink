@@ -48,13 +48,13 @@ import java.util.concurrent.CompletableFuture;
 public interface TaskOperatorEventGateway {
 
     /**
-     * Send an event from the operator (identified by the given operator ID) to the operator
+     * Sends an event from the operator (identified by the given operator ID) to the operator
      * coordinator (identified by the same ID).
      */
     void sendOperatorEventToCoordinator(OperatorID operator, SerializedValue<OperatorEvent> event);
 
     /**
-     * Send a request from current operator to a specified operator coordinator which is identified
+     * Sends a request from current operator to a specified operator coordinator which is identified
      * by the given operator ID and return the response.
      */
     CompletableFuture<CoordinationResponse> sendRequestToCoordinator(

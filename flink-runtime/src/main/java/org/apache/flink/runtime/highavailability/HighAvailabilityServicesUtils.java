@@ -147,7 +147,6 @@ public class HighAvailabilityServicesUtils {
         }
     }
 
-    // this one
     public static ClientHighAvailabilityServices createClientHAService(
             Configuration configuration, FatalErrorHandler fatalErrorHandler) throws Exception {
         HighAvailabilityMode highAvailabilityMode = HighAvailabilityMode.fromConfig(configuration);
