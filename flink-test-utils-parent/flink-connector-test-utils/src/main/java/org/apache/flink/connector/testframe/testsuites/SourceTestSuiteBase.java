@@ -41,6 +41,7 @@ import org.apache.flink.connector.testframe.utils.MetricQuerier;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.rest.RestClient;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
@@ -70,11 +71,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_COLLECT_DATA_TIMEOUT;
 import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_JOB_STATUS_CHANGE_TIMEOUT;
+import static org.apache.flink.connector.testframe.utils.MetricQuerier.getJobDetails;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForJobStatus;
@@ -447,11 +451,14 @@ public abstract class SourceTestSuiteBase<T> {
         final JobClient jobClient = env.executeAsync("Metrics Test");
 
         final MetricQuerier queryRestClient = new MetricQuerier(new Configuration());
+        final ExecutorService executorService = Executors.newCachedThreadPool();
         try {
             waitForAllTaskRunning(
                     () ->
-                            queryRestClient.getJobDetails(
-                                    testEnv.getRestEndpoint(), jobClient.getJobID()),
+                            getJobDetails(
+                                    new RestClient(new Configuration(), executorService),
+                                    testEnv.getRestEndpoint(),
+                                    jobClient.getJobID()),
                     Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
 
             waitUntilCondition(
@@ -472,6 +479,7 @@ public abstract class SourceTestSuiteBase<T> {
                     Deadline.fromNow(DEFAULT_COLLECT_DATA_TIMEOUT));
         } finally {
             // Clean up
+            executorService.shutdown();
             killJob(jobClient);
         }
     }
@@ -775,7 +783,8 @@ public abstract class SourceTestSuiteBase<T> {
                         testEnv.getRestEndpoint(),
                         jobId,
                         sourceName,
-                        MetricNames.IO_NUM_RECORDS_IN);
+                        MetricNames.IO_NUM_RECORDS_IN,
+                        null);
         return Precision.equals(allRecordSize, sumNumRecordsIn);
     }
 

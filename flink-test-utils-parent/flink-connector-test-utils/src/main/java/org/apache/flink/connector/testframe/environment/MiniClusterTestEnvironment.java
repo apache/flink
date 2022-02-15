@@ -30,17 +30,16 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.Collections;
-import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -161,7 +160,7 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
         }
         isStarted = false;
         this.miniCluster.after();
-        deletePath(checkpointPath);
+        FileUtils.deleteDirectory(checkpointPath.toFile());
         LOG.debug("MiniCluster has been tear down");
     }
 
@@ -179,22 +178,5 @@ public class MiniClusterTestEnvironment implements TestEnvironment, ClusterContr
     @Override
     public String toString() {
         return "MiniCluster";
-    }
-
-    /** Deletes the given path recursively. */
-    public static void deletePath(Path path) throws IOException {
-        final List<File> files =
-                Files.walk(path)
-                        .filter(p -> p != path)
-                        .map(Path::toFile)
-                        .collect(Collectors.toList());
-        for (File file : files) {
-            if (file.isDirectory()) {
-                deletePath(file.toPath());
-            } else {
-                file.delete();
-            }
-        }
-        Files.deleteIfExists(path);
     }
 }
