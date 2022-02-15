@@ -18,11 +18,14 @@
 
 package org.apache.flink.connector.kafka.source.enumerator;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.kafka.common.TopicPartition;
 
 import java.util.Set;
 
 /** The state of Kafka source enumerator. */
+@Internal
 public class KafkaSourceEnumState {
     private final Set<TopicPartition> assignedPartitions;
 
