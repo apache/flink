@@ -18,7 +18,6 @@
 
 package org.apache.flink.connector.elasticsearch.source.split;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceSplit;
 

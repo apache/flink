@@ -19,7 +19,6 @@
 package org.apache.flink.connector.elasticsearch.source.reader;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
 import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7SplitState;

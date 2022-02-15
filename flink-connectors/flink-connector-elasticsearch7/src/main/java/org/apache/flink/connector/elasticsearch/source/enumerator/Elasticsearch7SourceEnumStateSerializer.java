@@ -19,7 +19,6 @@
 package org.apache.flink.connector.elasticsearch.source.enumerator;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
