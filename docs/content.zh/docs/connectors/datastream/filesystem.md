@@ -99,7 +99,7 @@ final FileSource<String> source =
 这些接口是实现简单性和灵活性/效率之间的折衷。
 
 *  `StreamFormat` 从文件流中读取文件内容。它是最简单的格式实现，
-   并且提供了许多拆箱即用的特性（如检查点逻辑），但是在可应用的优化方面受到限制（例如对象重用，批处理等等）。
+   并且提供了许多拆箱即用的特性（如 Checkpoint 逻辑），但是在可应用的优化方面受到限制（例如对象重用，批处理等等）。
 
 * `BulkFormat` 从文件中一次读取一批记录。
   它虽然是最 "底层" 的格式实现，但是提供了优化实现的最大灵活性。
@@ -109,7 +109,7 @@ final FileSource<String> source =
 
 使用 `StreamFormat` 格式化文件中的文本行。
 Java 中内置的 `InputStreamReader` 阅读器对使用了支持各种字符集的字节流进行解码。
-此格式不支持从检查点进行恢复优化。在恢复时，它将重新读取并放弃在最后一个检查点之前处理的行数。
+此格式不支持从 Checkpoint 进行恢复优化。在恢复时，它将重新读取并放弃在最后一个 Checkpoint 之前处理的行数。
 这是由于无法通过字符集解码器追踪文件中的行偏移量，及其内部缓冲输入流和字符集解码器的状态。
 <a name="simplestreamformat-abstract-class"></a>
 
@@ -163,7 +163,7 @@ CsvReaderFormat<T> forSchema(CsvMapper mapper,
 #### Bulk 格式
 
 Bulk 格式一次读取并解析一批记录。Bulk 格式的示例包括 ORC 或 Parquet 等格式。
-外部的 `BulkFormat` 类主要充当阅读器的配置持有者和工厂。`BulkFormat.Reader` 是在 `BulkFormat#createReader(Configuration, FileSourceSplit)` 方法中创建的，由它来完成读取操作。如果在流的检查点执行期间基于检查点创建 Bulk 阅读器，那么阅读器是在 `BulkFormat#restoreReader(Configuration, FileSourceSplit)` 方法中重新创建的。
+外部的 `BulkFormat` 类主要充当阅读器的配置持有者和工厂。`BulkFormat.Reader` 是在 `BulkFormat#createReader(Configuration, FileSourceSplit)` 方法中创建的，由它来完成读取操作。如果在流的 Checkpoint 执行期间基于 Checkpoint 创建 Bulk 阅读器，那么阅读器是在 `BulkFormat#restoreReader(Configuration, FileSourceSplit)` 方法中重新创建的。
 
 可以通过将 `SimpleStreamFormat` 包装在 `StreamFormatAdapter` 中，将其转换成 `BulkFormat`：
 ```java
@@ -226,7 +226,7 @@ new HiveSource<>(
 
 ### 当前限制
 
-对于大量积压的文件，水印效果不佳。这是因为水印急切地在一个文件中前进，而下一个文件可能包含比水印更晚的数据。
+对于大量积压的文件， Watermark 效果不佳。这是因为 Watermark 急切地在一个文件中前进，而下一个文件可能包含比 Watermark 更晚的数据。
 
 对于无界文件源，枚举器会记住当前所有已处理文件的路径，在某些情况下，这种状态可能会变得相当大。
 计划在未来增加一种压缩的方式来跟踪已经处理的文件（例如，将修改时间戳保持在边界以下）。
@@ -246,14 +246,14 @@ new HiveSource<>(
 文件 Sink 将传入的数据写入存储桶中。考虑到输入流可以是无界的，每个桶中的数据被组织成有限大小的 Part 文件。
 往桶中写数据的行为完全可默认配置成基于时间的，比如我们可以设置每个小时的数据写入一个新桶中。这意味着桶中将包含一个小时间隔内接收到的记录。
 
-桶目录中的数据被拆分成多个 Part 文件。对于相应的接收数据的桶的 Sink 的每个子任务，每个桶将至少包含一个 Part 文件。将根据配置的回滚策略来创建其他 Part 文件。
+桶目录中的数据被拆分成多个 Part 文件。对于相应的接收数据的桶的 Sink 的每个 Subtask ，每个桶将至少包含一个 Part 文件。将根据配置的回滚策略来创建其他 Part 文件。
 对于 `Row-encoded Formats` （参考 [Format Types](#sink-format-types)） 默认的策略是根据 Part 文件大小进行回滚，需要指定文件打开状态最长时间的超时以及文件关闭后的不活动状态的超时。
-对于 `Bulk-encoded Formats` 我们在每次创建检查点时进行回滚，并且用户也可以添加基于大小或者时间等的其他条件。
+对于 `Bulk-encoded Formats` 我们在每次创建 Checkpoint 时进行回滚，并且用户也可以添加基于大小或者时间等的其他条件。
 
 {{< hint info >}}
 
-**重要**: 在 `STREAMING` 模式下使用 `FileSink` 需要开启检查点功能。
-文件只在检查点成功时生成。如果没有开启检查点功能，文件将永远停留在 `in-progress` 或者 `pending` 的状态，并且下游系统将不能安全读取该文件数据。
+**重要**: 在 `STREAMING` 模式下使用 `FileSink` 需要开启 Checkpoint 功能。
+文件只在 Checkpoint 成功时生成。如果没有开启 Checkpoint 功能，文件将永远停留在 `in-progress` 或者 `pending` 的状态，并且下游系统将不能安全读取该文件数据。
 
 {{< /hint >}}
 
@@ -364,7 +364,7 @@ Flink 内置了5种 BulkWriter 工厂类：
 
 {{< hint info >}}
 **重要** Bulk 格式仅支持一种继承了 `CheckpointRollingPolicy` 类的回滚策略。
-在每个检查点都会回滚。另外也可以根据大小或处理时间进行回滚。
+在每个 Checkpoint 都会回滚。另外也可以根据大小或处理时间进行回滚。
 {{< /hint >}}
 <a name="parquet-format"></a>
 
@@ -812,7 +812,7 @@ Flink 内置了两种 BucketAssigners：
 
 `RollingPolicy` 定义了何时关闭给定的进行中的文件，并将其转换为挂起状态，然后在转换为完成状态。
 完成状态的文件，可供查看并且可以保证数据的有效性，在出现故障时不会恢复。
-在 `STREAMING` 模式下，回滚策略结合检查点间隔（到下一个检查点完成时挂起状态的文件变成完成状态）共同控制 Part 文件对下游阅读器是否可见以及这些文件的大小和数量。在 `BATCH` 模式下，Part 文件在任务最后对下游才变得可见，回滚策略只控制最大的 Part 文件大小。
+在 `STREAMING` 模式下，回滚策略结合 Checkpoint 间隔（到下一个 Checkpoint 完成时挂起状态的文件变成完成状态）共同控制 Part 文件对下游阅读器是否可见以及这些文件的大小和数量。在 `BATCH` 模式下，Part 文件在 Job 最后对下游才变得可见，回滚策略只控制最大的 Part 文件大小。
 
 Flink 内置了两种 RollingPolicies：
 
@@ -827,15 +827,15 @@ Flink 内置了两种 RollingPolicies：
 Part 文件可以处于以下三种状态中的任意一种：
 1. **In-progress** ：当前正在被写入的 Part 文件处于 in-progress 状态
 2. **Pending** : （由于指定的回滚策略）关闭 in-progress 状态的文件，并且等待提交 
-3. **Finished** : 流模式(`STREAMING`)下的成功的检查点或者批模式(`BATCH`)下输入结束，挂起状态文件转换为完成状态
+3. **Finished** : 流模式(`STREAMING`)下的成功的 Checkpoint 或者批模式(`BATCH`)下输入结束，挂起状态文件转换为完成状态
 
 只有完成状态下的文件被下游读取时才是安全的，并且保证不会被修改。
 
-对于每个活动的桶，每个写入子任务在任何给定时间都将有一个正在进行的 Part 文件，但可能有多个挂起和完成的文件。
+对于每个活动的桶，在任何给定时间每个写入 Subtask 中都有一个正在进行的 Part 文件，但可能有多个挂起和完成的文件。
 
 **Part 文件示例**
 
-为了更好的了解这些文件的生命周期，让我们看一个只有2个 Sink 子任务的简单例子：
+为了更好的了解这些文件的生命周期，让我们看一个只有2个 Sink Subtask 的简单例子：
 
 ```
 └── 2019-08-25--12
@@ -852,7 +852,7 @@ Part 文件可以处于以下三种状态中的任意一种：
     └── part-81fc4980-a6af-41c8-9937-9939408a734b-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
 ```
 
-`part-81fc4980-a6af-41c8-9937-9939408a734b-0` 现在是挂起状态，并且在下一个检查点成功过后，它就确定了：
+`part-81fc4980-a6af-41c8-9937-9939408a734b-0` 现在是挂起状态，并且在下一个 Checkpoint 成功过后，它就确定了：
 
 ```
 └── 2019-08-25--12
@@ -882,7 +882,7 @@ Part 文件可以处于以下三种状态中的任意一种：
 默认的，文件命名策略如下:
 - **In-progress / Pending**： `part-<uid>-<partFileIndex>.inprogress.uid`
 - **Finished**： `part-<uid>-<partFileIndex>`
-  当 Sink 子任务实例化时，这的 `uid` 是一个分配给子任务的随机 ID 值。这个 `uid` 不具有容错机制，所以当子任务从故障恢复时，它会重新生成。
+  当 Sink Subtask 实例化时，这的 `uid` 是一个分配给 Subtask 的随机 ID 值。这个 `uid` 不具有容错机制，所以当 Subtask 从故障恢复时，它会重新生成。
 
 Flink 允许用户为他们的 Part 文件名添加一个前缀和/或后缀。
 使用 `OutputFileConfig` 来完成上述功能。
@@ -944,22 +944,22 @@ val sink = FileSink
 #### 整体提示
 
 <span class="label label-danger">重要提示 1</span>： 当使用的 Hadoop 版本 < 2.7 时，
-当每次检查点时请使用 `OnCheckpointRollingPolicy` 回滚 Part 文件。原因是：如果 Part 文件 "穿越" 了检查点的时间间隔，
+当每次 Checkpoint 时请使用 `OnCheckpointRollingPolicy` 回滚 Part 文件。原因是：如果 Part 文件 "穿越" 了 Checkpoint 的时间间隔，
 然后，从失败中恢复过来时，`FileSink` 可能会使用文件系统的 `truncate()` 方法去丢弃来自正在进行状态文件中的未提交数据。
 这个方法在 Hadoop 2.7 版本之前是不支持的，Flink 将抛出异常。
 
 <span class="label label-danger">重要提示 2</span>：鉴于 Flink 的 Sink 和 UDF 通常不会区分正常作业终止（*例如* 有限输入流）和 由于故障而终止，
-在任务正常终止时，最后一个正在进行的文件不会转换为 "完成" 状态。
+在 Job 正常终止时，最后一个正在进行的文件不会转换为 "完成" 状态。
 
 <span class="label label-danger">重要提示 3</span>： Flink 和 `FileSink` 从来不会覆盖已提交的数据。
-鉴于此，假定一个正在进行的文件被后续成功的检查点提交了，当尝试从这个旧的检查点/保存点进行恢复时，`FileSink` 将拒绝继续执行并将抛出异常，因为它无法找到正在进行的文件。
+鉴于此，假定一个正在进行的文件被后续成功的 Checkpoint 提交了，当尝试从这个旧的 Checkpoint / Savepoint 进行恢复时，`FileSink` 将拒绝继续执行并将抛出异常，因为它无法找到正在进行的文件。
 
 <span class="label label-danger">重要提示 4</span>： 目前，`FileSink` 仅支持以下3种文件系统：HDFS、 S3 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
 <a name="batch-specific"></a>
 
 #### BATCH-具体提示
 
-<span class="label label-danger">重要提示 1</span>： 虽然 `Writer` 是以用户指定的并行度执行的，然而 `Committer` 是以等于1的并行度执行的。
+<span class="label label-danger">重要提示 1</span>： 虽然 `Writer` 是以用户指定的 parallelism 执行的，然而 `Committer` 是以 parallelism = 1 执行的。
 
 <span class="label label-danger">重要提示 2</span>： 挂起文件被提交，当所有输入数据被处理完后，才转换为 `Finished` 状态。
 
@@ -969,14 +969,14 @@ val sink = FileSink
 #### S3-具体提示
 
 <span class="label label-danger">重要提示 1</span>：对于 S3，`FileSink` 仅支持基于 [Hadoop-based](https://hadoop.apache.org/) 文件系统的实现，而不支持基于 [Presto](https://prestodb.io/) 的实现。
-如果你的任务使用 `FileSink` 写入 S3，但是希望使用基于 Presto 的 Sink 去做检查点，建议明确使用 *"s3a://"* （对于 Hadoop）作为 Sink 目标路径格式并且使用 *"s3p://"* 作为检查点的目标路径格式（对于 Presto）。 
-对于 Sink 和 检查点 同时使用 *"s3://"* 可能导致不可控的行为，由于两者的实现 "监听" 同一格式路径。
+如果你的 Job 使用 `FileSink` 写入 S3，但是希望使用基于 Presto 的 Sink 去做 Checkpoint ，建议明确使用 *"s3a://"* （对于 Hadoop）作为 Sink 目标路径格式并且使用 *"s3p://"* 作为 Checkpoint 的目标路径格式（对于 Presto）。 
+对于 Sink 和  Checkpoint  同时使用 *"s3://"* 可能导致不可控的行为，由于两者的实现 "监听" 同一格式路径。
 
 <span class="label label-danger">重要提示 2</span>：在保证高效的同时还要保证 exactly-once 语义，`FileSink` 使用了 S3 的 [Multi-part Upload](https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html) 功能（MPU 功能开箱即用）。
 此功能允许以独立的块上传文件（因此称为 "multi-part"），当 MPU 的所有块都上传成功时，这些块就可以合并生成原始文件。
 对于非活动的 MPU，S3 支持桶生命周期规则，用户可以使用该规则终止在启动后指定天数内未完成的多块上传操作。
-这意味着，如果你设置了这个规则，并在某些文件未完全上传的情况下执行保存点，则其关联的 MPU 可能会在任务重启前超时。
-这将导致你的任务无法从该保存点恢复，因为挂起的 Part 文件已不存在，那么 Flink 任务将失败并抛出异常，因为它试图获取那些不存在的文件导致了失败。
+这意味着，如果你设置了这个规则，并在某些文件未完全上传的情况下执行 Savepoint ，则其关联的 MPU 可能会在 Job 重启前超时。
+这将导致你的 Job 无法从该 Savepoint 恢复，因为挂起的 Part 文件已不存在，那么 Flink  Job 将失败并抛出异常，因为它试图获取那些不存在的文件导致了失败。
 
 {{< top >}}
 
