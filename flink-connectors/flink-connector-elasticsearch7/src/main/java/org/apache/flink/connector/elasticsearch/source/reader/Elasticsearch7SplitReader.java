@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.source.reader;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitReader;
 import org.apache.flink.connector.base.source.reader.splitreader.SplitsAddition;
@@ -44,6 +45,7 @@ import java.util.Set;
  * A {@link SplitReader} implementation that reads {@link SearchHit}s from {@link
  * Elasticsearch7Split}s.
  */
+@Internal
 public class Elasticsearch7SplitReader implements SplitReader<SearchHit, Elasticsearch7Split> {
     private static final Logger LOG = LoggerFactory.getLogger(Elasticsearch7SplitReader.class);
     private final Elasticsearch7SourceConfiguration sourceConfiguration;

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.source.reader;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.SingleThreadMultiplexSourceReaderBase;
@@ -31,6 +32,7 @@ import org.elasticsearch.search.SearchHit;
 import java.util.Map;
 
 /** The source reader for Elasticsearch. */
+@Internal
 public class Elasticsearch7SourceReader<OUT>
         extends SingleThreadMultiplexSourceReaderBase<
                 SearchHit, OUT, Elasticsearch7Split, Elasticsearch7SplitState> {

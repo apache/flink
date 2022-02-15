@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.source;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -131,6 +132,7 @@ public class Elasticsearch7Source<OUT>
                 deserializationSchema);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<Elasticsearch7Split, Elasticsearch7SourceEnumState> createEnumerator(
             SplitEnumeratorContext<Elasticsearch7Split> enumContext) throws Exception {
@@ -138,6 +140,7 @@ public class Elasticsearch7Source<OUT>
                 sourceConfiguration, networkClientConfig, enumContext);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<Elasticsearch7Split, Elasticsearch7SourceEnumState> restoreEnumerator(
             SplitEnumeratorContext<Elasticsearch7Split> enumContext,
@@ -155,6 +158,7 @@ public class Elasticsearch7Source<OUT>
         return new Elasticsearch7SplitSerializer();
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<Elasticsearch7SourceEnumState>
             getEnumeratorCheckpointSerializer() {

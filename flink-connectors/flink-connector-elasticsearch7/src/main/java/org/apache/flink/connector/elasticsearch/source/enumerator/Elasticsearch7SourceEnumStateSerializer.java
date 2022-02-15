@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.source.enumerator;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -34,7 +35,7 @@ import java.util.Set;
  * The {@link org.apache.flink.core.io.SimpleVersionedSerializer Serializer} for the enumerator
  * state of the Elasticsearch source.
  */
-@PublicEvolving
+@Internal
 public class Elasticsearch7SourceEnumStateSerializer
         implements SimpleVersionedSerializer<Elasticsearch7SourceEnumState> {
     private static final int CURRENT_VERSION = 0;

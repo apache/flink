@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.source.reader;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.source.SourceOutput;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
@@ -29,8 +30,8 @@ import org.elasticsearch.search.SearchHit;
 import java.io.IOException;
 
 /** The {@link RecordEmitter} implementation for {@link Elasticsearch7SourceReader}. */
-@PublicEvolving
-public class Elasticsearch7RecordEmitter<T>
+@Internal
+class Elasticsearch7RecordEmitter<T>
         implements RecordEmitter<SearchHit, T, Elasticsearch7SplitState> {
 
     private final Elasticsearch7SearchHitDeserializationSchema<T> deserializationSchema;

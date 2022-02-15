@@ -18,9 +18,12 @@
 
 package org.apache.flink.connector.elasticsearch.source.split;
 
+import org.apache.flink.annotation.Internal;
+
 /**
  * This class extends {@link Elasticsearch7Split} for potential tracking of additional (meta-)data.
  */
+@Internal
 public class Elasticsearch7SplitState extends Elasticsearch7Split {
     public Elasticsearch7SplitState(Elasticsearch7Split elasticsearchSplit) {
         super(elasticsearchSplit.getPitId(), elasticsearchSplit.getSliceId());

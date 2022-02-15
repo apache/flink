@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.source.enumerator;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.connector.elasticsearch.source.split.Elasticsearch7Split;
 
@@ -28,7 +29,7 @@ import java.util.Set;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The state of {@link Elasticsearch7SourceEnumerator}. */
-@PublicEvolving
+@Internal
 public class Elasticsearch7SourceEnumState {
 
     private final Set<Elasticsearch7Split> assignedSplits;

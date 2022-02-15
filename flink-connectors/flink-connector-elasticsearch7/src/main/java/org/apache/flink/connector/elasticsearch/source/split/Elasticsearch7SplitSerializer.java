@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.source.split;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.ByteArrayInputStream;
@@ -30,6 +31,7 @@ import java.io.IOException;
  * The {@link org.apache.flink.core.io.SimpleVersionedSerializer serializer} for {@link
  * Elasticsearch7Split}.
  */
+@Internal
 public class Elasticsearch7SplitSerializer
         implements SimpleVersionedSerializer<Elasticsearch7Split> {
     private static final int CURRENT_VERSION = 0;
