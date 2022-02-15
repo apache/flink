@@ -19,6 +19,7 @@ package org.apache.flink.table.planner.runtime.batch.sql;
 
 import org.apache.flink.api.common.BatchShuffleMode;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.table.planner.runtime.utils.TestData;
@@ -59,7 +60,34 @@ public class ForwardHashExchangeITCase extends BatchTestBase {
     }
 
     @Test
-    public void testAgg() {
+    public void testOverAggWithHashAgg() {
+        tEnv().getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
+        checkResult(
+                "SELECT\n"
+                        + "   b,\n"
+                        + "   SUM(a) sum_a,\n"
+                        + "   AVG(SUM(a)) OVER (PARTITION BY b) avg_a,\n"
+                        + "   RANK() OVER (PARTITION BY b ORDER BY b) rn\n"
+                        + " FROM MyTable\n"
+                        + " GROUP BY b",
+                JavaScalaConversionUtil.toScala(
+                        Arrays.asList(
+                                Row.of(1, 1, 1, 1),
+                                Row.of(2, 5, 5, 1),
+                                Row.of(3, 15, 15, 1),
+                                Row.of(4, 34, 34, 1),
+                                Row.of(5, 65, 65, 1),
+                                Row.of(6, 111, 111, 1))),
+                false);
+    }
+
+    @Test
+    public void testOverAggWithSortAgg() {
+        tEnv().getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
         checkResult(
                 "SELECT\n"
                         + "   b,\n"

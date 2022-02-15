@@ -47,7 +47,7 @@ import java.util.Collections;
 
 /** Batch {@link ExecNode} for (global) sort-based aggregate operator. */
 public class BatchExecSortAggregate extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
+        implements InputSortedExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final int[] grouping;
     private final int[] auxGrouping;

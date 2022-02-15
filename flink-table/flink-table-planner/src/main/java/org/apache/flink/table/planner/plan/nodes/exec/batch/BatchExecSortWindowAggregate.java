@@ -52,7 +52,7 @@ import java.util.Collections;
 
 /** Batch {@link ExecNode} for sort-based window aggregate operator. */
 public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
+        implements InputSortedExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final int[] grouping;
     private final int[] auxGrouping;
