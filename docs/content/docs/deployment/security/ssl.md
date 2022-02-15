@@ -171,19 +171,19 @@ security.ssl.internal.enabled: true
 
 {{< hint info >}}
 For backwards compatibility, the **security.ssl.enabled** option still exists and enables SSL
-for both internal and REST endpoints.
+for both internal and external/REST endpoints.
 {{< /hint >}}
 
-You can optionally disable security for different connection types separately. 
-When `security.ssl.internal.enabled` is set to `true`, you can set the following parameters to `false`
-to disable SSL for that particular connection type:
+You can disable security for different connection types. When `security.ssl.internal.enabled` is set 
+to `true`, you can set the following parameters to `false` to disable SSL for that particular connection 
+type:
 
-- `taskmanager.data.ssl.enabled`: Data communication between TaskManagers
-- `blob.service.ssl.enabled`: Transport of BLOBs from JobManager to TaskManager
-- `akka.ssl.enabled`: Akka-based RPC connections between JobManager / TaskManager / ResourceManager
+- `taskmanager.data.ssl.enabled` &#8594; Data communication between TaskManagers
+- `blob.service.ssl.enabled` &#8594; Transport of BLOBs from JobManager to TaskManager
+- `akka.ssl.enabled` &#8594; Akka-based RPC connections between JobManager / TaskManager / ResourceManager
 
-Because internal communication is mutually authenticated between the server and the client, keystore and 
-truststore typically refer to a dedicated certificate that acts as a shared secret. In such a setup, 
+Because internal communication is mutually authenticated between the server and the client, keystore 
+and truststore typically refer to a dedicated certificate that acts as a shared secret. In such a setup, 
 the certificate can use wildcard hostnames or addresses. When using self-signed certificates, it is 
 even possible to use the same file as keystore and truststore.
 
@@ -197,8 +197,9 @@ security.ssl.internal.truststore: /path/to/file.truststore
 security.ssl.internal.truststore-password: truststore_password
 ```
 
-When using a certificate that is not self-signed, but signed by a CA, you need to use certificate 
-pinning to allow only a specific certificate to be trusted when establishing the connectivity:
+When using a certificate that is not self-signed, but signed by Certified Authorities (CA), you need 
+to use certificate pinning to allow only a specific certificate to be trusted when establishing the 
+connectivity:
 
 ```yaml
 security.ssl.internal.cert.fingerprint: 00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00
@@ -214,7 +215,7 @@ security.ssl.rest.enabled: true
 
 {{< hint info >}}
 For backwards compatibility, the **security.ssl.enabled** option still exists and enables SSL
-for both internal and REST endpoints.
+for both internal and external/REST endpoints.
 {{< /hint >}}
 
 By default, the keystore is used by the server REST endpoints, and the truststore is used 
