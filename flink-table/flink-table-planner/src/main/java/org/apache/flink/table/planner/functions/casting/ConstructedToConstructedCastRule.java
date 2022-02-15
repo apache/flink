@@ -25,10 +25,10 @@ import java.util.List;
 import java.util.stream.IntStream;
 
 /**
- * This class provides default implementation for {@link #canFail(LogicalType, LogicalType)} for
- * composite types, e.g. ARRAY to ARRAY (but not ARRAY to STRING).
+ * This interface provides a default implementation for {@link #canFail(LogicalType, LogicalType)}
+ * for constructed type casts, e.g. ARRAY to ARRAY (but not ARRAY to STRING).
  */
-interface CollectionToCollectionCastRule<IN, OUT> extends CastRule<IN, OUT> {
+interface ConstructedToConstructedCastRule<IN, OUT> extends CastRule<IN, OUT> {
 
     @Override
     default boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType) {

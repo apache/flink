@@ -85,15 +85,14 @@ class CastRuleProviderTest {
 
     @Test
     void testCanFail() {
-        LogicalType inputType = ROW(INT(), STRING()).getLogicalType();
-        LogicalType fallibleTargetType = ROW(TINYINT(), TIME()).getLogicalType();
-        LogicalType infallibleTargetType = ROW(TINYINT(), STRING()).getLogicalType();
-
-        assertThat(CastRuleProvider.canFail(INT, TINYINT)).isFalse();
+        assertThat(CastRuleProvider.canFail(TINYINT, INT)).isFalse();
         assertThat(CastRuleProvider.canFail(STRING_TYPE, TIME().getLogicalType())).isTrue();
         assertThat(CastRuleProvider.canFail(STRING_TYPE, STRING_TYPE)).isFalse();
 
-        assertThat(CastRuleProvider.canFail(inputType, fallibleTargetType)).isTrue();
-        assertThat(CastRuleProvider.canFail(inputType, infallibleTargetType)).isFalse();
+        LogicalType inputType = ROW(TINYINT(), STRING()).getLogicalType();
+        assertThat(CastRuleProvider.canFail(inputType, ROW(INT(), TIME()).getLogicalType()))
+                .isTrue();
+        assertThat(CastRuleProvider.canFail(inputType, ROW(INT(), STRING()).getLogicalType()))
+                .isFalse();
     }
 }
