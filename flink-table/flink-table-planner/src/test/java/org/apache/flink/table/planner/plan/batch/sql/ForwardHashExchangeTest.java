@@ -72,7 +72,11 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testOverAgg() {
+    public void testOverAggWithHashAgg() {
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
         util.verifyExecPlan(
                 " SELECT\n"
                         + "   SUM(b) sum_b,\n"
@@ -84,7 +88,23 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testHashAgg() {
+    public void testOverAggWithSortAgg() {
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        util.verifyExecPlan(
+                " SELECT\n"
+                        + "   SUM(b) sum_b,\n"
+                        + "   AVG(SUM(b)) OVER (PARTITION BY c) avg_b,\n"
+                        + "   RANK() OVER (PARTITION BY c ORDER BY c) rn,\n"
+                        + "   c\n"
+                        + " FROM T\n"
+                        + " GROUP BY c");
+    }
+
+    @Test
+    public void testHashAggWithHashJoin() {
         util.tableEnv()
                 .getConfig()
                 .getConfiguration()
@@ -97,7 +117,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testSortAgg() {
+    public void testSortAggWithSortMergeJoin() {
         util.tableEnv()
                 .getConfig()
                 .getConfiguration()
@@ -110,7 +130,21 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRank() {
+    public void testRankWithHashAgg() {
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
+        util.verifyExecPlan(
+                "SELECT * FROM (\n"
+                        + "                SELECT a, b, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM (\n"
+                        + "                        SELECT a, SUM(b) AS b FROM T GROUP BY a\n"
+                        + "                )\n"
+                        + "        ) WHERE rk <= 10");
+    }
+
+    @Test
+    public void testRankWithSortAgg() {
         util.tableEnv()
                 .getConfig()
                 .getConfiguration()

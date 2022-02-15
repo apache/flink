@@ -22,8 +22,14 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecCorrelate;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecMultipleInput;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCalc;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonCorrelate;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSort;
+import org.apache.flink.table.planner.plan.nodes.exec.batch.InputSortedExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.AbstractExecNodeExactlyOnceVisitor;
@@ -79,40 +85,46 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
                                     != InputProperty.DistributionType.HASH) {
                                 continue;
                             }
+
                             ExecEdge edge = node.getInputEdges().get(i);
-                            if (!isExchangeInput(edge)) {
-                                InputProperty newInputProperty =
-                                        InputProperty.builder()
-                                                .requiredDistribution(
-                                                        InputProperty.keepInputAsIsDistribution(
-                                                                requiredDistribution))
-                                                .damBehavior(inputProperty.getDamBehavior())
-                                                .priority(inputProperty.getPriority())
-                                                .build();
-                                BatchExecExchange newExchange =
-                                        new BatchExecExchange(
-                                                newInputProperty,
-                                                (RowType) edge.getOutputType(),
-                                                newInputProperty.toString());
+                            if (!hasExchangeInput(edge)) {
+                                ExecEdge newEdge;
+                                if (isInputSortedNode(node)) {
+                                    if (hasSortInputForInputSortedNode(node)) {
+                                        // add Exchange with keep_input_as_is distribution as the
+                                        // input of Sort
+                                        ExecNode<?> sort = edge.getSource();
+                                        ExecEdge newEdgeOfSort =
+                                                addExchangeAndReconnectEdge(
+                                                        sort.getInputEdges().get(0),
+                                                        inputProperty,
+                                                        false);
+                                        sort.setInputEdges(
+                                                Collections.singletonList(newEdgeOfSort));
+                                    }
 
-                                ExecEdge newEdge1 =
-                                        new ExecEdge(
-                                                edge.getSource(),
-                                                newExchange,
-                                                edge.getShuffle(),
-                                                edge.getExchangeMode());
-                                newExchange.setInputEdges(Collections.singletonList(newEdge1));
-
-                                ExecEdge newEdge2 =
-                                        new ExecEdge(
-                                                newExchange,
-                                                edge.getTarget(),
-                                                edge.getShuffle(),
-                                                edge.getExchangeMode());
-
+                                    // if operation chaining is disabled, this could mark sure the
+                                    // sort node and its output can also be connected by
+                                    // ForwardPartitioner
+                                    newEdge =
+                                            addExchangeAndReconnectEdge(edge, inputProperty, true);
+                                } else {
+                                    // add Exchange with keep_input_as_is distribution as the input
+                                    // of the node
+                                    newEdge =
+                                            addExchangeAndReconnectEdge(edge, inputProperty, false);
+                                    updateOriginalEdgeInMultipleInput(
+                                            node, i, (BatchExecExchange) newEdge.getSource());
+                                }
                                 // update the edge
-                                newEdges.set(i, newEdge2);
-                                updateOriginalEdgeInMultipleInput(node, i, newExchange);
+                                newEdges.set(i, newEdge);
+                                changed = true;
+                            } else if (hasSortInputForInputSortedNode(node)) {
+                                // if operation chaining is disabled, this could mark sure the sort
+                                // node and its output can also be connected by ForwardPartitioner
+                                ExecEdge newEdge =
+                                        addExchangeAndReconnectEdge(edge, inputProperty, true);
+                                newEdges.set(i, newEdge);
                                 changed = true;
                             }
                         }
@@ -125,8 +137,60 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
         return execGraph;
     }
 
-    private boolean isExchangeInput(ExecEdge edge) {
-        return edge.getSource() instanceof CommonExecExchange;
+    // TODO This implementation should be updated once FLINK-21224 is finished.
+    private ExecEdge addExchangeAndReconnectEdge(
+            ExecEdge edge, InputProperty inputProperty, boolean strict) {
+        ExecNode<?> target = edge.getTarget();
+        ExecNode<?> source = edge.getSource();
+        // only Calc and Correlate can propagate sort property and distribution property
+        if (source instanceof BatchExecCalc
+                || source instanceof BatchExecPythonCalc
+                || source instanceof BatchExecCorrelate
+                || source instanceof BatchExecPythonCorrelate) {
+            ExecEdge newEdge =
+                    addExchangeAndReconnectEdge(
+                            source.getInputEdges().get(0), inputProperty, strict);
+            source.setInputEdges(Collections.singletonList(newEdge));
+        }
+
+        BatchExecExchange exchange =
+                createExchangeWithKeepInputAsIsDistribution(
+                        inputProperty, strict, (RowType) edge.getOutputType());
+        ExecEdge newEdge =
+                new ExecEdge(source, exchange, edge.getShuffle(), edge.getExchangeMode());
+        exchange.setInputEdges(Collections.singletonList(newEdge));
+        return new ExecEdge(exchange, target, edge.getShuffle(), edge.getExchangeMode());
+    }
+
+    private BatchExecExchange createExchangeWithKeepInputAsIsDistribution(
+            InputProperty inputProperty, boolean strict, RowType outputRowType) {
+        InputProperty newInputProperty =
+                InputProperty.builder()
+                        .requiredDistribution(
+                                InputProperty.keepInputAsIsDistribution(
+                                        inputProperty.getRequiredDistribution(), strict))
+                        .damBehavior(inputProperty.getDamBehavior())
+                        .priority(inputProperty.getPriority())
+                        .build();
+        return new BatchExecExchange(newInputProperty, outputRowType, newInputProperty.toString());
+    }
+
+    private boolean hasExchangeInput(ExecEdge edge) {
+        ExecNode<?> input = edge.getSource();
+        if (hasSortInputForInputSortedNode(edge.getTarget())) {
+            // skip Sort node
+            input = input.getInputEdges().get(0).getSource();
+        }
+        return input instanceof CommonExecExchange;
+    }
+
+    private boolean hasSortInputForInputSortedNode(ExecNode<?> node) {
+        return isInputSortedNode(node)
+                && node.getInputEdges().get(0).getSource() instanceof BatchExecSort;
+    }
+
+    private boolean isInputSortedNode(ExecNode<?> node) {
+        return node instanceof InputSortedExecNode;
     }
 
     private void updateOriginalEdgeInMultipleInput(

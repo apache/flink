@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.GlobalPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.table.api.TableException;
@@ -49,6 +50,7 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBatchStreamExchangeMode;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -85,22 +87,37 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
         String type = requiredDistribution.getType().name().toLowerCase();
         if (type.equals("singleton")) {
             type = "single";
+        } else if (requiredDistribution instanceof KeepInputAsIsDistribution
+                && ((KeepInputAsIsDistribution) requiredDistribution).isStrict()) {
+            type = "forward";
         }
         sb.append("distribution=[").append(type);
-        if (requiredDistribution.getType() == InputProperty.DistributionType.HASH) {
-            RowType inputRowType = (RowType) getInputEdges().get(0).getOutputType();
-            HashDistribution hashDistribution = (HashDistribution) requiredDistribution;
-            String[] fieldNames =
-                    Arrays.stream(hashDistribution.getKeys())
-                            .mapToObj(i -> inputRowType.getFieldNames().get(i))
-                            .toArray(String[]::new);
-            sb.append("[").append(String.join(", ", fieldNames)).append("]");
+        if (requiredDistribution instanceof HashDistribution) {
+            sb.append(getHashDistributionDescription((HashDistribution) requiredDistribution));
+        } else if (requiredDistribution instanceof KeepInputAsIsDistribution
+                && !((KeepInputAsIsDistribution) requiredDistribution).isStrict()) {
+            KeepInputAsIsDistribution distribution =
+                    (KeepInputAsIsDistribution) requiredDistribution;
+            sb.append("[hash")
+                    .append(
+                            getHashDistributionDescription(
+                                    (HashDistribution) distribution.getInputDistribution()))
+                    .append("]");
         }
         sb.append("]");
         if (requiredExchangeMode == StreamExchangeMode.BATCH) {
             sb.append(", shuffle_mode=[BATCH]");
         }
-        return String.format("Exchange(%s)", sb.toString());
+        return String.format("Exchange(%s)", sb);
+    }
+
+    private String getHashDistributionDescription(HashDistribution hashDistribution) {
+        RowType inputRowType = (RowType) getInputEdges().get(0).getOutputType();
+        String[] fieldNames =
+                Arrays.stream(hashDistribution.getKeys())
+                        .mapToObj(i -> inputRowType.getFieldNames().get(i))
+                        .toArray(String[]::new);
+        return Arrays.stream(fieldNames).collect(Collectors.joining(", ", "[", "]"));
     }
 
     @SuppressWarnings("unchecked")
@@ -111,6 +128,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final RowType inputType = (RowType) inputEdge.getOutputType();
 
+        boolean requireUndefinedExchangeMode = false;
         final StreamPartitioner<RowData> partitioner;
         final int parallelism;
         final InputProperty inputProperty = getInputProperties().get(0);
@@ -136,17 +154,27 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                 parallelism = ExecutionConfig.PARALLELISM_DEFAULT;
                 break;
             case KEEP_INPUT_AS_IS:
-                RequiredDistribution inputDistribution =
-                        ((KeepInputAsIsDistribution) requiredDistribution).getInputDistribution();
-                checkArgument(
-                        inputDistribution instanceof HashDistribution,
-                        "Only HashDistribution is supported now");
-                partitioner =
-                        new ForwardForConsecutiveHashPartitioner<>(
-                                createHashPartitioner(
-                                        ((HashDistribution) inputDistribution),
-                                        inputType,
-                                        planner));
+                KeepInputAsIsDistribution keepInputAsIsDistribution =
+                        (KeepInputAsIsDistribution) requiredDistribution;
+                if (keepInputAsIsDistribution.isStrict()) {
+                    // explicitly use ForwardPartitioner to guarantee the data distribution is
+                    // exactly the same as input
+                    partitioner = new ForwardPartitioner<>();
+                    requireUndefinedExchangeMode = true;
+                } else {
+                    RequiredDistribution inputDistribution =
+                            ((KeepInputAsIsDistribution) requiredDistribution)
+                                    .getInputDistribution();
+                    checkArgument(
+                            inputDistribution instanceof HashDistribution,
+                            "Only HashDistribution is supported now");
+                    partitioner =
+                            new ForwardForConsecutiveHashPartitioner<>(
+                                    createHashPartitioner(
+                                            ((HashDistribution) inputDistribution),
+                                            inputType,
+                                            planner));
+                }
                 parallelism = inputTransform.getParallelism();
                 break;
             default:
@@ -154,7 +182,10 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
         }
 
         final StreamExchangeMode exchangeMode =
-                getBatchStreamExchangeMode(planner.getConfiguration(), requiredExchangeMode);
+                requireUndefinedExchangeMode
+                        ? StreamExchangeMode.UNDEFINED
+                        : getBatchStreamExchangeMode(
+                                planner.getConfiguration(), requiredExchangeMode);
         final Transformation<RowData> transformation =
                 new PartitionTransformation<>(inputTransform, partitioner, exchangeMode);
         transformation.setParallelism(parallelism);

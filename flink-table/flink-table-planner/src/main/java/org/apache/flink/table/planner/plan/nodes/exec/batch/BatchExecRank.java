@@ -41,7 +41,7 @@ import java.util.Collections;
  *
  * <p>This node supports two-stage(local and global) rank to reduce data-shuffling.
  */
-public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNode<RowData> {
+public class BatchExecRank extends ExecNodeBase<RowData> implements InputSortedExecNode<RowData> {
 
     private final int[] partitionFields;
     private final int[] sortFields;
