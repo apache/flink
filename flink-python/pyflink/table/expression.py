@@ -839,8 +839,8 @@ class Expression(Generic[T]):
         """
         Returns a new value being cast to type type.
         A cast error throws an exception and fails the job.
-        If you're performing a cast operation that may fail, like INT to STRING,
-        you should rather use try_cast, in order to handle errors.
+        When performing a cast operation that may fail, like INT to STRING,
+        one should rather use try_cast, in order to handle errors.
         If "table.exec.legacy-cast-behaviour" is enabled, cast behaves like try_cast.
 
         E.g., lit("4").cast(DataTypes.INT()) returns 42;

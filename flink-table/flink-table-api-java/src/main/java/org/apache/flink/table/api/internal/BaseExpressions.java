@@ -29,6 +29,7 @@ import org.apache.flink.table.api.JsonQueryWrapper;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
 import org.apache.flink.table.api.Table;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
@@ -470,10 +471,10 @@ public abstract class BaseExpressions<InType, OutType> {
 
     /**
      * Returns a new value being cast to {@code toType}. A cast error throws an exception and fails
-     * the job. If you're performing a cast operation that may fail, like {@link DataTypes#INT()} to
-     * {@link DataTypes#STRING()}, you should rather use {@link #tryCast(DataType)}, in order to
-     * handle errors. If {@code table.exec.legacy-cast-behaviour} is enabled, this function behaves
-     * like {@link #tryCast(DataType)}.
+     * the job. When performing a cast operation that may fail, like {@link DataTypes#INT()} to
+     * {@link DataTypes#STRING()}, one should rather use {@link #tryCast(DataType)}, in order to
+     * handle errors. If {@link ExecutionConfigOptions#TABLE_EXEC_LEGACY_CAST_BEHAVIOUR} is enabled,
+     * this function behaves like {@link #tryCast(DataType)}.
      *
      * <p>E.g., {@code "42".cast(DataTypes.INT())} returns {@code 42}; {@code
      * null.cast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
