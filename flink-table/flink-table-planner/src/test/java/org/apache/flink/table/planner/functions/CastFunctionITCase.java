@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -32,6 +33,8 @@ import org.apache.flink.types.Row;
 import org.junit.runners.Parameterized;
 
 import java.math.BigDecimal;
+import java.text.ParseException;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -254,12 +257,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(BOOLEAN(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
+                        .failRuntime(CHAR(3), "foo", TableException.class)
                         .fromCase(CHAR(4), "true", true)
                         .fromCase(VARCHAR(5), "FalsE", false)
-                        .fromCase(STRING(), "Apache Flink", null)
+                        .failRuntime(STRING(), "Apache Flink", TableException.class)
                         .fromCase(STRING(), "TRUE", true)
-                        .fromCase(STRING(), "", null)
+                        .failRuntime(STRING(), "", TableException.class)
                         .fromCase(BOOLEAN(), true, true)
                         .fromCase(BOOLEAN(), false, false)
                         // Not supported - no fix
@@ -407,9 +410,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(DECIMAL(5, 3))
                         .fromCase(DECIMAL(10, 2), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
                         .fromCase(STRING(), "1.234", new BigDecimal("1.234"))
                         .fromCase(STRING(), "1.2", new BigDecimal("1.200"))
                         .fromCase(BOOLEAN(), true, new BigDecimal("1.000"))
@@ -442,12 +445,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(TINYINT())
                         .fromCase(TINYINT(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
                         .fromCase(STRING(), "1.234", (byte) 1)
                         .fromCase(STRING(), "123", (byte) 123)
-                        .fromCase(STRING(), "-130", null)
+                        .failRuntime(STRING(), "-130", NumberFormatException.class)
                         .fromCase(BOOLEAN(), true, (byte) 1)
                         .fromCase(BOOLEAN(), false, (byte) 0)
                         // Not supported - no fix
@@ -489,12 +492,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(SMALLINT())
                         .fromCase(SMALLINT(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
                         .fromCase(STRING(), "1.234", (short) 1)
                         .fromCase(STRING(), "123", (short) 123)
-                        .fromCase(STRING(), "-32769", null)
+                        .failRuntime(STRING(), "-32769", NumberFormatException.class)
                         .fromCase(BOOLEAN(), true, (short) 1)
                         .fromCase(BOOLEAN(), false, (short) 0)
                         // Not supported - no fix
@@ -547,12 +550,12 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(INT())
                         .fromCase(INT(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
                         .fromCase(STRING(), "1.234", 1)
                         .fromCase(STRING(), "123", 123)
-                        .fromCase(STRING(), "-3276913443134", null)
+                        .failRuntime(STRING(), "-3276913443134", NumberFormatException.class)
                         .fromCase(BOOLEAN(), true, 1)
                         .fromCase(BOOLEAN(), false, 0)
                         // Not supported - no fix
@@ -607,9 +610,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(BIGINT())
                         .fromCase(BIGINT(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
                         .fromCase(STRING(), "1.234", 1L)
                         .fromCase(STRING(), "123", 123L)
                         .fromCase(STRING(), "-3276913443134", -3276913443134L)
@@ -664,9 +667,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(FLOAT())
                         .fromCase(FLOAT(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
                         .fromCase(STRING(), "1.234", 1.234f)
                         .fromCase(STRING(), "123", 123.0f)
                         .fromCase(STRING(), "-3276913443134", -3.27691403E12f)
@@ -726,9 +729,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(DOUBLE())
                         .fromCase(DOUBLE(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
                         .fromCase(STRING(), "1.234", 1.234d)
                         .fromCase(STRING(), "123", 123.0d)
                         .fromCase(STRING(), "-3276913443134", -3.276913443134E12)
@@ -789,15 +792,15 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(DATE())
                         .fromCase(DATE(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
+                        .failRuntime(CHAR(3), "foo", DateTimeException.class)
+                        .failRuntime(VARCHAR(5), "Flink", DateTimeException.class)
                         .fromCase(STRING(), "123", LocalDate.of(123, 1, 1))
                         .fromCase(STRING(), "2021-09-27", LocalDate.of(2021, 9, 27))
                         .fromCase(
                                 STRING(),
                                 "2021-09-27 12:34:56.123456789",
                                 LocalDate.of(2021, 9, 27))
-                        .fromCase(STRING(), "2021/09/27", null)
+                        .failRuntime(STRING(), "2021/09/27", DateTimeException.class)
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
                         .failTableApi(BINARY(2), DEFAULT_BINARY)
@@ -835,16 +838,18 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(TIME())
                         .fromCase(TIME(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
+                        .failRuntime(CHAR(3), "foo", DateTimeException.class)
+                        .failRuntime(VARCHAR(5), "Flink", DateTimeException.class)
+                        .failRuntime(STRING(), "Flink", DateTimeException.class)
                         .fromCase(STRING(), "123", LocalTime.of(23, 0, 0))
                         .fromCase(STRING(), "123:45", LocalTime.of(23, 45, 0))
-                        .fromCase(STRING(), "2021-09-27", null)
-                        .fromCase(STRING(), "2021-09-27 12:34:56", null)
+                        .failRuntime(STRING(), "2021-09-27", DateTimeException.class)
+                        .failRuntime(STRING(), "2021-09-27 12:34:56", DateTimeException.class)
                         // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
                         // lost
                         .fromCase(STRING(), "12:34:56.123456789", LocalTime.of(12, 34, 56, 0))
-                        .fromCase(STRING(), "2021-09-27 12:34:56.123456789", null)
+                        .failRuntime(
+                                STRING(), "2021-09-27 12:34:56.123456789", DateTimeException.class)
                         // Not supported - no fix
                         .fail(BOOLEAN(), true)
                         .failTableApi(BINARY(2), DEFAULT_BINARY)
@@ -881,11 +886,11 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP(9))
                         .fromCase(TIMESTAMP(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "123", null)
+                        .failRuntime(CHAR(3), "foo", DateTimeException.class)
+                        .failRuntime(VARCHAR(5), "Flink", DateTimeException.class)
+                        .failRuntime(STRING(), "123", DateTimeException.class)
                         .fromCase(STRING(), "2021-09-27", LocalDateTime.of(2021, 9, 27, 0, 0, 0, 0))
-                        .fromCase(STRING(), "2021/09/27", null)
+                        .failRuntime(STRING(), "2021/09/27", DateTimeException.class)
                         .fromCase(
                                 STRING(),
                                 "2021-09-27 12:34:56.123456789",
@@ -947,9 +952,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
                         .fromCase(TIMESTAMP_LTZ(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "123", null)
+                        .failRuntime(CHAR(3), "foo", ParseException.class)
+                        .failRuntime(VARCHAR(5), "Flink", ParseException.class)
+                        .failRuntime(STRING(), "Apache", ParseException.class)
                         .fromCase(
                                 STRING(),
                                 "2021-09-27",
@@ -1082,9 +1087,10 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(DOUBLE(), 3.123456, new BigDecimal("3.1235"))
                         .fromCase(DECIMAL(10, 8), 12.34561234, new BigDecimal("12.3456"))
                         // out of precision/scale bounds
+                        // Should these fail? https://issues.apache.org/jira/browse/FLINK-24847
                         .fromCase(INT(), 12345, null)
                         .fromCase(FLOAT(), 12345.678912, null)
-                        .fromCase(STRING(), 12345.6789, null)
+                        .failRuntime(STRING(), "12345.6789", NumberFormatException.class)
                         .build());
     }
 
@@ -1207,12 +1213,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         private final List<Object> columnData = new ArrayList<>();
         private final List<DataType> columnTypes = new ArrayList<>();
         private final List<Object> expectedValues = new ArrayList<>();
+        private final List<Class<? extends Throwable>> expectedFailureClasses = new ArrayList<>();
         private final List<TestType> testTypes = new ArrayList<>();
 
         private enum TestType {
             RESULT,
             ERROR_SQL,
-            ERROR_TABLE_API
+            ERROR_TABLE_API,
+            ERROR_RUNTIME
         }
 
         private static CastTestSpecBuilder testCastTo(DataType targetType) {
@@ -1245,6 +1253,15 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
             return fail(TestType.ERROR_SQL, dataType, src);
         }
 
+        private CastTestSpecBuilder failRuntime(
+                DataType dataType, Object src, Class<? extends Throwable> failureClass) {
+            this.testTypes.add(TestType.ERROR_RUNTIME);
+            this.columnTypes.add(dataType);
+            this.columnData.add(src);
+            this.expectedValues.add(failureClass);
+            return this;
+        }
+
         private CastTestSpecBuilder fail(TestType type, DataType dataType, Object src) {
             this.testTypes.add(type);
             this.columnTypes.add(dataType);
@@ -1252,6 +1269,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
             return this;
         }
 
+        @SuppressWarnings("unchecked")
         private TestSpec build() {
             List<ResultSpec> testSpecs = new ArrayList<>(columnData.size());
             // expectedValues may contain less elements if there are also error test cases
@@ -1281,6 +1299,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         testSpec.testSqlValidationError(
                                 "CAST(" + colName + " AS " + targetType.toString() + ")", errorMsg);
                         idxOffset++;
+                        break;
+                    case ERROR_RUNTIME:
+                        testSpec.testSqlRuntimeError(
+                                "CAST(" + colName + " AS " + targetType.toString() + ")",
+                                (Class<? extends Throwable>) expectedValues.get(i - idxOffset));
+                        testSpec.testTableApiRuntimeError(
+                                $(colName).cast(targetType),
+                                (Class<? extends Throwable>) expectedValues.get(i - idxOffset));
                         break;
                     case RESULT:
                         testSpecs.add(

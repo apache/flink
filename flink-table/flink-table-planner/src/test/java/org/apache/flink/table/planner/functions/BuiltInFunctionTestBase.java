@@ -48,17 +48,16 @@ import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
 /**
  * Test base for testing {@link BuiltInFunctionDefinition}.
@@ -144,58 +143,69 @@ public abstract class BuiltInFunctionTestBase {
         final TableResult result = resultTable.execute();
         final Iterator<Row> iterator = result.collect();
 
-        assertTrue(iterator.hasNext());
+        assertThat(iterator).hasNext();
 
         final Row row = iterator.next();
 
-        assertFalse("No more rows expected.", iterator.hasNext());
+        assertThat(iterator).as("No more rows expected.").isExhausted();
 
         for (int i = 0; i < row.getArity(); i++) {
-            assertEquals(
-                    "Logical type for spec [" + i + "] of test [" + testItem + "] doesn't match.",
-                    expectedDataTypes.get(i).getLogicalType(),
-                    result.getResolvedSchema().getColumnDataTypes().get(i).getLogicalType());
+            assertThat(result.getResolvedSchema().getColumnDataTypes().get(i).getLogicalType())
+                    .as(
+                            "Logical type for spec ["
+                                    + i
+                                    + "] of test ["
+                                    + testItem
+                                    + "] doesn't match.")
+                    .isEqualTo(expectedDataTypes.get(i).getLogicalType());
 
-            assertEquals(
-                    "Result for spec [" + i + "] of test [" + testItem + "] doesn't match.",
-                    // Use Row.equals() to enable equality for complex structure, i.e. byte[]
-                    Row.of(testItem.results.get(i)),
-                    Row.of(row.getField(i)));
+            assertThat(Row.of(row.getField(i)))
+                    .as("Result for spec [" + i + "] of test [" + testItem + "] doesn't match.")
+                    .isEqualTo(
+                            // Use Row.equals() to enable equality for complex structure, i.e.
+                            // byte[]
+                            Row.of(testItem.results.get(i)));
         }
     }
 
     private static void testError(
             TableEnvironment env, Table inputTable, ErrorTestItem<?> testItem) {
-        try {
-            final TableResult tableResult;
-            if (testItem instanceof TableApiErrorTestItem) {
-                tableResult =
-                        inputTable
-                                .select(((TableApiErrorTestItem) testItem).expression())
-                                .execute();
-            } else {
-                tableResult =
-                        env.sqlQuery("SELECT " + testItem.expression() + " FROM " + inputTable)
-                                .execute();
-            }
-            if (testItem.expectedDuringValidation) {
-                fail("Error expected: " + testItem.errorMessage);
-            }
+        AtomicReference<TableResult> tableResult = new AtomicReference<>();
 
-            try {
-                tableResult.await();
-                fail("Error expected: " + testItem.errorMessage);
-            } catch (AssertionError e) {
-                throw e;
-            } catch (Throwable t) {
-                assertThat("Wrong error message", t, containsMessage(testItem.errorMessage));
-            }
-        } catch (AssertionError e) {
-            throw e;
-        } catch (Throwable t) {
-            assertTrue(t instanceof ValidationException);
-            assertThat(t.getMessage(), containsString(testItem.errorMessage));
+        Throwable t =
+                catchThrowable(
+                        () -> {
+                            if (testItem instanceof TableApiErrorTestItem) {
+                                tableResult.set(
+                                        inputTable
+                                                .select(
+                                                        ((TableApiErrorTestItem) testItem)
+                                                                .expression())
+                                                .execute());
+                            } else {
+                                tableResult.set(
+                                        env.sqlQuery(
+                                                        "SELECT "
+                                                                + testItem.expression()
+                                                                + " FROM "
+                                                                + inputTable)
+                                                .execute());
+                            }
+                        });
+
+        if (testItem.expectedDuringValidation) {
+            assertThat(t)
+                    .as("Expected a validation exception")
+                    .isNotNull()
+                    .satisfies(testItem.errorMatcher());
+            return;
+        } else {
+            assertThat(t).as("Error while validating the query").isNull();
         }
+
+        assertThatThrownBy(() -> tableResult.get().await())
+                .isNotNull()
+                .satisfies(testItem.errorMatcher());
     }
 
     /**
@@ -266,12 +276,21 @@ public abstract class BuiltInFunctionTestBase {
         }
 
         TestSpec testTableApiValidationError(Expression expression, String errorMessage) {
-            testItems.add(new TableApiErrorTestItem(expression, errorMessage, true));
+            testItems.add(
+                    new TableApiErrorTestItem(
+                            expression, ValidationException.class, errorMessage, true));
             return this;
         }
 
         TestSpec testTableApiRuntimeError(Expression expression, String errorMessage) {
-            testItems.add(new TableApiErrorTestItem(expression, errorMessage, false));
+            testItems.add(
+                    new TableApiErrorTestItem(expression, Throwable.class, errorMessage, false));
+            return this;
+        }
+
+        TestSpec testTableApiRuntimeError(
+                Expression expression, Class<? extends Throwable> exceptionError) {
+            testItems.add(new TableApiErrorTestItem(expression, exceptionError, null, false));
             return this;
         }
 
@@ -286,12 +305,19 @@ public abstract class BuiltInFunctionTestBase {
         }
 
         TestSpec testSqlValidationError(String expression, String errorMessage) {
-            testItems.add(new SqlErrorTestItem(expression, errorMessage, true));
+            testItems.add(
+                    new SqlErrorTestItem(
+                            expression, ValidationException.class, errorMessage, true));
             return this;
         }
 
         TestSpec testSqlRuntimeError(String expression, String errorMessage) {
-            testItems.add(new SqlErrorTestItem(expression, errorMessage, false));
+            testItems.add(new SqlErrorTestItem(expression, Throwable.class, errorMessage, false));
+            return this;
+        }
+
+        TestSpec testSqlRuntimeError(String expression, Class<? extends Throwable> exceptionError) {
+            testItems.add(new SqlErrorTestItem(expression, exceptionError, null, false));
             return this;
         }
 
@@ -375,16 +401,33 @@ public abstract class BuiltInFunctionTestBase {
 
     private abstract static class ErrorTestItem<T> implements TestItem {
         final T expression;
+        final Class<? extends Throwable> errorClass;
         final String errorMessage;
         final boolean expectedDuringValidation;
 
-        ErrorTestItem(T expression, String errorMessage, boolean expectedDuringValidation) {
+        ErrorTestItem(
+                T expression,
+                Class<? extends Throwable> errorClass,
+                String errorMessage,
+                boolean expectedDuringValidation) {
+            Preconditions.checkState(errorClass != null || errorMessage != null);
             this.expression = expression;
+            this.errorClass = errorClass;
             this.errorMessage = errorMessage;
             this.expectedDuringValidation = expectedDuringValidation;
         }
 
         abstract T expression();
+
+        Consumer<? super Throwable> errorMatcher() {
+            if (errorClass != null && errorMessage != null) {
+                return anyCauseMatches(errorClass, errorMessage);
+            }
+            if (errorMessage != null) {
+                return anyCauseMatches(errorMessage);
+            }
+            return anyCauseMatches(errorClass);
+        }
     }
 
     private static class TableApiResultTestItem extends ResultTestItem<List<Expression>> {
@@ -413,8 +456,11 @@ public abstract class BuiltInFunctionTestBase {
     private static class TableApiErrorTestItem extends ErrorTestItem<Expression> {
 
         TableApiErrorTestItem(
-                Expression expression, String errorMessage, boolean expectedDuringValidation) {
-            super(expression, errorMessage, expectedDuringValidation);
+                Expression expression,
+                Class<? extends Throwable> errorClass,
+                String errorMessage,
+                boolean expectedDuringValidation) {
+            super(expression, errorClass, errorMessage, expectedDuringValidation);
         }
 
         @Override
@@ -449,8 +495,11 @@ public abstract class BuiltInFunctionTestBase {
     private static class SqlErrorTestItem extends ErrorTestItem<String> {
 
         private SqlErrorTestItem(
-                String expression, String errorMessage, boolean expectedDuringValidation) {
-            super(expression, errorMessage, expectedDuringValidation);
+                String expression,
+                Class<? extends Throwable> errorClass,
+                String errorMessage,
+                boolean expectedDuringValidation) {
+            super(expression, errorClass, errorMessage, expectedDuringValidation);
         }
 
         @Override

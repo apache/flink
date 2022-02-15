@@ -703,7 +703,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       // casting
       case CAST =>
         val operand = operands.head
-        generateCast(ctx, operand, resultType)
+        generateCast(ctx, operand, resultType, nullOnFailure = false)
 
       // Reinterpret
       case REINTERPRET =>
