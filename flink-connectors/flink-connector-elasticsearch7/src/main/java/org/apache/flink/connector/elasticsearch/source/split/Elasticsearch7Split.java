@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.source.split;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceSplit;
 
 import java.util.Objects;
@@ -37,7 +37,7 @@ import java.util.Objects;
  * subsequent calls should be faster but you should limit the number of sliced query you perform in
  * parallel to avoid the memory explosion.
  */
-@PublicEvolving
+@Internal
 public class Elasticsearch7Split implements SourceSplit {
     private final String pitId;
     private final int sliceId;

@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.table;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.connector.elasticsearch.source.Elasticsearch7Source;
@@ -30,7 +30,7 @@ import java.util.List;
  * Options for the {@link Elasticsearch7Source}. Needs to be public so that the {@link
  * org.apache.flink.table.api.TableDescriptor} can access it.
  */
-@PublicEvolving
+@Internal
 public class Elasticsearch7SourceOptions {
     Elasticsearch7SourceOptions() {}
 

@@ -107,6 +107,7 @@ public class Elasticsearch7Source<OUT>
         return Boundedness.BOUNDED;
     }
 
+    @Internal
     @Override
     public SourceReader<OUT, Elasticsearch7Split> createReader(SourceReaderContext readerContext)
             throws Exception {
@@ -153,6 +154,7 @@ public class Elasticsearch7Source<OUT>
                 checkpoint.getAssignedSplits());
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<Elasticsearch7Split> getSplitSerializer() {
         return new Elasticsearch7SplitSerializer();
