@@ -233,9 +233,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 $("f0").tryCast(STRING()),
                                 "TRY_CAST(f0 AS STRING)",
                                 "12:34:56",
-                                // Because TIME to STRING cannot fail, the type inference should be
-                                // NOT NULL
-                                STRING().notNull()),
+                                STRING().nullable()),
                 TestSpec.forFunction(
                                 BuiltInFunctionDefinitions.TRY_CAST,
                                 "try cast from ROW<INT, STRING> to ROW<TINYINT, TIME>")

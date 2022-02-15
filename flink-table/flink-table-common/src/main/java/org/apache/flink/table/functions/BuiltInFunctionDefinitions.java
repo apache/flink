@@ -1723,9 +1723,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("tryCast")
                     .kind(SCALAR)
                     .inputTypeStrategy(SpecificInputTypeStrategies.CAST)
-                    .outputTypeStrategy(
-                            // This gets corrected in TryCastConverter
-                            nullableIfArgs(ConstantArgumentCount.to(0), TypeStrategies.argument(1)))
+                    .outputTypeStrategy(forceNullable(TypeStrategies.argument(1)))
                     .build();
 
     public static final BuiltInFunctionDefinition REINTERPRET_CAST =

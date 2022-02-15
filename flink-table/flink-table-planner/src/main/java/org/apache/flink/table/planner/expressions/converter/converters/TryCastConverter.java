@@ -25,9 +25,7 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.expressions.converter.CallExpressionConvertRule;
 import org.apache.flink.table.planner.expressions.converter.FunctionDefinitionConvertRule;
-import org.apache.flink.table.planner.functions.casting.CastRuleProvider;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
-import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexNode;
@@ -47,20 +45,16 @@ class TryCastConverter extends CustomizedConverter {
     public RexNode convert(CallExpression call, CallExpressionConvertRule.ConvertContext context) {
         checkArgumentNumber(call, 2);
 
+        final FlinkTypeFactory typeFactory = context.getTypeFactory();
+
         final RexNode child = context.toRexNode(call.getChildren().get(0));
         final TypeLiteralExpression targetType = (TypeLiteralExpression) call.getChildren().get(1);
 
-        final LogicalType fromType = FlinkTypeFactory.toLogicalType(child.getType());
-        final LogicalType toType = targetType.getOutputDataType().getLogicalType();
-
-        // We need to adjust the type nullability here, as in table-common we cannot implement it
-        // correctly because we cannot access CastRuleProvider#canFail
         RelDataType targetRelDataType =
-                context.getTypeFactory().createFieldTypeFromLogicalType(toType);
-        if (CastRuleProvider.canFail(fromType, toType)) {
-            targetRelDataType =
-                    context.getTypeFactory().createTypeWithNullability(targetRelDataType, true);
-        }
+                typeFactory.createTypeWithNullability(
+                        typeFactory.createFieldTypeFromLogicalType(
+                                targetType.getOutputDataType().getLogicalType()),
+                        true);
 
         return context.getRelBuilder()
                 .getRexBuilder()

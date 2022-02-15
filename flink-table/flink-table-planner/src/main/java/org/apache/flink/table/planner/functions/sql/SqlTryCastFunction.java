@@ -19,9 +19,6 @@
 package org.apache.flink.table.planner.functions.sql;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.functions.casting.CastRuleProvider;
-import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlCall;
@@ -100,18 +97,9 @@ public class SqlTryCastFunction extends BuiltInSqlFunction {
 
     @Override
     public RelDataType inferReturnType(SqlOperatorBinding opBinding) {
-        RelDataType returnType = SqlStdOperatorTable.CAST.inferReturnType(opBinding);
-
-        final LogicalType fromLogicalType =
-                FlinkTypeFactory.toLogicalType(opBinding.getOperandType(0));
-        final LogicalType toLogicalType =
-                FlinkTypeFactory.toLogicalType(opBinding.getOperandType(1));
-
-        // This is nullable only and only if the cast rule can fail
-        if (CastRuleProvider.canFail(fromLogicalType, toLogicalType)) {
-            returnType = opBinding.getTypeFactory().createTypeWithNullability(returnType, true);
-        }
-
-        return returnType;
+        return opBinding
+                .getTypeFactory()
+                .createTypeWithNullability(
+                        SqlStdOperatorTable.CAST.inferReturnType(opBinding), true);
     }
 }

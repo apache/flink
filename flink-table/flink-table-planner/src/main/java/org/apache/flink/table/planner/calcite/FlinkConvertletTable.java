@@ -19,9 +19,7 @@
 package org.apache.flink.table.planner.calcite;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.planner.functions.casting.CastRuleProvider;
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
-import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
@@ -79,14 +77,7 @@ public class FlinkConvertletTable implements SqlRexConvertletTable {
             throw new IllegalStateException(
                     "Invalid right argument type for TRY_CAST: " + rightNode);
         }
-
-        final LogicalType fromLogicalType = FlinkTypeFactory.toLogicalType(valueRex.getType());
-        final LogicalType toLogicalType = FlinkTypeFactory.toLogicalType(type);
-
-        // This is nullable only if the cast rule can fail
-        if (CastRuleProvider.canFail(fromLogicalType, toLogicalType)) {
-            type = typeFactory.createTypeWithNullability(type, true);
-        }
+        type = typeFactory.createTypeWithNullability(type, true);
 
         if (SqlUtil.isNullLiteral(leftNode, false)) {
             final SqlValidatorImpl validator = (SqlValidatorImpl) cx.getValidator();
