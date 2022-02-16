@@ -92,7 +92,7 @@ public class KafkaSinkExternalContext implements DataStreamSinkV2ExternalContext
         kafkaAdminClient = createAdminClient();
     }
 
-    private void createTopic(String topicName, int numPartitions, short replicationFactor) {
+    protected void createTopic(String topicName, int numPartitions, short replicationFactor) {
         LOG.debug(
                 "Creating new Kafka topic {} with {} partitions and {} replicas",
                 topicName,

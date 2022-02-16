@@ -32,6 +32,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.testutils.KafkaSinkExternalContextFactory;
+import org.apache.flink.connector.kafka.sink.testutils.table.KafkaTableSinkExternalContextFactory;
 import org.apache.flink.connector.kafka.testutils.KafkaUtil;
 import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
 import org.apache.flink.connector.testframe.environment.TestEnvironment;
@@ -42,6 +43,7 @@ import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
 import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SinkTestSuiteBase;
+import org.apache.flink.connector.testframe.testsuites.TableSinkTestSuiteBase;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
@@ -56,6 +58,8 @@ import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
@@ -96,6 +100,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -214,6 +219,56 @@ public class KafkaSinkITCase extends TestLogger {
                 DataStreamSinkExternalContext<String> externalContext,
                 CheckpointingMode semantic)
                 throws Exception {}
+    }
+
+    /** Integration test based on connector testing framework. */
+    @Nested
+    class IntegrationTableTests extends TableSinkTestSuiteBase {
+        // Defines test environment on Flink MiniCluster
+        @SuppressWarnings("unused")
+        @TestEnv
+        MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
+
+        // Defines external system
+        @TestExternalSystem
+        DefaultContainerizedExternalSystem<KafkaContainer> kafka =
+                DefaultContainerizedExternalSystem.builder()
+                        .fromContainer(
+                                new KafkaContainer(
+                                        DockerImageName.parse(DockerImageVersions.KAFKA)))
+                        .build();
+
+        @SuppressWarnings("unused")
+        @TestSemantics
+        CheckpointingMode[] semantics =
+                new CheckpointingMode[] {
+                    CheckpointingMode.EXACTLY_ONCE, CheckpointingMode.AT_LEAST_ONCE
+                };
+
+        @SuppressWarnings("unused")
+        @TestContext
+        KafkaTableSinkExternalContextFactory sinkContext =
+                new KafkaTableSinkExternalContextFactory(
+                        kafka.getContainer(), Collections.emptyList());
+
+        @Override
+        public List<DataType> supportTypes() {
+            return Arrays.asList(
+                    DataTypes.CHAR(2),
+                    DataTypes.STRING(),
+                    DataTypes.VARCHAR(3),
+                    DataTypes.INT(),
+                    DataTypes.BIGINT(),
+                    DataTypes.SMALLINT(),
+                    DataTypes.TINYINT(),
+                    DataTypes.DOUBLE(),
+                    DataTypes.FLOAT(),
+                    DataTypes.BOOLEAN(),
+                    DataTypes.DATE(),
+                    DataTypes.TIME(),
+                    DataTypes.TIMESTAMP(),
+                    DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE());
+        }
     }
 
     @Test
