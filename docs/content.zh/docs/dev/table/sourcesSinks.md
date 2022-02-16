@@ -3,7 +3,7 @@ title: "User-defined Sources & Sinks"
 weight: 131
 type: docs
 aliases:
-  - /dev/table/sourceSinks.html
+  - /zh/dev/table/sourceSinks.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

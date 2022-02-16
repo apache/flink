@@ -3,7 +3,7 @@ title: "RESET 语句"
 weight: 15
 type: docs
 aliases:
-  - /dev/table/sql/reset.html
+  - /zh/dev/table/sql/reset.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

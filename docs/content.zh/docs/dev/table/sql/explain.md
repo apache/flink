@@ -3,7 +3,7 @@ title: "EXPLAIN 语句"
 weight: 9
 type: docs
 aliases:
-  - /dev/table/sql/explain.html
+  - /zh/dev/table/sql/explain.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
