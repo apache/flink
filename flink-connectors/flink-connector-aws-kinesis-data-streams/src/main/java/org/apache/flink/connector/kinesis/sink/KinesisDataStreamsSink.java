@@ -137,6 +137,7 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
         return new KinesisDataStreamsStateSerializer();
     }
 
+    @Internal
     @Override
     public StatefulSinkWriter<InputT, BufferedRequestState<PutRecordsRequestEntry>> restoreWriter(
             InitContext context,
