@@ -72,7 +72,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testOverAggWithHashAgg() {
+    public void testOverAggOnHashAggWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .getConfiguration()
@@ -88,7 +88,16 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testOverAggWithSortAgg() {
+    public void testOverAggOnHashAggWithGlobalShuffle() {
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
+        util.verifyExecPlan("SELECT b, RANK() OVER (ORDER BY b) FROM (SELECT SUM(b) AS b FROM T)");
+    }
+
+    @Test
+    public void testOverAggOnSortAggWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .getConfiguration()
@@ -104,7 +113,16 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testHashAggWithHashJoin() {
+    public void testOverAggOnSortAggWithGlobalShuffle() {
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        util.verifyExecPlan("SELECT b, RANK() OVER (ORDER BY b) FROM (SELECT SUM(b) AS b FROM T)");
+    }
+
+    @Test
+    public void testHashAggOnHashJoinWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .getConfiguration()
@@ -117,7 +135,7 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testSortAggWithSortMergeJoin() {
+    public void testSortAggOnSortMergeJoinWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .getConfiguration()
@@ -130,7 +148,39 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRankWithHashAgg() {
+    public void testHashAggOnNestedLoopJoinWithGlobalShuffle() {
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+        // TODO the shuffle between join and agg can be removed
+        util.verifyExecPlan(
+                "WITH r AS (SELECT * FROM T1 FULL OUTER JOIN T2 ON true)\n"
+                        + "SELECT sum(b1) FROM r");
+    }
+
+    @Test
+    public void testSortAggOnNestedLoopJoinWithGlobalShuffle() {
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE");
+        // TODO the shuffle between join and agg can be removed
+        util.verifyExecPlan(
+                "WITH r AS (SELECT * FROM T1 FULL OUTER JOIN T2 ON true)\n"
+                        + "SELECT sum(b1) FROM r");
+    }
+
+    @Test
+    public void testRankOnHashAggWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .getConfiguration()
@@ -144,7 +194,21 @@ public class ForwardHashExchangeTest extends TableTestBase {
     }
 
     @Test
-    public void testRankWithSortAgg() {
+    public void testRankOnHashAggWithGlobalShuffle() {
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
+        util.verifyExecPlan(
+                "SELECT * FROM (\n"
+                        + "                SELECT b, RANK() OVER(ORDER BY b) rk FROM (\n"
+                        + "                        SELECT SUM(b) AS b FROM T\n"
+                        + "                )\n"
+                        + "        ) WHERE rk <= 10");
+    }
+
+    @Test
+    public void testRankOnSortAggWithHashShuffle() {
         util.tableEnv()
                 .getConfig()
                 .getConfiguration()
@@ -153,6 +217,20 @@ public class ForwardHashExchangeTest extends TableTestBase {
                 "SELECT * FROM (\n"
                         + "                SELECT a, b, RANK() OVER(PARTITION BY a ORDER BY b) rk FROM (\n"
                         + "                        SELECT a, SUM(b) AS b FROM T GROUP BY a\n"
+                        + "                )\n"
+                        + "        ) WHERE rk <= 10");
+    }
+
+    @Test
+    public void testRankOnSortAggWithGlobalShuffle() {
+        util.tableEnv()
+                .getConfig()
+                .getConfiguration()
+                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
+        util.verifyExecPlan(
+                "SELECT * FROM (\n"
+                        + "                SELECT b, RANK() OVER(ORDER BY b) rk FROM (\n"
+                        + "                        SELECT SUM(b) AS b FROM T\n"
                         + "                )\n"
                         + "        ) WHERE rk <= 10");
     }
