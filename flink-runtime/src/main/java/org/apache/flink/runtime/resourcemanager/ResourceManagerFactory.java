@@ -115,6 +115,11 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
                 context.getIoExecutor());
     }
 
+    /** This indicates whether the process should be terminated after losing leadership. */
+    protected boolean supportMultiLeaderSession() {
+        return true;
+    }
+
     /**
      * Configuration changes in this method will be visible to both {@link ResourceManager} and
      * {@link ResourceManagerRuntimeServices}. This can be overwritten by {@link
