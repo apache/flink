@@ -58,17 +58,17 @@ import static org.apache.commons.lang3.RandomStringUtils.randomAlphanumeric;
 public class KafkaSourceExternalContext implements DataStreamSourceExternalContext<String> {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceExternalContext.class);
-    private static final String TOPIC_NAME_PREFIX = "kafka-test-topic-";
-    private static final Pattern TOPIC_NAME_PATTERN = Pattern.compile(TOPIC_NAME_PREFIX + ".*");
-    private static final String GROUP_ID_PREFIX = "kafka-source-external-context-";
+    protected static final String TOPIC_NAME_PREFIX = "kafka-test-topic-";
+    protected static final Pattern TOPIC_NAME_PATTERN = Pattern.compile(TOPIC_NAME_PREFIX + ".*");
+    protected static final String GROUP_ID_PREFIX = "kafka-source-external-context-";
     private static final int NUM_RECORDS_UPPER_BOUND = 500;
     private static final int NUM_RECORDS_LOWER_BOUND = 100;
 
     private final List<URL> connectorJarPaths;
-    private final String bootstrapServers;
-    private final String topicName;
-    private final SplitMappingMode splitMappingMode;
-    private final AdminClient adminClient;
+    protected final String bootstrapServers;
+    protected final String topicName;
+    protected final SplitMappingMode splitMappingMode;
+    protected final AdminClient adminClient;
     private final List<KafkaPartitionDataWriter> writers = new ArrayList<>();
 
     protected KafkaSourceExternalContext(
@@ -165,7 +165,7 @@ public class KafkaSourceExternalContext implements DataStreamSourceExternalConte
         return "KafkaSource-" + splitMappingMode.toString();
     }
 
-    private String randomize(String prefix) {
+    protected String randomize(String prefix) {
         return prefix + ThreadLocalRandom.current().nextLong(0, Long.MAX_VALUE);
     }
 
@@ -211,7 +211,7 @@ public class KafkaSourceExternalContext implements DataStreamSourceExternalConte
         }
     }
 
-    private Properties getKafkaProducerProperties(int producerId) {
+    protected Properties getKafkaProducerProperties(int producerId) {
         Properties kafkaProducerProperties = new Properties();
         kafkaProducerProperties.setProperty(
                 ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers);

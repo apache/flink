@@ -26,6 +26,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
+import org.apache.flink.connector.kafka.source.testutils.table.KafkaTableSourceExternalContextFactory;
 import org.apache.flink.connector.kafka.testutils.KafkaSourceExternalContextFactory;
 import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
 import org.apache.flink.connector.testframe.environment.MiniClusterTestEnvironment;
@@ -35,6 +36,7 @@ import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
 import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
+import org.apache.flink.connector.testframe.testsuites.TableSourceTestSuiteBase;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -42,6 +44,8 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.DockerImageVersions;
@@ -291,6 +295,60 @@ public class KafkaSourceITCase {
         KafkaSourceExternalContextFactory multipleTopic =
                 new KafkaSourceExternalContextFactory(
                         kafka.getContainer(), Collections.emptyList(), TOPIC);
+    }
+
+    @Nested
+    class IntegrationTableTests extends TableSourceTestSuiteBase {
+        @SuppressWarnings("unused")
+        @TestSemantics
+        CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
+
+        // Defines test environment on Flink MiniCluster
+        @SuppressWarnings("unused")
+        @TestEnv
+        MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
+
+        // Defines external system
+        @TestExternalSystem
+        DefaultContainerizedExternalSystem<KafkaContainer> kafka =
+                DefaultContainerizedExternalSystem.builder()
+                        .fromContainer(
+                                new KafkaContainer(
+                                        DockerImageName.parse(DockerImageVersions.KAFKA)))
+                        .build();
+
+        // Defines 2 External context Factories, so test cases will be invoked twice using these two
+        // kinds of external contexts.
+        @SuppressWarnings("unused")
+        @TestContext
+        KafkaTableSourceExternalContextFactory singleTopic =
+                new KafkaTableSourceExternalContextFactory(
+                        kafka.getContainer(), Collections.emptyList(), PARTITION);
+
+        @SuppressWarnings("unused")
+        @TestContext
+        KafkaTableSourceExternalContextFactory multipleTopic =
+                new KafkaTableSourceExternalContextFactory(
+                        kafka.getContainer(), Collections.emptyList(), TOPIC);
+
+        @Override
+        public List<DataType> supportTypes() {
+            return Arrays.asList(
+                    DataTypes.CHAR(2),
+                    DataTypes.STRING(),
+                    DataTypes.VARCHAR(3),
+                    DataTypes.INT(),
+                    DataTypes.BIGINT(),
+                    DataTypes.SMALLINT(),
+                    DataTypes.TINYINT(),
+                    DataTypes.DOUBLE(),
+                    DataTypes.FLOAT(),
+                    DataTypes.BOOLEAN(),
+                    DataTypes.DATE(),
+                    DataTypes.TIME(),
+                    DataTypes.TIMESTAMP(),
+                    DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE());
+        }
     }
 
     // -----------------
