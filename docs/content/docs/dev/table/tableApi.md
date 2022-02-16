@@ -1454,7 +1454,9 @@ result3 = table.order_by(table.a.asc).offset(10).fetch(5)
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table. The `executeInsert()` method will immediately submit a Flink job which execute the insert operation.
+Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table. 
+The `insertInto()` method will translate the `INSERT INTO` to a `TablePipeline`. 
+The pipeline can be explained with `TablePipeline.explain()` and executed with `TablePipeline.execute()`.
 
 Output tables must be registered in the TableEnvironment (see Connector tables). Moreover, the schema of the registered table must match the schema of the query.
 
@@ -1462,13 +1464,13 @@ Output tables must be registered in the TableEnvironment (see Connector tables).
 {{< tab "Java" >}}
 ```java
 Table orders = tableEnv.from("Orders");
-orders.executeInsert("OutOrders");
+orders.insertInto("OutOrders").execute();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 val orders = tableEnv.from("Orders")
-orders.executeInsert("OutOrders")
+orders.insertInto("OutOrders").execute()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

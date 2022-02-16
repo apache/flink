@@ -598,13 +598,13 @@ pipeline or a statement set:
 
 ```java
 // execute with explicit sink
-tableEnv.from("InputTable").executeInsert("OutputTable")
+tableEnv.from("InputTable").insertInto("OutputTable").execute()
 
 tableEnv.executeSql("INSERT INTO OutputTable SELECT * FROM InputTable")
 
 tableEnv.createStatementSet()
-    .addInsert("OutputTable", tableEnv.from("InputTable"))
-    .addInsert("OutputTable2", tableEnv.from("InputTable"))
+    .add(tableEnv.from("InputTable").insertInto("OutputTable"))
+    .add(tableEnv.from("InputTable").insertInto("OutputTable2"))
     .execute()
 
 tableEnv.createStatementSet()
@@ -2562,12 +2562,12 @@ TableDescriptor sinkDescriptor = TableDescriptor.forConnector("print").build();
 
 // add a pure Table API pipeline
 Table tableFromSource = tableEnv.from(sourceDescriptor);
-statementSet.addInsert(sinkDescriptor, tableFromSource);
+statementSet.add(tableFromSource.insertInto(sinkDescriptor));
 
 // use table sinks for the DataStream API pipeline
 DataStream<Integer> dataStream = env.fromElements(1, 2, 3);
 Table tableFromStream = tableEnv.fromDataStream(dataStream);
-statementSet.addInsert(sinkDescriptor, tableFromStream);
+statementSet.add(tableFromStream.insertInto(sinkDescriptor));
 
 // attach both pipelines to StreamExecutionEnvironment
 // (the statement set will be cleared after calling this method)
@@ -2613,12 +2613,12 @@ val sinkDescriptor = TableDescriptor.forConnector("print").build
 
 // add a pure Table API pipeline
 val tableFromSource = tableEnv.from(sourceDescriptor)
-statementSet.addInsert(sinkDescriptor, tableFromSource)
+statementSet.add(tableFromSource.insertInto(sinkDescriptor))
 
 // use table sinks for the DataStream API pipeline
 val dataStream = env.fromElements(1, 2, 3)
 val tableFromStream = tableEnv.fromDataStream(dataStream)
-statementSet.addInsert(sinkDescriptor, tableFromStream)
+statementSet.add(tableFromStream.insertInto(sinkDescriptor))
 
 // attach both pipelines to StreamExecutionEnvironment
 // (the statement set will be cleared calling this method)
