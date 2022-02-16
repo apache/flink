@@ -537,7 +537,7 @@ metadata:
 spec:
   initContainers:
     - name: artifacts-fetcher
-      image: artifacts-fetcher:latest
+      image: busybox:latest
       # Use wget or other tools to get user jars from remote storage
       command: [ 'wget', 'https://path/of/StateMachineExample.jar', '-O', '/flink-artifact/myjob.jar' ]
       volumeMounts:
