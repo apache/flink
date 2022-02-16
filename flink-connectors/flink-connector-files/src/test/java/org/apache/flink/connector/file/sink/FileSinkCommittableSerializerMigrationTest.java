@@ -89,7 +89,7 @@ public class FileSinkCommittableSerializerMigrationTest {
 
         OutputStreamBasedInProgressFileRecoverable recoverable =
                 new OutputStreamBasedInProgressFileRecoverable(resumeRecoverable);
-        FileSinkCommittable committable = new FileSinkCommittable(recoverable);
+        FileSinkCommittable committable = new FileSinkCommittable("0", recoverable);
 
         byte[] bytes = serializer.serialize(committable);
         Files.write(path.resolve("committable"), bytes);
@@ -134,7 +134,7 @@ public class FileSinkCommittableSerializerMigrationTest {
 
         OutputStreamBasedPendingFileRecoverable recoverable =
                 new OutputStreamBasedPendingFileRecoverable(commitRecoverable);
-        FileSinkCommittable committable = new FileSinkCommittable(recoverable);
+        FileSinkCommittable committable = new FileSinkCommittable("0", recoverable);
 
         byte[] bytes = serializer.serialize(committable);
         Files.write(path.resolve("committable"), bytes);

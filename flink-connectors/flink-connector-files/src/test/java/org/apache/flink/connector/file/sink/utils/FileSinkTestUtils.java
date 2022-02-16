@@ -36,31 +36,99 @@ public class FileSinkTestUtils {
     /** A type of testing {@link InProgressFileWriter.PendingFileRecoverable}. */
     public static class TestPendingFileRecoverable extends StringValue
             implements InProgressFileWriter.PendingFileRecoverable {
+        private Path path;
+        private Path uncommittedPath;
+        private long size;
+
+        public TestPendingFileRecoverable() {
+            this.path = null;
+            this.uncommittedPath = null;
+            this.size = -1L;
+        }
+
+        public TestPendingFileRecoverable(Path path, long size) {
+            this.path = path;
+            this.uncommittedPath = new Path(path.getParent(), "." + path.getName());
+            this.size = size;
+        }
+
         @Override
         public Path getPath() {
-            return null;
+            return path;
+        }
+
+        public Path getUncommittedPath() {
+            return uncommittedPath;
         }
 
         @Override
         public long getSize() {
-            return -1L;
+            return size;
         }
-        // Nope
+
+        @Override
+        public String getValue() {
+            return size + "," + (path == null ? "" : path.toUri().toString());
+        }
+
+        @Override
+        public void setValue(CharSequence value, int offset, int len) {
+            String[] arr = value.subSequence(offset, len).toString().split(",");
+            size = Integer.parseInt(arr[0]);
+            path = arr.length == 1 ? null : new Path(arr[1]);
+            if (path != null) {
+                uncommittedPath = new Path(path.getParent(), "." + path.getName());
+            }
+        }
     }
 
     /** A type of testing {@link InProgressFileWriter.InProgressFileRecoverable}. */
     public static class TestInProgressFileRecoverable extends StringValue
             implements InProgressFileWriter.InProgressFileRecoverable {
+        private Path path;
+        private Path uncommittedPath;
+        private long size;
+
+        public TestInProgressFileRecoverable() {
+            this.path = null;
+            this.uncommittedPath = null;
+            this.size = -1L;
+        }
+
+        public TestInProgressFileRecoverable(Path path, long size) {
+            this.path = path;
+            this.uncommittedPath = new Path(path.getParent(), "." + path.getName());
+            this.size = size;
+        }
+
         @Override
         public Path getPath() {
-            return null;
+            return path;
+        }
+
+        public Path getUncommittedPath() {
+            return uncommittedPath;
         }
 
         @Override
         public long getSize() {
-            return -1L;
+            return size;
         }
-        // Nope
+
+        @Override
+        public String getValue() {
+            return size + "," + (path == null ? "" : path.toUri().toString());
+        }
+
+        @Override
+        public void setValue(CharSequence value, int offset, int len) {
+            String[] arr = value.subSequence(offset, len).toString().split(",");
+            size = Integer.parseInt(arr[0]);
+            path = arr.length == 1 ? null : new Path(arr[1]);
+            if (path != null) {
+                uncommittedPath = new Path(path.getParent(), "." + path.getName());
+            }
+        }
     }
 
     /**
