@@ -83,7 +83,15 @@ class ResolvedCatalogTableJsonSerializer extends StdSerializer<ResolvedCatalogTa
             if (!resolvedCatalogTable.getComment().isEmpty()) {
                 jsonGenerator.writeObjectField(COMMENT, resolvedCatalogTable.getComment());
             }
-            jsonGenerator.writeObjectField(OPTIONS, resolvedCatalogTable.getOptions());
+            try {
+                jsonGenerator.writeObjectField(OPTIONS, resolvedCatalogTable.getOptions());
+            } catch (Exception e) {
+                throw new ValidationException(
+                        "The table is not serializable, as "
+                                + resolvedCatalogTable.getClass()
+                                + "#getOptions failed.",
+                        e);
+            }
         }
 
         jsonGenerator.writeEndObject();
