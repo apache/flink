@@ -41,7 +41,6 @@ import org.apache.flink.util.IOUtils;
 import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -51,10 +50,10 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
 
     private final Map<OperatorID, OperatorCoordinatorHolder> coordinatorMap;
 
-    private final Consumer<Throwable> globalFailureHandler;
+    private final GlobalFailureHandler globalFailureHandler;
 
     public DefaultOperatorCoordinatorHandler(
-            ExecutionGraph executionGraph, Consumer<Throwable> globalFailureHandler) {
+            ExecutionGraph executionGraph, GlobalFailureHandler globalFailureHandler) {
         this.executionGraph = executionGraph;
 
         this.coordinatorMap = createCoordinatorMap(executionGraph);
@@ -122,7 +121,7 @@ public class DefaultOperatorCoordinatorHandler implements OperatorCoordinatorHan
             coordinator.handleEventFromOperator(exec.getParallelSubtaskIndex(), evt);
         } catch (Throwable t) {
             ExceptionUtils.rethrowIfFatalErrorOrOOM(t);
-            globalFailureHandler.accept(t);
+            globalFailureHandler.handleGlobalFailure(t);
         }
     }
 
