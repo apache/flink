@@ -21,6 +21,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.graph.StreamEdge;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
@@ -36,12 +37,19 @@ public class ForwardForConsecutiveHashPartitionerTest extends TestLogger {
 
     @Test
     public void testConvertToForwardPartitioner() {
+        testConvertToForwardPartitioner(StreamExchangeMode.BATCH);
+        testConvertToForwardPartitioner(StreamExchangeMode.PIPELINED);
+        testConvertToForwardPartitioner(StreamExchangeMode.UNDEFINED);
+    }
+
+    private void testConvertToForwardPartitioner(StreamExchangeMode streamExchangeMode) {
         JobGraph jobGraph =
                 StreamPartitionerTestUtils.createJobGraph(
                         "group1",
                         "group1",
                         new ForwardForConsecutiveHashPartitioner<>(
-                                new KeyGroupStreamPartitioner<>(record -> 0L, 100)));
+                                new KeyGroupStreamPartitioner<>(record -> 0L, 100)),
+                        streamExchangeMode);
         List<JobVertex> jobVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
         assertThat(jobVertices.size(), is(1));
         JobVertex vertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);
@@ -53,12 +61,19 @@ public class ForwardForConsecutiveHashPartitionerTest extends TestLogger {
 
     @Test
     public void testConvertToHashPartitioner() {
+        testConvertToHashPartitioner(StreamExchangeMode.BATCH);
+        testConvertToHashPartitioner(StreamExchangeMode.PIPELINED);
+        testConvertToHashPartitioner(StreamExchangeMode.UNDEFINED);
+    }
+
+    private void testConvertToHashPartitioner(StreamExchangeMode streamExchangeMode) {
         JobGraph jobGraph =
                 StreamPartitionerTestUtils.createJobGraph(
                         "group1",
                         "group2",
                         new ForwardForConsecutiveHashPartitioner<>(
-                                new KeyGroupStreamPartitioner<>(record -> 0L, 100)));
+                                new KeyGroupStreamPartitioner<>(record -> 0L, 100)),
+                        streamExchangeMode);
         List<JobVertex> jobVertices = jobGraph.getVerticesSortedTopologicallyFromSources();
         assertThat(jobVertices.size(), is(2));
         JobVertex sourceVertex = jobGraph.getVerticesSortedTopologicallyFromSources().get(0);

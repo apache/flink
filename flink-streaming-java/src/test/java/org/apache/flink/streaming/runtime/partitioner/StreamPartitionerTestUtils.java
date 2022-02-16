@@ -23,6 +23,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
+import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 
 /** Utility class to test {@link StreamPartitioner}. */
 public class StreamPartitionerTestUtils {
@@ -31,6 +32,18 @@ public class StreamPartitionerTestUtils {
             String sourceSlotSharingGroup,
             String sinkSlotSharingGroup,
             StreamPartitioner<Long> streamPartitioner) {
+        return createJobGraph(
+                sourceSlotSharingGroup,
+                sinkSlotSharingGroup,
+                streamPartitioner,
+                StreamExchangeMode.UNDEFINED);
+    }
+
+    public static JobGraph createJobGraph(
+            String sourceSlotSharingGroup,
+            String sinkSlotSharingGroup,
+            StreamPartitioner<Long> streamPartitioner,
+            StreamExchangeMode exchangeMode) {
 
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
@@ -39,7 +52,7 @@ public class StreamPartitionerTestUtils {
         final DataStream<Long> source =
                 env.fromSequence(0, 99).slotSharingGroup(sourceSlotSharingGroup).name("source");
 
-        setPartitioner(source, streamPartitioner)
+        setPartitioner(source, streamPartitioner, exchangeMode)
                 .addSink(new DiscardingSink<>())
                 .slotSharingGroup(sinkSlotSharingGroup)
                 .name("sink");
@@ -48,10 +61,13 @@ public class StreamPartitionerTestUtils {
     }
 
     private static <T> DataStream<T> setPartitioner(
-            DataStream<T> dataStream, StreamPartitioner<T> partitioner) {
+            DataStream<T> dataStream,
+            StreamPartitioner<T> partitioner,
+            StreamExchangeMode exchangeMode) {
         return new DataStream<T>(
                 dataStream.getExecutionEnvironment(),
-                new PartitionTransformation<T>(dataStream.getTransformation(), partitioner));
+                new PartitionTransformation<T>(
+                        dataStream.getTransformation(), partitioner, exchangeMode));
     }
 
     /** Utility class, should not be instantiated. */
