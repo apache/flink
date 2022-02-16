@@ -571,7 +571,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         }
     }
 
-    /** Configuration parameters for watermark alignemnt. */
+    /** Configuration parameters for watermark alignment. */
     public static class WatermarkAlignmentParams {
         private final long maxAllowedWatermarkDrift;
         private final String watermarkGroup;
