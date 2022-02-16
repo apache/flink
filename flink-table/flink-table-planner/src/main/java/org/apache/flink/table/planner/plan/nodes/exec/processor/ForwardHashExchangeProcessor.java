@@ -157,13 +157,15 @@ public class ForwardHashExchangeProcessor implements ExecNodeGraphProcessor {
             ExecEdge edge, InputProperty inputProperty, boolean strict) {
         ExecNode<?> target = edge.getTarget();
         ExecNode<?> source = edge.getSource();
+        if (source instanceof CommonExecExchange) {
+            return edge;
+        }
         // only Calc, Correlate and Sort can propagate sort property and distribution property
-        if (!hasExchangeInput(edge)
-                && (source instanceof BatchExecCalc
-                        || source instanceof BatchExecPythonCalc
-                        || source instanceof BatchExecSort
-                        || source instanceof BatchExecCorrelate
-                        || source instanceof BatchExecPythonCorrelate)) {
+        if (source instanceof BatchExecCalc
+                || source instanceof BatchExecPythonCalc
+                || source instanceof BatchExecSort
+                || source instanceof BatchExecCorrelate
+                || source instanceof BatchExecPythonCorrelate) {
             ExecEdge newEdge =
                     addExchangeAndReconnectEdge(
                             source.getInputEdges().get(0), inputProperty, strict);
