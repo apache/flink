@@ -839,13 +839,13 @@ class Expression(Generic[T]):
         """
         Returns a new value being cast to type type.
         A cast error throws an exception and fails the job.
-        When performing a cast operation that may fail, like INT to STRING,
+        When performing a cast operation that may fail, like STRING to INT,
         one should rather use try_cast, in order to handle errors.
         If "table.exec.legacy-cast-behaviour" is enabled, cast behaves like try_cast.
 
-        E.g., lit("4").cast(DataTypes.INT()) returns 42;
+        E.g. lit("4").cast(DataTypes.INT()) returns 42;
         lit(null).cast(DataTypes.STRING()) returns NULL of type STRING;
-        list("non-number").cast(DataTypes.INT()) throws an exception and fails the job.
+        lit("non-number").cast(DataTypes.INT()) throws an exception and fails the job.
         """
         return _binary_op("cast")(self, _to_java_data_type(data_type))
 
@@ -853,9 +853,10 @@ class Expression(Generic[T]):
         """
         Like cast, but in case of error, returns NULL rather than failing the job.
 
-        E.g., list("42").try_cast(DataTypes.INT()) returns 42;
+        E.g. lit("42").try_cast(DataTypes.INT()) returns 42;
         lit(null).try_cast(DataTypes.STRING()) returns NULL of type STRING;
-        list("non-number").cast(DataTypes.INT()) returns NULL of type INT.
+        lit("non-number").cast(DataTypes.INT()) returns NULL of type INT.
+        coalesce(lit("non-number").cast(DataTypes.INT()), lit(0)) returns 0 of type INT.
         """
         return _binary_op("tryCast")(self, _to_java_data_type(data_type))
 

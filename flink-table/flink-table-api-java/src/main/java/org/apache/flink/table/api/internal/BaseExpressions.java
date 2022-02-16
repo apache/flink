@@ -471,12 +471,12 @@ public abstract class BaseExpressions<InType, OutType> {
 
     /**
      * Returns a new value being cast to {@code toType}. A cast error throws an exception and fails
-     * the job. When performing a cast operation that may fail, like {@link DataTypes#INT()} to
-     * {@link DataTypes#STRING()}, one should rather use {@link #tryCast(DataType)}, in order to
-     * handle errors. If {@link ExecutionConfigOptions#TABLE_EXEC_LEGACY_CAST_BEHAVIOUR} is enabled,
-     * this function behaves like {@link #tryCast(DataType)}.
+     * the job. When performing a cast operation that may fail, like {@link DataTypes#STRING()} to
+     * {@link DataTypes#INT()}, one should rather use {@link #tryCast(DataType)}, in order to handle
+     * errors. If {@link ExecutionConfigOptions#TABLE_EXEC_LEGACY_CAST_BEHAVIOUR} is enabled, this
+     * function behaves like {@link #tryCast(DataType)}.
      *
-     * <p>E.g., {@code "42".cast(DataTypes.INT())} returns {@code 42}; {@code
+     * <p>E.g. {@code "42".cast(DataTypes.INT())} returns {@code 42}; {@code
      * null.cast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
      * {@code "non-number".cast(DataTypes.INT())} throws an exception and fails the job.
      */
@@ -488,10 +488,11 @@ public abstract class BaseExpressions<InType, OutType> {
      * Like {@link #cast(DataType)}, but in case of error, returns {@code null} rather than failing
      * the job.
      *
-     * <p>E.g., {@code "42".tryCast(DataTypes.INT())} returns {@code 42}; {@code
+     * <p>E.g. {@code "42".tryCast(DataTypes.INT())} returns {@code 42}; {@code
      * null.tryCast(DataTypes.STRING())} returns {@code null} of type {@link DataTypes#STRING()};
      * {@code "non-number".tryCast(DataTypes.INT())} returns {@code null} of type {@link
-     * DataTypes#INT()}.
+     * DataTypes#INT()}; {@code coalesce("non-number".tryCast(DataTypes.INT()), 0)} returns {@code
+     * 0} of type {@link DataTypes#INT()}.
      */
     public OutType tryCast(DataType toType) {
         return toApiSpecificExpression(unresolvedCall(TRY_CAST, toExpr(), typeLiteral(toType)));
