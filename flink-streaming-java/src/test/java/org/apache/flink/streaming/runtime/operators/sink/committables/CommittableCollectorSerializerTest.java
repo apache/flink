@@ -18,12 +18,12 @@
 
 package org.apache.flink.streaming.runtime.operators.sink.committables;
 
+import org.apache.flink.core.io.SimpleVersionedSerialization;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.streaming.api.connector.sink2.CommittableSummary;
 import org.apache.flink.streaming.api.connector.sink2.CommittableWithLineage;
 import org.apache.flink.streaming.api.connector.sink2.IntegerSerializer;
-
-import org.apache.flink.shaded.guava30.com.google.common.primitives.Bytes;
 
 import org.junit.jupiter.api.Test;
 
@@ -46,31 +46,12 @@ class CommittableCollectorSerializerTest {
 
     @Test
     void testCommittableCollectorV1SerDe() throws IOException {
-        final int committableSerializerVersion = 1;
-        final int numCommittables = 3;
-        final int committableSize = 4;
-        final List<Integer> legacyState =
-                Arrays.asList(
-                        committableSerializerVersion,
-                        numCommittables,
-                        committableSize,
-                        1,
-                        committableSize,
-                        2,
-                        committableSize,
-                        3);
-        final List<byte[]> bytes =
-                legacyState.stream()
-                        .map(
-                                i -> {
-                                    try {
-                                        return COMMITTABLE_SERIALIZER.serialize(i);
-                                    } catch (IOException e) {
-                                        throw new RuntimeException(e);
-                                    }
-                                })
-                        .collect(Collectors.toList());
-        final byte[] serialized = Bytes.concat(bytes.toArray(new byte[][] {}));
+        final List<Integer> legacyState = Arrays.asList(1, 2, 3);
+        final DataOutputSerializer out = new DataOutputSerializer(256);
+        out.writeInt(SinkV1CommittableDeserializer.MAGIC_NUMBER);
+        SimpleVersionedSerialization.writeVersionAndSerializeList(
+                COMMITTABLE_SERIALIZER, legacyState, out);
+        final byte[] serialized = out.getCopyOfBuffer();
         final CommittableCollector<Integer> committableCollector =
                 SERIALIZER.deserialize(1, serialized);
         assertThat(committableCollector.getNumberOfSubtasks()).isEqualTo(1);

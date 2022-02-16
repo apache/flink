@@ -55,7 +55,7 @@ public class CommittableCollector<CommT> {
 
     private final int numberOfSubtasks;
 
-    CommittableCollector(int subtaskId, int numberOfSubtasks) {
+    public CommittableCollector(int subtaskId, int numberOfSubtasks) {
         this.subtaskId = subtaskId;
         this.numberOfSubtasks = numberOfSubtasks;
         this.checkpointCommittables = new TreeMap<>();

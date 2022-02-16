@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
+import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
 import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
@@ -307,15 +308,27 @@ public class SinkTransformationTranslator<Input, Output>
                 BiConsumer<Transformation<?>, String> setter,
                 @Nullable String transformationName) {
             if (transformationName != null && getter.apply(transformation) != null) {
+                // Use the same uid pattern than for Sink V1
                 if (transformationName.equals(COMMITTER_NAME)) {
+                    final String committerFormat = "Sink %s Committer";
                     setter.accept(
                             subTransformation,
-                            getter.apply(transformation) + ": " + COMMITTER_NAME);
+                            String.format(committerFormat, getter.apply(transformation)));
                     return;
                 }
                 // Set the writer operator uid to the sinks uid to support state migrations
                 if (transformationName.equals(WRITER_NAME)) {
                     setter.accept(subTransformation, getter.apply(transformation));
+                    return;
+                }
+
+                // Use the same uid pattern than for Sink V1
+                if (transformationName.equals(
+                        StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME)) {
+                    final String committerFormat = "Sink %s Global Committer";
+                    setter.accept(
+                            subTransformation,
+                            String.format(committerFormat, getter.apply(transformation)));
                     return;
                 }
             }
