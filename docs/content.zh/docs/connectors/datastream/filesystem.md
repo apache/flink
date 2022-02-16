@@ -99,7 +99,7 @@ final FileSource<String> source =
 
 ### Format Types
 
-通过文件格式定义的文件 readers 读取每个文件。
+通过 file formats 定义的文件 readers 读取每个文件。
 它们定义了解析和读取文件内容的逻辑。数据源支持多个解析类。
 这些接口是实现简单性和灵活性/效率之间的折衷。
 
@@ -156,7 +156,7 @@ FileSource<SomePojo> source =
         FileSource.forRecordStreamFormat(csvFormat, Path.fromLocalFile(...)).build();
 ```
 
-对于 CSV 格式的解析，在这个例子中，是根据使用 `Jackson` 库的 `SomePojo` 的字段自动生成的。（注意：你可能需要添加 `@JsonPropertyOrder({field1, field2, ...})` 这个注释到你定义的类上，并且字段顺序与 CSV 文件列的顺序完全匹配)。
+对于 CSV Format 的解析，在这个例子中，是根据使用 `Jackson` 库的 `SomePojo` 的字段自动生成的。（注意：你可能需要添加 `@JsonPropertyOrder({field1, field2, ...})` 这个注释到你定义的类上，并且字段顺序与 CSV 文件列的顺序完全匹配)。
 
 如果需要对 CSV 模式或解析选项进行更细粒度的控制，可以使用 `CsvReaderFormat` 的更低层次的 `forSchema` 静态工厂方法：
 
@@ -170,7 +170,7 @@ CsvReaderFormat<T> forSchema(CsvMapper mapper,
 
 #### Bulk Format
 
-BulkFormat 一次读取并解析一批记录。BulkFormat 的实现包括 ORC 或 Parquet 等格式。
+BulkFormat 一次读取并解析一批记录。BulkFormat 的实现包括 ORC Format或 Parquet Format等。
 外部的 `BulkFormat` 类主要充当 reader 的配置持有者和工厂角色。`BulkFormat.Reader` 是在 `BulkFormat#createReader(Configuration, FileSourceSplit)` 方法中创建的，由它来完成读取操作。如果在流的 checkpoint 执行期间基于 checkpoint 创建 Bulk reader，那么 reader 是在 `BulkFormat#restoreReader(Configuration, FileSourceSplit)` 方法中重新创建的。
 
 可以通过将 `SimpleStreamFormat` 包装在 `StreamFormatAdapter` 中转换为 `BulkFormat`：
@@ -290,7 +290,7 @@ File Sink 将传入的数据写入存储桶中。考虑到输入流可以是无�
 
 #### Row-encoded Formats
 
-Row-encoded 格式需要指定一个 `Encoder`，在输出数据到文件过程中它被用来将单个行数据序列化为 `OutputStream`。
+Row-encoded Format 需要指定一个 `Encoder`，在输出数据到文件过程中它被用来将单个行数据序列化为 `OutputStream`。
 
 除了 bucket assigner，RowFormatBuilder 还允许用户指定以下属性：
 
@@ -386,7 +386,7 @@ Flink 内置了5种 BulkWriter 工厂类：
 
 ##### Parquet Format
 
-Flink 包含了为 Avro 格式数据创建 Parquet 写入工厂的内置便利方法。在 AvroParquetWriters 类中可以发现那些方法以及相关的使用说明。
+Flink 包含了为 Avro Format 数据创建 Parquet 写入工厂的内置便利方法。在 AvroParquetWriters 类中可以发现那些方法以及相关的使用说明。
 
 为了让 Parquet Format 数据写入更加通用，用户需要创建 ParquetWriterFactory 并且自定义实现 ParquetBuilder 接口。
 
@@ -394,7 +394,7 @@ Flink 包含了为 Avro 格式数据创建 Parquet 写入工厂的内置便利�
 
 {{< artifact flink-parquet withScalaVersion >}}
 
-可以像这样使用 `FileSink` 写入 Parquet 格式的 Avro 数据：
+可以像这样使用 `FileSink` 写入 Parquet Format 的 Avro 数据：
 
 {{< tabs "4ff7b496-3a80-46f4-9b7d-7a9222672927" >}}
 {{< tab "Java" >}}
@@ -434,7 +434,7 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
-类似的，也可以像这样使用 `FileSink` 写入 Parquet 格式的 Protobuf 数据：
+类似的，也可以像这样使用 `FileSink` 写入 Parquet Format 的 Protobuf 数据：
 
 {{< tabs "dd1e3e68-855e-4d93-8f86-74d039591745" >}}
 {{< tab "Java" >}}
@@ -481,7 +481,7 @@ Flink 也支持写入数据到 Avro Format 文件。在 AvroWriters 类中可以
 
 {{< artifact flink-avro >}}
 
-可以像这样使用 `FileSink` 写入数据到 Avro 格式文件中：
+可以像这样使用 `FileSink` 写入数据到 Avro Format 文件中：
 
 {{< tabs "ee5f25e0-180e-43b1-ae91-277bf73d3a6c" >}}
 {{< tab "Java" >}}
