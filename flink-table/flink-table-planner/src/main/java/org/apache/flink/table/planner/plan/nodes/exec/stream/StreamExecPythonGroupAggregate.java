@@ -64,7 +64,7 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonGroupAggregate.class);
 
-    private static final String PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME =
+    private static final String PYTHON_STREAM_AGGREGATE_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate.PythonStreamGroupAggregateOperator";
 
     private final int[] grouping;
@@ -201,7 +201,7 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
             long maxIdleStateRetentionTime,
             int indexOfCountStar,
             boolean countStarInserted) {
-        Class<?> clazz = CommonPythonUtil.loadClass(PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME);
+        Class<?> clazz = CommonPythonUtil.loadClass(PYTHON_STREAM_AGGREGATE_OPERATOR_NAME);
         try {
             Constructor<?> ctor =
                     clazz.getConstructor(
