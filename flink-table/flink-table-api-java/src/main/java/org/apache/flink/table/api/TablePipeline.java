@@ -30,9 +30,6 @@ import java.util.Optional;
 @PublicEvolving
 public interface TablePipeline extends Explainable<TablePipeline>, Executable, Compilable {
 
-    /**
-     * @return the sink {@link ObjectIdentifier}, if any.
-     */
+    /** @return the sink {@link ObjectIdentifier}, if any. */
     Optional<ObjectIdentifier> getSinkIdentifier();
-
 }
