@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.SavepointFormatType;
@@ -106,7 +105,6 @@ abstract class StateWithExecutionGraph implements State {
                                 context.getMainThreadExecutor()));
     }
 
-    @VisibleForTesting
     ExecutionGraph getExecutionGraph() {
         return executionGraph;
     }
