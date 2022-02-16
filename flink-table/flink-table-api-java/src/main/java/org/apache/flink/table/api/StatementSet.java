@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 
 /**
@@ -84,5 +85,6 @@ public interface StatementSet extends Explainable<StatementSet>, Compilable, Exe
      * one job.
      */
     @Override
+    @Experimental
     CompiledPlan compilePlan() throws TableException;
 }
