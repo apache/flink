@@ -60,9 +60,9 @@ import static com.google.cloud.pubsub.v1.SubscriptionAdminSettings.defaultCreden
 /**
  * A source implementation to pull messages from GCP Pub/Sub into Flink.
  *
- * <p>The {@link PubSubSourceEnumerator} assigns a static {@PubSubSplit} to every
- * {@PubSubSourceReader} that joins. The split does not contain any split-specific information
- * because Pub/Sub does not allow subscribers to specify a "range" of messages to pull by providing
+ * <p>The {@link PubSubSourceEnumerator} assigns a static {@link PubSubSplit} to every {@link
+ * PubSubSourceReader} that joins. The split does not contain any split-specific information because
+ * Pub/Sub does not allow subscribers to specify a "range" of messages to pull by providing
  * partitions or offsets. However, Pub/Sub will automatically load-balance messages between multiple
  * readers which use the same subscription.
  *
@@ -250,7 +250,7 @@ public class PubSubSource<OUT>
          * @param maxMessagesPerPull The maximum number of messages that should be pulled in one go.
          * @param perRequestTimeout The timeout per request from the subscriber
          * @param retries The number of times the reception of a message should be retried in case
-         *     of * failure.
+         *     of failure.
          */
         public PubSubSourceBuilder<OUT> setPubSubSubscriberFactory(
                 int maxMessagesPerPull, Duration perRequestTimeout, int retries) {
