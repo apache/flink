@@ -33,7 +33,7 @@ import java.util.TreeMap;
  * Custom serializer for {@link Configuration} used for {@link ExecNodeBase#getPersistedConfig()}.
  */
 @Internal
-public class ConfigurationJsonSerializer extends StdSerializer<Configuration> {
+class ConfigurationJsonSerializer extends StdSerializer<Configuration> {
 
     public ConfigurationJsonSerializer() {
         super(Configuration.class);
@@ -48,24 +48,5 @@ public class ConfigurationJsonSerializer extends StdSerializer<Configuration> {
         // Use TreeMap to have a nice -sorted by key- output of the config options.
         serializerProvider.defaultSerializeValue(
                 new TreeMap<>(configuration.toMap()), jsonGenerator);
-    }
-
-    /**
-     * Custom filtering for {@link Configuration} used by {@link ExecNodeBase#getPersistedConfig()}
-     * to avoid serializing null or empty configurations.
-     */
-    @Internal
-    public static class ConfigurationFilter {
-        @Override
-        public boolean equals(Object obj) {
-            if (obj == null) {
-                return true;
-            }
-            if (obj instanceof Configuration) {
-                Configuration other = (Configuration) obj;
-                return other.toMap().isEmpty();
-            }
-            return true;
-        }
     }
 }

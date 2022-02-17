@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowRank
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapConfig
 import org.apache.flink.table.runtime.operators.rank._
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -95,7 +95,7 @@ class StreamPhysicalWindowRank(
   override def translateToExecNode(): ExecNode[_] = {
     val fieldCollations = orderKey.getFieldCollations
     new StreamExecWindowRank(
-      ShortcutUtils.unwrapConfig(this),
+      unwrapConfig(this),
       rankType,
       new PartitionSpec(partitionKey.toArray),
       SortUtil.getSortSpec(fieldCollations),

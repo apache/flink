@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCor
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -75,7 +75,7 @@ class StreamPhysicalPythonCorrelate(
     }
 
     new StreamExecPythonCorrelate(
-      ShortcutUtils.unwrapConfig(this),
+      unwrapConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       scan.getCall.asInstanceOf[RexCall],
       InputProperty.DEFAULT,

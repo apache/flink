@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAgg
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapConfig
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -104,7 +104,7 @@ class StreamPhysicalWindowAggregate(
   override def translateToExecNode(): ExecNode[_] = {
     checkEmitConfiguration(FlinkRelOptUtil.getTableConfigFromContext(this))
     new StreamExecWindowAggregate(
-      ShortcutUtils.unwrapConfig(this),
+      unwrapConfig(this),
       grouping,
       aggCalls.toArray,
       windowing,

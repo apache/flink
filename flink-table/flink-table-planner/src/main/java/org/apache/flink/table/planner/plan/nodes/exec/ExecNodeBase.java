@@ -24,7 +24,7 @@ import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.ConfigurationJsonSerializer;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.ConfigurationJsonSerializerFilter;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
@@ -82,7 +82,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     // Custom filter to exclude node configuration if no consumed options are used
     @JsonInclude(
             value = JsonInclude.Include.CUSTOM,
-            valueFilter = ConfigurationJsonSerializer.ConfigurationFilter.class)
+            valueFilter = ConfigurationJsonSerializerFilter.class)
     public ReadableConfig getPersistedConfig() {
         return persistedConfig;
     }

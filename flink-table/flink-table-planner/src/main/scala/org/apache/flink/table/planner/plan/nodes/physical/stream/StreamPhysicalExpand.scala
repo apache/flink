@@ -21,7 +21,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.calcite.Expand
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExpand
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -50,7 +50,7 @@ class StreamPhysicalExpand(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecExpand(
-      ShortcutUtils.unwrapConfig(this),
+      unwrapConfig(this),
       projects,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),

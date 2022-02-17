@@ -22,7 +22,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonCalc
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -59,7 +59,7 @@ class StreamPhysicalPythonCalc(
     }
 
     new StreamExecPythonCalc(
-      ShortcutUtils.unwrapConfig(this),
+      unwrapConfig(this),
       projection,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),

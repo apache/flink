@@ -22,29 +22,21 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.type.TypeReference;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-
-import java.io.IOException;
-import java.util.Map;
-
 /**
- * Custom deserializer for {@link Configuration} used for {@link ExecNodeBase#getPersistedConfig}.
+ * Custom filtering for {@link Configuration} used by {@link ExecNodeBase#getPersistedConfig()} to
+ * avoid serializing null or empty configurations.
  */
 @Internal
-class ConfigurationJsonDeserializer extends StdDeserializer<Configuration> {
-
-    public ConfigurationJsonDeserializer() {
-        super(Configuration.class);
-    }
-
+public class ConfigurationJsonSerializerFilter {
     @Override
-    public Configuration deserialize(
-            JsonParser jsonParser, DeserializationContext deserializationContext)
-            throws IOException {
-        return Configuration.fromMap(
-                jsonParser.readValueAs(new TypeReference<Map<String, String>>() {}));
+    public boolean equals(Object obj) {
+        if (obj == null) {
+            return true;
+        }
+        if (obj instanceof Configuration) {
+            Configuration other = (Configuration) obj;
+            return other.toMap().isEmpty();
+        }
+        return true;
     }
 }

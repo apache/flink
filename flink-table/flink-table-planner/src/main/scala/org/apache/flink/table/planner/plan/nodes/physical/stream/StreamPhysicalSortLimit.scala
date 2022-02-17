@@ -21,7 +21,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSortLimit
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.core.Sort
@@ -91,7 +91,7 @@ class StreamPhysicalSortLimit(
   override def translateToExecNode(): ExecNode[_] = {
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     new StreamExecSortLimit(
-      ShortcutUtils.unwrapConfig(this),
+      unwrapConfig(this),
       SortUtil.getSortSpec(sortCollation.getFieldCollations),
       limitStart,
       limitEnd,

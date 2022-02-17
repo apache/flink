@@ -22,7 +22,7 @@ import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalGroupAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -92,7 +92,7 @@ class StreamPhysicalLocalGroupAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecLocalGroupAggregate(
-      ShortcutUtils.unwrapConfig(this),
+      unwrapConfig(this),
       grouping,
       aggCalls.toArray,
       aggCallNeedRetractions,
