@@ -76,7 +76,7 @@ FileSource.forBulkFileFormat(BulkFormat,Path...)
 {{< /tab >}}
 {{< /tabs >}}
 
-可以通过创建 `FileSource.FileSourceBuilder` 去设置 File Source 的所有参数。
+可以通过创建 `FileSource.FileSourceBuilder` 设置 File Source 的所有参数。
 
 对于有界/批的使用场景，File Source 需要处理给定路径下的所有文件。
 对于无界/流的使用场景，File Source 会定期检查路径下的新文件并读取。
@@ -158,7 +158,7 @@ FileSource<SomePojo> source =
 
 对于 CSV Format 的解析，在这个例子中，是根据使用 `Jackson` 库的 `SomePojo` 的字段自动生成的。（注意：可能需要添加 `@JsonPropertyOrder({field1, field2, ...})` 这个注释到自定义的类上，并且字段顺序与 CSV 文件列的顺序完全匹配)。
 
-如果需要对 CSV 模式或解析选项进行更细粒度的控制，可以使用 `CsvReaderFormat` 的更低层次的 `forSchema` 静态工厂方法：
+如果需要对 CSV 模式或解析选项进行更细粒度的控制，可以使用 `CsvReaderFormat` 的更底层的 `forSchema` 静态工厂方法：
 
 ```java
 CsvReaderFormat<T> forSchema(CsvMapper mapper, 
@@ -570,7 +570,7 @@ stream.sinkTo(FileSink.forBulkFormat(
 
 ORC Format 的数据采用 Bulk-encoded Format，Flink 提供了 Vectorizer 接口的具体实现类 `OrcBulkWriterFactory`。
 
-像其他列格式一样也是采用 Bulk-encoded Format，Flink 中的 `OrcBulkWriter` 以批的方式写出数据。是使用 ORC 的 `VectorizedRowBatch` 实现的。
+像其他列格式一样也是采用 Bulk-encoded Format，Flink 中 `OrcBulkWriter` 是使用 ORC 的 `VectorizedRowBatch` 实现批的方式输出数据的。
 
 由于输入数据已经被转换成了 `VectorizedRowBatch`，所以用户必须继承抽象类 `Vectorizer` 并且覆写类中 `vectorize(T element, VectorizedRowBatch batch)` 这个方法。正如看到的那样，此方法中提供了用户直接使用的 `VectorizedRowBatch` 类的实例，因此，用户不得不编写从输入 `element` 到 `ColumnVectors` 的转换逻辑，然后设置在  `VectorizedRowBatch` 实例中。
 
@@ -809,7 +809,7 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
-`SequenceFileWriterFactory` 提供额外的构造参数去设置是否开启压缩功能。
+`SequenceFileWriterFactory` 提供额外的构造参数设置是否开启压缩功能。
 
 <a name="bucket-assignment"></a>
 
@@ -820,7 +820,7 @@ input.sinkTo(sink)
 Row-encoded Format 和 Bulk-encoded Format (参考 [Format Types](#sink-format-types)) 使用了 `DateTimeBucketAssigner` 作为默认的分配器。
 默认的分配器 `DateTimeBucketAssigner` 会基于使用了格式为 `yyyy-MM-dd--HH` 的系统默认时区来创建小时桶。日期格式（ *即* 桶大小）和时区都可以手动配置。
 
-还可以在格式化构造器中通过调用 `.withBucketAssigner(assigner)` 方法去指定自定义的 `BucketAssigner`。
+还可以在格式化构造器中通过调用 `.withBucketAssigner(assigner)` 方法指定自定义的 `BucketAssigner`。
 
 Flink 内置了两种 BucketAssigners：
 
@@ -831,7 +831,7 @@ Flink 内置了两种 BucketAssigners：
 
 ### 滚动策略
 
-`RollingPolicy` 定义了何时关闭给定的进行中的文件，并将其转换为 Pending 状态，然后在转换为 Finished 状态。
+`RollingPolicy` 定义了何时关闭给定的 In-progress Part 文件，并将其转换为 Pending 状态，然后在转换为 Finished 状态。
 Finished 状态的文件，可供查看并且可以保证数据的有效性，在出现故障时不会恢复。
 在 `STREAMING` 模式下，滚动策略结合 Checkpoint 间隔（到下一个 Checkpoint 成功时，文件的 Pending 状态才转换为 Finished 状态）共同控制 Part 文件对下游 readers 是否可见以及这些文件的大小和数量。在 `BATCH` 模式下，Part 文件在 Job 最后对下游才变得可见，滚动策略只控制最大的 Part 文件大小。
 
@@ -919,7 +919,7 @@ Flink 允许用户给 Part 文件名添加一个前缀和/或后缀。
     └── prefix-81fc4980-a6af-41c8-9937-9939408a734b-1.ext.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
 ```
 
-用户也可以使用 `OutputFileConfig` 采用如下方式去添加前缀和后缀：
+用户也可以使用 `OutputFileConfig` 采用如下方式添加前缀和后缀：
 
 {{< tabs "3b8a397e-58d1-4a04-acae-b2dcace9f080" >}}
 {{< tab "Java" >}}
@@ -996,7 +996,7 @@ val sink = FileSink
 #### S3-具体提示
 
 <span class="label label-danger">重要提示 1</span>：对于 S3，`FileSink` 仅支持基于 [Hadoop-based](https://hadoop.apache.org/) 文件系统的实现，而不支持基于 [Presto](https://prestodb.io/) 的实现。
-如果 Job 中使用 `FileSink` 写入 S3，但是希望使用基于 Presto 的 Sink 去做 Checkpoint，建议明确使用 *"s3a://"* （对于 Hadoop）作为 Sink 目标路径格式并且使用 *"s3p://"* 作为 Checkpoint 的目标路径格式（对于 Presto）。 
+如果 Job 中使用 `FileSink` 写入 S3，但是希望使用基于 Presto 的 Sink 做 Checkpoint，建议明确使用 *"s3a://"* （对于 Hadoop）作为 Sink 目标路径格式并且使用 *"s3p://"* 作为 Checkpoint 的目标路径格式（对于 Presto）。 
 对于 Sink 和  Checkpoint  同时使用 *"s3://"* 可能导致不可控的行为，由于两者的实现 "监听" 同一格式路径。
 
 <span class="label label-danger">重要提示 2</span>：在保证高效的同时还要保证 exactly-once 语义，`FileSink` 使用了 S3 的 [Multi-part Upload](https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html) 功能（MPU 功能开箱即用）。
