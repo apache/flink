@@ -227,7 +227,6 @@ under the License.
 							<groupId>org.apache.flink</groupId>
 							<artifactId>flink-connector-test-utils</artifactId>
 							<version>${project.version}</version>
-							<classifier>source</classifier>
 							<destFileName>flink-connector-testing.jar</destFileName>
 							<type>jar</type>
 							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
