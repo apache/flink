@@ -23,7 +23,6 @@ import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator
 import org.apache.flink.util.FileUtils;
 
 import org.apache.bookkeeper.conf.ServerConfiguration;
-import org.apache.logging.log4j.LogManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -33,7 +32,6 @@ import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.TenantInfo;
 import org.apache.pulsar.common.policies.data.TenantInfoImpl;
-import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -171,16 +169,7 @@ public class PulsarEmbeddedRuntime implements PulsarRuntime {
         config.setConfigurationStoreServers(zkConnect);
         config.setRunningStandalone(true);
 
-        this.pulsarService =
-                new PulsarService(
-                        config,
-                        new WorkerConfig(),
-                        Optional.empty(),
-                        (exitCode) -> {
-                            LOG.info("Halting standalone process with code {}", exitCode);
-                            LogManager.shutdown();
-                            Runtime.getRuntime().halt(exitCode);
-                        });
+        this.pulsarService = new PulsarService(config);
 
         // Start Pulsar Broker.
         pulsarService.start();
