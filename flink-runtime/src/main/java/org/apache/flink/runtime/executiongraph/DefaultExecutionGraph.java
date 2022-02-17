@@ -1576,4 +1576,15 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     public boolean isDynamic() {
         return isDynamic;
     }
+
+    @Override
+    public Optional<String> findVertexWithAttempt(ExecutionAttemptID attemptId) {
+        return Optional.ofNullable(currentExecutions.get(attemptId))
+                .map(Execution::getVertexWithAttempt);
+    }
+
+    @Override
+    public Optional<AccessExecution> findExecution(ExecutionAttemptID attemptId) {
+        return Optional.ofNullable(currentExecutions.get(attemptId));
+    }
 }

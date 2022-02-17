@@ -27,7 +27,6 @@ import org.apache.flink.util.Preconditions;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -39,7 +38,7 @@ public class RootExceptionHistoryEntry extends ExceptionHistoryEntry {
 
     private static final long serialVersionUID = -7647332765867297434L;
 
-    private final Set<ExceptionHistoryEntry> concurrentExceptions;
+    private final Iterable<ExceptionHistoryEntry> concurrentExceptions;
 
     /**
      * Creates a {@code RootExceptionHistoryEntry} based on the passed {@link
@@ -87,6 +86,12 @@ public class RootExceptionHistoryEntry extends ExceptionHistoryEntry {
         return createRootExceptionHistoryEntry(cause, timestamp, null, null, executions);
     }
 
+    public static RootExceptionHistoryEntry fromExceptionHistoryEntry(
+            ExceptionHistoryEntry entry, Iterable<ExceptionHistoryEntry> entries) {
+        return new RootExceptionHistoryEntry(
+                entry.getException(), entry.getTimestamp(), null, null, entries);
+    }
+
     /**
      * Creates a {@code RootExceptionHistoryEntry} based on the passed {@link ErrorInfo}. No
      * concurrent failures will be added.
@@ -122,7 +127,7 @@ public class RootExceptionHistoryEntry extends ExceptionHistoryEntry {
                                 execution ->
                                         ExceptionHistoryEntry.create(
                                                 execution, execution.getVertexWithAttempt()))
-                        .collect(Collectors.toSet()));
+                        .collect(Collectors.toList()));
     }
 
     /**
@@ -142,7 +147,7 @@ public class RootExceptionHistoryEntry extends ExceptionHistoryEntry {
             long timestamp,
             @Nullable String failingTaskName,
             @Nullable TaskManagerLocation taskManagerLocation,
-            Set<ExceptionHistoryEntry> concurrentExceptions) {
+            Iterable<ExceptionHistoryEntry> concurrentExceptions) {
         super(cause, timestamp, failingTaskName, taskManagerLocation);
         this.concurrentExceptions = concurrentExceptions;
     }

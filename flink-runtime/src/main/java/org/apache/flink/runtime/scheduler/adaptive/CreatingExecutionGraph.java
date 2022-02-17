@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
@@ -117,7 +118,8 @@ public class CreatingExecutionGraph implements State {
                 context.goToExecuting(
                         result.getExecutionGraph(),
                         executionGraphHandler,
-                        operatorCoordinatorHandler);
+                        operatorCoordinatorHandler,
+                        Collections.emptyList());
             } else {
                 logger.debug(
                         "Failed to reserve and assign the required slots. Waiting for new resources.");

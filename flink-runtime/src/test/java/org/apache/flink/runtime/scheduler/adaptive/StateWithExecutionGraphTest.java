@@ -29,6 +29,7 @@ import org.apache.flink.util.TestLogger;
 import org.junit.Test;
 import org.slf4j.Logger;
 
+import java.util.ArrayList;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
@@ -173,7 +174,12 @@ public class StateWithExecutionGraphTest extends TestLogger {
         executionGraph.transitionToRunning();
 
         return new TestingStateWithExecutionGraph(
-                context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, log);
+                context,
+                executionGraph,
+                executionGraphHandler,
+                operatorCoordinatorHandler,
+                log,
+                ClassLoader.getSystemClassLoader());
     }
 
     private static final class TestingStateWithExecutionGraph extends StateWithExecutionGraph {
@@ -186,13 +192,16 @@ public class StateWithExecutionGraphTest extends TestLogger {
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Logger logger) {
+                Logger logger,
+                ClassLoader userCodeClassLoader) {
             super(
                     context,
                     executionGraph,
                     executionGraphHandler,
                     operatorCoordinatorHandler,
-                    logger);
+                    logger,
+                    userCodeClassLoader,
+                    new ArrayList<>());
         }
 
         public CompletableFuture<JobStatus> getGloballyTerminalStateFuture() {
@@ -208,17 +217,20 @@ public class StateWithExecutionGraphTest extends TestLogger {
         }
 
         @Override
+        void onFailure(Throwable cause) {}
+
+        @Override
+        void onGloballyTerminalState(JobStatus globallyTerminalState) {
+            globallyTerminalStateFuture.complete(globallyTerminalState);
+        }
+
+        @Override
         public void handleGlobalFailure(Throwable cause) {}
 
         @Override
         boolean updateTaskExecutionState(
                 TaskExecutionStateTransition taskExecutionStateTransition) {
             return false;
-        }
-
-        @Override
-        void onGloballyTerminalState(JobStatus globallyTerminalState) {
-            globallyTerminalStateFuture.complete(globallyTerminalState);
         }
     }
 }

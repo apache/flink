@@ -36,6 +36,7 @@ import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.DefaultSubtaskAttemptNumberStore;
 import org.apache.flink.runtime.executiongraph.EdgeManager;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionDeploymentListener;
@@ -57,6 +58,9 @@ import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
@@ -71,6 +75,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -128,7 +133,8 @@ public class ExecutingTest extends TestLogger {
                     new TestingOperatorCoordinatorHandler(),
                     log,
                     ctx,
-                    ClassLoader.getSystemClassLoader());
+                    ClassLoader.getSystemClassLoader(),
+                    new ArrayList<>());
             assertThat(mockExecutionVertex.isDeployCalled(), is(false));
         }
     }
@@ -145,7 +151,8 @@ public class ExecutingTest extends TestLogger {
                     new TestingOperatorCoordinatorHandler(),
                     log,
                     ctx,
-                    ClassLoader.getSystemClassLoader());
+                    ClassLoader.getSystemClassLoader(),
+                    new ArrayList<>());
         }
     }
 
@@ -188,7 +195,7 @@ public class ExecutingTest extends TestLogger {
             ctx.setExpectRestarting(
                     (restartingArguments ->
                             assertThat(restartingArguments.getBackoffTime(), is(duration))));
-            ctx.setHowToHandleFailure((t) -> FailureResult.canRestart(t, duration));
+            ctx.setHowToHandleFailure((f) -> FailureResult.canRestart(f, duration));
             exec.handleGlobalFailure(new RuntimeException("Recoverable error"));
         }
     }
@@ -259,8 +266,8 @@ public class ExecutingTest extends TestLogger {
     public void testFailureReportedViaUpdateTaskExecutionStateCausesFailingOnNoRestart()
             throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            ExecutionGraph returnsFailedStateExecutionGraph =
-                    new MockExecutionGraph(true, Collections::emptyList);
+            StateTrackingMockExecutionGraph returnsFailedStateExecutionGraph =
+                    new StateTrackingMockExecutionGraph();
             Executing exec =
                     new ExecutingStateBuilder()
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
@@ -269,24 +276,42 @@ public class ExecutingTest extends TestLogger {
             ctx.setHowToHandleFailure(FailureResult::canNotRestart);
             ctx.setExpectFailing(assertNonNull());
 
-            exec.updateTaskExecutionState(createFailingStateTransition());
+            Exception exception = new RuntimeException();
+            TestingAccessExecution execution =
+                    TestingAccessExecution.newBuilder()
+                            .withExecutionState(ExecutionState.FAILED)
+                            .withErrorInfo(new ErrorInfo(exception, System.currentTimeMillis()))
+                            .build();
+            returnsFailedStateExecutionGraph.registerExecution(execution);
+            TaskExecutionStateTransition taskExecutionStateTransition =
+                    createFailingStateTransition(execution.getAttemptId(), exception);
+            exec.updateTaskExecutionState(taskExecutionStateTransition);
         }
     }
 
     @Test
     public void testFailureReportedViaUpdateTaskExecutionStateCausesRestart() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
-            ExecutionGraph returnsFailedStateExecutionGraph =
-                    new MockExecutionGraph(true, Collections::emptyList);
+            StateTrackingMockExecutionGraph returnsFailedStateExecutionGraph =
+                    new StateTrackingMockExecutionGraph();
             Executing exec =
                     new ExecutingStateBuilder()
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
                             .build(ctx);
             ctx.setHowToHandleFailure(
-                    (throwable) -> FailureResult.canRestart(throwable, Duration.ZERO));
+                    (failure) -> FailureResult.canRestart(failure, Duration.ZERO));
             ctx.setExpectRestarting(assertNonNull());
 
-            exec.updateTaskExecutionState(createFailingStateTransition());
+            Exception exception = new RuntimeException();
+            TestingAccessExecution execution =
+                    TestingAccessExecution.newBuilder()
+                            .withExecutionState(ExecutionState.FAILED)
+                            .withErrorInfo(new ErrorInfo(exception, System.currentTimeMillis()))
+                            .build();
+            returnsFailedStateExecutionGraph.registerExecution(execution);
+            TaskExecutionStateTransition taskExecutionStateTransition =
+                    createFailingStateTransition(execution.getAttemptId(), exception);
+            exec.updateTaskExecutionState(taskExecutionStateTransition);
         }
     }
 
@@ -300,7 +325,16 @@ public class ExecutingTest extends TestLogger {
                             .setExecutionGraph(returnsFailedStateExecutionGraph)
                             .build(ctx);
 
-            exec.updateTaskExecutionState(createFailingStateTransition());
+            Exception exception = new RuntimeException();
+            TestingAccessExecution execution =
+                    TestingAccessExecution.newBuilder()
+                            .withExecutionState(ExecutionState.FAILED)
+                            .withErrorInfo(new ErrorInfo(exception, System.currentTimeMillis()))
+                            .build();
+            returnsFailedStateExecutionGraph.registerExecution(execution);
+            TaskExecutionStateTransition taskExecutionStateTransition =
+                    createFailingStateTransition(execution.getAttemptId(), exception);
+            exec.updateTaskExecutionState(taskExecutionStateTransition);
 
             ctx.assertNoStateTransition();
         }
@@ -376,12 +410,6 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
-    static TaskExecutionStateTransition createFailingStateTransition() {
-        return new TaskExecutionStateTransition(
-                new TaskExecutionState(
-                        new ExecutionAttemptID(), ExecutionState.FAILED, new RuntimeException()));
-    }
-
     @Test
     public void testJobInformationMethods() throws Exception {
         try (MockExecutingContext ctx = new MockExecutingContext()) {
@@ -432,6 +460,18 @@ public class ExecutingTest extends TestLogger {
         }
     }
 
+    public static TaskExecutionStateTransition createFailingStateTransition(
+            ExecutionAttemptID attemptId) throws JobException {
+        return new TaskExecutionStateTransition(
+                new TaskExecutionState(attemptId, ExecutionState.FAILED, new RuntimeException()));
+    }
+
+    public static TaskExecutionStateTransition createFailingStateTransition(
+            ExecutionAttemptID attemptId, Exception exception) throws JobException {
+        return new TaskExecutionStateTransition(
+                new TaskExecutionState(attemptId, ExecutionState.FAILED, exception));
+    }
+
     private final class ExecutingStateBuilder {
         private ExecutionGraph executionGraph =
                 TestingDefaultExecutionGraphBuilder.newBuilder().build();
@@ -461,7 +501,8 @@ public class ExecutingTest extends TestLogger {
                     operatorCoordinatorHandler,
                     log,
                     ctx,
-                    ClassLoader.getSystemClassLoader());
+                    ClassLoader.getSystemClassLoader(),
+                    new ArrayList<>());
         }
     }
 
@@ -518,7 +559,8 @@ public class ExecutingTest extends TestLogger {
         public void goToCanceling(
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler) {
+                OperatorCoordinatorHandler operatorCoordinatorHandler,
+                List<ExceptionHistoryEntry> failureCollection) {
             cancellingStateValidator.validateInput(
                     new CancellingArguments(
                             executionGraph, executionGraphHandler, operatorCoordinatorHandler));
@@ -540,7 +582,8 @@ public class ExecutingTest extends TestLogger {
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Duration backoffTime) {
+                Duration backoffTime,
+                List<ExceptionHistoryEntry> failureCollection) {
             restartingStateValidator.validateInput(
                     new RestartingArguments(
                             executionGraph,
@@ -555,7 +598,8 @@ public class ExecutingTest extends TestLogger {
                 ExecutionGraph executionGraph,
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
-                Throwable failureCause) {
+                Throwable failureCause,
+                List<ExceptionHistoryEntry> failureCollection) {
             failingStateValidator.validateInput(
                     new FailingArguments(
                             executionGraph,
@@ -571,7 +615,8 @@ public class ExecutingTest extends TestLogger {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 CheckpointScheduling checkpointScheduling,
-                CompletableFuture<String> savepointFuture) {
+                CompletableFuture<String> savepointFuture,
+                List<ExceptionHistoryEntry> failureCollection) {
             stopWithSavepointValidator.validateInput(
                     new StopWithSavepointArguments(
                             executionGraph,
@@ -600,6 +645,9 @@ public class ExecutingTest extends TestLogger {
             cancellingStateValidator.close();
             stopWithSavepointValidator.close();
         }
+
+        @Override
+        public void archiveFailure(RootExceptionHistoryEntry failure) {}
     }
 
     static class CancellingArguments {

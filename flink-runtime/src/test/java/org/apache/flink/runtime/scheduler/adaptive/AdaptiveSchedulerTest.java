@@ -25,10 +25,14 @@ import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
@@ -39,11 +43,15 @@ import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadE
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
+import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraphTest;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FixedDelayRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
@@ -73,6 +81,8 @@ import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -81,6 +91,7 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
@@ -106,7 +117,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
@@ -133,6 +146,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
     private final ComponentMainThreadExecutor singleThreadMainThreadExecutor =
             ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                     TEST_EXECUTOR_RESOURCE.getExecutor());
+
+    private final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
 
     @Test
     public void testInitialState() throws Exception {
@@ -961,6 +976,313 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                         new SuppressRestartsException(new Exception("test")))
                                 .canRestart())
                 .isFalse();
+    }
+
+    static class RunFailedJobListener implements JobStatusListener {
+        OneShotLatch jobRunning;
+        OneShotLatch jobTerminal;
+
+        public RunFailedJobListener() {
+            this.jobRunning = new OneShotLatch();
+            this.jobTerminal = new OneShotLatch();
+        }
+
+        @Override
+        public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp) {
+            if (newJobStatus == JobStatus.RUNNING) {
+                jobRunning.trigger();
+                return;
+            }
+            boolean hasRestarted = jobRunning.isTriggered() && newJobStatus == JobStatus.CREATED;
+            if (newJobStatus == JobStatus.FAILED || hasRestarted) {
+                jobTerminal.trigger();
+            }
+        }
+
+        public void waitForRunning() throws InterruptedException {
+            jobRunning.await();
+        }
+
+        public void waitForTerminal() throws InterruptedException {
+            jobTerminal.await();
+        }
+    }
+
+    private Iterable<RootExceptionHistoryEntry> runExceptionHistoryTests(
+            BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic) throws Exception {
+        return runExceptionHistoryTests(testLogic, ignored -> {}, ignored -> {});
+    }
+
+    private Iterable<RootExceptionHistoryEntry> runExceptionHistoryTests(
+            BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic,
+            Consumer<AdaptiveSchedulerBuilder> setupScheduler)
+            throws Exception {
+        return runExceptionHistoryTests(testLogic, setupScheduler, ignored -> {});
+    }
+
+    private Iterable<RootExceptionHistoryEntry> runExceptionHistoryTests(
+            BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic,
+            Consumer<AdaptiveSchedulerBuilder> setupScheduler,
+            Consumer<JobGraph> setupJobGraph)
+            throws Exception {
+        final int numAvailableSlots = 4;
+        final JobGraph jobGraph = createJobGraph();
+        setupJobGraph.accept(jobGraph);
+        RunFailedJobListener listener = new RunFailedJobListener();
+        List<ExecutionAttemptID> cancelledTasks = new ArrayList<>();
+
+        final CompletedCheckpointStore completedCheckpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final CheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
+        final CheckpointsCleaner checkpointCleaner = new CheckpointsCleaner();
+        TestingCheckpointRecoveryFactory checkpointRecoveryFactory =
+                new TestingCheckpointRecoveryFactory(completedCheckpointStore, checkpointIDCounter);
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+
+        AdaptiveSchedulerBuilder builder =
+                new AdaptiveSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .setCheckpointRecoveryFactory(checkpointRecoveryFactory)
+                        .setCheckpointCleaner(checkpointCleaner)
+                        .setJobStatusListener(listener);
+        setupScheduler.accept(builder);
+        final AdaptiveScheduler scheduler = builder.build();
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(numAvailableSlots);
+        taskManagerGateway.setCancelConsumer(cancelledTasks::add);
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(
+                                            ResourceProfile.UNKNOWN, numAvailableSlots)),
+                            taskManagerGateway);
+                });
+        listener.waitForRunning();
+
+        CompletableFuture<Iterable<ArchivedExecutionVertex>> vertexFuture =
+                new CompletableFuture<>();
+        singleThreadMainThreadExecutor.execute(
+                () ->
+                        vertexFuture.complete(
+                                scheduler
+                                        .requestJob()
+                                        .getArchivedExecutionGraph()
+                                        .getAllExecutionVertices()));
+        final Iterable<ArchivedExecutionVertex> executionVertices = vertexFuture.get();
+        final List<ExecutionAttemptID> attemptIds =
+                IterableUtils.toStream(executionVertices)
+                        .map(ArchivedExecutionVertex::getCurrentExecutionAttempt)
+                        .map(ArchivedExecution::getAttemptId)
+                        .collect(Collectors.toList());
+        CompletableFuture<Void> runTestLogicFuture =
+                CompletableFuture.runAsync(
+                        () -> testLogic.accept(scheduler, attemptIds),
+                        singleThreadMainThreadExecutor);
+        runTestLogicFuture.get();
+
+        Consumer<ExecutionAttemptID> canceller =
+                attemptId ->
+                        scheduler.updateTaskExecutionState(
+                                new TaskExecutionStateTransition(
+                                        new TaskExecutionState(
+                                                attemptId, ExecutionState.CANCELED, null)));
+        CompletableFuture<Void> cancelFuture =
+                CompletableFuture.runAsync(
+                        () -> cancelledTasks.forEach(canceller), singleThreadMainThreadExecutor);
+        cancelFuture.get();
+        listener.waitForTerminal();
+
+        return scheduler.requestJob().getExceptionHistory();
+    }
+
+    @Test
+    public void testExceptionHistoryWithGlobalFailure() throws Exception {
+        final Exception expectedException = new Exception("Expected Global Exception");
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> scheduler.handleGlobalFailure(expectedException);
+
+        final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
+                runExceptionHistoryTests(testLogic);
+
+        assertThat(actualExceptionHistory).hasSize(1);
+
+        final RootExceptionHistoryEntry failure = actualExceptionHistory.iterator().next();
+        assertThat(failure.getTaskManagerLocation()).isNull();
+        assertThat(failure.getFailingTaskName()).isNull();
+
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException);
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskFailure() throws Exception {
+        final Exception expectedException = new Exception("Expected Local Exception");
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> {
+                    final ExecutionAttemptID attemptId = attemptIds.get(1);
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId, ExecutionState.FAILED, expectedException)));
+                };
+
+        final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
+                runExceptionHistoryTests(testLogic);
+
+        assertThat(actualExceptionHistory).hasSize(1);
+
+        final RootExceptionHistoryEntry failure = actualExceptionHistory.iterator().next();
+
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException);
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskFailureWithRestart() throws Exception {
+        final Exception expectedException = new Exception("Expected Local Exception");
+        Consumer<AdaptiveSchedulerBuilder> setupScheduler =
+                builder ->
+                        builder.setRestartBackoffTimeStrategy(
+                                new FixedDelayRestartBackoffTimeStrategy
+                                                .FixedDelayRestartBackoffTimeStrategyFactory(1, 100)
+                                        .create());
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> {
+                    final ExecutionAttemptID attemptId = attemptIds.get(1);
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId, ExecutionState.FAILED, expectedException)));
+                };
+
+        final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
+                runExceptionHistoryTests(testLogic, setupScheduler);
+
+        assertThat(actualExceptionHistory).hasSize(1);
+
+        final RootExceptionHistoryEntry failure = actualExceptionHistory.iterator().next();
+
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException);
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskFailureFromStopWithSavepoint() throws Exception {
+        final Exception expectedException = new Exception("Expected Local Exception");
+        Consumer<JobGraph> setupJobGraph =
+                jobGraph ->
+                        jobGraph.setSnapshotSettings(
+                                new JobCheckpointingSettings(
+                                        CheckpointCoordinatorConfiguration.builder().build(),
+                                        null));
+        final CompletedCheckpointStore completedCheckpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final CheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
+        final CheckpointsCleaner checkpointCleaner = new CheckpointsCleaner();
+        TestingCheckpointRecoveryFactory checkpointRecoveryFactory =
+                new TestingCheckpointRecoveryFactory(completedCheckpointStore, checkpointIDCounter);
+
+        Consumer<AdaptiveSchedulerBuilder> setupScheduler =
+                builder ->
+                        builder.setCheckpointRecoveryFactory(checkpointRecoveryFactory)
+                                .setCheckpointCleaner(checkpointCleaner);
+
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> {
+                    final ExecutionAttemptID attemptId = attemptIds.get(1);
+
+                    scheduler.stopWithSavepoint(
+                            "file:///tmp/target", true, SavepointFormatType.CANONICAL);
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId, ExecutionState.FAILED, expectedException)));
+                };
+
+        final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
+                runExceptionHistoryTests(testLogic, setupScheduler, setupJobGraph);
+
+        assertThat(actualExceptionHistory).hasSize(1);
+
+        final RootExceptionHistoryEntry failure = actualExceptionHistory.iterator().next();
+
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException);
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskConcurrentGlobalFailure() throws Exception {
+        final Exception expectedException1 = new Exception("Expected Global Exception 1");
+        final Exception expectedException2 = new Exception("Expected Global Exception 2");
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> {
+                    scheduler.handleGlobalFailure(expectedException1);
+                    scheduler.handleGlobalFailure(expectedException2);
+                };
+
+        final Iterable<RootExceptionHistoryEntry> entries = runExceptionHistoryTests(testLogic);
+        assertThat(entries).hasSize(1);
+        final RootExceptionHistoryEntry failure = entries.iterator().next();
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException1);
+        final Iterable<ExceptionHistoryEntry> concurrentExceptions =
+                failure.getConcurrentExceptions();
+        final List<Throwable> foundExceptions =
+                IterableUtils.toStream(concurrentExceptions)
+                        .map(ExceptionHistoryEntry::getException)
+                        .map(exception -> exception.deserializeError(classLoader))
+                        .collect(Collectors.toList());
+
+        assertThat(foundExceptions).containsExactly(expectedException2);
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskConcurrentFailure() throws Exception {
+        final Exception expectedException1 = new Exception("Expected Local Exception 1");
+        final Exception expectedException2 = new Exception("Expected Local Exception 2");
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> {
+                    final ExecutionAttemptID attemptId = attemptIds.remove(0);
+                    final ExecutionAttemptID attemptId2 = attemptIds.remove(0);
+
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId, ExecutionState.FAILED, expectedException1)));
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId2,
+                                            ExecutionState.FAILED,
+                                            expectedException2)));
+                };
+
+        final Iterable<RootExceptionHistoryEntry> entries = runExceptionHistoryTests(testLogic);
+        assertThat(entries).hasSize(1);
+        final RootExceptionHistoryEntry failure = entries.iterator().next();
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException1);
+        final Iterable<ExceptionHistoryEntry> concurrentExceptions =
+                failure.getConcurrentExceptions();
+        final List<Throwable> foundExceptions =
+                IterableUtils.toStream(concurrentExceptions)
+                        .map(ExceptionHistoryEntry::getException)
+                        .map(exception -> exception.deserializeError(classLoader))
+                        .collect(Collectors.toList());
+
+        // In the future, concurrent local failures should be stored.
+        assertThat(foundExceptions).isEmpty();
     }
 
     @Test(expected = IllegalStateException.class)
