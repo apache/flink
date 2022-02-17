@@ -28,11 +28,10 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
-import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
@@ -40,6 +39,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
@@ -48,18 +48,23 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
 
     private final Context context;
 
-    private final ClassLoader userCodeClassLoader;
-
     Executing(
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Logger logger,
             Context context,
-            ClassLoader userCodeClassLoader) {
-        super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
+            ClassLoader userCodeClassLoader,
+            List<ExceptionHistoryEntry> failureCollection) {
+        super(
+                context,
+                executionGraph,
+                executionGraphHandler,
+                operatorCoordinatorHandler,
+                logger,
+                userCodeClassLoader,
+                failureCollection);
         this.context = context;
-        this.userCodeClassLoader = userCodeClassLoader;
         Preconditions.checkState(
                 executionGraph.getState() == JobStatus.RUNNING, "Assuming running execution graph");
 
@@ -77,34 +82,15 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
     @Override
     public void cancel() {
         context.goToCanceling(
-                getExecutionGraph(), getExecutionGraphHandler(), getOperatorCoordinatorHandler());
+                getExecutionGraph(),
+                getExecutionGraphHandler(),
+                getOperatorCoordinatorHandler(),
+                getFailures());
     }
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {
-        handleAnyFailure(cause);
-    }
-
-    private void handleAnyFailure(Throwable cause) {
+    void onFailure(Throwable cause) {
         FailureResultUtil.restartOrFail(context.howToHandleFailure(cause), context, this);
-    }
-
-    @Override
-    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionState) {
-        final boolean successfulUpdate = getExecutionGraph().updateState(taskExecutionState);
-
-        if (successfulUpdate) {
-            if (taskExecutionState.getExecutionState() == ExecutionState.FAILED) {
-                Throwable cause = taskExecutionState.getError(userCodeClassLoader);
-                handleAnyFailure(
-                        cause == null
-                                ? new FlinkException(
-                                        "Unknown failure cause. Probably related to FLINK-21376.")
-                                : cause);
-            }
-        }
-
-        return successfulUpdate;
     }
 
     @Override
@@ -144,7 +130,8 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                     getExecutionGraph(),
                     getExecutionGraphHandler(),
                     getOperatorCoordinatorHandler(),
-                    Duration.ofMillis(0L));
+                    Duration.ofMillis(0L),
+                    getFailures());
         }
     }
 
@@ -176,7 +163,8 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                 getExecutionGraphHandler(),
                 getOperatorCoordinatorHandler(),
                 schedulingProvider,
-                savepointFuture);
+                savepointFuture,
+                getFailures());
     }
 
     /** Context of the {@link Executing} state. */
@@ -223,6 +211,7 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
         private final ExecutionGraphHandler executionGraphHandler;
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final ClassLoader userCodeClassLoader;
+        private final List<ExceptionHistoryEntry> failureCollection;
 
         Factory(
                 ExecutionGraph executionGraph,
@@ -230,13 +219,15 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Logger log,
                 Context context,
-                ClassLoader userCodeClassLoader) {
+                ClassLoader userCodeClassLoader,
+                List<ExceptionHistoryEntry> failureCollection) {
             this.context = context;
             this.log = log;
             this.executionGraph = executionGraph;
             this.executionGraphHandler = executionGraphHandler;
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
             this.userCodeClassLoader = userCodeClassLoader;
+            this.failureCollection = failureCollection;
         }
 
         public Class<Executing> getStateClass() {
@@ -250,7 +241,8 @@ class Executing extends StateWithExecutionGraph implements ResourceConsumer {
                     operatorCoordinatorHandler,
                     log,
                     context,
-                    userCodeClassLoader);
+                    userCodeClassLoader,
+                    failureCollection);
         }
     }
 }

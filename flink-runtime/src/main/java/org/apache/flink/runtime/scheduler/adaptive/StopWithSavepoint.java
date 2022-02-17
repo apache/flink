@@ -21,12 +21,11 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
-import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -36,6 +35,7 @@ import org.slf4j.Logger;
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 
@@ -52,8 +52,6 @@ import java.util.concurrent.ScheduledFuture;
 class StopWithSavepoint extends StateWithExecutionGraph {
 
     private final Context context;
-    private final ClassLoader userCodeClassLoader;
-
     private final CompletableFuture<String> operationFuture;
 
     private final CheckpointScheduling checkpointScheduling;
@@ -72,10 +70,17 @@ class StopWithSavepoint extends StateWithExecutionGraph {
             CheckpointScheduling checkpointScheduling,
             Logger logger,
             ClassLoader userCodeClassLoader,
-            CompletableFuture<String> savepointFuture) {
-        super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
+            CompletableFuture<String> savepointFuture,
+            List<ExceptionHistoryEntry> failureCollection) {
+        super(
+                context,
+                executionGraph,
+                executionGraphHandler,
+                operatorCoordinatorHandler,
+                logger,
+                userCodeClassLoader,
+                failureCollection);
         this.context = context;
-        this.userCodeClassLoader = userCodeClassLoader;
         this.checkpointScheduling = checkpointScheduling;
         this.operationFuture = new CompletableFuture<>();
 
@@ -106,7 +111,8 @@ class StopWithSavepoint extends StateWithExecutionGraph {
                 context.goToExecuting(
                         getExecutionGraph(),
                         getExecutionGraphHandler(),
-                        getOperatorCoordinatorHandler());
+                        getOperatorCoordinatorHandler(),
+                        getFailures());
             } else {
                 this.savepoint = savepoint;
             }
@@ -126,7 +132,10 @@ class StopWithSavepoint extends StateWithExecutionGraph {
     @Override
     public void cancel() {
         context.goToCanceling(
-                getExecutionGraph(), getExecutionGraphHandler(), getOperatorCoordinatorHandler());
+                getExecutionGraph(),
+                getExecutionGraphHandler(),
+                getOperatorCoordinatorHandler(),
+                getFailures());
     }
 
     @Override
@@ -135,27 +144,9 @@ class StopWithSavepoint extends StateWithExecutionGraph {
     }
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {
-        handleAnyFailure(cause);
-    }
-
-    @Override
-    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionStateTransition) {
-        final boolean successfulUpdate =
-                getExecutionGraph().updateState(taskExecutionStateTransition);
-
-        if (successfulUpdate) {
-            if (taskExecutionStateTransition.getExecutionState() == ExecutionState.FAILED) {
-                Throwable cause = taskExecutionStateTransition.getError(userCodeClassLoader);
-                handleAnyFailure(
-                        cause == null
-                                ? new FlinkException(
-                                        "Unknown failure cause. Probably related to FLINK-21376.")
-                                : cause);
-            }
-        }
-
-        return successfulUpdate;
+    void onFailure(Throwable cause) {
+        operationFailureCause = cause;
+        FailureResultUtil.restartOrFail(context.howToHandleFailure(cause), context, this);
     }
 
     @Override
@@ -167,7 +158,7 @@ class StopWithSavepoint extends StateWithExecutionGraph {
                 completeOperationAndGoToFinished(savepoint);
             }
         } else {
-            handleAnyFailure(
+            handleGlobalFailure(
                     new FlinkException(
                             "Job did not reach the FINISHED state while performing stop-with-savepoint."));
         }
@@ -176,11 +167,6 @@ class StopWithSavepoint extends StateWithExecutionGraph {
     private void completeOperationAndGoToFinished(String savepoint) {
         operationFuture.complete(savepoint);
         context.goToFinished(ArchivedExecutionGraph.createFrom(getExecutionGraph()));
-    }
-
-    private void handleAnyFailure(Throwable cause) {
-        operationFailureCause = cause;
-        FailureResultUtil.restartOrFail(context.howToHandleFailure(cause), context, this);
     }
 
     CompletableFuture<String> getOperationFuture() {
@@ -232,6 +218,8 @@ class StopWithSavepoint extends StateWithExecutionGraph {
 
         private final CompletableFuture<String> savepointFuture;
 
+        private final List<ExceptionHistoryEntry> failureCollection;
+
         Factory(
                 Context context,
                 ExecutionGraph executionGraph,
@@ -240,7 +228,8 @@ class StopWithSavepoint extends StateWithExecutionGraph {
                 CheckpointScheduling checkpointScheduling,
                 Logger logger,
                 ClassLoader userCodeClassLoader,
-                CompletableFuture<String> savepointFuture) {
+                CompletableFuture<String> savepointFuture,
+                List<ExceptionHistoryEntry> failureCollection) {
             this.context = context;
             this.executionGraph = executionGraph;
             this.executionGraphHandler = executionGraphHandler;
@@ -249,6 +238,7 @@ class StopWithSavepoint extends StateWithExecutionGraph {
             this.logger = logger;
             this.userCodeClassLoader = userCodeClassLoader;
             this.savepointFuture = savepointFuture;
+            this.failureCollection = failureCollection;
         }
 
         @Override
@@ -266,7 +256,8 @@ class StopWithSavepoint extends StateWithExecutionGraph {
                     checkpointScheduling,
                     logger,
                     userCodeClassLoader,
-                    savepointFuture);
+                    savepointFuture,
+                    failureCollection);
         }
     }
 }

@@ -49,6 +49,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -228,4 +229,8 @@ public interface ExecutionGraph extends AccessExecutionGraph {
      * @param vertices The execution job vertices that are newly initialized.
      */
     void notifyNewlyInitializedJobVertices(List<ExecutionJobVertex> vertices);
+
+    Optional<String> findVertexWithAttempt(final ExecutionAttemptID attemptId);
+
+    Optional<AccessExecution> findExecution(final ExecutionAttemptID attemptId);
 }

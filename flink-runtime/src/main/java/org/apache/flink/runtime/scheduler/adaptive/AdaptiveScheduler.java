@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
@@ -98,8 +99,11 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -121,6 +125,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -207,6 +212,8 @@ public class AdaptiveScheduler
 
     private final DeploymentStateTimeMetrics deploymentTimeMetrics;
 
+    private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
+
     public AdaptiveScheduler(
             JobGraph jobGraph,
             Configuration configuration,
@@ -285,6 +292,9 @@ public class AdaptiveScheduler
                 jobStatusMetricsSettings);
 
         jobStatusListeners = Collections.unmodifiableCollection(tmpJobStatusListeners);
+        this.exceptionHistory =
+                new BoundedFIFOQueue<>(
+                        configuration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
     }
 
     private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
@@ -526,8 +536,12 @@ public class AdaptiveScheduler
 
     @Override
     public ExecutionGraphInfo requestJob() {
-        // no exception history support is added for now (see FLINK-21439)
-        return new ExecutionGraphInfo(state.getJob());
+        return new ExecutionGraphInfo(state.getJob(), exceptionHistory.toArrayList());
+    }
+
+    @Override
+    public void archiveFailure(RootExceptionHistoryEntry failure) {
+        exceptionHistory.add(failure);
     }
 
     @Override
@@ -792,7 +806,8 @@ public class AdaptiveScheduler
     public void goToExecuting(
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
-            OperatorCoordinatorHandler operatorCoordinatorHandler) {
+            OperatorCoordinatorHandler operatorCoordinatorHandler,
+            List<ExceptionHistoryEntry> failureCollection) {
         transitionToState(
                 new Executing.Factory(
                         executionGraph,
@@ -800,14 +815,16 @@ public class AdaptiveScheduler
                         operatorCoordinatorHandler,
                         LOG,
                         this,
-                        userCodeClassLoader));
+                        userCodeClassLoader,
+                        failureCollection));
     }
 
     @Override
     public void goToCanceling(
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
-            OperatorCoordinatorHandler operatorCoordinatorHandler) {
+            OperatorCoordinatorHandler operatorCoordinatorHandler,
+            List<ExceptionHistoryEntry> failureCollection) {
 
         transitionToState(
                 new Canceling.Factory(
@@ -815,7 +832,9 @@ public class AdaptiveScheduler
                         executionGraph,
                         executionGraphHandler,
                         operatorCoordinatorHandler,
-                        LOG));
+                        LOG,
+                        userCodeClassLoader,
+                        failureCollection));
     }
 
     @Override
@@ -823,7 +842,8 @@ public class AdaptiveScheduler
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
-            Duration backoffTime) {
+            Duration backoffTime,
+            List<ExceptionHistoryEntry> failureCollection) {
 
         for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
             final int attemptNumber =
@@ -842,7 +862,9 @@ public class AdaptiveScheduler
                         executionGraphHandler,
                         operatorCoordinatorHandler,
                         LOG,
-                        backoffTime));
+                        backoffTime,
+                        userCodeClassLoader,
+                        failureCollection));
         numRestarts++;
     }
 
@@ -851,7 +873,8 @@ public class AdaptiveScheduler
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
-            Throwable failureCause) {
+            Throwable failureCause,
+            List<ExceptionHistoryEntry> failureCollection) {
         transitionToState(
                 new Failing.Factory(
                         this,
@@ -859,7 +882,9 @@ public class AdaptiveScheduler
                         executionGraphHandler,
                         operatorCoordinatorHandler,
                         LOG,
-                        failureCause));
+                        failureCause,
+                        userCodeClassLoader,
+                        failureCollection));
     }
 
     @Override
@@ -868,7 +893,8 @@ public class AdaptiveScheduler
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             CheckpointScheduling checkpointScheduling,
-            CompletableFuture<String> savepointFuture) {
+            CompletableFuture<String> savepointFuture,
+            List<ExceptionHistoryEntry> failureCollection) {
 
         StopWithSavepoint stopWithSavepoint =
                 transitionToState(
@@ -880,7 +906,8 @@ public class AdaptiveScheduler
                                 checkpointScheduling,
                                 LOG,
                                 userCodeClassLoader,
-                                savepointFuture));
+                                savepointFuture,
+                                failureCollection));
         return stopWithSavepoint.getOperationFuture();
     }
 
