@@ -125,7 +125,7 @@ class Slf4jReporterTest {
 
         Histogram histogram = new TestHistogram();
         reporter.notifyOfAddedMetric(histogram, histogramName, metricGroup);
-        assertThat(reporter.getHistograms().containsKey(histogram));
+        assertThat(reporter.getHistograms()).containsKey(histogram);
 
         String expectedHistogramName =
                 reporter.filterCharacters(SCOPE)
