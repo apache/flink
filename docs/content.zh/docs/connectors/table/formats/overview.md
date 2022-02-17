@@ -3,7 +3,7 @@ title: "Formats"
 weight: 1
 type: docs
 aliases:
-  - /dev/table/connectors/formats/
+  - /zh/dev/table/connectors/formats/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

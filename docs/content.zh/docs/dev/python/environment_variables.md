@@ -3,7 +3,7 @@ title: "环境变量"
 weight: 131
 type: docs
 aliases:
-  - /dev/python/environment_variables.html
+  - /zh/dev/python/environment_variables.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

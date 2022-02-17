@@ -3,7 +3,7 @@ title: "配置"
 weight: 121
 type: docs
 aliases:
-  - /dev/python/python_config.html
+  - /zh/dev/python/python_config.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
