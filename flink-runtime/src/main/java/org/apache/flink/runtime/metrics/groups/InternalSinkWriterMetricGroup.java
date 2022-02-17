@@ -35,12 +35,16 @@ public class InternalSinkWriterMetricGroup extends ProxyMetricGroup<MetricGroup>
         implements SinkWriterMetricGroup {
 
     private final Counter numRecordsOutErrors;
+    private final Counter numRecordsWritten;
+    private final Counter numBytesWritten;
     private final OperatorIOMetricGroup operatorIOMetricGroup;
 
     private InternalSinkWriterMetricGroup(
             MetricGroup parentMetricGroup, OperatorIOMetricGroup operatorIOMetricGroup) {
         super(parentMetricGroup);
         numRecordsOutErrors = parentMetricGroup.counter(MetricNames.NUM_RECORDS_OUT_ERRORS);
+        numRecordsWritten = parentMetricGroup.counter(MetricNames.NUM_RECORDS_SEND);
+        numBytesWritten = parentMetricGroup.counter(MetricNames.NUM_BYTES_SEND);
         this.operatorIOMetricGroup = operatorIOMetricGroup;
     }
 
@@ -69,6 +73,16 @@ public class InternalSinkWriterMetricGroup extends ProxyMetricGroup<MetricGroup>
     @Override
     public Counter getNumRecordsOutErrorsCounter() {
         return numRecordsOutErrors;
+    }
+
+    @Override
+    public Counter getNumRecordsSendCounter() {
+        return numRecordsWritten;
+    }
+
+    @Override
+    public Counter getNumBytesSendCounter() {
+        return numBytesWritten;
     }
 
     @Override
