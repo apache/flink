@@ -18,15 +18,13 @@
 
 package org.apache.flink.metrics;
 
-import org.apache.flink.util.TestLogger;
-
 import static org.junit.Assert.assertEquals;
 
 /**
  * Abstract base class for testing {@link Histogram} and {@link HistogramStatistics}
  * implementations.
  */
-public class AbstractHistogramTest extends TestLogger {
+public class AbstractHistogramTest {
     protected void testHistogram(int size, Histogram histogram) {
         HistogramStatistics statistics;
 

@@ -19,18 +19,21 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.metrics.AbstractHistogramTest;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Tests for {@link DescriptiveStatisticsHistogram} and {@link
  * DescriptiveStatisticsHistogramStatistics}.
  */
-public class DescriptiveStatisticsHistogramTest extends AbstractHistogramTest {
+@ExtendWith(TestLoggerExtension.class)
+class DescriptiveStatisticsHistogramTest extends AbstractHistogramTest {
 
     /** Tests the histogram functionality of the DropwizardHistogramWrapper. */
     @Test
-    public void testDescriptiveHistogram() {
+    void testDescriptiveHistogram() {
         int size = 10;
         testHistogram(size, new DescriptiveStatisticsHistogram(size));
     }
