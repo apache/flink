@@ -3,7 +3,7 @@ title: "JAR Statements"
 weight: 16
 type: docs
 aliases:
-  - /dev/table/sql/jar.html
+  - /zh/dev/table/sql/jar.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

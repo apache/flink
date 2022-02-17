@@ -4,7 +4,7 @@ weight: 11
 type: docs
 bookToc: false
 aliases:
-  - /dev/execution_configuration.html
+  - /zh/dev/execution_configuration.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

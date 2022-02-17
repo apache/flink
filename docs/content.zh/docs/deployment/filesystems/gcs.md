@@ -3,7 +3,7 @@ title: Google Cloud Storage
 weight: 3
 type: docs
 aliases:
-  - /deployment/filesystems/gcs.html
+  - /zh/deployment/filesystems/gcs.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -3,8 +3,8 @@ title:  "Hadoop"
 weight: 4
 type: docs
 aliases:
-  - /dev/connectors/formats/hadoop.html
-  - /apis/streaming/connectors/formats/hadoop.html
+  - /zh/dev/connectors/formats/hadoop.html
+  - /zh/apis/streaming/connectors/formats/hadoop.html
 
 ---
 <!--
