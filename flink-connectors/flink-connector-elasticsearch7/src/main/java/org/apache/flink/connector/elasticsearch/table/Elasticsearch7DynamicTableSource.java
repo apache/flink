@@ -29,6 +29,7 @@ import org.apache.flink.formats.common.TimestampFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -104,7 +105,8 @@ public class Elasticsearch7DynamicTableSource
 
         return new DataStreamScanProvider() {
             @Override
-            public DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
+            public DataStream<RowData> produceDataStream(
+                    ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
                 return execEnv.fromSource(
                         elasticsearchSource,
                         (watermarkStrategy != null)
