@@ -106,7 +106,7 @@ class Slf4jReporterTest {
 
         Meter meter = new MeterView(5);
         reporter.notifyOfAddedMetric(meter, meterName, metricGroup);
-        assertThat(reporter.getMeters().containsKey(meter));
+        assertThat(reporter.getMeters()).containsKey(meter);
 
         String expectedMeterReport =
                 reporter.filterCharacters(SCOPE)
