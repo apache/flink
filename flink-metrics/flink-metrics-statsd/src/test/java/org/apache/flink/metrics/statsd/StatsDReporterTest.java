@@ -79,7 +79,7 @@ class StatsDReporterTest {
 
         Map<Counter, String> counters = reporter.getCounters();
 
-        assertThat(counters.containsKey(myCounter)).isTrue();
+        assertThat(counters).containsKey(myCounter);
 
         String expectedCounterName =
                 reporter.filterCharacters(scope)
