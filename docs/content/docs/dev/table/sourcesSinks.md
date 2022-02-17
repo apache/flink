@@ -113,12 +113,12 @@ Project Configuration
 If you want to implement a custom connector or a custom format, the following dependency is usually 
 sufficient:
 
-{{< artifact flink-table-common withProvidedScope >}}
+{{< artifact_tabs flink-table-common withProvidedScope >}}
 
 If you want to develop a connector that needs to bridge with DataStream APIs (i.e. if you want to adapt
 a DataStream connector to the Table API), you need to add this dependency:
 
-{{< artifact flink-table-api-java-bridge withProvidedScope >}}
+{{< artifact_tabs flink-table-api-java-bridge withProvidedScope >}}
 
 When developing the connector/format, we suggest shipping both a thin JAR and an uber JAR. 
 In particular, the uber JAR should include all the 3rd party dependencies of the connector, excluding the table dependencies listed above.
