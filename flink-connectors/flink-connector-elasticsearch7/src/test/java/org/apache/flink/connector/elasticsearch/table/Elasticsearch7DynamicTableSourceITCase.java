@@ -19,7 +19,11 @@
 package org.apache.flink.connector.elasticsearch.table;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
+import org.apache.flink.runtime.testutils.MiniClusterExtension;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
@@ -38,6 +42,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.elasticsearch.ElasticsearchContainer;
@@ -58,6 +63,16 @@ public class Elasticsearch7DynamicTableSourceITCase {
             LoggerFactory.getLogger(Elasticsearch7DynamicTableSourceITCase.class);
     private static final int NUM_RECORDS = 10;
     private static final String INDEX = "my-index";
+
+    public static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setConfiguration(new Configuration())
+                            .build());
+
+    @RegisterExtension
+    public static final AllCallbackWrapper ALL_CALLBACK_WRAPPER =
+            new AllCallbackWrapper(MINI_CLUSTER_RESOURCE);
 
     @Container
     private static final ElasticsearchContainer ES_CONTAINER =
