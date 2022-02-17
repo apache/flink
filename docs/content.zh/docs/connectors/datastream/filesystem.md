@@ -40,13 +40,13 @@ under the License.
 
 ## File Source
 
-`File Source` 是基于 [Source API]({{< ref "docs/dev/datastream/sources" >}}#the-data-source-api) 同时支持批模式和流模式文件读取的统一数据源。
+`File Source` 是基于 [Source API]({{< ref "docs/dev/datastream/sources" >}}#the-data-source-api) 同时支持批模式和流模式文件读取的统一 Source。
 `File Source` 分为以下两个部分：`SplitEnumerator` 和 `SourceReader`。
 
 * `SplitEnumerator` 负责发现和识别需要读取的文件，并将这些文件分配给 `SourceReader` 进行读取。
 * `SourceReader` 请求需要处理的文件，并从文件系统中读取该文件。
 
-你可能需要指定某种 [format]({{< ref "docs/connectors/datastream/formats/overview" >}}) 与 `File Source` 联合进行解析 CSV、解码AVRO、或者读取 Parquet 列式文件。
+可能需要指定某种 [format]({{< ref "docs/connectors/datastream/formats/overview" >}}) 与 `File Source` 联合进行解析 CSV、解码AVRO、或者读取 Parquet 列式文件。
 
 <a name="bounded-and-unbounded-streams"></a>
 
@@ -62,7 +62,7 @@ under the License.
 
 ### 使用方法
 
-你可以通过调用以下 API 建立一个 File Source：
+可以通过调用以下 API 建立一个 File Source：
 
 {{< tabs "FileSourceUsage" >}}
 {{< tab "Java" >}}
@@ -76,13 +76,13 @@ FileSource.forBulkFileFormat(BulkFormat,Path...)
 {{< /tab >}}
 {{< /tabs >}}
 
-你可以通过创建 `FileSource.FileSourceBuilder` 去设置 File Source 的所有参数。
+可以通过创建 `FileSource.FileSourceBuilder` 去设置 File Source 的所有参数。
 
 对于有界/批的使用场景，File Source 需要处理给定路径下的所有文件。
 对于无界/流的使用场景，File Source 会定期检查路径下的新文件并读取。
 
-当你开始创建一个 File Source 时（通过上述任意方法创建的 `FileSource.FileSourceBuilder`），
-默认情况下，数据源为有界/批的模式。你可以调用 `AbstractFileSource.AbstractFileSourceBuilder.monitorContinuously(Duration)` 设置数据源为持续的流模式。
+当创建一个 File Source 时（通过上述任意方法创建的 `FileSource.FileSourceBuilder`），
+默认情况下，Source 为有界/批的模式。可以调用 `AbstractFileSource.AbstractFileSourceBuilder.monitorContinuously(Duration)` 设置 Source 为持续的流模式。
 
 {{< tabs "FileSourceBuilder" >}}
 {{< tab "Java" >}}
@@ -100,11 +100,11 @@ final FileSource<String> source =
 ### Format Types
 
 通过 file formats 定义的文件 readers 读取每个文件。
-它们定义了解析和读取文件内容的逻辑。数据源支持多个解析类。
+其中定义了解析和读取文件内容的逻辑。Source 支持多个解析类。
 这些接口是实现简单性和灵活性/效率之间的折衷。
 
 *  `StreamFormat` 从文件流中读取文件内容。它是最简单的格式实现，
-   并且提供了许多拆箱即用的特性（如 Checkpoint 逻辑），但是在可应用的优化方面受到限制（例如对象重用，批处理等等）。
+   并且提供了许多拆箱即用的特性（如 Checkpoint 逻辑），但是限制了可应用的优化（例如对象重用，批处理等等）。
 
 * `BulkFormat` 从文件中一次读取一批记录。
   它虽然是最 "底层" 的格式实现，但是提供了优化实现的最大灵活性。
@@ -115,7 +115,7 @@ final FileSource<String> source =
 
 使用 `StreamFormat` 格式化文件中的文本行。
 Java 中内置的 `InputStreamReader` 对使用了支持各种字符集的字节流进行解码。
-此格式不支持从 Checkpoint 进行恢复优化。在恢复时，它将重新读取并放弃在最后一个 Checkpoint 之前处理的行数。
+此格式不支持从 Checkpoint 进行恢复优化。在恢复时，将重新读取并放弃在最后一个 Checkpoint 之前处理的行数。
 这是由于无法通过字符集解码器追踪文件中的行偏移量，及其内部缓冲输入流和字符集解码器的状态。
 
 <a name="simplestreamformat-abstract-class"></a>
@@ -149,14 +149,14 @@ final FileSource<byte[]> source =
 {{< /tab >}}
 {{< /tabs >}}
 
-`CsvReaderFormat` 是一个实现 `SimpleStreamFormat` 接口的例子。可以像这样进行初始化：
+`CsvReaderFormat` 是一个实现 `SimpleStreamFormat` 接口的例子。类似这样进行初始化：
 ```java
 CsvReaderFormat<SomePojo> csvFormat = CsvReaderFormat.forPojo(SomePojo.class);
 FileSource<SomePojo> source = 
         FileSource.forRecordStreamFormat(csvFormat, Path.fromLocalFile(...)).build();
 ```
 
-对于 CSV Format 的解析，在这个例子中，是根据使用 `Jackson` 库的 `SomePojo` 的字段自动生成的。（注意：你可能需要添加 `@JsonPropertyOrder({field1, field2, ...})` 这个注释到你定义的类上，并且字段顺序与 CSV 文件列的顺序完全匹配)。
+对于 CSV Format 的解析，在这个例子中，是根据使用 `Jackson` 库的 `SomePojo` 的字段自动生成的。（注意：可能需要添加 `@JsonPropertyOrder({field1, field2, ...})` 这个注释到自定义的类上，并且字段顺序与 CSV 文件列的顺序完全匹配)。
 
 如果需要对 CSV 模式或解析选项进行更细粒度的控制，可以使用 `CsvReaderFormat` 的更低层次的 `forSchema` 静态工厂方法：
 
@@ -171,7 +171,7 @@ CsvReaderFormat<T> forSchema(CsvMapper mapper,
 #### Bulk Format
 
 BulkFormat 一次读取并解析一批记录。BulkFormat 的实现包括 ORC Format或 Parquet Format等。
-外部的 `BulkFormat` 类主要充当 reader 的配置持有者和工厂角色。`BulkFormat.Reader` 是在 `BulkFormat#createReader(Configuration, FileSourceSplit)` 方法中创建的，由它来完成读取操作。如果在流的 checkpoint 执行期间基于 checkpoint 创建 Bulk reader，那么 reader 是在 `BulkFormat#restoreReader(Configuration, FileSourceSplit)` 方法中重新创建的。
+外部的 `BulkFormat` 类主要充当 reader 的配置持有者和工厂角色。`BulkFormat.Reader` 是在 `BulkFormat#createReader(Configuration, FileSourceSplit)` 方法中创建的，然后完成读取操作。如果在流的 checkpoint 执行期间基于 checkpoint 创建 Bulk reader，那么 reader 是在 `BulkFormat#restoreReader(Configuration, FileSourceSplit)` 方法中重新创建的。
 
 可以通过将 `SimpleStreamFormat` 包装在 `StreamFormatAdapter` 中转换为 `BulkFormat`：
 ```java
@@ -245,7 +245,7 @@ new HiveSource<>(
 
 ### 后记
 {{< hint info >}}
-如果你对新设计的数据源 API 中的 File Sources 是如何工作的感兴趣，可以阅读本部分作为参考。关于新的数据源 API 的更多细节，请参考
+如果对新设计的 Source API 中的 File Sources 是如何工作的感兴趣，可以阅读本部分作为参考。关于新的 Source API 的更多细节，请参考
 [documentation on data sources]({{< ref "docs/dev/datastream/sources.md" >}}) 和在
 <a href="https://cwiki.apache.org/confluence/display/FLINK/FLIP-27%3A+Refactor+Source+Interface">FLIP-27</a>
 中获取更加具体的讨论详情。
@@ -256,11 +256,11 @@ new HiveSource<>(
 ## File Sink
 
 File Sink 将传入的数据写入存储桶中。考虑到输入流可以是无界的，每个桶中的数据被组织成有限大小的 Part 文件。
-完全可以配置为基于时间的方式往桶中写入数据，比如我们可以设置每个小时的数据写入一个新桶中。这意味着桶中将包含一个小时间隔内接收到的记录。
+完全可以配置为基于时间的方式往桶中写入数据，比如可以设置每个小时的数据写入一个新桶中。这意味着桶中将包含一个小时间隔内接收到的记录。
 
 桶目录中的数据被拆分成多个 Part 文件。对于相应的接收数据的桶的 Sink 的每个 Subtask ，每个桶将至少包含一个 Part 文件。将根据配置的滚动策略来创建其他 Part 文件。
 对于 `Row-encoded Formats`（参考 [Format Types](#sink-format-types)）默认的策略是根据 Part 文件大小进行滚动，需要指定文件打开状态最长时间的超时以及文件关闭后的非活动状态的超时时间。
-对于 `Bulk-encoded Formats` 我们在每次创建 Checkpoint 时进行滚动，并且用户也可以添加基于大小或者时间等的其他条件。
+对于 `Bulk-encoded Formats` 在每次创建 Checkpoint 时进行滚动，并且用户也可以添加基于大小或者时间等的其他条件。
 
 {{< hint info >}}
 
@@ -281,7 +281,7 @@ File Sink 将传入的数据写入存储桶中。考虑到输入流可以是无�
 - Row-encoded sink: `FileSink.forRowFormat(basePath, rowEncoder)`
 - Bulk-encoded sink: `FileSink.forBulkFormat(basePath, bulkWriterFactory)`
 
-不论创建 Row-encoded Format 或者 Bulk-encoded Format的 Sink 时，我们都必须指定桶的路径以及对数据进行编码的逻辑。
+不论创建 Row-encoded Format 或者 Bulk-encoded Format 的 Sink 时，都必须指定桶的路径以及对数据进行编码的逻辑。
 
 请参考 JavaDoc 文档 {{< javadoc file="org/apache/flink/connector/file/sink/FileSink.html" name="FileSink">}}
 来获取所有的配置选项以及更多的不同数据格式实现的详细信息。
@@ -290,7 +290,7 @@ File Sink 将传入的数据写入存储桶中。考虑到输入流可以是无�
 
 #### Row-encoded Formats
 
-Row-encoded Format 需要指定一个 `Encoder`，在输出数据到文件过程中它被用来将单个行数据序列化为 `OutputStream`。
+Row-encoded Format 需要指定一个 `Encoder`，在输出数据到文件过程中被用来将单个行数据序列化为 `OutputStream`。
 
 除了 bucket assigner，RowFormatBuilder 还允许用户指定以下属性：
 
@@ -356,7 +356,7 @@ input.sinkTo(sink)
 {{< /tabs >}}
 
 这个例子中创建了一个简单的 Sink，默认的将记录分配给小时桶。
-例子中还指定了滚动策略，当满足以下三个条件的任何一个时都会将正在进行的文件进行滚动：
+例子中还指定了滚动策略，当满足以下三个条件的任何一个时都会将 In-progress 状态文件进行滚动：
 
 - 包含了至少15分钟的数据量
 - 从没接收延时5分钟之外的新纪录
@@ -386,15 +386,15 @@ Flink 内置了5种 BulkWriter 工厂类：
 
 ##### Parquet Format
 
-Flink 包含了为 Avro Format 数据创建 Parquet 写入工厂的内置便利方法。在 AvroParquetWriters 类中可以发现那些方法以及相关的使用说明。
+Flink 内置了为 Avro Format 数据创建 Parquet 写入工厂的快捷方法。在 AvroParquetWriters 类中可以发现那些方法以及相关的使用说明。
 
 为了让 Parquet Format 数据写入更加通用，用户需要创建 ParquetWriterFactory 并且自定义实现 ParquetBuilder 接口。
 
-在你的应用程序中可以使用 Parquet 的 Bulk-encoded Format，需要添加如下依赖到项目中：
+如果在程序中使用 Parquet 的 Bulk-encoded Format，需要添加如下依赖到项目中：
 
 {{< artifact flink-parquet withScalaVersion >}}
 
-可以像这样使用 `FileSink` 写入 Parquet Format 的 Avro 数据：
+类似这样使用 `FileSink` 写入 Parquet Format 的 Avro 数据：
 
 {{< tabs "4ff7b496-3a80-46f4-9b7d-7a9222672927" >}}
 {{< tab "Java" >}}
@@ -434,7 +434,7 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
-类似的，也可以像这样使用 `FileSink` 写入 Parquet Format 的 Protobuf 数据：
+类似这样使用 `FileSink` 写入 Parquet Format 的 Protobuf 数据：
 
 {{< tabs "dd1e3e68-855e-4d93-8f86-74d039591745" >}}
 {{< tab "Java" >}}
@@ -477,11 +477,11 @@ input.sinkTo(sink)
 
 Flink 也支持写入数据到 Avro Format 文件。在 AvroWriters 类中可以发现一系列创建 Avro writer 工厂的便利方法及其相关说明。
 
-在你的应用程序中可以使用 AvroWriters，需要添加如下依赖到项目中：
+如果在程序中使用 AvroWriters，需要添加如下依赖到项目中：
 
 {{< artifact flink-avro >}}
 
-可以像这样使用 `FileSink` 写入数据到 Avro Format 文件中：
+类似这样使用 `FileSink` 写入数据到 Avro Format 文件中：
 
 {{< tabs "ee5f25e0-180e-43b1-ae91-277bf73d3a6c" >}}
 {{< tab "Java" >}}
@@ -521,7 +521,7 @@ input.sinkTo(sink)
 {{< /tab >}}
 {{< /tabs >}}
 
-对于创建自定义的 Avro writers，例如，支持压缩功能，用户需要创建 `AvroWriterFactory` 并且自定义实现 `AvroBuilder` 接口:
+对于自定义创建的 Avro writers，例如，支持压缩功能，用户需要创建 `AvroWriterFactory` 并且自定义实现 `AvroBuilder` 接口:
 
 {{< tabs "3bfe80db-db61-4498-9ec0-8017c64eab5c" >}}
 {{< tab "Java" >}}
@@ -572,7 +572,7 @@ ORC Format 的数据采用 Bulk-encoded Format，Flink 提供了 Vectorizer 接�
 
 像其他列格式一样也是采用 Bulk-encoded Format，Flink 中的 `OrcBulkWriter` 以批的方式写出数据。是使用 ORC 的 `VectorizedRowBatch` 实现的。
 
-一旦输入数据已经被转换成了 `VectorizedRowBatch`，用户就必须继承抽象类 `Vectorizer` 并且覆写类中 `vectorize(T element, VectorizedRowBatch batch)` 这个方法。正如你所看到的那样，此方法中提供了被用户直接使用的 `VectorizedRowBatch` 类的实例，因此，用户不得不编写从输入 `element` 到 `ColumnVectors` 的转换逻辑，并将它们设置在  `VectorizedRowBatch` 实例中。
+由于输入数据已经被转换成了 `VectorizedRowBatch`，所以用户必须继承抽象类 `Vectorizer` 并且覆写类中 `vectorize(T element, VectorizedRowBatch batch)` 这个方法。正如看到的那样，此方法中提供了用户直接使用的 `VectorizedRowBatch` 类的实例，因此，用户不得不编写从输入 `element` 到 `ColumnVectors` 的转换逻辑，然后设置在  `VectorizedRowBatch` 实例中。
 
 例如，如果是 `Person` 类型的输入元素，如下所示：
 
@@ -590,7 +590,7 @@ class Person {
 {{< /tab >}}
 {{< /tabs >}}
 
-然后，转换 `Person` 类型元素的实现并在 `VectorizedRowBatch` 中设置它们，如下所示：
+然后，转换 `Person` 类型元素的实现并在 `VectorizedRowBatch` 中设置，如下所示：
 
 {{< tabs "6eb8e5e8-5177-4c8d-bb5a-96c6333b0b01" >}}
 {{< tab "Java" >}}
@@ -638,12 +638,12 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 {{< /tab >}}
 {{< /tabs >}}
 
-在你的应用程序中可以使用 ORC 的 Bulk-encoded Format，需要添加如下依赖到项目中：
+如果在程序中使用 ORC 的 Bulk-encoded Format，需要添加如下依赖到项目中：
 
 {{< artifact flink-orc withScalaVersion >}}
 
 
-然后，可以像这样使用 `FileSink` 以 ORC Format 输出数据：
+然后，类似这样使用 `FileSink` 以 ORC Format 输出数据：
 
 {{< tabs "f948c85a-d236-451d-b24a-612f96507805" >}}
 {{< tab "Java" >}}
@@ -693,7 +693,7 @@ Configuration conf = ...;
 Properties writerProperties = new Properties();
 
 writerProperties.setProperty("orc.compress", "LZ4");
-// 其他 ORC 参数也可以使用类似方式进行设置
+// 其他 ORC 属性也可以使用类似方式进行设置
 
 final OrcBulkWriterFactory<Person> writerFactory = new OrcBulkWriterFactory<>(
     new PersonVectorizer(schema), writerProperties, conf);
@@ -707,7 +707,7 @@ val conf: Configuration = ...
 val writerProperties: Properties = new Properties()
 
 writerProperties.setProperty("orc.compress", "LZ4")
-// 其他 ORC 参数也可以使用类似方式进行设置
+// 其他 ORC 属性也可以使用类似方式进行设置
 
 val writerFactory = new OrcBulkWriterFactory(
     new PersonVectorizer(schema), writerProperties, conf)
@@ -715,9 +715,9 @@ val writerFactory = new OrcBulkWriterFactory(
 {{< /tab >}}
 {{< /tabs >}}
 
-完整的 ORC 输出属性列表可以参考 [这篇文档](https://orc.apache.org/docs/hive-config.html) 。
+完整的 ORC 输出属性列表可以参考 [此文档](https://orc.apache.org/docs/hive-config.html) 。
 
-用户希望添加他们自己的元数据到 ORC 文件中，可以调用 `addUserMetadata(...)` 方法来覆盖 `vectorize(...)` 方法的属性设置。
+用户在重写 `vectorize(...)` 方法时可以调用 `addUserMetadata(...)` 方法来添加自己的元数据到 ORC 文件中。
 
 {{< tabs "9880fed1-b5d7-440e-a5ca-c9b20f10dac2" >}}
 {{< tab "Java" >}}
@@ -757,11 +757,11 @@ class PersonVectorizer(schema: String) extends Vectorizer[Person](schema) {
 
 ##### Hadoop SequenceFile Format
 
-在你的应用程序中使用 `SequenceFile` 的 Bulk-encoded Format，你需要添加如下依赖到项目中：
+如果在程序中使用 `SequenceFile` 的 Bulk-encoded Format，需要添加如下依赖到项目中：
 
 {{< artifact flink-sequence-file >}}
 
-可以像这样创建一个简单的 `SequenceFile`：
+类似这样创建一个简单的 `SequenceFile`：
 
 {{< tabs "d707ffcf-7df3-4847-bb01-5eaa9f12de88" >}}
 {{< tab "Java" >}}
@@ -820,20 +820,20 @@ input.sinkTo(sink)
 Row-encoded Format 和 Bulk-encoded Format (参考 [Format Types](#sink-format-types)) 使用了 `DateTimeBucketAssigner` 作为默认的分配器。
 默认的分配器 `DateTimeBucketAssigner` 会基于使用了格式为 `yyyy-MM-dd--HH` 的系统默认时区来创建小时桶。日期格式（ *即* 桶大小）和时区都可以手动配置。
 
-我们可以在格式化构造器中通过调用 `.withBucketAssigner(assigner)` 方法去指定自定义的 `BucketAssigner`。
+还可以在格式化构造器中通过调用 `.withBucketAssigner(assigner)` 方法去指定自定义的 `BucketAssigner`。
 
 Flink 内置了两种 BucketAssigners：
 
-- `DateTimeBucketAssigner` ： 默认的基于时间的分配器
-- `BasePathBucketAssigner` ： 分配所有文件存储在基础路径上（单个全局桶）
+- `DateTimeBucketAssigner` ：默认的基于时间的分配器
+- `BasePathBucketAssigner` ：分配所有文件存储在基础路径上（单个全局桶）
 
 <a name="rolling-policy"></a>
 
 ### 滚动策略
 
-`RollingPolicy` 定义了何时关闭给定的进行中的文件，并将其转换为挂起状态，然后在转换为完成状态。
-完成状态的文件，可供查看并且可以保证数据的有效性，在出现故障时不会恢复。
-在 `STREAMING` 模式下，滚动策略结合 Checkpoint 间隔（到下一个 Checkpoint 完成时挂起状态的文件变成完成状态）共同控制 Part 文件对下游 readers 是否可见以及这些文件的大小和数量。在 `BATCH` 模式下，Part 文件在 Job 最后对下游才变得可见，滚动策略只控制最大的 Part 文件大小。
+`RollingPolicy` 定义了何时关闭给定的进行中的文件，并将其转换为 Pending 状态，然后在转换为 Finished 状态。
+Finished 状态的文件，可供查看并且可以保证数据的有效性，在出现故障时不会恢复。
+在 `STREAMING` 模式下，滚动策略结合 Checkpoint 间隔（到下一个 Checkpoint 成功时，文件的 Pending 状态才转换为 Finished 状态）共同控制 Part 文件对下游 readers 是否可见以及这些文件的大小和数量。在 `BATCH` 模式下，Part 文件在 Job 最后对下游才变得可见，滚动策略只控制最大的 Part 文件大小。
 
 Flink 内置了两种 RollingPolicies：
 
@@ -844,20 +844,20 @@ Flink 内置了两种 RollingPolicies：
 
 ### Part 文件生命周期
 
-为了在下游使用 `FileSink` 作为输出，我们需要了解生成的输出文件的命名和生命周期。
+为了在下游使用 `FileSink` 作为输出，需要了解生成的输出文件的命名和生命周期。
 
 Part 文件可以处于以下三种状态中的任意一种：
-1. **In-progress** ：当前正在被写入的 Part 文件处于 in-progress 状态
-2. **Pending** : （由于指定的滚动策略）关闭 in-progress 状态的文件，并且等待提交 
-3. **Finished** : 流模式(`STREAMING`)下的成功的 Checkpoint 或者批模式(`BATCH`)下输入结束，挂起状态文件转换为完成状态
+1. **In-progress** ：当前正在写入的 Part 文件处于 in-progress 状态
+2. **Pending** ：由于指定的滚动策略）关闭 in-progress 状态文件，并且等待提交 
+3. **Finished** ：流模式(`STREAMING`)下的成功的 Checkpoint 或者批模式(`BATCH`)下输入结束，文件的 Pending 状态转换为 Finished 状态
 
-只有完成状态下的文件被下游读取时才是安全的，并且保证不会被修改。
+只有 Finished 状态下的文件才能被下游安全读取，并且保证不会被修改。
 
-对于每个活动的桶，在任何给定时间每个写入 Subtask 中都有一个正在进行的 Part 文件，但可能有多个挂起和完成的文件。
+对于每个活动的桶，在任何给定时间每个写入 Subtask 中都有一个 In-progress 状态的 Part 文件，但可能有多个 Pending 状态和 Finished 状态的文件。
 
 **Part 文件示例**
 
-为了更好的了解这些文件的生命周期，让我们看一个只有2个 Sink Subtask 的简单例子：
+为了更好的了解这些文件的生命周期，让我们看一个只有 2 个 Sink Subtask 的简单例子：
 
 ```
 └── 2019-08-25--12
@@ -865,7 +865,7 @@ Part 文件可以处于以下三种状态中的任意一种：
     └── part-81fc4980-a6af-41c8-9937-9939408a734b-0.inprogress.ea65a428-a1d0-4a0b-bbc5-7a436a75e575
 ```
 
-当这个 Part 文件 `part-81fc4980-a6af-41c8-9937-9939408a734b-0` 滚动时（比如说它变的很大时），它将进入挂起状态并且不能重命名。Sink 就会打开一个新的 Part 文件： `part-81fc4980-a6af-41c8-9937-9939408a734b-1`：
+当这个 Part 文件 `part-81fc4980-a6af-41c8-9937-9939408a734b-0` 滚动时（比如说此文件变的很大时），此文件将进入 Pending 状态并且不能重命名。Sink 就会打开一个新的 Part 文件： `part-81fc4980-a6af-41c8-9937-9939408a734b-1`：
 
 ```
 └── 2019-08-25--12
@@ -874,7 +874,7 @@ Part 文件可以处于以下三种状态中的任意一种：
     └── part-81fc4980-a6af-41c8-9937-9939408a734b-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
 ```
 
-`part-81fc4980-a6af-41c8-9937-9939408a734b-0` 现在是挂起状态，并且在下一个 Checkpoint 成功过后，它就确定了：
+`part-81fc4980-a6af-41c8-9937-9939408a734b-0` 现在是 Pending 状态，并且在下一个 Checkpoint 成功过后，立即成为 Finished 状态：
 
 ```
 └── 2019-08-25--12
@@ -883,7 +883,7 @@ Part 文件可以处于以下三种状态中的任意一种：
     └── part-81fc4980-a6af-41c8-9937-9939408a734b-1.inprogress.bc279efe-b16f-47d8-b828-00ef6e2fbd11
 ```
 
-根据桶策略创建新桶时，不会影响当前正在进行的文件：
+根据桶策略创建新桶时，不会影响当前 In-progress 状态的文件：
 
 ```
 └── 2019-08-25--12
@@ -900,14 +900,14 @@ Part 文件可以处于以下三种状态中的任意一种：
 
 #### Part 文件配置
 
-完成的文件与正在进行的文件只能通过它们的命名来区分。
+Finished 状态与 In-progress 状态的文件只能通过命名来区分。
 
 默认的，文件命名策略如下:
-- **In-progress / Pending**： `part-<uid>-<partFileIndex>.inprogress.uid`
-- **Finished**： `part-<uid>-<partFileIndex>`
-  当 Sink Subtask 实例化时，这的 `uid` 是一个分配给 Subtask 的随机 ID 值。这个 `uid` 不具有容错机制，所以当 Subtask 从故障恢复时，它会重新生成。
+- **In-progress / Pending**：`part-<uid>-<partFileIndex>.inprogress.uid`
+- **Finished**：`part-<uid>-<partFileIndex>`
+  当 Sink Subtask 实例化时，这的 `uid` 是一个分配给 Subtask 的随机 ID 值。这个 `uid` 不具有容错机制，所以当 Subtask 从故障恢复时，`uid` 会重新生成。
 
-Flink 允许用户为他们的 Part 文件名添加一个前缀和/或后缀。
+Flink 允许用户给 Part 文件名添加一个前缀和/或后缀。
 使用 `OutputFileConfig` 来完成上述功能。
 例如，Sink 将在创建文件的文件名上添加前缀 "prefix" 和后缀 ".ext"，如下所示：
 
@@ -968,42 +968,42 @@ val sink = FileSink
 
 #### 整体提示
 
-<span class="label label-danger">重要提示 1</span>： 当使用的 Hadoop 版本 < 2.7 时，
+<span class="label label-danger">重要提示 1</span>：当使用的 Hadoop 版本 < 2.7 时，
 当每次 Checkpoint 时请使用 `OnCheckpointRollingPolicy` 滚动 Part 文件。原因是：如果 Part 文件 "穿越" 了 Checkpoint 的时间间隔，
-然后，从失败中恢复过来时，`FileSink` 可能会使用文件系统的 `truncate()` 方法去丢弃来自正在进行状态文件中的未提交数据。
+然后，从失败中恢复过来时，`FileSink` 可能会使用文件系统的 `truncate()` 方法丢弃处于 In-progress 状态文件中的未提交数据。
 这个方法在 Hadoop 2.7 版本之前是不支持的，Flink 将抛出异常。
 
 <span class="label label-danger">重要提示 2</span>：鉴于 Flink 的 Sink 和 UDF 通常不会区分正常作业终止（*例如* 有限输入流）和 由于故障而终止，
-在 Job 正常终止时，最后一个正在进行的文件不会转换为 "完成" 状态。
+在 Job 正常终止时，最后一个 In-progress 状态文件不会转换为 "Finished" 状态。
 
-<span class="label label-danger">重要提示 3</span>： Flink 和 `FileSink` 从来不会覆盖已提交的数据。
-鉴于此，假定一个正在进行的文件被后续成功的 Checkpoint 提交了，当尝试从这个旧的 Checkpoint / Savepoint 进行恢复时，`FileSink` 将拒绝继续执行并将抛出异常，因为它无法找到正在进行的文件。
+<span class="label label-danger">重要提示 3</span>：Flink 和 `FileSink` 从来不会覆盖已提交数据。
+鉴于此，假定一个 In-progress 状态文件被后续成功的 Checkpoint 提交了，当尝试从这个旧的 Checkpoint / Savepoint 进行恢复时，`FileSink` 将拒绝继续执行并将抛出异常，因为程序无法找到 In-progress 状态的文件。
 
-<span class="label label-danger">重要提示 4</span>： 目前，`FileSink` 仅支持以下3种文件系统：HDFS、 S3 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
+<span class="label label-danger">重要提示 4</span>：目前，`FileSink` 仅支持以下3种文件系统：HDFS、 S3 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
 
 <a name="batch-specific"></a>
 
 #### BATCH-具体提示
 
-<span class="label label-danger">重要提示 1</span>： 虽然 `Writer` 是以用户指定的 parallelism 执行的，然而 `Committer` 是以 parallelism = 1 执行的。
+<span class="label label-danger">重要提示 1</span>：虽然 `Writer` 是以用户指定的 parallelism 执行的，然而 `Committer` 是以 parallelism = 1 执行的。
 
-<span class="label label-danger">重要提示 2</span>： 挂起文件被提交，当所有输入数据被处理完后，才转换为 `Finished` 状态。
+<span class="label label-danger">重要提示 2</span>：Pending 状态文件被提交并且所有输入数据被处理完后，才转换为 `Finished` 状态。
 
-<span class="label label-danger">重要提示 3</span>： 当系统处于高可用状态下，并且正当 `Committers` 进行提交时如果 `JobManager` 发生了故障，那么我们可能会有副本。这种情况将会在 Flink 的未来版本中进行修复。（可以参考 [FLIP-147](https://cwiki.apache.org/confluence/display/FLINK/FLIP-147%3A+Support+Checkpoints+After+Tasks+Finished) ） 。
+<span class="label label-danger">重要提示 3</span>：当系统处于高可用状态下，并且正当 `Committers` 进行提交时如果 `JobManager` 发生了故障，那么可能会有副本。这种情况将会在 Flink 的未来版本中进行修复。（可以参考 [FLIP-147](https://cwiki.apache.org/confluence/display/FLINK/FLIP-147%3A+Support+Checkpoints+After+Tasks+Finished) ） 。
 
 <a name="s3-specific"></a>
 
 #### S3-具体提示
 
 <span class="label label-danger">重要提示 1</span>：对于 S3，`FileSink` 仅支持基于 [Hadoop-based](https://hadoop.apache.org/) 文件系统的实现，而不支持基于 [Presto](https://prestodb.io/) 的实现。
-如果你的 Job 使用 `FileSink` 写入 S3，但是希望使用基于 Presto 的 Sink 去做 Checkpoint ，建议明确使用 *"s3a://"* （对于 Hadoop）作为 Sink 目标路径格式并且使用 *"s3p://"* 作为 Checkpoint 的目标路径格式（对于 Presto）。 
+如果 Job 中使用 `FileSink` 写入 S3，但是希望使用基于 Presto 的 Sink 去做 Checkpoint ，建议明确使用 *"s3a://"* （对于 Hadoop）作为 Sink 目标路径格式并且使用 *"s3p://"* 作为 Checkpoint 的目标路径格式（对于 Presto）。 
 对于 Sink 和  Checkpoint  同时使用 *"s3://"* 可能导致不可控的行为，由于两者的实现 "监听" 同一格式路径。
 
 <span class="label label-danger">重要提示 2</span>：在保证高效的同时还要保证 exactly-once 语义，`FileSink` 使用了 S3 的 [Multi-part Upload](https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html) 功能（MPU 功能开箱即用）。
 此功能允许以独立的块上传文件（因此称为 "multi-part"），当 MPU 的所有块都上传成功时，这些块就可以合并生成原始文件。
 对于非活动的 MPU，S3 支持桶生命周期规则，用户可以使用该规则终止在启动后指定天数内未完成的多块上传操作。
-这意味着，如果你设置了这个规则，并在某些文件未完全上传的情况下执行 Savepoint ，则其关联的 MPU 可能会在 Job 重启前超时。
-这将导致你的 Job 无法从该 Savepoint 恢复，因为挂起的 Part 文件已不存在，那么 Flink Job 将失败并抛出异常，因为它试图获取那些不存在的文件导致了失败。
+这意味着，如果设置了这个规则，并在某些文件未完全上传的情况下执行 Savepoint ，则其关联的 MPU 可能会在 Job 重启前超时。
+这将导致 Job 无法从该 Savepoint 恢复，因为 Pending 状态的 Part 文件已不存在，那么 Flink Job 将失败并抛出异常，因为程序试图获取那些不存在的文件导致了失败。
 
 {{< top >}}
 
