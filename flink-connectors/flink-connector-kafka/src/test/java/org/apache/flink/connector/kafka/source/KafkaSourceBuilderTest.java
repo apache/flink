@@ -21,7 +21,7 @@ import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.common.TopicPartition;
@@ -31,12 +31,14 @@ import org.hamcrest.MatcherAssert;
 import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.HashMap;
 import java.util.Map;
 
 /** Tests for {@link KafkaSourceBuilder}. */
-public class KafkaSourceBuilderTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class KafkaSourceBuilderTest {
 
     @Test
     public void testBuildSourceWithGroupId() {
