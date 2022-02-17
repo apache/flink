@@ -73,8 +73,8 @@ public interface ChangelogStateBackendHandle extends KeyedStateHandle {
                     materialized,
                     nonMaterialized,
                     keyGroupRange,
-                    persistedSizeOfThisCheckpoint,
                     materializationID,
+                    persistedSizeOfThisCheckpoint,
                     StateHandleID.randomStateHandleId());
         }
 
