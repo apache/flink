@@ -154,7 +154,9 @@ public class JdbcOutputFormat<In, JdbcIn, JdbcExec extends JdbcBatchStatementExe
                                         try {
                                             flush();
                                         } catch (Exception e) {
-                                            flushException = e;
+                                            if (flushException == null) {
+                                                flushException = e;
+                                            }
                                         }
                                     }
                                 }
