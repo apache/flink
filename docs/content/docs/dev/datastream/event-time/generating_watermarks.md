@@ -238,6 +238,12 @@ WatermarkStrategy
 {{< /tab >}}
 {{< /tabs >}}
 
+{{< hint warning >}}
+**Note:** You can enable watermark alignment only for [FLIP-27]({{< ref "docs/dev/datastream/sources" >}}) 
+sources. It does not work for legacy or if applied after the source via 
+[DataStream#assignTimestampsAndWatermarks](#using-watermark-strategies).
+{{< /hint >}}
+
 When enabling the alignment, you need to tell Flink, which group should the source belong. You do
 that by providing a label (e.g. `alignment-group-1`) which bind together all sources that share it.
 Moreover, you have to tell the maximal drift from the current minimal watermarks across all sources
@@ -252,7 +258,18 @@ one.
 
 {{< hint warning >}}
 **Note:** As of 1.15, Flink supports aligning across tasks of the same source and/or different
-sources. It does not support aligning splits/partitions/shards in the same task. 
+sources. It does not support aligning splits/partitions/shards in the same task.
+
+In a case where there are e.g. two Kafka partitions that produce watermarks at different pace, that
+get assigned to the same task watermark might not behave as expected. Fortunately, worst case it
+should not perform worse than without alignment.
+
+Given the limitation above, we suggest applying watermark alignment in two situations:
+
+1. You have two different sources (e.g. Kafka and File) that produce watermarks at different speeds
+2. You run your source with parallelism equal to the number of splits/shards/partitions, which
+   results in every subtask being assigned a single unit of work.
+
 {{< /hint >}}
 
 ## Writing WatermarkGenerators
