@@ -56,7 +56,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 class HadoopRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 
-    private static final long LEASE_RECOVERY_TIMEOUT_MS = 9_000_000L;
+    private static final long LEASE_RECOVERY_TIMEOUT_MS = 900_000L;
 
     private static final long BLOCK_RECOVERY_TIMEOUT_MS = 300_000L;
 
