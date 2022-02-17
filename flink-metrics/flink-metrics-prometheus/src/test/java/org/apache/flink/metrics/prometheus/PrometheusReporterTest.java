@@ -37,17 +37,13 @@ import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
-import org.apache.flink.util.TestLogger;
 
 import com.mashape.unirest.http.HttpResponse;
 import com.mashape.unirest.http.Unirest;
 import com.mashape.unirest.http.exceptions.UnirestException;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -55,13 +51,11 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 import static org.apache.flink.metrics.prometheus.PrometheusReporterFactory.ARG_PORT;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Basic test for {@link PrometheusReporter}. */
-public class PrometheusReporterTest extends TestLogger {
+class PrometheusReporterTest {
 
     private static final String HOST_NAME = "hostname";
     private static final String TASK_MANAGER = "tm";
@@ -77,14 +71,12 @@ public class PrometheusReporterTest extends TestLogger {
             new PrometheusReporterFactory();
     private static final PortRangeProvider portRangeProvider = new PortRangeProvider();
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     private MetricRegistryImpl registry;
     private FrontMetricGroup<TaskManagerMetricGroup> metricGroup;
     private PrometheusReporter reporter;
 
-    @Before
-    public void setupReporter() {
+    @BeforeEach
+    void setupReporter() {
         registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
@@ -98,8 +90,8 @@ public class PrometheusReporterTest extends TestLogger {
         reporter = (PrometheusReporter) registry.getReporters().get(0);
     }
 
-    @After
-    public void shutdownRegistry() throws Exception {
+    @AfterEach
+    void shutdownRegistry() throws Exception {
         if (registry != null) {
             registry.shutdown().get();
         }
@@ -112,7 +104,7 @@ public class PrometheusReporterTest extends TestLogger {
      * @throws UnirestException Might be thrown on HTTP problems.
      */
     @Test
-    public void counterIsReportedAsPrometheusGauge() throws UnirestException {
+    void counterIsReportedAsPrometheusGauge() throws UnirestException {
         Counter testCounter = new SimpleCounter();
         testCounter.inc(7);
 
@@ -120,33 +112,21 @@ public class PrometheusReporterTest extends TestLogger {
     }
 
     @Test
-    public void gaugeIsReportedAsPrometheusGauge() throws UnirestException {
-        Gauge<Integer> testGauge =
-                new Gauge<Integer>() {
-                    @Override
-                    public Integer getValue() {
-                        return 1;
-                    }
-                };
+    void gaugeIsReportedAsPrometheusGauge() throws UnirestException {
+        Gauge<Integer> testGauge = () -> 1;
 
         assertThatGaugeIsExported(testGauge, "testGauge", "1.0");
     }
 
     @Test
-    public void nullGaugeDoesNotBreakReporter() throws UnirestException {
-        Gauge<Integer> testGauge =
-                new Gauge<Integer>() {
-                    @Override
-                    public Integer getValue() {
-                        return null;
-                    }
-                };
+    void nullGaugeDoesNotBreakReporter() throws UnirestException {
+        Gauge<Integer> testGauge = () -> null;
 
         assertThatGaugeIsExported(testGauge, "testGauge", "0.0");
     }
 
     @Test
-    public void meterRateIsReportedAsPrometheusGauge() throws UnirestException {
+    void meterRateIsReportedAsPrometheusGauge() throws UnirestException {
         Meter testMeter = new TestMeter();
 
         assertThatGaugeIsExported(testMeter, "testMeter", "5.0");
@@ -155,9 +135,8 @@ public class PrometheusReporterTest extends TestLogger {
     private void assertThatGaugeIsExported(Metric metric, String name, String expectedValue)
             throws UnirestException {
         final String prometheusName = SCOPE_PREFIX + name;
-        assertThat(
-                addMetricAndPollResponse(metric, name),
-                containsString(
+        assertThat(addMetricAndPollResponse(metric, name))
+                .contains(
                         HELP_PREFIX
                                 + prometheusName
                                 + " "
@@ -171,20 +150,19 @@ public class PrometheusReporterTest extends TestLogger {
                                 + DEFAULT_LABELS
                                 + " "
                                 + expectedValue
-                                + "\n"));
+                                + "\n");
     }
 
     @Test
-    public void histogramIsReportedAsPrometheusSummary() throws UnirestException {
+    void histogramIsReportedAsPrometheusSummary() throws UnirestException {
         Histogram testHistogram = new TestHistogram();
 
         String histogramName = "testHistogram";
         String summaryName = SCOPE_PREFIX + histogramName;
 
         String response = addMetricAndPollResponse(testHistogram, histogramName);
-        assertThat(
-                response,
-                containsString(
+        assertThat(response)
+                .contains(
                         HELP_PREFIX
                                 + summaryName
                                 + " "
@@ -198,11 +176,10 @@ public class PrometheusReporterTest extends TestLogger {
                                 + "_count"
                                 + DEFAULT_LABELS
                                 + " 1.0"
-                                + "\n"));
+                                + "\n");
         for (String quantile : Arrays.asList("0.5", "0.75", "0.95", "0.98", "0.99", "0.999")) {
-            assertThat(
-                    response,
-                    containsString(
+            assertThat(response)
+                    .contains(
                             summaryName
                                     + "{"
                                     + DIMENSIONS
@@ -210,12 +187,12 @@ public class PrometheusReporterTest extends TestLogger {
                                     + quantile
                                     + "\",} "
                                     + quantile
-                                    + "\n"));
+                                    + "\n");
         }
     }
 
     @Test
-    public void metricIsRemovedWhenCollectorIsNotUnregisteredYet() throws UnirestException {
+    void metricIsRemovedWhenCollectorIsNotUnregisteredYet() throws UnirestException {
         JobManagerMetricGroup jmMetricGroup =
                 JobManagerMetricGroup.createJobManagerMetricGroup(registry, HOST_NAME);
 
@@ -239,87 +216,50 @@ public class PrometheusReporterTest extends TestLogger {
 
         String response = pollMetrics(reporter.getPort()).getBody();
 
-        assertThat(response, not(containsString("job_1")));
+        assertThat(response).doesNotContain("job_1");
     }
 
     @Test
-    public void invalidCharactersAreReplacedWithUnderscore() {
-        assertThat(PrometheusReporter.replaceInvalidChars(""), equalTo(""));
-        assertThat(PrometheusReporter.replaceInvalidChars("abc"), equalTo("abc"));
-        assertThat(PrometheusReporter.replaceInvalidChars("abc\""), equalTo("abc_"));
-        assertThat(PrometheusReporter.replaceInvalidChars("\"abc"), equalTo("_abc"));
-        assertThat(PrometheusReporter.replaceInvalidChars("\"abc\""), equalTo("_abc_"));
-        assertThat(PrometheusReporter.replaceInvalidChars("\"a\"b\"c\""), equalTo("_a_b_c_"));
-        assertThat(PrometheusReporter.replaceInvalidChars("\"\"\"\""), equalTo("____"));
-        assertThat(PrometheusReporter.replaceInvalidChars("    "), equalTo("____"));
-        assertThat(PrometheusReporter.replaceInvalidChars("\"ab ;(c)'"), equalTo("_ab___c__"));
-        assertThat(PrometheusReporter.replaceInvalidChars("a b c"), equalTo("a_b_c"));
-        assertThat(PrometheusReporter.replaceInvalidChars("a b c "), equalTo("a_b_c_"));
-        assertThat(PrometheusReporter.replaceInvalidChars("a;b'c*"), equalTo("a_b_c_"));
-        assertThat(
-                PrometheusReporter.replaceInvalidChars("a,=;:?'b,=;:?'c"),
-                equalTo("a___:__b___:__c"));
+    void invalidCharactersAreReplacedWithUnderscore() {
+        assertThat(PrometheusReporter.replaceInvalidChars("")).isEqualTo("");
+        assertThat(PrometheusReporter.replaceInvalidChars("abc")).isEqualTo("abc");
+        assertThat(PrometheusReporter.replaceInvalidChars("abc\"")).isEqualTo("abc_");
+        assertThat(PrometheusReporter.replaceInvalidChars("\"abc")).isEqualTo("_abc");
+        assertThat(PrometheusReporter.replaceInvalidChars("\"abc\"")).isEqualTo("_abc_");
+        assertThat(PrometheusReporter.replaceInvalidChars("\"a\"b\"c\"")).isEqualTo("_a_b_c_");
+        assertThat(PrometheusReporter.replaceInvalidChars("\"\"\"\"")).isEqualTo("____");
+        assertThat(PrometheusReporter.replaceInvalidChars("    ")).isEqualTo("____");
+        assertThat(PrometheusReporter.replaceInvalidChars("\"ab ;(c)'")).isEqualTo("_ab___c__");
+        assertThat(PrometheusReporter.replaceInvalidChars("a b c")).isEqualTo("a_b_c");
+        assertThat(PrometheusReporter.replaceInvalidChars("a b c ")).isEqualTo("a_b_c_");
+        assertThat(PrometheusReporter.replaceInvalidChars("a;b'c*")).isEqualTo("a_b_c_");
+        assertThat(PrometheusReporter.replaceInvalidChars("a,=;:?'b,=;:?'c"))
+                .isEqualTo("a___:__b___:__c");
     }
 
     @Test
-    public void doubleGaugeIsConvertedCorrectly() {
-        assertThat(
-                reporter.gaugeFrom(
-                                new Gauge<Double>() {
-                                    @Override
-                                    public Double getValue() {
-                                        return 3.14;
-                                    }
-                                })
-                        .get(),
-                equalTo(3.14));
+    void doubleGaugeIsConvertedCorrectly() {
+        assertThat(reporter.gaugeFrom(() -> 3.14).get()).isEqualTo(3.14);
     }
 
     @Test
-    public void shortGaugeIsConvertedCorrectly() {
-        assertThat(
-                reporter.gaugeFrom(
-                                new Gauge<Short>() {
-                                    @Override
-                                    public Short getValue() {
-                                        return 13;
-                                    }
-                                })
-                        .get(),
-                equalTo(13.));
+    void shortGaugeIsConvertedCorrectly() {
+        assertThat(reporter.gaugeFrom(() -> 13).get()).isEqualTo(13.);
     }
 
     @Test
-    public void booleanGaugeIsConvertedCorrectly() {
-        assertThat(
-                reporter.gaugeFrom(
-                                new Gauge<Boolean>() {
-                                    @Override
-                                    public Boolean getValue() {
-                                        return true;
-                                    }
-                                })
-                        .get(),
-                equalTo(1.));
+    void booleanGaugeIsConvertedCorrectly() {
+        assertThat(reporter.gaugeFrom(() -> true).get()).isEqualTo(1.);
     }
 
     /** Prometheus only supports numbers, so report non-numeric gauges as 0. */
     @Test
-    public void stringGaugeCannotBeConverted() {
-        assertThat(
-                reporter.gaugeFrom(
-                                new Gauge<String>() {
-                                    @Override
-                                    public String getValue() {
-                                        return "I am not a number";
-                                    }
-                                })
-                        .get(),
-                equalTo(0.));
+    void stringGaugeCannotBeConverted() {
+        assertThat(reporter.gaugeFrom(() -> "I am not a number").get()).isEqualTo(0.);
     }
 
     @Test
-    public void registeringSameMetricTwiceDoesNotThrowException() {
+    void registeringSameMetricTwiceDoesNotThrowException() {
         Counter counter = new SimpleCounter();
         counter.inc();
         String counterName = "testCounter";
@@ -329,30 +269,28 @@ public class PrometheusReporterTest extends TestLogger {
     }
 
     @Test
-    public void addingUnknownMetricTypeDoesNotThrowException() {
+    void addingUnknownMetricTypeDoesNotThrowException() {
         class SomeMetricType implements Metric {}
 
         reporter.notifyOfAddedMetric(new SomeMetricType(), "name", metricGroup);
     }
 
     @Test
-    public void cannotStartTwoReportersOnSamePort() throws Exception {
+    void cannotStartTwoReportersOnSamePort() throws Exception {
         ReporterSetup setup1 = createReporterSetup("test1", portRangeProvider.next());
 
         int usedPort = ((PrometheusReporter) setup1.getReporter()).getPort();
 
         try {
-            createReporterSetup("test2", String.valueOf(usedPort));
-            Assert.fail("Should've failed since port is unavailable.");
-        } catch (Exception e) {
-            // expected
+            assertThatThrownBy(() -> createReporterSetup("test2", String.valueOf(usedPort)))
+                    .isInstanceOf(Exception.class);
         } finally {
             setup1.getReporter().close();
         }
     }
 
     @Test
-    public void canStartTwoReportersWhenUsingPortRange() throws Exception {
+    void canStartTwoReportersWhenUsingPortRange() throws Exception {
         String portRange = portRangeProvider.next();
 
         ReporterSetup setup1 = createReporterSetup("test1", portRange);
@@ -380,11 +318,6 @@ public class PrometheusReporterTest extends TestLogger {
                 prometheusReporterFactory.createMetricReporter(metricConfig);
 
         return ReporterSetup.forReporter(reporterName, metricConfig, metricReporter);
-    }
-
-    @After
-    public void closeReporterAndShutdownRegistry() throws Exception {
-        registry.shutdown().get();
     }
 
     /** Utility class providing distinct port ranges. */
