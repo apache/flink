@@ -26,7 +26,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
 import org.apache.flink.connector.elasticsearch.common.NetworkClientConfig;
 import org.apache.flink.connector.elasticsearch.source.reader.Elasticsearch7SearchHitDeserializationSchema;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
@@ -34,6 +33,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.DockerImageVersions;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.bulk.BulkRequest;

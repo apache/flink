@@ -20,12 +20,12 @@ package org.apache.flink.connector.elasticsearch.table;
 
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.util.DockerImageVersions;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.http.HttpHost;
 import org.assertj.core.api.Assertions;
