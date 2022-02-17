@@ -116,7 +116,7 @@ public abstract class ResourceManagerFactory<T extends ResourceIDRetrievable> {
     }
 
     /** This indicates whether the process should be terminated after losing leadership. */
-    public boolean supportMultiLeaderSession() {
+    protected boolean supportMultiLeaderSession() {
         return true;
     }
 
