@@ -327,7 +327,7 @@ public class JobMaster extends FencedRpcEndpoint<JobMasterId>
         this.shuffleMaster = checkNotNull(shuffleMaster);
 
         this.jobManagerJobMetricGroup = jobMetricGroupFactory.create(jobGraph);
-        //TODO
+        //TODO   tryRestoreExecutionGraphFromSavepoint 会调用，需要leader先选举好，否则会抛异常
         this.schedulerNG = createScheduler(executionDeploymentTracker, jobManagerJobMetricGroup);
         this.jobStatusListener = null;
 

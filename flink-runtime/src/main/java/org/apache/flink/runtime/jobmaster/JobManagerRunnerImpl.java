@@ -150,7 +150,7 @@ public class JobManagerRunnerImpl
 
         synchronized (lock) {
             try {
-                //TODO  start  JobMaster
+                //TODO  start  选举，选举成功后调用grantLeadship()
                 leaderElectionService.start(this);
             } catch (Exception e) {
                 log.error(
@@ -159,7 +159,7 @@ public class JobManagerRunnerImpl
                 throw new Exception("Could not start the leader election service.", e);
             }
             // now start the JobManager
-            //TODO
+            //TODO https://issues.apache.org/jira/browse/FLINK-20648  解释了为什么需要先选举才进行创建
             this.jobMasterService =
                     jobMasterFactory.createJobMasterService(
                             jobGraph, this, userCodeLoader, initializationTimestamp);
