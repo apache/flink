@@ -87,7 +87,7 @@ class Slf4jReporterTest {
 
         Gauge<Long> gauge = () -> null;
         reporter.notifyOfAddedMetric(gauge, gaugeName, metricGroup);
-        assertThat(reporter.getGauges().containsKey(gauge));
+        assertThat(reporter.getGauges()).containsKey(gauge);
 
         String expectedGaugeReport =
                 reporter.filterCharacters(SCOPE)
