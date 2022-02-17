@@ -147,13 +147,18 @@ public class KafkaWriterITCase {
         try (final KafkaWriter<Integer> writer =
                 createWriterWithConfiguration(
                         getKafkaClientConfiguration(), DeliveryGuarantee.NONE, metricGroup)) {
-            final Counter numBytesOut = operatorIOMetricGroup.getNumBytesOutCounter();
-            final Counter numRecordsOut = operatorIOMetricGroup.getNumRecordsOutCounter();
-            assertEquals(numBytesOut.getCount(), 0L);
+            final Counter numBytesSend = metricGroup.getNumBytesSendCounter();
+            final Counter numRecordsSend = metricGroup.getNumRecordsSendCounter();
+            final Counter numRecordsWrittenErrors = metricGroup.getNumRecordsOutErrorsCounter();
+            assertEquals(numBytesSend.getCount(), 0L);
+            assertEquals(numRecordsSend.getCount(), 0);
+            assertEquals(numRecordsWrittenErrors.getCount(), 0);
+
             writer.write(1, SINK_WRITER_CONTEXT);
             timeService.trigger();
-            assertEquals(numRecordsOut.getCount(), 1);
-            assertThat(numBytesOut.getCount(), greaterThan(0L));
+            assertEquals(numRecordsSend.getCount(), 1);
+            assertEquals(numRecordsWrittenErrors.getCount(), 0);
+            assertThat(numBytesSend.getCount(), greaterThan(0L));
         }
     }
 
