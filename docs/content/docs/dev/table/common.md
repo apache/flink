@@ -763,9 +763,9 @@ A query is internally represented as a logical query plan and is translated in t
 A Table API or SQL query is translated when:
 
 * `TableEnvironment.executeSql()` is called. This method is used for executing a given statement, and the sql query is translated immediately once this method is called.
-* `Table.insertInto()` is called. This method is used for translating an insertion of the table content to the given sink path into a `TablePipeline`, and the Table API is translated immediately once this method is called. Using `TablePipeline.execute()` will execute the pipeline.
+* `Table.insertInto()` is called. This method is used for transforming an insertion of the table content to the given sink path into a `TablePipeline`, and the Table API is translated immediately once this method is called. Using `TablePipeline.execute()` will execute the pipeline.
 * `Table.execute()` is called. This method is used for collecting the table content to local client, and the Table API is translated immediately once this method is called.
-* `StatementSet.execute()` is called. A `TablePipeline` (emitted to a sink through `StatementSet.add()`) or an INSERT statement (specified through `StatementSet.addInsertSql()`) will be buffered in `StatementSet` first. They are translated once `StatementSet.execute()` is called. All sinks will be optimized into one DAG.
+* `StatementSet.execute()` is called. A `TablePipeline` (emitted to a sink through `StatementSet.add()`) or an INSERT statement (specified through `StatementSet.addInsertSql()`) will be buffered in `StatementSet` first. They are transformed once `StatementSet.execute()` is called. All sinks will be optimized into one DAG.
 * A `Table` is translated when it is converted into a `DataStream` (see [Integration with DataStream](#integration-with-datastream)). Once translated, it's a regular DataStream program and is executed when `StreamExecutionEnvironment.execute()` is called.
 
 {{< top >}}
