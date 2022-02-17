@@ -7,23 +7,24 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
-package org.apache.flink.streaming.connectors.gcp.pubsub.source.split;
+package org.apache.flink.connector.gcp.pubsub.source.split;
 
 import org.apache.flink.api.connector.source.SourceSplit;
+import org.apache.flink.connector.gcp.pubsub.source.PubSubSource;
 
 /**
- * A {@link SourceSplit} implementation for the {@link
- * org.apache.flink.streaming.connectors.gcp.pubsub.source.PubSubSource}. It only saves a generic
- * split ID because a split does not carry any specific information for pulling from a project
+ * A {@link SourceSplit} implementation for the {@link PubSubSource}. It only saves a generic split
+ * ID because a split does not carry any specific information for pulling from a project
  * subscription. That is because GCP Pub/Sub hides partitions and other implementation details.
  */
 public class PubSubSplit implements SourceSplit {

@@ -7,16 +7,17 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
-package org.apache.flink.streaming.connectors.gcp.pubsub.source;
+package org.apache.flink.connector.gcp.pubsub.source;
 
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -31,19 +32,19 @@ import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
+import org.apache.flink.connector.gcp.pubsub.source.enumerator.PubSubEnumeratorState;
+import org.apache.flink.connector.gcp.pubsub.source.enumerator.PubSubEnumeratorStateSerializer;
+import org.apache.flink.connector.gcp.pubsub.source.enumerator.PubSubSourceEnumerator;
+import org.apache.flink.connector.gcp.pubsub.source.reader.PubSubRecordEmitter;
+import org.apache.flink.connector.gcp.pubsub.source.reader.PubSubSourceReader;
+import org.apache.flink.connector.gcp.pubsub.source.reader.PubSubSplitReader;
+import org.apache.flink.connector.gcp.pubsub.source.split.PubSubSplit;
+import org.apache.flink.connector.gcp.pubsub.source.split.PubSubSplitSerializer;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.connectors.gcp.pubsub.DefaultPubSubSubscriberFactory;
 import org.apache.flink.streaming.connectors.gcp.pubsub.DeserializationSchemaWrapper;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubDeserializationSchema;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
-import org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator.PubSubEnumeratorState;
-import org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator.PubSubEnumeratorStateSerializer;
-import org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator.PubSubSourceEnumerator;
-import org.apache.flink.streaming.connectors.gcp.pubsub.source.reader.PubSubRecordEmitter;
-import org.apache.flink.streaming.connectors.gcp.pubsub.source.reader.PubSubSourceReader;
-import org.apache.flink.streaming.connectors.gcp.pubsub.source.reader.PubSubSplitReader;
-import org.apache.flink.streaming.connectors.gcp.pubsub.source.split.PubSubSplit;
-import org.apache.flink.streaming.connectors.gcp.pubsub.source.split.PubSubSplitSerializer;
 import org.apache.flink.util.Preconditions;
 
 import com.google.auth.Credentials;

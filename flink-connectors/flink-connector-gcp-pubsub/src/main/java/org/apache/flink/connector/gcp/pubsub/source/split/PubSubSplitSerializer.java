@@ -7,27 +7,27 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
-package org.apache.flink.streaming.connectors.gcp.pubsub.source.enumerator;
+package org.apache.flink.connector.gcp.pubsub.source.split;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
 
 /**
- * A stub to serialize the contents of a {@link PubSubEnumeratorState}. Because no data is stored in
- * such a checkpoint, no proper serialization is necessary.
+ * A stub to serialize instances of {@link PubSubSplit}. No real deserialization or serialization is
+ * carried out because of how generic the {@link PubSubSplit} is.
  */
-public class PubSubEnumeratorStateSerializer
-        implements SimpleVersionedSerializer<PubSubEnumeratorState> {
+public class PubSubSplitSerializer implements SimpleVersionedSerializer<PubSubSplit> {
     private static final int CURRENT_VERSION = 0;
 
     @Override
@@ -36,14 +36,14 @@ public class PubSubEnumeratorStateSerializer
     }
 
     @Override
-    public byte[] serialize(PubSubEnumeratorState enumeratorCheckpoint) throws IOException {
+    public byte[] serialize(PubSubSplit obj) throws IOException {
         return new byte[0];
     }
 
     @Override
-    public PubSubEnumeratorState deserialize(int version, byte[] serialized) throws IOException {
+    public PubSubSplit deserialize(int version, byte[] serialized) throws IOException {
         if (version == 0) {
-            return new PubSubEnumeratorState();
+            return new PubSubSplit();
         }
         throw new IOException(
                 String.format(

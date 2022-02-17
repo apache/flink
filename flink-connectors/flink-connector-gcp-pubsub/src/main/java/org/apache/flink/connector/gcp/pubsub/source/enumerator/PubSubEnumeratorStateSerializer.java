@@ -7,26 +7,28 @@
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
  *
- *     http://www.apache.org/licenses/LICENSE-2.0
+ *     https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
-package org.apache.flink.streaming.connectors.gcp.pubsub.source.split;
+package org.apache.flink.connector.gcp.pubsub.source.enumerator;
 
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import java.io.IOException;
 
 /**
- * A stub to serialize instances of {@link PubSubSplit}. No real deserialization or serialization is
- * carried out because of how generic the {@link PubSubSplit} is.
+ * A stub to serialize the contents of a {@link PubSubEnumeratorState}. Because no data is stored in
+ * such a checkpoint, no proper serialization is necessary.
  */
-public class PubSubSplitSerializer implements SimpleVersionedSerializer<PubSubSplit> {
+public class PubSubEnumeratorStateSerializer
+        implements SimpleVersionedSerializer<PubSubEnumeratorState> {
     private static final int CURRENT_VERSION = 0;
 
     @Override
@@ -35,14 +37,14 @@ public class PubSubSplitSerializer implements SimpleVersionedSerializer<PubSubSp
     }
 
     @Override
-    public byte[] serialize(PubSubSplit obj) throws IOException {
+    public byte[] serialize(PubSubEnumeratorState enumeratorCheckpoint) throws IOException {
         return new byte[0];
     }
 
     @Override
-    public PubSubSplit deserialize(int version, byte[] serialized) throws IOException {
+    public PubSubEnumeratorState deserialize(int version, byte[] serialized) throws IOException {
         if (version == 0) {
-            return new PubSubSplit();
+            return new PubSubEnumeratorState();
         }
         throw new IOException(
                 String.format(

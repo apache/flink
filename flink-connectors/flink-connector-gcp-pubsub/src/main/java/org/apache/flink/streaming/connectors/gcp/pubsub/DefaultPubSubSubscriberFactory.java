@@ -18,9 +18,9 @@
 
 package org.apache.flink.streaming.connectors.gcp.pubsub;
 
+import org.apache.flink.connector.gcp.pubsub.source.PubSubSource;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriber;
 import org.apache.flink.streaming.connectors.gcp.pubsub.common.PubSubSubscriberFactory;
-import org.apache.flink.streaming.connectors.gcp.pubsub.source.PubSubSource;
 
 import com.google.auth.Credentials;
 import com.google.cloud.pubsub.v1.stub.SubscriberStubSettings;
