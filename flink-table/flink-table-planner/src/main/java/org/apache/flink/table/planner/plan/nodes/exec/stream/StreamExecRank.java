@@ -213,8 +213,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                         RowType.of(sortSpec.getFieldTypes(inputType)),
                         sortSpecInSortKey);
         long cacheSize = config.get(TABLE_EXEC_RANK_TOPN_CACHE_SIZE);
-        StateTtlConfig ttlConfig =
-                StateConfigUtil.createTtlConfig(config.getIdleStateRetentionTime());
+        StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(config.getStateRetentionTime());
 
         AbstractTopNFunction processFunction;
         if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {

@@ -38,6 +38,7 @@ import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{
 
 import org.junit.runners.Parameterized
 
+import java.time.Duration
 import java.util
 
 import scala.collection.JavaConversions._
@@ -132,6 +133,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
     override def getMaxIdleStateRetentionTime: Long = maxIdleStateRetentionTime
 
     override def setIdleStateRetentionTime(minTime: Time, maxTime: Time): Unit = {
+      super.setIdleStateRetention(Duration.ofMillis(minTime.toMilliseconds))
       minIdleStateRetentionTime = minTime.toMilliseconds
       maxIdleStateRetentionTime = maxTime.toMilliseconds
     }

@@ -144,7 +144,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         }
 
         final int[] partitionKeys = overSpec.getPartition().getFieldIndices();
-        if (partitionKeys.length > 0 && config.getIdleStateRetentionTime() < 0) {
+        if (partitionKeys.length > 0 && config.getStateRetentionTime() < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent "
@@ -193,7 +193,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                         precedingOffset,
                         group.isRows(),
                         partitionKeys,
-                        config.getIdleStateRetentionTime(),
+                        config.getStateRetentionTime(),
                         config.getMaxIdleStateRetentionTime(),
                         mergedConfig,
                         planner.getTableConfig());

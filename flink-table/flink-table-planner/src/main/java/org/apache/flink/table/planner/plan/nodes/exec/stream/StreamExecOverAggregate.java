@@ -150,7 +150,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         }
 
         final int[] partitionKeys = overSpec.getPartition().getFieldIndices();
-        if (partitionKeys.length > 0 && config.getIdleStateRetentionTime() < 0) {
+        if (partitionKeys.length > 0 && config.getStateRetentionTime() < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent "
@@ -310,7 +310,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             if (isRowsClause) {
                 // ROWS unbounded over process function
                 return new RowTimeRowsUnboundedPrecedingFunction<>(
-                        config.getIdleStateRetentionTime(),
+                        config.getStateRetentionTime(),
                         config.getMaxIdleStateRetentionTime(),
                         genAggsHandler,
                         flattenAccTypes,
@@ -319,7 +319,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             } else {
                 // RANGE unbounded over process function
                 return new RowTimeRangeUnboundedPrecedingFunction<>(
-                        config.getIdleStateRetentionTime(),
+                        config.getStateRetentionTime(),
                         config.getMaxIdleStateRetentionTime(),
                         genAggsHandler,
                         flattenAccTypes,
@@ -328,7 +328,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             }
         } else {
             return new ProcTimeUnboundedPrecedingFunction<>(
-                    config.getIdleStateRetentionTime(),
+                    config.getStateRetentionTime(),
                     config.getMaxIdleStateRetentionTime(),
                     genAggsHandler,
                     flattenAccTypes);
@@ -396,7 +396,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         if (rowTimeIdx >= 0) {
             if (isRowsClause) {
                 return new RowTimeRowsBoundedPrecedingFunction<>(
-                        config.getIdleStateRetentionTime(),
+                        config.getStateRetentionTime(),
                         config.getMaxIdleStateRetentionTime(),
                         genAggsHandler,
                         flattenAccTypes,
@@ -410,7 +410,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         } else {
             if (isRowsClause) {
                 return new ProcTimeRowsBoundedPrecedingFunction<>(
-                        config.getIdleStateRetentionTime(),
+                        config.getStateRetentionTime(),
                         config.getMaxIdleStateRetentionTime(),
                         genAggsHandler,
                         flattenAccTypes,

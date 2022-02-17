@@ -102,7 +102,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
     @Override
     protected Transformation<RowData> translateToPlanInternal(
             PlannerBase planner, ExecNodeConfiguration config) {
-        if (grouping.length > 0 && config.getIdleStateRetentionTime() < 0) {
+        if (grouping.length > 0 && config.getStateRetentionTime() < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent excessive "
@@ -153,7 +153,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
                         accTypes,
                         inputCountIndex,
                         generateUpdateBefore,
-                        config.getIdleStateRetentionTime());
+                        config.getStateRetentionTime());
         final OneInputStreamOperator<RowData, RowData> operator =
                 new KeyedProcessOperator<>(aggFunction);
 

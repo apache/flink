@@ -131,7 +131,7 @@ public class StreamExecChangelogNormalize extends ExecNodeBase<RowData>
                 (InternalTypeInfo<RowData>) inputTransform.getOutputType();
 
         final OneInputStreamOperator<RowData, RowData> operator;
-        final long stateIdleTime = config.getIdleStateRetentionTime();
+        final long stateIdleTime = config.getStateRetentionTime();
         final boolean isMiniBatchEnabled =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
 

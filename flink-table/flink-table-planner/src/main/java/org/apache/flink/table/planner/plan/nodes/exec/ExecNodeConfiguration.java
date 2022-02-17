@@ -43,6 +43,10 @@ public class ExecNodeConfiguration implements ReadableConfig {
     private final ReadableConfig plannerConfig;
 
     // See https://issues.apache.org/jira/browse/FLINK-26190
+    // Used only for the deprecated getMaxIdleStateRetentionTime to also satisfy tests which
+    // manipulate maxIdleStateRetentionTime, like OverAggregateHarnessTest.
+    private final TableConfig originalTableConfig;
+    // See https://issues.apache.org/jira/browse/FLINK-26190
     private final TableConfig tableConfig;
 
     private final ReadableConfig persistedConfig;
@@ -51,6 +55,7 @@ public class ExecNodeConfiguration implements ReadableConfig {
             ReadableConfig plannerConfig, TableConfig tableConfig, ReadableConfig persistedConfig) {
         this.plannerConfig = plannerConfig;
         this.persistedConfig = persistedConfig;
+        this.originalTableConfig = tableConfig;
         this.tableConfig = TableConfig.getDefault();
         this.tableConfig.setNullCheck(tableConfig.getNullCheck());
         this.tableConfig.setDecimalContext(tableConfig.getDecimalContext());
@@ -89,15 +94,19 @@ public class ExecNodeConfiguration implements ReadableConfig {
     }
 
     /** @return The duration until state which was not updated will be retained. */
-    public long getIdleStateRetentionTime() {
+    public long getStateRetentionTime() {
         return get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis();
     }
 
     // See https://issues.apache.org/jira/browse/FLINK-26190
-    /** See {@link TableConfig#getMaxGeneratedCodeLength()}. */
+    /**
+     * Using {@link #originalTableConfig} to satisify tests like {@code OverAggregateHarnessTest},
+     * which use {@code HarnessTestBase#TestTableConfig} to individually manipulate the
+     * maxIdleStateRetentionTime. See {@link TableConfig#getMaxIdleStateRetentionTime()}.
+     */
     @Deprecated
     public long getMaxIdleStateRetentionTime() {
-        return tableConfig.getMaxGeneratedCodeLength();
+        return originalTableConfig.getMaxIdleStateRetentionTime();
     }
 
     // See https://issues.apache.org/jira/browse/FLINK-26190

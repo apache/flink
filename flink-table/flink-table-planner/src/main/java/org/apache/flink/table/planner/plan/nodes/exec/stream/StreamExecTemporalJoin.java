@@ -251,7 +251,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
             GeneratedJoinCondition generatedJoinCondition) {
 
         boolean isLeftOuterJoin = joinSpec.getJoinType() == FlinkJoinType.LEFT;
-        long minRetentionTime = config.getIdleStateRetentionTime();
+        long minRetentionTime = config.getStateRetentionTime();
         long maxRetentionTime = config.getMaxIdleStateRetentionTime();
         if (rightTimeAttributeIndex >= 0) {
             return new TemporalRowTimeJoinOperator(

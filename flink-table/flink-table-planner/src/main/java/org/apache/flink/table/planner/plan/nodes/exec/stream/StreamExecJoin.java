@@ -155,7 +155,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 JoinUtil.generateConditionFunction(
                         config.getTableConfig(), joinSpec, leftType, rightType);
 
-        long minRetentionTime = config.getIdleStateRetentionTime();
+        long minRetentionTime = config.getStateRetentionTime();
 
         AbstractStreamingJoinOperator operator;
         FlinkJoinType joinType = joinSpec.getJoinType();

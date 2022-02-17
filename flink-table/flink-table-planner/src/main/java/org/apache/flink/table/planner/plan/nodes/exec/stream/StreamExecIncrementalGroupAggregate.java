@@ -226,7 +226,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                         partialAggsHandler,
                         finalAggsHandler,
                         finalKeySelector,
-                        config.getIdleStateRetentionTime());
+                        config.getStateRetentionTime());
 
         final OneInputStreamOperator<RowData, RowData> operator =
                 new KeyedMapBundleOperator<>(

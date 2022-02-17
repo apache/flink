@@ -195,7 +195,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
             isCountWindow = false;
         }
 
-        if (isCountWindow && grouping.length > 0 && config.getIdleStateRetentionTime() < 0) {
+        if (isCountWindow && grouping.length > 0 && config.getStateRetentionTime() < 0) {
             LOGGER.warn(
                     "No state retention interval configured for a query which accumulates state."
                             + " Please provide a query configuration with valid retention interval to"
