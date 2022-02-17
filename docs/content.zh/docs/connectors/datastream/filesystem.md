@@ -258,7 +258,7 @@ new HiveSource<>(
 File Sink 将传入的数据写入存储桶中。考虑到输入流可以是无界的，每个桶中的数据被组织成有限大小的 Part 文件。
 完全可以配置为基于时间的方式往桶中写入数据，比如可以设置每个小时的数据写入一个新桶中。这意味着桶中将包含一个小时间隔内接收到的记录。
 
-桶目录中的数据被拆分成多个 Part 文件。对于相应的接收数据的桶的 Sink 的每个 Subtask ，每个桶将至少包含一个 Part 文件。将根据配置的滚动策略来创建其他 Part 文件。
+桶目录中的数据被拆分成多个 Part 文件。对于相应的接收数据的桶的 Sink 的每个 Subtask，每个桶将至少包含一个 Part 文件。将根据配置的滚动策略来创建其他 Part 文件。
 对于 `Row-encoded Formats`（参考 [Format Types](#sink-format-types)）默认的策略是根据 Part 文件大小进行滚动，需要指定文件打开状态最长时间的超时以及文件关闭后的非活动状态的超时时间。
 对于 `Bulk-encoded Formats` 在每次创建 Checkpoint 时进行滚动，并且用户也可以添加基于大小或者时间等的其他条件。
 
@@ -996,13 +996,13 @@ val sink = FileSink
 #### S3-具体提示
 
 <span class="label label-danger">重要提示 1</span>：对于 S3，`FileSink` 仅支持基于 [Hadoop-based](https://hadoop.apache.org/) 文件系统的实现，而不支持基于 [Presto](https://prestodb.io/) 的实现。
-如果 Job 中使用 `FileSink` 写入 S3，但是希望使用基于 Presto 的 Sink 去做 Checkpoint ，建议明确使用 *"s3a://"* （对于 Hadoop）作为 Sink 目标路径格式并且使用 *"s3p://"* 作为 Checkpoint 的目标路径格式（对于 Presto）。 
+如果 Job 中使用 `FileSink` 写入 S3，但是希望使用基于 Presto 的 Sink 去做 Checkpoint，建议明确使用 *"s3a://"* （对于 Hadoop）作为 Sink 目标路径格式并且使用 *"s3p://"* 作为 Checkpoint 的目标路径格式（对于 Presto）。 
 对于 Sink 和  Checkpoint  同时使用 *"s3://"* 可能导致不可控的行为，由于两者的实现 "监听" 同一格式路径。
 
 <span class="label label-danger">重要提示 2</span>：在保证高效的同时还要保证 exactly-once 语义，`FileSink` 使用了 S3 的 [Multi-part Upload](https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html) 功能（MPU 功能开箱即用）。
 此功能允许以独立的块上传文件（因此称为 "multi-part"），当 MPU 的所有块都上传成功时，这些块就可以合并生成原始文件。
 对于非活动的 MPU，S3 支持桶生命周期规则，用户可以使用该规则终止在启动后指定天数内未完成的多块上传操作。
-这意味着，如果设置了这个规则，并在某些文件未完全上传的情况下执行 Savepoint ，则其关联的 MPU 可能会在 Job 重启前超时。
+这意味着，如果设置了这个规则，并在某些文件未完全上传的情况下执行 Savepoint，则其关联的 MPU 可能会在 Job 重启前超时。
 这将导致 Job 无法从该 Savepoint 恢复，因为 Pending 状态的 Part 文件已不存在，那么 Flink Job 将失败并抛出异常，因为程序试图获取那些不存在的文件导致了失败。
 
 {{< top >}}
