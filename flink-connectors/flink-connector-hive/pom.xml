@@ -549,6 +549,13 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
 		<!--flink-java and flink-clients test dependencies used for HiveInputFormatTest-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
