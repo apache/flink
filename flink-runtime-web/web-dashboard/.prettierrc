@@ -9,6 +9,7 @@
   "bracketSpacing": true,
   "proseWrap": "preserve",
   "trailingComma": "none",
+  "endOfLine": "auto",
   "overrides": [
     {
       "files": ".prettierrc",
