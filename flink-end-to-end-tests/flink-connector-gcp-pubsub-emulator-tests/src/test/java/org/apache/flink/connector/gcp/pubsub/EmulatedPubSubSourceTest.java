@@ -25,7 +25,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.gcp.pubsub.source.PubSubSource;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.EmulatorCredentials;
 import org.apache.flink.streaming.connectors.gcp.pubsub.emulator.GCloudUnitTestBase;
@@ -126,8 +125,9 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
             fromPubSub = fromPubSub.map(new FailureMapFunction<>(3));
         }
 
-        List<String> output = new ArrayList<>();
-        DataStreamUtils.collect(fromPubSub).forEachRemaining(output::add);
+        // Asking for any more elements would wait forever, and there isn't a graceful way to
+        // indicate end of stream.
+        List<String> output = fromPubSub.executeAndCollect(input.size());
 
         assertEquals("Wrong number of elements", input.size(), output.size());
         for (String test : input) {
@@ -135,7 +135,7 @@ public class EmulatedPubSubSourceTest extends GCloudUnitTestBase {
         }
     }
 
-    private class FailureMapFunction<T> extends RichMapFunction<T, T> {
+    private static class FailureMapFunction<T> extends RichMapFunction<T, T> {
         private final long numberOfRecordsUntilFailure;
         private long numberOfRecordsProcessed;
 
