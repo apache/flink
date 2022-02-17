@@ -110,7 +110,6 @@ public class Elasticsearch7DynamicTableSourceITCase {
         DataStream<Integer> result = tEnv.toDataStream(tEnv.sqlQuery(query), Integer.class);
         TestingSinkFunction sink = new TestingSinkFunction();
         result.addSink(sink).setParallelism(1);
-        result.print("elasticsearch ");
 
         env.execute();
 

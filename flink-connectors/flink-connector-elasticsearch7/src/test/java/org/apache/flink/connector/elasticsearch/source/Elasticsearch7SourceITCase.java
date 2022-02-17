@@ -161,8 +161,6 @@ public class Elasticsearch7SourceITCase {
                     }
                 });
 
-        sourceRecords.print("Reading from source");
-
         List<String> result = env.execute().getAccumulatorResult("result");
         Assertions.assertEquals(NUM_RECORDS, result.size());
         for (int i = 0; i < NUM_RECORDS; i++) {
