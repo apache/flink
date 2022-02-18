@@ -120,6 +120,22 @@ under the License.
 		<!-- we don't override the version here. -->
 		<dependency>
 			<groupId>org.apache.pulsar</groupId>
+			<artifactId>testmocks</artifactId>
+			<version>${pulsar.version}</version>
+			<scope>test</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>org.testng</groupId>
+					<artifactId>testng</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>org.powermock</groupId>
+					<artifactId>powermock-module-testng</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.pulsar</groupId>
 			<artifactId>pulsar-broker</artifactId>
 			<version>${pulsar.version}</version>
 			<scope>test</scope>
@@ -236,7 +252,6 @@ under the License.
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-surefire-plugin</artifactId>
 				<configuration>
-					<skip>true</skip>
 					<!-- Enforce single fork execution due to heavy mini cluster use in the tests -->
 					<forkCount>1</forkCount>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber}
