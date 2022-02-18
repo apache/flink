@@ -98,8 +98,8 @@ class JMXReporterTest {
         Hashtable<String, String> jmxTable = JMXReporter.generateJmxTable(vars);
 
         assertThat(jmxTable).containsEntry("key0", "value0");
-        assertThat(jmxTable).containsEntry("key0", ("value0");
-        assertThat(jmxTable).containsEntry("key1","value1");
+        assertThat(jmxTable).containsEntry("key0", "value0");
+        assertThat(jmxTable).containsEntry("key1", "value1");
         assertThat(jmxTable).containsEntry("key2------", "value2_(test)------");
     }
 
