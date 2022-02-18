@@ -28,8 +28,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchema;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.module.jsonSchema.JsonSchemaGenerator;
 
-import org.junit.Assert;
-
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Collection;
@@ -40,6 +38,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Contains the compatibility checks that are applied by the {@link RestAPIStabilityTest}. New
@@ -53,28 +54,28 @@ enum CompatibilityRoutines {
                     "url",
                     String.class,
                     RestHandlerSpecification::getTargetRestEndpointURL,
-                    Assert::assertEquals);
+                    (expected, actual) -> assertThat(actual).isEqualTo(expected));
 
     private static final CompatibilityRoutine<String> METHOD_ROUTINE =
             new CompatibilityRoutine<>(
                     "method",
                     String.class,
                     header -> header.getHttpMethod().getNettyHttpMethod().name(),
-                    Assert::assertEquals);
+                    (expected, actual) -> assertThat(actual).isEqualTo(expected));
 
     private static final CompatibilityRoutine<String> STATUS_CODE_ROUTINE =
             new CompatibilityRoutine<>(
                     "status-code",
                     String.class,
                     header -> header.getResponseStatusCode().toString(),
-                    Assert::assertEquals);
+                    (expected, actual) -> assertThat(actual).isEqualTo(expected));
 
     private static final CompatibilityRoutine<Boolean> FILE_UPLOAD_ROUTINE =
             new CompatibilityRoutine<>(
                     "file-upload",
                     Boolean.class,
                     UntypedResponseMessageHeaders::acceptsFileUploads,
-                    Assert::assertEquals);
+                    (expected, actual) -> assertThat(actual).isEqualTo(expected));
 
     private static final CompatibilityRoutine<PathParameterContainer> PATH_PARAMETER_ROUTINE =
             new CompatibilityRoutine<>(
@@ -144,7 +145,7 @@ enum CompatibilityRoutines {
             final PathParameterContainer old, final PathParameterContainer cur) {
         for (final PathParameterContainer.PathParameter oldParam : old.pathParameters) {
             if (cur.pathParameters.stream().noneMatch(param -> param.key.equals(oldParam.key))) {
-                Assert.fail(String.format("Existing Path parameter %s was removed.", oldParam.key));
+                fail(String.format("Existing Path parameter %s was removed.", oldParam.key));
             }
         }
         // contrary to other routines path parameters must be completely identical between versions,
@@ -152,7 +153,7 @@ enum CompatibilityRoutines {
         // check both directions
         for (final PathParameterContainer.PathParameter curParam : cur.pathParameters) {
             if (old.pathParameters.stream().noneMatch(param -> param.key.equals(curParam.key))) {
-                Assert.fail(String.format("New path parameter %s was added.", curParam.key));
+                fail(String.format("New path parameter %s was added.", curParam.key));
             }
         }
     }
@@ -168,13 +169,13 @@ enum CompatibilityRoutines {
             if (matchingParameter.isPresent()) {
                 final QueryParameterContainer.QueryParameter newParam = matchingParameter.get();
                 if (!oldParam.mandatory && newParam.mandatory) {
-                    Assert.fail(
+                    fail(
                             String.format(
                                     "Previously optional query parameter %s is now mandatory.",
                                     oldParam.key));
                 }
             } else {
-                Assert.fail(String.format("Query parameter %s was removed.", oldParam.key));
+                fail(String.format("Query parameter %s was removed.", oldParam.key));
             }
         }
     }
@@ -203,7 +204,7 @@ enum CompatibilityRoutines {
             final JsonNode oldProperty = propertyPair.f0;
             final JsonNode curProperty = propertyPair.f1;
 
-            Assert.assertNotNull("Field " + oldProperty + " was removed.", curProperty);
+            assertThat(curProperty).describedAs("Field %s was removed.", oldProperty).isNotNull();
 
             final String oldType = oldProperty.get("type").asText();
             final String curType = curProperty.get("type").asText();
@@ -212,11 +213,10 @@ enum CompatibilityRoutines {
             // removing this custom code (and thus improving the schema) should be possible
             // hence we only check equality for other types
             if (!oldType.equals("any")) {
-                Assert.assertEquals(
-                        String.format(
-                                "Type of field was changed from '%s' to '%s'.", oldType, curType),
-                        oldType,
-                        curType);
+                assertThat(curType)
+                        .describedAs(
+                                "Type of field was changed from '%s' to '%s'.", oldType, curType)
+                        .isEqualTo(oldType);
             }
 
             if (oldType.equals("array")) {
@@ -242,7 +242,7 @@ enum CompatibilityRoutines {
                 // enum
                 JsonNode oldEnumValues = oldProperty.get("enum");
                 JsonNode curEnumValues = curProperty.get("enum");
-                Assert.assertEquals(oldEnumValues, curEnumValues);
+                assertThat(curEnumValues).isEqualTo(oldEnumValues);
             } // else assume basic types
         }
     }
