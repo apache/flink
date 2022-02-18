@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.checkpointing.utils;
+package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.accumulators.IntCounter;
@@ -45,6 +45,7 @@ import org.apache.flink.streaming.api.operators.TimestampedCollector;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.Ignore;
@@ -62,7 +63,7 @@ import static org.junit.Assert.assertEquals;
  * previous Flink versions, as well as for different state backends.
  */
 @RunWith(Parameterized.class)
-public class LegacyStatefulJobSavepointMigrationITCase extends SavepointMigrationTestBase {
+public class LegacyStatefulJobSavepointMigrationITCase extends SnapshotMigrationTestBase {
 
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
@@ -143,11 +144,12 @@ public class LegacyStatefulJobSavepointMigrationITCase extends SavepointMigratio
                 .uid("TimelyStatefulOperator")
                 .addSink(new AccumulatorCountingSink<Tuple2<Long, Long>>());
 
-        executeAndSavepoint(
+        executeAndSnapshot(
                 env,
                 "src/test/resources/"
                         + getSavepointPath(
                                 flinkGenerateSavepointVersion, flinkGenerateSavepointBackendType),
+                SnapshotType.SAVEPOINT_CANONICAL,
                 new Tuple2<>(
                         AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR, NUM_SOURCE_ELEMENTS));
     }

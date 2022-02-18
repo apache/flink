@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.test.checkpointing.utils;
+package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.accumulators.IntCounter;
@@ -28,8 +28,9 @@ import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.contrib.streaming.state.RocksDBStateBackend;
+import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackendLoader;
+import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -40,14 +41,17 @@ import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.test.checkpointing.utils.MigrationTestUtils;
+import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase;
 import org.apache.flink.util.Collector;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedList;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
@@ -56,59 +60,69 @@ import static org.junit.Assert.assertEquals;
  * previous Flink versions, as well as for different state backends.
  */
 @RunWith(Parameterized.class)
-public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestBase {
+public class StatefulJobSnapshotMigrationITCase extends SnapshotMigrationTestBase {
 
     private static final int NUM_SOURCE_ELEMENTS = 4;
 
-    /**
-     * This test runs in either of two modes: 1) we want to generate the binary savepoint, i.e. we
-     * have to run the checkpointing functions 2) we want to verify restoring, so we have to run the
-     * checking functions.
-     */
-    public enum ExecutionMode {
-        PERFORM_SAVEPOINT,
-        VERIFY_SAVEPOINT
-    }
+    // TODO increase this to newer version to create and test snapshot migration for newer versions
+    private static final FlinkVersion currentVersion = FlinkVersion.v1_14;
 
-    // TODO change this to PERFORM_SAVEPOINT to regenerate binary savepoints
-    // TODO Note: You should generate the savepoint based on the release branch instead of the
+    // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
+    // TODO Note: You should generate the snapshot based on the release branch instead of the
     // master.
-    private final ExecutionMode executionMode = ExecutionMode.VERIFY_SAVEPOINT;
+    private static final ExecutionMode executionMode = ExecutionMode.VERIFY_SNAPSHOT;
 
-    @Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
-    public static Collection<Tuple2<FlinkVersion, String>> parameters() {
-        return Arrays.asList(
-                Tuple2.of(FlinkVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_5, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_5, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_10, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_10, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_11, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_11, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_12, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_12, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_13, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_13, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_14, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-                Tuple2.of(FlinkVersion.v1_14, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME));
+    @Parameterized.Parameters(name = "Test snapshot: {0}")
+    public static Collection<SnapshotSpec> parameters() {
+        Collection<SnapshotSpec> parameters = new LinkedList<>();
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
+                        SnapshotType.SAVEPOINT_CANONICAL,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_4, FlinkVersion.v1_14)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
+                        SnapshotType.SAVEPOINT_CANONICAL,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
+                        SnapshotType.SAVEPOINT_CANONICAL,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_4, currentVersion)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
+                        SnapshotType.SAVEPOINT_NATIVE,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
+                        SnapshotType.SAVEPOINT_NATIVE,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
+                        SnapshotType.CHECKPOINT,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+        parameters.addAll(
+                SnapshotSpec.withVersions(
+                        StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
+                        SnapshotType.CHECKPOINT,
+                        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)));
+        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
+            parameters =
+                    parameters.stream()
+                            .filter(x -> x.getFlinkVersion().equals(currentVersion))
+                            .collect(Collectors.toList());
+        }
+        return parameters;
     }
 
-    private final FlinkVersion testMigrateVersion;
-    private final String testStateBackend;
+    private final SnapshotSpec snapshotSpec;
 
-    public StatefulJobSavepointMigrationITCase(
-            Tuple2<FlinkVersion, String> testMigrateVersionAndBackend) throws Exception {
-        this.testMigrateVersion = testMigrateVersionAndBackend.f0;
-        this.testStateBackend = testMigrateVersionAndBackend.f1;
+    public StatefulJobSnapshotMigrationITCase(SnapshotSpec snapshotSpec) throws Exception {
+        this.snapshotSpec = snapshotSpec;
     }
 
     @Test
@@ -119,12 +133,15 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setRestartStrategy(RestartStrategies.noRestart());
 
-        switch (testStateBackend) {
+        switch (snapshotSpec.getStateBackendType()) {
             case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
-                env.setStateBackend(new RocksDBStateBackend(new MemoryStateBackend()));
+                env.setStateBackend(new EmbeddedRocksDBStateBackend());
                 break;
             case StateBackendLoader.MEMORY_STATE_BACKEND_NAME:
                 env.setStateBackend(new MemoryStateBackend());
+                break;
+            case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME:
+                env.setStateBackend(new HashMapStateBackend());
                 break;
             default:
                 throw new UnsupportedOperationException();
@@ -140,7 +157,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
         RichFlatMapFunction<Tuple2<Long, Long>, Tuple2<Long, Long>> flatMap;
         OneInputStreamOperator<Tuple2<Long, Long>, Tuple2<Long, Long>> timelyOperator;
 
-        if (executionMode == ExecutionMode.PERFORM_SAVEPOINT) {
+        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
             nonParallelSource =
                     new MigrationTestUtils.CheckpointingNonParallelSourceWithListState(
                             NUM_SOURCE_ELEMENTS);
@@ -149,7 +166,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
                             NUM_SOURCE_ELEMENTS);
             flatMap = new CheckpointingKeyedStateFlatMap();
             timelyOperator = new CheckpointingTimelyStatefulOperator();
-        } else if (executionMode == ExecutionMode.VERIFY_SAVEPOINT) {
+        } else if (executionMode == ExecutionMode.VERIFY_SNAPSHOT) {
             nonParallelSource =
                     new MigrationTestUtils.CheckingNonParallelSourceWithListState(
                             NUM_SOURCE_ELEMENTS);
@@ -190,17 +207,20 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
                 .uid("CheckpointingTimelyStatefulOperator2")
                 .addSink(new MigrationTestUtils.AccumulatorCountingSink<>());
 
-        if (executionMode == ExecutionMode.PERFORM_SAVEPOINT) {
-            executeAndSavepoint(
+        final String snapshotPath = getSnapshotPath(snapshotSpec);
+
+        if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
+            executeAndSnapshot(
                     env,
-                    "src/test/resources/" + getSavepointPath(testMigrateVersion, testStateBackend),
+                    "src/test/resources/" + snapshotPath,
+                    snapshotSpec.getSnapshotType(),
                     new Tuple2<>(
                             MigrationTestUtils.AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
                             NUM_SOURCE_ELEMENTS * 2));
         } else {
             restoreAndExecute(
                     env,
-                    getResourceFilename(getSavepointPath(testMigrateVersion, testStateBackend)),
+                    getResourceFilename(snapshotPath),
                     new Tuple2<>(
                             MigrationTestUtils.CheckingNonParallelSourceWithListState
                                     .SUCCESSFUL_RESTORE_CHECK_ACCUMULATOR,
@@ -228,17 +248,8 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
         }
     }
 
-    private String getSavepointPath(FlinkVersion savepointVersion, String backendType) {
-        switch (backendType) {
-            case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME:
-                return "new-stateful-udf-migration-itcase-flink"
-                        + savepointVersion
-                        + "-rocksdb-savepoint";
-            case StateBackendLoader.MEMORY_STATE_BACKEND_NAME:
-                return "new-stateful-udf-migration-itcase-flink" + savepointVersion + "-savepoint";
-            default:
-                throw new UnsupportedOperationException();
-        }
+    private static String getSnapshotPath(SnapshotSpec snapshotSpec) {
+        return "new-stateful-udf-migration-itcase-" + snapshotSpec;
     }
 
     private static class CheckpointingKeyedStateFlatMap
