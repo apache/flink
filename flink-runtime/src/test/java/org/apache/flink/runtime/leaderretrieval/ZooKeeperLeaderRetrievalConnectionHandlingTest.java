@@ -19,23 +19,21 @@
 package org.apache.flink.runtime.leaderretrieval;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.HighAvailabilityOptions;
-import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
+import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerExtension;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
-import org.apache.curator.test.TestingServer;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.annotation.Nullable;
 
@@ -49,50 +47,37 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for the error handling in case of a suspended connection to the ZooKeeper instance when
  * retrieving the leader information.
  */
-public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+class ZooKeeperLeaderRetrievalConnectionHandlingTest {
 
-    private TestingServer testingServer;
+    @RegisterExtension
+    private final TestingFatalErrorHandlerExtension fatalErrorHandlerResource =
+            new TestingFatalErrorHandlerExtension();
 
-    private CuratorFrameworkWithUnhandledErrorListener curatorFrameworkWrapper;
+    @RegisterExtension
+    private final EachCallbackWrapper<ZooKeeperExtension> zooKeeperExtension =
+            new EachCallbackWrapper<>(new ZooKeeperExtension());
 
-    private CuratorFramework zooKeeperClient;
+    @Nullable private CuratorFramework zooKeeperClient;
 
-    @Rule
-    public final TestingFatalErrorHandlerResource fatalErrorHandlerResource =
-            new TestingFatalErrorHandlerResource();
-
-    @Before
+    @BeforeEach
     public void before() throws Exception {
-        testingServer = new TestingServer();
-
-        final Configuration config = new Configuration();
-        config.setString(
-                HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM, testingServer.getConnectString());
-
-        curatorFrameworkWrapper =
-                ZooKeeperUtils.startCuratorFramework(
-                        config, fatalErrorHandlerResource.getFatalErrorHandler());
-        zooKeeperClient = curatorFrameworkWrapper.asCuratorFramework();
+        zooKeeperClient =
+                zooKeeperExtension
+                        .getCustomExtension()
+                        .getZooKeeperClient(
+                                fatalErrorHandlerResource.getTestingFatalErrorHandler());
         zooKeeperClient.blockUntilConnected();
     }
 
-    @After
-    public void after() throws Exception {
-        closeTestServer();
-
-        if (curatorFrameworkWrapper != null) {
-            curatorFrameworkWrapper.close();
-            curatorFrameworkWrapper = null;
-        }
+    private ZooKeeperExtension getZooKeeper() {
+        return zooKeeperExtension.getCustomExtension();
     }
 
     @Test
@@ -106,26 +91,25 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                     ZooKeeperUtils.createLeaderRetrievalDriverFactory(zooKeeperClient)
                             .createLeaderRetrievalDriver(
                                     queueLeaderElectionListener,
-                                    fatalErrorHandlerResource.getFatalErrorHandler());
+                                    fatalErrorHandlerResource.getTestingFatalErrorHandler());
 
             // do the testing
             final CompletableFuture<String> firstAddress =
                     queueLeaderElectionListener.next(Duration.ofMillis(50));
-            assertThat(
-                    "No results are expected, yet, since no leader was elected.",
-                    firstAddress,
-                    is(nullValue()));
+            assertThat(firstAddress)
+                    .as("No results are expected, yet, since no leader was elected.")
+                    .isNull();
 
-            restartTestServer();
+            getZooKeeper().restart();
 
             // QueueLeaderElectionListener will be notified with an empty leader when ZK connection
             // is suspended
             final CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
-            assertThat("The next result must not be missing.", secondAddress, is(notNullValue()));
-            assertThat(
-                    "The next result is expected to be null.",
-                    secondAddress.get(),
-                    is(nullValue()));
+            assertThat(secondAddress)
+                    .as("The next result must not be missing.")
+                    .isNotNull()
+                    .as("The next result is expected to be null.")
+                    .isCompletedWithValue(null);
         } finally {
             if (leaderRetrievalDriver != null) {
                 leaderRetrievalDriver.close();
@@ -149,7 +133,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                             queueLeaderElectionListener,
                             ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
                                     .ON_SUSPENDED_CONNECTION,
-                            fatalErrorHandlerResource.getFatalErrorHandler());
+                            fatalErrorHandlerResource.getTestingFatalErrorHandler());
 
             writeLeaderInformationToZooKeeper(
                     leaderRetrievalDriver.getConnectionInformationPath(),
@@ -158,19 +142,18 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
 
             // do the testing
             CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
-            assertThat(
-                    "The first result is expected to be the initially set leader address.",
-                    firstAddress.get(),
-                    is(leaderAddress));
+            assertThat(firstAddress)
+                    .as("The first result is expected to be the initially set leader address.")
+                    .isCompletedWithValue(leaderAddress);
 
-            restartTestServer();
+            getZooKeeper().restart();
 
             CompletableFuture<String> secondAddress = queueLeaderElectionListener.next();
-            assertThat("The next result must not be missing.", secondAddress, is(notNullValue()));
-            assertThat(
-                    "The next result is expected to be null.",
-                    secondAddress.get(),
-                    is(nullValue()));
+            assertThat(secondAddress)
+                    .as("The next result must not be missing.")
+                    .isNotNull()
+                    .as("The next result is expected to be null.")
+                    .isCompletedWithValue(null);
         } finally {
             if (leaderRetrievalDriver != null) {
                 leaderRetrievalDriver.close();
@@ -195,7 +178,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                             queueLeaderElectionListener,
                             ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
                                     .ON_LOST_CONNECTION,
-                            fatalErrorHandlerResource.getFatalErrorHandler());
+                            fatalErrorHandlerResource.getTestingFatalErrorHandler());
 
             writeLeaderInformationToZooKeeper(
                     leaderRetrievalDriver.getConnectionInformationPath(),
@@ -204,15 +187,14 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
 
             // do the testing
             CompletableFuture<String> firstAddress = queueLeaderElectionListener.next();
-            assertThat(
-                    "The first result is expected to be the initially set leader address.",
-                    firstAddress.get(),
-                    is(leaderAddress));
+            assertThat(firstAddress)
+                    .as("The first result is expected to be the initially set leader address.")
+                    .isCompletedWithValue(leaderAddress);
 
-            closeTestServer();
+            getZooKeeper().close();
 
             // make sure that no new leader information is published
-            assertThat(queueLeaderElectionListener.next(Duration.ofMillis(100L)), is(nullValue()));
+            assertThat(queueLeaderElectionListener.next(Duration.ofMillis(100L))).isNull();
         } finally {
             if (leaderRetrievalDriver != null) {
                 leaderRetrievalDriver.close();
@@ -234,7 +216,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                             queueLeaderElectionListener,
                             ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
                                     .ON_SUSPENDED_CONNECTION,
-                            fatalErrorHandlerResource.getFatalErrorHandler());
+                            fatalErrorHandlerResource.getTestingFatalErrorHandler());
 
             final String leaderAddress = "foobar";
             final UUID sessionId = UUID.randomUUID();
@@ -244,7 +226,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
             // pop new leader
             queueLeaderElectionListener.next();
 
-            testingServer.stop();
+            getZooKeeper().stop();
 
             final CompletableFuture<String> connectionSuspension =
                     queueLeaderElectionListener.next();
@@ -252,12 +234,12 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
             // wait until the ZK connection is suspended
             connectionSuspension.join();
 
-            testingServer.restart();
+            getZooKeeper().restart();
 
             // new old leader information should be announced
             final CompletableFuture<String> connectionReconnect =
                     queueLeaderElectionListener.next();
-            assertThat(connectionReconnect.get(), is(leaderAddress));
+            assertThat(connectionReconnect).isCompletedWithValue(leaderAddress);
         } finally {
             if (leaderRetrievalDriver != null) {
                 leaderRetrievalDriver.close();
@@ -304,7 +286,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                             queueLeaderElectionListener,
                             ZooKeeperLeaderRetrievalDriver.LeaderInformationClearancePolicy
                                     .ON_SUSPENDED_CONNECTION,
-                            fatalErrorHandlerResource.getFatalErrorHandler());
+                            fatalErrorHandlerResource.getTestingFatalErrorHandler());
 
             final String leaderAddress = "foobar";
             final UUID sessionId = UUID.randomUUID();
@@ -314,7 +296,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
             // pop new leader
             queueLeaderElectionListener.next();
 
-            testingServer.stop();
+            getZooKeeper().stop();
 
             final CompletableFuture<String> connectionSuspension =
                     queueLeaderElectionListener.next();
@@ -322,7 +304,7 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
             // wait until the ZK connection is suspended
             connectionSuspension.join();
 
-            testingServer.restart();
+            getZooKeeper().restart();
 
             final String newLeaderAddress = "barfoo";
             final UUID newSessionId = UUID.randomUUID();
@@ -344,18 +326,6 @@ public class ZooKeeperLeaderRetrievalConnectionHandlingTest extends TestLogger {
                 leaderRetrievalDriver.close();
             }
         }
-    }
-
-    private void closeTestServer() throws IOException {
-        if (testingServer != null) {
-            testingServer.close();
-            testingServer = null;
-        }
-    }
-
-    private void restartTestServer() throws Exception {
-        Preconditions.checkNotNull(testingServer, "TestingServer needs to be initialized.")
-                .restart();
     }
 
     private static class QueueLeaderElectionListener implements LeaderRetrievalEventHandler {
