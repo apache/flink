@@ -68,7 +68,13 @@ class PulsarSinkITCase extends PulsarTestSuiteBase {
 
         ControlSource source =
                 new ControlSource(
-                        sharedObjects, operator(), topic, guarantee, counts, Duration.ofMinutes(5));
+                        sharedObjects,
+                        operator(),
+                        topic,
+                        guarantee,
+                        counts,
+                        Duration.ofMillis(50),
+                        Duration.ofMinutes(5));
         PulsarSink<String> sink =
                 PulsarSink.builder()
                         .setServiceUrl(operator().serviceUrl())
@@ -80,8 +86,11 @@ class PulsarSinkITCase extends PulsarTestSuiteBase {
                         .build();
 
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
         env.setParallelism(PARALLELISM);
-        env.enableCheckpointing(100L);
+        if (guarantee != DeliveryGuarantee.NONE) {
+            env.enableCheckpointing(500L);
+        }
         env.addSource(source).sinkTo(sink);
         env.execute();
 

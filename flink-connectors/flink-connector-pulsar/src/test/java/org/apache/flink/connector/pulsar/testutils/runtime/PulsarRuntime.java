@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.testutils.runtime;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime;
 import org.apache.flink.connector.pulsar.testutils.runtime.embedded.PulsarEmbeddedRuntime;
+import org.apache.flink.connector.pulsar.testutils.runtime.mock.PulsarMockRuntime;
 
 import org.testcontainers.containers.GenericContainer;
 
@@ -39,18 +40,23 @@ public interface PulsarRuntime {
     void tearDown();
 
     /**
-     * Return a operator for operating this pulsar runtime. This operator predefined a set of
+     * Return an operator for operating this pulsar runtime. This operator predefined a set of
      * extremely useful methods for Pulsar. You can easily add new methods in this operator.
      */
     PulsarRuntimeOperator operator();
 
+    /** Create a Pulsar instance which would mock all the backends. */
+    static PulsarRuntime mock() {
+        return new PulsarMockRuntime();
+    }
+
     /**
-     * Create a standalone Pulsar instance in test thread. We would start a embedded zookeeper and
+     * Create a standalone Pulsar instance in test thread. We would start an embedded zookeeper and
      * bookkeeper. The stream storage for bookkeeper is disabled. The function worker is disabled on
      * Pulsar broker.
      *
-     * <p>This runtime would be faster than {@link #container()} and behaves the same like the
-     * {@link #container()}.
+     * <p>This runtime would be faster than {@link #container()} and behaves the same as the {@link
+     * #container()}.
      */
     static PulsarRuntime embedded() {
         return new PulsarEmbeddedRuntime();

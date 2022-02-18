@@ -44,7 +44,6 @@ import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClient;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -65,16 +64,9 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
 
     private static final SinkWriter.Context CONTEXT = new MockSinkWriterContext();
 
-    @Test
-    void writeMessageWithGuarantee() throws Exception {
-        writeMessageWithoutGuarantee(EXACTLY_ONCE);
-    }
-
     @ParameterizedTest
-    @EnumSource(
-            value = DeliveryGuarantee.class,
-            names = {"AT_LEAST_ONCE", "NONE"})
-    void writeMessageWithoutGuarantee(DeliveryGuarantee guarantee) throws Exception {
+    @EnumSource(DeliveryGuarantee.class)
+    void writeMessages(DeliveryGuarantee guarantee) throws Exception {
         String topic = randomAlphabetic(10);
         operator().createTopic(topic, 8);
 
