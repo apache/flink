@@ -1113,6 +1113,7 @@ abstract class TableTestUtil(
    * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
    */
   @deprecated
+  @Deprecated
   def addFunction[T: TypeInformation](
       name: String,
       function: TableFunction[T]): Unit = testingTableEnv.registerFunction(name, function)
@@ -1121,6 +1122,7 @@ abstract class TableTestUtil(
    * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
    */
   @deprecated
+  @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = testingTableEnv.registerFunction(name, function)
@@ -1129,6 +1131,7 @@ abstract class TableTestUtil(
    * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
    */
   @deprecated
+  @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: TableAggregateFunction[T, ACC]): Unit = {
@@ -1148,22 +1151,28 @@ abstract class ScalaTableTestUtil(
   override def getTableEnv: TableEnvironment = tableEnv
 
   /**
-   * Registers a [[TableFunction]] under given name into the TableEnvironment's catalog.
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
    */
+  @deprecated
+  @Deprecated
   def addFunction[T: TypeInformation](
       name: String,
       function: TableFunction[T]): Unit = tableEnv.registerFunction(name, function)
 
   /**
-   * Registers a [[AggregateFunction]] under given name into the TableEnvironment's catalog.
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
    */
+  @deprecated
+  @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 
   /**
-   * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
    */
+  @deprecated
+  @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
@@ -1181,22 +1190,28 @@ abstract class JavaTableTestUtil(
   override def getTableEnv: TableEnvironment = tableEnv
 
   /**
-   * Registers a [[TableFunction]] under given name into the TableEnvironment's catalog.
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
    */
+  @deprecated
+  @Deprecated
   def addFunction[T: TypeInformation](
       name: String,
       function: TableFunction[T]): Unit = tableEnv.registerFunction(name, function)
 
   /**
-   * Registers a [[AggregateFunction]] under given name into the TableEnvironment's catalog.
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
    */
+  @deprecated
+  @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: AggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
 
   /**
-   * Registers a [[TableAggregateFunction]] under given name into the TableEnvironment's catalog.
+   * @deprecated Use [[addTemporarySystemFunction()]] for the new type inference.
    */
+  @deprecated
+  @Deprecated
   def addFunction[T: TypeInformation, ACC: TypeInformation](
       name: String,
       function: TableAggregateFunction[T, ACC]): Unit = tableEnv.registerFunction(name, function)
