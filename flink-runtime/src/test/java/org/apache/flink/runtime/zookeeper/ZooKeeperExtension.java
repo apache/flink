@@ -40,12 +40,12 @@ public class ZooKeeperExtension implements CustomExtension {
     @Nullable private TestingServer zooKeeperServer;
 
     public String getConnectString() {
-        verifyIsRunning();
-        return zooKeeperServer.getConnectString();
+        return getRunningZookeeperInstanceOrFail().getConnectString();
     }
 
-    private void verifyIsRunning() {
+    private TestingServer getRunningZookeeperInstanceOrFail() {
         Preconditions.checkState(zooKeeperServer != null);
+        return zooKeeperServer;
     }
 
     @Override
@@ -71,12 +71,10 @@ public class ZooKeeperExtension implements CustomExtension {
     }
 
     public void restart() throws Exception {
-        Preconditions.checkNotNull(zooKeeperServer);
-        zooKeeperServer.restart();
+        getRunningZookeeperInstanceOrFail().restart();
     }
 
     public void stop() throws IOException {
-        Preconditions.checkNotNull(zooKeeperServer);
-        zooKeeperServer.stop();
+        getRunningZookeeperInstanceOrFail().stop();
     }
 }
