@@ -159,7 +159,15 @@ public class TableConfigOptions {
     // Enum option types
     // ------------------------------------------------------------------------------------------
 
-    /** Strategy to compile {@link Catalog} objects into a plan. */
+    /**
+     * Strategy to compile {@link Catalog} objects into a plan.
+     *
+     * <p>Depending on the configuration, permanent catalog metadata (such as information about
+     * tables and functions) will be persisted in the plan as well. Anonymous/inline objects will be
+     * persisted, including schema and options, if possible or fail the compilation otherwise. For
+     * temporary objects, only the identifier is part of the plan and the object needs to be present
+     * in the session context during a restore.
+     */
     @PublicEvolving
     public enum CatalogPlanCompilation implements DescribedEnum {
         ALL(
@@ -178,18 +186,14 @@ public class TableConfigOptions {
                                 + "functions, or data types will be persisted into the plan during "
                                 + "compilation. A schema allows for detecting incompatible changes "
                                 + "in the catalog during a plan restore operation. However, all "
-                                + "other metadata will still be retrieved from the catalog. "
-                                + "This option does not apply to anonymous tables, functions and data types, "
-                                + "which will always include schema and options.")),
+                                + "other metadata will still be retrieved from the catalog.")),
 
         IDENTIFIER(
                 text(
                         "Only the identifier of catalog tables, functions, or data types will be "
                                 + "persisted into the plan during compilation. All metadata will "
                                 + "be retrieved from the catalog during a restore operation. With "
-                                + "this strategy, plans become less verbose. "
-                                + "This option does not apply to anonymous tables, functions and data types, "
-                                + "which will always include schema and options."));
+                                + "this strategy, plans become less verbose."));
 
         private final InlineElement description;
 
