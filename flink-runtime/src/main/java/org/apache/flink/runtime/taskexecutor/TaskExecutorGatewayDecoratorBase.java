@@ -231,10 +231,10 @@ public class TaskExecutorGatewayDecoratorBase implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
-            ExecutionAttemptID taskExecutionAttemptId,
+            Collection<ExecutionAttemptID> taskExecutionAttemptIds,
             ThreadInfoSamplesRequest requestParams,
             Time timeout) {
         return originalGateway.requestThreadInfoSamples(
-                taskExecutionAttemptId, requestParams, timeout);
+                taskExecutionAttemptIds, requestParams, timeout);
     }
 }

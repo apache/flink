@@ -21,30 +21,30 @@ package org.apache.flink.runtime.messages;
 import org.apache.flink.util.Preconditions;
 
 import java.io.Serializable;
-import java.util.List;
+import java.util.Collection;
 
 /** Response to the request to collect thread details samples. */
 public class TaskThreadInfoResponse implements Serializable {
 
     private static final long serialVersionUID = -4786454630050578031L;
 
-    private final List<ThreadInfoSample> samples;
+    private final Collection<ThreadInfoSample> samples;
 
     /**
      * Creates a response to the request to collect thread details samples.
      *
      * @param samples Thread info samples.
      */
-    public TaskThreadInfoResponse(List<ThreadInfoSample> samples) {
+    public TaskThreadInfoResponse(Collection<ThreadInfoSample> samples) {
         this.samples = Preconditions.checkNotNull(samples);
     }
 
     /**
-     * Returns a list of ThreadInfoSample.
+     * Returns a collection of ThreadInfoSample.
      *
-     * @return List of thread info samples for a particular execution attempt (Task)
+     * @return A collection of thread info samples for a particular execution attempt (Task)
      */
-    public List<ThreadInfoSample> getSamples() {
+    public Collection<ThreadInfoSample> getSamples() {
         return samples;
     }
 }
