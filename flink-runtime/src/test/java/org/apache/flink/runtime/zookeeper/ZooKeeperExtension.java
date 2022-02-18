@@ -56,7 +56,7 @@ public class ZooKeeperExtension implements CustomExtension {
 
     private void terminateZooKeeperServer() throws IOException {
         if (zooKeeperServer != null) {
-            zooKeeperServer.stop();
+            zooKeeperServer.close();
             zooKeeperServer = null;
         }
     }
