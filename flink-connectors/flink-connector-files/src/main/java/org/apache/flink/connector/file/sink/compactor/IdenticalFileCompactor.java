@@ -20,8 +20,8 @@ package org.apache.flink.connector.file.sink.compactor;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.filesystem.CompactingFileWriter;
 
+import java.io.OutputStream;
 import java.util.List;
 
 import static org.apache.flink.util.Preconditions.checkState;
@@ -37,9 +37,8 @@ public class IdenticalFileCompactor extends ConcatFileCompactor {
         super();
     }
 
-    @Override
-    public void compact(List<Path> inputFiles, CompactingFileWriter writer) throws Exception {
+    public void compact(List<Path> inputFiles, OutputStream outputStream) throws Exception {
         checkState(inputFiles.size() == 1, "IdenticalFileCompactor can only copy one input file");
-        super.compact(inputFiles, writer);
+        super.compact(inputFiles, outputStream);
     }
 }

@@ -20,32 +20,22 @@ package org.apache.flink.connector.file.sink.compactor;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.filesystem.CompactingFileWriter;
-import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedCompactingFileWriter;
 import org.apache.flink.util.CloseShieldOutputStream;
 
 import java.io.OutputStream;
 import java.util.List;
 
 /**
- * Base class for {@link FileCompactor} implementations that use the {@link
- * OutputStreamBasedCompactingFileWriter}.
+ * Base class for {@link FileCompactor} implementations that write the compacting file by a output
+ * stream.
  */
 @PublicEvolving
 public abstract class OutputStreamBasedFileCompactor implements FileCompactor {
-    @Override
-    public final CompactingFileWriter.Type getWriterType() {
-        return CompactingFileWriter.Type.OUTPUT_STREAM;
-    }
 
-    @Override
-    public void compact(List<Path> inputFiles, CompactingFileWriter writer) throws Exception {
-        // The outputStream returned by OutputStreamBasedCompactingFileWriter#asOutputStream should
-        // not be closed here.
-        CloseShieldOutputStream outputStream =
-                new CloseShieldOutputStream(
-                        ((OutputStreamBasedCompactingFileWriter) writer).asOutputStream());
-        doCompact(inputFiles, outputStream);
+    public void compact(List<Path> inputFiles, OutputStream outputStream) throws Exception {
+        // The outputStream should not be closed here.
+        CloseShieldOutputStream shieldOutputStream = new CloseShieldOutputStream(outputStream);
+        doCompact(inputFiles, shieldOutputStream);
     }
 
     protected abstract void doCompact(List<Path> inputFiles, OutputStream outputStream)
