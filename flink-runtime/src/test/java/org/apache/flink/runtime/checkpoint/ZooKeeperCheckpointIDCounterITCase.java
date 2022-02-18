@@ -23,28 +23,27 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for the {@link ZooKeeperCheckpointIDCounter}. The tests are inherited from the test
  * base class {@link CheckpointIDCounterTestBase}.
  */
-public class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestBase {
+class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestBase {
 
     private static final ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
 
-    @AfterClass
-    public static void tearDown() throws Exception {
+    @AfterAll
+    private static void tearDown() throws Exception {
         ZooKeeper.shutdown();
     }
 
-    @Before
-    public void cleanUp() throws Exception {
+    @BeforeEach
+    private void cleanUp() throws Exception {
         ZooKeeper.deleteAll();
     }
 
@@ -55,10 +54,10 @@ public class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestB
         counter.start();
 
         CuratorFramework client = ZooKeeper.getClient();
-        assertNotNull(client.checkExists().forPath(counter.getPath()));
+        assertThat(client.checkExists().forPath(counter.getPath())).isNotNull();
 
         counter.shutdown(JobStatus.FINISHED);
-        assertNull(client.checkExists().forPath(counter.getPath()));
+        assertThat(client.checkExists().forPath(counter.getPath())).isNull();
     }
 
     /** Tests that counter node is NOT removed from ZooKeeper after suspend. */
@@ -68,10 +67,10 @@ public class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestB
         counter.start();
 
         CuratorFramework client = ZooKeeper.getClient();
-        assertNotNull(client.checkExists().forPath(counter.getPath()));
+        assertThat(client.checkExists().forPath(counter.getPath())).isNotNull();
 
         counter.shutdown(JobStatus.SUSPENDED);
-        assertNotNull(client.checkExists().forPath(counter.getPath()));
+        assertThat(client.checkExists().forPath(counter.getPath())).isNotNull();
     }
 
     @Override
