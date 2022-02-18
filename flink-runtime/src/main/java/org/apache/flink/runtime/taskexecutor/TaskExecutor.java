@@ -546,23 +546,29 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
 
     @Override
     public CompletableFuture<TaskThreadInfoResponse> requestThreadInfoSamples(
-            final ExecutionAttemptID taskExecutionAttemptId,
+            final Collection<ExecutionAttemptID> taskExecutionAttemptIds,
             final ThreadInfoSamplesRequest requestParams,
             final Time timeout) {
 
-        final Task task = taskSlotTable.getTask(taskExecutionAttemptId);
-        if (task == null) {
-            return FutureUtils.completedExceptionally(
-                    new IllegalStateException(
-                            String.format(
-                                    "Cannot sample task %s. "
-                                            + "Task is not known to the task manager.",
-                                    taskExecutionAttemptId)));
+        final Collection<Task> tasks = new ArrayList<>();
+        for (ExecutionAttemptID executionAttemptId : taskExecutionAttemptIds) {
+            final Task task = taskSlotTable.getTask(executionAttemptId);
+            if (task == null) {
+                log.warn(
+                        String.format(
+                                "Cannot sample task %s. "
+                                        + "Task is not known to the task manager.",
+                                executionAttemptId));
+            } else {
+                tasks.add(task);
+            }
         }
 
-        final CompletableFuture<List<ThreadInfoSample>> stackTracesFuture =
-                threadInfoSampleService.requestThreadInfoSamples(
-                        SampleableTaskAdapter.fromTask(task), requestParams);
+        Collection<SampleableTask> sampleableTasks =
+                tasks.stream().map(SampleableTaskAdapter::fromTask).collect(Collectors.toList());
+
+        final CompletableFuture<Collection<ThreadInfoSample>> stackTracesFuture =
+                threadInfoSampleService.requestThreadInfoSamples(sampleableTasks, requestParams);
 
         return stackTracesFuture.thenApply(TaskThreadInfoResponse::new);
     }
