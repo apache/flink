@@ -18,7 +18,7 @@
 
 package org.apache.flink.streaming.api.functions.sink.filesystem;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter.PendingFileRecoverable;
 
 import java.io.IOException;
@@ -31,7 +31,7 @@ import java.io.IOException;
  * both. If an class implements both interfaces, once the write method of either interface is
  * called, the write method in the other one should be disabled.
  */
-@PublicEvolving
+@Internal
 public interface CompactingFileWriter {
 
     /**
@@ -44,7 +44,7 @@ public interface CompactingFileWriter {
     PendingFileRecoverable closeForCommit() throws IOException;
 
     /** Enum defining the types of {@link CompactingFileWriter}. */
-    @PublicEvolving
+    @Internal
     enum Type {
         RECORD_WISE,
         OUTPUT_STREAM

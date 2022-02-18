@@ -1013,11 +1013,13 @@ val fileSink: FileSink[Integer] =
 目前有两个并行的条件：目标文件大小与间隔的 Checkpoint 数量。当目前缓存的文件的总大小达到指定的阈值，或自上次合并后经过的 Checkpoint 次数已经达到指定次数时，
 `FileSink` 将创建一个异步任务来合并当前缓存的文件。
 
-{{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactor.html" name="FileCompactor">}} 指定如何将给定的路径列表对应的文件进行合并将结果写入
-到 {{< javadoc file="org/apache/flink/streaming/api/functions/sink/filesystem//CompactingFileWriter.html" name="CompactingFileWriter">}} 中。根据所给定的 `CompactingFileWriter` 的类型，它可以分为两类：
+{{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactor.html" name="FileCompactor">}} 指定如何将给定的路径列表对应的文件进行合并将结果写入到文件中。
+根据如何写文件，它可以分为两类：
 
-- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/OutputStreamBasedFileCompactor.html" name="OutputStreamBasedFileCompactor">}}** : 这种类型的 `CompactingFileWriter` 可以被转换为一个输出流，用户可以将合并后的结果直接写入该流中。这种类型的 `CompactingFileWriter` 的一个例子是 {{< javadoc file="org/apache/flink/connector/file/sink/compactor/ConcatFileCompactor.html" name="ConcatFileCompactor">}}，它直接将给定的文件进行合并并将结果写到输出流中。
-- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}}** ：这种类型的 `CompactingFileWriter` 允许用户将按条写入记录。`CompactingFileWriter` 的一个例子是 {{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}} ，它从给定的文件中读出记录并写出到 `CompactingFileWriter` 中。用户需要指定如何从原始文件中读出记录。
+- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/OutputStreamBasedFileCompactor.html" name="OutputStreamBasedFileCompactor">}}** : 
+  用户将合并后的结果写入一个输出流中。通常在用户不希望或者无法从输入文件中读取记录时使用。这种类型的 `CompactingFileWriter` 的一个例子是 {{< javadoc file="org/apache/flink/connector/file/sink/compactor/ConcatFileCompactor.html" name="ConcatFileCompactor">}}，它直接将给定的文件进行合并并将结果写到输出流中。
+- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}}** ：
+  这种类型的 `CompactingFileWriter` 会逐条读出输入文件的记录用户，然后和`FileWriter`一样写入输出文件中。`CompactingFileWriter` 的一个例子是 {{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}} ，它从给定的文件中读出记录并写出到 `CompactingFileWriter` 中。用户需要指定如何从原始文件中读出记录。
 
 {{< hint info >}}
 **重要** 如果启用了文件合并功能，文件可见的时间会被延长。

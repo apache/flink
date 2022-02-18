@@ -21,11 +21,16 @@ package org.apache.flink.connector.file.sink.compactor.operator;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.connector.file.sink.compactor.FileCompactor;
+import org.apache.flink.connector.file.sink.compactor.OutputStreamBasedFileCompactor;
+import org.apache.flink.connector.file.sink.compactor.RecordWiseFileCompactor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.util.Hardware;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 import org.apache.flink.streaming.api.functions.sink.filesystem.CompactingFileWriter;
+import org.apache.flink.streaming.api.functions.sink.filesystem.CompactingFileWriter.Type;
 import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter.PendingFileRecoverable;
+import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedCompactingFileWriter;
+import org.apache.flink.streaming.api.functions.sink.filesystem.RecordWiseCompactingFileWriter;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import java.io.IOException;
@@ -44,6 +49,7 @@ public class CompactService {
 
     private final int numCompactThreads;
     private final FileCompactor fileCompactor;
+    private final CompactingFileWriter.Type compactingWriterType;
     private final BucketWriter<?, String> bucketWriter;
 
     private transient ExecutorService compactService;
@@ -55,6 +61,7 @@ public class CompactService {
         this.numCompactThreads = numCompactThreads;
         this.fileCompactor = fileCompactor;
         this.bucketWriter = bucketWriter;
+        this.compactingWriterType = getWriterType(fileCompactor);
     }
 
     public void open() {
@@ -84,10 +91,11 @@ public class CompactService {
         }
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     private Iterable<FileSinkCommittable> compact(CompactorRequest request) throws Exception {
         List<FileSinkCommittable> results = new ArrayList<>(request.getCommittableToPassthrough());
 
-        List<Path> compactingFiles = getCompactingPath(request, results);
+        List<Path> compactingFiles = getCompactingPath(request);
         if (compactingFiles.isEmpty()) {
             return results;
         }
@@ -95,11 +103,22 @@ public class CompactService {
         Path targetPath = assembleCompactedFilePath(compactingFiles.get(0));
         CompactingFileWriter compactingFileWriter =
                 bucketWriter.openNewCompactingFile(
-                        fileCompactor.getWriterType(),
+                        compactingWriterType,
                         request.getBucketId(),
                         targetPath,
                         System.currentTimeMillis());
-        fileCompactor.compact(compactingFiles, compactingFileWriter);
+        if (compactingWriterType == Type.RECORD_WISE) {
+            ((RecordWiseFileCompactor) fileCompactor)
+                    .compact(
+                            compactingFiles,
+                            ((RecordWiseCompactingFileWriter) compactingFileWriter)::write);
+        } else if (compactingWriterType == CompactingFileWriter.Type.OUTPUT_STREAM) {
+            ((OutputStreamBasedFileCompactor) fileCompactor)
+                    .compact(
+                            compactingFiles,
+                            ((OutputStreamBasedCompactingFileWriter) compactingFileWriter)
+                                    .asOutputStream());
+        }
         PendingFileRecoverable compactedPendingFile = compactingFileWriter.closeForCommit();
 
         FileSinkCommittable compacted =
@@ -113,9 +132,7 @@ public class CompactService {
         return results;
     }
 
-    // results: side output pass through committable
-    private List<Path> getCompactingPath(
-            CompactorRequest request, List<FileSinkCommittable> results) throws IOException {
+    private List<Path> getCompactingPath(CompactorRequest request) throws IOException {
         List<FileSinkCommittable> compactingCommittable = request.getCommittableToCompact();
         List<Path> compactingFiles = new ArrayList<>();
 
@@ -143,5 +160,17 @@ public class CompactService {
             uncompactedName = uncompactedName.substring(1);
         }
         return new Path(uncompactedPath.getParent(), COMPACTED_PREFIX + uncompactedName);
+    }
+
+    private static CompactingFileWriter.Type getWriterType(FileCompactor fileCompactor) {
+        if (fileCompactor instanceof OutputStreamBasedFileCompactor) {
+            return CompactingFileWriter.Type.OUTPUT_STREAM;
+        } else if (fileCompactor instanceof RecordWiseFileCompactor) {
+            return CompactingFileWriter.Type.RECORD_WISE;
+        } else {
+            throw new UnsupportedOperationException(
+                    "Unable to crate compacting file writer for compactor:"
+                            + fileCompactor.getClass());
+        }
     }
 }

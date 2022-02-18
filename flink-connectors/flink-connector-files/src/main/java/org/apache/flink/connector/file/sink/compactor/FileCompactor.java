@@ -19,30 +19,15 @@
 package org.apache.flink.connector.file.sink.compactor;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.filesystem.CompactingFileWriter;
 
 import java.io.Serializable;
-import java.util.List;
 
 /**
  * The {@link FileCompactor} is responsible for compacting files into one file.
  *
- * <p>The {@link FileCompactor} should declare which type of {@link CompactingFileWriter} is
- * required, and invoke the writer correspondingly.
+ * <p>Users should never implement the interface directly but use either {@link
+ * OutputStreamBasedFileCompactor} or {@link RecordWiseFileCompactor}. Other implementations will
+ * cause UnsupportedOperationException at runtime.
  */
 @PublicEvolving
-public interface FileCompactor extends Serializable {
-
-    /** @return the {@link CompactingFileWriter} type the compactor will use. */
-    CompactingFileWriter.Type getWriterType();
-
-    /**
-     * Compact the given files into one file.
-     *
-     * @param inputFiles the files to be compacted.
-     * @param writer the writer to write the compacted file.
-     * @throws Exception Thrown if an exception occurs during the compacting.
-     */
-    void compact(List<Path> inputFiles, CompactingFileWriter writer) throws Exception;
-}
+public interface FileCompactor extends Serializable {}

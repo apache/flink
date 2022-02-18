@@ -20,8 +20,6 @@ package org.apache.flink.connector.file.sink.compactor;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.streaming.api.functions.sink.filesystem.CompactingFileWriter;
-import org.apache.flink.streaming.api.functions.sink.filesystem.RecordWiseCompactingFileWriter;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -29,7 +27,7 @@ import java.util.List;
 
 /**
  * A {@link FileCompactor} implementation that reads input files with a {@link Reader} and writes
- * with the {@link RecordWiseCompactingFileWriter}.
+ * with a {@link Writer}.
  */
 @PublicEvolving
 public class RecordWiseFileCompactor<IN> implements FileCompactor {
@@ -39,23 +37,25 @@ public class RecordWiseFileCompactor<IN> implements FileCompactor {
         this.readerFactory = readerFactory;
     }
 
-    @Override
-    public final CompactingFileWriter.Type getWriterType() {
-        return CompactingFileWriter.Type.RECORD_WISE;
-    }
-
-    @Override
-    public void compact(List<Path> inputFiles, CompactingFileWriter writer) throws Exception {
-        RecordWiseCompactingFileWriter<IN> recordWriter =
-                (RecordWiseCompactingFileWriter<IN>) writer;
+    public void compact(List<Path> inputFiles, Writer<IN> writer) throws Exception {
         for (Path input : inputFiles) {
             try (Reader<IN> reader = readerFactory.createFor(input)) {
                 IN elem;
                 while ((elem = reader.read()) != null) {
-                    recordWriter.write(elem);
+                    writer.write(elem);
                 }
             }
         }
+    }
+
+    /**
+     * The writer that writers record into the compacting files.
+     *
+     * @param <T> Thy type of the records that is read.
+     */
+    @PublicEvolving
+    public interface Writer<T> {
+        void write(T record) throws IOException;
     }
 
     /**
