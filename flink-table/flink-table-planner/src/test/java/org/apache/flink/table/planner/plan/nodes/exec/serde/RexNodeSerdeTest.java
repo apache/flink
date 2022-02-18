@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -271,8 +272,7 @@ public class RexNodeSerdeTest {
                                 BridgingSqlFunction.of(
                                         flinkContext,
                                         FACTORY,
-                                        null, // identifier
-                                        new ScalarFunc1()),
+                                        ContextResolvedFunction.anonymous(new ScalarFunc1())),
                                 rexBuilder.makeInputRef(
                                         FACTORY.createSqlType(SqlTypeName.INTEGER), 0)),
                         // type_of($0)
@@ -280,9 +280,11 @@ public class RexNodeSerdeTest {
                                 BridgingSqlFunction.of(
                                         flinkContext,
                                         FACTORY,
-                                        FunctionIdentifier.of(
-                                                BuiltInFunctionDefinitions.TYPE_OF.getName()),
-                                        BuiltInFunctionDefinitions.TYPE_OF),
+                                        ContextResolvedFunction.permanent(
+                                                FunctionIdentifier.of(
+                                                        BuiltInFunctionDefinitions.TYPE_OF
+                                                                .getName()),
+                                                BuiltInFunctionDefinitions.TYPE_OF)),
                                 rexBuilder.makeInputRef(
                                         FACTORY.createSqlType(SqlTypeName.INTEGER), 0)),
                         rexBuilder.makePatternFieldRef(

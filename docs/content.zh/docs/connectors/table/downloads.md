@@ -4,7 +4,7 @@ weight: 100
 type: docs
 bookToc: false
 aliases:
-  - /dev/table/connectors/downloads.html
+  - /zh/dev/table/connectors/downloads.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

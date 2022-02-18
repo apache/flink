@@ -386,7 +386,10 @@ public abstract class ClusterEntrypoint implements AutoCloseableAsync, FatalErro
 
             final RpcService metricQueryServiceRpcService =
                     MetricUtils.startRemoteMetricsRpcService(
-                            configuration, commonRpcService.getAddress(), rpcSystem);
+                            configuration,
+                            commonRpcService.getAddress(),
+                            configuration.getString(JobManagerOptions.BIND_HOST),
+                            rpcSystem);
             metricRegistry.startQueryService(metricQueryServiceRpcService, null);
 
             final String hostname = RpcUtils.getHostname(commonRpcService);

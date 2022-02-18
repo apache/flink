@@ -27,10 +27,6 @@ import java.util.List;
 
 /** Common test context for pulsar based test. */
 public abstract class PulsarTestContext<T> implements DataStreamSourceExternalContext<T> {
-    private static final long serialVersionUID = 1L;
-
-    private static final int NUM_RECORDS_UPPER_BOUND = 500;
-    private static final int NUM_RECORDS_LOWER_BOUND = 100;
 
     protected final PulsarRuntimeOperator operator;
     protected final List<URL> connectorJarPaths;

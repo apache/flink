@@ -31,8 +31,30 @@ Flink provides utilities for testing your job that you can add as dependencies.
 You need to add the following dependencies if you want to develop tests for a job built with the 
 DataStream API:
 
+{{< tabs "datastream test" >}}
+
+{{< tab "Maven" >}}
+Open the `pom.xml` file in your project directory and add these dependencies in between the dependencies tab.
 {{< artifact flink-test-utils withTestScope >}}
 {{< artifact flink-runtime withTestScope >}}
+{{< /tab >}}
+
+{{< tab "Gradle" >}}
+Open the `build.gradle` file in your project directory and add the following in the dependencies block.
+```gradle
+...
+dependencies {
+    ...  
+    testImplementation "org.apache.flink:flink-test-utils:${flinkVersion}"
+    testImplementation "org.apache.flink:flink-runtime:${flinkVersion}"
+    ...
+}
+...
+```
+**Note:** This assumes that you have created your project using our Gradle build script or quickstart script.
+{{< /tab >}}
+
+{{< /tabs >}}
 
 For more information on how to use these utilities, check out the section on [DataStream API testing]({{< ref "docs/dev/datastream/testing" >}})
 
@@ -41,7 +63,28 @@ For more information on how to use these utilities, check out the section on [Da
 If you want to test the Table API & SQL programs locally within your IDE, you can add the following 
 dependency:
 
+{{< tabs "table test" >}}
+
+{{< tab "Maven" >}}
+Open the `pom.xml` file in your project directory and add this dependency in between the dependencies tab.
 {{< artifact flink-table-test-utils withTestScope >}}
+{{< /tab >}}
+
+{{< tab "Gradle" >}}
+Open the `build.gradle` file in your project directory and add the following in the dependencies block.
+```gradle
+...
+dependencies {
+    ...  
+    testImplementation "org.apache.flink:flink-table-test-utils:${flinkVersion}"
+    ...
+}
+...
+```
+**Note:** This assumes that you have created your project using our Gradle build script or quickstart script.
+{{< /tab >}}
+
+{{< /tabs >}}
 
 This will automatically bring in the query planner and the runtime, required respectively to plan 
 and execute the queries.

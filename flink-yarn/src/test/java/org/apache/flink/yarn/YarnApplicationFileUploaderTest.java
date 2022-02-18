@@ -18,8 +18,10 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -33,14 +35,17 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.yarn.YarnTestUtils.generateFilesInDirectory;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link YarnApplicationFileUploader}. */
@@ -100,6 +105,35 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testRegisterProvidedLocalResourcesWithNotAllowedUsrLib() throws IOException {
+        final File flinkHomeDir = temporaryFolder.newFolder();
+        final File flinkLibDir = new File(flinkHomeDir, "lib");
+        final File flinkUsrLibDir = new File(flinkHomeDir, "usrlib");
+        final Map<String, String> libJars = getLibJars();
+        final Map<String, String> usrLibJars = getUsrLibJars();
+
+        generateFilesInDirectory(flinkLibDir, libJars);
+        generateFilesInDirectory(flinkUsrLibDir, usrLibJars);
+        final List<Path> providedLibDirs = new ArrayList<>();
+        providedLibDirs.add(new Path(flinkLibDir.toURI()));
+        providedLibDirs.add(new Path(flinkUsrLibDir.toURI()));
+
+        assertThatThrownBy(
+                        () ->
+                                YarnApplicationFileUploader.from(
+                                        FileSystem.get(new YarnConfiguration()),
+                                        new Path(flinkHomeDir.getPath()),
+                                        providedLibDirs,
+                                        ApplicationId.newInstance(0, 0),
+                                        DFSConfigKeys.DFS_REPLICATION_DEFAULT))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "Provided lib directories, configured via %s, should not include %s.",
+                        YarnConfigOptions.PROVIDED_LIB_DIRS.key(),
+                        ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
+    }
+
     private static Map<String, String> getLibJars() {
         final HashMap<String, String> libJars = new HashMap<>(4);
         final String jarContent = "JAR Content";
@@ -109,5 +143,14 @@ public class YarnApplicationFileUploaderTest extends TestLogger {
         libJars.put("flink-table.jar", jarContent);
 
         return libJars;
+    }
+
+    private static Map<String, String> getUsrLibJars() {
+        final HashMap<String, String> usrLibJars = new HashMap<>();
+        final String jarContent = "JAR Content";
+
+        usrLibJars.put("udf.jar", jarContent);
+
+        return usrLibJars;
     }
 }

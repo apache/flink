@@ -565,6 +565,17 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
     }
 
     @Override
+    public CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
+            OperatorID operatorID, SerializedValue<CoordinationRequest> serializedRequest) {
+        try {
+            final CoordinationRequest request = serializedRequest.deserializeValue(userCodeLoader);
+            return schedulerNG.deliverCoordinationRequestToCoordinator(operatorID, request);
+        } catch (Exception e) {
+            return FutureUtils.completedExceptionally(e);
+        }
+    }
+
+    @Override
     public CompletableFuture<KvStateLocation> requestKvStateLocation(
             final JobID jobId, final String registrationName) {
         try {
@@ -876,12 +887,7 @@ public class JobMaster extends PermanentlyFencedRpcEndpoint<JobMasterId>
             OperatorID operatorId,
             SerializedValue<CoordinationRequest> serializedRequest,
             Time timeout) {
-        try {
-            CoordinationRequest request = serializedRequest.deserializeValue(userCodeLoader);
-            return schedulerNG.deliverCoordinationRequestToCoordinator(operatorId, request);
-        } catch (Exception e) {
-            return FutureUtils.completedExceptionally(e);
-        }
+        return this.sendRequestToCoordinator(operatorId, serializedRequest);
     }
 
     @Override

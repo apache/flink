@@ -316,7 +316,7 @@ public abstract class FileSystem {
      * @param pluginManager optional plugin manager that is used to initialized filesystems provided
      *     as plugins.
      */
-    public static void initialize(Configuration config, PluginManager pluginManager)
+    public static void initialize(Configuration config, @Nullable PluginManager pluginManager)
             throws IllegalConfigurationException {
 
         LOCK.lock();

@@ -18,10 +18,11 @@
 package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
+import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -37,6 +38,7 @@ import software.amazon.awssdk.services.firehose.model.Record;
 import software.amazon.awssdk.services.firehose.model.ResourceNotFoundException;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -103,6 +105,34 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
             boolean failOnError,
             String deliveryStreamName,
             Properties firehoseClientProperties) {
+        this(
+                elementConverter,
+                context,
+                maxBatchSize,
+                maxInFlightRequests,
+                maxBufferedRequests,
+                maxBatchSizeInBytes,
+                maxTimeInBufferMS,
+                maxRecordSizeInBytes,
+                failOnError,
+                deliveryStreamName,
+                firehoseClientProperties,
+                Collections.emptyList());
+    }
+
+    KinesisFirehoseSinkWriter(
+            ElementConverter<InputT, Record> elementConverter,
+            Sink.InitContext context,
+            int maxBatchSize,
+            int maxInFlightRequests,
+            int maxBufferedRequests,
+            long maxBatchSizeInBytes,
+            long maxTimeInBufferMS,
+            long maxRecordSizeInBytes,
+            boolean failOnError,
+            String deliveryStreamName,
+            Properties firehoseClientProperties,
+            Collection<BufferedRequestState<Record>> initialStates) {
         super(
                 elementConverter,
                 context,
@@ -111,7 +141,8 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
                 maxBufferedRequests,
                 maxBatchSizeInBytes,
                 maxTimeInBufferMS,
-                maxRecordSizeInBytes);
+                maxRecordSizeInBytes,
+                initialStates);
         this.failOnError = failOnError;
         this.deliveryStreamName = deliveryStreamName;
         this.metrics = context.metricGroup();

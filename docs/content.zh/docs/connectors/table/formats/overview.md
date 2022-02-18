@@ -3,7 +3,7 @@ title: "Formats"
 weight: 1
 type: docs
 aliases:
-  - /dev/table/connectors/formats/
+  - /zh/dev/table/connectors/formats/
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -77,6 +77,11 @@ Flink 支持以下格式：
         </tr>
         <tr>
          <td><a href="{{< ref "docs/connectors/table/formats/maxwell" >}}">Maxwell CDC</a></td>
+          <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a>,
+           <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
+        </tr>
+        <tr>
+         <td><a href="{{< ref "docs/connectors/table/formats/ogg" >}}">OGG CDC</a></td>
           <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a>,
            <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
         </tr>

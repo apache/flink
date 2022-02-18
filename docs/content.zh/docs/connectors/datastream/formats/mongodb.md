@@ -3,8 +3,8 @@ title:  "MongoDb"
 weight: 4
 type: docs
 aliases:
-- /dev/connectors/formats/mongodb.html
-- /apis/streaming/connectors/formats/mongodb.html
+- /zh/dev/connectors/formats/mongodb.html
+- /zh/apis/streaming/connectors/formats/mongodb.html
 
 ---
 <!--

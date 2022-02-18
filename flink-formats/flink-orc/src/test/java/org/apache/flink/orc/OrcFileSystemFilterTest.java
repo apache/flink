@@ -49,7 +49,8 @@ public class OrcFileSystemFilterTest {
         args.add(valueLiteralExpression);
 
         CallExpression equalExpression =
-                new CallExpression(BuiltInFunctionDefinitions.EQUALS, args, DataTypes.BOOLEAN());
+                CallExpression.permanent(
+                        BuiltInFunctionDefinitions.EQUALS, args, DataTypes.BOOLEAN());
         OrcFilters.Predicate predicate1 = OrcFilters.toOrcPredicate(equalExpression);
         OrcFilters.Predicate predicate2 =
                 new OrcFilters.Equals("long1", PredicateLeaf.Type.LONG, 10);
@@ -57,7 +58,7 @@ public class OrcFileSystemFilterTest {
 
         // greater than
         CallExpression greaterExpression =
-                new CallExpression(
+                CallExpression.permanent(
                         BuiltInFunctionDefinitions.GREATER_THAN, args, DataTypes.BOOLEAN());
         OrcFilters.Predicate predicate3 = OrcFilters.toOrcPredicate(greaterExpression);
         OrcFilters.Predicate predicate4 =
@@ -67,7 +68,8 @@ public class OrcFileSystemFilterTest {
 
         // less than
         CallExpression lessExpression =
-                new CallExpression(BuiltInFunctionDefinitions.LESS_THAN, args, DataTypes.BOOLEAN());
+                CallExpression.permanent(
+                        BuiltInFunctionDefinitions.LESS_THAN, args, DataTypes.BOOLEAN());
         OrcFilters.Predicate predicate5 = OrcFilters.toOrcPredicate(lessExpression);
         OrcFilters.Predicate predicate6 =
                 new OrcFilters.LessThan("long1", PredicateLeaf.Type.LONG, 10);

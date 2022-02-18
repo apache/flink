@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.core.fs.AutoCloseableRegistry;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
-import org.apache.flink.runtime.source.coordinator.SourceCoordinator.WatermarkAlignmentParams;
 import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 
@@ -55,6 +55,35 @@ public class SourceCoordinatorAlignmentTest extends SourceCoordinatorTestBase {
             reportWatermarkEvent(sourceCoordinator1, subtask0, 5000);
             assertLatestWatermarkAlignmentEvent(subtask0, 1044);
             assertLatestWatermarkAlignmentEvent(subtask1, 1044);
+        }
+    }
+
+    @Test
+    public void testWatermarkAlignmentWithIdleness() throws Exception {
+        try (AutoCloseableRegistry closeableRegistry = new AutoCloseableRegistry()) {
+            SourceCoordinator<?, ?> sourceCoordinator1 =
+                    getAndStartNewSourceCoordinator(
+                            new WatermarkAlignmentParams(1000L, "group1", Long.MAX_VALUE),
+                            closeableRegistry);
+
+            int subtask0 = 0;
+            int subtask1 = 1;
+            reportWatermarkEvent(sourceCoordinator1, subtask0, 42);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1042);
+
+            reportWatermarkEvent(sourceCoordinator1, subtask1, 44);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1042);
+            assertLatestWatermarkAlignmentEvent(subtask1, 1042);
+
+            // subtask0 becomes idle
+            reportWatermarkEvent(sourceCoordinator1, subtask0, Long.MAX_VALUE);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1044);
+            assertLatestWatermarkAlignmentEvent(subtask1, 1044);
+
+            // subtask0 becomes active again
+            reportWatermarkEvent(sourceCoordinator1, subtask0, 42);
+            assertLatestWatermarkAlignmentEvent(subtask0, 1042);
+            assertLatestWatermarkAlignmentEvent(subtask1, 1042);
         }
     }
 

@@ -21,7 +21,7 @@ package org.apache.flink.streaming.connectors.kinesis.table;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.aws.table.util.AWSOptionUtils;
-import org.apache.flink.connector.kinesis.table.util.KinesisAsyncClientOptionsUtils;
+import org.apache.flink.connector.aws.table.util.AsyncClientOptionsUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -31,9 +31,8 @@ import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.S
 
 /**
  * Class for handling kinesis table options, including key mapping and validations and property
- * extraction. Class uses options decorators {@link AWSOptionUtils}, {@link
- * KinesisAsyncClientOptionsUtils} and {@link KinesisConsumerOptionsUtil} for handling each
- * specified set of options.
+ * extraction. Class uses options decorators {@link AWSOptionUtils}, {@link AsyncClientOptionsUtils}
+ * and {@link KinesisConsumerOptionsUtil} for handling each specified set of options.
  */
 @Internal
 public class KinesisConnectorOptionsUtil {

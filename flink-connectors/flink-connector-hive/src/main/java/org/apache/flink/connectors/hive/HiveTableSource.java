@@ -40,6 +40,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -76,6 +77,8 @@ public class HiveTableSource
                 SupportsProjectionPushDown,
                 SupportsLimitPushDown {
 
+    private static final String HIVE_TRANSFORMATION = "hive";
+
     protected final JobConf jobConf;
     protected final ReadableConfig flinkConf;
     protected final ObjectPath tablePath;
@@ -109,8 +112,9 @@ public class HiveTableSource
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext runtimeProviderContext) {
         return new DataStreamScanProvider() {
             @Override
-            public DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
-                return getDataStream(execEnv);
+            public DataStream<RowData> produceDataStream(
+                    ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
+                return getDataStream(providerContext, execEnv);
             }
 
             @Override
@@ -121,14 +125,18 @@ public class HiveTableSource
     }
 
     @VisibleForTesting
-    protected DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
+    protected DataStream<RowData> getDataStream(
+            ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
         HiveSourceBuilder sourceBuilder =
                 new HiveSourceBuilder(jobConf, flinkConf, tablePath, hiveVersion, catalogTable)
                         .setProjectedFields(projectedFields)
                         .setLimit(limit);
 
         if (isStreamingSource()) {
-            return toDataStreamSource(execEnv, sourceBuilder.buildWithDefaultBulkFormat());
+            DataStreamSource<RowData> sourceStream =
+                    toDataStreamSource(execEnv, sourceBuilder.buildWithDefaultBulkFormat());
+            providerContext.generateUid(HIVE_TRANSFORMATION).ifPresent(sourceStream::uid);
+            return sourceStream;
         } else {
             List<HiveTablePartition> hivePartitionsToRead =
                     getAllPartitions(

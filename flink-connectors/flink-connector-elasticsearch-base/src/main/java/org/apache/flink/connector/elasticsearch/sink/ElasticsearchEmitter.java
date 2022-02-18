@@ -20,7 +20,7 @@ package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.Function;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 
 import org.elasticsearch.action.ActionRequest;
 

@@ -19,8 +19,9 @@ package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.Preconditions;
@@ -29,14 +30,12 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.function.Consumer;
-import java.util.stream.Collectors;
 
 /**
  * A generic sink writer that handles the general behaviour of a sink such as batching and flushing,
@@ -52,10 +51,10 @@ import java.util.stream.Collectors;
  */
 @PublicEvolving
 public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable>
-        implements SinkWriter<InputT, Void, Collection<RequestEntryT>> {
+        implements StatefulSink.StatefulSinkWriter<InputT, BufferedRequestState<RequestEntryT>> {
 
     private final MailboxExecutor mailboxExecutor;
-    private final Sink.ProcessingTimeService timeService;
+    private final ProcessingTimeService timeService;
 
     /* The timestamp of the previous batch of records was sent from this sink. */
     private long lastSendTimestamp = 0;
@@ -209,6 +208,28 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
             long maxBatchSizeInBytes,
             long maxTimeInBufferMS,
             long maxRecordSizeInBytes) {
+        this(
+                elementConverter,
+                context,
+                maxBatchSize,
+                maxInFlightRequests,
+                maxBufferedRequests,
+                maxBatchSizeInBytes,
+                maxTimeInBufferMS,
+                maxRecordSizeInBytes,
+                Collections.emptyList());
+    }
+
+    public AsyncSinkWriter(
+            ElementConverter<InputT, RequestEntryT> elementConverter,
+            Sink.InitContext context,
+            int maxBatchSize,
+            int maxInFlightRequests,
+            int maxBufferedRequests,
+            long maxBatchSizeInBytes,
+            long maxTimeInBufferMS,
+            long maxRecordSizeInBytes,
+            Collection<BufferedRequestState<RequestEntryT>> states) {
         this.elementConverter = elementConverter;
         this.mailboxExecutor = context.getMailboxExecutor();
         this.timeService = context.getProcessingTimeService();
@@ -250,18 +271,19 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
                                     throw exception;
                                 },
                                 "A fatal exception occurred in the sink that cannot be recovered from or should not be retried.");
+
+        initializeState(states);
     }
 
     private void registerCallback() {
-        Sink.ProcessingTimeService.ProcessingTimeCallback ptc =
+        ProcessingTimeService.ProcessingTimeCallback ptc =
                 instant -> {
                     existsActiveTimerCallback = false;
                     while (!bufferedRequestEntries.isEmpty()) {
                         flush();
                     }
                 };
-        timeService.registerProcessingTimer(
-                timeService.getCurrentProcessingTime() + maxTimeInBufferMS, ptc);
+        timeService.registerTimer(timeService.getCurrentProcessingTime() + maxTimeInBufferMS, ptc);
         existsActiveTimerCallback = true;
     }
 
@@ -388,15 +410,13 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * <p>To this end, all in-flight requests need to completed before proceeding with the commit.
      */
     @Override
-    public List<Void> prepareCommit(boolean flush) {
+    public void flush(boolean flush) {
         while (inFlightRequestsCount > 0 || (bufferedRequestEntries.size() > 0 && flush)) {
             mailboxExecutor.tryYield();
             if (flush) {
                 flush();
             }
         }
-
-        return Collections.emptyList();
     }
 
     /**
@@ -406,11 +426,29 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * a failure/restart of the application.
      */
     @Override
-    public List<Collection<RequestEntryT>> snapshotState() {
-        return Arrays.asList(
-                bufferedRequestEntries.stream()
-                        .map(RequestEntryWrapper::getRequestEntry)
-                        .collect(Collectors.toList()));
+    public List<BufferedRequestState<RequestEntryT>> snapshotState(long checkpointId) {
+        return Collections.singletonList(new BufferedRequestState<>((bufferedRequestEntries)));
+    }
+
+    private void initializeState(Collection<BufferedRequestState<RequestEntryT>> states) {
+        for (BufferedRequestState<RequestEntryT> state : states) {
+            initializeState(state);
+        }
+    }
+
+    private void initializeState(BufferedRequestState<RequestEntryT> state) {
+        this.bufferedRequestEntries.addAll(state.getBufferedRequestEntries());
+
+        for (RequestEntryWrapper<RequestEntryT> wrapper : bufferedRequestEntries) {
+            if (wrapper.getSize() > maxRecordSizeInBytes) {
+                throw new IllegalStateException(
+                        String.format(
+                                "State contains record of size %d which exceeds sink maximum record size %d.",
+                                wrapper.getSize(), maxRecordSizeInBytes));
+            }
+        }
+
+        this.bufferedRequestEntriesTotalSizeInBytes += state.getStateSize();
     }
 
     @Override

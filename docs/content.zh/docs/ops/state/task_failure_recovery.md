@@ -4,8 +4,7 @@ weight: 51
 type: docs
 aliases:
   - /zh/dev/task_failure_recovery.html
-  - /dev/restart_strategies.html
-  - /docs/dev/execution/task_failure_recovery/
+  - /zh/dev/restart_strategies.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

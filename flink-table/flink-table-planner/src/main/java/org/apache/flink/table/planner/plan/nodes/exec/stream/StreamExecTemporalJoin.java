@@ -69,6 +69,7 @@ import java.util.Optional;
 @ExecNodeMetadata(
         name = "stream-exec-temporal-join",
         version = 1,
+        consumedOptions = "table.exec.state.ttl",
         producedTransformations = StreamExecTemporalJoin.TEMPORAL_JOIN_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)

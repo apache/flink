@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -44,10 +43,8 @@ public class TemporalSortJsonITCase extends JsonPlanTestBase {
                 "c STRING",
                 "proctime as PROCTIME()");
         createTestValuesSinkTable("MySink", "a INT");
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
-                        "insert into MySink SELECT a FROM MyTable order by proctime");
-        tableEnv.executePlan(compiledPlan).await();
+        compileSqlAndExecutePlan("insert into MySink SELECT a FROM MyTable order by proctime")
+                .await();
 
         assertResult(
                 Arrays.asList("+I[1]", "+I[2]", "+I[3]"),
@@ -77,10 +74,9 @@ public class TemporalSortJsonITCase extends JsonPlanTestBase {
                     }
                 });
         createTestValuesSinkTable("MySink", "`int` INT");
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
-                        "insert into MySink SELECT `int` FROM MyTable order by rowtime, `double`");
-        tableEnv.executePlan(compiledPlan).await();
+        compileSqlAndExecutePlan(
+                        "insert into MySink SELECT `int` FROM MyTable order by rowtime, `double`")
+                .await();
 
         assertEquals(
                 Arrays.asList(

@@ -3,7 +3,7 @@ title: "执行配置"
 weight: 11
 type: docs
 aliases:
-  - /dev/execution_configuration.html
+  - /zh/dev/execution_configuration.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

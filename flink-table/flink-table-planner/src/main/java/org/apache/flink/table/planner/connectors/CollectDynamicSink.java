@@ -51,6 +51,8 @@ import java.util.function.Function;
 @Internal
 public final class CollectDynamicSink implements DynamicTableSink {
 
+    private static final String COLLECT_TRANSFORMATION = "collect";
+
     private final ObjectIdentifier tableIdentifier;
     private final DataType consumedDataType;
     private final MemorySize maxBatchSize;
@@ -94,7 +96,7 @@ public final class CollectDynamicSink implements DynamicTableSink {
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         return (DataStreamSinkProvider)
-                inputStream -> {
+                (providerContext, inputStream) -> {
                     final CheckpointConfig checkpointConfig =
                             inputStream.getExecutionEnvironment().getCheckpointConfig();
                     final ExecutionConfig config = inputStream.getExecutionConfig();
@@ -113,17 +115,18 @@ public final class CollectDynamicSink implements DynamicTableSink {
                     final CollectSinkOperator<RowData> operator =
                             (CollectSinkOperator<RowData>) factory.getOperator();
 
-                    this.iterator =
+                    iterator =
                             new CollectResultIterator<>(
                                     operator.getOperatorIdFuture(),
                                     externalSerializer,
                                     accumulatorName,
                                     checkpointConfig);
-                    this.converter = context.createDataStructureConverter(consumedDataType);
-                    this.converter.open(RuntimeConverter.Context.create(classLoader));
+                    converter = context.createDataStructureConverter(consumedDataType);
+                    converter.open(RuntimeConverter.Context.create(classLoader));
 
                     final CollectStreamSink<RowData> sink =
                             new CollectStreamSink<>(inputStream, factory);
+                    providerContext.generateUid(COLLECT_TRANSFORMATION).ifPresent(sink::uid);
                     return sink.name("Collect table sink");
                 };
     }

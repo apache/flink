@@ -472,30 +472,6 @@ abstract class PlannerBase(
     }
   }
 
-  override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
-    val ctx = createSerdeContext
-    val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
-    val execNodeGraph = planReference match {
-      case filePlanReference: FilePlanReference =>
-        objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
-      case contentPlanReference: ContentPlanReference =>
-        objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
-      case resourcePlanReference: ResourcePlanReference => {
-        val url = resourcePlanReference.getClassLoader
-          .getResource(resourcePlanReference.getResourcePath)
-        if (url == null) {
-          throw new IOException(
-            "Cannot load the plan reference from classpath: " + planReference);
-        }
-        objectReader.readValue(new File(url.toURI), classOf[ExecNodeGraph])
-      }
-      case _ => throw new IllegalStateException(
-        "Unknown PlanReference. This is a bug, please contact the developers")
-    }
-
-    new ExecNodeGraphCompiledPlan(ctx, execNodeGraph)
-  }
-
   protected def createSerdeContext: SerdeContext = {
     val planner = createFlinkPlanner
     new SerdeContext(

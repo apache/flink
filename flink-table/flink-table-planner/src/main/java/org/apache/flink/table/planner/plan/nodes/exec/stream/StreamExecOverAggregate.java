@@ -83,6 +83,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-over-aggregate",
         version = 1,
+        consumedOptions = {"table.exec.state.ttl"},
         producedTransformations = StreamExecOverAggregate.OVER_AGGREGATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)

@@ -162,7 +162,7 @@ public class SplitsAssignmentState {
      *     assignment.
      */
     public boolean noMoreNewPartitionSplits() {
-        return !sourceConfiguration.enablePartitionDiscovery()
+        return !sourceConfiguration.isEnablePartitionDiscovery()
                 && initialized
                 && pendingPartitionSplits.isEmpty();
     }

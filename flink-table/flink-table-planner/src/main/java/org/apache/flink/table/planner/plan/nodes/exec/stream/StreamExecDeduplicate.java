@@ -19,11 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -44,7 +41,6 @@ import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.runtime.generated.GeneratedRecordEqualiser;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.bundle.KeyedMapBundleOperator;
-import org.apache.flink.table.runtime.operators.bundle.MapBundleFunction;
 import org.apache.flink.table.runtime.operators.bundle.trigger.CountBundleTrigger;
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeDeduplicateKeepFirstRowFunction;
 import org.apache.flink.table.runtime.operators.deduplicate.ProcTimeDeduplicateKeepLastRowFunction;
@@ -63,6 +59,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import java.util.Collections;
 import java.util.List;
 
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_INSERT_UPDATE_AFTER_SENSITIVE_ENABLED;
+import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -74,6 +72,13 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-deduplicate",
         version = 1,
+        consumedOptions = {
+            "table.exec.state.ttl",
+            "table.exec.mini-batch.enabled",
+            "table.exec.mini-batch.size",
+            "table.exec.deduplicate.insert-update-after-sensitive-enabled",
+            "table.exec.deduplicate.mini-batch.compact-changes-enabled"
+        },
         producedTransformations = StreamExecDeduplicate.DEDUPLICATE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
@@ -86,31 +91,6 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
     public static final String FIELD_NAME_IS_ROWTIME = "isRowtime";
     public static final String FIELD_NAME_KEEP_LAST_ROW = "keepLastRow";
     public static final String FIELD_NAME_GENERATE_UPDATE_BEFORE = "generateUpdateBefore";
-
-    @Experimental
-    public static final ConfigOption<Boolean> TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE =
-            ConfigOptions.key("table.exec.insert-and-updateafter-sensitive")
-                    .booleanType()
-                    .defaultValue(true)
-                    .withDescription(
-                            "Set whether the job (especially the sinks) is sensitive to "
-                                    + "INSERT messages and UPDATE_AFTER messages. "
-                                    + "If false, Flink may send UPDATE_AFTER instead of INSERT for the first row "
-                                    + "at some times (e.g. deduplication for last row). "
-                                    + "If true, Flink will guarantee to send INSERT for the first row, "
-                                    + "but there will be additional overhead."
-                                    + "Default is true.");
-
-    @Experimental
-    public static final ConfigOption<Boolean> TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES =
-            ConfigOptions.key("table.exec.deduplicate.mini-batch.compact-changes")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Set whether to compact the changes sent downstream in row-time mini-batch. "
-                                    + "If true, Flink will compact changes, only send the latest change to downstream. "
-                                    + "Notes: If the downstream needs the details of versioned data, this optimization cannot be opened. "
-                                    + "If false, Flink will send all changes to downstream just like when the mini-batch is not on.");
 
     @JsonProperty(FIELD_NAME_UNIQUE_KEYS)
     private final int[] uniqueKeys;
@@ -240,7 +220,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         protected boolean generateInsert() {
             return tableConfig
                     .getConfiguration()
-                    .getBoolean(TABLE_EXEC_INSERT_AND_UPDATE_AFTER_SENSITIVE);
+                    .getBoolean(TABLE_EXEC_DEDUPLICATE_INSERT_UPDATE_AFTER_SENSITIVE_ENABLED);
         }
 
         protected boolean isMiniBatchEnabled() {
@@ -252,7 +232,7 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
         protected boolean isCompactChanges() {
             return tableConfig
                     .getConfiguration()
-                    .getBoolean(TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES);
+                    .getBoolean(TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED);
         }
 
         protected long getMinRetentionTime() {
@@ -307,9 +287,8 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
             checkArgument(rowtimeIndex >= 0);
             if (isMiniBatchEnabled()) {
                 CountBundleTrigger<RowData> trigger = new CountBundleTrigger<>(getMiniBatchSize());
-                MapBundleFunction processFunction;
                 if (isCompactChanges()) {
-                    processFunction =
+                    return new KeyedMapBundleOperator<>(
                             new RowTimeMiniBatchLatestChangeDeduplicateFunction(
                                     rowTypeInfo,
                                     typeSerializer,
@@ -317,9 +296,10 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     rowtimeIndex,
                                     generateUpdateBefore,
                                     generateInsert(),
-                                    keepLastRow);
+                                    keepLastRow),
+                            trigger);
                 } else {
-                    processFunction =
+                    return new KeyedMapBundleOperator<>(
                             new RowTimeMiniBatchDeduplicateFunction(
                                     rowTypeInfo,
                                     typeSerializer,
@@ -327,9 +307,9 @@ public class StreamExecDeduplicate extends ExecNodeBase<RowData>
                                     rowtimeIndex,
                                     generateUpdateBefore,
                                     generateInsert(),
-                                    keepLastRow);
+                                    keepLastRow),
+                            trigger);
                 }
-                return new KeyedMapBundleOperator<>(processFunction, trigger);
             } else {
                 RowTimeDeduplicateFunction processFunction =
                         new RowTimeDeduplicateFunction(

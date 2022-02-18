@@ -203,8 +203,7 @@ class UserDefinedFunctionTests(object):
                              "cast ('2014-09-13' as DATE),"
                              "cast ('12:00:00' as TIME),"
                              "cast ('1999-9-10 05:20:10' as TIMESTAMP))"
-                             " from test_table").insert_into("Results")
-        self.t_env.execute("test")
+                             " from test_table").execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[3, 8]", "+I[3, 9]", "+I[3, 10]"])
 
@@ -742,6 +741,7 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1970-01-01T00:00:00.123Z]"])
 
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir

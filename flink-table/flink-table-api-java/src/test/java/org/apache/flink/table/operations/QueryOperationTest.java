@@ -88,7 +88,7 @@ public class QueryOperationTest {
                 new WindowAggregateQueryOperation(
                         Collections.singletonList(field),
                         Collections.singletonList(
-                                new CallExpression(
+                                CallExpression.permanent(
                                         BuiltInFunctionDefinitions.SUM,
                                         Collections.singletonList(field),
                                         DataTypes.INT())),

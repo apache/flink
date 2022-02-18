@@ -19,6 +19,7 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.FunctionLookup;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -77,13 +78,13 @@ public final class FunctionLookupMock implements FunctionLookup {
     }
 
     @Override
-    public Optional<Result> lookupFunction(String stringIdentifier) {
+    public Optional<ContextResolvedFunction> lookupFunction(String stringIdentifier) {
         // this is a simplified version for the test
         return lookupFunction(UnresolvedIdentifier.of(stringIdentifier.split("\\.")));
     }
 
     @Override
-    public Optional<Result> lookupFunction(UnresolvedIdentifier identifier) {
+    public Optional<ContextResolvedFunction> lookupFunction(UnresolvedIdentifier identifier) {
         final FunctionIdentifier functionIdentifier;
         if (identifier.getCatalogName().isPresent() && identifier.getDatabaseName().isPresent()) {
             functionIdentifier =
@@ -97,12 +98,13 @@ public final class FunctionLookupMock implements FunctionLookup {
         }
 
         return Optional.ofNullable(functions.get(functionIdentifier))
-                .map(func -> new Result(functionIdentifier, func));
+                .map(func -> ContextResolvedFunction.permanent(functionIdentifier, func));
     }
 
     @Override
-    public Result lookupBuiltInFunction(BuiltInFunctionDefinition definition) {
-        return new Result(FunctionIdentifier.of(definition.getName()), definition);
+    public ContextResolvedFunction lookupBuiltInFunction(BuiltInFunctionDefinition definition) {
+        return ContextResolvedFunction.permanent(
+                FunctionIdentifier.of(definition.getName()), definition);
     }
 
     @Override

@@ -1203,7 +1203,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
     @Test
     public void testSlotSharingOnAllVerticesInSameSlotSharingGroupByDefaultEnabled() {
-        final StreamGraph streamGraph = createStreamGraphForSlotSharingTest();
+        final StreamGraph streamGraph = createStreamGraphForSlotSharingTest(new Configuration());
         // specify slot sharing group for map1
         streamGraph.getStreamNodes().stream()
                 .filter(n -> "map1".equals(n.getOperatorName()))
@@ -1230,7 +1230,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
 
     @Test
     public void testSlotSharingOnAllVerticesInSameSlotSharingGroupByDefaultDisabled() {
-        final StreamGraph streamGraph = createStreamGraphForSlotSharingTest();
+        final StreamGraph streamGraph = createStreamGraphForSlotSharingTest(new Configuration());
         streamGraph.setAllVerticesInSameSlotSharingGroupByDefault(false);
         final JobGraph jobGraph = StreamingJobGraphGenerator.createJobGraph(streamGraph);
 
@@ -1431,6 +1431,30 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
                 allVertices[0].getOperatorPrettyName());
     }
 
+    @Test
+    public void testNamingWithoutIndex() {
+        JobGraph job = createStreamGraphForSlotSharingTest(new Configuration()).getJobGraph();
+        List<JobVertex> allVertices = job.getVerticesSortedTopologicallyFromSources();
+        assertEquals(4, allVertices.size());
+        assertEquals("Source: source1", allVertices.get(0).getName());
+        assertEquals("Source: source2", allVertices.get(1).getName());
+        assertEquals("map1", allVertices.get(2).getName());
+        assertEquals("map2", allVertices.get(3).getName());
+    }
+
+    @Test
+    public void testNamingWithIndex() {
+        Configuration config = new Configuration();
+        config.setBoolean(PipelineOptions.VERTEX_NAME_INCLUDE_INDEX_PREFIX, true);
+        JobGraph job = createStreamGraphForSlotSharingTest(config).getJobGraph();
+        List<JobVertex> allVertices = job.getVerticesSortedTopologicallyFromSources();
+        assertEquals(4, allVertices.size());
+        assertEquals("[vertex-0]Source: source1", allVertices.get(0).getName());
+        assertEquals("[vertex-1]Source: source2", allVertices.get(1).getName());
+        assertEquals("[vertex-2]map1", allVertices.get(2).getName());
+        assertEquals("[vertex-3]map2", allVertices.get(3).getName());
+    }
+
     private JobGraph createJobGraphWithDescription(
             StreamExecutionEnvironment env, String... inputNames) {
         env.setParallelism(1);
@@ -1499,8 +1523,9 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
      *
      * <p>source2 --(rebalance & blocking)--> Map2
      */
-    private StreamGraph createStreamGraphForSlotSharingTest() {
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    private StreamGraph createStreamGraphForSlotSharingTest(Configuration config) {
+        final StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(config);
         env.setBufferTimeout(-1);
         env.setRuntimeMode(RuntimeExecutionMode.BATCH);
 

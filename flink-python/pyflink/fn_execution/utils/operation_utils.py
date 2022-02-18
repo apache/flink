@@ -338,7 +338,7 @@ class PeriodicThread(threading.Thread):
         now = time.time()
         next_call = now + self._interval
         while (next_call <= now and not self._finished.is_set()) or \
-                (not self._finished.wait(next_call - now)):
+                (next_call > now and not self._finished.wait(next_call - now)):
             if next_call <= now:
                 next_call = now + self._interval
             else:

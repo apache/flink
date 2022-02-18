@@ -60,11 +60,6 @@ Please read the documentation of each connector to understand the details of the
             <td></td>
         </tr>
         <tr>
-            <td>Twitter Streaming API</td>
-            <td>at most once</td>
-            <td></td>
-        </tr>
-        <tr>
             <td>Google PubSub</td>
             <td>at least once</td>
             <td></td>

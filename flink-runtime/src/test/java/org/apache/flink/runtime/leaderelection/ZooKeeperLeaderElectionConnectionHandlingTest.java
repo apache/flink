@@ -36,10 +36,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertFalse;
 
@@ -70,7 +67,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                 configuration,
                 (connectionStateListener, contender) -> {
                     connectionStateListener.awaitSuspendedConnection();
-                    contender.awaitRevokeLeadership(Duration.ofSeconds(1L));
+                    contender.awaitRevokeLeadership();
                 });
     }
 
@@ -97,7 +94,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                 configuration,
                 (connectionStateListener, contender) -> {
                     connectionStateListener.awaitLostConnection();
-                    contender.awaitRevokeLeadership(Duration.ofSeconds(1L));
+                    contender.awaitRevokeLeadership();
                 });
     }
 
@@ -206,9 +203,8 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
             return revokeLeadershipLatch.isTriggered();
         }
 
-        public void awaitRevokeLeadership(Duration timeout)
-                throws InterruptedException, TimeoutException {
-            revokeLeadershipLatch.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        public void awaitRevokeLeadership() throws InterruptedException {
+            revokeLeadershipLatch.await();
         }
     }
 

@@ -19,100 +19,50 @@
 package org.apache.flink.connector.pulsar.common.utils;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.util.FlinkRuntimeException;
 
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.transaction.Transaction;
-import org.apache.pulsar.client.api.transaction.TxnID;
-import org.apache.pulsar.client.impl.transaction.TransactionImpl;
+import org.apache.pulsar.client.api.transaction.TransactionCoordinatorClientException;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
-import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
+import static org.apache.flink.util.ExceptionUtils.findThrowable;
 
-/**
- * Transaction was introduced into pulsar since 2.7.0, but the interface {@link Transaction} didn't
- * provide a id method until 2.8.1. We have to add this util for acquiring the {@link TxnID} for
- * compatible consideration.
- *
- * <p>TODO Remove this hack after pulsar 2.8.1 release.
- */
+/** A suit of workarounds for the Pulsar Transaction. */
 @Internal
-@SuppressWarnings("java:S3011")
 public final class PulsarTransactionUtils {
-
-    private static volatile Field mostBitsField;
-    private static volatile Field leastBitsField;
 
     private PulsarTransactionUtils() {
         // No public constructor
     }
 
-    public static TxnID getId(Transaction transaction) {
-        // 2.8.1 and after.
+    /** Create transaction with given timeout millis. */
+    public static Transaction createTransaction(PulsarClient pulsarClient, long timeoutMs) {
         try {
-            Method getId = Transaction.class.getDeclaredMethod("getTxnID");
-            return (TxnID) getId.invoke(transaction);
-        } catch (NoSuchMethodException | InvocationTargetException | IllegalAccessException e) {
-            // 2.8.0 and before.
-            TransactionImpl impl = (TransactionImpl) transaction;
-            Long txnIdMostBits = getTxnIdMostBits(impl);
-            Long txnIdLeastBits = getTxnIdLeastBits(impl);
+            CompletableFuture<Transaction> future =
+                    sneakyClient(pulsarClient::newTransaction)
+                            .withTransactionTimeout(timeoutMs, TimeUnit.MILLISECONDS)
+                            .build();
 
-            checkNotNull(txnIdMostBits, "Failed to get txnIdMostBits");
-            checkNotNull(txnIdLeastBits, "Failed to get txnIdLeastBits");
-
-            return new TxnID(txnIdMostBits, txnIdLeastBits);
+            return future.get();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException(e);
+        } catch (ExecutionException e) {
+            throw new FlinkRuntimeException(e);
         }
     }
 
-    private static Long getTxnIdMostBits(TransactionImpl transaction) {
-        if (mostBitsField == null) {
-            synchronized (PulsarTransactionUtils.class) {
-                if (mostBitsField == null) {
-                    try {
-                        mostBitsField = TransactionImpl.class.getDeclaredField("txnIdMostBits");
-                        mostBitsField.setAccessible(true);
-                    } catch (NoSuchFieldException e) {
-                        // Nothing to do for this exception.
-                    }
-                }
-            }
-        }
-
-        if (mostBitsField != null) {
-            try {
-                return (Long) mostBitsField.get(transaction);
-            } catch (IllegalAccessException e) {
-                // Nothing to do for this exception.
-            }
-        }
-
-        return null;
-    }
-
-    private static Long getTxnIdLeastBits(TransactionImpl transaction) {
-        if (leastBitsField == null) {
-            synchronized (PulsarTransactionUtils.class) {
-                if (leastBitsField == null) {
-                    try {
-                        leastBitsField = TransactionImpl.class.getDeclaredField("txnIdLeastBits");
-                        leastBitsField.setAccessible(true);
-                    } catch (NoSuchFieldException e) {
-                        // Nothing to do for this exception.
-                    }
-                }
-            }
-        }
-
-        if (leastBitsField != null) {
-            try {
-                return (Long) leastBitsField.get(transaction);
-            } catch (IllegalAccessException e) {
-                // Nothing to do for this exception.
-            }
-        }
-
-        return null;
+    /**
+     * This is a bug in original {@link TransactionCoordinatorClientException#unwrap(Throwable)}
+     * method. Pulsar wraps the {@link ExecutionException} which hides the real execution exception.
+     */
+    public static TransactionCoordinatorClientException unwrap(
+            TransactionCoordinatorClientException e) {
+        return findThrowable(e.getCause(), TransactionCoordinatorClientException.class).orElse(e);
     }
 }

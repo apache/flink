@@ -19,7 +19,6 @@
 package org.apache.flink.connector.testframe.external.sink;
 
 import org.apache.flink.annotation.Experimental;
-import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.connector.testframe.external.ExternalContext;
 import org.apache.flink.connector.testframe.external.ExternalSystemDataReader;
@@ -33,15 +32,6 @@ import java.util.List;
  */
 @Experimental
 public interface DataStreamSinkExternalContext<T> extends ExternalContext, ResultTypeQueryable<T> {
-
-    /**
-     * Create an instance of {@link Sink} satisfying given options.
-     *
-     * @param sinkSettings settings of the sink
-     * @throws UnsupportedOperationException if the provided option is not supported.
-     */
-    Sink<T, ?, ?, ?> createSink(TestingSinkSettings sinkSettings)
-            throws UnsupportedOperationException;
 
     /** Create a reader for consuming data written to the external system by sink. */
     ExternalSystemDataReader<T> createSinkDataReader(TestingSinkSettings sinkSettings);

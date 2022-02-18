@@ -44,4 +44,9 @@ final class WatermarkStrategyWithIdleness<T> implements WatermarkStrategy<T> {
         return new WatermarksWithIdleness<>(
                 baseStrategy.createWatermarkGenerator(context), idlenessTimeout);
     }
+
+    @Override
+    public WatermarkAlignmentParams getAlignmentParameters() {
+        return baseStrategy.getAlignmentParameters();
+    }
 }

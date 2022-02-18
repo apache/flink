@@ -22,7 +22,11 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Collection;
@@ -39,6 +43,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class FileCommitter implements Committer<FileSinkCommittable> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(FileCommitter.class);
 
     private final BucketWriter<?, ?> bucketWriter;
 
@@ -59,6 +65,21 @@ public class FileCommitter implements Committer<FileSinkCommittable> {
             if (committable.hasInProgressFileToCleanup()) {
                 bucketWriter.cleanupInProgressFileRecoverable(
                         committable.getInProgressFileToCleanup());
+            }
+
+            if (committable.hasCompactedFileToCleanup()) {
+                Path committedFileToCleanup = committable.getCompactedFileToCleanup();
+                try {
+                    committedFileToCleanup.getFileSystem().delete(committedFileToCleanup, false);
+                } catch (Exception e) {
+                    // Try best to cleanup compacting files, skip if failed.
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(
+                                "Failed to cleanup a compacted file, the file will be remained and should not be visible: {}",
+                                committedFileToCleanup,
+                                e);
+                    }
+                }
             }
         }
     }

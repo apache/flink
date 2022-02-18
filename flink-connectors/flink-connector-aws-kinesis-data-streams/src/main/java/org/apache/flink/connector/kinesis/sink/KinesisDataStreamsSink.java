@@ -19,17 +19,17 @@ package org.apache.flink.connector.kinesis.sink;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.AsyncSinkBase;
+import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
 import software.amazon.awssdk.services.kinesis.model.PutRecordsRequestEntry;
 
+import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import java.util.Collections;
 import java.util.Properties;
 
 /**
@@ -113,8 +113,8 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
 
     @Internal
     @Override
-    public SinkWriter<InputT, Void, Collection<PutRecordsRequestEntry>> createWriter(
-            InitContext context, List<Collection<PutRecordsRequestEntry>> states) {
+    public StatefulSinkWriter<InputT, BufferedRequestState<PutRecordsRequestEntry>> createWriter(
+            InitContext context) throws IOException {
         return new KinesisDataStreamsSinkWriter<>(
                 getElementConverter(),
                 context,
@@ -126,13 +126,35 @@ public class KinesisDataStreamsSink<InputT> extends AsyncSinkBase<InputT, PutRec
                 getMaxRecordSizeInBytes(),
                 failOnError,
                 streamName,
-                kinesisClientProperties);
+                kinesisClientProperties,
+                Collections.emptyList());
     }
 
     @Internal
     @Override
-    public Optional<SimpleVersionedSerializer<Collection<PutRecordsRequestEntry>>>
+    public SimpleVersionedSerializer<BufferedRequestState<PutRecordsRequestEntry>>
             getWriterStateSerializer() {
-        return Optional.empty();
+        return new KinesisDataStreamsStateSerializer();
+    }
+
+    @Internal
+    @Override
+    public StatefulSinkWriter<InputT, BufferedRequestState<PutRecordsRequestEntry>> restoreWriter(
+            InitContext context,
+            Collection<BufferedRequestState<PutRecordsRequestEntry>> recoveredState)
+            throws IOException {
+        return new KinesisDataStreamsSinkWriter<>(
+                getElementConverter(),
+                context,
+                getMaxBatchSize(),
+                getMaxInFlightRequests(),
+                getMaxBufferedRequests(),
+                getMaxBatchSizeInBytes(),
+                getMaxTimeInBufferMS(),
+                getMaxRecordSizeInBytes(),
+                failOnError,
+                streamName,
+                kinesisClientProperties,
+                recoveredState);
     }
 }

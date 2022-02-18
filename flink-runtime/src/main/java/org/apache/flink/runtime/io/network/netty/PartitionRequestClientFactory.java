@@ -54,19 +54,21 @@ class PartitionRequestClientFactory {
     private final ConcurrentMap<ConnectionID, CompletableFuture<NettyPartitionRequestClient>>
             clients = new ConcurrentHashMap<>();
 
-    PartitionRequestClientFactory(NettyClient nettyClient) {
-        this(nettyClient, 0, 1);
-    }
+    private final boolean connectionReuseEnabled;
 
-    PartitionRequestClientFactory(NettyClient nettyClient, int retryNumber) {
-        this(nettyClient, retryNumber, 1);
+    PartitionRequestClientFactory(NettyClient nettyClient, boolean connectionReuseEnabled) {
+        this(nettyClient, 0, 1, connectionReuseEnabled);
     }
 
     PartitionRequestClientFactory(
-            NettyClient nettyClient, int retryNumber, int maxNumberOfConnections) {
+            NettyClient nettyClient,
+            int retryNumber,
+            int maxNumberOfConnections,
+            boolean connectionReuseEnabled) {
         this.nettyClient = nettyClient;
         this.retryNumber = retryNumber;
         this.maxNumberOfConnections = maxNumberOfConnections;
+        this.connectionReuseEnabled = connectionReuseEnabled;
     }
 
     /**
@@ -111,12 +113,18 @@ class PartitionRequestClientFactory {
 
             // Make sure to increment the reference count before handing a client
             // out to ensure correct bookkeeping for channel closing.
-            if (client.incrementReferenceCounter()) {
+            if (client.validateClientAndIncrementReferenceCounter()) {
                 return client;
+            } else if (client.canBeDisposed()) {
+                client.closeConnection();
             } else {
                 destroyPartitionRequestClient(connectionId, client);
             }
         }
+    }
+
+    public boolean isConnectionReuseEnabled() {
+        return connectionReuseEnabled;
     }
 
     private NettyPartitionRequestClient connectWithRetries(ConnectionID connectionId)
@@ -169,7 +177,7 @@ class PartitionRequestClientFactory {
         if (entry != null && !entry.isDone()) {
             entry.thenAccept(
                     client -> {
-                        if (client.disposeIfNotUsed()) {
+                        if (client.canBeDisposed()) {
                             clients.remove(connectionId, entry);
                         }
                     });
