@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.functions;
 
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.annotation.FunctionHint;
 import org.apache.flink.table.api.DataTypes;
@@ -29,287 +28,181 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
-import org.junit.runners.Suite;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
 
-import static java.util.Collections.singletonMap;
-import static org.apache.flink.table.api.DataTypes.ARRAY;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
-import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for functions that access nested fields/elements of composite/collection types. */
-@RunWith(Suite.class)
-@Suite.SuiteClasses({
-    ConstructedAccessFunctionsITCase.FieldAccessFromTable.class,
-    ConstructedAccessFunctionsITCase.FieldAccessAfterCall.class
-})
-public class ConstructedAccessFunctionsITCase {
+@Execution(ExecutionMode.CONCURRENT)
+@ExtendWith(MiniClusterExtension.class)
+class ConstructedAccessFunctionsITCase {
 
-    /**
-     * Regular tests. See also {@link FieldAccessAfterCall} for tests that access a nested field of
-     * an expression or for {@link BuiltInFunctionDefinitions#FLATTEN} which produces multiple
-     * columns from a single one.
-     */
-    public static class FieldAccessFromTable extends BuiltInFunctionTestBase {
-        @Parameterized.Parameters(name = "{index}: {0}")
-        public static List<TestSpec> testData() {
-            return Arrays.asList(
+    @Test
+    public void testSqlAccessingNullableRow() {
+        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        env.createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
 
-                    // Actually in case of SQL it does not use the GET method, but
-                    // a custom logic for accessing nested fields of a Table.
-                    TestSpec.forFunction(BuiltInFunctionDefinitions.GET)
-                            .onFieldsWithData(null, Row.of(1))
-                            .andDataTypes(
-                                    ROW(FIELD("nested", BIGINT().notNull())).nullable(),
-                                    ROW(FIELD("nested", BIGINT().notNull())).notNull())
-                            .testResult(
-                                    resultSpec(
-                                            $("f0").get("nested"),
-                                            "f0.nested",
-                                            null,
-                                            BIGINT().nullable()),
-                                    resultSpec(
-                                            $("f1").get("nested"),
-                                            "f1.nested",
-                                            1L,
-                                            BIGINT().notNull())),
+        assertThatThrownBy(
+                        () ->
+                                env.executeSql(
+                                        "SELECT CustomScalarFunction(1, CustomScalarFunction().nested)"))
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Invalid function call:\n"
+                                        + "CustomScalarFunction(INT NOT NULL, INT)"));
+    }
 
-                    // In Calcite it maps to FlinkSqlOperatorTable.ITEM
-                    TestSpec.forFunction(BuiltInFunctionDefinitions.AT)
-                            .onFieldsWithData(
-                                    null,
-                                    new int[] {1},
-                                    null,
-                                    singletonMap("nested", 1),
-                                    null,
-                                    Row.of(1))
-                            .andDataTypes(
-                                    ARRAY(BIGINT().notNull()).nullable(),
-                                    ARRAY(BIGINT().notNull()).notNull(),
-                                    MAP(STRING(), BIGINT().notNull()).nullable(),
-                                    MAP(STRING(), BIGINT().notNull()).notNull(),
-                                    ROW(FIELD("nested", BIGINT().notNull())).nullable(),
-                                    ROW(FIELD("nested", BIGINT().notNull())).notNull())
-                            // accessing elements of MAP or ARRAY is a runtime operations,
-                            // we do not know about the size or contents during the inference
-                            // therefore the results are always nullable
-                            .testResult(
-                                    resultSpec($("f0").at(1), "f0[1]", null, BIGINT().nullable()),
-                                    resultSpec($("f1").at(1), "f1[1]", 1L, BIGINT().nullable()),
-                                    resultSpec(
-                                            $("f2").at("nested"),
-                                            "f2['nested']",
-                                            null,
-                                            BIGINT().nullable()),
-                                    resultSpec(
-                                            $("f3").at("nested"),
-                                            "f3['nested']",
-                                            1L,
-                                            BIGINT().nullable()),
+    @Test
+    public void testSqlAccessingNotNullRow() throws Exception {
+        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        env.createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
 
-                                    // we know all the fields of a type up front, therefore we can
-                                    // derive more accurate types during the inference
-                                    resultSpec(
-                                            $("f4").get("nested"),
-                                            "f4['nested']",
-                                            null,
-                                            BIGINT().nullable()),
-                                    resultSpec(
-                                            $("f5").get("nested"),
-                                            "f5['nested']",
-                                            1L,
-                                            BIGINT().notNull())));
+        TableResult result =
+                env.executeSql("SELECT CustomScalarFunction(1, CustomScalarFunction(1).nested)");
+        try (CloseableIterator<Row> it = result.collect()) {
+            assertThat(it.next()).isEqualTo(Row.of(2L));
+            assertThat(it).isExhausted();
         }
     }
 
-    /** A class for customized tests. */
-    public static class FieldAccessAfterCall {
+    @Test
+    public void testSqlAccessingNullableRowWithAlias() throws Exception {
+        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        env.createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 
-        @ClassRule
-        public static MiniClusterWithClientResource miniClusterResource =
-                new MiniClusterWithClientResource(
-                        new MiniClusterResourceConfiguration.Builder()
-                                .setNumberTaskManagers(1)
-                                .setNumberSlotsPerTaskManager(1)
-                                .build());
-
-        @Rule public ExpectedException thrown = ExpectedException.none();
-
-        @Test
-        public void testSqlAccessingNullableRow() {
-            final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-            env.createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
-
-            thrown.expect(ValidationException.class);
-            thrown.expectMessage(
-                    "Invalid function call:\n" + "CustomScalarFunction(INT NOT NULL, INT)");
-            env.executeSql("SELECT CustomScalarFunction(1, CustomScalarFunction().nested)");
+        TableResult result =
+                env.executeSql(
+                        "SELECT t.b, t.a FROM "
+                                + "(SELECT * FROM (VALUES(1))), "
+                                + "LATERAL TABLE(RowTableFunction()) AS t(a, b)");
+        assertThat(result.getResolvedSchema())
+                .isEqualTo(
+                        ResolvedSchema.of(
+                                Column.physical("b", DataTypes.ARRAY(DataTypes.STRING()).notNull()),
+                                Column.physical("a", DataTypes.STRING())));
+        try (CloseableIterator<Row> it = result.collect()) {
+            assertThat(it.next()).isEqualTo(Row.of(new String[] {"A", "B"}, "A"));
+            assertThat(it).isExhausted();
         }
+    }
 
-        @Test
-        public void testSqlAccessingNotNullRow() throws Exception {
-            final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-            env.createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
+    @Test
+    public void testTableApiAccessingNullableRow() {
+        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
-            TableResult result =
-                    env.executeSql(
-                            "SELECT CustomScalarFunction(1, CustomScalarFunction(1).nested)");
-            try (CloseableIterator<Row> it = result.collect()) {
-                assertThat(it.next()).isEqualTo(Row.of(2L));
-                assertThat(it.hasNext()).isFalse();
-            }
+        assertThatThrownBy(
+                        () ->
+                                env.fromValues(1)
+                                        .select(
+                                                call(
+                                                        CustomScalarFunction.class,
+                                                        1,
+                                                        call(CustomScalarFunction.class)
+                                                                .get("nested")))
+                                        .execute())
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Invalid function call:\n"
+                                        + "CustomScalarFunction(INT NOT NULL, INT)"));
+    }
+
+    @Test
+    public void testTableApiAccessingNotNullRow() throws Exception {
+        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+
+        TableResult result =
+                env.fromValues(1)
+                        .select(
+                                call(
+                                        CustomScalarFunction.class,
+                                        1,
+                                        call(CustomScalarFunction.class, 1).get("nested")))
+                        .execute();
+        try (CloseableIterator<Row> it = result.collect()) {
+            assertThat(it.next()).isEqualTo(Row.of(2L));
+            assertThat(it).isExhausted();
         }
+    }
 
-        @Test
-        public void testSqlAccessingNullableRowWithAlias() throws Exception {
-            final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-            env.createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
+    @Test
+    public void testTableApiFlattenRowType() throws Exception {
+        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
-            TableResult result =
-                    env.executeSql(
-                            "SELECT t.b, t.a FROM "
-                                    + "(SELECT * FROM (VALUES(1))), "
-                                    + "LATERAL TABLE(RowTableFunction()) AS t(a, b)");
-            assertThat(result.getResolvedSchema())
-                    .isEqualTo(
-                            ResolvedSchema.of(
-                                    Column.physical(
-                                            "b", DataTypes.ARRAY(DataTypes.STRING()).notNull()),
-                                    Column.physical("a", DataTypes.STRING())));
-            try (CloseableIterator<Row> it = result.collect()) {
-                assertThat(it.next()).isEqualTo(Row.of(new String[] {"A", "B"}, "A"));
-                assertThat(it.hasNext()).isFalse();
-            }
+        TableResult result =
+                env.fromValues(
+                                ROW(FIELD(
+                                                "f0",
+                                                ROW(
+                                                                FIELD(
+                                                                        "nested0",
+                                                                        BIGINT().notNull()),
+                                                                FIELD("nested1", STRING()))
+                                                        .nullable()))
+                                        .notNull(),
+                                Row.of(Row.of(1, "ABC")))
+                        .select($("f0").flatten())
+                        .execute();
+
+        assertThat(result.getResolvedSchema())
+                .isEqualTo(
+                        ResolvedSchema.of(
+                                Column.physical("f0$nested0", BIGINT().nullable()),
+                                Column.physical("f0$nested1", STRING().nullable())));
+
+        try (CloseableIterator<Row> it = result.collect()) {
+            assertThat(it.next()).isEqualTo(Row.of(1L, "ABC"));
+            assertThat(it).isExhausted();
         }
+    }
 
-        @Test
-        public void testTableApiAccessingNullableRow() {
-            final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+    @Test
+    public void testTableApiFlattenStructuredType() throws Exception {
+        final TableEnvironment env = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
-            thrown.expect(ValidationException.class);
-            thrown.expectMessage(
-                    "Invalid function call:\n" + "CustomScalarFunction(INT NOT NULL, INT)");
-            env.fromValues(1)
-                    .select(
-                            call(
-                                    CustomScalarFunction.class,
-                                    1,
-                                    call(CustomScalarFunction.class).get("nested")))
-                    .execute();
-        }
+        final Row row =
+                Row.of(1, LocalDateTime.parse("2012-12-12T12:12:12.001"), "a", Row.of(10, "aa"));
 
-        @Test
-        public void testTableApiAccessingNotNullRow() throws Exception {
-            final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        final Table data = env.fromValues(row);
 
-            TableResult result =
-                    env.fromValues(1)
-                            .select(
-                                    call(
-                                            CustomScalarFunction.class,
-                                            1,
-                                            call(CustomScalarFunction.class, 1).get("nested")))
-                            .execute();
-            try (CloseableIterator<Row> it = result.collect()) {
-                assertThat(it.next()).isEqualTo(Row.of(2L));
-                assertThat(it.hasNext()).isFalse();
-            }
-        }
+        final TableResult result =
+                data.select(call(PojoConstructorScalarFunction.class, $("*")).flatten()).execute();
 
-        @Test
-        public void testTableApiFlattenRowType() throws Exception {
-            final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        assertThat(result.getResolvedSchema())
+                .isEqualTo(
+                        ResolvedSchema.of(
+                                Column.physical("_c0", INT().bridgedTo(int.class)),
+                                Column.physical("_c1", TIMESTAMP(3)),
+                                Column.physical("_c2", STRING()),
+                                Column.physical(
+                                        "_c3", ROW(FIELD("ri", INT()), FIELD("rs", STRING())))));
 
-            TableResult result =
-                    env.fromValues(
-                                    ROW(FIELD(
-                                                    "f0",
-                                                    ROW(
-                                                                    FIELD(
-                                                                            "nested0",
-                                                                            BIGINT().notNull()),
-                                                                    FIELD("nested1", STRING()))
-                                                            .nullable()))
-                                            .notNull(),
-                                    Row.of(Row.of(1, "ABC")))
-                            .select($("f0").flatten())
-                            .execute();
-
-            assertThat(result.getResolvedSchema())
-                    .isEqualTo(
-                            ResolvedSchema.of(
-                                    Column.physical("f0$nested0", BIGINT().nullable()),
-                                    Column.physical("f0$nested1", STRING().nullable())));
-
-            try (CloseableIterator<Row> it = result.collect()) {
-                assertThat(it.next()).isEqualTo(Row.of(1L, "ABC"));
-                assertThat(it.hasNext()).isFalse();
-            }
-        }
-
-        @Test
-        public void testTableApiFlattenStructuredType() throws Exception {
-            final TableEnvironment env =
-                    TableEnvironment.create(EnvironmentSettings.inStreamingMode());
-
-            final Row row =
-                    Row.of(
-                            1,
-                            LocalDateTime.parse("2012-12-12T12:12:12.001"),
-                            "a",
-                            Row.of(10, "aa"));
-
-            final Table data = env.fromValues(row);
-
-            final TableResult result =
-                    data.select(call(PojoConstructorScalarFunction.class, $("*")).flatten())
-                            .execute();
-
-            assertThat(result.getResolvedSchema())
-                    .isEqualTo(
-                            ResolvedSchema.of(
-                                    Column.physical("_c0", INT().bridgedTo(int.class)),
-                                    Column.physical("_c1", TIMESTAMP(3)),
-                                    Column.physical("_c2", STRING()),
-                                    Column.physical(
-                                            "_c3",
-                                            ROW(FIELD("ri", INT()), FIELD("rs", STRING())))));
-
-            try (CloseableIterator<Row> it = result.collect()) {
-                assertThat(it.next()).isEqualTo(row);
-                assertThat(it.hasNext()).isFalse();
-            }
+        try (CloseableIterator<Row> it = result.collect()) {
+            assertThat(it.next()).isEqualTo(row);
+            assertThat(it).isExhausted();
         }
     }
 

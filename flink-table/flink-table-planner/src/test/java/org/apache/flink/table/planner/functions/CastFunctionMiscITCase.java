@@ -27,13 +27,10 @@ import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
 
-import org.junit.runners.Parameterized;
-
 import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Arrays;
-import java.util.List;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BINARY;
@@ -55,20 +52,20 @@ import static org.apache.flink.util.CollectionUtil.map;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST} regarding {@link DataTypes#ROW}. */
-public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
+class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
 
     @Override
-    protected Configuration configuration() {
-        return super.configuration()
+    Configuration getConfiguration() {
+        return new Configuration()
                 .set(
                         ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
                         ExecutionConfigOptions.LegacyCastBehaviour.DISABLED);
     }
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return Arrays.asList(
-                TestSpec.forFunction(
+    @Override
+    Stream<TestSetSpec> getTestSetSpecs() {
+        return Stream.of(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "implicit with different field names")
                         .onFieldsWithData(Row.of(12, "Hello"))
@@ -76,13 +73,14 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                         .withFunction(RowToFirstField.class)
                         .testResult(
                                 call("RowToFirstField", $("f0")), "RowToFirstField(f0)", 12, INT()),
-                TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "implicit with type widening")
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST, "implicit with type widening")
                         .onFieldsWithData(Row.of((byte) 12, "Hello"))
                         .andDataTypes(DataTypes.of("ROW<i TINYINT, s STRING>"))
                         .withFunction(RowToFirstField.class)
                         .testResult(
                                 call("RowToFirstField", $("f0")), "RowToFirstField(f0)", 12, INT()),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "implicit with nested type widening")
                         .onFieldsWithData(Row.of(Row.of(12, 42), "Hello"))
@@ -93,7 +91,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 "NestedRowToFirstField(f0)",
                                 Row.of(12, 42.0),
                                 DataTypes.of("ROW<i INT, d DOUBLE>")),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "explicit with nested rows and implicit nullability change")
                         .onFieldsWithData(Row.of(Row.of(12, 42, null), "Hello"))
@@ -114,7 +112,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 // nullable and the cast does not allow setting the outer
                                 // nullability but derives it from the source operand
                                 DataTypes.of("ROW<r ROW<s STRING, b BOOLEAN, i INT>, s STRING>")),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "explicit with nested rows and explicit nullability change")
                         .onFieldsWithData(Row.of(Row.of(12, 42, null), "Hello"))
@@ -134,7 +132,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 Row.of(Row.of("12", true, null), "Hello"),
                                 DataTypes.of(
                                         "ROW<r ROW<s STRING NOT NULL, b BOOLEAN, i INT>, s STRING>")),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "implicit between structured type and row")
                         .onFieldsWithData(12, "Ingo")
@@ -147,7 +145,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 "RowToFirstField(StructuredTypeConstructor((f0, f1)))",
                                 12,
                                 INT()),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "explicit between structured type and row")
                         .onFieldsWithData(12, "Ingo")
@@ -157,7 +155,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                         .cast(ROW(BIGINT(), STRING())),
                                 Row.of(12L, "Ingo"),
                                 ROW(BIGINT(), STRING())),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "cast from RAW(Integer) to BINARY(3)")
                         .onFieldsWithData(123456)
@@ -167,7 +165,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 call("IntegerToRaw", $("f0")).cast(BINARY(3)),
                                 new byte[] {0, 1, -30},
                                 BINARY(3)),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "cast from RAW(Integer) to BYTES")
                         .onFieldsWithData(123456)
                         .andDataTypes(INT())
@@ -176,7 +174,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 call("IntegerToRaw", $("f0")).cast(BYTES()),
                                 new byte[] {0, 1, -30, 64},
                                 BYTES()),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "cast from RAW(Integer) to BINARY(6)")
                         .onFieldsWithData(123456)
@@ -186,7 +184,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 call("IntegerToRaw", $("f0")).cast(BINARY(6)),
                                 new byte[] {0, 1, -30, 64, 0, 0},
                                 BINARY(6)),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,
                                 "cast from RAW(UserPojo) to VARBINARY")
                         .onFieldsWithData(123456, "Flink")
@@ -202,21 +200,22 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                         .cast(VARBINARY(50)),
                                 new byte[] {0, 1, -30, 64, 0, 70, 0, 108, 0, 105, 0, 110, 0, 107},
                                 VARBINARY(50)),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "test the x'....' binary syntax")
                         .onFieldsWithData("foo")
                         .testSqlResult(
                                 "CAST(CAST(x'68656C6C6F20636F6465' AS BINARY(10)) AS VARCHAR)",
                                 "68656c6c6f20636f6465",
                                 STRING().notNull()),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST, "test the x'....' binary syntax")
                         .onFieldsWithData("foo")
                         .testSqlResult(
                                 "CAST(CAST(x'68656C6C6F2063617374' AS BINARY(10)) AS VARCHAR)",
                                 "68656c6c6f2063617374",
                                 STRING().notNull()),
-                TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast STRUCTURED to STRING")
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.CAST, "cast STRUCTURED to STRING")
                         .onFieldsWithData(123456, "Flink")
                         .andDataTypes(INT(), STRING())
                         .withFunction(StructuredTypeConstructor.class)
@@ -225,7 +224,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                         .cast(STRING()),
                                 "(i=123456, s=Flink)",
                                 STRING()),
-                TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast MULTISET to STRING")
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast MULTISET to STRING")
                         .onFieldsWithData(map(entry("a", 1), entry("b", 2)))
                         .andDataTypes(MAP(STRING(), INT()))
                         .withFunction(JsonFunctionsITCase.CreateMultiset.class)
@@ -233,7 +232,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 call("CreateMultiset", $("f0")).cast(STRING()),
                                 "{a=1, b=2}",
                                 STRING()),
-                TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast RAW to STRING")
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast RAW to STRING")
                         .onFieldsWithData("2020-11-11T18:08:01.123")
                         .andDataTypes(STRING())
                         .withFunction(LocalDateTimeToRaw.class)
@@ -241,7 +240,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 call("LocalDateTimeToRaw", $("f0")).cast(STRING()),
                                 "2020-11-11T18:08:01.123",
                                 STRING()),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.TRY_CAST, "try cast from STRING to TIME")
                         .onFieldsWithData("Flink", "12:34:56")
                         .andDataTypes(STRING(), STRING())
@@ -255,7 +254,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 "TRY_CAST(f1 AS TIME)",
                                 LocalTime.of(12, 34, 56, 0),
                                 TIME().nullable()),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.TRY_CAST,
                                 "try cast from TIME NOT NULL to STRING NOT NULL")
                         .onFieldsWithData(LocalTime.parse("12:34:56"))
@@ -265,7 +264,7 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 "TRY_CAST(f0 AS STRING)",
                                 "12:34:56",
                                 STRING().nullable()),
-                TestSpec.forFunction(
+                TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.TRY_CAST,
                                 "try cast from ROW<INT, STRING> to ROW<TINYINT, TIME>")
                         .onFieldsWithData(Row.of(1, "abc"), Row.of(1, "12:34:56"))
