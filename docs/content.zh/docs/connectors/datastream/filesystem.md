@@ -960,6 +960,72 @@ val sink = FileSink
 {{< /tab >}}
 {{< /tabs >}}
 
+<a name="compaction"></a>
+
+### 文件合并
+
+从 1.15 版本开始 `FileSink` 开始支持已经提交 `pending` 文件的合并，从而允许应用设置一个较小的时间周期并且避免生成大量的小文件。
+尤其是当用户使用 [bulk 格式]({{< ref "docs/connectors/datastream/filesystem#bulk-encoded-formats" >}}) 的时候：
+这种格式要求用户必须在 checkpoint 的时候切换文件。
+
+文件合并功能可以通过以下代码打开：
+
+{{< tabs "enablecompaction" >}}
+{{< tab "Java" >}}
+```java
+
+FileSink<Integer> fileSink=
+        FileSink.forRowFormat(new Path(path),new SimpleStringEncoder<Integer>())
+            .enableCompact(
+                FileCompactStrategy.Builder.newBuilder()
+                    .setNumCompactThreads(1024)
+                    .enableCompactionOnCheckpoint(5)
+                    .build(),
+                new RecordWiseFileCompactor<>(
+                    new DecoderBasedReader.Factory<>(SimpleStringDecoder::new)))
+            .build();
+
+```
+{{< /tab >}}
+{{< tab "Scala" >}}
+```scala
+
+val fileSink: FileSink[Integer] =
+  FileSink.forRowFormat(new Path(path), new SimpleStringEncoder[Integer]())
+          .enableCompact(
+            FileCompactStrategy.Builder.newBuilder()
+                    .setNumCompactThreads(1024)
+                    .enableCompactionOnCheckpoint(5)
+                    .build(),
+            new RecordWiseFileCompactor(
+              new DecoderBasedReader.Factory(() => new SimpleStringDecoder)))
+          .build()
+
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+这一功能开启后，在文件转为 `pending` 状态与文件最终提交之间会进行文件合并。这些 `pending` 状态的文件将首先被提交为一个以 `.` 开头的
+临时文件。这些文件随后将会按照用户指定的策略和合并方式进行合并并生成合并后的 `pending` 状态的文件。
+然后这些文件将被发送给 Committer 并提交为正式文件，在这之后，原始的临时文件也会被删除掉。
+
+当开启文件合并功能时，用户需要指定 {{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactStrategy.html" name="FileCompactStrategy">}} 与
+{{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactor.html" name="FileCompactor">}} 。
+
+{{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactStrategy.html" name="FileCompactStrategy">}} 指定何时以及哪些文件将被合并。
+目前有两个并行的条件：目标文件大小与间隔的 Checkpoint 数量。当目前缓存的文件的总大小达到指定的阈值，或自上次合并后经过的 Checkpoint 次数已经达到指定次数时，
+`FileSink` 将创建一个异步任务来合并当前缓存的文件。
+
+{{< javadoc file="org/apache/flink/connector/file/sink/compactor/FileCompactor.html" name="FileCompactor">}} 指定如何将给定的路径列表对应的文件进行合并将结果写入
+到 {{< javadoc file="org/apache/flink/streaming/api/functions/sink/filesystem//CompactingFileWriter.html" name="CompactingFileWriter">}} 中。根据所给定的 `CompactingFileWriter` 的类型，它可以分为两类：
+
+- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/OutputStreamBasedFileCompactor.html" name="OutputStreamBasedFileCompactor">}}** : 这种类型的 `CompactingFileWriter` 可以被转换为一个输出流，用户可以将合并后的结果直接写入该流中。这种类型的 `CompactingFileWriter` 的一个例子是 {{< javadoc file="org/apache/flink/connector/file/sink/compactor/ConcatFileCompactor.html" name="ConcatFileCompactor">}}，它直接将给定的文件进行合并并将结果写到输出流中。
+- **{{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}}** ：这种类型的 `CompactingFileWriter` 允许用户将按条写入记录。`CompactingFileWriter` 的一个例子是 {{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}} ，它从给定的文件中读出记录并写出到 `CompactingFileWriter` 中。用户需要指定如何从原始文件中读出记录。
+
+{{< hint info >}}
+**重要** 如果启用了文件合并功能，文件可见的时间会被延长。
+{{< /hint >}}
+
 <a name="important-considerations"></a>
 
 ### 重要提示
@@ -976,14 +1042,14 @@ val sink = FileSink
 <span class="label label-danger">重要提示 2</span>：鉴于 Flink 的 Sink 和 UDF 通常不会区分正常作业终止（*例如* 有限输入流）和 由于故障而终止，
 在 Job 正常终止时，最后一个 In-progress 状态文件不会转换为 "Finished" 状态。
 
-<span class="label label-danger">重要提示 3</span>：Flink 和 `FileSink` 从来不会覆盖已提交数据。
+<span class="label label-danger">重要提示 3</span>：Flink 和 `FileSink` 永远不会覆盖已提交数据。
 鉴于此，假定一个 In-progress 状态文件被后续成功的 Checkpoint 提交了，当尝试从这个旧的 Checkpoint / Savepoint 进行恢复时，`FileSink` 将拒绝继续执行并将抛出异常，因为程序无法找到 In-progress 状态的文件。
 
 <span class="label label-danger">重要提示 4</span>：目前，`FileSink` 仅支持以下3种文件系统：HDFS、 S3 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
 
 <a name="batch-specific"></a>
 
-#### BATCH-具体提示
+#### BATCH 提示
 
 <span class="label label-danger">重要提示 1</span>：虽然 `Writer` 是以用户指定的 parallelism 执行的，然而 `Committer` 是以 parallelism = 1 执行的。
 
@@ -993,7 +1059,7 @@ val sink = FileSink
 
 <a name="s3-specific"></a>
 
-#### S3-具体提示
+#### S3 提示
 
 <span class="label label-danger">重要提示 1</span>：对于 S3，`FileSink` 仅支持基于 [Hadoop-based](https://hadoop.apache.org/) 文件系统的实现，而不支持基于 [Presto](https://prestodb.io/) 的实现。
 如果 Job 中使用 `FileSink` 写入 S3，但是希望使用基于 Presto 的 Sink 做 Checkpoint，建议明确使用 *"s3a://"* （对于 Hadoop）作为 Sink 目标路径格式并且使用 *"s3p://"* 作为 Checkpoint 的目标路径格式（对于 Presto）。 
