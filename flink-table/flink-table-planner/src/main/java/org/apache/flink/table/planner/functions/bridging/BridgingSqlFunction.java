@@ -37,7 +37,6 @@ import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlKind;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createName;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createParamTypes;
@@ -154,8 +153,8 @@ public final class BridgingSqlFunction extends SqlFunction {
         return typeFactory;
     }
 
-    public Optional<FunctionIdentifier> getIdentifier() {
-        return resolvedFunction.getIdentifier();
+    public ContextResolvedFunction getResolvedFunction() {
+        return resolvedFunction;
     }
 
     public FunctionDefinition getDefinition() {

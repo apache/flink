@@ -22,9 +22,9 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.FunctionRequirement;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -35,7 +35,6 @@ import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Optionality;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createName;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createParamTypes;
@@ -117,6 +116,22 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
                 dataTypeFactory, typeFactory, kind, resolvedFunction, typeInference);
     }
 
+    /** Creates an instance of a aggregate function during translation. */
+    public static BridgingSqlAggFunction of(
+            FlinkContext context,
+            FlinkTypeFactory typeFactory,
+            ContextResolvedFunction resolvedFunction) {
+        final DataTypeFactory dataTypeFactory = context.getCatalogManager().getDataTypeFactory();
+        final TypeInference typeInference =
+                resolvedFunction.getDefinition().getTypeInference(dataTypeFactory);
+        return of(
+                dataTypeFactory,
+                typeFactory,
+                SqlKind.OTHER_FUNCTION,
+                resolvedFunction,
+                typeInference);
+    }
+
     public DataTypeFactory getDataTypeFactory() {
         return dataTypeFactory;
     }
@@ -125,8 +140,8 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
         return typeFactory;
     }
 
-    public Optional<FunctionIdentifier> getIdentifier() {
-        return resolvedFunction.getIdentifier();
+    public ContextResolvedFunction getResolvedFunction() {
+        return resolvedFunction;
     }
 
     public FunctionDefinition getDefinition() {

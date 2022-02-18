@@ -50,6 +50,10 @@ public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
             throws IOException {
         final JsonNode logicalTypeNode = jsonParser.readValueAsTree();
         final SerdeContext serdeContext = SerdeContext.get(ctx);
+        return deserialize(logicalTypeNode, serdeContext);
+    }
+
+    static RelDataType deserialize(JsonNode logicalTypeNode, SerdeContext serdeContext) {
         final FlinkTypeFactory typeFactory = serdeContext.getTypeFactory();
         final LogicalType logicalType =
                 LogicalTypeJsonDeserializer.deserialize(logicalTypeNode, serdeContext);

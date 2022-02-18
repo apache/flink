@@ -74,7 +74,7 @@ class ResolvedCatalogTableJsonSerializer extends StdSerializer<ResolvedCatalogTa
                     "Cannot serialize the table as it's an external inline table. "
                             + "This might be caused by a usage of "
                             + "StreamTableEnvironment#fromDataStream or TableResult#collect, "
-                            + "which are not supported by the persisted plan.");
+                            + "which are not supported in compiled plans.");
         }
 
         serializerProvider.defaultSerializeField(
