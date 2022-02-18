@@ -1028,44 +1028,44 @@ val fileSink: FileSink[Integer] =
 
 <a name="important-considerations"></a>
 
-### 重要提示
+### 重要注意事项
 
 <a name="general"></a>
 
-#### 整体提示
+#### 通用注意事项
 
-<span class="label label-danger">重要提示 1</span>：当使用的 Hadoop 版本 < 2.7 时，
+<span class="label label-danger">注意事项 1</span>：当使用的 Hadoop 版本 < 2.7 时，
 当每次 Checkpoint 时请使用 `OnCheckpointRollingPolicy` 滚动 Part 文件。原因是：如果 Part 文件 "穿越" 了 Checkpoint 的时间间隔，
 然后，从失败中恢复过来时，`FileSink` 可能会使用文件系统的 `truncate()` 方法丢弃处于 In-progress 状态文件中的未提交数据。
 这个方法在 Hadoop 2.7 版本之前是不支持的，Flink 将抛出异常。
 
-<span class="label label-danger">重要提示 2</span>：鉴于 Flink 的 Sink 和 UDF 通常不会区分正常作业终止（*例如* 有限输入流）和 由于故障而终止，
+<span class="label label-danger">注意事项 2</span>：鉴于 Flink 的 Sink 和 UDF 通常不会区分正常作业终止（*例如* 有限输入流）和 由于故障而终止，
 在 Job 正常终止时，最后一个 In-progress 状态文件不会转换为 "Finished" 状态。
 
-<span class="label label-danger">重要提示 3</span>：Flink 和 `FileSink` 永远不会覆盖已提交数据。
+<span class="label label-danger">注意事项 3</span>：Flink 和 `FileSink` 永远不会覆盖已提交数据。
 鉴于此，假定一个 In-progress 状态文件被后续成功的 Checkpoint 提交了，当尝试从这个旧的 Checkpoint / Savepoint 进行恢复时，`FileSink` 将拒绝继续执行并将抛出异常，因为程序无法找到 In-progress 状态的文件。
 
-<span class="label label-danger">重要提示 4</span>：目前，`FileSink` 仅支持以下3种文件系统：HDFS、 S3 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
+<span class="label label-danger">注意事项 4</span>：目前，`FileSink` 仅支持以下3种文件系统：HDFS、 S3 和 Local。如果在运行时使用了不支持的文件系统，Flink 将抛出异常。
 
 <a name="batch-specific"></a>
 
-#### BATCH 提示
+#### BATCH 注意事项
 
-<span class="label label-danger">重要提示 1</span>：虽然 `Writer` 是以用户指定的 parallelism 执行的，然而 `Committer` 是以 parallelism = 1 执行的。
+<span class="label label-danger">注意事项 1</span>：虽然 `Writer` 是以用户指定的 parallelism 执行的，然而 `Committer` 是以 parallelism = 1 执行的。
 
-<span class="label label-danger">重要提示 2</span>：Pending 状态文件被提交并且所有输入数据被处理完后，才转换为 `Finished` 状态。
+<span class="label label-danger">注意事项 2</span>：Pending 状态文件被提交并且所有输入数据被处理完后，才转换为 `Finished` 状态。
 
-<span class="label label-danger">重要提示 3</span>：当系统处于高可用状态下，并且正当 `Committers` 进行提交时如果 `JobManager` 发生了故障，那么可能会有副本。这种情况将会在 Flink 的未来版本中进行修复。（可以参考 [FLIP-147](https://cwiki.apache.org/confluence/display/FLINK/FLIP-147%3A+Support+Checkpoints+After+Tasks+Finished) ） 。
+<span class="label label-danger">注意事项 3</span>：当系统处于高可用状态下，并且正当 `Committers` 进行提交时如果 `JobManager` 发生了故障，那么可能会有副本。这种情况将会在 Flink 的未来版本中进行修复。（可以参考 [FLIP-147](https://cwiki.apache.org/confluence/display/FLINK/FLIP-147%3A+Support+Checkpoints+After+Tasks+Finished) ） 。
 
 <a name="s3-specific"></a>
 
-#### S3 提示
+#### S3 注意事项
 
-<span class="label label-danger">重要提示 1</span>：对于 S3，`FileSink` 仅支持基于 [Hadoop-based](https://hadoop.apache.org/) 文件系统的实现，而不支持基于 [Presto](https://prestodb.io/) 的实现。
+<span class="label label-danger">注意事项 1</span>：对于 S3，`FileSink` 仅支持基于 [Hadoop-based](https://hadoop.apache.org/) 文件系统的实现，而不支持基于 [Presto](https://prestodb.io/) 的实现。
 如果 Job 中使用 `FileSink` 写入 S3，但是希望使用基于 Presto 的 Sink 做 Checkpoint，建议明确使用 *"s3a://"* （对于 Hadoop）作为 Sink 目标路径格式并且使用 *"s3p://"* 作为 Checkpoint 的目标路径格式（对于 Presto）。 
 对于 Sink 和  Checkpoint  同时使用 *"s3://"* 可能导致不可控的行为，由于两者的实现 "监听" 同一格式路径。
 
-<span class="label label-danger">重要提示 2</span>：在保证高效的同时还要保证 exactly-once 语义，`FileSink` 使用了 S3 的 [Multi-part Upload](https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html) 功能（MPU 功能开箱即用）。
+<span class="label label-danger">注意事项 2</span>：在保证高效的同时还要保证 exactly-once 语义，`FileSink` 使用了 S3 的 [Multi-part Upload](https://docs.aws.amazon.com/AmazonS3/latest/dev/mpuoverview.html) 功能（MPU 功能开箱即用）。
 此功能允许以独立的块上传文件（因此称为 "multi-part"），当 MPU 的所有块都上传成功时，这些块就可以合并生成原始文件。
 对于非活动的 MPU，S3 支持桶生命周期规则，用户可以使用该规则终止在启动后指定天数内未完成的多块上传操作。
 这意味着，如果设置了这个规则，并在某些文件未完全上传的情况下执行 Savepoint，则其关联的 MPU 可能会在 Job 重启前超时。
