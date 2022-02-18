@@ -30,6 +30,7 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBase
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedPartFileWriter.OutputStreamBasedInProgressFileRecoverableSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverable;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputStreamBasedPartFileWriter.OutputStreamBasedPendingFileRecoverableSerializer;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -52,7 +53,7 @@ import java.util.Collections;
  * serialized by the previous versions.
  */
 @RunWith(Parameterized.class)
-public class OutputStreamBasedPartFileRecoverableMigrationTest {
+public class OutputStreamBasedPartFileRecoverableMigrationTest extends TestLogger {
 
     private static final int CURRENT_VERSION = 1;
 
