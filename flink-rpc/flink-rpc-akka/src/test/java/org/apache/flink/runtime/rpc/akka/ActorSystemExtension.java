@@ -22,28 +22,30 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.Preconditions;
 
 import akka.actor.ActorSystem;
-import org.junit.rules.ExternalResource;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 /** External resource which starts an {@link akka.actor.ActorSystem}. */
-public class ActorSystemResource extends ExternalResource {
+public class ActorSystemExtension implements BeforeEachCallback, AfterEachCallback {
 
     private final Configuration configuration;
 
     private ActorSystem actorSystem;
 
-    private ActorSystemResource(Configuration configuration) {
+    private ActorSystemExtension(Configuration configuration) {
         this.configuration = configuration;
     }
 
     @Override
-    protected void before() throws Throwable {
+    public void beforeEach(ExtensionContext context) throws Exception {
         Preconditions.checkState(
                 actorSystem == null, "ActorSystem must not be initialized when calling before.");
         actorSystem = AkkaUtils.createLocalActorSystem(configuration);
     }
 
     @Override
-    protected void after() {
+    public void afterEach(ExtensionContext context) throws Exception {
         Preconditions.checkState(
                 actorSystem != null, "ActorSystem must be initialized when calling after.");
         AkkaUtils.terminateActorSystem(actorSystem).join();
@@ -53,11 +55,11 @@ public class ActorSystemResource extends ExternalResource {
         return actorSystem;
     }
 
-    public static ActorSystemResource defaultConfiguration() {
-        return new ActorSystemResource(new Configuration());
+    public static ActorSystemExtension defaultConfiguration() {
+        return new ActorSystemExtension(new Configuration());
     }
 
-    public static ActorSystemResource withConfiguration(Configuration configuration) {
-        return new ActorSystemResource(configuration);
+    public static ActorSystemExtension withConfiguration(Configuration configuration) {
+        return new ActorSystemExtension(configuration);
     }
 }
