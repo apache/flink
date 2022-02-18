@@ -401,7 +401,7 @@ class BoundedOutOfOrdernessGenerator extends WatermarkGenerator[MyEvent] {
 
     override def onPeriodicEmit(output: WatermarkOutput): Unit = {
         // emit the watermark as current highest timestamp minus the out-of-orderness bound
-        output.emitWatermark(new Watermark(currentMaxTimestamp - maxOutOfOrderness - 1));
+        output.emitWatermark(new Watermark(currentMaxTimestamp - maxOutOfOrderness - 1))
     }
 }
 
@@ -419,7 +419,7 @@ class TimeLagWatermarkGenerator extends WatermarkGenerator[MyEvent] {
     }
 
     override def onPeriodicEmit(output: WatermarkOutput): Unit = {
-        output.emitWatermark(new Watermark(System.currentTimeMillis() - maxTimeLag));
+        output.emitWatermark(new Watermark(System.currentTimeMillis() - maxTimeLag))
     }
 }
 ```

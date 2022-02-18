@@ -83,8 +83,8 @@ orangeStream.join(greenStream)
 {{< tab "Scala" >}}
 
 ```scala
-import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows
+import org.apache.flink.streaming.api.windowing.time.Time
 
 ...
 
@@ -137,8 +137,8 @@ orangeStream.join(greenStream)
 {{< tab "Scala" >}}
 
 ```scala
-import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingEventTimeWindows
+import org.apache.flink.streaming.api.windowing.time.Time
 
 ...
 
@@ -190,9 +190,9 @@ orangeStream.join(greenStream)
 {{< tab "Scala" >}}
 
 ```scala
-import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows;
-import org.apache.flink.streaming.api.windowing.time.Time;
- 
+import org.apache.flink.streaming.api.windowing.assigners.EventTimeSessionWindows
+import org.apache.flink.streaming.api.windowing.time.Time
+
 ...
 
 val orangeStream: DataStream[Integer] = ...
@@ -264,8 +264,8 @@ orangeStream
 {{< tab "Scala" >}}
 
 ```scala
-import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction;
-import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.functions.co.ProcessJoinFunction
+import org.apache.flink.streaming.api.windowing.time.Time
 
 ...
 
@@ -278,10 +278,10 @@ orangeStream
     .between(Time.milliseconds(-2), Time.milliseconds(1))
     .process(new ProcessJoinFunction[Integer, Integer, String] {
         override def processElement(left: Integer, right: Integer, ctx: ProcessJoinFunction[Integer, Integer, String]#Context, out: Collector[String]): Unit = {
-         out.collect(left + "," + right); 
+            out.collect(left + "," + right)
         }
-      });
-    });
+    })
+
 ```
 
 {{< /tab >}}
