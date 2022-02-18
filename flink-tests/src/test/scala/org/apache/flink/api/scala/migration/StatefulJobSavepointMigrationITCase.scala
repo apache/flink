@@ -35,56 +35,67 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.streaming.api.functions.source.SourceFunction
 import org.apache.flink.streaming.api.watermark.Watermark
-import org.apache.flink.test.checkpointing.utils.SavepointMigrationTestBase
+import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase
 import org.apache.flink.util.Collector
 import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
-
+import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase.ExecutionMode
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
-import org.junit.{Ignore, Test}
+import org.junit.Test
 
+import java.util.stream.Collectors
 import scala.util.{Failure, Try}
 
 object StatefulJobSavepointMigrationITCase {
 
+  // TODO increase this to newer version to create and test snapshot migration for newer versions
+  val currentVersion = FlinkVersion.v1_14
+
+  // TODO change this to CREATE_SNAPSHOT to (re)create binary snapshots
+  // TODO Note: You should generate the snapshot based on the release branch instead of the
+  // master.
+  val executionMode = ExecutionMode.VERIFY_SNAPSHOT
+
   @Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
   def parameters: util.Collection[(FlinkVersion, String)] = {
-    util.Arrays.asList(
-      (FlinkVersion.v1_3, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_4, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_6, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_7, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
+    var parameters = util.Arrays.asList(
+      //      (FlinkVersion.v1_3, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      //      (FlinkVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      //      (FlinkVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      //      (FlinkVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
+      // Note: It is not safe to restore savepoints created in a Scala applications with Flink
+      // version 1.7 or below. The reason is that up to version 1.7 the underlying Scala serializer
+      // used names of anonymous classes that depend on the relative position/order in code, e.g.,
+      // if two anonymous classes, instantiated inside the same class and from the same base class,
+      // change order in the code their names are switched.
+      // As a consequence, changes in code may result in restore failures.
+      // This was fixed in version 1.8, see: https://issues.apache.org/jira/browse/FLINK-10493
       (FlinkVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_8, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (FlinkVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_9, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (FlinkVersion.v1_10, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_10, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (FlinkVersion.v1_11, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_11, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (FlinkVersion.v1_12, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_12, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (FlinkVersion.v1_13, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_13, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME),
       (FlinkVersion.v1_14, StateBackendLoader.HASHMAP_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_14, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME))
+      (FlinkVersion.v1_15, StateBackendLoader.HASHMAP_STATE_BACKEND_NAME),
+    )
+    if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
+      parameters = parameters.stream().filter(x => x._1 == currentVersion)
+        .collect(Collectors.toList())
+    }
+    parameters
   }
 
-  // TODO to generate savepoints for a specific Flink version / backend type,
-  // TODO change these values accordingly, e.g. to generate for 1.3 with RocksDB,
-  // TODO set as (FlinkVersion.v1_3, StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME)
-  // TODO Note: You should generate the savepoint based on the release branch instead of the master.
-  val GENERATE_SAVEPOINT_VER: FlinkVersion = FlinkVersion.v1_14
-  val GENERATE_SAVEPOINT_BACKEND_TYPE: String = StateBackendLoader.HASHMAP_STATE_BACKEND_NAME
-
   val NUM_ELEMENTS = 4
+
+  def getSnapshotPath(migrationVersionAndBackend: (FlinkVersion, String)): String = {
+    s"stateful-scala-udf-migration-itcase" +
+      s"-flink${migrationVersionAndBackend._1}" +
+      s"-${migrationVersionAndBackend._2}-savepoint"
+  }
 }
 
 /**
@@ -92,55 +103,11 @@ object StatefulJobSavepointMigrationITCase {
  */
 @RunWith(classOf[Parameterized])
 class StatefulJobSavepointMigrationITCase(
-    migrationVersionAndBackend: (FlinkVersion, String))
-  extends SavepointMigrationTestBase with Serializable {
-
-  @Ignore
-  @Test
-  def testCreateSavepoint(): Unit = {
-    val env = StreamExecutionEnvironment.getExecutionEnvironment
-    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
-
-    StatefulJobSavepointMigrationITCase.GENERATE_SAVEPOINT_BACKEND_TYPE match {
-      case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME =>
-        env.setStateBackend(new EmbeddedRocksDBStateBackend())
-      case StateBackendLoader.MEMORY_STATE_BACKEND_NAME =>
-        env.setStateBackend(new MemoryStateBackend())
-      case StateBackendLoader.HASHMAP_STATE_BACKEND_NAME =>
-        env.setStateBackend(new HashMapStateBackend())
-      case _ => throw new UnsupportedOperationException
-    }
-
-    env.setStateBackend(new MemoryStateBackend)
-    env.enableCheckpointing(500)
-    env.setParallelism(4)
-    env.setMaxParallelism(4)
-
-    env
-      .addSource(
-        new CheckpointedSource(4)).setMaxParallelism(1).uid("checkpointedSource")
-      .keyBy(
-        new KeySelector[(Long, Long), Long] {
-          override def getKey(value: (Long, Long)): Long = value._1
-        }
-      )
-      .flatMap(new StatefulFlatMapper)
-      .addSink(new AccumulatorCountingSink)
-
-    executeAndSavepoint(
-      env,
-      s"src/test/resources/stateful-scala-udf-migration-itcase-flink" +
-        s"${StatefulJobSavepointMigrationITCase.GENERATE_SAVEPOINT_VER}" +
-        s"-${StatefulJobSavepointMigrationITCase.GENERATE_SAVEPOINT_BACKEND_TYPE}-savepoint",
-      new Tuple2(
-        AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
-        StatefulJobSavepointMigrationITCase.NUM_ELEMENTS
-      )
-    )
-  }
+                                           migrationVersionAndBackend: (FlinkVersion, String))
+  extends SnapshotMigrationTestBase with Serializable {
 
   @Test
-  def testRestoreSavepoint(): Unit = {
+  def testSavepoint(): Unit = {
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
@@ -153,9 +120,8 @@ class StatefulJobSavepointMigrationITCase(
         env.setStateBackend(new HashMapStateBackend())
       case _ => throw new UnsupportedOperationException
     }
-    env.enableChangelogStateBackend(false);
 
-    env.setStateBackend(new MemoryStateBackend)
+    env.enableChangelogStateBackend(false)
     env.enableCheckpointing(500)
     env.setParallelism(4)
     env.setMaxParallelism(4)
@@ -171,16 +137,29 @@ class StatefulJobSavepointMigrationITCase(
       .flatMap(new StatefulFlatMapper)
       .addSink(new AccumulatorCountingSink)
 
-    restoreAndExecute(
-      env,
-      SavepointMigrationTestBase.getResourceFilename(
-        s"stateful-scala" +
-          s"-udf-migration-itcase-flink${migrationVersionAndBackend._1}" +
-          s"-${migrationVersionAndBackend._2}-savepoint"),
-      new Tuple2(
-        AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
-        StatefulJobSavepointMigrationITCase.NUM_ELEMENTS)
-    )
+    if (StatefulJobSavepointMigrationITCase.executionMode == ExecutionMode.CREATE_SNAPSHOT) {
+      executeAndSavepoint(
+        env,
+        s"src/test/resources/"
+          + StatefulJobSavepointMigrationITCase.getSnapshotPath(migrationVersionAndBackend),
+        new Tuple2(
+          AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
+          StatefulJobSavepointMigrationITCase.NUM_ELEMENTS
+        )
+      )
+    } else if (
+      StatefulJobSavepointMigrationITCase.executionMode == ExecutionMode.VERIFY_SNAPSHOT) {
+      restoreAndExecute(
+        env,
+        SnapshotMigrationTestBase.getResourceFilename(
+          StatefulJobSavepointMigrationITCase.getSnapshotPath(migrationVersionAndBackend)),
+        new Tuple2(
+          AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
+          StatefulJobSavepointMigrationITCase.NUM_ELEMENTS)
+      )
+    } else {
+      throw new UnsupportedOperationException("Unsupported execution mode.")
+    }
   }
 
   @SerialVersionUID(1L)
@@ -190,7 +169,7 @@ class StatefulJobSavepointMigrationITCase(
 
   @SerialVersionUID(1L)
   private class CheckpointedSource(val numElements: Int)
-      extends SourceFunction[(Long, Long)] with CheckpointedFunction {
+    extends SourceFunction[(Long, Long)] with CheckpointedFunction {
 
     private var isRunning = true
     private var state: ListState[CustomCaseClass] = _
@@ -201,8 +180,8 @@ class StatefulJobSavepointMigrationITCase(
       ctx.getCheckpointLock synchronized {
         var i = 0
         while (i < numElements) {
-            ctx.collect(i, i)
-            i += 1
+          ctx.collect(i, i)
+          i += 1
         }
       }
       // don't emit a final watermark so that we don't trigger the registered event-time
