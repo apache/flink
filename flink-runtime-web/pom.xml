@@ -163,11 +163,6 @@ under the License.
 				<artifactId>maven-jar-plugin</artifactId>
 				<executions>
 					<execution>
-						<goals>
-							<goal>test-jar</goal>
-						</goals>
-					</execution>
-					<execution>
 						<!-- Used for JarHandler tests -->
 						<id>test-program-jar</id>
 						<phase>process-test-classes</phase>
