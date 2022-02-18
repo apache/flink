@@ -38,7 +38,7 @@ from pyflink.table.catalog import ObjectPath, CatalogBaseTable
 from pyflink.table.explain_detail import ExplainDetail
 from pyflink.table.expressions import col, source_watermark
 from pyflink.table.table_descriptor import TableDescriptor
-from pyflink.table.types import RowType, Row
+from pyflink.table.types import RowType, Row, UserDefinedType
 from pyflink.table.udf import udf
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import (
@@ -533,7 +533,79 @@ class StreamTableEnvironmentTests(TableEnvironmentTest, PyFlinkStreamTableTestCa
             self.assertEqual(expected_result, collected_result)
 
 
+class VectorUDT(UserDefinedType):
+
+    @classmethod
+    def sql_type(cls):
+        return DataTypes.ROW(
+            [
+                DataTypes.FIELD("type", DataTypes.TINYINT()),
+                DataTypes.FIELD("size", DataTypes.INT()),
+                DataTypes.FIELD("indices", DataTypes.ARRAY(DataTypes.INT())),
+                DataTypes.FIELD("values", DataTypes.ARRAY(DataTypes.DOUBLE())),
+            ]
+        )
+
+    @classmethod
+    def module(cls):
+        return "pyflink.ml.core.linalg"
+
+    def serialize(self, obj):
+        if isinstance(obj, DenseVector):
+            values = [float(v) for v in obj._values]
+            return 1, None, None, values
+        else:
+            raise TypeError("Cannot serialize %r of type %r".format(obj, type(obj)))
+
+    def deserialize(self, datum):
+        pass
+
+
+class DenseVector(object):
+    __UDT__ = VectorUDT()
+
+    def __init__(self, values):
+        self._values = values
+
+    def size(self) -> int:
+        return len(self._values)
+
+    def get(self, i: int):
+        return self._values[i]
+
+    def to_array(self):
+        return self._values
+
+    @property
+    def values(self):
+        return self._values
+
+    def __str__(self):
+        return "[" + ",".join([str(v) for v in self._values]) + "]"
+
+    def __repr__(self):
+        return "DenseVector([%s])" % (", ".join(str(i) for i in self._values))
+
+
 class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
+
+    def test_udt(self):
+        self.t_env.from_elements([
+            (DenseVector([1, 2, 3, 4]), 0., 1.),
+            (DenseVector([2, 2, 3, 4]), 0., 2.),
+            (DenseVector([3, 2, 3, 4]), 0., 3.),
+            (DenseVector([4, 2, 3, 4]), 0., 4.),
+            (DenseVector([5, 2, 3, 4]), 0., 5.),
+            (DenseVector([11, 2, 3, 4]), 1., 1.),
+            (DenseVector([12, 2, 3, 4]), 1., 2.),
+            (DenseVector([13, 2, 3, 4]), 1., 3.),
+            (DenseVector([14, 2, 3, 4]), 1., 4.),
+            (DenseVector([15, 2, 3, 4]), 1., 5.),
+        ],
+            DataTypes.ROW([
+                DataTypes.FIELD("features", VectorUDT()),
+                DataTypes.FIELD("label", DataTypes.DOUBLE()),
+                DataTypes.FIELD("weight", DataTypes.DOUBLE())]))
 
     def test_explain_with_multi_sinks(self):
         t_env = self.t_env
