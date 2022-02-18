@@ -1593,6 +1593,14 @@ under the License.
 						<!--suppress MavenModelInspection -->
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
 						<junit.jupiter.extensions.autodetection.enabled>true</junit.jupiter.extensions.autodetection.enabled>
+						<!-- Enabled the parallel test execution feature. -->
+						<junit.jupiter.execution.parallel.enabled>true</junit.jupiter.execution.parallel.enabled>
+						<!-- Tests are by default executed by a single thread; parallel execution is opt-in. -->
+						<junit.jupiter.execution.parallel.mode.default>same_thread</junit.jupiter.execution.parallel.mode.default>
+						<!-- Tests suites are by default executed by a single thread; parallel execution is opt-in. -->
+						<junit.jupiter.execution.parallel.mode.classes.default>same_thread</junit.jupiter.execution.parallel.mode.classes.default>
+						<!-- automatically adjust parallelism based on available cpu/processor cores-->
+						<junit.jupiter.execution.parallel.config.strategy>dynamic</junit.jupiter.execution.parallel.config.strategy>
 					</systemPropertyVariables>
 				</configuration>
 				<executions>
