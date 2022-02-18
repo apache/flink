@@ -207,16 +207,16 @@ If you want to run your job by simply executing the main class, you will need `f
 In case of Table API programs, you will also need `flink-table-runtime` and `flink-table-planner-loader`.
 
 As a rule of thumb, we **suggest** packaging the application code and all its required dependencies into one fat/uber JAR.
-This includes packaging connectors, formats and every 3rd party dependencies of your job.
-This rule **does not apply** to Java APIs, DataStream Scala APIs and eventual aforementioned runtime modules, 
-which are already provided by Flink itself and **must not** be included in a job uber JAR.
+This includes packaging connectors, formats, and third-party dependencies of your job.
+This rule **does not apply** to Java APIs, DataStream Scala APIs, and the aforementioned runtime modules, 
+which are already provided by Flink itself and **should not** be included in a job uber JAR.
 This job JAR can be submitted to an already running Flink cluster, or added to a Flink application
 container image easily without modifying the distribution.
 
 ## What's next?
 
 * To start developing your job, check out [DataStream API]({{< ref "docs/dev/datastream/overview" >}}) and [Table API & SQL]({{< ref "docs/dev/table/overview" >}}).
-* For more details about how to package your job depending on the build tools, check the specific guides:
+* For more details on how to package your job depending on the build tools, check out the following specific guides:
   * [Maven]({{< ref "docs/dev/configuration/maven" >}})
   * [Gradle]({{< ref "docs/dev/configuration/gradle" >}})
-* For more advanced topics about project configuration, check out [advanced topic]({{< ref "docs/dev/configuration/advanced" >}}).
+* For more advanced topics about project configuration, check out the section on [advanced topics]({{< ref "docs/dev/configuration/advanced" >}}).

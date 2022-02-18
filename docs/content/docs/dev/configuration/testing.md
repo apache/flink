@@ -48,5 +48,5 @@ This will automatically bring in the query planner and the runtime, required res
 and execute the queries.
 
 {{< hint info >}}
-The module `flink-table-test-utils` has been introduced in Flink 1.15 and it's considered experimental.
+The module `flink-table-test-utils` has been introduced in Flink 1.15 and is considered experimental.
 {{< /hint >}}

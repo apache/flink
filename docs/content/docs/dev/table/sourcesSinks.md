@@ -120,16 +120,15 @@ a DataStream connector to the Table API), you need to add this dependency:
 
 {{< artifact_tabs flink-table-api-java-bridge withProvidedScope >}}
 
-When developing the connector/format, we suggest shipping both a thin JAR and an uber JAR. 
-In particular, the uber JAR should include all the 3rd party dependencies of the connector, 
+When developing the connector/format, we suggest shipping both a thin JAR and an uber JAR, so users 
+can easily load the uber JAR in the SQL client or in the Flink distribution and start using it.
+The uber JAR should include all the third-party dependencies of the connector, 
 excluding the table dependencies listed above.
 
-This way, users can easily load the uber JAR in the SQL client or in the Flink distribution and start using it.
-
 {{< hint warning >}}
-You MUST NOT depend on `flink-table-planner{{< scala_version >}}` in production code, 
-as with the new module `flink-table-planner-loader` introduced in Flink 1.15, 
-application's classpath won't have direct access to `org.apache.flink.table.planner` classes anymore. 
+You should not depend on `flink-table-planner{{< scala_version >}}` in production code.
+With the new module `flink-table-planner-loader` introduced in Flink 1.15, the 
+application's classpath will not have direct access to `org.apache.flink.table.planner` classes anymore. 
 If you need a feature available only internally within the `org.apache.flink.table.planner` package and subpackages, please open an issue.
 To learn more, check out [Anatomy of Table Dependencies]({{< ref "docs/dev/configuration/advanced" >}}#anatomy-of-table-dependencies).
 {{< /hint >}}

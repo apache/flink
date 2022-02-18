@@ -25,25 +25,29 @@ under the License.
 # Connectors and Formats
 
 Flink can read from and write to various external systems via connectors and use the format of your choice
-in order to read/write data from/into records.
+in order to read/write data from/to records.
 
 An overview of available connectors and formats is available for both
 [DataStream]({{< ref "docs/connectors/datastream/overview.md" >}}) and
 [Table API/SQL]({{< ref "docs/connectors/table/overview.md" >}}).
 
+## Available artifacts
+
 In order to use connectors and formats, you need to make sure Flink has access to the artifacts implementing them. 
-For each connector supported by the Flink community, we publish on [Maven Central](https://search.maven.org) two artifacts:
+For each connector supported by the Flink community, we publish two artifacts on [Maven Central](https://search.maven.org):
 
-* `flink-connector-<NAME>` which is a thin JAR including only the connector code, but excluding eventual 3rd party dependencies
-* `flink-sql-connector-<NAME>` which is an uber JAR ready to use with all the connector 3rd party dependencies.
+* `flink-connector-<NAME>` which is a thin JAR including only the connector code, but excluding eventual third-party dependencies
+* `flink-sql-connector-<NAME>` which is an uber JAR ready to use with all the connector third-party dependencies
 
-The same applies for formats as well. Also note that some connectors, because they don't require 3rd party dependencies,
-may not have a corresponding `flink-sql-connector-<NAME>` artifact.
+The same applies for formats as well. Note that some connectors may not have a corresponding 
+`flink-sql-connector-<NAME>` artifact because they do not require third-party dependencies.
 
 {{< hint info >}}
-The uber JARs are supported mostly for being used in conjunction with [SQL client]({{< ref "docs/dev/table/sqlClient" >}}),
-but you can also use them in any DataStream/Table job.
+The uber/fat JARs are supported mostly for being used in conjunction with the [SQL client]({{< ref "docs/dev/table/sqlClient" >}}),
+but you can also use them in any DataStream/Table application.
 {{< /hint >}}
+
+## Using artifacts
 
 In order to use a connector/format module, you can either:
 
