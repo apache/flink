@@ -20,6 +20,7 @@ package org.apache.flink.formats.hadoop.bulk;
 
 import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter.HadoopPathBasedPendingFileRecoverable;
 import org.apache.flink.formats.hadoop.bulk.HadoopPathBasedPartFileWriter.HadoopPathBasedPendingFileRecoverableSerializer;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Assert;
 import org.junit.ClassRule;
@@ -40,7 +41,7 @@ import java.util.Collections;
  * read the recoverable serialized by the previous versions.
  */
 @RunWith(Parameterized.class)
-public class HadoopPathBasedPendingFileRecoverableSerializerMigrationTest {
+public class HadoopPathBasedPendingFileRecoverableSerializerMigrationTest extends TestLogger {
 
     private static final int CURRENT_VERSION = 1;
 
