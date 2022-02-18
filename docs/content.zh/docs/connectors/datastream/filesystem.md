@@ -960,6 +960,8 @@ val sink = FileSink
 {{< /tab >}}
 {{< /tabs >}}
 
+<a name="compaction"></a>
+
 ### 文件合并
 
 从 1.15 版本开始 `FileSink` 开始支持已经提交 `pending` 文件的合并，从而允许应用设置一个较小的时间周期并且避免生成大量的小文件。
