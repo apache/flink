@@ -41,7 +41,7 @@ import org.apache.flink.api.java.tuple.Tuple2
 import org.apache.flink.runtime.state.{FunctionInitializationContext, FunctionSnapshotContext, StateBackendLoader}
 import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.migration.CustomEnum.CustomEnum
-import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase.ExecutionMode
+import org.apache.flink.test.checkpointing.utils.SnapshotMigrationTestBase.{ExecutionMode, SnapshotSpec, SnapshotType}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.Test
@@ -59,31 +59,54 @@ object StatefulJobSavepointMigrationITCase {
   // master.
   val executionMode = ExecutionMode.VERIFY_SNAPSHOT
 
-  @Parameterized.Parameters(name = "Migrate Savepoint / Backend: {0}")
-  def parameters: util.Collection[(FlinkVersion, String)] = {
-    var parameters = util.Arrays.asList(
-      //      (FlinkVersion.v1_3, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      //      (FlinkVersion.v1_4, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      //      (FlinkVersion.v1_6, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      //      (FlinkVersion.v1_7, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      // Note: It is not safe to restore savepoints created in a Scala applications with Flink
-      // version 1.7 or below. The reason is that up to version 1.7 the underlying Scala serializer
-      // used names of anonymous classes that depend on the relative position/order in code, e.g.,
-      // if two anonymous classes, instantiated inside the same class and from the same base class,
-      // change order in the code their names are switched.
-      // As a consequence, changes in code may result in restore failures.
-      // This was fixed in version 1.8, see: https://issues.apache.org/jira/browse/FLINK-10493
-      (FlinkVersion.v1_8, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_9, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_10, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_11, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_12, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_13, StateBackendLoader.MEMORY_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_14, StateBackendLoader.HASHMAP_STATE_BACKEND_NAME),
-      (FlinkVersion.v1_15, StateBackendLoader.HASHMAP_STATE_BACKEND_NAME),
-    )
+  @Parameterized.Parameters(name = "Test snapshot: {0}")
+  def parameters: util.Collection[SnapshotSpec] = {
+    // Note: It is not safe to restore savepoints created in a Scala applications with Flink
+    // version 1.7 or below. The reason is that up to version 1.7 the underlying Scala serializer
+    // used names of anonymous classes that depend on the relative position/order in code, e.g.,
+    // if two anonymous classes, instantiated inside the same class and from the same base class,
+    // change order in the code their names are switched.
+    // As a consequence, changes in code may result in restore failures.
+    // This was fixed in version 1.8, see: https://issues.apache.org/jira/browse/FLINK-10493
+    var parameters: util.List[SnapshotSpec] = new util.LinkedList[SnapshotSpec]()
+    parameters.addAll(
+      SnapshotSpec.withVersions(
+        StateBackendLoader.MEMORY_STATE_BACKEND_NAME,
+        SnapshotType.SAVEPOINT_CANONICAL,
+        FlinkVersion.rangeOf(FlinkVersion.v1_8, FlinkVersion.v1_13)))
+    parameters.addAll(
+      SnapshotSpec.withVersions(
+        StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
+        SnapshotType.SAVEPOINT_CANONICAL,
+        FlinkVersion.rangeOf(FlinkVersion.v1_14, currentVersion)))
+    parameters.addAll(
+      SnapshotSpec.withVersions(
+        StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
+        SnapshotType.SAVEPOINT_CANONICAL,
+        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)))
+    parameters.addAll(
+      SnapshotSpec.withVersions(
+        StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
+        SnapshotType.SAVEPOINT_NATIVE,
+        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)))
+    parameters.addAll(
+      SnapshotSpec.withVersions(
+        StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
+        SnapshotType.SAVEPOINT_NATIVE,
+        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)))
+    parameters.addAll(
+      SnapshotSpec.withVersions(
+        StateBackendLoader.HASHMAP_STATE_BACKEND_NAME,
+        SnapshotType.CHECKPOINT,
+        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)))
+    parameters.addAll(
+      SnapshotSpec.withVersions(
+        StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME,
+        SnapshotType.CHECKPOINT,
+        FlinkVersion.rangeOf(FlinkVersion.v1_15, currentVersion)))
     if (executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-      parameters = parameters.stream().filter(x => x._1 == currentVersion)
+      parameters = parameters.stream()
+        .filter(x => x.getFlinkVersion().equals(currentVersion))
         .collect(Collectors.toList())
     }
     parameters
@@ -91,10 +114,20 @@ object StatefulJobSavepointMigrationITCase {
 
   val NUM_ELEMENTS = 4
 
-  def getSnapshotPath(migrationVersionAndBackend: (FlinkVersion, String)): String = {
-    s"stateful-scala-udf-migration-itcase" +
-      s"-flink${migrationVersionAndBackend._1}" +
-      s"-${migrationVersionAndBackend._2}-savepoint"
+  def getSnapshotPath(snapshotSpec: SnapshotSpec): String = {
+    val path = new StringBuilder(s"stateful-scala-udf-migration-itcase")
+    path ++= s"-flink${snapshotSpec.getFlinkVersion()}"
+    path ++= s"-${snapshotSpec.getStateBackendType()}"
+    snapshotSpec.getSnapshotType() match {
+      case SnapshotType.SAVEPOINT_CANONICAL =>
+        path ++= "-savepoint"
+      case SnapshotType.SAVEPOINT_NATIVE =>
+        path ++= "-savepoint-native"
+      case SnapshotType.CHECKPOINT =>
+        path ++= "-checkpoint"
+      case _ => throw new UnsupportedOperationException
+    }
+    path.toString()
   }
 }
 
@@ -102,8 +135,7 @@ object StatefulJobSavepointMigrationITCase {
  * ITCase for migration Scala state types across different Flink versions.
  */
 @RunWith(classOf[Parameterized])
-class StatefulJobSavepointMigrationITCase(
-                                           migrationVersionAndBackend: (FlinkVersion, String))
+class StatefulJobSavepointMigrationITCase(snapshotSpec: SnapshotSpec)
   extends SnapshotMigrationTestBase with Serializable {
 
   @Test
@@ -111,7 +143,7 @@ class StatefulJobSavepointMigrationITCase(
     val env = StreamExecutionEnvironment.getExecutionEnvironment
     env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime)
 
-    migrationVersionAndBackend._2 match {
+    snapshotSpec.getStateBackendType match {
       case StateBackendLoader.ROCKSDB_STATE_BACKEND_NAME =>
         env.setStateBackend(new EmbeddedRocksDBStateBackend())
       case StateBackendLoader.MEMORY_STATE_BACKEND_NAME =>
@@ -138,10 +170,11 @@ class StatefulJobSavepointMigrationITCase(
       .addSink(new AccumulatorCountingSink)
 
     if (StatefulJobSavepointMigrationITCase.executionMode == ExecutionMode.CREATE_SNAPSHOT) {
-      executeAndSavepoint(
+      executeAndSnapshot(
         env,
         s"src/test/resources/"
-          + StatefulJobSavepointMigrationITCase.getSnapshotPath(migrationVersionAndBackend),
+          + StatefulJobSavepointMigrationITCase.getSnapshotPath(snapshotSpec),
+        snapshotSpec.getSnapshotType(),
         new Tuple2(
           AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
           StatefulJobSavepointMigrationITCase.NUM_ELEMENTS
@@ -152,7 +185,7 @@ class StatefulJobSavepointMigrationITCase(
       restoreAndExecute(
         env,
         SnapshotMigrationTestBase.getResourceFilename(
-          StatefulJobSavepointMigrationITCase.getSnapshotPath(migrationVersionAndBackend)),
+          StatefulJobSavepointMigrationITCase.getSnapshotPath(snapshotSpec)),
         new Tuple2(
           AccumulatorCountingSink.NUM_ELEMENTS_ACCUMULATOR,
           StatefulJobSavepointMigrationITCase.NUM_ELEMENTS)

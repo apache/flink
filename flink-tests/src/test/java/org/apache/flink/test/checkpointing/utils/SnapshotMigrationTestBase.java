@@ -257,17 +257,6 @@ public abstract class SnapshotMigrationTestBase extends TestBaseUtils {
         return config;
     }
 
-    @Deprecated
-    @SafeVarargs
-    protected final void executeAndSavepoint(
-            StreamExecutionEnvironment env,
-            String snapshotPath,
-            Tuple2<String, Integer>... expectedAccumulators)
-            throws Exception {
-        executeAndSnapshot(
-                env, snapshotPath, SnapshotType.SAVEPOINT_CANONICAL, expectedAccumulators);
-    }
-
     @SafeVarargs
     protected final void executeAndSnapshot(
             StreamExecutionEnvironment env,
