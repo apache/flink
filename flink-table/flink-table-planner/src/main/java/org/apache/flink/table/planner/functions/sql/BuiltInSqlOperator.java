@@ -37,7 +37,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinition.qualify
  * <p>If {@link SqlOperator} were an interface, this interface would extend from it.
  */
 @Internal
-interface BuiltInSqlOperator {
+public interface BuiltInSqlOperator {
 
     /** @see BuiltInFunctionDefinition#getVersion() */
     Optional<Integer> getVersion();
@@ -73,5 +73,17 @@ interface BuiltInSqlOperator {
             return builtInSqlOperator.getQualifiedName();
         }
         return qualifyFunctionName(operator.getName(), DEFAULT_VERSION);
+    }
+
+    static String extractNameFromQualifiedName(String qualifiedName) {
+        // supports all various kinds of qualified names
+        // $FUNC$1 => FUNC
+        // $IS NULL$1 => IS NULL
+        // $$CALCITE_INTERNAL$1 => $CALCITE_INTERNAL
+        int versionPos = qualifiedName.length() - 1;
+        while (Character.isDigit(qualifiedName.charAt(versionPos))) {
+            versionPos--;
+        }
+        return qualifiedName.substring(1, versionPos);
     }
 }
