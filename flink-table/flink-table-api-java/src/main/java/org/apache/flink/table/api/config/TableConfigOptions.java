@@ -214,7 +214,7 @@ public class TableConfigOptions {
         ALL_ENFORCED(
                 text(
                         "Requires that all metadata about catalog tables, functions, or data types "
-                                + "that has been persisted in the plan. The strategy will neither "
+                                + "has been persisted in the plan. The strategy will neither "
                                 + "perform a catalog lookup by identifier nor enrich mutable "
                                 + "options with catalog information. A restore will fail if not all "
                                 + "information necessary is contained in the plan.")),
