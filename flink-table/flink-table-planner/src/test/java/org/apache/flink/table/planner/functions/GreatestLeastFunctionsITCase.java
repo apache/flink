@@ -21,23 +21,20 @@ package org.apache.flink.table.planner.functions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
-import org.junit.runners.Parameterized;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Arrays;
-import java.util.List;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 
 /** Tests for GREATEST, LEAST functions {@link BuiltInFunctionDefinitions}. */
-public class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
+class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return Arrays.asList(
-                TestSpec.forFunction(BuiltInFunctionDefinitions.GREATEST)
+    @Override
+    public Stream<TestSetSpec> getTestCaseSpecs() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.GREATEST)
                         .onFieldsWithData(
                                 null,
                                 1,
@@ -86,7 +83,7 @@ public class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
                                 "GREATEST(f5, f6)",
                                 "SQL validation failed. Invalid function call:\n"
                                         + "GREATEST(STRING NOT NULL, TIMESTAMP(3) NOT NULL)"),
-                TestSpec.forFunction(BuiltInFunctionDefinitions.LEAST)
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.LEAST)
                         .onFieldsWithData(null, 1, 2, 3.14, "hello", "world")
                         .andDataTypes(
                                 DataTypes.INT().nullable(),

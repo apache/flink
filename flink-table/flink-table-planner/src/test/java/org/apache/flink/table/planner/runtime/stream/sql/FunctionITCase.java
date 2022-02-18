@@ -40,7 +40,6 @@ import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.SpecializedFunction;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
-import org.apache.flink.table.planner.functions.BuiltInFunctionTestBase;
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -72,7 +71,8 @@ import static org.assertj.core.api.Assertions.fail;
  * Tests for catalog and system functions in a table environment.
  *
  * <p>Note: This class is meant for testing the core function support. Use {@link
- * BuiltInFunctionTestBase} for testing individual function implementations.
+ * org.apache.flink.table.planner.functions.BuiltInFunctionTestBase} for testing individual function
+ * implementations.
  */
 public class FunctionITCase extends StreamingTestBase {
 

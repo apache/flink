@@ -20,10 +20,7 @@ package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
-import org.junit.runners.Parameterized;
-
-import java.util.Collections;
-import java.util.List;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.INT;
@@ -31,12 +28,12 @@ import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.coalesce;
 
 /** Test {@link BuiltInFunctionDefinitions#COALESCE} and its return type. */
-public class CoalesceFunctionITCase extends BuiltInFunctionTestBase {
+class CoalesceFunctionITCase extends BuiltInFunctionTestBase {
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return Collections.singletonList(
-                TestSpec.forFunction(BuiltInFunctionDefinitions.COALESCE)
+    @Override
+    public Stream<TestSetSpec> getTestCaseSpecs() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.COALESCE)
                         .onFieldsWithData(null, null, 1)
                         .andDataTypes(BIGINT().nullable(), INT().nullable(), INT().notNull())
                         .testResult(

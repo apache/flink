@@ -21,21 +21,19 @@ package org.apache.flink.table.planner.functions;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
-import org.junit.runners.Parameterized;
-
-import java.util.Arrays;
-import java.util.List;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 
 /** Test String functions correct behaviour. */
-public class StringFunctionsITCase extends BuiltInFunctionTestBase {
+class StringFunctionsITCase extends BuiltInFunctionTestBase {
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        return Arrays.asList(
-                TestSpec.forFunction(BuiltInFunctionDefinitions.REGEXP_EXTRACT, "Check return type")
+    @Override
+    public Stream<TestSetSpec> getTestCaseSpecs() {
+        return Stream.of(
+                TestSetSpec.forFunction(
+                                BuiltInFunctionDefinitions.REGEXP_EXTRACT, "Check return type")
                         .onFieldsWithData("22", "ABC")
                         .testResult(
                                 resultSpec(
