@@ -55,7 +55,7 @@ class RoundRobinTopicRouterTest {
 
     @Test
     void routeMessagesInRoundRobin() {
-        int batchSize = ThreadLocalRandom.current().nextInt(20);
+        int batchSize = ThreadLocalRandom.current().nextInt(20) + 1;
         SinkConfiguration configuration = sinkConfiguration(batchSize);
         RoundRobinTopicRouter<String> router = new RoundRobinTopicRouter<>(configuration);
 

@@ -21,6 +21,7 @@ package org.apache.flink.connector.pulsar.sink.writer.router;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
+import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -45,6 +46,7 @@ public class RoundRobinTopicRouter<IN> implements TopicRouter<IN> {
 
     public RoundRobinTopicRouter(SinkConfiguration configuration) {
         this.partitionSwitchSize = configuration.getPartitionSwitchSize();
+        Preconditions.checkArgument(partitionSwitchSize > 0);
     }
 
     @Override
