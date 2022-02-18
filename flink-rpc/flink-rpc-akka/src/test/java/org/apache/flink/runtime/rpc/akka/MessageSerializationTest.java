@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.rpc.akka;
 
-import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
@@ -36,7 +35,6 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -47,7 +45,6 @@ class MessageSerializationTest {
     private static RpcService akkaRpcService1;
     private static RpcService akkaRpcService2;
 
-    private static final Time timeout = Time.seconds(10L);
     private static final int maxFrameSize = 32000;
 
     @BeforeAll
@@ -70,8 +67,7 @@ class MessageSerializationTest {
         terminationFutures.add(akkaRpcService1.stopService());
         terminationFutures.add(akkaRpcService2.stopService());
 
-        FutureUtils.waitForAll(terminationFutures)
-                .get(timeout.toMilliseconds(), TimeUnit.MILLISECONDS);
+        FutureUtils.waitForAll(terminationFutures).get();
     }
 
     /** Tests that a local rpc call with a non serializable argument can be executed. */
@@ -104,10 +100,7 @@ class MessageSerializationTest {
 
         String address = testEndpoint.getAddress();
 
-        CompletableFuture<TestGateway> remoteGatewayFuture =
-                akkaRpcService2.connect(address, TestGateway.class);
-
-        TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
+        TestGateway remoteGateway = akkaRpcService2.connect(address, TestGateway.class).get();
 
         assertThatThrownBy(() -> remoteGateway.foobar(new Object()))
                 .isInstanceOf(IOException.class);
@@ -126,7 +119,7 @@ class MessageSerializationTest {
         CompletableFuture<TestGateway> remoteGatewayFuture =
                 akkaRpcService2.connect(address, TestGateway.class);
 
-        TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
+        TestGateway remoteGateway = remoteGatewayFuture.get();
 
         int expected = 42;
 
@@ -145,10 +138,7 @@ class MessageSerializationTest {
 
         String address = testEndpoint.getAddress();
 
-        CompletableFuture<TestGateway> remoteGatewayFuture =
-                akkaRpcService2.connect(address, TestGateway.class);
-
-        TestGateway remoteGateway = remoteGatewayFuture.get(timeout.getSize(), timeout.getUnit());
+        TestGateway remoteGateway = akkaRpcService2.connect(address, TestGateway.class).get();
 
         int bufferSize = maxFrameSize + 1;
         byte[] buffer = new byte[bufferSize];
