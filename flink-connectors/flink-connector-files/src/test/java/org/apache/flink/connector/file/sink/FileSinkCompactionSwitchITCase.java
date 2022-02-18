@@ -52,6 +52,7 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Before;
@@ -84,7 +85,7 @@ import static org.junit.Assert.assertTrue;
 
 /** Tests of switching on or off compaction for the {@link FileSink}. */
 @RunWith(Parameterized.class)
-public class FileSinkCompactionSwitchITCase {
+public class FileSinkCompactionSwitchITCase extends TestLogger {
 
     private static final int PARALLELISM = 4;
 
