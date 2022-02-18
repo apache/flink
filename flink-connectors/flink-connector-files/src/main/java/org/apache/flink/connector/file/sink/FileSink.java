@@ -206,7 +206,7 @@ public class FileSink<IN>
                             committableStream
                                     .forward()
                                     .transform(
-                                            "CompactorCoordinator",
+                                            "CompactorCoordinatorPlaceHolder",
                                             new EitherTypeInfo<>(
                                                     committableStream.getType(),
                                                     new CompactorRequestTypeInfo(
@@ -220,7 +220,7 @@ public class FileSink<IN>
             return coordinatorOp
                     .forward()
                     .transform(
-                            "CompactorOperator",
+                            "CompactorOperatorPlaceHolder",
                             committableStream.getType(),
                             new CompactorOperatorStateHandlerFactory(
                                     bucketsBuilder::getCommittableSerializer,
