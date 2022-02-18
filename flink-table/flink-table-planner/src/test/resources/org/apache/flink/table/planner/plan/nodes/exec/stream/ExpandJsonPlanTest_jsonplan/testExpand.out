@@ -47,19 +47,11 @@
       "inputIndex" : 2,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "MOD",
-        "kind" : "MOD",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$MOD$1",
       "operands" : [ {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "HASH_CODE",
-          "kind" : "OTHER_FUNCTION",
-          "syntax" : "FUNCTION"
-        },
+        "kind" : "CALL",
+        "internalName" : "$HASH_CODE$1",
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 1,
@@ -73,19 +65,11 @@
       } ],
       "type" : "INT NOT NULL"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "MOD",
-        "kind" : "MOD",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$MOD$1",
       "operands" : [ {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "HASH_CODE",
-          "kind" : "OTHER_FUNCTION",
-          "syntax" : "FUNCTION"
-        },
+        "kind" : "CALL",
+        "internalName" : "$HASH_CODE$1",
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 2,
@@ -194,12 +178,9 @@
       "inputIndex" : 4,
       "type" : "INT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "=",
-        "kind" : "EQUALS",
-        "syntax" : "BINARY"
-      },
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$=$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 5,
@@ -211,12 +192,9 @@
       } ],
       "type" : "BOOLEAN NOT NULL"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "=",
-        "kind" : "EQUALS",
-        "syntax" : "BINARY"
-      },
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$=$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 5,

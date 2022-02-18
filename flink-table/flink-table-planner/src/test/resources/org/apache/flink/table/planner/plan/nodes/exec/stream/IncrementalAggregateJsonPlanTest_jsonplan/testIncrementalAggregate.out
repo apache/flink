@@ -71,19 +71,11 @@
       "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "MOD",
-        "kind" : "MOD",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$MOD$1",
       "operands" : [ {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "HASH_CODE",
-          "kind" : "OTHER_FUNCTION",
-          "syntax" : "FUNCTION"
-        },
+        "kind" : "CALL",
+        "internalName" : "$HASH_CODE$1",
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 1,

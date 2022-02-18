@@ -46,12 +46,9 @@
       "inputIndex" : 0,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
@@ -63,15 +60,8 @@
       "inputIndex" : 1,
       "type" : "INT NOT NULL"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "udf2",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION",
-        "functionKind" : "SCALAR",
-        "instance" : "rO0ABXNyAFVvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucnVudGltZS51dGlscy5KYXZhVXNlckRlZmluZWRTY2FsYXJGdW5jdGlvbnMkSmF2YUZ1bmMxrxQXjaFRP3gCAAB4cgAvb3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuU2NhbGFyRnVuY3Rpb26383IwrjqOqQIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5Vc2VyRGVmaW5lZEZ1bmN0aW9uWWgLCLtDDxYCAAB4cA",
-        "bridging" : true
-      },
+      "kind" : "CALL",
+      "catalogName" : "`default_catalog`.`default_database`.`udf2`",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
@@ -87,15 +77,8 @@
       } ],
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "udf3",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION",
-        "functionKind" : "SCALAR",
-        "instance" : "rO0ABXNyAFVvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucnVudGltZS51dGlscy5KYXZhVXNlckRlZmluZWRTY2FsYXJGdW5jdGlvbnMkSmF2YUZ1bmMyuMiwuSv_y2cCAAB4cgAvb3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuU2NhbGFyRnVuY3Rpb26383IwrjqOqQIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5Vc2VyRGVmaW5lZEZ1bmN0aW9uWWgLCLtDDxYCAAB4cA",
-        "bridging" : true
-      },
+      "kind" : "CALL",
+      "systemName" : "udf3",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
@@ -107,22 +90,11 @@
       } ],
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "udf4",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION",
-        "functionKind" : "SCALAR",
-        "instance" : "rO0ABXNyAFdvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucnVudGltZS51dGlscy5KYXZhVXNlckRlZmluZWRTY2FsYXJGdW5jdGlvbnMkVWRmV2l0aE9wZW7kOoTYwUYYKQIAAVoACGlzT3BlbmVkeHIAL29yZy5hcGFjaGUuZmxpbmsudGFibGUuZnVuY3Rpb25zLlNjYWxhckZ1bmN0aW9ut_NyMK46jqkCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuVXNlckRlZmluZWRGdW5jdGlvblloCwi7Qw8WAgAAeHAA",
-        "bridging" : true
-      },
+      "kind" : "CALL",
+      "systemName" : "udf4",
       "operands" : [ {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "SUBSTRING",
-          "kind" : "OTHER_FUNCTION",
-          "syntax" : "FUNCTION"
-        },
+        "kind" : "CALL",
+        "internalName" : "$SUBSTRING$1",
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 2,
@@ -140,15 +112,9 @@
       } ],
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "udf5",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION",
-        "functionKind" : "SCALAR",
-        "instance" : "rO0ABXNyAFVvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucnVudGltZS51dGlscy5KYXZhVXNlckRlZmluZWRTY2FsYXJGdW5jdGlvbnMkSmF2YUZ1bmM1-8VMtBhUOQMCAAB4cgAvb3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuU2NhbGFyRnVuY3Rpb26383IwrjqOqQIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5Vc2VyRGVmaW5lZEZ1bmN0aW9uWWgLCLtDDxYCAAB4cA",
-        "bridging" : true
-      },
+      "kind" : "CALL",
+      "catalogName" : "`default_catalog`.`default_database`.`udf5`",
+      "class" : "org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions$JavaFunc5",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 3,
@@ -161,36 +127,20 @@
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "AND",
-        "kind" : "AND",
-        "syntax" : "BINARY"
-      },
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$AND$1",
       "operands" : [ {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "OR",
-          "kind" : "OR",
-          "syntax" : "BINARY"
-        },
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$OR$1",
         "operands" : [ {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : ">",
-            "kind" : "GREATER_THAN",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$>$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : "udf1",
-              "kind" : "OTHER_FUNCTION",
-              "syntax" : "FUNCTION",
-              "functionKind" : "SCALAR",
-              "instance" : "rO0ABXNyAFVvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucnVudGltZS51dGlscy5KYXZhVXNlckRlZmluZWRTY2FsYXJGdW5jdGlvbnMkSmF2YUZ1bmMwn3sBX4kzBu8CAAB4cgAvb3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuU2NhbGFyRnVuY3Rpb26383IwrjqOqQIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5Vc2VyRGVmaW5lZEZ1bmN0aW9uWWgLCLtDDxYCAAB4cA",
-              "bridging" : true
-            },
+            "kind" : "CALL",
+            "catalogName" : "`default_catalog`.`default_database`.`udf1`",
             "operands" : [ {
               "kind" : "INPUT_REF",
               "inputIndex" : 0,
@@ -204,19 +154,13 @@
           } ],
           "type" : "BOOLEAN NOT NULL"
         }, {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "<",
-            "kind" : "LESS_THAN",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$<$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : "*",
-              "kind" : "TIMES",
-              "syntax" : "BINARY"
-            },
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$*$1",
             "operands" : [ {
               "kind" : "INPUT_REF",
               "inputIndex" : 0,
@@ -236,12 +180,9 @@
         } ],
         "type" : "BOOLEAN"
       }, {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : ">",
-          "kind" : "GREATER_THAN",
-          "syntax" : "BINARY"
-        },
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$>$1",
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 1,
