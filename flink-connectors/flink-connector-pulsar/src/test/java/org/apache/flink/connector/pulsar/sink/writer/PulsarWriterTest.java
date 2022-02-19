@@ -29,10 +29,11 @@ import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
 import org.apache.flink.connector.pulsar.sink.writer.delayer.FixedMessageDelayer;
 import org.apache.flink.connector.pulsar.sink.writer.delayer.MessageDelayer;
-import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetrics;
+import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetric;
 import org.apache.flink.connector.pulsar.sink.writer.router.RoundRobinTopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
+import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
@@ -61,7 +62,9 @@ import static org.apache.commons.lang3.RandomStringUtils.randomAlphabetic;
 import static org.apache.flink.connector.base.DeliveryGuarantee.AT_LEAST_ONCE;
 import static org.apache.flink.connector.base.DeliveryGuarantee.EXACTLY_ONCE;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS;
+import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_PRODUCER_NAME;
 import static org.apache.flink.connector.pulsar.sink.PulsarSinkOptions.PULSAR_WRITE_SCHEMA_EVOLUTION;
+import static org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarProducerMetricsRegister.PRODUCER_UPDATE_POLLING_INTERVAL_MILLIS;
 import static org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema.pulsarSchema;
 import static org.apache.flink.shaded.guava30.com.google.common.util.concurrent.Uninterruptibles.sleepUninterruptibly;
 import static org.apache.pulsar.client.api.Schema.STRING;
@@ -70,9 +73,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /** Unit tests for {@link PulsarWriter}. */
 class PulsarWriterTest extends PulsarTestSuiteBase {
-
     private static final SinkWriter.Context CONTEXT = new MockSinkWriterContext();
-    private static final String EXPECTED_PRODUCER_METRIC_NAME = "PulsarSink.numAcksReceived";
+    private static final String DEFAULT_TEST_PRODUCER_NAME = "test-producer";
+    private static final String EXPECTED_ALL_PRODUCER_METRIC_NAME = "PulsarSink.numAcksReceived";
+    private static final String EXPECTED_PER_PRODUCER_METRIC_PREFIX = "PulsarSink.producer";
+    private static final String EXPECTED_PER_PRODUCER_METRIC_NAME = "sendLatency99Pct";
     private static final String GLOBAL_MAX_LATENCY_METRIC_NAME = "PulsarSink.sendLatencyMax";
     private static final String CURRENT_SEND_TIME_METRIC_NAME = "currentSendTime";
     private static final String NUM_ACKS_RECEIVED_METRIC_NAME = "PulsarSink.numAcksReceived";
@@ -90,14 +95,33 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
         initContext = new MockInitContext(metricListener, timeService);
     }
 
-
     @Test
     void metricsPresentAfterWriterCreated() throws Exception {
         String topic = randomAlphabetic(10);
         operator().createTopic(topic, 8);
 
         try (final PulsarWriter<String> ignored = createWriter(topic, initContext)) {
-            assertThat(metricListener.getCounter(EXPECTED_PRODUCER_METRIC_NAME)).isPresent();
+            assertThat(metricListener.getCounter(EXPECTED_ALL_PRODUCER_METRIC_NAME)).isPresent();
+        }
+    }
+
+    @Test
+    void perProducerMetricsPresentAfterMessageWritten() throws Exception {
+        String topic = randomAlphabetic(10);
+        operator().createTopic(topic, 8);
+
+        try (final PulsarWriter<String> writer = createWriter(topic, initContext)) {
+            String message = randomAlphabetic(10);
+            sendMessages(writer, 1);
+            // advance timer to update the producers
+            timeService.advance(PRODUCER_UPDATE_POLLING_INTERVAL_MILLIS + 1000);
+            assertThat(metricListener.getGauge(perProducerMetricName(topic, 0))).isPresent();
+
+            // send another message and advance timer
+            sendMessages(writer, 1000);
+            timeService.advance(PRODUCER_UPDATE_POLLING_INTERVAL_MILLIS + 1000);
+
+            assertThat(metricListener.getGauge(perProducerMetricName(topic, 1))).isPresent();
         }
     }
 
@@ -116,9 +140,9 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
                             .get()
                             .getValue();
             assertThat(latencyBeforeProducerCreation)
-                    .isCloseTo(PulsarSinkWriterMetrics.INVALID_LATENCY, Offset.offset(0.01));
+                    .isCloseTo(PulsarSinkWriterMetric.INVALID_LATENCY, Offset.offset(0.01));
             // Write a message
-            writer.write(message, CONTEXT);
+            sendMessages(writer, 1);
             // Advance Timer to trigger the metrics update
             timeService.advance(
                     TimeUnit.SECONDS.toMillis(TEST_PULSAR_STATS_INTERVAL_SECONDS) + 100);
@@ -144,11 +168,10 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
             Long sendTimeBeforeProducerCreation =
                     metricListener.<Long>getGauge(CURRENT_SEND_TIME_METRIC_NAME).get().getValue();
             assertThat(sendTimeBeforeProducerCreation)
-                    .isEqualTo(PulsarSinkWriterMetrics.INVALID_LAST_SEND_TIME);
+                    .isEqualTo(PulsarSinkWriterMetric.INVALID_LAST_SEND_TIME);
 
             // Write a message
-            writer.write(message, CONTEXT);
-            writer.flush(false);
+            sendMessages(writer, 1);
 
             // After send success, send time should be updated
             Long sendTimeAfterProducerCreation =
@@ -166,8 +189,7 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
             String message = randomAlphabetic(10);
 
             // Write and flush a  message
-            writer.write(message, CONTEXT);
-            writer.flush(false);
+            sendMessages(writer, 1);
             // Advance Timer to reflect the time change after flush
             sleepUninterruptibly(TEST_PULSAR_STATS_INTERVAL_SECONDS + 1, TimeUnit.SECONDS);
             timeService.advance(
@@ -191,8 +213,7 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
             Counter bytesOutCounter =
                     initContext.metricGroup().getIOMetricGroup().getNumBytesOutCounter();
             // Write and flush a  message
-            writer.write(message, CONTEXT);
-            writer.flush(false);
+            sendMessages(writer, 1);
             // Advance Timer to update counter metrics
             sleepUninterruptibly(TEST_PULSAR_STATS_INTERVAL_SECONDS + 1, TimeUnit.SECONDS);
             timeService.advance(
@@ -203,8 +224,7 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
             assertThat(bytesOutCounter.getCount()).isGreaterThanOrEqualTo(10);
 
             // Write and flush another message
-            writer.write(message, CONTEXT);
-            writer.flush(false);
+            sendMessages(writer, 1);
             // Advance Timer and system time to update counter metrics
             sleepUninterruptibly(TEST_PULSAR_STATS_INTERVAL_SECONDS + 1, TimeUnit.SECONDS);
             timeService.advance(
@@ -258,6 +278,7 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
         Configuration configuration = operator().sinkConfig(deliveryGuarantee);
         configuration.set(PULSAR_WRITE_SCHEMA_EVOLUTION, true);
         configuration.set(PULSAR_STATS_INTERVAL_SECONDS, TEST_PULSAR_STATS_INTERVAL_SECONDS);
+        configuration.set(PULSAR_PRODUCER_NAME, DEFAULT_TEST_PRODUCER_NAME);
 
         return new SinkConfiguration(configuration);
     }
@@ -361,5 +382,22 @@ class PulsarWriterTest extends PulsarTestSuiteBase {
         public Long timestamp() {
             return null;
         }
+    }
+
+    private String perProducerMetricName(String topic, int partitionId) {
+        return EXPECTED_PER_PRODUCER_METRIC_PREFIX
+                + "."
+                + DEFAULT_TEST_PRODUCER_NAME
+                + TopicNameUtils.topicNameWithPartition(topic, partitionId)
+                + "."
+                + EXPECTED_PER_PRODUCER_METRIC_NAME;
+    }
+
+    private void sendMessages(PulsarWriter<String> writer, int numMessages) throws Exception {
+        for (int i = 0; i < numMessages; i++) {
+            String message = randomAlphabetic(10);
+            writer.write(message, CONTEXT);
+        }
+        writer.flush(false);
     }
 }

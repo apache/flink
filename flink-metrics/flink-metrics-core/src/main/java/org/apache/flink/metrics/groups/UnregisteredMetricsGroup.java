@@ -196,6 +196,21 @@ public class UnregisteredMetricsGroup implements MetricGroup {
         }
 
         @Override
+        public Counter getNumRecordsSendErrorsCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumRecordsSendCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumBytesSendCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
         public void setCurrentSendTimeGauge(Gauge<Long> currentSendTimeGauge) {}
     }
 }

@@ -22,7 +22,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
-import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetrics;
+import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetric;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
@@ -63,10 +63,11 @@ public class TopicProducerRegister implements Closeable {
     private final SinkConfiguration sinkConfiguration;
     private final Map<String, Map<SchemaInfo, Producer<?>>> producerRegister;
     private final Map<String, Transaction> transactionRegister;
-    private final PulsarSinkWriterMetrics pulsarSinkWriterMetrics;
+    private final PulsarSinkWriterMetric pulsarSinkWriterMetrics;
 
     public TopicProducerRegister(
-            SinkConfiguration sinkConfiguration, PulsarSinkWriterMetrics pulsarSinkWriterMetrics) {
+            SinkConfiguration sinkConfiguration,
+            PulsarSinkWriterMetric pulsarSinkWriterMetrics) {
         this.pulsarClient = createClient(sinkConfiguration);
         this.sinkConfiguration = sinkConfiguration;
         this.producerRegister = new HashMap<>();
@@ -156,7 +157,6 @@ public class TopicProducerRegister implements Closeable {
             builder.topic(topic);
             Producer<T> producer = sneakyClient(builder::create);
             producers.put(schemaInfo, producer);
-            pulsarSinkWriterMetrics.registerSingleProducerGauges(producer);
             return producer;
         }
     }
@@ -212,5 +212,9 @@ public class TopicProducerRegister implements Closeable {
     /** Register gauges type metrics. */
     public void registerMaxSendLatencyGauges() {
         pulsarSinkWriterMetrics.registerMaxSendLatencyGauges(producerRegister);
+    }
+
+    public void checkAndRegisterNewProducerGauges() {
+        pulsarSinkWriterMetrics.checkAndRegisterNewProducerGauges(producerRegister);
     }
 }

@@ -31,7 +31,8 @@ import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContext;
 import org.apache.flink.connector.pulsar.sink.writer.context.PulsarSinkContextImpl;
 import org.apache.flink.connector.pulsar.sink.writer.delayer.MessageDelayer;
 import org.apache.flink.connector.pulsar.sink.writer.message.PulsarMessage;
-import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetrics;
+import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarProducerMetricsRegister;
+import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetric;
 import org.apache.flink.connector.pulsar.sink.writer.router.TopicRouter;
 import org.apache.flink.connector.pulsar.sink.writer.serializer.PulsarSerializationSchema;
 import org.apache.flink.connector.pulsar.sink.writer.topic.TopicMetadataListener;
@@ -63,7 +64,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommittable> {
-    public static final long METRIC_UPDATE_INTERVAL_MILLIS = 500;
     private static final Logger LOG = LoggerFactory.getLogger(PulsarWriter.class);
 
     private final SinkConfiguration sinkConfiguration;
@@ -75,13 +75,13 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
     private final PulsarSinkContext sinkContext;
     private final MailboxExecutor mailboxExecutor;
     private final TopicProducerRegister producerRegister;
-    private final PulsarSinkWriterMetrics pulsarSinkWriterMetrics;
+    private final PulsarSinkWriterMetric pulsarSinkWriterMetricUtils;
     private final ProcessingTimeService timeService;
-
-    private volatile long lastSendTime;
-    private long lastMetricUpdateTimestamp;
-    private volatile boolean closed = false;
     private long pendingMessages = 0;
+
+    // metrics related fields
+    private PulsarProducerMetricsRegister metricsUpdateTimerRegister;
+    private volatile long lastSendTime;
 
     /**
      * Constructor creating a Pulsar writer.
@@ -132,12 +132,14 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
         }
 
         // Initialize metrics
-        this.pulsarSinkWriterMetrics = new PulsarSinkWriterMetrics(initContext.metricGroup());
-        this.lastSendTime = PulsarSinkWriterMetrics.INVALID_LAST_SEND_TIME;
+        this.pulsarSinkWriterMetricUtils =
+                new PulsarSinkWriterMetric(initContext.metricGroup());
+        this.lastSendTime = PulsarSinkWriterMetric.INVALID_LAST_SEND_TIME;
         // Create this producer register after opening serialization schema!
         this.producerRegister =
-                new TopicProducerRegister(sinkConfiguration, pulsarSinkWriterMetrics);
-
+                new TopicProducerRegister(sinkConfiguration, pulsarSinkWriterMetricUtils);
+        this.metricsUpdateTimerRegister =
+                new PulsarProducerMetricsRegister(timeService, producerRegister);
         // Set up metrics update service
         setupFlinkMetrics();
     }
@@ -286,38 +288,17 @@ public class PulsarWriter<IN> implements PrecommittingSinkWriter<IN, PulsarCommi
     @Override
     public void close() throws Exception {
         // Close all the resources and throw the exception at last.
-        closeAll(metadataListener, producerRegister);
-        closed = true;
-    }
-
-    private void setupFlinkMetrics() {
-        lastMetricUpdateTimestamp = timeService.getCurrentProcessingTime();
-        registerGlobalGauges();
-        registerMetricUpdateTimer();
+        closeAll(metadataListener, producerRegister, metricsUpdateTimerRegister);
     }
 
     /**
      * Producer is lazy initialized in Pulsar Sink. Some metrics (currently only some gauges) can
      * only be set after creating the producer. Those gauges are per producer wise. Some other
-     * metrics is based aggregation of all producers or they are based on sink implementations so
-     * they are called global gauges.
+     * metrics is based on aggregation of all producers or they are based on sink implementations.
      */
-    private void registerGlobalGauges() {
-        pulsarSinkWriterMetrics.setCurrentSendTimeGauge(this::getCurrentSendTime);
-        producerRegister.registerMaxSendLatencyGauges();
-    }
-
-    private void registerMetricUpdateTimer() {
-        timeService.registerTimer(
-                lastMetricUpdateTimestamp + METRIC_UPDATE_INTERVAL_MILLIS,
-                (time) -> {
-                    if (closed || producerRegister == null) {
-                        return;
-                    }
-                    producerRegister.updateProducerStats();
-                    lastMetricUpdateTimestamp = time;
-                    registerMetricUpdateTimer();
-                });
+    private void setupFlinkMetrics() {
+        pulsarSinkWriterMetricUtils.setCurrentSendTimeGauge(this::getCurrentSendTime);
+        metricsUpdateTimerRegister.initialMetricRegister();
     }
 
     private long getCurrentSendTime() {

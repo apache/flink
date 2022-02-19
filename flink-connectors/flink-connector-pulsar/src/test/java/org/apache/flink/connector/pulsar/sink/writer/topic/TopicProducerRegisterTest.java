@@ -21,7 +21,7 @@ package org.apache.flink.connector.pulsar.sink.writer.topic;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.sink.committer.PulsarCommittable;
 import org.apache.flink.connector.pulsar.sink.config.SinkConfiguration;
-import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetrics;
+import org.apache.flink.connector.pulsar.sink.writer.metrics.PulsarSinkWriterMetric;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 
@@ -93,7 +93,8 @@ class TopicProducerRegisterTest extends PulsarTestSuiteBase {
         return new SinkConfiguration(operator().sinkConfig(deliveryGuarantee));
     }
 
-    private PulsarSinkWriterMetrics pulsarSinkWriterMetrics() {
-        return new PulsarSinkWriterMetrics(UnregisteredMetricsGroup.createSinkWriterMetricGroup());
+    private PulsarSinkWriterMetric pulsarSinkWriterMetrics() {
+        return new PulsarSinkWriterMetric(
+                UnregisteredMetricsGroup.createSinkWriterMetricGroup());
     }
 }

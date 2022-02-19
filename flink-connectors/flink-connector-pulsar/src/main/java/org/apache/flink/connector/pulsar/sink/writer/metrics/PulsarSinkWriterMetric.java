@@ -29,11 +29,13 @@ import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.common.schema.SchemaInfo;
 
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /** Util class to provide monitor metrics methods to Sink Writer. */
 @Internal
-public class PulsarSinkWriterMetrics {
+public class PulsarSinkWriterMetric {
     public static final String PULSAR_SINK_METRIC_GROUP = "PulsarSink";
     public static final String PRODUCER_SUBGROUP = "producer";
     public static final String METRIC_PRODUCER_SEND_LATENCY_MAX = "sendLatencyMax";
@@ -58,47 +60,37 @@ public class PulsarSinkWriterMetrics {
     private final Counter numAcksReceived;
     private long lastNumAcksReceived = 0;
 
-    public PulsarSinkWriterMetrics(SinkWriterMetricGroup sinkWriterMetricGroup) {
+    public PulsarSinkWriterMetric(SinkWriterMetricGroup sinkWriterMetricGroup) {
         this.sinkWriterMetricGroup = sinkWriterMetricGroup;
         this.producerMetricGroup = sinkWriterMetricGroup.addGroup(PULSAR_SINK_METRIC_GROUP);
         this.numAcksReceived = producerMetricGroup.counter(METRIC_NUM_ACKS_RECEIVED);
     }
 
-    public <T> void updateProducerStats(
-            Map<String, Map<SchemaInfo, Producer<?>>> producerRegister) {
-        long numBytesOut = 0;
-        long numRecordsOut = 0;
-        long numRecordsOutErrors = 0;
-        long numAcksReceived = 0;
-
-        for (Map<SchemaInfo, Producer<?>> producers : producerRegister.values()) {
-            for (Producer<?> producer : producers.values()) {
-                ProducerStats stats = producer.getStats();
-                numBytesOut += stats.getTotalBytesSent();
-                numRecordsOut += stats.getTotalMsgsSent();
-                numRecordsOutErrors += stats.getTotalSendFailed();
-                numAcksReceived += stats.getTotalAcksReceived();
-            }
-        }
-
-        recordNumBytesOut(numBytesOut - lastNumBytesOut);
-        recordNumRecordsOut(numRecordsOut - lastNumRecordsOut);
-        recordNumRecordOutErrors(numRecordsOutErrors - lastNumRecordsOutErrors);
-        recordNumAcksReceived(numAcksReceived - lastNumAcksReceived);
-
-        lastNumBytesOut = numBytesOut;
-        lastNumRecordsOut = numRecordsOut;
-        lastNumRecordsOutErrors = numRecordsOutErrors;
-        lastNumAcksReceived = numAcksReceived;
+    public void updateProducerStats(Map<String, Map<SchemaInfo, Producer<?>>> producerRegister) {
+        List<ProducerStats> stats =
+                producerRegister.values().stream()
+                        .flatMap(producers -> producers.values().stream())
+                        .map(Producer::getStats)
+                        .collect(Collectors.toList());
+        recordNumBytesOut(stats);
+        recordNumRecordsOut(stats);
+        recordNumRecordsOutErrors(stats);
+        recordNumAcksReceived(stats);
     }
 
-    public <T> void registerMaxSendLatencyGauges(
+    public void registerMaxSendLatencyGauges(
             Map<String, Map<SchemaInfo, Producer<?>>> producerRegister) {
         setSendLatencyMaxMillisGauge(() -> computeMaxSendLatencyInAllProducers(producerRegister));
     }
 
-    public <T> void registerSingleProducerGauges(Producer<T> singleProducer) {
-        setSendLatencyPctGauges(singleProducer);
+    public void checkAndRegisterNewProducerGauges(
+            Map<String, Map<SchemaInfo, Producer<?>>> producerRegister) {
+        for (String topic : producerRegister.keySet()) {
+            Map<SchemaInfo, Producer<?>> producers = producerRegister.get(topic);
+            for (Producer<?> producer : producers.values()) {
+                checkDuplicationAndSetSendLatencyPctGauges(topic, producer);
+            }
+        }
     }
 
     /**
@@ -112,7 +104,7 @@ public class PulsarSinkWriterMetrics {
         sinkWriterMetricGroup.setCurrentSendTimeGauge(timeGauge);
     }
 
-    private <T> double computeMaxSendLatencyInAllProducers(
+    private double computeMaxSendLatencyInAllProducers(
             Map<String, Map<SchemaInfo, Producer<?>>> producerRegister) {
         return producerRegister.values().stream()
                 .flatMap((collection) -> collection.values().stream())
@@ -121,20 +113,56 @@ public class PulsarSinkWriterMetrics {
                 .orElse(INVALID_LATENCY);
     }
 
-    private void recordNumBytesOut(long numBytes) {
-        sinkWriterMetricGroup.getIOMetricGroup().getNumBytesOutCounter().inc(numBytes);
+    private void recordNumBytesOut(List<ProducerStats> stats) {
+        long numBytesOut = 0;
+        numBytesOut +=
+                stats.stream()
+                        .map(ProducerStats::getTotalBytesSent)
+                        .mapToLong(Long::longValue)
+                        .sum();
+        sinkWriterMetricGroup
+                .getIOMetricGroup()
+                .getNumBytesOutCounter()
+                .inc(numBytesOut - lastNumBytesOut);
+        lastNumBytesOut = numBytesOut;
     }
 
-    private void recordNumRecordsOut(long numRecords) {
-        sinkWriterMetricGroup.getIOMetricGroup().getNumRecordsOutCounter().inc(numRecords);
+    private void recordNumRecordsOut(List<ProducerStats> stats) {
+        long numRecordsOut = 0;
+        numRecordsOut +=
+                stats.stream()
+                        .map(ProducerStats::getTotalMsgsSent)
+                        .mapToLong(Long::longValue)
+                        .sum();
+        sinkWriterMetricGroup
+                .getIOMetricGroup()
+                .getNumRecordsOutCounter()
+                .inc(numRecordsOut - lastNumRecordsOut);
+        lastNumRecordsOut = numRecordsOut;
     }
 
-    private void recordNumRecordOutErrors(long numErrors) {
-        sinkWriterMetricGroup.getNumRecordsOutErrorsCounter().inc(numErrors);
+    private void recordNumRecordsOutErrors(List<ProducerStats> stats) {
+        long numRecordsOutErrors = 0;
+        numRecordsOutErrors +=
+                stats.stream()
+                        .map(ProducerStats::getTotalSendFailed)
+                        .mapToLong(Long::longValue)
+                        .sum();
+        sinkWriterMetricGroup
+                .getNumRecordsOutErrorsCounter()
+                .inc(numRecordsOutErrors - lastNumRecordsOutErrors);
+        lastNumRecordsOutErrors = numRecordsOutErrors;
     }
 
-    private void recordNumAcksReceived(long numAcks) {
-        numAcksReceived.inc(numAcks);
+    private void recordNumAcksReceived(List<ProducerStats> stats) {
+        long numAcks = 0;
+        numAcks +=
+                stats.stream()
+                        .map(ProducerStats::getTotalAcksReceived)
+                        .mapToLong(Long::longValue)
+                        .sum();
+        numAcksReceived.inc(numAcks - lastNumAcksReceived);
+        lastNumAcksReceived = numAcks;
     }
 
     private void setSendLatencyMaxMillisGauge(Gauge<Double> latencyGauge) {
@@ -142,14 +170,17 @@ public class PulsarSinkWriterMetrics {
     }
 
     /**
-     * A single producer calls getTopic() is is a full topic name. For partitioned topics, the name
-     * maps to a unique partition of a partitioned topic.
+     * Use producer and topic name as the identifier of each metric group. The internal
+     * implementation of metrics handles duplication of group and metrics, so it is safe to register
+     * an already registered producer.
      *
      * @param singleProducer
      */
-    private void setSendLatencyPctGauges(Producer<?> singleProducer) {
+    private void checkDuplicationAndSetSendLatencyPctGauges(
+            String topic, Producer<?> singleProducer) {
         MetricGroup group =
-                producerMetricGroup.addGroup(PRODUCER_SUBGROUP, singleProducer.getProducerName());
+                producerMetricGroup.addGroup(
+                        PRODUCER_SUBGROUP, singleProducer.getProducerName() + topic);
         group.gauge(
                 METRIC_SEND_LATENCY_50_PCT,
                 () -> singleProducer.getStats().getSendLatencyMillis50pct());
