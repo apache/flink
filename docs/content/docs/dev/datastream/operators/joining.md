@@ -254,8 +254,8 @@ orangeStream
     .process (new ProcessJoinFunction<Integer, Integer, String(){
 
         @Override
-        public void processElement(Integer left, Integer right, Context ctx, Collector<String> out) {
-            out.collect(left + "," + right);
+        public void processElement(Integer first, Integer second, Context ctx, Collector<String> out) {
+            out.collect(first + "," + second);
         }
     });
 ```
@@ -277,8 +277,8 @@ orangeStream
     .intervalJoin(greenStream.keyBy(elem => /* select key */))
     .between(Time.milliseconds(-2), Time.milliseconds(1))
     .process(new ProcessJoinFunction[Integer, Integer, String] {
-        override def processElement(left: Integer, right: Integer, ctx: ProcessJoinFunction[Integer, Integer, String]#Context, out: Collector[String]): Unit = {
-            out.collect(left + "," + right)
+        override def processElement(first: Integer, second: Integer, ctx: ProcessJoinFunction[Integer, Integer, String]#Context, out: Collector[String]): Unit = {
+            out.collect(first + "," + second)
         }
     })
 
