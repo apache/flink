@@ -52,9 +52,7 @@ import org.jline.reader.ParsedLine;
 import org.jline.reader.Parser;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.impl.DumbTerminal;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 
 import javax.annotation.Nullable;
 
@@ -77,11 +75,7 @@ import java.util.Map;
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
 import static org.apache.flink.table.client.cli.CliClient.DEFAULT_TERMINAL_FACTORY;
 import static org.apache.flink.table.client.cli.CliStrings.MESSAGE_SQL_EXECUTION_ERROR;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link CliClient}. */
 public class CliClientTest extends TestLogger {
@@ -90,8 +84,6 @@ public class CliClientTest extends TestLogger {
             "INSERT INTO MyTable SELECT * FROM MyOtherTable";
     private static final String INSERT_OVERWRITE_STATEMENT =
             "INSERT OVERWRITE MyTable SELECT * FROM MyOtherTable";
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
 
     @Test
     public void testUpdateSubmission() throws Exception {
@@ -115,7 +107,7 @@ public class CliClientTest extends TestLogger {
                         ";\n",
                         Arrays.asList(
                                 INSERT_INTO_STATEMENT, "", INSERT_OVERWRITE_STATEMENT, "\n")));
-        assertEquals(INSERT_OVERWRITE_STATEMENT, executor.receivedStatement);
+        assertThat(executor.receivedStatement).contains(INSERT_OVERWRITE_STATEMENT);
     }
 
     @Test
@@ -145,9 +137,9 @@ public class CliClientTest extends TestLogger {
                                 () -> terminal, sessionId, mockExecutor, historyFilePath, null)) {
             client.executeInInteractiveMode();
             List<String> content = Files.readAllLines(historyFilePath);
-            assertEquals(2, content.size());
-            assertTrue(content.get(0).contains("help"));
-            assertTrue(content.get(1).contains("use catalog cat"));
+            assertThat(content.size()).isEqualTo(2);
+            assertThat(content.get(0)).contains("help");
+            assertThat(content.get(1)).contains("use catalog cat");
         }
     }
 
@@ -161,7 +153,7 @@ public class CliClientTest extends TestLogger {
 
         executeSqlFromContent(mockExecutor, content);
         // execute the last commands
-        assertTrue(statements.get(1).contains(mockExecutor.receivedStatement));
+        assertThat(mockExecutor.receivedStatement).contains(statements.get(1));
     }
 
     @Test
@@ -177,7 +169,7 @@ public class CliClientTest extends TestLogger {
 
         executeSqlFromContent(mockExecutor, content);
         // don't execute other commands
-        assertTrue(statements.get(0).contains(mockExecutor.receivedStatement));
+        assertThat(statements.get(0)).isEqualTo(mockExecutor.receivedStatement);
     }
 
     @Test
@@ -194,7 +186,7 @@ public class CliClientTest extends TestLogger {
 
         executeSqlFromContent(mockExecutor, content);
         // don't execute other commands
-        assertTrue(statements.get(0).contains(mockExecutor.receivedStatement));
+        assertThat(statements.get(0)).isEqualTo(mockExecutor.receivedStatement);
     }
 
     @Test
@@ -215,12 +207,11 @@ public class CliClientTest extends TestLogger {
         final MockExecutor mockExecutor = new MockExecutor();
 
         String output = executeSqlFromContent(mockExecutor, content);
-        assertThat(
-                output,
-                containsString(
+        assertThat(output)
+                .contains(
                         "In non-interactive mode, it only supports to use TABLEAU as value of "
                                 + "sql-client.execution.result-mode when execute query. Please add "
-                                + "'SET sql-client.execution.result-mode=TABLEAU;' in the sql file."));
+                                + "'SET sql-client.execution.result-mode=TABLEAU;' in the sql file.");
     }
 
     @Test
@@ -239,7 +230,7 @@ public class CliClientTest extends TestLogger {
         CliClient cliClient =
                 new CliClient(DEFAULT_TERMINAL_FACTORY, sessionId, mockExecutor, historyTempFile());
 
-        assertFalse("Should fail", cliClient.executeInitialization(content));
+        assertThat(cliClient.executeInitialization(content)).isFalse();
     }
 
     @Test(timeout = 10000)
@@ -294,14 +285,12 @@ public class CliClientTest extends TestLogger {
             while (thread.isAlive()) {
                 Thread.sleep(10);
             }
-            assertTrue(
-                    outputStream
-                            .toString()
-                            .contains("java.lang.InterruptedException: sleep interrupted"));
+            assertThat(outputStream.toString())
+                    .contains("java.lang.InterruptedException: sleep interrupted");
         }
 
         // read the last executed statement
-        assertTrue(statements.get(hookIndex).contains(mockExecutor.receivedStatement));
+        assertThat(statements.get(hookIndex)).isEqualTo(mockExecutor.receivedStatement);
     }
 
     @Test
@@ -353,10 +342,11 @@ public class CliClientTest extends TestLogger {
         String result = executeSqlFromContent(mockExecutor, statement);
 
         if (testFailure) {
-            assertTrue(result.contains(MESSAGE_SQL_EXECUTION_ERROR));
+            assertThat(result).contains(MESSAGE_SQL_EXECUTION_ERROR);
         } else {
-            assertFalse(result.contains(MESSAGE_SQL_EXECUTION_ERROR));
-            assertEquals(statement, mockExecutor.receivedStatement);
+            assertThat(result).doesNotContain(MESSAGE_SQL_EXECUTION_ERROR);
+            assertThat(SqlMultiLineParser.formatSqlFile(statement))
+                    .isEqualTo(SqlMultiLineParser.formatSqlFile(mockExecutor.receivedStatement));
         }
     }
 
@@ -366,7 +356,8 @@ public class CliClientTest extends TestLogger {
         String sessionId = mockExecutor.openSession("test-session");
 
         final SqlCompleter completer = new SqlCompleter(sessionId, mockExecutor);
-        final SqlMultiLineParser parser = new SqlMultiLineParser();
+        final SqlMultiLineParser parser =
+                new SqlMultiLineParser(new SqlCommandParserImpl(mockExecutor, sessionId));
 
         try (Terminal terminal = TerminalUtils.createDumbTerminal()) {
             final LineReader reader = LineReaderBuilder.builder().terminal(terminal).build();
@@ -378,10 +369,10 @@ public class CliClientTest extends TestLogger {
             completer.complete(reader, parsedLine, candidates);
             candidates.forEach(item -> results.add(item.value()));
 
-            assertTrue(results.containsAll(expectedHints));
+            assertThat(results.containsAll(expectedHints)).isTrue();
 
-            assertEquals(statement, mockExecutor.receivedStatement);
-            assertEquals(position, mockExecutor.receivedPosition);
+            assertThat(statement).isEqualTo(mockExecutor.receivedStatement);
+            assertThat(position).isEqualTo(mockExecutor.receivedPosition);
         }
     }
 

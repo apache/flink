@@ -128,7 +128,7 @@ public abstract class SingleValueAggFunction extends DeclarativeAggregateFunctio
     private static Expression throwException(DataType type) {
         // it is the internal function without catalog.
         // so it can not be find in any catalog or built-in functions.
-        return new CallExpression(
+        return CallExpression.permanent(
                 THROW_EXCEPTION, Arrays.asList(ERROR_MSG, typeLiteral(type)), type);
     }
 

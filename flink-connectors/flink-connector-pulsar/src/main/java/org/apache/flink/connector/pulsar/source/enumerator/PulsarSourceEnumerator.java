@@ -21,7 +21,6 @@ package org.apache.flink.connector.pulsar.source.enumerator;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor;
 import org.apache.flink.connector.pulsar.source.enumerator.subscriber.PulsarSubscriber;
@@ -52,8 +51,8 @@ import java.util.List;
 import java.util.Set;
 
 import static java.util.Collections.singletonList;
-import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.createAdmin;
-import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.createClient;
+import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createAdmin;
+import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createClient;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyClient;
 import static org.apache.flink.connector.pulsar.source.config.CursorVerification.FAIL_ON_MISMATCH;
 import static org.apache.flink.connector.pulsar.source.config.PulsarSourceConfigUtils.createConsumerBuilder;
@@ -70,7 +69,6 @@ public class PulsarSourceEnumerator
     private final PulsarSubscriber subscriber;
     private final StartCursor startCursor;
     private final RangeGenerator rangeGenerator;
-    private final Configuration configuration;
     private final SourceConfiguration sourceConfiguration;
     private final SplitEnumeratorContext<PulsarPartitionSplit> context;
     private final SplitsAssignmentState assignmentState;
@@ -79,16 +77,14 @@ public class PulsarSourceEnumerator
             PulsarSubscriber subscriber,
             StartCursor startCursor,
             RangeGenerator rangeGenerator,
-            Configuration configuration,
             SourceConfiguration sourceConfiguration,
             SplitEnumeratorContext<PulsarPartitionSplit> context,
             SplitsAssignmentState assignmentState) {
-        this.pulsarAdmin = createAdmin(configuration);
-        this.pulsarClient = createClient(configuration);
+        this.pulsarAdmin = createAdmin(sourceConfiguration);
+        this.pulsarClient = createClient(sourceConfiguration);
         this.subscriber = subscriber;
         this.startCursor = startCursor;
         this.rangeGenerator = rangeGenerator;
-        this.configuration = configuration;
         this.sourceConfiguration = sourceConfiguration;
         this.context = context;
         this.assignmentState = assignmentState;
@@ -96,10 +92,10 @@ public class PulsarSourceEnumerator
 
     @Override
     public void start() {
-        rangeGenerator.open(configuration, sourceConfiguration);
+        rangeGenerator.open(sourceConfiguration);
 
         // Check the pulsar topic information and convert it into source split.
-        if (sourceConfiguration.enablePartitionDiscovery()) {
+        if (sourceConfiguration.isEnablePartitionDiscovery()) {
             LOG.info(
                     "Starting the PulsarSourceEnumerator for subscription {} "
                             + "with partition discovery interval of {} ms.",
@@ -206,7 +202,7 @@ public class PulsarSourceEnumerator
 
     private ConsumerBuilder<byte[]> consumerBuilder() {
         ConsumerBuilder<byte[]> builder =
-                createConsumerBuilder(pulsarClient, Schema.BYTES, configuration);
+                createConsumerBuilder(pulsarClient, Schema.BYTES, sourceConfiguration);
         if (sourceConfiguration.getSubscriptionType() == SubscriptionType.Key_Shared) {
             Range range = TopicRange.createFullRange().toPulsarRange();
             KeySharedPolicySticky keySharedPolicy = KeySharedPolicy.stickyHashRange().ranges(range);

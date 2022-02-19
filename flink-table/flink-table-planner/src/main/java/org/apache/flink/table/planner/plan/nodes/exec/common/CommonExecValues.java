@@ -42,6 +42,8 @@ import java.util.List;
 public abstract class CommonExecValues extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
+    public static final String VALUES_TRANSFORMATION = "values";
+
     public static final String FIELD_NAME_TUPLES = "tuples";
 
     private final List<List<RexLiteral>> tuples;
@@ -68,8 +70,8 @@ public abstract class CommonExecValues extends ExecNodeBase<RowData>
                 planner.getExecEnv()
                         .createInput(inputFormat, inputFormat.getProducedType())
                         .getTransformation();
-        transformation.setName(getOperatorName(planner.getTableConfig()));
-        transformation.setDescription(getOperatorDescription(planner.getTableConfig()));
+        createTransformationMeta(VALUES_TRANSFORMATION, planner.getTableConfig())
+                .fill(transformation);
         transformation.setParallelism(1);
         transformation.setMaxParallelism(1);
         return transformation;

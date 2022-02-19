@@ -24,6 +24,7 @@ import org.apache.calcite.sql.{SqlKind, SqlOperator}
 import org.apache.calcite.util.{Sarg, TimestampString}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
@@ -50,9 +51,9 @@ import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
 import scala.collection.JavaConversions._
 
 /**
-  * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
-  * It can also generate type conversion codes for the result converter.
-  */
+ * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
+ * It can also generate type conversion codes for the result converter.
+ */
 class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   extends RexVisitor[GeneratedExpression] {
 
@@ -702,8 +703,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       // casting
       case CAST =>
-        val operand = operands.head
-        generateCast(ctx, operand, resultType)
+        generateCast(ctx, operands.head, resultType, nullOnFailure = ctx.tableConfig
+          .getConfiguration.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR).isEnabled)
+
+      case TRY_CAST =>
+        generateCast(ctx, operands.head, resultType, nullOnFailure = true)
 
       // Reinterpret
       case REINTERPRET =>
@@ -808,6 +812,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case bsf: BridgingSqlFunction =>
         bsf.getDefinition match {
+
           case BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
             generateWatermark(ctx, contextTerm, resultType)
 

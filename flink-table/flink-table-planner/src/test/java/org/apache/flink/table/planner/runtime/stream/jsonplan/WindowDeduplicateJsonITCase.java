@@ -73,8 +73,7 @@ public class WindowDeduplicateJsonITCase extends JsonPlanTestBase {
                 "window_start TIMESTAMP(3)",
                 "window_end TIMESTAMP(3)",
                 "window_time TIMESTAMP(3)");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink select\n"
                                 + "  `ts`,\n"
                                 + "  `int`,\n"
@@ -93,8 +92,8 @@ public class WindowDeduplicateJsonITCase extends JsonPlanTestBase {
                                 + "            PARTITION BY window_start, window_end, `name` ORDER BY rowtime DESC) as rownum \n"
                                 + "      FROM TABLE( \n"
                                 + "              TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))) \n"
-                                + "WHERE rownum <= 1");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "WHERE rownum <= 1")
+                .await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(

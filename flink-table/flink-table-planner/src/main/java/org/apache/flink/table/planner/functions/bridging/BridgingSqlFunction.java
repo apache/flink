@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions.bridging;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -34,8 +35,6 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlKind;
-
-import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -60,9 +59,7 @@ public final class BridgingSqlFunction extends SqlFunction {
 
     private final FlinkTypeFactory typeFactory;
 
-    private final @Nullable FunctionIdentifier identifier;
-
-    private final FunctionDefinition definition;
+    private final ContextResolvedFunction resolvedFunction;
 
     private final TypeInference typeInference;
 
@@ -70,23 +67,24 @@ public final class BridgingSqlFunction extends SqlFunction {
             DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory,
             SqlKind kind,
-            @Nullable FunctionIdentifier identifier,
-            FunctionDefinition definition,
+            ContextResolvedFunction resolvedFunction,
             TypeInference typeInference) {
         super(
-                createName(identifier, definition),
-                createSqlIdentifier(identifier),
+                createName(resolvedFunction),
+                createSqlIdentifier(resolvedFunction),
                 kind,
-                createSqlReturnTypeInference(dataTypeFactory, definition, typeInference),
-                createSqlOperandTypeInference(dataTypeFactory, definition, typeInference),
-                createSqlOperandTypeChecker(dataTypeFactory, definition, typeInference),
+                createSqlReturnTypeInference(
+                        dataTypeFactory, resolvedFunction.getDefinition(), typeInference),
+                createSqlOperandTypeInference(
+                        dataTypeFactory, resolvedFunction.getDefinition(), typeInference),
+                createSqlOperandTypeChecker(
+                        dataTypeFactory, resolvedFunction.getDefinition(), typeInference),
                 createParamTypes(typeFactory, typeInference),
-                createSqlFunctionCategory(identifier));
+                createSqlFunctionCategory(resolvedFunction));
 
         this.dataTypeFactory = dataTypeFactory;
         this.typeFactory = typeFactory;
-        this.identifier = identifier;
-        this.definition = definition;
+        this.resolvedFunction = resolvedFunction;
         this.typeInference = typeInference;
     }
 
@@ -97,58 +95,55 @@ public final class BridgingSqlFunction extends SqlFunction {
      * @param typeFactory used for bridging to {@link RelDataType}
      * @param kind commonly used SQL standard function; use {@link SqlKind#OTHER_FUNCTION} if this
      *     function cannot be mapped to a common function kind.
-     * @param identifier catalog identifier
-     * @param definition system or user-defined {@link FunctionDefinition}
+     * @param resolvedFunction system or user-defined {@link FunctionDefinition} with context
      * @param typeInference type inference logic
      */
     public static BridgingSqlFunction of(
             DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory,
             SqlKind kind,
-            @Nullable FunctionIdentifier identifier,
-            FunctionDefinition definition,
+            ContextResolvedFunction resolvedFunction,
             TypeInference typeInference) {
-
+        final FunctionKind functionKind = resolvedFunction.getDefinition().getKind();
         checkState(
-                definition.getKind() == FunctionKind.SCALAR
-                        || definition.getKind() == FunctionKind.TABLE,
+                functionKind == FunctionKind.SCALAR || functionKind == FunctionKind.TABLE,
                 "Scalar or table function kind expected.");
 
         return new BridgingSqlFunction(
-                dataTypeFactory, typeFactory, kind, identifier, definition, typeInference);
+                dataTypeFactory, typeFactory, kind, resolvedFunction, typeInference);
     }
 
     /** Creates an instance of a scalar or table function during translation. */
     public static BridgingSqlFunction of(
             FlinkContext context,
             FlinkTypeFactory typeFactory,
-            @Nullable FunctionIdentifier identifier,
-            FunctionDefinition definition) {
+            ContextResolvedFunction resolvedFunction) {
         final DataTypeFactory dataTypeFactory = context.getCatalogManager().getDataTypeFactory();
-        final TypeInference typeInference = definition.getTypeInference(dataTypeFactory);
+        final TypeInference typeInference =
+                resolvedFunction.getDefinition().getTypeInference(dataTypeFactory);
         return of(
                 dataTypeFactory,
                 typeFactory,
                 SqlKind.OTHER_FUNCTION,
-                identifier,
-                definition,
+                resolvedFunction,
                 typeInference);
     }
 
     /** Creates an instance of a scalar or table function during translation. */
     public static BridgingSqlFunction of(
-            RelOptCluster cluster,
-            @Nullable FunctionIdentifier identifier,
-            FunctionDefinition definition) {
+            RelOptCluster cluster, ContextResolvedFunction resolvedFunction) {
         final FlinkContext context = ShortcutUtils.unwrapContext(cluster);
         final FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(cluster);
-        return of(context, typeFactory, identifier, definition);
+        return of(context, typeFactory, resolvedFunction);
     }
 
     /** Creates an instance of a scalar or table built-in function during translation. */
     public static BridgingSqlFunction of(
             RelOptCluster cluster, BuiltInFunctionDefinition functionDefinition) {
-        return of(cluster, FunctionIdentifier.of(functionDefinition.getName()), functionDefinition);
+        return of(
+                cluster,
+                ContextResolvedFunction.permanent(
+                        FunctionIdentifier.of(functionDefinition.getName()), functionDefinition));
     }
 
     public DataTypeFactory getDataTypeFactory() {
@@ -160,11 +155,11 @@ public final class BridgingSqlFunction extends SqlFunction {
     }
 
     public Optional<FunctionIdentifier> getIdentifier() {
-        return Optional.ofNullable(identifier);
+        return resolvedFunction.getIdentifier();
     }
 
     public FunctionDefinition getDefinition() {
-        return definition;
+        return resolvedFunction.getDefinition();
     }
 
     public TypeInference getTypeInference() {
@@ -181,6 +176,6 @@ public final class BridgingSqlFunction extends SqlFunction {
 
     @Override
     public boolean isDeterministic() {
-        return definition.isDeterministic();
+        return resolvedFunction.getDefinition().isDeterministic();
     }
 }

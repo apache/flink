@@ -3,7 +3,7 @@ title: "DESCRIBE 语句"
 weight: 8
 type: docs
 aliases:
-  - /dev/table/sql/describe.html
+  - /zh/dev/table/sql/describe.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

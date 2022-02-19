@@ -24,11 +24,14 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * {@code LocallyCleanableResource} is supposed to be used by any class that provides artifacts for
- * a given job that can be cleaned up locally. Artifacts considered to be local are located on the
- * JobManager instance itself and won't survive a failover scenario. These artifacts are, in
- * contrast to {@link GloballyCleanableResource} artifacts, going to be cleaned up even after the
- * job reaches a locally-terminated state.
+ * {@code LocallyCleanableResource} is supposed to be implemented by any class that provides
+ * artifacts for a given job that need to be cleaned up after the job reached a local terminal
+ * state. Local cleanups that needs to be triggered for a global terminal state as well, need to be
+ * implemented using the {@link GloballyCleanableResource}.
+ *
+ * <p>The {@link DispatcherResourceCleanerFactory} provides a workaround to trigger some {@code
+ * LocallyCleanableResources} as globally cleanable. FLINK-26175 is created to cover a refactoring
+ * and straighten things out.
  *
  * @see org.apache.flink.api.common.JobStatus
  */

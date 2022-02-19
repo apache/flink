@@ -74,6 +74,15 @@ public class FileSystemConnectorOptions {
                                     + " (by default long enough to avoid too many small files). The frequency at which"
                                     + " this is checked is controlled by the 'sink.rolling-policy.check-interval' option.");
 
+    public static final ConfigOption<Duration> SINK_ROLLING_POLICY_INACTIVITY_INTERVAL =
+            key("sink.rolling-policy.inactivity-interval")
+                    .durationType()
+                    .defaultValue(Duration.ofMinutes(30))
+                    .withDescription(
+                            "The maximum time duration a part file can stay inactive before rolling"
+                                    + " (by default long enough to avoid too many small files). The frequency at which"
+                                    + " this is checked is controlled by the 'sink.rolling-policy.check-interval' option.");
+
     public static final ConfigOption<Duration> SINK_ROLLING_POLICY_CHECK_INTERVAL =
             key("sink.rolling-policy.check-interval")
                     .durationType()

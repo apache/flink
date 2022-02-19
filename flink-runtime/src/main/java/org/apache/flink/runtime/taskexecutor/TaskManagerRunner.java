@@ -224,7 +224,10 @@ public class TaskManagerRunner implements FatalErrorHandler {
 
             final RpcService metricQueryServiceRpcService =
                     MetricUtils.startRemoteMetricsRpcService(
-                            configuration, rpcService.getAddress(), rpcSystem);
+                            configuration,
+                            rpcService.getAddress(),
+                            configuration.getString(TaskManagerOptions.BIND_HOST),
+                            rpcSystem);
             metricRegistry.startQueryService(metricQueryServiceRpcService, resourceId.unwrap());
 
             blobCacheService =
@@ -622,7 +625,8 @@ public class TaskManagerRunner implements FatalErrorHandler {
                         taskExecutorBlobService.getPermanentBlobService(),
                         taskManagerMetricGroup.f1,
                         ioExecutor,
-                        fatalErrorHandler);
+                        fatalErrorHandler,
+                        workingDirectory);
 
         MetricUtils.instantiateFlinkMemoryMetricGroup(
                 taskManagerMetricGroup.f1,

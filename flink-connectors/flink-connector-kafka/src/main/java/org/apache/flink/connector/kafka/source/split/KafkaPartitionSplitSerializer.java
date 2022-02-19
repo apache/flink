@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.split;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 import org.apache.kafka.common.TopicPartition;
@@ -32,6 +33,7 @@ import java.io.IOException;
  * The {@link org.apache.flink.core.io.SimpleVersionedSerializer serializer} for {@link
  * KafkaPartitionSplit}.
  */
+@Internal
 public class KafkaPartitionSplitSerializer
         implements SimpleVersionedSerializer<KafkaPartitionSplit> {
 

@@ -179,17 +179,8 @@ class WaitingForResources implements State, ResourceConsumer {
     }
 
     /** Context of the {@link WaitingForResources} state. */
-    interface Context {
-
-        /**
-         * Transitions into the {@link Finished} state.
-         *
-         * @param archivedExecutionGraph archivedExecutionGraph representing the final job state
-         */
-        void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
-
-        /** Transitions into the {@link CreatingExecutionGraph} state. */
-        void goToCreatingExecutionGraph();
+    interface Context
+            extends StateTransitions.ToCreatingExecutionGraph, StateTransitions.ToFinished {
 
         /**
          * Creates the {@link ArchivedExecutionGraph} for the given job status and cause. Cause can

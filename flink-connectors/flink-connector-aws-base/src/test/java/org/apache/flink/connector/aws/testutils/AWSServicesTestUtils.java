@@ -25,7 +25,6 @@ import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
-import software.amazon.awssdk.core.waiters.WaiterResponse;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.iam.IamAsyncClient;
@@ -36,14 +35,12 @@ import software.amazon.awssdk.services.s3.model.CreateBucketRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
 import software.amazon.awssdk.services.s3.model.HeadBucketRequest;
-import software.amazon.awssdk.services.s3.model.HeadBucketResponse;
 import software.amazon.awssdk.services.s3.model.ListObjectsRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsResponse;
 import software.amazon.awssdk.services.s3.model.S3Object;
 import software.amazon.awssdk.services.s3.waiters.S3AsyncWaiter;
 
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
@@ -64,30 +61,30 @@ public class AWSServicesTestUtils {
     private static final String ACCESS_KEY_ID = "accessKeyId";
     private static final String SECRET_ACCESS_KEY = "secretAccessKey";
 
-    public static S3AsyncClient getS3Client(String endpoint) throws URISyntaxException {
+    public static S3AsyncClient createS3Client(String endpoint, SdkAsyncHttpClient httpClient) {
         return S3AsyncClient.builder()
-                .httpClient(getHttpClient(endpoint))
+                .httpClient(httpClient)
                 .region(Region.AP_SOUTHEAST_1)
-                .endpointOverride(new URI(endpoint))
-                .credentialsProvider(getDefaultCredentials())
+                .endpointOverride(URI.create(endpoint))
+                .credentialsProvider(createDefaultCredentials())
                 .build();
     }
 
-    public static IamAsyncClient getIamClient(String endpoint) throws URISyntaxException {
+    public static IamAsyncClient createIamClient(String endpoint, SdkAsyncHttpClient httpClient) {
         return IamAsyncClient.builder()
-                .httpClient(getHttpClient(endpoint))
+                .httpClient(httpClient)
                 .region(Region.AWS_GLOBAL)
-                .endpointOverride(new URI(endpoint))
-                .credentialsProvider(getDefaultCredentials())
+                .endpointOverride(URI.create(endpoint))
+                .credentialsProvider(createDefaultCredentials())
                 .build();
     }
 
-    public static AwsCredentialsProvider getDefaultCredentials() {
+    public static AwsCredentialsProvider createDefaultCredentials() {
         return StaticCredentialsProvider.create(
                 AwsBasicCredentials.create(ACCESS_KEY_ID, SECRET_ACCESS_KEY));
     }
 
-    public static Properties getConfig(String endpoint) {
+    public static Properties createConfig(String endpoint) {
         Properties config = new Properties();
         config.setProperty(AWS_REGION, Region.AP_SOUTHEAST_1.toString());
         config.setProperty(AWS_ENDPOINT, endpoint);
@@ -98,8 +95,8 @@ public class AWSServicesTestUtils {
         return config;
     }
 
-    public static SdkAsyncHttpClient getHttpClient(String endpoint) {
-        return AWSGeneralUtil.createAsyncHttpClient(getConfig(endpoint));
+    public static SdkAsyncHttpClient createHttpClient(String endpoint) {
+        return AWSGeneralUtil.createAsyncHttpClient(createConfig(endpoint));
     }
 
     public static void createBucket(S3AsyncClient s3Client, String bucketName)
@@ -111,11 +108,9 @@ public class AWSServicesTestUtils {
         HeadBucketRequest bucketRequestWait =
                 HeadBucketRequest.builder().bucket(bucketName).build();
 
-        S3AsyncWaiter s3Waiter = s3Client.waiter();
-        CompletableFuture<WaiterResponse<HeadBucketResponse>> waiterResponseFuture =
-                s3Waiter.waitUntilBucketExists(bucketRequestWait);
-
-        waiterResponseFuture.get();
+        try (final S3AsyncWaiter waiter = s3Client.waiter()) {
+            waiter.waitUntilBucketExists(bucketRequestWait).get();
+        }
     }
 
     public static void createIAMRole(IamAsyncClient iam, String roleName)

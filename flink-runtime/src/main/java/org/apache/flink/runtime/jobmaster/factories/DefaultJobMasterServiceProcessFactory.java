@@ -68,7 +68,7 @@ public class DefaultJobMasterServiceProcessFactory implements JobMasterServicePr
     @Override
     public ArchivedExecutionGraph createArchivedExecutionGraph(
             JobStatus jobStatus, @Nullable Throwable cause) {
-        return ArchivedExecutionGraph.createFromInitializingJob(
+        return ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                 jobId, jobName, jobStatus, cause, checkpointingSettings, initializationTimestamp);
     }
 }

@@ -18,6 +18,8 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
+
 import javax.annotation.Nullable;
 
 /**
@@ -38,4 +40,15 @@ public interface KeyedStateHandle extends CompositeStateHandle {
      */
     @Nullable
     KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange);
+
+    /**
+     * Returns a unique state handle id to distinguish with other keyed state handles.
+     *
+     * <p><Note>If this state handle would be used as materialized part of {@link
+     * ChangelogStateBackendHandle}, it should persist this state handle id when serializing of
+     * checkpoint and deserialize it back to ensure the state handle id is constant.
+     *
+     * @return A unique state handle id.
+     */
+    StateHandleID getStateHandleId();
 }

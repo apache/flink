@@ -3,7 +3,7 @@ title: 文件系统
 weight: 8
 type: docs
 aliases:
-- /dev/table/connectors/filesystem.html
+- /zh/dev/table/connectors/filesystem.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

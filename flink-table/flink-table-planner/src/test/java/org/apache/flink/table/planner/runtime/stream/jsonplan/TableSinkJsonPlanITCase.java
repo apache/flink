@@ -48,9 +48,8 @@ public class TableSinkJsonPlanITCase extends JsonPlanTestBase {
                         new String[] {"a bigint", "p int not null", "b int", "c varchar"},
                         "b");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan("insert into MySink partition (b=3) select * from MyTable");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        compileSqlAndExecutePlan("insert into MySink partition (b=3) select * from MyTable")
+                .await();
 
         assertResult(data, sinkPath);
     }
@@ -66,8 +65,7 @@ public class TableSinkJsonPlanITCase extends JsonPlanTestBase {
                     }
                 });
 
-        String jsonPlan = tableEnv.getJsonPlan("insert into MySink select * from MyTable");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        compileSqlAndExecutePlan("insert into MySink select * from MyTable").await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(

@@ -51,17 +51,20 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
             internalDeregisterApplicationConsumer;
     private final BiFunction<ResourceManager<?>, CompletableFuture<Void>, CompletableFuture<Void>>
             getTerminationFutureFunction;
+    private final boolean supportMultiLeaderSession;
 
     public TestingResourceManagerFactory(
             Consumer<UUID> initializeConsumer,
             Consumer<UUID> terminateConsumer,
             TriConsumer<UUID, ApplicationStatus, String> internalDeregisterApplicationConsumer,
             BiFunction<ResourceManager<?>, CompletableFuture<Void>, CompletableFuture<Void>>
-                    getTerminationFutureFunction) {
+                    getTerminationFutureFunction,
+            boolean supportMultiLeaderSession) {
         this.initializeConsumer = initializeConsumer;
         this.terminateConsumer = terminateConsumer;
         this.internalDeregisterApplicationConsumer = internalDeregisterApplicationConsumer;
         this.getTerminationFutureFunction = getTerminationFutureFunction;
+        this.supportMultiLeaderSession = supportMultiLeaderSession;
     }
 
     @Override
@@ -101,6 +104,11 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                 .createResourceManagerRuntimeServicesConfiguration(configuration);
     }
 
+    @Override
+    public boolean supportMultiLeaderSession() {
+        return supportMultiLeaderSession;
+    }
+
     public static class Builder {
         private Consumer<UUID> initializeConsumer = (ignore) -> {};
         private Consumer<UUID> terminateConsumer = (ignore) -> {};
@@ -109,6 +117,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
         private BiFunction<ResourceManager<?>, CompletableFuture<Void>, CompletableFuture<Void>>
                 getTerminationFutureFunction =
                         (rm, superTerminationFuture) -> superTerminationFuture;
+        private boolean supportMultiLeaderSession = true;
 
         public Builder setInitializeConsumer(Consumer<UUID> initializeConsumer) {
             this.initializeConsumer = initializeConsumer;
@@ -134,12 +143,18 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
             return this;
         }
 
+        public Builder setSupportMultiLeaderSession(boolean supportMultiLeaderSession) {
+            this.supportMultiLeaderSession = supportMultiLeaderSession;
+            return this;
+        }
+
         public TestingResourceManagerFactory build() {
             return new TestingResourceManagerFactory(
                     initializeConsumer,
                     terminateConsumer,
                     internalDeregisterApplicationConsumer,
-                    getTerminationFutureFunction);
+                    getTerminationFutureFunction,
+                    supportMultiLeaderSession);
         }
     }
 

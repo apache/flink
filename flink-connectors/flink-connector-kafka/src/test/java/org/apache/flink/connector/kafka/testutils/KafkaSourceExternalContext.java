@@ -71,7 +71,7 @@ public class KafkaSourceExternalContext implements DataStreamSourceExternalConte
     private final AdminClient adminClient;
     private final List<KafkaPartitionDataWriter> writers = new ArrayList<>();
 
-    KafkaSourceExternalContext(
+    protected KafkaSourceExternalContext(
             String bootstrapServers,
             SplitMappingMode splitMappingMode,
             List<URL> connectorJarPaths) {

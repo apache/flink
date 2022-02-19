@@ -169,9 +169,14 @@ class BatchPhysicalSortAggregate(
 
   private def getInputProperty: InputProperty = {
     if (grouping.length == 0) {
-      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build()
+      InputProperty.builder()
+        .requiredDistribution(InputProperty.SINGLETON_DISTRIBUTION)
+        .damBehavior(InputProperty.DamBehavior.END_INPUT)
+        .build()
     } else {
-      InputProperty.DEFAULT
+      InputProperty.builder()
+        .requiredDistribution(InputProperty.hashDistribution(grouping))
+        .build()
     }
   }
 }

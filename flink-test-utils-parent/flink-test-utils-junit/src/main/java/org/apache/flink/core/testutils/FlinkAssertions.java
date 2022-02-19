@@ -117,7 +117,7 @@ public final class FlinkAssertions {
      *                  .hasMessageContaining(containsMessage));
      * }</pre>
      */
-    public static ThrowingConsumer<? extends Throwable> anyCauseMatches(String containsMessage) {
+    public static ThrowingConsumer<? super Throwable> anyCauseMatches(String containsMessage) {
         return t ->
                 assertThatChainOfCauses(t)
                         .anySatisfy(t1 -> assertThat(t1).hasMessageContaining(containsMessage));

@@ -27,6 +27,8 @@ import org.apache.flink.util.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +37,7 @@ import java.util.Properties;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.DELETE_ON_SHUTDOWN;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.GROUPING_KEY;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST;
+import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.HOST_URL;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.JOB_NAME;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.PORT;
 import static org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporterOptions.RANDOM_JOB_NAME_SUFFIX;
@@ -63,9 +66,18 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
                 parseGroupingKey(
                         metricConfig.getString(GROUPING_KEY.key(), GROUPING_KEY.defaultValue()));
 
-        if (host == null || host.isEmpty() || port < 1) {
-            throw new IllegalArgumentException(
-                    "Invalid host/port configuration. Host: " + host + " Port: " + port);
+        String hostUrlConfig = metricConfig.getString(HOST_URL.key(), HOST_URL.defaultValue());
+
+        final String hostUrl;
+        if (!StringUtils.isNullOrWhitespaceOnly(hostUrlConfig)) {
+            hostUrl = hostUrlConfig;
+        } else {
+            if (StringUtils.isNullOrWhitespaceOnly(host) || port < 1) {
+                throw new IllegalArgumentException(
+                        "Invalid host/port configuration. Host: " + host + " Port: " + port);
+            } else {
+                hostUrl = "http://" + host + ":" + port;
+            }
         }
 
         String jobName = configuredJobName;
@@ -74,16 +86,19 @@ public class PrometheusPushGatewayReporterFactory implements MetricReporterFacto
         }
 
         LOG.info(
-                "Configured PrometheusPushGatewayReporter with {host:{}, port:{}, jobName:{}, randomJobNameSuffix:{}, deleteOnShutdown:{}, groupingKey:{}}",
-                host,
-                port,
+                "Configured PrometheusPushGatewayReporter with {hostUrl:{}, jobName:{}, randomJobNameSuffix:{}, deleteOnShutdown:{}, groupingKey:{}}",
+                hostUrl,
                 jobName,
                 randomSuffix,
                 deleteOnShutdown,
                 groupingKey);
 
-        return new PrometheusPushGatewayReporter(
-                host, port, jobName, groupingKey, deleteOnShutdown);
+        try {
+            return new PrometheusPushGatewayReporter(
+                    new URL(hostUrl), jobName, groupingKey, deleteOnShutdown);
+        } catch (MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @VisibleForTesting

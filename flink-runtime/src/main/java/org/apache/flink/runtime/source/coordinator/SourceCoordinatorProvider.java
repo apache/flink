@@ -19,6 +19,7 @@ limitations under the License.
 package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -30,8 +31,8 @@ import org.apache.flink.util.FatalExitExceptionHandler;
 import javax.annotation.Nullable;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 
@@ -42,6 +43,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
     private final String operatorName;
     private final Source<?, SplitT, ?> source;
     private final int numWorkerThreads;
+    private final WatermarkAlignmentParams alignmentParams;
 
     /**
      * Construct the {@link SourceCoordinatorProvider}.
@@ -58,11 +60,13 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
             String operatorName,
             OperatorID operatorID,
             Source<?, SplitT, ?> source,
-            int numWorkerThreads) {
+            int numWorkerThreads,
+            WatermarkAlignmentParams alignmentParams) {
         super(operatorID);
         this.operatorName = operatorName;
         this.source = source;
         this.numWorkerThreads = numWorkerThreads;
+        this.alignmentParams = alignmentParams;
     }
 
     @Override
@@ -71,8 +75,8 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
         CoordinatorExecutorThreadFactory coordinatorThreadFactory =
                 new CoordinatorExecutorThreadFactory(
                         coordinatorThreadName, context.getUserCodeClassloader());
-        ExecutorService coordinatorExecutor =
-                Executors.newSingleThreadExecutor(coordinatorThreadFactory);
+        ScheduledExecutorService coordinatorExecutor =
+                Executors.newScheduledThreadPool(1, coordinatorThreadFactory);
 
         SimpleVersionedSerializer<SplitT> splitSerializer = source.getSplitSerializer();
         SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
@@ -87,7 +91,8 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
                 coordinatorExecutor,
                 source,
                 sourceCoordinatorContext,
-                context.getCoordinatorStore());
+                context.getCoordinatorStore(),
+                alignmentParams);
     }
 
     /** A thread factory class that provides some helper methods. */

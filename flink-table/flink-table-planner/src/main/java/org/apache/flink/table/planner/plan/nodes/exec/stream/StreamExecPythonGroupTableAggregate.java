@@ -58,12 +58,14 @@ import java.util.Collections;
 /** Stream {@link ExecNode} for unbounded python group table aggregate. */
 public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
     private static final Logger LOG =
             LoggerFactory.getLogger(StreamExecPythonGroupTableAggregate.class);
 
     private static final String PYTHON_STREAM_TABLE_AGGREGATE_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate."
                     + "PythonStreamGroupTableAggregateOperator";
+
     private final int[] grouping;
     private final AggregateCall[] aggCalls;
     private final boolean[] aggCallNeedRetractions;
@@ -138,8 +140,8 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(config),
-                        getOperatorDescription(config),
+                        createTransformationName(config),
+                        createTransformationDescription(config),
                         pythonOperator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

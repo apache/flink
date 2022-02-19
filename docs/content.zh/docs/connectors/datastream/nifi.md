@@ -26,6 +26,10 @@ under the License.
 
 # Apache NiFi 连接器
 
+{{< hint warning >}}
+The NiFi connector is deprecated and will be removed with Flink 1.16.
+{{< /hint >}}
+
 [Apache NiFi](https://nifi.apache.org/) 连接器提供了可以读取和写入的 Source 和 Sink。
 使用这个连接器，需要在工程中添加下面的依赖:
 

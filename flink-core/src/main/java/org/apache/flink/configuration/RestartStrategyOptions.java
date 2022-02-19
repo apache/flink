@@ -47,6 +47,7 @@ public class RestartStrategyOptions {
 
     public static final ConfigOption<String> RESTART_STRATEGY =
             ConfigOptions.key("restart-strategy")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             Description.builder()
@@ -116,6 +117,7 @@ public class RestartStrategyOptions {
     public static final ConfigOption<Integer>
             RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL =
                     ConfigOptions.key("restart-strategy.failure-rate.max-failures-per-interval")
+                            .intType()
                             .defaultValue(1)
                             .withDescription(
                                     Description.builder()

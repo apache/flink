@@ -27,6 +27,30 @@
             <td>Whether to convert all PIPELINE edges to BLOCKING when apply fine-grained resource management in batch jobs.</td>
         </tr>
         <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.data-volume-per-task</h5></td>
+            <td style="word-wrap: break-word;">1 gb</td>
+            <td>MemorySize</td>
+            <td>The size of data volume to expect each task instance to process if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.default-source-parallelism</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The default parallelism of source vertices if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.max-parallelism</h5></td>
+            <td style="word-wrap: break-word;">128</td>
+            <td>Integer</td>
+            <td>The upper bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.min-parallelism</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
@@ -43,30 +67,6 @@
             <td style="word-wrap: break-word;">5 min</td>
             <td>Duration</td>
             <td>The maximum time the JobManager will wait to acquire all required resources after a job submission or restart. Once elapsed it will try to run the job with a lower parallelism, or fail if the minimum amount of resources could not be acquired.<br />Increasing this value will make the cluster more resilient against temporary resources shortages (e.g., there is more time for a failed TaskManager to be restarted).<br />Setting a negative duration will disable the resource timeout: The JobManager will wait indefinitely for resources to appear.<br />If <code class="highlighter-rouge">scheduler-mode</code> is configured to <code class="highlighter-rouge">REACTIVE</code>, this configuration value will default to a negative value to disable the resource timeout.</td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.scheduler.adaptive-batch.data-volume-per-task</h5></td>
-            <td style="word-wrap: break-word;">1 gb</td>
-            <td>MemorySize</td>
-            <td>The size of data volume to expect each task instance to process if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.scheduler.adaptive-batch.max-parallelism</h5></td>
-            <td style="word-wrap: break-word;">128</td>
-            <td>Integer</td>
-            <td>The upper bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.scheduler.adaptive-batch.min-parallelism</h5></td>
-            <td style="word-wrap: break-word;">1</td>
-            <td>Integer</td>
-            <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.scheduler.adaptive-batch.source-parallelism.default</h5></td>
-            <td style="word-wrap: break-word;">1</td>
-            <td>Integer</td>
-            <td>The default parallelism of source vertices if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
         </tr>
         <tr>
             <td><h5>scheduler-mode</h5></td>

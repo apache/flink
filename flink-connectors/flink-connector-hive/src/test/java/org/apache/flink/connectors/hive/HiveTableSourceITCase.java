@@ -40,6 +40,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
@@ -959,9 +960,10 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         }
 
         @Override
-        public DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
+        public DataStream<RowData> getDataStream(
+                ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
             DataStreamSource<RowData> dataStream =
-                    (DataStreamSource<RowData>) super.getDataStream(execEnv);
+                    (DataStreamSource<RowData>) super.getDataStream(providerContext, execEnv);
             int parallelism = dataStream.getTransformation().getParallelism();
             assertEquals(inferParallelism ? 1 : 2, parallelism);
             return dataStream;

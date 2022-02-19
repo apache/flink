@@ -40,7 +40,7 @@ import java.util.List;
 
 /** Batch {@link ExecNode} base class for sort-based over window aggregate. */
 public abstract class BatchExecOverAggregateBase extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
+        implements InputSortedExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     protected final OverSpec overSpec;
 

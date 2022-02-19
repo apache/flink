@@ -83,9 +83,9 @@ The relevant section states:
 The Flink distribution contains by default the required JARs to execute Flink SQL Jobs (found in the `/lib` folder), 
 in particular:
 
--`flink-table-api-java-uber-{{< version >}}.jar` --> contains all the Java APIs
--`flink-table-runtime-{{< version >}}.jar` --> contains the runtime
--`flink-table-planner-loader-{{< version >}}.jar` --> contains the query planner
+- `flink-table-api-java-uber-{{< version >}}.jar` &#8594; contains all the Java APIs 
+- `flink-table-runtime-{{< version >}}.jar` &#8594; contains the runtime
+- `flink-table-planner-loader-{{< version >}}.jar` &#8594; contains the query planner
 
 **Note:** Previously, these JARs were all packaged into `flink-table.jar`. Since Flink 1.15, this has 
 now been split into three JARs in order to allow users to swap the `flink-table-planner-loader-{{< version >}}.jar` 

@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.JList
+import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 
@@ -53,8 +54,9 @@ object FlinkRexUtil {
   @Experimental
   private[flink] val TABLE_OPTIMIZER_CNF_NODES_LIMIT: ConfigOption[Integer] =
     key("table.optimizer.cnf-nodes-limit")
-      .defaultValue(Integer.valueOf(-1))
-      .withDescription("When converting to conjunctive normal form (CNF, like '(a AND b) OR" +
+       .intType()
+       .defaultValue(Integer.valueOf(-1))
+       .withDescription("When converting to conjunctive normal form (CNF, like '(a AND b) OR" +
         " c' will be converted to '(a OR c) AND (b OR c)'), fail if the expression  exceeds " +
         "this threshold; (e.g. predicate in TPC-DS q41.sql will be converted to hundreds of " +
         "thousands of CNF nodes.) the threshold is expressed in terms of number of nodes " +
@@ -533,7 +535,7 @@ object FlinkRexUtil {
           getExpressionString(_, inFields, localExprsTable, expressionFormat, expressionDetail))
         c.getOperator match {
           case _: SqlAsOperator => ops.head
-          case _: SqlCastFunction =>
+          case _: SqlCastFunction | _: SqlTryCastFunction =>
             val typeStr = expressionDetail match {
               case ExpressionDetail.Digest => c.getType.getFullTypeString
               case ExpressionDetail.Explain => c.getType.toString

@@ -18,10 +18,14 @@
 
 package org.apache.flink.table.expressions;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.ObjectIdentifier;
+import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
+import org.apache.flink.table.module.Module;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
@@ -43,10 +47,13 @@ import java.util.stream.Collectors;
  *   <li>an output type
  *   <li>a {@link FunctionDefinition} that identifies the function to be called
  *   <li>an optional {@link ObjectIdentifier} that tracks the origin of a function
+ *   <li>whether the called function is temporary
  * </ul>
  */
 @PublicEvolving
 public final class CallExpression implements ResolvedExpression {
+
+    private final boolean isTemporary;
 
     private final @Nullable FunctionIdentifier functionIdentifier;
 
@@ -56,14 +63,15 @@ public final class CallExpression implements ResolvedExpression {
 
     private final DataType dataType;
 
+    @Internal
     public CallExpression(
-            FunctionIdentifier functionIdentifier,
+            boolean isTemporary,
+            @Nullable FunctionIdentifier functionIdentifier,
             FunctionDefinition functionDefinition,
             List<ResolvedExpression> args,
             DataType dataType) {
-        this.functionIdentifier =
-                Preconditions.checkNotNull(
-                        functionIdentifier, "Object identifier must not be null.");
+        this.isTemporary = isTemporary;
+        this.functionIdentifier = functionIdentifier;
         this.functionDefinition =
                 Preconditions.checkNotNull(
                         functionDefinition, "Function definition must not be null.");
@@ -72,17 +80,96 @@ public final class CallExpression implements ResolvedExpression {
         this.dataType = Preconditions.checkNotNull(dataType, "Data type must not be null.");
     }
 
+    /**
+     * Creates a {@link CallExpression} to a permanent function (persisted in a {@link Catalog} or
+     * provided by a {@link Module}).
+     */
+    public static CallExpression permanent(
+            FunctionIdentifier functionIdentifier,
+            FunctionDefinition functionDefinition,
+            List<ResolvedExpression> args,
+            DataType dataType) {
+        return new CallExpression(
+                false,
+                Preconditions.checkNotNull(
+                        functionIdentifier,
+                        "Function identifier must not be null for permanent functions."),
+                functionDefinition,
+                args,
+                dataType);
+    }
+
+    /**
+     * Creates a {@link CallExpression} to a resolved built-in function. It assumes that the {@link
+     * BuiltInFunctionDefinition} instance is provided by the framework (usually the core module).
+     */
+    @Internal
+    public static CallExpression permanent(
+            BuiltInFunctionDefinition builtInFunctionDefinition,
+            List<ResolvedExpression> args,
+            DataType dataType) {
+        return new CallExpression(
+                false,
+                FunctionIdentifier.of(builtInFunctionDefinition.getName()),
+                builtInFunctionDefinition,
+                args,
+                dataType);
+    }
+
+    /**
+     * Creates a {@link CallExpression} to a temporary function (potentially shadowing a {@link
+     * Catalog} function or providing a system function).
+     */
+    public static CallExpression temporary(
+            FunctionIdentifier functionIdentifier,
+            FunctionDefinition functionDefinition,
+            List<ResolvedExpression> args,
+            DataType dataType) {
+        return new CallExpression(
+                true,
+                Preconditions.checkNotNull(
+                        functionIdentifier,
+                        "Function identifier must not be null for temporary functions."),
+                functionDefinition,
+                args,
+                dataType);
+    }
+
+    /**
+     * Creates a {@link CallExpression} to an anonymous function that has been declared inline
+     * without a {@link FunctionIdentifier}.
+     */
+    public static CallExpression anonymous(
+            FunctionDefinition functionDefinition,
+            List<ResolvedExpression> args,
+            DataType dataType) {
+        return new CallExpression(true, null, functionDefinition, args, dataType);
+    }
+
+    /**
+     * @deprecated Use {@link #permanent(FunctionIdentifier, FunctionDefinition, List, DataType)} or
+     *     {@link #temporary(FunctionIdentifier, FunctionDefinition, List, DataType)} instead.
+     */
+    @Deprecated
+    public CallExpression(
+            FunctionIdentifier functionIdentifier,
+            FunctionDefinition functionDefinition,
+            List<ResolvedExpression> args,
+            DataType dataType) {
+        this(false, functionIdentifier, functionDefinition, args, dataType);
+    }
+
+    /** @deprecated Use {@link #anonymous(FunctionDefinition, List, DataType)} instead. */
+    @Deprecated
     public CallExpression(
             FunctionDefinition functionDefinition,
             List<ResolvedExpression> args,
             DataType dataType) {
-        this.functionIdentifier = null;
-        this.functionDefinition =
-                Preconditions.checkNotNull(
-                        functionDefinition, "Function definition must not be null.");
-        this.args =
-                new ArrayList<>(Preconditions.checkNotNull(args, "Arguments must not be null."));
-        this.dataType = Preconditions.checkNotNull(dataType, "Data type must not be null.");
+        this(false, null, functionDefinition, args, dataType);
+    }
+
+    public boolean isTemporary() {
+        return isTemporary;
     }
 
     public Optional<FunctionIdentifier> getFunctionIdentifier() {
@@ -102,6 +189,11 @@ public final class CallExpression implements ResolvedExpression {
         } else {
             return functionIdentifier.asSummaryString();
         }
+    }
+
+    public CallExpression replaceArgs(List<ResolvedExpression> args, DataType dataType) {
+        return new CallExpression(
+                this.isTemporary, this.functionIdentifier, this.functionDefinition, args, dataType);
     }
 
     @Override
@@ -143,7 +235,8 @@ public final class CallExpression implements ResolvedExpression {
             return false;
         }
         CallExpression that = (CallExpression) o;
-        return Objects.equals(functionIdentifier, that.functionIdentifier)
+        return isTemporary == that.isTemporary
+                && Objects.equals(functionIdentifier, that.functionIdentifier)
                 && functionDefinition.equals(that.functionDefinition)
                 && args.equals(that.args)
                 && dataType.equals(that.dataType);
@@ -151,7 +244,7 @@ public final class CallExpression implements ResolvedExpression {
 
     @Override
     public int hashCode() {
-        return Objects.hash(functionIdentifier, functionDefinition, args, dataType);
+        return Objects.hash(isTemporary, functionIdentifier, functionDefinition, args, dataType);
     }
 
     @Override

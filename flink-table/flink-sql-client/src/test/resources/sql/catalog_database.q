@@ -35,6 +35,7 @@ org.apache.flink.sql.parser.impl.ParseException: Encountered "." at line 1, colu
 Was expecting one of:
     <EOF>
     "WITH" ...
+    ";" ...
 
 !error
 

@@ -25,7 +25,6 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -194,10 +193,7 @@ public class SchemaResolutionTest {
                         Collections.singletonList(
                                 WatermarkSpec.of(
                                         "ts_ltz",
-                                        new CallExpression(
-                                                FunctionIdentifier.of(
-                                                        BuiltInFunctionDefinitions.SOURCE_WATERMARK
-                                                                .getName()),
+                                        CallExpression.permanent(
                                                 BuiltInFunctionDefinitions.SOURCE_WATERMARK,
                                                 Collections.emptyList(),
                                                 DataTypes.TIMESTAMP_LTZ(1)))),

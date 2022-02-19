@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.JobException;
@@ -80,7 +81,6 @@ import org.apache.flink.runtime.operators.coordination.TaskNotRunningException;
 import org.apache.flink.runtime.query.KvStateLocation;
 import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
-import org.apache.flink.runtime.scheduler.DefaultOperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismInfo;
 import org.apache.flink.runtime.scheduler.DefaultVertexParallelismStore;
 import org.apache.flink.runtime.scheduler.ExecutionGraphFactory;
@@ -99,7 +99,11 @@ import org.apache.flink.runtime.scheduler.adaptive.allocator.SlotAllocator;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ReactiveScaleUpController;
 import org.apache.flink.runtime.scheduler.adaptive.scalingpolicy.ScaleUpController;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.metrics.DeploymentStateTimeMetrics;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.util.BoundedFIFOQueue;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
@@ -121,6 +125,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -168,7 +173,6 @@ public class AdaptiveScheduler
 
     private final Executor ioExecutor;
     private final ClassLoader userCodeClassLoader;
-    private final JobManagerJobMetricGroup jobManagerJobMetricGroup;
 
     private final CheckpointsCleaner checkpointsCleaner;
     private final CompletedCheckpointStore completedCheckpointStore;
@@ -192,7 +196,6 @@ public class AdaptiveScheduler
     private final Duration resourceStabilizationTimeout;
 
     private final ExecutionGraphFactory executionGraphFactory;
-    private final JobStatusStore jobStatusStore;
 
     private State state = new Created(this, LOG);
 
@@ -206,6 +209,10 @@ public class AdaptiveScheduler
     private BackgroundTask<ExecutionGraph> backgroundTask = BackgroundTask.finishedBackgroundTask();
 
     private final SchedulerExecutionMode executionMode;
+
+    private final DeploymentStateTimeMetrics deploymentTimeMetrics;
+
+    private final BoundedFIFOQueue<RootExceptionHistoryEntry> exceptionHistory;
 
     public AdaptiveScheduler(
             JobGraph jobGraph,
@@ -241,7 +248,6 @@ public class AdaptiveScheduler
         this.ioExecutor = ioExecutor;
         this.userCodeClassLoader = userCodeClassLoader;
         this.restartBackoffTimeStrategy = restartBackoffTimeStrategy;
-        this.jobManagerJobMetricGroup = jobManagerJobMetricGroup;
         this.fatalErrorHandler = fatalErrorHandler;
         this.checkpointsCleaner = checkpointsCleaner;
         this.completedCheckpointStore =
@@ -257,8 +263,6 @@ public class AdaptiveScheduler
 
         this.componentMainThreadExecutor = mainThreadExecutor;
 
-        this.jobStatusStore = new JobStatusStore(initializationTimestamp);
-
         this.scaleUpController = new ReactiveScaleUpController(configuration);
 
         this.initialResourceAllocationTimeout = initialResourceAllocationTimeout;
@@ -267,19 +271,30 @@ public class AdaptiveScheduler
 
         this.executionGraphFactory = executionGraphFactory;
 
+        final JobStatusStore jobStatusStore = new JobStatusStore(initializationTimestamp);
         final Collection<JobStatusListener> tmpJobStatusListeners = new ArrayList<>();
         tmpJobStatusListeners.add(Preconditions.checkNotNull(jobStatusListener));
         tmpJobStatusListeners.add(jobStatusStore);
+
+        final MetricOptions.JobStatusMetricsSettings jobStatusMetricsSettings =
+                MetricOptions.JobStatusMetricsSettings.fromConfiguration(configuration);
+
+        deploymentTimeMetrics =
+                new DeploymentStateTimeMetrics(jobGraph.getJobType(), jobStatusMetricsSettings);
 
         SchedulerBase.registerJobMetrics(
                 jobManagerJobMetricGroup,
                 jobStatusStore,
                 () -> (long) numRestarts,
+                deploymentTimeMetrics,
                 tmpJobStatusListeners::add,
                 initializationTimestamp,
-                MetricOptions.JobStatusMetricsSettings.fromConfiguration(configuration));
+                jobStatusMetricsSettings);
 
         jobStatusListeners = Collections.unmodifiableCollection(tmpJobStatusListeners);
+        this.exceptionHistory =
+                new BoundedFIFOQueue<>(
+                        configuration.getInteger(WebOptions.MAX_EXCEPTION_HISTORY_SIZE));
     }
 
     private static void assertPreconditions(JobGraph jobGraph) throws RuntimeException {
@@ -521,8 +536,12 @@ public class AdaptiveScheduler
 
     @Override
     public ExecutionGraphInfo requestJob() {
-        // no exception history support is added for now (see FLINK-21439)
-        return new ExecutionGraphInfo(state.getJob());
+        return new ExecutionGraphInfo(state.getJob(), exceptionHistory.toArrayList());
+    }
+
+    @Override
+    public void archiveFailure(RootExceptionHistoryEntry failure) {
+        exceptionHistory.add(failure);
     }
 
     @Override
@@ -756,7 +775,7 @@ public class AdaptiveScheduler
     @Override
     public ArchivedExecutionGraph getArchivedExecutionGraph(
             JobStatus jobStatus, @Nullable Throwable cause) {
-        return ArchivedExecutionGraph.createFromInitializingJob(
+        return ArchivedExecutionGraph.createSparseArchivedExecutionGraph(
                 jobInformation.getJobID(),
                 jobInformation.getName(),
                 jobStatus,
@@ -784,30 +803,11 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public void goToExecuting(ExecutionGraph executionGraph) {
-        final ExecutionGraphHandler executionGraphHandler =
-                new ExecutionGraphHandler(
-                        executionGraph, LOG, ioExecutor, componentMainThreadExecutor);
-        final OperatorCoordinatorHandler operatorCoordinatorHandler =
-                new DefaultOperatorCoordinatorHandler(executionGraph, this::handleGlobalFailure);
-        operatorCoordinatorHandler.initializeOperatorCoordinators(componentMainThreadExecutor);
-        operatorCoordinatorHandler.startAllOperatorCoordinators();
-
-        transitionToState(
-                new Executing.Factory(
-                        executionGraph,
-                        executionGraphHandler,
-                        operatorCoordinatorHandler,
-                        LOG,
-                        this,
-                        userCodeClassLoader));
-    }
-
-    @Override
     public void goToExecuting(
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
-            OperatorCoordinatorHandler operatorCoordinatorHandler) {
+            OperatorCoordinatorHandler operatorCoordinatorHandler,
+            List<ExceptionHistoryEntry> failureCollection) {
         transitionToState(
                 new Executing.Factory(
                         executionGraph,
@@ -815,14 +815,16 @@ public class AdaptiveScheduler
                         operatorCoordinatorHandler,
                         LOG,
                         this,
-                        userCodeClassLoader));
+                        userCodeClassLoader,
+                        failureCollection));
     }
 
     @Override
     public void goToCanceling(
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
-            OperatorCoordinatorHandler operatorCoordinatorHandler) {
+            OperatorCoordinatorHandler operatorCoordinatorHandler,
+            List<ExceptionHistoryEntry> failureCollection) {
 
         transitionToState(
                 new Canceling.Factory(
@@ -830,7 +832,9 @@ public class AdaptiveScheduler
                         executionGraph,
                         executionGraphHandler,
                         operatorCoordinatorHandler,
-                        LOG));
+                        LOG,
+                        userCodeClassLoader,
+                        failureCollection));
     }
 
     @Override
@@ -838,7 +842,8 @@ public class AdaptiveScheduler
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
-            Duration backoffTime) {
+            Duration backoffTime,
+            List<ExceptionHistoryEntry> failureCollection) {
 
         for (ExecutionVertex executionVertex : executionGraph.getAllExecutionVertices()) {
             final int attemptNumber =
@@ -857,7 +862,9 @@ public class AdaptiveScheduler
                         executionGraphHandler,
                         operatorCoordinatorHandler,
                         LOG,
-                        backoffTime));
+                        backoffTime,
+                        userCodeClassLoader,
+                        failureCollection));
         numRestarts++;
     }
 
@@ -866,7 +873,8 @@ public class AdaptiveScheduler
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
-            Throwable failureCause) {
+            Throwable failureCause,
+            List<ExceptionHistoryEntry> failureCollection) {
         transitionToState(
                 new Failing.Factory(
                         this,
@@ -874,7 +882,9 @@ public class AdaptiveScheduler
                         executionGraphHandler,
                         operatorCoordinatorHandler,
                         LOG,
-                        failureCause));
+                        failureCause,
+                        userCodeClassLoader,
+                        failureCollection));
     }
 
     @Override
@@ -883,7 +893,8 @@ public class AdaptiveScheduler
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             CheckpointScheduling checkpointScheduling,
-            CompletableFuture<String> savepointFuture) {
+            CompletableFuture<String> savepointFuture,
+            List<ExceptionHistoryEntry> failureCollection) {
 
         StopWithSavepoint stopWithSavepoint =
                 transitionToState(
@@ -895,7 +906,8 @@ public class AdaptiveScheduler
                                 checkpointScheduling,
                                 LOG,
                                 userCodeClassLoader,
-                                savepointFuture));
+                                savepointFuture,
+                                failureCollection));
         return stopWithSavepoint.getOperationFuture();
     }
 
@@ -1023,6 +1035,7 @@ public class AdaptiveScheduler
                 initializationTimestamp,
                 vertexAttemptNumberStore,
                 adjustedParallelismStore,
+                deploymentTimeMetrics,
                 LOG);
     }
 
@@ -1081,25 +1094,30 @@ public class AdaptiveScheduler
     }
 
     @Override
-    public Executing.FailureResult howToHandleFailure(Throwable failure) {
+    public FailureResult howToHandleFailure(Throwable failure) {
         if (ExecutionFailureHandler.isUnrecoverableError(failure)) {
-            return Executing.FailureResult.canNotRestart(
+            return FailureResult.canNotRestart(
                     new JobException("The failure is not recoverable", failure));
         }
 
         restartBackoffTimeStrategy.notifyFailure(failure);
         if (restartBackoffTimeStrategy.canRestart()) {
-            return Executing.FailureResult.canRestart(
+            return FailureResult.canRestart(
                     failure, Duration.ofMillis(restartBackoffTimeStrategy.getBackoffTime()));
         } else {
-            return Executing.FailureResult.canNotRestart(
+            return FailureResult.canNotRestart(
                     new JobException(
                             "Recovery is suppressed by " + restartBackoffTimeStrategy, failure));
         }
     }
 
     @Override
-    public Executor getMainThreadExecutor() {
+    public Executor getIOExecutor() {
+        return ioExecutor;
+    }
+
+    @Override
+    public ComponentMainThreadExecutor getMainThreadExecutor() {
         return componentMainThreadExecutor;
     }
 
@@ -1149,6 +1167,7 @@ public class AdaptiveScheduler
         Preconditions.checkState(
                 state.getClass() != targetState.getStateClass(),
                 "Attempted to transition into the very state the scheduler is already in.");
+        componentMainThreadExecutor.assertRunningInMainThread();
 
         try {
             isTransitioningState = true;

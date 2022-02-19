@@ -694,7 +694,7 @@ public class DispatcherResourceCleanupTest extends TestLogger {
                                             CompletableFuture.completedFuture(
                                                     new ExecutionGraphInfo(
                                                             ArchivedExecutionGraph
-                                                                    .createFromInitializingJob(
+                                                                    .createSparseArchivedExecutionGraph(
                                                                             jobGraph.getJobID(),
                                                                             jobGraph.getName(),
                                                                             JobStatus.RUNNING,

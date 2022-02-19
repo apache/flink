@@ -70,6 +70,12 @@ under the License.
 			<artifactId>log4j-core</artifactId>
 			<scope>compile</scope>
 		</dependency>
+
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>testcontainers</artifactId>
+			<scope>compile</scope>
+		</dependency>
 	</dependencies>
 
 </project>

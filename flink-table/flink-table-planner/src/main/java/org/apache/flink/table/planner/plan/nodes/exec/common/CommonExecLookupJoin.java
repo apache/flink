@@ -136,6 +136,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
+    public static final String LOOKUP_JOIN_TRANSFORMATION = "lookup-join";
+
     public static final String FIELD_NAME_JOIN_TYPE = "joinType";
     public static final String FIELD_NAME_JOIN_CONDITION = "joinCondition";
     public static final String FIELD_NAME_TEMPORAL_TABLE = "temporalTable";
@@ -263,8 +265,7 @@ public abstract class CommonExecLookupJoin extends ExecNodeBase<RowData>
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransformation,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationMeta(LOOKUP_JOIN_TRANSFORMATION, planner.getTableConfig()),
                 operatorFactory,
                 InternalTypeInfo.of(resultRowType),
                 inputTransformation.getParallelism());

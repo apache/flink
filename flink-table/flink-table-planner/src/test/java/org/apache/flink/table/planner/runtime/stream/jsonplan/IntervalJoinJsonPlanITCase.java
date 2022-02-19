@@ -49,15 +49,14 @@ public class IntervalJoinJsonPlanITCase extends JsonPlanTestBase {
                 "T2", rowT2, "a int", "b bigint", "c varchar", "proctime as PROCTIME()");
         createTestValuesSinkTable("MySink", "a int", "c1 varchar", "c2 varchar");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink "
                                 + "SELECT t2.a, t2.c, t1.c\n"
                                 + "FROM T1 as t1 join T2 as t2 ON\n"
                                 + "  t1.a = t2.a AND\n"
                                 + "  t1.proctime BETWEEN t2.proctime - INTERVAL '5' SECOND AND\n"
-                                + "    t2.proctime + INTERVAL '5' SECOND");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "    t2.proctime + INTERVAL '5' SECOND")
+                .await();
         List<String> expected =
                 Arrays.asList(
                         "+I[1, HiHi, Hi1]",
@@ -99,15 +98,14 @@ public class IntervalJoinJsonPlanITCase extends JsonPlanTestBase {
                 "watermark for rowtime as rowtime - INTERVAL '5' second");
         createTestValuesSinkTable("MySink", "a int", "c1 varchar", "c2 varchar");
 
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink \n"
                                 + "SELECT t2.a, t2.c, t1.c\n"
                                 + "FROM T1 as t1 join T2 as t2 ON\n"
                                 + "  t1.a = t2.a AND\n"
                                 + "  t1.rowtime BETWEEN t2.rowtime - INTERVAL '5' SECOND AND\n"
-                                + "    t2.rowtime + INTERVAL '6' SECOND");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "    t2.rowtime + INTERVAL '6' SECOND")
+                .await();
         List<String> expected =
                 Arrays.asList(
                         "+I[1, HiHi, Hi1]",

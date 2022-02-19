@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.operator;
 
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableEnvironment;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.planner.utils.TableFunc1;
 import org.apache.flink.table.planner.utils.TableTestBase;
@@ -55,7 +55,7 @@ public abstract class OperatorNameTestBase extends TableTestBase {
         tEnv.getConfig()
                 .getConfiguration()
                 .set(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED,
+                        ExecutionConfigOptions.TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED,
                         isNameSimplifyEnabled);
     }
 

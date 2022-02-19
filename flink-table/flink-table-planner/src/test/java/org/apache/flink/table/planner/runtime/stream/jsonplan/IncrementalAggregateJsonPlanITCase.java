@@ -77,13 +77,11 @@ public class IncrementalAggregateJsonPlanITCase extends JsonPlanTestBase {
                 "c varchar");
         createTestNonInsertOnlyValuesSinkTable(
                 "MySink", "b bigint", "a bigint", "primary key (b) not enforced");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink select b, "
                                 + "count(distinct a) as a "
-                                + "from MyTable group by b");
-
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "from MyTable group by b")
+                .await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(Arrays.asList("+I[1, 1]", "+I[2, 2]"), result);

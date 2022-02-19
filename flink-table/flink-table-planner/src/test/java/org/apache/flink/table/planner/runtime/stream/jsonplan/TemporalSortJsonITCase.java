@@ -43,9 +43,8 @@ public class TemporalSortJsonITCase extends JsonPlanTestBase {
                 "c STRING",
                 "proctime as PROCTIME()");
         createTestValuesSinkTable("MySink", "a INT");
-        String jsonPlan =
-                tableEnv.getJsonPlan("insert into MySink SELECT a FROM MyTable order by proctime");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        compileSqlAndExecutePlan("insert into MySink SELECT a FROM MyTable order by proctime")
+                .await();
 
         assertResult(
                 Arrays.asList("+I[1]", "+I[2]", "+I[3]"),
@@ -75,10 +74,9 @@ public class TemporalSortJsonITCase extends JsonPlanTestBase {
                     }
                 });
         createTestValuesSinkTable("MySink", "`int` INT");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
-                        "insert into MySink SELECT `int` FROM MyTable order by rowtime, `double`");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+        compileSqlAndExecutePlan(
+                        "insert into MySink SELECT `int` FROM MyTable order by rowtime, `double`")
+                .await();
 
         assertEquals(
                 Arrays.asList(

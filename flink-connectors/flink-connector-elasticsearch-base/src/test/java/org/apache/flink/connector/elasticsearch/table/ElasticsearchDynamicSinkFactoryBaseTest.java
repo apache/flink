@@ -26,7 +26,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Assertions;
@@ -244,8 +244,8 @@ abstract class ElasticsearchDynamicSinkFactoryBaseTest {
                                 .build());
         assertThat(sink).isInstanceOf(ElasticsearchDynamicSink.class);
         ElasticsearchDynamicSink esSink = (ElasticsearchDynamicSink) sink;
-        SinkProvider provider =
-                (SinkProvider) esSink.getSinkRuntimeProvider(new ElasticsearchUtil.MockContext());
+        SinkV2Provider provider =
+                (SinkV2Provider) esSink.getSinkRuntimeProvider(new ElasticsearchUtil.MockContext());
         assertThat(2).isEqualTo(provider.getParallelism().get());
     }
 }

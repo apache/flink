@@ -92,6 +92,7 @@ Task 在没有中断的情况下执行到结束的阶段如下所示：
 	   	    open-operators
 		    run
 		    finish-operators
+		    wait for the final checkponit completed (if enabled)
 		    close-operators
 		    task-specific-cleanup
 		    common-cleanup
@@ -117,7 +118,9 @@ task 里多个连续算子的开启是从后往前依次执行。
 
 现在 task 可以恢复执行，算子可以开始处理新输入的数据。在这里，特定 task 的 `run()` 方法会被调用。这个方法会一直运行直到没有更多输入数据进来（有限的数据流）或者 task 被取消了（人为的或其他的原因）。这里也是算子定义的 `processElement()` 方法和 `processWatermark()` 方法执行的地方。
 
-在运行到完成的情况下，即没有更多的输入数据要处理，从run()方法退出后，task 进入关闭阶段。首先定时器服务停止注册任何新的定时器（比如从正在执行的定时器里注册），清理掉所有还未启动的定时器，并等待当前执行中的定时器运行结束。然后通过调用 `finishAllOperators()` 方法调用每个算子的 `finish()` 方法来通知所有参与计算的算子。然后所有缓存的输出数据会刷出去以便下游 task 处理，最终 task 通过调用每个算子的 `close()` 方法来尝试清理掉算子持有的所有资源。与我们之前提到的开启算子不同是，开启时从后往前依次调用 `open()`；而关闭时刚好相反，从前往后依次调用 `close()`。
+在运行到完成的情况下，即没有更多的输入数据要处理，从run()方法退出后，task 进入关闭阶段。首先定时器服务停止注册任何新的定时器（比如从正在执行的定时器里注册），清理掉所有还未启动的定时器，并等待当前执行中的定时器运行结束。然后通过调用 `finishAllOperators()` 方法调用每个算子的 `finish()` 方法来通知所有参与计算的算子。然后所有缓存的输出数据会刷出去以便下游 task 处理。
+如果开启了部分任务结束后继续 checkpoint 的功能，任务将 [等待下一个 checkpoint 结束]({{< ref "docs/dev/datastream/fault-tolerance/checkpointing#任务结束前等待最后一次-checkpoint" >}}) 来保证使用两阶段提交的算子可能最终提交所有的记录。
+最终 task 通过调用每个算子的 `close()` 方法来尝试清理掉算子持有的所有资源。与我们之前提到的开启算子不同是，开启时从后往前依次调用 `open()`；而关闭时刚好相反，从前往后依次调用 `close()`。
 
 {{< hint info >}}
 

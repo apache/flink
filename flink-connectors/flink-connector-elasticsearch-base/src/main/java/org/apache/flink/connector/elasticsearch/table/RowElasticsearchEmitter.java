@@ -19,7 +19,7 @@
 package org.apache.flink.connector.elasticsearch.table;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.elasticsearch.sink.ElasticsearchEmitter;
 import org.apache.flink.connector.elasticsearch.sink.RequestIndexer;
 import org.apache.flink.table.api.TableException;

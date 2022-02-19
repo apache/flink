@@ -121,6 +121,17 @@ public class TableConfigOptions {
                                     + "necessary. It influences the need for catalog metadata to be"
                                     + "present and enables partial enrichment of plan information.");
 
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean> PLAN_FORCE_RECOMPILE =
+            key("table.plan.force-recompile")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "When false COMPILE PLAN statement will fail if the output plan file is already existing, "
+                                    + "unless the clause IF NOT EXISTS is used. "
+                                    + "When true COMPILE PLAN will overwrite the existing output plan file. "
+                                    + "We strongly suggest to enable this flag only for debugging purpose.");
+
     // ------------------------------------------------------------------------------------------
     // Options for code generation
     // ------------------------------------------------------------------------------------------

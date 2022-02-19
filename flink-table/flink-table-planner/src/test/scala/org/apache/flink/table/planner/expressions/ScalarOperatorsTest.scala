@@ -148,7 +148,7 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
     testSqlApi("CASE f7 WHEN 1 THEN 11 WHEN 2 THEN 4 ELSE NULL END", "NULL")
     testSqlApi("CASE 42 WHEN 1 THEN 'a' WHEN 2 THEN 'bcd' END", "NULL")
     testSqlApi("CASE 1 WHEN 1 THEN true WHEN 2 THEN false ELSE NULL END", "TRUE")
-    testSqlApi("IF(true, CAST ('non-numeric' AS BIGINT), 0)", "NULL")
+    testSqlApi("IF(true, TRY_CAST ('non-numeric' AS BIGINT), 0)", "NULL")
   }
 
   @Test

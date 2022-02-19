@@ -47,7 +47,6 @@ under the License.
  * [Hybrid Source]({{< ref "docs/connectors/datastream/hybridsource" >}}) (source)
  * [Apache NiFi]({{< ref "docs/connectors/datastream/nifi" >}}) (source/sink)
  * [Apache Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source)
- * [Twitter Streaming API]({{< ref "docs/connectors/datastream/twitter" >}}) (source)
  * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (sink)
 
 请记住，在使用一种连接器时，通常需要额外的第三方组件，比如：数据存储服务器或者消息队列。

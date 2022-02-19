@@ -49,6 +49,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  *     client to the target cluster.
  */
 @Internal
+@Deprecated
 public class AbstractJobClusterExecutor<
                 ClusterID, ClientFactory extends ClusterClientFactory<ClusterID>>
         implements PipelineExecutor {

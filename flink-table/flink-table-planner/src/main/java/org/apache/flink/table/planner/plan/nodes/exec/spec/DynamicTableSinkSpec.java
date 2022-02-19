@@ -28,7 +28,6 @@ import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonGetter;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
@@ -43,7 +42,6 @@ import java.util.Objects;
  * and create {@link DynamicTableSink} from the deserialization result.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class DynamicTableSinkSpec extends DynamicTableSpecBase {
 
     public static final String FIELD_NAME_CATALOG_TABLE = "table";
@@ -52,7 +50,7 @@ public class DynamicTableSinkSpec extends DynamicTableSpecBase {
     private final ContextResolvedTable contextResolvedTable;
     private final @Nullable List<SinkAbilitySpec> sinkAbilities;
 
-    @JsonIgnore private DynamicTableSink tableSink;
+    private DynamicTableSink tableSink;
 
     @JsonCreator
     public DynamicTableSinkSpec(
@@ -69,6 +67,7 @@ public class DynamicTableSinkSpec extends DynamicTableSpecBase {
     }
 
     @JsonGetter(FIELD_NAME_SINK_ABILITIES)
+    @JsonInclude(JsonInclude.Include.NON_EMPTY)
     @Nullable
     public List<SinkAbilitySpec> getSinkAbilities() {
         return sinkAbilities;

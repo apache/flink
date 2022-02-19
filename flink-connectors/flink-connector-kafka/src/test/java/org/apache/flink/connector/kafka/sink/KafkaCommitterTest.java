@@ -17,7 +17,7 @@
 
 package org.apache.flink.connector.kafka.sink;
 
-import org.apache.flink.api.connector.sink2.Committer;
+import org.apache.flink.api.connector.sink2.mocks.MockCommitRequest;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -50,8 +50,8 @@ public class KafkaCommitterTest {
                         new FlinkKafkaInternalProducer<>(properties, TRANSACTIONAL_ID);
                 Recyclable<FlinkKafkaInternalProducer<Object, Object>> recyclable =
                         new Recyclable<>(producer, p -> {})) {
-            final MockCommitRequest request =
-                    new MockCommitRequest(
+            final MockCommitRequest<KafkaCommittable> request =
+                    new MockCommitRequest<>(
                             new KafkaCommittable(PRODUCER_ID, EPOCH, TRANSACTIONAL_ID, recyclable));
 
             producer.resumeTransaction(PRODUCER_ID, EPOCH);
@@ -73,12 +73,13 @@ public class KafkaCommitterTest {
                 Recyclable<FlinkKafkaInternalProducer<Object, Object>> recyclable =
                         new Recyclable<>(producer, p -> {})) {
             // will fail because transaction not started
-            final MockCommitRequest request =
-                    new MockCommitRequest(
+            final MockCommitRequest<KafkaCommittable> request =
+                    new MockCommitRequest<>(
                             new KafkaCommittable(PRODUCER_ID, EPOCH, TRANSACTIONAL_ID, recyclable));
             committer.commit(Collections.singletonList(request));
-            assertThat(request.failedWithUnknownReason).isInstanceOf(IllegalStateException.class);
-            assertThat(request.failedWithUnknownReason.getMessage())
+            assertThat(request.getFailedWithUnknownReason())
+                    .isInstanceOf(IllegalStateException.class);
+            assertThat(request.getFailedWithUnknownReason().getMessage())
                     .contains("Transaction was not started");
             assertThat(recyclable.isRecycled()).isTrue();
         }
@@ -92,45 +93,5 @@ public class KafkaCommitterTest {
         properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         return properties;
-    }
-
-    private static class MockCommitRequest implements Committer.CommitRequest<KafkaCommittable> {
-
-        private final KafkaCommittable committable;
-        private int retries = 0;
-        Throwable failedWithUnknownReason;
-
-        MockCommitRequest(KafkaCommittable committable) {
-            this.committable = committable;
-        }
-
-        @Override
-        public KafkaCommittable getCommittable() {
-            return committable;
-        }
-
-        @Override
-        public int getNumberOfRetries() {
-            return retries;
-        }
-
-        @Override
-        public void signalFailedWithKnownReason(Throwable t) {}
-
-        @Override
-        public void signalFailedWithUnknownReason(Throwable t) {
-            failedWithUnknownReason = t;
-        }
-
-        @Override
-        public void retryLater() {
-            retries++;
-        }
-
-        @Override
-        public void updateAndRetryLater(KafkaCommittable committable) {}
-
-        @Override
-        public void signalAlreadyCommitted() {}
     }
 }

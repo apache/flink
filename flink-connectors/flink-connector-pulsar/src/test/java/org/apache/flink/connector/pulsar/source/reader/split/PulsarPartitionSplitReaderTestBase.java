@@ -92,18 +92,15 @@ public abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuite
     PulsarSplitReaderInvocationContextProvider provider =
             new PulsarSplitReaderInvocationContextProvider();
 
-    /** Default reader config: max message 1, fetch timeout 1s. */
-    private Configuration readerConfig() {
+    /** Default source config: max message 1, fetch timeout 1s. */
+    private SourceConfiguration sourceConfig() {
         Configuration config = operator().config();
         config.set(PULSAR_MAX_FETCH_RECORDS, 1);
         config.set(PULSAR_MAX_FETCH_TIME, 1000L);
         config.set(PULSAR_SUBSCRIPTION_NAME, randomAlphabetic(10));
         config.set(PULSAR_ENABLE_AUTO_ACKNOWLEDGE_MESSAGE, true);
-        return config;
-    }
 
-    private SourceConfiguration sourceConfig() {
-        return new SourceConfiguration(readerConfig());
+        return new SourceConfiguration(config);
     }
 
     protected void handleSplit(
@@ -337,14 +334,12 @@ public abstract class PulsarPartitionSplitReaderTestBase extends PulsarTestSuite
             return new PulsarOrderedPartitionSplitReader<>(
                     operator().client(),
                     operator().admin(),
-                    readerConfig(),
                     sourceConfig(),
                     flinkSchema(new SimpleStringSchema()));
         } else {
             return new PulsarUnorderedPartitionSplitReader<>(
                     operator().client(),
                     operator().admin(),
-                    readerConfig(),
                     sourceConfig(),
                     flinkSchema(new SimpleStringSchema()),
                     null);

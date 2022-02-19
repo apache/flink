@@ -81,6 +81,11 @@ Flink supports the following formats:
            <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
         </tr>
         <tr>
+         <td><a href="{{< ref "docs/connectors/table/formats/ogg" >}}">OGG CDC</a></td>
+          <td><a href="{{< ref "docs/connectors/table/kafka" >}}">Apache Kafka</a>,
+           <a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
+        </tr>
+        <tr>
          <td><a href="{{< ref "docs/connectors/table/formats/parquet" >}}">Apache Parquet</a></td>
          <td><a href="{{< ref "docs/connectors/table/filesystem" >}}">Filesystem</a></td>
         </tr>

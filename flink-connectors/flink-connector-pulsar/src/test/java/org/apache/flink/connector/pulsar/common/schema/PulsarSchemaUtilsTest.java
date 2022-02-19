@@ -57,14 +57,12 @@ class PulsarSchemaUtilsTest {
     }
 
     @Test
-    @SuppressWarnings("java:S5778")
     void createSchemaForComplexSchema() {
         // Avro
         Schema<Foo> avro1 = Schema.AVRO(Foo.class);
         PulsarSchema<Foo> avro2 = new PulsarSchema<>(avro1, Foo.class);
-        assertThrows(
-                NullPointerException.class,
-                () -> PulsarSchemaUtils.createSchema(avro1.getSchemaInfo()));
+        SchemaInfo info1 = avro1.getSchemaInfo();
+        assertThrows(NullPointerException.class, () -> PulsarSchemaUtils.createSchema(info1));
 
         Schema<Foo> schema = PulsarSchemaUtils.createSchema(avro2.getSchemaInfo());
         assertNotEquals(schema.getSchemaInfo(), avro1.getSchemaInfo());

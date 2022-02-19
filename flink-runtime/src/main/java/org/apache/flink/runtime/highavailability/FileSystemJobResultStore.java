@@ -52,7 +52,18 @@ import static org.apache.flink.util.StringUtils.isNullOrWhitespaceOnly;
  */
 public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
-    private static final String DIRTY_SUFFIX = "_DIRTY";
+    @VisibleForTesting static final String FILE_EXTENSION = ".json";
+    @VisibleForTesting static final String DIRTY_FILE_EXTENSION = "_DIRTY" + FILE_EXTENSION;
+
+    @VisibleForTesting
+    public static boolean hasValidDirtyJobResultStoreEntryExtension(String filename) {
+        return filename.endsWith(DIRTY_FILE_EXTENSION);
+    }
+
+    @VisibleForTesting
+    public static boolean hasValidJobResultStoreEntryExtension(String filename) {
+        return filename.endsWith(FILE_EXTENSION);
+    }
 
     private final ObjectMapper mapper = new ObjectMapper();
 
@@ -103,7 +114,7 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
      * @return A path for a dirty entry for the given the Job ID.
      */
     private Path constructDirtyPath(JobID jobId) {
-        return new Path(this.basePath.getPath(), jobId.toString() + DIRTY_SUFFIX + ".json");
+        return new Path(this.basePath.getPath(), jobId.toString() + DIRTY_FILE_EXTENSION);
     }
 
     /**
@@ -155,18 +166,14 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
     @Override
     public Set<JobResult> getDirtyResultsInternal() throws IOException {
         final Set<JobResult> dirtyResults = new HashSet<>();
-        final FileStatus fs = fileSystem.getFileStatus(this.basePath);
-        if (fs.isDir()) {
-            FileStatus[] statuses = fileSystem.listStatus(this.basePath);
-            for (FileStatus s : statuses) {
-                if (!s.isDir()) {
-                    String fileName = s.getPath().getName();
-                    if (fileName.contains(DIRTY_SUFFIX)) {
-                        JsonJobResultEntry jre =
-                                mapper.readValue(
-                                        fileSystem.open(s.getPath()), JsonJobResultEntry.class);
-                        dirtyResults.add(jre.getJobResult());
-                    }
+        FileStatus[] statuses = fileSystem.listStatus(this.basePath);
+        for (FileStatus s : statuses) {
+            if (!s.isDir()) {
+                if (hasValidDirtyJobResultStoreEntryExtension(s.getPath().getName())) {
+                    JsonJobResultEntry jre =
+                            mapper.readValue(
+                                    fileSystem.open(s.getPath()), JsonJobResultEntry.class);
+                    dirtyResults.add(jre.getJobResult());
                 }
             }
         }

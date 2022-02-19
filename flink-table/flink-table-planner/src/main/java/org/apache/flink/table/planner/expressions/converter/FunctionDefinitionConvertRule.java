@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.expressions.converter;
 
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -36,27 +37,27 @@ import java.util.stream.Collectors;
 public class FunctionDefinitionConvertRule implements CallExpressionConvertRule {
     @Override
     public Optional<RexNode> convert(CallExpression call, ConvertContext context) {
-        FunctionDefinition functionDefinition = call.getFunctionDefinition();
+        final FunctionDefinition definition = call.getFunctionDefinition();
 
         // built-in functions without implementation are handled separately
-        if (functionDefinition instanceof BuiltInFunctionDefinition) {
+        if (definition instanceof BuiltInFunctionDefinition) {
             final BuiltInFunctionDefinition builtInFunction =
-                    (BuiltInFunctionDefinition) functionDefinition;
+                    (BuiltInFunctionDefinition) definition;
             if (!builtInFunction.hasRuntimeImplementation()) {
                 return Optional.empty();
             }
         }
 
-        TypeInference typeInference =
-                functionDefinition.getTypeInference(context.getDataTypeFactory());
+        final TypeInference typeInference =
+                definition.getTypeInference(context.getDataTypeFactory());
         if (typeInference.getOutputTypeStrategy() == TypeStrategies.MISSING) {
             return Optional.empty();
         }
 
-        switch (functionDefinition.getKind()) {
+        switch (definition.getKind()) {
             case SCALAR:
             case TABLE:
-                List<RexNode> args =
+                final List<RexNode> args =
                         call.getChildren().stream()
                                 .map(context::toRexNode)
                                 .collect(Collectors.toList());
@@ -66,8 +67,7 @@ public class FunctionDefinitionConvertRule implements CallExpressionConvertRule 
                                 context.getDataTypeFactory(),
                                 context.getTypeFactory(),
                                 SqlKind.OTHER_FUNCTION,
-                                call.getFunctionIdentifier().orElse(null),
-                                functionDefinition,
+                                ContextResolvedFunction.fromCallExpression(call),
                                 typeInference);
 
                 return Optional.of(context.getRelBuilder().call(sqlFunction, args));

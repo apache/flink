@@ -30,7 +30,6 @@ import org.apache.flink.runtime.operators.coordination.OperatorEventGateway;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.StreamingRuntimeContext;
 import org.apache.flink.streaming.runtime.tasks.ProcessingTimeService;
-import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext;
 
 /** A SourceOperator extension to simplify test setup. */
@@ -53,22 +52,6 @@ public class TestingSourceOperator<T> extends SourceOperator<T, MockSourceSplit>
                 timeService,
                 new MockOperatorEventGateway(),
                 1,
-                5,
-                emitProgressiveWatermarks);
-    }
-
-    public TestingSourceOperator(
-            SourceReader<T, MockSourceSplit> reader,
-            OperatorEventGateway eventGateway,
-            int subtaskIndex,
-            boolean emitProgressiveWatermarks) {
-
-        this(
-                reader,
-                WatermarkStrategy.noWatermarks(),
-                new TestProcessingTimeService(),
-                eventGateway,
-                subtaskIndex,
                 5,
                 emitProgressiveWatermarks);
     }

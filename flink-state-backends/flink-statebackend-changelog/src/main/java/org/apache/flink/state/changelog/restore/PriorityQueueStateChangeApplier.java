@@ -35,9 +35,6 @@ class PriorityQueueStateChangeApplier<T> implements StateChangeApplier {
     @Override
     public void apply(StateChangeOperation operation, DataInputView in) throws Exception {
         switch (operation) {
-            case REMOVE_FIRST_ELEMENT:
-                queue.poll();
-                break;
             case ADD_ELEMENT:
                 int numElements = in.readInt();
                 for (int i = 0; i < numElements; i++) {

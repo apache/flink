@@ -21,6 +21,7 @@ package org.apache.flink.table.client.cli;
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.client.cli.utils.SqlScriptReader;
 import org.apache.flink.table.client.cli.utils.TestSqlStatement;
 import org.apache.flink.table.client.gateway.Executor;
 import org.apache.flink.table.client.gateway.context.DefaultContext;
@@ -68,8 +69,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.JobManagerOptions.ADDRESS;
 import static org.apache.flink.configuration.RestOptions.PORT;
-import static org.apache.flink.table.client.cli.utils.SqlScriptReader.parseSqlScript;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test that runs every {@code xx.q} file in "resources/sql/" path as a test. */
 @RunWith(Parameterized.class)
@@ -123,7 +123,9 @@ public class CliClientITCase extends AbstractTestBase {
     public void before() throws IOException {
         // initialize new folders for every tests, so the vars can be reused by every SQL scripts
         replaceVars.put("$VAR_STREAMING_PATH", tempFolder.newFolder().toPath().toString());
+        replaceVars.put("$VAR_STREAMING_PATH2", tempFolder.newFolder().toPath().toString());
         replaceVars.put("$VAR_BATCH_PATH", tempFolder.newFolder().toPath().toString());
+        replaceVars.put("$VAR_BATCH_PATH2", tempFolder.newFolder().toPath().toString());
     }
 
     @Test
@@ -134,8 +136,7 @@ public class CliClientITCase extends AbstractTestBase {
                 testSqlStatements.stream().map(s -> s.sql).collect(Collectors.toList());
         List<Result> actualResults = runSqlStatements(sqlStatements);
         String out = transformOutput(testSqlStatements, actualResults);
-        String errorMsg = "SQL script " + sqlPath + " is not passed.";
-        assertEquals(errorMsg, in, out);
+        assertThat(in).isEqualTo(out);
     }
 
     /**
@@ -145,7 +146,7 @@ public class CliClientITCase extends AbstractTestBase {
      * @return the printed results on SQL Client
      */
     private List<Result> runSqlStatements(List<String> statements) throws IOException {
-        final String sqlContent = String.join("\n", statements);
+        final String sqlContent = String.join("", statements);
         DefaultContext defaultContext =
                 new DefaultContext(
                         Collections.emptyList(),
@@ -239,6 +240,10 @@ public class CliClientITCase extends AbstractTestBase {
         return StringUtils.replaceEach(in, keys, values);
     }
 
+    protected List<TestSqlStatement> parseSqlScript(String input) {
+        return SqlScriptReader.parseSqlScript(input);
+    }
+
     private static List<Result> normalizeOutput(String output) {
         List<Result> results = new ArrayList<>();
         // remove welcome message
@@ -302,7 +307,7 @@ public class CliClientITCase extends AbstractTestBase {
         return String.join("\n", newLines);
     }
 
-    private static String transformOutput(
+    protected String transformOutput(
             List<TestSqlStatement> testSqlStatements, List<Result> results) {
         StringBuilder out = new StringBuilder();
         for (int i = 0; i < testSqlStatements.size(); i++) {
@@ -319,11 +324,12 @@ public class CliClientITCase extends AbstractTestBase {
         return out.toString();
     }
 
-    private static String removeExecNodeId(String s) {
+    protected static String removeExecNodeId(String s) {
         return s.replaceAll("\"id\" : \\d+", "\"id\" : ");
     }
 
-    private static final class Result {
+    /** test result. */
+    protected static final class Result {
         final String content;
         final Tag highestTag;
 

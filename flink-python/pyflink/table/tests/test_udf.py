@@ -203,8 +203,7 @@ class UserDefinedFunctionTests(object):
                              "cast ('2014-09-13' as DATE),"
                              "cast ('12:00:00' as TIME),"
                              "cast ('1999-9-10 05:20:10' as TIMESTAMP))"
-                             " from test_table").insert_into("Results")
-        self.t_env.execute("test")
+                             " from test_table").execute_insert("Results").wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[3, 8]", "+I[3, 9]", "+I[3, 10]"])
 
@@ -742,6 +741,7 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         actual = source_sink_utils.results()
         self.assert_equals(actual, ["+I[1970-01-01T00:00:00.123Z]"])
 
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -778,12 +778,12 @@ class PyFlinkStreamUserDefinedFunctionTests(UserDefinedFunctionTests,
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
         self.t_env.create_temporary_system_function("add_one", add_one)
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table SELECT "
-                                                   "a, "
-                                                   "add_one(b) "
-                                                   "FROM source_table")
+        json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table SELECT "
+                                                      "a, "
+                                                      "add_one(b) "
+                                                      "FROM source_table")
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
         import glob
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]

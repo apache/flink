@@ -29,6 +29,10 @@ import org.junit.jupiter.api.Test;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.ROW;
+import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIME;
+import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -41,6 +45,7 @@ class CastRuleProviderTest {
             DistinctType.newBuilder(ObjectIdentifier.of("a", "b", "c"), BIGINT().getLogicalType())
                     .build();
     private static final LogicalType INT = INT().getLogicalType();
+    private static final LogicalType TINYINT = TINYINT().getLogicalType();
 
     @Test
     void testResolveDistinctTypeToIdentityCastRule() {
@@ -76,5 +81,18 @@ class CastRuleProviderTest {
     void testResolveConstructedToString() {
         assertThat(CastRuleProvider.resolve(new ArrayType(INT), new VarCharType(10)))
                 .isSameAs(ArrayToStringCastRule.INSTANCE);
+    }
+
+    @Test
+    void testCanFail() {
+        assertThat(CastRuleProvider.canFail(TINYINT, INT)).isFalse();
+        assertThat(CastRuleProvider.canFail(STRING_TYPE, TIME().getLogicalType())).isTrue();
+        assertThat(CastRuleProvider.canFail(STRING_TYPE, STRING_TYPE)).isFalse();
+
+        LogicalType inputType = ROW(TINYINT(), STRING()).getLogicalType();
+        assertThat(CastRuleProvider.canFail(inputType, ROW(INT(), TIME()).getLogicalType()))
+                .isTrue();
+        assertThat(CastRuleProvider.canFail(inputType, ROW(INT(), STRING()).getLogicalType()))
+                .isFalse();
     }
 }

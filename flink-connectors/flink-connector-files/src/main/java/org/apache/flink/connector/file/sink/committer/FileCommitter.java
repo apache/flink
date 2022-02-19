@@ -19,14 +19,17 @@
 package org.apache.flink.connector.file.sink.committer;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.connector.sink.Committer;
+import org.apache.flink.api.connector.sink2.Committer;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketWriter;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
+import java.util.Collection;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -41,6 +44,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class FileCommitter implements Committer<FileSinkCommittable> {
 
+    private static final Logger LOG = LoggerFactory.getLogger(FileCommitter.class);
+
     private final BucketWriter<?, ?> bucketWriter;
 
     public FileCommitter(BucketWriter<?, ?> bucketWriter) {
@@ -48,9 +53,10 @@ public class FileCommitter implements Committer<FileSinkCommittable> {
     }
 
     @Override
-    public List<FileSinkCommittable> commit(List<FileSinkCommittable> committables)
-            throws IOException {
-        for (FileSinkCommittable committable : committables) {
+    public void commit(Collection<CommitRequest<FileSinkCommittable>> requests)
+            throws IOException, InterruptedException {
+        for (CommitRequest<FileSinkCommittable> request : requests) {
+            FileSinkCommittable committable = request.getCommittable();
             if (committable.hasPendingFile()) {
                 // We should always use commitAfterRecovery which contains additional checks.
                 bucketWriter.recoverPendingFile(committable.getPendingFile()).commitAfterRecovery();
@@ -60,9 +66,22 @@ public class FileCommitter implements Committer<FileSinkCommittable> {
                 bucketWriter.cleanupInProgressFileRecoverable(
                         committable.getInProgressFileToCleanup());
             }
-        }
 
-        return Collections.emptyList();
+            if (committable.hasCompactedFileToCleanup()) {
+                Path committedFileToCleanup = committable.getCompactedFileToCleanup();
+                try {
+                    committedFileToCleanup.getFileSystem().delete(committedFileToCleanup, false);
+                } catch (Exception e) {
+                    // Try best to cleanup compacting files, skip if failed.
+                    if (LOG.isDebugEnabled()) {
+                        LOG.debug(
+                                "Failed to cleanup a compacted file, the file will be remained and should not be visible: {}",
+                                committedFileToCleanup,
+                                e);
+                    }
+                }
+            }
+        }
     }
 
     @Override

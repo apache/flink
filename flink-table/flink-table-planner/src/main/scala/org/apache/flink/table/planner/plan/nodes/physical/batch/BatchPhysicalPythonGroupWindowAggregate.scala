@@ -98,6 +98,11 @@ class BatchPhysicalPythonGroupWindowAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (grouping.length == 0) {
+      InputProperty.SINGLETON_DISTRIBUTION
+    } else {
+      InputProperty.hashDistribution(grouping)
+    }
     new BatchExecPythonGroupWindowAggregate(
       grouping,
       grouping ++ auxGrouping,
@@ -105,7 +110,7 @@ class BatchPhysicalPythonGroupWindowAggregate(
       window,
       inputTimeFieldIndex,
       namedWindowProperties.toArray,
-      InputProperty.DEFAULT,
+      InputProperty.builder().requiredDistribution(requiredDistribution).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

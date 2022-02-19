@@ -28,6 +28,7 @@ import org.apache.flink.connector.kafka.source.KafkaSourceBuilder;
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.KafkaDeserializationSchema;
 import org.apache.flink.streaming.connectors.kafka.config.StartupMode;
@@ -36,6 +37,7 @@ import org.apache.flink.streaming.connectors.kafka.table.DynamicKafkaDeserializa
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.Projection;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -77,6 +79,8 @@ import java.util.stream.Stream;
 @Internal
 public class KafkaDynamicSource
         implements ScanTableSource, SupportsReadingMetadata, SupportsWatermarkPushDown {
+
+    private static final String KAFKA_TRANSFORMATION = "kafka";
 
     // --------------------------------------------------------------------------------------------
     // Mutable attributes
@@ -221,12 +225,16 @@ public class KafkaDynamicSource
 
         return new DataStreamScanProvider() {
             @Override
-            public DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
+            public DataStream<RowData> produceDataStream(
+                    ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
                 if (watermarkStrategy == null) {
                     watermarkStrategy = WatermarkStrategy.noWatermarks();
                 }
-                return execEnv.fromSource(
-                        kafkaSource, watermarkStrategy, "KafkaSource-" + tableIdentifier);
+                DataStreamSource<RowData> sourceStream =
+                        execEnv.fromSource(
+                                kafkaSource, watermarkStrategy, "KafkaSource-" + tableIdentifier);
+                providerContext.generateUid(KAFKA_TRANSFORMATION).ifPresent(sourceStream::uid);
+                return sourceStream;
             }
 
             @Override

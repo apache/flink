@@ -92,7 +92,7 @@ String[] tables = tableEnv.listTables();
 val tableEnv = TableEnvironment.create(...)
 
 // register a table named "Orders"
-tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
 // a string array: ["Orders"]
 val tables = tableEnv.listTables()

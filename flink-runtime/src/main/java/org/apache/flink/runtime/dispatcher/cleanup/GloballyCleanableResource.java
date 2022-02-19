@@ -24,11 +24,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 /**
- * {@code GloballyCleanableResource} is supposed to be used by any class that provides artifacts for
- * a given job that can be cleaned up globally. Globally available artifacts should survive a
- * JobManager failover and are, in contrast to {@link GloballyCleanableResource}, only cleaned up
- * after the corresponding job reached a globally-terminal state.
+ * {@code GloballyCleanableResource} is supposed to be implemented by any class that provides
+ * artifacts for a given job that need to be cleaned up after the job reached a global terminal
+ * state.
  *
+ * @see LocallyCleanableResource
  * @see org.apache.flink.api.common.JobStatus
  */
 @FunctionalInterface

@@ -124,7 +124,11 @@ public class SourceOperatorFactory<OUT> extends AbstractStreamOperatorFactory<OU
     public OperatorCoordinator.Provider getCoordinatorProvider(
             String operatorName, OperatorID operatorID) {
         return new SourceCoordinatorProvider<>(
-                operatorName, operatorID, source, numCoordinatorWorkerThread);
+                operatorName,
+                operatorID,
+                source,
+                numCoordinatorWorkerThread,
+                watermarkStrategy.getAlignmentParameters());
     }
 
     @SuppressWarnings("rawtypes")

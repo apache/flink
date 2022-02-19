@@ -82,6 +82,7 @@ import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendFactory;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -2381,6 +2382,8 @@ public class StreamTaskTest extends TestLogger {
 
         private final transient CompletableFuture<Void> discardFuture = new CompletableFuture<>();
 
+        private final StateHandleID stateHandleId = StateHandleID.randomStateHandleId();
+
         public CompletableFuture<Void> getDiscardFuture() {
             return discardFuture;
         }
@@ -2393,6 +2396,11 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public TestingKeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
             return this;
+        }
+
+        @Override
+        public StateHandleID getStateHandleId() {
+            return stateHandleId;
         }
 
         @Override

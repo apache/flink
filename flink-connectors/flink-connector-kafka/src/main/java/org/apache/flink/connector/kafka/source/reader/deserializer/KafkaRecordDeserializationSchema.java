@@ -33,6 +33,7 @@ import java.util.Collections;
 import java.util.Map;
 
 /** An interface for the deserialization of Kafka records. */
+@PublicEvolving
 public interface KafkaRecordDeserializationSchema<T> extends Serializable, ResultTypeQueryable<T> {
 
     /**
@@ -44,7 +45,6 @@ public interface KafkaRecordDeserializationSchema<T> extends Serializable, Resul
      *
      * @param context Contextual information that can be used during initialization.
      */
-    @PublicEvolving
     default void open(DeserializationSchema.InitializationContext context) throws Exception {}
 
     /**
@@ -58,7 +58,6 @@ public interface KafkaRecordDeserializationSchema<T> extends Serializable, Resul
      * @param record The ConsumerRecord to deserialize.
      * @param out The collector to put the resulting messages.
      */
-    @PublicEvolving
     void deserialize(ConsumerRecord<byte[], byte[]> record, Collector<T> out) throws IOException;
 
     /**
