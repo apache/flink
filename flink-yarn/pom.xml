@@ -26,6 +26,7 @@ under the License.
 		<version>1.17-SNAPSHOT</version>
 	</parent>
 
+	<groupId>io.hops.flink</groupId>
 	<artifactId>flink-yarn</artifactId>
 	<name>Flink : Yarn</name>
 	<packaging>jar</packaging>

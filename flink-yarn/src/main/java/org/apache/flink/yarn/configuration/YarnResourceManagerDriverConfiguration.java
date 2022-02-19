@@ -41,6 +41,9 @@ public class YarnResourceManagerDriverConfiguration {
     @Nullable private final String keytabPrinciple;
     @Nullable private final String krb5Path;
     @Nullable private final String yarnSiteXMLPath;
+    @Nullable private final String containerRunType;
+    @Nullable private final String containerRunTypeDockerImage;
+    @Nullable private final String containerRunTypeDockerMounts;
 
     public YarnResourceManagerDriverConfiguration(
             Map<String, String> env, String rpcAddress, @Nullable String webInterfaceUrl) {
@@ -59,6 +62,9 @@ public class YarnResourceManagerDriverConfiguration {
         this.yarnSiteXMLPath = env.get(YarnConfigKeys.ENV_YARN_SITE_XML_PATH);
         this.currentDir =
                 Preconditions.checkNotNull(env.get(ApplicationConstants.Environment.PWD.key()));
+        this.containerRunType = env.get("YARN_CONTAINER_RUNTIME_TYPE");
+        this.containerRunTypeDockerImage = env.get("YARN_CONTAINER_RUNTIME_DOCKER_IMAGE");
+        this.containerRunTypeDockerMounts = env.get("YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS");
     }
 
     public String getRpcAddress() {
@@ -113,5 +119,20 @@ public class YarnResourceManagerDriverConfiguration {
 
     public String getCurrentDir() {
         return currentDir;
+    }
+
+    @Nullable
+    public String getContainerRunType() {
+        return containerRunType;
+    }
+
+    @Nullable
+    public String getContainerRunTypeDockerImage() {
+        return containerRunTypeDockerImage;
+    }
+
+    @Nullable
+    public String getContainerRunTypeDockerMounts() {
+        return containerRunTypeDockerMounts;
     }
 }

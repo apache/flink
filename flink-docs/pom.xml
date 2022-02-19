@@ -102,7 +102,7 @@ under the License.
 			<version>${project.version}</version>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.flink</groupId>
+			<groupId>io.hops.flink</groupId>
 			<artifactId>flink-yarn</artifactId>
 			<version>${project.version}</version>
 		</dependency>

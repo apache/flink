@@ -107,7 +107,10 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+		<!-- TODO: -->
+		<hadoop.version>3.2.0</hadoop.version>
 		<flink.hadoop.version>2.10.2</flink.hadoop.version>
+		<!-- TODO: -->
 		<flink.XmxMax>3072m</flink.XmxMax>
 		<!-- XmxMax / forkCountITCase -->
 		<flink.XmxITCase>1536m</flink.XmxITCase>
@@ -1352,6 +1355,30 @@ under the License.
 				</pluginManagement>
 			</build>
 		</profile>
+
+		<profile>
+			<id>vendor-repos</id>
+			<activation>
+				<property>
+					<name>vendor-repos</name>
+				</property>
+			</activation>
+			<!-- Add vendor maven repositories -->
+			<repositories>
+				<repository>
+					<id>Hops</id>
+					<name>Hops Repository</name>
+					<url>https://archiva.hops.works/repository/Hops/</url>
+					<releases>
+						<enabled>true</enabled>
+					</releases>
+					<snapshots>
+						<enabled>false</enabled>
+					</snapshots>
+				</repository>
+			</repositories>
+		</profile>
+
 	</profiles>
 
 	<build>

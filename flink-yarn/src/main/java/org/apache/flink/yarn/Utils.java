@@ -245,6 +245,20 @@ public final class Utils {
         throw new RuntimeException();
     }
 
+    public static Map<String, LocalResource> calculateHopsLocalResources(
+            Map<String, String> hopsLocalResources, YarnConfiguration yarnConfig)
+            throws IOException {
+        // register Flink Jar with remote HDFS
+        Map<String, LocalResource> localResources = new HashMap<>();
+        for (String key : hopsLocalResources.keySet()) {
+            Path remoteJarPath = new Path(hopsLocalResources.get(key));
+            FileSystem fs = remoteJarPath.getFileSystem(yarnConfig);
+            localResources.put(
+                    key, registerLocalResource(fs, remoteJarPath, LocalResourceType.FILE));
+        }
+        return localResources;
+    }
+
     /**
      * Creates the launch context, which describes how to bring up a TaskExecutor / TaskManager
      * process in an allocated YARN container.
@@ -405,6 +419,18 @@ public final class Utils {
 
         Map<String, String> containerEnv = new HashMap<>();
         containerEnv.putAll(tmParams.taskManagerEnv());
+
+        log.info("YARN_CONTAINER_RUNTIME_TYPE: " + configuration.getContainerRunType());
+        if (configuration.getContainerRunType() != null
+                && configuration.getContainerRunType().equals("docker")) {
+            containerEnv.put("YARN_CONTAINER_RUNTIME_TYPE", "docker");
+            containerEnv.put(
+                    "YARN_CONTAINER_RUNTIME_DOCKER_IMAGE",
+                    configuration.getContainerRunTypeDockerImage());
+            containerEnv.put(
+                    "YARN_CONTAINER_RUNTIME_DOCKER_MOUNTS",
+                    configuration.getContainerRunTypeDockerMounts());
+        }
 
         // add YARN classpath, etc to the container environment
         containerEnv.put(ENV_FLINK_CLASSPATH, classPathString);

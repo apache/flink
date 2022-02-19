@@ -37,6 +37,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -366,6 +367,13 @@ class YarnApplicationFileUploader implements AutoCloseable {
                     }
                 });
         return classPaths;
+    }
+
+    public void registerHopsLocalResources(
+            Map<String, String> hopsLocalResources, YarnConfiguration yarnConfiguration)
+            throws IOException {
+        localResources.putAll(
+                Utils.calculateHopsLocalResources(hopsLocalResources, yarnConfiguration));
     }
 
     static YarnApplicationFileUploader from(
