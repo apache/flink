@@ -269,6 +269,56 @@ public class JdbcOutputFormatTest extends JdbcDataTestBase {
     }
 
     @Test
+    public void testExceptionInTimerThread() {
+        String expectedMsg = "Writing records to JDBC failed.";
+        try {
+            JdbcConnectorOptions jdbcOptions =
+                    JdbcConnectorOptions.builder()
+                            .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
+                            .setDBUrl(DERBY_EBOOKSHOP_DB.getUrl())
+                            .setTableName(OUTPUT_TABLE)
+                            .build();
+            JdbcDmlOptions dmlOptions =
+                    JdbcDmlOptions.builder()
+                            .withTableName(jdbcOptions.getTableName())
+                            .withDialect(jdbcOptions.getDialect())
+                            .withFieldNames(fieldNames)
+                            .build();
+            JdbcExecutionOptions exeOptions =
+                    JdbcExecutionOptions.builder()
+                            .withBatchSize(100)
+                            .withBatchIntervalMs(10)
+                            .build();
+
+            outputFormat =
+                    new JdbcOutputFormatBuilder()
+                            .setJdbcOptions(jdbcOptions)
+                            .setFieldDataTypes(fieldDataTypes)
+                            .setJdbcDmlOptions(dmlOptions)
+                            .setJdbcExecutionOptions(exeOptions)
+                            .setRowDataTypeInfo(rowDataTypeInfo)
+                            .build();
+            setRuntimeContext(outputFormat, false);
+            outputFormat.open(0, 1);
+
+            TestEntry entry = TEST_DATA[0];
+            RowData row = buildGenericData(entry.id, entry.title, entry.author, 0L, entry.qty);
+            outputFormat.writeRecord(row); // data with invalid schema will cause exeception
+            Thread.sleep(100); // sleep some time to run timer thread
+            outputFormat.close(); // to trigger checkFlushException()
+
+            fail("Expected exception is not thrown.");
+        } catch (Exception e) {
+            assertTrue(findThrowable(e, RuntimeException.class).isPresent());
+            // In Exception thrown from outputFormat.close(), e.getCause().getCause() is
+            // variable flushException (the Exception caused by executeBatch()).
+            assertFalse(findThrowableWithMessage(e.getCause().getCause(), expectedMsg).isPresent());
+        } finally {
+            outputFormat = null;
+        }
+    }
+
+    @Test
     public void testJdbcOutputFormat() throws IOException, SQLException {
         JdbcConnectorOptions jdbcOptions =
                 JdbcConnectorOptions.builder()
