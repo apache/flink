@@ -20,6 +20,7 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
@@ -446,6 +447,39 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         finishRmTerminationFuture.complete(null);
 
         closeServiceFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+    }
+
+    @Test
+    public void deregisterApplication_leaderRmNotStarted() throws Exception {
+        final CompletableFuture<Void> startRmInitializationFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> finishRmInitializationFuture = new CompletableFuture<>();
+
+        rmFactoryBuilder.setInitializeConsumer(
+                (ignore) -> {
+                    startRmInitializationFuture.complete(null);
+                    blockOnFuture(finishRmInitializationFuture);
+                });
+
+        createAndStartResourceManager();
+
+        // grant leadership
+        leaderElectionService.isLeader(UUID.randomUUID());
+
+        // make sure leader RM is created
+        startRmInitializationFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+
+        // deregister application
+        final CompletableFuture<Void> deregisterApplicationFuture =
+                resourceManagerService.deregisterApplication(ApplicationStatus.CANCELED, null);
+
+        // RM not fully started, future should not complete
+        assertNotComplete(deregisterApplicationFuture);
+
+        // finish starting RM
+        finishRmInitializationFuture.complete(null);
+
+        // should perform deregistration
+        deregisterApplicationFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
     }
 
     private static void blockOnFuture(CompletableFuture<?> future) {
