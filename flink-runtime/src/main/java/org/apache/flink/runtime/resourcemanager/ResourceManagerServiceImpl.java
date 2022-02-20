@@ -155,9 +155,8 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     }
 
     private static CompletableFuture<Void> deregisterWithoutLeaderRm() {
-        return FutureUtils.completedExceptionally(
-                new FlinkException(
-                        "Cannot deregister application. Resource manager service is not available."));
+        LOG.warn("Cannot deregister application. Resource manager service is not available.");
+        return FutureUtils.completedVoidFuture();
     }
 
     @Override
