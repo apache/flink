@@ -128,18 +128,36 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     @Override
     public CompletableFuture<Void> deregisterApplication(
             final ApplicationStatus applicationStatus, final @Nullable String diagnostics) {
+
         synchronized (lock) {
-            if (running && leaderResourceManager != null) {
-                return leaderResourceManager
-                        .getSelfGateway(ResourceManagerGateway.class)
-                        .deregisterApplication(applicationStatus, diagnostics)
-                        .thenApply(ack -> null);
-            } else {
-                return FutureUtils.completedExceptionally(
-                        new FlinkException(
-                                "Cannot deregister application. Resource manager service is not available."));
+            if (!running || leaderResourceManager == null) {
+                return deregisterWithoutLeaderRm();
             }
+
+            final ResourceManager<?> currentLeaderRM = leaderResourceManager;
+            return currentLeaderRM
+                    .getStartedFuture()
+                    .thenCompose(
+                            ignore -> {
+                                synchronized (lock) {
+                                    if (isLeader(currentLeaderRM)) {
+                                        return currentLeaderRM
+                                                .getSelfGateway(ResourceManagerGateway.class)
+                                                .deregisterApplication(
+                                                        applicationStatus, diagnostics)
+                                                .thenApply(ack -> null);
+                                    } else {
+                                        return deregisterWithoutLeaderRm();
+                                    }
+                                }
+                            });
         }
+    }
+
+    private static CompletableFuture<Void> deregisterWithoutLeaderRm() {
+        return FutureUtils.completedExceptionally(
+                new FlinkException(
+                        "Cannot deregister application. Resource manager service is not available."));
     }
 
     @Override
