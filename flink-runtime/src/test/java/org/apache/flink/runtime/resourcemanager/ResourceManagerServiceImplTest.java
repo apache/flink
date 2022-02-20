@@ -482,6 +482,16 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         deregisterApplicationFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
     }
 
+    @Test
+    public void deregisterApplication_noLeaderRm() throws Exception {
+        createAndStartResourceManager();
+        final CompletableFuture<Void> deregisterApplicationFuture =
+                resourceManagerService.deregisterApplication(ApplicationStatus.CANCELED, null);
+
+        // should not report error
+        deregisterApplicationFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+    }
+
     private static void blockOnFuture(CompletableFuture<?> future) {
         try {
             future.get();
