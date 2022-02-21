@@ -39,7 +39,6 @@ class ExpressionsCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCas
                 'or_': 'or',
                 'not_': 'not',
                 'range_': 'range',
-                'col': '$',
                 'map_': 'map'}.get(python_method_name, python_method_name)
 
 
