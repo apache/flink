@@ -24,16 +24,20 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
+import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory;
+import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -59,6 +63,8 @@ import java.io.File;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -90,7 +96,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     }
 
     @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_WITH_CLIENT_RESOURCE =
+    public static final MiniClusterWithClientResource MINI_CLUSTER_WITH_CLIENT_RESOURCE =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(configuration)
@@ -251,6 +257,37 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         assertThat(savepoint, containsString(savepointDirectory.getAbsolutePath()));
     }
 
+    @Test
+    public void testExceptionHistoryIsRetrievableFromTheRestAPI() throws Exception {
+        final Deadline deadline = Deadline.fromNow(Duration.ofMinutes(1));
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+        env.enableCheckpointing(20L, CheckpointingMode.EXACTLY_ONCE);
+        env.addSource(new FailOnCompletedCheckpointSource()).addSink(new DiscardingSink<>());
+        final JobClient jobClient = env.executeAsync();
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    final RestClusterClient<?> restClusterClient =
+                            MINI_CLUSTER_WITH_CLIENT_RESOURCE.getRestClusterClient();
+                    final JobExceptionsMessageParameters params =
+                            new JobExceptionsMessageParameters();
+                    params.jobPathParameter.resolve(jobClient.getJobID());
+                    final CompletableFuture<JobExceptionsInfoWithHistory> exceptionsFuture =
+                            restClusterClient.sendRequest(
+                                    JobExceptionsHeaders.getInstance(),
+                                    params,
+                                    EmptyRequestBody.getInstance());
+                    final JobExceptionsInfoWithHistory jobExceptionsInfoWithHistory =
+                            exceptionsFuture.get();
+                    return jobExceptionsInfoWithHistory.getExceptionHistory().getEntries().size()
+                            > 0;
+                },
+                deadline);
+        jobClient.cancel().get();
+        CommonTestUtils.waitForJobStatus(
+                jobClient, Collections.singletonList(JobStatus.CANCELED), deadline);
+    }
+
     private boolean isDirectoryEmpty(File directory) {
         File[] files = directory.listFiles();
         if (files.length > 0) {
@@ -388,6 +425,33 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
             unionListState.clear();
             unionListState.add(true);
+        }
+    }
+
+    /** Simple source which fails every time checkpoint is completed. */
+    public static final class FailOnCompletedCheckpointSource
+            extends RichParallelSourceFunction<Integer> implements CheckpointListener {
+
+        private volatile boolean running = true;
+
+        @Override
+        public void run(SourceContext<Integer> ctx) throws Exception {
+            while (running) {
+                synchronized (ctx.getCheckpointLock()) {
+                    ctx.collect(getRuntimeContext().getIndexOfThisSubtask());
+                    Thread.sleep(5L);
+                }
+            }
+        }
+
+        @Override
+        public void cancel() {
+            running = false;
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            throw new RuntimeException("Test exception.");
         }
     }
 }
