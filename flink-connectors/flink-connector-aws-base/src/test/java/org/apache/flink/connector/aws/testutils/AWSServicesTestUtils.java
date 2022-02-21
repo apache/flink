@@ -26,6 +26,8 @@ import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
 import software.amazon.awssdk.core.ResponseBytes;
 import software.amazon.awssdk.core.async.AsyncResponseTransformer;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
+import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
+import software.amazon.awssdk.http.nio.netty.SdkEventLoopGroup;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.iam.IamAsyncClient;
 import software.amazon.awssdk.services.iam.model.CreateRoleRequest;
@@ -96,7 +98,10 @@ public class AWSServicesTestUtils {
     }
 
     public static SdkAsyncHttpClient createHttpClient(String endpoint) {
-        return AWSGeneralUtil.createAsyncHttpClient(createConfig(endpoint));
+        return AWSGeneralUtil.createAsyncHttpClient(
+                createConfig(endpoint),
+                NettyNioAsyncHttpClient.builder()
+                        .eventLoopGroupBuilder(SdkEventLoopGroup.builder()));
     }
 
     public static void createBucket(S3AsyncClient s3Client, String bucketName)

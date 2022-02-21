@@ -30,6 +30,7 @@ import software.amazon.awssdk.core.SdkSystemSetting;
 import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.http.nio.netty.NettyNioAsyncHttpClient;
+import software.amazon.awssdk.http.nio.netty.SdkEventLoopGroup;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.ListStreamsResponse;
@@ -176,6 +177,7 @@ public class KinesaliteContainer extends GenericContainer<KinesaliteContainer> {
 
     private SdkAsyncHttpClient buildSdkAsyncHttpClient() {
         return NettyNioAsyncHttpClient.builder()
+                .eventLoopGroupBuilder(SdkEventLoopGroup.builder())
                 .buildWithDefaults(
                         AttributeMap.builder()
                                 .put(SdkHttpConfigurationOption.TRUST_ALL_CERTIFICATES, true)
