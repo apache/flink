@@ -167,11 +167,8 @@
         },
         "aggCalls" : [ {
           "name" : "w0$o0",
-          "aggFunction" : {
-            "name" : "COUNT",
-            "kind" : "COUNT",
-            "syntax" : "FUNCTION_STAR"
-          },
+          "syntax" : "FUNCTION_STAR",
+          "internalName" : "$COUNT$1",
           "argList" : [ 0 ],
           "filterArg" : -1,
           "distinct" : false,

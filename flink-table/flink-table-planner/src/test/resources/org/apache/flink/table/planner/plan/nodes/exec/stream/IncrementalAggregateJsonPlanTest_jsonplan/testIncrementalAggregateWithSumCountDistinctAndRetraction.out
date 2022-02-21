@@ -65,11 +65,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "b",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
@@ -78,11 +75,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "b1",
-      "aggFunction" : {
-        "name" : "MAX",
-        "kind" : "MAX",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$MAX$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -120,11 +113,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "b",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
@@ -133,11 +123,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "b1",
-      "aggFunction" : {
-        "name" : "MAX",
-        "kind" : "MAX",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$MAX$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -204,11 +190,7 @@
     "grouping" : [ 0, 2 ],
     "aggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -217,11 +199,8 @@
       "type" : "INT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -230,11 +209,8 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
@@ -343,11 +319,7 @@
     "finalAggGrouping" : [ 0 ],
     "partialOriginalAggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -356,11 +328,8 @@
       "type" : "INT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -369,11 +338,8 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
@@ -412,11 +378,7 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 2 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -425,11 +387,7 @@
       "type" : "INT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "$SUM0",
-        "kind" : "SUM0",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$$SUM0$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -438,11 +396,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "$SUM0",
-        "kind" : "SUM0",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$$SUM0$1",
       "argList" : [ 4 ],
       "filterArg" : -1,
       "distinct" : false,

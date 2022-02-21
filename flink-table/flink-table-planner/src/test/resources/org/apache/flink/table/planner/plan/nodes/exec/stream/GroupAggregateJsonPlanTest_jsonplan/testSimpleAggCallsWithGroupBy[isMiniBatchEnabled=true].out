@@ -105,11 +105,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt_a",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -118,11 +115,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "max_b",
-      "aggFunction" : {
-        "name" : "MAX",
-        "kind" : "MAX",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$MAX$1",
       "argList" : [ 0 ],
       "filterArg" : 2,
       "distinct" : false,
@@ -131,11 +124,7 @@
       "type" : "INT"
     }, {
       "name" : "min_c",
-      "aggFunction" : {
-        "name" : "MIN",
-        "kind" : "MIN",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$MIN$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -173,11 +162,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt_a",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -186,11 +172,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "max_b",
-      "aggFunction" : {
-        "name" : "MAX",
-        "kind" : "MAX",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$MAX$1",
       "argList" : [ 0 ],
       "filterArg" : 2,
       "distinct" : false,
@@ -199,11 +181,7 @@
       "type" : "INT"
     }, {
       "name" : "min_c",
-      "aggFunction" : {
-        "name" : "MIN",
-        "kind" : "MIN",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$MIN$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : false,

@@ -235,11 +235,8 @@
     "grouping" : [ 0, 3, 4 ],
     "aggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : 5,
       "distinct" : true,
@@ -248,11 +245,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "FIRST_VALUE",
-        "kind" : "FIRST_VALUE",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$FIRST_VALUE$1",
       "argList" : [ 2 ],
       "filterArg" : 6,
       "distinct" : false,
@@ -291,11 +284,7 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "$SUM0",
-        "kind" : "SUM0",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$$SUM0$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -304,11 +293,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "FIRST_VALUE",
-        "kind" : "FIRST_VALUE",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$FIRST_VALUE$1",
       "argList" : [ 4 ],
       "filterArg" : -1,
       "distinct" : false,

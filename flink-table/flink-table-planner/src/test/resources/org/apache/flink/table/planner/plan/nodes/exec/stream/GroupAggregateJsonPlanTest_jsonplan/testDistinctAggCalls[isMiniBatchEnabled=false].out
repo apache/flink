@@ -97,11 +97,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt_a1",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : 2,
       "distinct" : true,
@@ -110,11 +107,8 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "cnt_a2",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -123,11 +117,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "sum_a",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -136,11 +126,7 @@
       "type" : "BIGINT"
     }, {
       "name" : "sum_b",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -149,11 +135,7 @@
       "type" : "INT NOT NULL"
     }, {
       "name" : "avg_b",
-      "aggFunction" : {
-        "name" : "AVG",
-        "kind" : "AVG",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$AVG$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -162,11 +144,8 @@
       "type" : "INT NOT NULL"
     }, {
       "name" : "cnt_d",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 4 ],
       "filterArg" : -1,
       "distinct" : true,

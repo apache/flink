@@ -317,8 +317,10 @@ public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
         return serdeContext.getRexBuilder().makeCall(callType, operator, rexOperands);
     }
 
-    private static SqlOperator deserializeSqlOperator(
-            JsonNode jsonNode, SerdeContext serdeContext) {
+    // --------------------------------------------------------------------------------------------
+
+    /** Logic shared with {@link AggregateCallJsonDeserializer}. */
+    static SqlOperator deserializeSqlOperator(JsonNode jsonNode, SerdeContext serdeContext) {
         final SqlSyntax syntax;
         if (jsonNode.has(FIELD_NAME_SYNTAX)) {
             syntax =

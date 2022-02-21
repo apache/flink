@@ -296,11 +296,8 @@
         },
         "aggCalls" : [ {
           "name" : "w0$o0",
-          "aggFunction" : {
-            "name" : "COUNT",
-            "kind" : "COUNT",
-            "syntax" : "FUNCTION_STAR"
-          },
+          "syntax" : "FUNCTION_STAR",
+          "internalName" : "$COUNT$1",
           "argList" : [ 1 ],
           "filterArg" : -1,
           "distinct" : false,
@@ -309,11 +306,7 @@
           "type" : "BIGINT NOT NULL"
         }, {
           "name" : "w0$o1",
-          "aggFunction" : {
-            "name" : "$SUM0",
-            "kind" : "SUM0",
-            "syntax" : "FUNCTION"
-          },
+          "internalName" : "$$SUM0$1",
           "argList" : [ 1 ],
           "filterArg" : -1,
           "distinct" : false,

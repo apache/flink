@@ -224,11 +224,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "EXPR$1",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -237,11 +234,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "EXPR$2",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 2 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -292,11 +285,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "EXPR$1",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -305,11 +295,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "EXPR$2",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 2 ],
       "filterArg" : -1,
       "distinct" : false,
