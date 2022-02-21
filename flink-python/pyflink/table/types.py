@@ -2202,12 +2202,17 @@ def _create_type_verifier(data_type: DataType, name: str = None):
         verify_value = verify_varbinary
 
     elif isinstance(data_type, UserDefinedType):
-        verifier = _create_type_verifier(data_type.sql_type(), name=name)
+        sql_type = data_type.sql_type()
+        verifier = _create_type_verifier(sql_type, name=name)
 
         def verify_udf(obj):
             if not (hasattr(obj, '__UDT__') and obj.__UDT__ == data_type):
                 raise ValueError(new_msg("%r is not an instance of type %r" % (obj, data_type)))
-            verifier(data_type.to_sql_type(obj))
+            data = data_type.to_sql_type(obj)
+            if isinstance(sql_type, RowType):
+                # remove the RowKind value in the first position.
+                data = data[1:]
+            verifier(data)
 
         verify_value = verify_udf
 
