@@ -135,9 +135,9 @@ public class DateTimeUtils {
 
     private static final DateTimeFormatter DEFAULT_TIMESTAMP_FORMATTER =
             new DateTimeFormatterBuilder()
-                    .appendPattern("yyyy-[MM][M]-dd")
+                    .appendPattern("yyyy-[MM][M]-[dd][d]")
                     .optionalStart()
-                    .appendPattern(" HH:mm:ss")
+                    .appendPattern(" [HH][H]:[mm][m]:[ss][s]")
                     .appendFraction(NANO_OF_SECOND, 0, 9, true)
                     .optionalEnd()
                     .toFormatter();

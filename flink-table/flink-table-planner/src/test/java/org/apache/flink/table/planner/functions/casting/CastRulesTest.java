@@ -487,6 +487,21 @@ class CastRulesTest {
                                         LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123000000)))
                         .fromCase(
                                 STRING(),
+                                fromString("2021-9-1 1:1:1.123"),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2021, 9, 1, 1, 1, 1, 123000000)))
+                        .fromCase(
+                                STRING(),
+                                fromString("2021-9-01 1:01:10.123"),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2021, 9, 1, 1, 1, 10, 123000000)))
+                        .fromCase(
+                                STRING(),
+                                fromString("2021-09-1 01:1:01.123"),
+                                TimestampData.fromLocalDateTime(
+                                        LocalDateTime.of(2021, 9, 1, 1, 1, 1, 123000000)))
+                        .fromCase(
+                                STRING(),
                                 fromString("2021-09-27 12:34:56.123400000"),
                                 TimestampData.fromLocalDateTime(
                                         LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123400000)))
