@@ -292,6 +292,47 @@ public class NetworkBufferPoolTest extends TestLogger {
         }
     }
 
+    /**
+     * Tests {@link NetworkBufferPool#requestUnpooledMemorySegments(int)} with the total number of
+     * allocated buffers for several requests exceeding the capacity of {@link NetworkBufferPool}.
+     */
+    @Test
+    public void testInsufficientNumberOfBuffers() throws Exception {
+        final int numberOfSegmentsToRequest = 5;
+
+        final NetworkBufferPool globalPool = new NetworkBufferPool(numberOfSegmentsToRequest, 128);
+
+        try {
+            // the global pool should be in available state initially
+            assertTrue(globalPool.getAvailableFuture().isDone());
+
+            // request 5 segments
+            List<MemorySegment> segments1 =
+                    globalPool.requestUnpooledMemorySegments(numberOfSegmentsToRequest);
+            assertFalse(globalPool.getAvailableFuture().isDone());
+            assertEquals(numberOfSegmentsToRequest, segments1.size());
+
+            // request only 1 segment
+            IOException ioException =
+                    assertThrows(
+                            IOException.class, () -> globalPool.requestUnpooledMemorySegments(1));
+
+            assertTrue(ioException.getMessage().contains("Insufficient number of network buffers"));
+
+            // recycle 5 segments
+            CompletableFuture<?> availableFuture = globalPool.getAvailableFuture();
+            globalPool.recycleUnpooledMemorySegments(segments1);
+            assertTrue(availableFuture.isDone());
+
+            List<MemorySegment> segments2 =
+                    globalPool.requestUnpooledMemorySegments(numberOfSegmentsToRequest);
+            assertFalse(globalPool.getAvailableFuture().isDone());
+            assertEquals(numberOfSegmentsToRequest, segments2.size());
+        } finally {
+            globalPool.destroy();
+        }
+    }
+
     @Test
     public void testSegmentsUsage() throws IOException {
         try (CloseableRegistry closeableRegistry = new CloseableRegistry()) {
