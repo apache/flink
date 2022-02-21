@@ -23,8 +23,6 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
-import org.apache.flink.table.types.logical.TimestampKind;
-import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.STRING_DATA_TO_TIMESTAMP;
@@ -52,13 +50,6 @@ class StringToTimestampCastRule
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
         int targetPrecision = LogicalTypeChecks.getPrecision(targetLogicalType);
-        if (targetLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
-            final TimestampKind targetTimestampKind = ((TimestampType) targetLogicalType).getKind();
-            if (targetTimestampKind == TimestampKind.ROWTIME
-                    || targetTimestampKind == TimestampKind.PROCTIME) {
-                targetPrecision = 3;
-            }
-        }
 
         if (targetLogicalType.is(LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE)) {
             return staticCall(STRING_DATA_TO_TIMESTAMP(), inputTerm, targetPrecision);
