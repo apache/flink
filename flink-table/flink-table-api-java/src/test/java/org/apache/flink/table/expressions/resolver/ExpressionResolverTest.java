@@ -60,6 +60,7 @@ import java.util.Optional;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.col;
 import static org.apache.flink.table.api.Expressions.range;
 import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
@@ -248,7 +249,11 @@ public class ExpressionResolverTest {
                                                         "f0", DataTypes.INT(), 0, 0),
                                                 new FieldReferenceExpression(
                                                         "f1", DataTypes.STRING(), 0, 1)),
-                                        DataTypes.INT().notNull().bridgedTo(int.class))));
+                                        DataTypes.INT().notNull().bridgedTo(int.class))),
+                TestSpec.test("Test field reference with col()")
+                        .inputSchemas(TableSchema.builder().field("i", DataTypes.INT()).build())
+                        .select(col("i"))
+                        .equalTo(new FieldReferenceExpression("i", DataTypes.INT(), 0, 0)));
     }
 
     @Parameterized.Parameter public TestSpec testSpec;
