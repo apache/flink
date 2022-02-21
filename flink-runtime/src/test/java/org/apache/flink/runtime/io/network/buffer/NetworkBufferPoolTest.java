@@ -602,7 +602,7 @@ public class NetworkBufferPoolTest extends TestLogger {
      * NetworkBufferPool#requestUnpooledMemorySegments(int)} and recycled by {@link
      * NetworkBufferPool#recycleUnpooledMemorySegments(Collection)}.
      */
-    @Test(timeout = 10000L)
+    @Test
     public void testIsAvailableOrNotAfterRequestAndRecycleMultiSegments() throws Exception {
         final int numberOfSegmentsToRequest = 5;
         final int numBuffers = 2 * numberOfSegmentsToRequest;
@@ -625,27 +625,14 @@ public class NetworkBufferPoolTest extends TestLogger {
             assertFalse(globalPool.getAvailableFuture().isDone());
             assertEquals(numberOfSegmentsToRequest, segments2.size());
 
-            // request another 5 segments
-            final List<MemorySegment> segments3 = new ArrayList<>(numberOfSegmentsToRequest);
-            CheckedThread asyncRequest =
-                    new CheckedThread() {
-                        @Override
-                        public void go() throws Exception {
-                            // this request should be blocked until at least 5 segments are recycled
-                            segments3.addAll(
-                                    globalPool.requestUnpooledMemorySegments(
-                                            numberOfSegmentsToRequest));
-                        }
-                    };
-            asyncRequest.start();
-
             // recycle 5 segments
             CompletableFuture<?> availableFuture = globalPool.getAvailableFuture();
             globalPool.recycleUnpooledMemorySegments(segments1);
             assertTrue(availableFuture.isDone());
 
-            // wait util the third request is fulfilled
-            asyncRequest.sync();
+            // request another 5 segments
+            final List<MemorySegment> segments3 =
+                    globalPool.requestUnpooledMemorySegments(numberOfSegmentsToRequest);
             assertFalse(globalPool.getAvailableFuture().isDone());
             assertEquals(numberOfSegmentsToRequest, segments3.size());
 
