@@ -25,11 +25,7 @@ import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.util.TestLogger;
 
-import org.hamcrest.MatcherAssert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
-import org.junit.rules.Timeout;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -44,13 +40,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasProperty;
 import static org.hamcrest.core.IsCollectionContaining.hasItem;
@@ -60,16 +56,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link NetworkBufferPool}. */
 public class NetworkBufferPoolTest extends TestLogger {
-
-    @Rule public ExpectedException expectedException = ExpectedException.none();
-
-    @Rule public Timeout timeout = new Timeout(10, TimeUnit.SECONDS);
 
     @Test
     public void testCreatePoolAfterDestroy() {
@@ -343,20 +335,20 @@ public class NetworkBufferPoolTest extends TestLogger {
 
             assertEquals(20, globalPool.getNumberOfRequestedMemorySegments());
             assertEquals(40, globalPool.getRequestedSegmentsUsage());
-            MatcherAssert.assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
+            assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
 
             closeableRegistry.registerCloseable(
                     (globalPool.createBufferPool(5, Integer.MAX_VALUE))::lazyDestroy);
 
             assertEquals(30, globalPool.getNumberOfRequestedMemorySegments());
             assertEquals(60, globalPool.getRequestedSegmentsUsage());
-            MatcherAssert.assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
+            assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
 
             closeableRegistry.registerCloseable((globalPool.createBufferPool(10, 30))::lazyDestroy);
 
             assertEquals(60, globalPool.getNumberOfRequestedMemorySegments());
             assertEquals(120, globalPool.getRequestedSegmentsUsage());
-            MatcherAssert.assertThat(
+            assertThat(
                     globalPool.getUsageWarning(),
                     equalTo(
                             Optional.of(
@@ -367,13 +359,13 @@ public class NetworkBufferPoolTest extends TestLogger {
                                             + "totalMemory=6.250kb (6400 bytes), "
                                             + "requestedMemory=7.500kb (7680 bytes), "
                                             + "missingMemory=1.250kb (1280 bytes))")));
-            MatcherAssert.assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
+            assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
 
             BufferPool bufferPool2 = globalPool.createBufferPool(10, 20);
 
             assertEquals(80, globalPool.getNumberOfRequestedMemorySegments());
             assertEquals(160, globalPool.getRequestedSegmentsUsage());
-            MatcherAssert.assertThat(
+            assertThat(
                     globalPool.getUsageWarning(),
                     equalTo(
                             Optional.of(
@@ -391,10 +383,10 @@ public class NetworkBufferPoolTest extends TestLogger {
             assertEquals(40, globalPool.getNumberOfRequestedMemorySegments());
             assertEquals(40 * 128, globalPool.getRequestedMemory());
             assertEquals(80, globalPool.getRequestedSegmentsUsage());
-            MatcherAssert.assertThat(
+            assertThat(
                     globalPool.getUsageWarning(),
                     equalTo(Optional.of("Memory usage [80%] went back to normal")));
-            MatcherAssert.assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
+            assertThat(globalPool.getUsageWarning(), equalTo(Optional.empty()));
         }
     }
 
@@ -503,10 +495,9 @@ public class NetworkBufferPoolTest extends TestLogger {
 
         segment.free();
 
-        expectedException.expect(IllegalStateException.class);
-        expectedException.expectMessage("destroyed");
         try {
-            asyncRequest.sync();
+            Exception ex = assertThrows(IllegalStateException.class, asyncRequest::sync);
+            assertTrue(ex.getMessage().contains("destroyed"));
         } finally {
             globalPool.destroy();
         }
@@ -587,11 +578,9 @@ public class NetworkBufferPoolTest extends TestLogger {
 
         asyncRequest.start();
 
-        expectedException.expect(IOException.class);
-        expectedException.expectMessage("Timeout");
-
         try {
-            asyncRequest.sync();
+            Exception ex = assertThrows(IOException.class, asyncRequest::sync);
+            assertTrue(ex.getMessage().contains("Timeout"));
         } finally {
             globalPool.destroy();
         }
@@ -752,7 +741,7 @@ public class NetworkBufferPoolTest extends TestLogger {
             // wait until all available buffers are requested
             while (segmentsRequested.size() + segments.size() + exclusiveSegments.size()
                     < numBuffers) {
-                Thread.sleep(100);
+                Thread.sleep(10);
                 assertNull(cause.get());
             }
 
