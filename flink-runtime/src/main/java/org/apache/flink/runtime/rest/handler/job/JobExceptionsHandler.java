@@ -119,7 +119,9 @@ public class JobExceptionsHandler
         final ArchivedExecutionGraph executionGraph =
                 executionGraphInfo.getArchivedExecutionGraph();
         if (executionGraph.getFailureInfo() == null) {
-            return new JobExceptionsInfoWithHistory();
+            return new JobExceptionsInfoWithHistory(
+                    createJobExceptionHistory(
+                            executionGraphInfo.getExceptionHistory(), exceptionToReportMaxSize));
         }
 
         List<JobExceptionsInfo.ExecutionExceptionInfo> taskExceptionList = new ArrayList<>();

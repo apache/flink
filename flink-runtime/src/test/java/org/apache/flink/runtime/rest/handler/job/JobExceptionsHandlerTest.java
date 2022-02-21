@@ -131,6 +131,26 @@ public class JobExceptionsHandlerTest extends TestLogger {
     }
 
     @Test
+    public void testOnlyExceptionHistory() throws HandlerRequestException {
+        final RuntimeException rootThrowable = new RuntimeException("exception #0");
+        final long rootTimestamp = System.currentTimeMillis();
+        final RootExceptionHistoryEntry rootEntry = fromGlobalFailure(rootThrowable, rootTimestamp);
+        final ExecutionGraphInfo executionGraphInfo =
+                createExecutionGraphInfoWithoutFailureCause(rootEntry);
+        final HandlerRequest<EmptyRequestBody> request =
+                createRequest(executionGraphInfo.getJobId(), 10);
+        final JobExceptionsInfoWithHistory response =
+                testInstance.handleRequest(request, executionGraphInfo);
+
+        assertThat(response.getRootException(), is(nullValue()));
+        assertThat(response.getRootTimestamp(), is(nullValue()));
+
+        assertThat(
+                response.getExceptionHistory().getEntries(),
+                contains(historyContainsGlobalFailure(rootThrowable, rootTimestamp)));
+    }
+
+    @Test
     public void testWithExceptionHistory() throws HandlerRequestException {
         final RootExceptionHistoryEntry rootCause =
                 fromGlobalFailure(new RuntimeException("exception #0"), System.currentTimeMillis());
@@ -348,12 +368,22 @@ public class JobExceptionsHandlerTest extends TestLogger {
 
     private static ExecutionGraphInfo createExecutionGraphInfo(
             RootExceptionHistoryEntry... historyEntries) {
+        return createExecutionGraphInfo(true, historyEntries);
+    }
+
+    private static ExecutionGraphInfo createExecutionGraphInfoWithoutFailureCause(
+            RootExceptionHistoryEntry... historyEntries) {
+        return createExecutionGraphInfo(false, historyEntries);
+    }
+
+    private static ExecutionGraphInfo createExecutionGraphInfo(
+            boolean setFailureCause, RootExceptionHistoryEntry... historyEntries) {
         final ArchivedExecutionGraphBuilder executionGraphBuilder =
                 new ArchivedExecutionGraphBuilder();
         final List<RootExceptionHistoryEntry> historyEntryCollection = new ArrayList<>();
 
         for (int i = 0; i < historyEntries.length; i++) {
-            if (i == 0) {
+            if (i == 0 && setFailureCause) {
                 // first entry is root cause
                 executionGraphBuilder.setFailureCause(
                         new ErrorInfo(
