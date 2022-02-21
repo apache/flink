@@ -108,7 +108,12 @@ public class TableConfigOptions {
                             "Strategy how to persist catalog objects such as tables, functions, or data "
                                     + "types into a plan during compilation. It influences the need "
                                     + "for catalog metadata to be present during a restore operation "
-                                    + "and affects the plan size.");
+                                    + "and affects the plan size. "
+                                    + "Independently from the value of this configuration option, "
+                                    + "anonymous/inline objects will be persisted entirely (including schema and options) "
+                                    + "if possible or fail the compilation otherwise, "
+                                    + "while temporary objects will persist only their identifier, "
+                                    + "and the object needs to be present in the session context during a restore.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<CatalogPlanRestore> PLAN_RESTORE_CATALOG_OBJECTS =
