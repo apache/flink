@@ -41,6 +41,12 @@ class ExpressionsCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCas
                 'range_': 'range',
                 'map_': 'map'}.get(python_method_name, python_method_name)
 
+    @classmethod
+    def excluded_methods(cls):
+        return {
+            '$'
+        }
+
 
 if __name__ == '__main__':
     import unittest
