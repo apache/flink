@@ -215,8 +215,6 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                                 "CAST(CAST(x'68656C6C6F2063617374' AS BINARY(10)) AS VARCHAR)",
                                 "68656c6c6f2063617374",
                                 STRING().notNull()),
-                // Test cases that can't be added to CastFunctionITCase because they need to
-                // workaround the limitations of fromValues
                 TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast STRUCTURED to STRING")
                         .onFieldsWithData(123456, "Flink")
                         .andDataTypes(INT(), STRING())
