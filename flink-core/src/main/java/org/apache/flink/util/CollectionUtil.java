@@ -22,6 +22,7 @@ import org.apache.flink.annotation.Internal;
 
 import javax.annotation.Nullable;
 
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -113,5 +114,23 @@ public final class CollectionUtil {
         final ArrayList<E> list = new ArrayList<>();
         iterator.forEachRemaining(list::add);
         return list;
+    }
+
+    /** Returns an immutable {@link Map.Entry}. */
+    public static <K, V> Map.Entry<K, V> entry(K k, V v) {
+        return new AbstractMap.SimpleImmutableEntry<>(k, v);
+    }
+
+    /** Returns an immutable {@link Map} from the provided entries. */
+    @SafeVarargs
+    public static <K, V> Map<K, V> map(Map.Entry<K, V>... entries) {
+        if (entries == null) {
+            return Collections.emptyMap();
+        }
+        Map<K, V> map = new HashMap<>();
+        for (Map.Entry<K, V> entry : entries) {
+            map.put(entry.getKey(), entry.getValue());
+        }
+        return Collections.unmodifiableMap(map);
     }
 }
