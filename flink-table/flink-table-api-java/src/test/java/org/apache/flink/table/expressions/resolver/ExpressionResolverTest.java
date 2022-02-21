@@ -60,6 +60,7 @@ import java.util.Optional;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.col;
 import static org.apache.flink.table.api.Expressions.range;
 import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
@@ -98,7 +99,7 @@ public class ExpressionResolverTest {
                                                         DataTypes.FIELD("n0", DataTypes.BIGINT()),
                                                         DataTypes.FIELD("n1", DataTypes.STRING())))
                                         .build())
-                        .select($("f0").flatten())
+                        .select(col("f0").flatten())
                         .equalTo(
                                 CallExpression.permanent(
                                         BuiltInFunctionDefinitions.GET,
