@@ -30,6 +30,7 @@ import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonPointer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
@@ -54,6 +55,9 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatal
 @Internal
 final class ContextResolvedTableJsonDeserializer extends StdDeserializer<ContextResolvedTable> {
     private static final long serialVersionUID = 1L;
+
+    private static final JsonPointer optionsPointer =
+            JsonPointer.compile("/" + FIELD_NAME_CATALOG_TABLE + "/" + OPTIONS);
 
     ContextResolvedTableJsonDeserializer() {
         super(ContextResolvedTable.class);
@@ -94,16 +98,21 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
         }
 
         if (identifier == null) {
-            if (isLookupForced(planRestoreOption)) {
-                throw missingIdentifier();
-            }
             return ContextResolvedTable.anonymous(resolvedCatalogTable);
         }
 
         Optional<ContextResolvedTable> contextResolvedTableFromCatalog =
-                isLookupEnabled(planRestoreOption)
-                        ? catalogManager.getTable(identifier)
-                        : Optional.empty();
+                catalogManager.getTable(identifier);
+
+        // If plan has no catalog table field or no options field,
+        // the table is permanent in the catalog and the option is plan all enforced, then fail
+        if ((resolvedCatalogTable == null || objectNode.at(optionsPointer).isMissingNode())
+                && isPlanEnforced(planRestoreOption)
+                && contextResolvedTableFromCatalog
+                        .map(ContextResolvedTable::isPermanent)
+                        .orElse(false)) {
+            throw lookupDisabled(identifier);
+        }
 
         // If we have a schema from the plan and from the catalog, we need to check they match.
         if (contextResolvedTableFromCatalog.isPresent() && resolvedCatalogTable != null) {
@@ -115,11 +124,8 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
             }
         }
 
+        // We use what is stored inside the catalog,
         if (resolvedCatalogTable == null || isLookupForced(planRestoreOption)) {
-            if (!isLookupEnabled(planRestoreOption)) {
-                throw lookupDisabled(identifier);
-            }
-            // We use what is stored inside the catalog
             return contextResolvedTableFromCatalog.orElseThrow(
                     () -> missingTableFromCatalog(identifier, isLookupForced(planRestoreOption)));
         }
@@ -127,7 +133,7 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
         if (contextResolvedTableFromCatalog.isPresent()) {
             // If no config map is present, then the ContextResolvedTable was serialized with
             // SCHEMA, so we just need to return the catalog query result
-            if (objectNode.at("/" + FIELD_NAME_CATALOG_TABLE + "/" + OPTIONS).isMissingNode()) {
+            if (objectNode.at(optionsPointer).isMissingNode()) {
                 return contextResolvedTableFromCatalog.get();
             }
 
@@ -172,8 +178,8 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
         return planRestoreOption == IDENTIFIER;
     }
 
-    private boolean isLookupEnabled(CatalogPlanRestore planRestoreOption) {
-        return planRestoreOption != CatalogPlanRestore.ALL_ENFORCED;
+    private boolean isPlanEnforced(CatalogPlanRestore planRestoreOption) {
+        return planRestoreOption == CatalogPlanRestore.ALL_ENFORCED;
     }
 
     static ValidationException missingIdentifier() {
@@ -193,12 +199,16 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
     static ValidationException lookupDisabled(ObjectIdentifier objectIdentifier) {
         return new ValidationException(
                 String.format(
-                        "The persisted plan does not include all required catalog metadata for table '%s'. "
+                        "The persisted plan does not contain the field '%s' and the '%s.%s' field, " 
+                                + "which are required catalog metadata for table '%s'. "
                                 + "However, lookup is disabled because option '%s' = '%s'. "
                                 + "Either enable the catalog lookup with '%s' = '%s' / '%s' or "
                                 + "regenerate the plan with '%s' != '%s'. "
                                 + "Make sure the table is not compiled as a temporary table.",
                         objectIdentifier.asSummaryString(),
+                        FIELD_NAME_CATALOG_TABLE,
+                        FIELD_NAME_CATALOG_TABLE,
+                        OPTIONS,
                         PLAN_RESTORE_CATALOG_OBJECTS.key(),
                         CatalogPlanRestore.ALL_ENFORCED.name(),
                         PLAN_RESTORE_CATALOG_OBJECTS.key(),
@@ -233,9 +243,11 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
         } else {
             initialReason =
                     String.format(
-                            "Cannot resolve table '%s' and the persisted plan does not include "
-                                    + "all required catalog table metadata. ",
-                            identifier.asSummaryString());
+                            "Cannot resolve table '%s' and the persisted plan does not include the '%s' field and the '%s.%s' field. ",
+                            identifier.asSummaryString(),
+                            FIELD_NAME_CATALOG_TABLE,
+                            FIELD_NAME_CATALOG_TABLE,
+                            OPTIONS);
         }
         return new ValidationException(
                 initialReason

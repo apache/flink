@@ -159,6 +159,71 @@ public class ContextResolvedTableSerdeTest {
                                     PLAN_OPTIONS),
                             CATALOG_TABLE_RESOLVED_SCHEMA));
 
+    @Test
+    void anonymousTable() throws Exception {
+        Tuple2<JsonNode, ContextResolvedTable> result =
+                serDe(
+                        serdeContext(
+                                TableConfigOptions.CatalogPlanCompilation.IDENTIFIER,
+                                TableConfigOptions.CatalogPlanRestore.IDENTIFIER),
+                        ANONYMOUS_CONTEXT_RESOLVED_TABLE);
+
+        assertThatJsonDoesNotContain(result.f0, FIELD_NAME_IDENTIFIER);
+        assertThatJsonContains(
+                result.f0, FIELD_NAME_CATALOG_TABLE, ResolvedCatalogTableJsonSerializer.OPTIONS);
+        assertThatJsonContains(
+                result.f0, FIELD_NAME_CATALOG_TABLE, ResolvedCatalogTableJsonSerializer.COMMENT);
+        assertThat(result.f1.isAnonymous()).isTrue();
+        assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable())
+                .isEqualTo(ANONYMOUS_CONTEXT_RESOLVED_TABLE.getResolvedTable());
+    }
+
+    @Test
+    void temporaryTable() throws Exception {
+        Tuple2<JsonNode, ContextResolvedTable> result =
+                serDe(
+                        serdeContext(
+                                TableConfigOptions.CatalogPlanCompilation.ALL,
+                                TableConfigOptions.CatalogPlanRestore.ALL_ENFORCED),
+                        TEMPORARY_PLAN_CONTEXT_RESOLVED_TABLE);
+
+        assertThatJsonContains(result.f0, FIELD_NAME_IDENTIFIER);
+        assertThatJsonDoesNotContain(result.f0, FIELD_NAME_CATALOG_TABLE);
+        assertThat(result.f1).isEqualTo(TEMPORARY_CATALOG_CONTEXT_RESOLVED_TABLE);
+    }
+
+    @Test
+    void temporaryTableAndMissingIdentifierInCatalog() throws Exception {
+        SerdeContext ctx =
+                serdeContext(
+                        TableConfigOptions.CatalogPlanCompilation.ALL,
+                        TableConfigOptions.CatalogPlanRestore.ALL_ENFORCED);
+        ObjectIdentifier objectIdentifier =
+                ObjectIdentifier.of(DEFAULT_CATALOG, "db2", "some-nonexistent-table");
+        ContextResolvedTable spec =
+                ContextResolvedTable.temporary(
+                        objectIdentifier,
+                        new ResolvedCatalogTable(
+                                CatalogTable.of(
+                                        CATALOG_TABLE_SCHEMA,
+                                        "my amazing table",
+                                        Collections.emptyList(),
+                                        PLAN_OPTIONS),
+                                CATALOG_TABLE_RESOLVED_SCHEMA));
+        byte[] actualSerialized = createObjectWriter(ctx).writeValueAsBytes(spec);
+
+        assertThatThrownBy(
+                        () ->
+                                createObjectReader(ctx)
+                                        .readValue(actualSerialized, ContextResolvedTable.class))
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                ContextResolvedTableJsonDeserializer.missingTableFromCatalog(
+                                                objectIdentifier, false)
+                                        .getMessage()));
+    }
+
     @Nested
     @DisplayName("Test CatalogPlanCompilation == IDENTIFIER")
     class TestCompileIdentifier {
@@ -171,33 +236,6 @@ public class ContextResolvedTableSerdeTest {
                     serdeContext(
                             TableConfigOptions.CatalogPlanCompilation.IDENTIFIER,
                             TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
-
-            @Test
-            void withAnonymousTable() throws Exception {
-                byte[] actualSerialized =
-                        createObjectWriter(ctx).writeValueAsBytes(ANONYMOUS_CONTEXT_RESOLVED_TABLE);
-
-                assertThatThrownBy(
-                                () ->
-                                        createObjectReader(ctx)
-                                                .readValue(
-                                                        actualSerialized,
-                                                        ContextResolvedTable.class))
-                        .satisfies(
-                                anyCauseMatches(
-                                        ValidationException.class,
-                                        ContextResolvedTableJsonDeserializer.missingIdentifier()
-                                                .getMessage()));
-            }
-
-            @Test
-            void withTemporaryTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, TEMPORARY_PLAN_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThat(result.f1).isEqualTo(TEMPORARY_CATALOG_CONTEXT_RESOLVED_TABLE);
-            }
 
             @Test
             void withPermanentTable() throws Exception {
@@ -217,34 +255,6 @@ public class ContextResolvedTableSerdeTest {
                     serdeContext(
                             TableConfigOptions.CatalogPlanCompilation.IDENTIFIER,
                             TableConfigOptions.CatalogPlanRestore.ALL);
-
-            @Test
-            void withAnonymousTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, ANONYMOUS_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonContains(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.OPTIONS);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.COMMENT);
-                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable())
-                        .isEqualTo(ANONYMOUS_CONTEXT_RESOLVED_TABLE.getResolvedTable());
-            }
-
-            @Test
-            void withTemporaryTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, TEMPORARY_PLAN_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThat(result.f1).isEqualTo(TEMPORARY_CATALOG_CONTEXT_RESOLVED_TABLE);
-            }
 
             @Test
             void withPermanentTable() throws Exception {
@@ -303,25 +313,6 @@ public class ContextResolvedTableSerdeTest {
                             TableConfigOptions.CatalogPlanRestore.ALL_ENFORCED);
 
             @Test
-            void withAnonymousTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, ANONYMOUS_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonContains(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.OPTIONS);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.COMMENT);
-                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable())
-                        .isEqualTo(ANONYMOUS_CONTEXT_RESOLVED_TABLE.getResolvedTable());
-            }
-
-            @Test
             void deserializationFail() throws Exception {
                 byte[] actualSerialized =
                         createObjectWriter(ctx)
@@ -340,6 +331,22 @@ public class ContextResolvedTableSerdeTest {
                                                         PERMANENT_TABLE_IDENTIFIER)
                                                 .getMessage()));
             }
+
+            @Test
+            void withShadowingTemporaryTable() throws Exception {
+                ContextResolvedTable spec =
+                        ContextResolvedTable.permanent(
+                                TEMPORARY_TABLE_IDENTIFIER, CATALOG, RESOLVED_CATALOG_TABLE);
+
+                Tuple2<JsonNode, ContextResolvedTable> result = serDe(ctx, spec);
+
+                assertThatJsonContains(result.f0, FIELD_NAME_IDENTIFIER);
+                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_CATALOG_TABLE);
+
+                assertThat(result.f1.isTemporary()).isTrue();
+                assertThat(result.f1)
+                        .isEqualTo(CATALOG_MANAGER.getTableOrError(TEMPORARY_TABLE_IDENTIFIER));
+            }
         }
     }
 
@@ -355,34 +362,6 @@ public class ContextResolvedTableSerdeTest {
                     serdeContext(
                             TableConfigOptions.CatalogPlanCompilation.SCHEMA,
                             TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
-
-            @Test
-            void withAnonymousTable() throws Exception {
-                byte[] actualSerialized =
-                        createObjectWriter(ctx).writeValueAsBytes(ANONYMOUS_CONTEXT_RESOLVED_TABLE);
-
-                assertThatThrownBy(
-                                () ->
-                                        createObjectReader(ctx)
-                                                .readValue(
-                                                        actualSerialized,
-                                                        ContextResolvedTable.class))
-                        .satisfies(
-                                anyCauseMatches(
-                                        ValidationException.class,
-                                        ContextResolvedTableJsonDeserializer.missingIdentifier()
-                                                .getMessage()));
-            }
-
-            @Test
-            void withTemporaryTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, TEMPORARY_PLAN_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonContains(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThat(result.f1).isEqualTo(TEMPORARY_CATALOG_CONTEXT_RESOLVED_TABLE);
-            }
 
             @Test
             void withPermanentTable() throws Exception {
@@ -459,35 +438,6 @@ public class ContextResolvedTableSerdeTest {
                             TableConfigOptions.CatalogPlanRestore.ALL);
 
             @Test
-            void withAnonymousTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, ANONYMOUS_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.OPTIONS);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.COMMENT);
-                assertThat(result.f1.isAnonymous()).isTrue();
-                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable())
-                        .isEqualTo(ANONYMOUS_CONTEXT_RESOLVED_TABLE.getResolvedTable());
-            }
-
-            @Test
-            void withTemporaryTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, TEMPORARY_PLAN_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonContains(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThat(result.f1).isEqualTo(TEMPORARY_CATALOG_CONTEXT_RESOLVED_TABLE);
-            }
-
-            @Test
             void withPermanentTable() throws Exception {
                 Tuple2<JsonNode, ContextResolvedTable> result =
                         serDe(ctx, PERMANENT_PLAN_CONTEXT_RESOLVED_TABLE);
@@ -522,29 +472,10 @@ public class ContextResolvedTableSerdeTest {
                             TableConfigOptions.CatalogPlanRestore.ALL_ENFORCED);
 
             @Test
-            void withAnonymousTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, ANONYMOUS_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.OPTIONS);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.COMMENT);
-                assertThat(result.f1.isAnonymous()).isTrue();
-                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable())
-                        .isEqualTo(ANONYMOUS_CONTEXT_RESOLVED_TABLE.getResolvedTable());
-            }
-
-            @Test
-            void withTemporaryTable() throws Exception {
+            void withPermanentTable() throws Exception {
                 byte[] actualSerialized =
                         createObjectWriter(ctx)
-                                .writeValueAsBytes(TEMPORARY_PLAN_CONTEXT_RESOLVED_TABLE);
+                                .writeValueAsBytes(PERMANENT_PLAN_CONTEXT_RESOLVED_TABLE);
 
                 assertThatThrownBy(
                                 () ->
@@ -556,32 +487,24 @@ public class ContextResolvedTableSerdeTest {
                                 anyCauseMatches(
                                         ValidationException.class,
                                         ContextResolvedTableJsonDeserializer.lookupDisabled(
-                                                        TEMPORARY_TABLE_IDENTIFIER)
+                                                        PERMANENT_TABLE_IDENTIFIER)
                                                 .getMessage()));
             }
 
             @Test
-            void withPermanentTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, PERMANENT_PLAN_CONTEXT_RESOLVED_TABLE);
+            void withShadowingTemporaryTable() throws Exception {
+                ContextResolvedTable spec =
+                        ContextResolvedTable.permanent(
+                                TEMPORARY_TABLE_IDENTIFIER, CATALOG, RESOLVED_CATALOG_TABLE);
+
+                Tuple2<JsonNode, ContextResolvedTable> result = serDe(ctx, spec);
 
                 assertThatJsonContains(result.f0, FIELD_NAME_IDENTIFIER);
                 assertThatJsonContains(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThatJsonDoesNotContain(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.OPTIONS);
-                assertThatJsonDoesNotContain(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.COMMENT);
+
                 assertThat(result.f1.isTemporary()).isTrue();
-                assertThat(result.f1.getIdentifier()).isEqualTo(PERMANENT_TABLE_IDENTIFIER);
-                assertThat(result.f1.getResolvedSchema()).isEqualTo(CATALOG_TABLE_RESOLVED_SCHEMA);
-                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable().getPartitionKeys())
-                        .isEqualTo(PARTITION_KEYS);
-                assertThat(result.f1.getResolvedTable().getOptions()).isEmpty();
-                assertThat(result.f1.getResolvedTable().getComment()).isEmpty();
+                assertThat(result.f1)
+                        .isEqualTo(CATALOG_MANAGER.getTableOrError(TEMPORARY_TABLE_IDENTIFIER));
             }
         }
     }
@@ -598,34 +521,6 @@ public class ContextResolvedTableSerdeTest {
                     serdeContext(
                             TableConfigOptions.CatalogPlanCompilation.ALL,
                             TableConfigOptions.CatalogPlanRestore.IDENTIFIER);
-
-            @Test
-            void withAnonymousTable() throws Exception {
-                byte[] actualSerialized =
-                        createObjectWriter(ctx).writeValueAsBytes(ANONYMOUS_CONTEXT_RESOLVED_TABLE);
-
-                assertThatThrownBy(
-                                () ->
-                                        createObjectReader(ctx)
-                                                .readValue(
-                                                        actualSerialized,
-                                                        ContextResolvedTable.class))
-                        .satisfies(
-                                anyCauseMatches(
-                                        ValidationException.class,
-                                        ContextResolvedTableJsonDeserializer.missingIdentifier()
-                                                .getMessage()));
-            }
-
-            @Test
-            void withTemporaryTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, TEMPORARY_PLAN_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonContains(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThat(result.f1).isEqualTo(TEMPORARY_CATALOG_CONTEXT_RESOLVED_TABLE);
-            }
 
             @Test
             void withPermanentTable() throws Exception {
@@ -654,65 +549,6 @@ public class ContextResolvedTableSerdeTest {
                     serdeContext(
                             TableConfigOptions.CatalogPlanCompilation.ALL,
                             TableConfigOptions.CatalogPlanRestore.ALL);
-
-            @Test
-            void withAnonymousTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, ANONYMOUS_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonContains(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.OPTIONS);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.COMMENT);
-                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable())
-                        .isEqualTo(ANONYMOUS_CONTEXT_RESOLVED_TABLE.getResolvedTable());
-            }
-
-            @Test
-            void withTemporaryTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, TEMPORARY_PLAN_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonContains(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThat(result.f1).isEqualTo(TEMPORARY_CATALOG_CONTEXT_RESOLVED_TABLE);
-            }
-
-            @Test
-            void withTemporaryTableAndMissingIdentifierInCatalog() throws Exception {
-                ObjectIdentifier objectIdentifier =
-                        ObjectIdentifier.of(DEFAULT_CATALOG, "db2", "some-nonexistent-table");
-                ContextResolvedTable spec =
-                        ContextResolvedTable.temporary(
-                                objectIdentifier,
-                                new ResolvedCatalogTable(
-                                        CatalogTable.of(
-                                                CATALOG_TABLE_SCHEMA,
-                                                "my amazing table",
-                                                Collections.emptyList(),
-                                                PLAN_OPTIONS),
-                                        CATALOG_TABLE_RESOLVED_SCHEMA));
-                byte[] actualSerialized = createObjectWriter(ctx).writeValueAsBytes(spec);
-
-                assertThatThrownBy(
-                                () ->
-                                        createObjectReader(ctx)
-                                                .readValue(
-                                                        actualSerialized,
-                                                        ContextResolvedTable.class))
-                        .satisfies(
-                                anyCauseMatches(
-                                        ValidationException.class,
-                                        ContextResolvedTableJsonDeserializer
-                                                .missingTableFromCatalog(objectIdentifier, false)
-                                                .getMessage()));
-            }
 
             @Test
             void withPermanentTable() throws Exception {
@@ -767,45 +603,6 @@ public class ContextResolvedTableSerdeTest {
                             TableConfigOptions.CatalogPlanRestore.ALL_ENFORCED);
 
             @Test
-            void withAnonymousTable() throws Exception {
-                Tuple2<JsonNode, ContextResolvedTable> result =
-                        serDe(ctx, ANONYMOUS_CONTEXT_RESOLVED_TABLE);
-
-                assertThatJsonDoesNotContain(result.f0, FIELD_NAME_IDENTIFIER);
-                assertThatJsonContains(result.f0, FIELD_NAME_CATALOG_TABLE);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.OPTIONS);
-                assertThatJsonContains(
-                        result.f0,
-                        FIELD_NAME_CATALOG_TABLE,
-                        ResolvedCatalogTableJsonSerializer.COMMENT);
-                assertThat(result.f1.<ResolvedCatalogTable>getResolvedTable())
-                        .isEqualTo(ANONYMOUS_CONTEXT_RESOLVED_TABLE.getResolvedTable());
-            }
-
-            @Test
-            void withTemporaryTable() throws Exception {
-                byte[] actualSerialized =
-                        createObjectWriter(ctx)
-                                .writeValueAsBytes(TEMPORARY_PLAN_CONTEXT_RESOLVED_TABLE);
-
-                assertThatThrownBy(
-                                () ->
-                                        createObjectReader(ctx)
-                                                .readValue(
-                                                        actualSerialized,
-                                                        ContextResolvedTable.class))
-                        .satisfies(
-                                anyCauseMatches(
-                                        ValidationException.class,
-                                        ContextResolvedTableJsonDeserializer.lookupDisabled(
-                                                        TEMPORARY_TABLE_IDENTIFIER)
-                                                .getMessage()));
-            }
-
-            @Test
             void withPermanentTable() throws Exception {
                 Tuple2<JsonNode, ContextResolvedTable> result =
                         serDe(ctx, PERMANENT_PLAN_CONTEXT_RESOLVED_TABLE);
@@ -822,8 +619,9 @@ public class ContextResolvedTableSerdeTest {
                         ResolvedCatalogTableJsonSerializer.COMMENT);
                 assertThat(result.f1)
                         .isEqualTo(
-                                ContextResolvedTable.temporary(
+                                ContextResolvedTable.permanent(
                                         PERMANENT_TABLE_IDENTIFIER,
+                                        CATALOG,
                                         PERMANENT_PLAN_CONTEXT_RESOLVED_TABLE.getResolvedTable()));
             }
         }
