@@ -359,7 +359,10 @@ public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
         gen.writeEndObject();
     }
 
-    private static void serializeSqlOperator(
+    // --------------------------------------------------------------------------------------------
+
+    /** Logic shared with {@link AggregateCallJsonSerializer}. */
+    static void serializeSqlOperator(
             SqlOperator operator,
             JsonGenerator gen,
             SerializerProvider serializerProvider,
