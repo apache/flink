@@ -60,7 +60,7 @@ import static org.apache.calcite.util.Static.RESOURCE;
  * {@code SqlCall} has two operands (expression and type), while the {@code RexCall} has one operand
  * (expression) and the type is obtained from {@link org.apache.calcite.rex.RexNode#getType()}.
  *
- * <p>The class was copied over because of CALCITE-XXXX, in order to workaround the method {@link
+ * <p>The class was copied over because of CALCITE-5017, in order to workaround the method {@link
  * SqlTypeUtil#canCastFrom(RelDataType, RelDataType, boolean)}. Line 141 in {@link
  * #checkOperandTypes(SqlCallBinding, boolean)} and new method {@link #canCastFrom(RelDataType,
  * RelDataType)}.
