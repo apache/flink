@@ -1,5 +1,5 @@
 ---
-title: "WITH 语句"
+title: "WITH 子句"
 weight: 3
 type: docs
 ---
@@ -22,12 +22,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# WITH 语句
+# WITH 子句
 {{< label Batch >}} {{< label Streaming >}}
 
-`WITH` 语句提供了一种用于更大查询而编写辅助语句的方法。这些编写的语句通常被称为公用表表达式，表达式可以理解为仅针对某个查询而存在的临时视图。
+`WITH` 子句提供了一种用于更大查询而编写辅助语句的方法。这些编写的语句通常被称为公用表表达式，表达式可以理解为仅针对某个查询而存在的临时视图。
 
-`WITH` 语句的语法
+`WITH` 子句的语法
 
 ```sql
 WITH <with_item_definition> [ , ... ]
