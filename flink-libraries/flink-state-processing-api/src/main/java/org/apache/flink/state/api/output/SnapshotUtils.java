@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.SnapshotType;
@@ -33,6 +34,7 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.MathUtils;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 
@@ -56,6 +58,10 @@ public final class SnapshotUtils {
             Path savepointPath,
             SnapshotType snapshotType)
             throws Exception {
+
+        Preconditions.checkArgument(
+                snapshotType.isSavepoint() || CheckpointType.FULL_CHECKPOINT.equals(snapshotType),
+                "the snapshot type require savepoint type or full checkpoint type.");
 
         CheckpointOptions options =
                 CheckpointOptions.forConfig(
