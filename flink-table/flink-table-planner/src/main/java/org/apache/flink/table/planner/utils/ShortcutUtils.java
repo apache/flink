@@ -88,7 +88,7 @@ public final class ShortcutUtils {
         return context.unwrap(FlinkContext.class);
     }
 
-    public static ReadableConfig unwrapConfig(RelNode relNode) {
+    public static ReadableConfig unwrapTableConfig(RelNode relNode) {
         return unwrapContext(relNode).getTableConfig().getConfiguration();
     }
 
