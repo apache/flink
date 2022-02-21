@@ -32,7 +32,6 @@ import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.jobmaster.utils.JobResultUtils;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
-import org.apache.flink.runtime.resourcemanager.ResourceManagerServiceImpl;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
 import org.apache.flink.testutils.TestingUtils;
@@ -44,7 +43,6 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
@@ -65,16 +63,12 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
 
     private static EmbeddedHaServicesWithLeadershipControl highAvailabilityServices;
 
-    private static Properties sysProps;
-
     private JobGraph jobGraph;
 
     private JobID jobId;
 
     @BeforeClass
     public static void setupClass() throws Exception {
-        sysProps = System.getProperties();
-        System.setProperty(ResourceManagerServiceImpl.ENABLE_MULTI_LEADER_SESSION_PROPERTY, "");
 
         highAvailabilityServices =
                 new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor());
@@ -102,8 +96,6 @@ public class LeaderChangeClusterComponentsTest extends TestLogger {
         if (miniCluster != null) {
             miniCluster.close();
         }
-
-        System.setProperties(sysProps);
     }
 
     @Test

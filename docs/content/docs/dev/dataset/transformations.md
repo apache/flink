@@ -1195,8 +1195,8 @@ public class PointWeighter
 }
 
 DataSet<Tuple2<String, Double>>
-            weightedRatings =
-            ratings.join(weights) // [...]
+        weightedRatings =
+        ratings.join(weights);
 ```
 
 {{< /tab >}}

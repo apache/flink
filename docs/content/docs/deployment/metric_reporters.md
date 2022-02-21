@@ -55,7 +55,7 @@ metrics.reporters: my_jmx_reporter,my_other_reporter
 
 metrics.reporter.my_jmx_reporter.factory.class: org.apache.flink.metrics.jmx.JMXReporterFactory
 metrics.reporter.my_jmx_reporter.port: 9020-9040
-metrics.reporter.my_jmx_reporter.scope.variables.excludes:job_id;task_attempt_num
+metrics.reporter.my_jmx_reporter.scope.variables.excludes: job_id;task_attempt_num
 metrics.reporter.my_jmx_reporter.scope.variables.additional: cluster_name:my_test_cluster,tag_name:tag_value
 
 metrics.reporter.my_other_reporter.class: org.apache.flink.metrics.graphite.GraphiteReporter
@@ -192,8 +192,7 @@ Example configuration:
 
 ```yaml
 metrics.reporter.promgateway.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter
-metrics.reporter.promgateway.host: localhost
-metrics.reporter.promgateway.port: 9091
+metrics.reporter.promgateway.hostUrl: http://localhost:9091
 metrics.reporter.promgateway.jobName: myJob
 metrics.reporter.promgateway.randomJobNameSuffix: true
 metrics.reporter.promgateway.deleteOnShutdown: false

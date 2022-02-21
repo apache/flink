@@ -18,10 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
@@ -33,6 +30,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.planner.utils.InternalConfigOptions;
 import org.apache.flink.table.runtime.generated.GeneratedRecordComparator;
 import org.apache.flink.table.runtime.operators.sort.StreamSortOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -49,15 +47,6 @@ import java.util.Collections;
 public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecNode<RowData> {
 
     private static final String SORT_TRANSFORMATION = "sort";
-
-    @Experimental
-    public static final ConfigOption<Boolean> TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED =
-            ConfigOptions.key("table.exec.non-temporal-sort.enabled")
-                    .booleanType()
-                    .defaultValue(false)
-                    .withDescription(
-                            "Set whether to enable universal sort for stream. When it is false, "
-                                    + "universal sort can't use for stream, default false. Just for testing.");
 
     private final SortSpec sortSpec;
 
@@ -79,7 +68,8 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
     @Override
     protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
         TableConfig config = planner.getTableConfig();
-        if (!config.getConfiguration().getBoolean(TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED)) {
+        if (!config.getConfiguration()
+                .getBoolean(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED)) {
             throw new TableException("Sort on a non-time-attribute field is not supported.");
         }
 

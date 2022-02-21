@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.types.Row;
@@ -68,12 +67,11 @@ public class LookupJoinJsonPlanITCase extends JsonPlanTestBase {
     /** test join temporal table. * */
     @Test
     public void testJoinLookupTable() throws Exception {
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
+        compileSqlAndExecutePlan(
                         "insert into MySink "
                                 + "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table \n"
-                                + "for system_time as of T.proctime AS D ON T.id = D.id \n");
-        tableEnv.executePlan(compiledPlan).await();
+                                + "for system_time as of T.proctime AS D ON T.id = D.id \n")
+                .await();
         List<String> expected =
                 Arrays.asList(
                         "+I[1, 12, Julian, Julian]",
@@ -84,12 +82,11 @@ public class LookupJoinJsonPlanITCase extends JsonPlanTestBase {
 
     @Test
     public void testJoinLookupTableWithPushDown() throws Exception {
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
+        compileSqlAndExecutePlan(
                         "insert into MySink \n"
                                 + "SELECT T.id, T.len, T.content, D.name FROM src AS T JOIN user_table \n "
-                                + "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20");
-        tableEnv.executePlan(compiledPlan).await();
+                                + "for system_time as of T.proctime AS D ON T.id = D.id AND D.age > 20")
+                .await();
         List<String> expected =
                 Arrays.asList("+I[2, 15, Hello, Jark]", "+I[3, 15, Fabian, Fabian]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));

@@ -18,7 +18,6 @@
 package org.apache.flink.connector.pulsar.source.reader.deserializer;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.api.common.serialization.DeserializationSchema.InitializationContext;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.connector.pulsar.common.schema.PulsarSchema;
 import org.apache.flink.util.Collector;
@@ -42,22 +41,13 @@ class PulsarSchemaWrapper<T> implements PulsarDeserializationSchema<T> {
     /** The serializable pulsar schema, it wrap the schema with type class. */
     private final PulsarSchema<T> pulsarSchema;
 
-    @SuppressWarnings("java:S2065")
-    private transient Schema<T> schema;
-
     public PulsarSchemaWrapper(PulsarSchema<T> pulsarSchema) {
         this.pulsarSchema = pulsarSchema;
     }
 
     @Override
-    public void open(InitializationContext context) throws Exception {
-        if (schema == null) {
-            this.schema = pulsarSchema.getPulsarSchema();
-        }
-    }
-
-    @Override
     public void deserialize(Message<byte[]> message, Collector<T> out) throws Exception {
+        Schema<T> schema = this.pulsarSchema.getPulsarSchema();
         byte[] bytes = message.getData();
         T instance = schema.decode(bytes);
 

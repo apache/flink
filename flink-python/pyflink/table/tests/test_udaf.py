@@ -17,6 +17,7 @@
 ################################################################################
 import collections
 import datetime
+import unittest
 from decimal import Decimal
 
 import pandas as pd
@@ -786,6 +787,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                             "+I[1, 2018-03-11 03:10:00.0, 2018-03-11 04:10:00.0, 2]",
                             "+I[1, 2018-03-11 04:20:00.0, 2018-03-11 04:50:00.0, 1]"])
 
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_group_aggregate_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -824,6 +826,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         from py4j.java_gateway import get_method
         get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_group_window_aggregate_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir

@@ -16,8 +16,6 @@
 # limitations under the License.
 ################################################################################
 
-import warnings
-
 from py4j.java_gateway import get_method
 from typing import Union
 
@@ -951,29 +949,6 @@ class Table(object):
             else:
                 func = func(with_columns(col("*")))
             return FlatAggregateTable(self._j_table.flatAggregate(func._j_expr), self._t_env)
-
-    def insert_into(self, table_path: str):
-        """
-        Writes the :class:`~pyflink.table.Table` to a :class:`~pyflink.table.TableSink` that was
-        registered under the specified name. For the path resolution algorithm see
-        :func:`~TableEnvironment.use_database`.
-
-        Example:
-        ::
-
-            >>> tab.insert_into("sink")
-
-        :param table_path: The path of the registered :class:`~pyflink.table.TableSink` to which
-               the :class:`~pyflink.table.Table` is written.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
-                  use :class:`TableTableEnvironment`#:func:`create_statement_set`
-                  for multiple sinks.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_insert for single sink, "
-                      "use TableTableEnvironment#create_statement_set for multiple sinks.",
-                      DeprecationWarning)
-        self._j_table.insertInto(table_path)
 
     def to_pandas(self):
         """

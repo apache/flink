@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.JList
+import org.apache.flink.table.planner.functions.sql.SqlTryCastFunction
 import org.apache.flink.table.planner.plan.utils.ExpressionDetail.ExpressionDetail
 import org.apache.flink.table.planner.plan.utils.ExpressionFormat.ExpressionFormat
 
@@ -534,7 +535,7 @@ object FlinkRexUtil {
           getExpressionString(_, inFields, localExprsTable, expressionFormat, expressionDetail))
         c.getOperator match {
           case _: SqlAsOperator => ops.head
-          case _: SqlCastFunction =>
+          case _: SqlCastFunction | _: SqlTryCastFunction =>
             val typeStr = expressionDetail match {
               case ExpressionDetail.Digest => c.getType.getFullTypeString
               case ExpressionDetail.Explain => c.getType.toString

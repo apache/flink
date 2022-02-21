@@ -19,7 +19,7 @@
 package org.apache.flink.connector.elasticsearch.table;
 
 import org.apache.flink.api.common.time.Deadline;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.elasticsearch.ElasticsearchUtil;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
@@ -29,7 +29,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
@@ -117,8 +117,8 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
                                 getPrefilledTestContext(index).withSchema(schema).build())
                         .getSinkRuntimeProvider(new ElasticsearchUtil.MockContext());
 
-        final SinkProvider sinkProvider = (SinkProvider) runtimeProvider;
-        final Sink<RowData, ?, ?, ?> sink = sinkProvider.createSink();
+        final SinkV2Provider sinkProvider = (SinkV2Provider) runtimeProvider;
+        final Sink<RowData> sink = sinkProvider.createSink();
         StreamExecutionEnvironment environment =
                 StreamExecutionEnvironment.getExecutionEnvironment();
         environment.setParallelism(4);

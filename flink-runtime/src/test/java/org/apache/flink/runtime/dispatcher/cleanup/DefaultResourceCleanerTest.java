@@ -19,50 +19,53 @@
 package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.RetryStrategy;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.STREAM_THROWABLE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@code DefaultResourceCleanerTest} tests {@link DefaultResourceCleaner}. */
 public class DefaultResourceCleanerTest {
 
+    // runs with retry utilizes the ComponentMainThreadExecutor which adds concurrency despite using
+    // Executors.directExecutor as the cleanupExecutor
+    private static final Duration TIMEOUT_FOR_RUNS_WITH_RETRY = Duration.ofHours(1);
+
     private static final Executor EXECUTOR = Executors.directExecutor();
     private static final JobID JOB_ID = new JobID();
 
-    private DefaultResourceCleaner<CleanupCallback> testInstance;
-    private CleanupCallback cleanup0;
-    private CleanupCallback cleanup1;
+    @Test
+    public void testSuccessfulConcurrentCleanup() {
+        final SingleCallCleanup cleanup0 = SingleCallCleanup.withoutCompletionOnCleanup();
+        final SingleCallCleanup cleanup1 = SingleCallCleanup.withoutCompletionOnCleanup();
 
-    @BeforeEach
-    public void setup() {
-        cleanup0 = CleanupCallback.withoutCompletionOnCleanup();
-        cleanup1 = CleanupCallback.withoutCompletionOnCleanup();
-
-        testInstance =
+        final CompletableFuture<Void> cleanupResult =
                 createTestInstanceBuilder()
                         .withRegularCleanup(cleanup0)
                         .withRegularCleanup(cleanup1)
-                        .build();
-    }
-
-    @Test
-    public void testSuccessfulConcurrentCleanup() {
-        CompletableFuture<Void> cleanupResult = testInstance.cleanupAsync(JOB_ID);
+                        .build()
+                        .cleanupAsync(JOB_ID);
 
         assertThat(cleanupResult).isNotCompleted();
-        assertThat(cleanup0).extracting(CleanupCallback::getProcessedJobId).isEqualTo(JOB_ID);
-        assertThat(cleanup1).extracting(CleanupCallback::getProcessedJobId).isEqualTo(JOB_ID);
+        assertThat(cleanup0).extracting(SingleCallCleanup::getProcessedJobId).isEqualTo(JOB_ID);
+        assertThat(cleanup1).extracting(SingleCallCleanup::getProcessedJobId).isEqualTo(JOB_ID);
 
         cleanup0.completeCleanup();
         assertThat(cleanupResult).isNotCompleted();
@@ -73,11 +76,19 @@ public class DefaultResourceCleanerTest {
 
     @Test
     public void testConcurrentCleanupWithExceptionFirst() {
-        CompletableFuture<Void> cleanupResult = testInstance.cleanupAsync(JOB_ID);
+        final SingleCallCleanup cleanup0 = SingleCallCleanup.withoutCompletionOnCleanup();
+        final SingleCallCleanup cleanup1 = SingleCallCleanup.withoutCompletionOnCleanup();
+
+        final CompletableFuture<Void> cleanupResult =
+                createTestInstanceBuilder()
+                        .withRegularCleanup(cleanup0)
+                        .withRegularCleanup(cleanup1)
+                        .build()
+                        .cleanupAsync(JOB_ID);
 
         assertThat(cleanupResult).isNotCompleted();
-        assertThat(cleanup0).extracting(CleanupCallback::getProcessedJobId).isEqualTo(JOB_ID);
-        assertThat(cleanup1).extracting(CleanupCallback::getProcessedJobId).isEqualTo(JOB_ID);
+        assertThat(cleanup0).extracting(SingleCallCleanup::getProcessedJobId).isEqualTo(JOB_ID);
+        assertThat(cleanup1).extracting(SingleCallCleanup::getProcessedJobId).isEqualTo(JOB_ID);
 
         final RuntimeException expectedException = new RuntimeException("Expected exception");
         cleanup0.completeCleanupExceptionally(expectedException);
@@ -87,16 +98,30 @@ public class DefaultResourceCleanerTest {
         assertThat(cleanupResult)
                 .failsWithin(Duration.ZERO)
                 .withThrowableOfType(ExecutionException.class)
-                .withCause(expectedException);
+                .extracting(FlinkAssertions::chainOfCauses, STREAM_THROWABLE)
+                .hasExactlyElementsOfTypes(
+                        ExecutionException.class,
+                        FutureUtils.RetryException.class,
+                        expectedException.getClass())
+                .last()
+                .isEqualTo(expectedException);
     }
 
     @Test
     public void testConcurrentCleanupWithExceptionSecond() {
-        CompletableFuture<Void> cleanupResult = testInstance.cleanupAsync(JOB_ID);
+        final SingleCallCleanup cleanup0 = SingleCallCleanup.withoutCompletionOnCleanup();
+        final SingleCallCleanup cleanup1 = SingleCallCleanup.withoutCompletionOnCleanup();
+
+        final CompletableFuture<Void> cleanupResult =
+                createTestInstanceBuilder()
+                        .withRegularCleanup(cleanup0)
+                        .withRegularCleanup(cleanup1)
+                        .build()
+                        .cleanupAsync(JOB_ID);
 
         assertThat(cleanupResult).isNotCompleted();
-        assertThat(cleanup0).extracting(CleanupCallback::getProcessedJobId).isEqualTo(JOB_ID);
-        assertThat(cleanup1).extracting(CleanupCallback::getProcessedJobId).isEqualTo(JOB_ID);
+        assertThat(cleanup0).extracting(SingleCallCleanup::getProcessedJobId).isEqualTo(JOB_ID);
+        assertThat(cleanup1).extracting(SingleCallCleanup::getProcessedJobId).isEqualTo(JOB_ID);
 
         cleanup0.completeCleanup();
         assertThat(cleanupResult).isNotCompleted();
@@ -106,16 +131,23 @@ public class DefaultResourceCleanerTest {
         assertThat(cleanupResult)
                 .failsWithin(Duration.ZERO)
                 .withThrowableOfType(ExecutionException.class)
-                .withCause(expectedException);
+                .extracting(FlinkAssertions::chainOfCauses, STREAM_THROWABLE)
+                .hasExactlyElementsOfTypes(
+                        ExecutionException.class,
+                        FutureUtils.RetryException.class,
+                        expectedException.getClass())
+                .last()
+                .isEqualTo(expectedException);
     }
 
     @Test
     public void testHighestPriorityCleanupBlocksAllOtherCleanups() {
-        final CleanupCallback highPriorityCleanup = CleanupCallback.withoutCompletionOnCleanup();
-        final CleanupCallback lowerThanHighPriorityCleanup =
-                CleanupCallback.withCompletionOnCleanup();
-        final CleanupCallback noPriorityCleanup0 = CleanupCallback.withCompletionOnCleanup();
-        final CleanupCallback noPriorityCleanup1 = CleanupCallback.withCompletionOnCleanup();
+        final SingleCallCleanup highPriorityCleanup =
+                SingleCallCleanup.withoutCompletionOnCleanup();
+        final SingleCallCleanup lowerThanHighPriorityCleanup =
+                SingleCallCleanup.withCompletionOnCleanup();
+        final SingleCallCleanup noPriorityCleanup0 = SingleCallCleanup.withCompletionOnCleanup();
+        final SingleCallCleanup noPriorityCleanup1 = SingleCallCleanup.withCompletionOnCleanup();
 
         final DefaultResourceCleaner<CleanupCallback> testInstance =
                 createTestInstanceBuilder()
@@ -136,7 +168,7 @@ public class DefaultResourceCleanerTest {
 
         highPriorityCleanup.completeCleanup();
 
-        assertThat(overallCleanupResult).succeedsWithin(Duration.ofMillis(100));
+        assertThat(overallCleanupResult).succeedsWithin(Duration.ZERO);
 
         assertThat(highPriorityCleanup.isDone()).isTrue();
         assertThat(lowerThanHighPriorityCleanup.isDone()).isTrue();
@@ -146,11 +178,11 @@ public class DefaultResourceCleanerTest {
 
     @Test
     public void testMediumPriorityCleanupBlocksAllLowerPrioritizedCleanups() {
-        final CleanupCallback highPriorityCleanup = CleanupCallback.withCompletionOnCleanup();
-        final CleanupCallback lowerThanHighPriorityCleanup =
-                CleanupCallback.withoutCompletionOnCleanup();
-        final CleanupCallback noPriorityCleanup0 = CleanupCallback.withCompletionOnCleanup();
-        final CleanupCallback noPriorityCleanup1 = CleanupCallback.withCompletionOnCleanup();
+        final SingleCallCleanup highPriorityCleanup = SingleCallCleanup.withCompletionOnCleanup();
+        final SingleCallCleanup lowerThanHighPriorityCleanup =
+                SingleCallCleanup.withoutCompletionOnCleanup();
+        final SingleCallCleanup noPriorityCleanup0 = SingleCallCleanup.withCompletionOnCleanup();
+        final SingleCallCleanup noPriorityCleanup1 = SingleCallCleanup.withCompletionOnCleanup();
 
         final DefaultResourceCleaner<CleanupCallback> testInstance =
                 createTestInstanceBuilder()
@@ -173,7 +205,7 @@ public class DefaultResourceCleanerTest {
 
         lowerThanHighPriorityCleanup.completeCleanup();
 
-        assertThat(overallCleanupResult).succeedsWithin(Duration.ofMillis(100));
+        assertThat(overallCleanupResult).succeedsWithin(Duration.ZERO);
 
         assertThat(highPriorityCleanup.isDone()).isTrue();
         assertThat(lowerThanHighPriorityCleanup.isDone()).isTrue();
@@ -181,33 +213,100 @@ public class DefaultResourceCleanerTest {
         assertThat(noPriorityCleanup1.isDone()).isTrue();
     }
 
+    @Test
+    public void testCleanupWithRetries() {
+        final Collection<JobID> actualJobIds = new ArrayList<>();
+        final CleanupCallback cleanupWithRetries = cleanupWithInitialFailingRuns(actualJobIds, 2);
+        final SingleCallCleanup oneRunCleanup = SingleCallCleanup.withCompletionOnCleanup();
+
+        final CompletableFuture<Void> compositeCleanupResult =
+                createTestInstanceBuilder(TestingRetryStrategies.createWithNumberOfRetries(2))
+                        .withRegularCleanup(cleanupWithRetries)
+                        .withRegularCleanup(oneRunCleanup)
+                        .build()
+                        .cleanupAsync(JOB_ID);
+
+        assertThat(compositeCleanupResult).succeedsWithin(TIMEOUT_FOR_RUNS_WITH_RETRY);
+
+        assertThat(oneRunCleanup.getProcessedJobId()).isEqualTo(JOB_ID);
+        assertThat(oneRunCleanup.isDone()).isTrue();
+        assertThat(actualJobIds).containsExactly(JOB_ID, JOB_ID, JOB_ID);
+    }
+
+    @Test
+    public void testCleanupWithSingleRetryInHighPriorityTask() {
+        final Collection<JobID> actualJobIds = new ArrayList<>();
+        final CleanupCallback cleanupWithRetry = cleanupWithInitialFailingRuns(actualJobIds, 1);
+        final CleanupCallback oneRunHigherPriorityCleanup =
+                SingleCallCleanup.withCompletionOnCleanup();
+        final SingleCallCleanup oneRunCleanup = SingleCallCleanup.withCompletionOnCleanup();
+
+        final CompletableFuture<Void> compositeCleanupResult =
+                createTestInstanceBuilder(TestingRetryStrategies.createWithNumberOfRetries(1))
+                        .withPrioritizedCleanup(cleanupWithRetry)
+                        .withPrioritizedCleanup(oneRunHigherPriorityCleanup)
+                        .withRegularCleanup(oneRunCleanup)
+                        .build()
+                        .cleanupAsync(JOB_ID);
+
+        assertThat(compositeCleanupResult).succeedsWithin(TIMEOUT_FOR_RUNS_WITH_RETRY);
+
+        assertThat(oneRunCleanup.getProcessedJobId()).isEqualTo(JOB_ID);
+        assertThat(oneRunCleanup.isDone()).isTrue();
+        assertThat(actualJobIds).containsExactly(JOB_ID, JOB_ID);
+    }
+
     private static DefaultResourceCleaner.Builder<CleanupCallback> createTestInstanceBuilder() {
+        return createTestInstanceBuilder(TestingRetryStrategies.NO_RETRY_STRATEGY);
+    }
+
+    private static DefaultResourceCleaner.Builder<CleanupCallback> createTestInstanceBuilder(
+            RetryStrategy retryStrategy) {
         return DefaultResourceCleaner.forCleanableResources(
                 ComponentMainThreadExecutorServiceAdapter.forMainThread(),
                 EXECUTOR,
-                CleanupCallback::cleanup);
+                CleanupCallback::apply,
+                retryStrategy);
     }
 
-    private static class CleanupCallback {
+    private static CleanupCallback cleanupWithInitialFailingRuns(
+            Collection<JobID> actualJobIds, int numberOfFailureRuns) {
+        final AtomicInteger failureRunCount = new AtomicInteger(numberOfFailureRuns);
+        return (actualJobId, executor) -> {
+            actualJobIds.add(actualJobId);
+            if (failureRunCount.getAndDecrement() > 0) {
+                return FutureUtils.completedExceptionally(
+                        new RuntimeException("Expected RuntimeException"));
+            }
+
+            return FutureUtils.completedVoidFuture();
+        };
+    }
+
+    private interface CleanupCallback extends BiFunction<JobID, Executor, CompletableFuture<Void>> {
+        // empty interface to remove necessity use generics all the time
+    }
+
+    private static class SingleCallCleanup implements CleanupCallback {
 
         private final CompletableFuture<Void> resultFuture = new CompletableFuture<>();
         private JobID jobId;
 
         private final Consumer<CompletableFuture<Void>> internalFunction;
 
-        public static CleanupCallback withCompletionOnCleanup() {
-            return new CleanupCallback(resultFuture -> resultFuture.complete(null));
+        public static SingleCallCleanup withCompletionOnCleanup() {
+            return new SingleCallCleanup(resultFuture -> resultFuture.complete(null));
         }
 
-        public static CleanupCallback withoutCompletionOnCleanup() {
-            return new CleanupCallback(ignoredResultFuture -> {});
+        public static SingleCallCleanup withoutCompletionOnCleanup() {
+            return new SingleCallCleanup(ignoredResultFuture -> {});
         }
 
-        private CleanupCallback(Consumer<CompletableFuture<Void>> internalFunction) {
+        private SingleCallCleanup(Consumer<CompletableFuture<Void>> internalFunction) {
             this.internalFunction = internalFunction;
         }
 
-        public CompletableFuture<Void> cleanup(JobID jobId, Executor executor) {
+        public CompletableFuture<Void> apply(JobID jobId, Executor executor) {
             Preconditions.checkState(this.jobId == null);
             this.jobId = jobId;
 

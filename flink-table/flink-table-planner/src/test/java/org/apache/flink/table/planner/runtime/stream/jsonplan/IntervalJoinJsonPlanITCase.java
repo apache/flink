@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 import org.apache.flink.types.Row;
@@ -50,15 +49,14 @@ public class IntervalJoinJsonPlanITCase extends JsonPlanTestBase {
                 "T2", rowT2, "a int", "b bigint", "c varchar", "proctime as PROCTIME()");
         createTestValuesSinkTable("MySink", "a int", "c1 varchar", "c2 varchar");
 
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
+        compileSqlAndExecutePlan(
                         "insert into MySink "
                                 + "SELECT t2.a, t2.c, t1.c\n"
                                 + "FROM T1 as t1 join T2 as t2 ON\n"
                                 + "  t1.a = t2.a AND\n"
                                 + "  t1.proctime BETWEEN t2.proctime - INTERVAL '5' SECOND AND\n"
-                                + "    t2.proctime + INTERVAL '5' SECOND");
-        tableEnv.executePlan(compiledPlan).await();
+                                + "    t2.proctime + INTERVAL '5' SECOND")
+                .await();
         List<String> expected =
                 Arrays.asList(
                         "+I[1, HiHi, Hi1]",
@@ -100,15 +98,14 @@ public class IntervalJoinJsonPlanITCase extends JsonPlanTestBase {
                 "watermark for rowtime as rowtime - INTERVAL '5' second");
         createTestValuesSinkTable("MySink", "a int", "c1 varchar", "c2 varchar");
 
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
+        compileSqlAndExecutePlan(
                         "insert into MySink \n"
                                 + "SELECT t2.a, t2.c, t1.c\n"
                                 + "FROM T1 as t1 join T2 as t2 ON\n"
                                 + "  t1.a = t2.a AND\n"
                                 + "  t1.rowtime BETWEEN t2.rowtime - INTERVAL '5' SECOND AND\n"
-                                + "    t2.rowtime + INTERVAL '6' SECOND");
-        tableEnv.executePlan(compiledPlan).await();
+                                + "    t2.rowtime + INTERVAL '6' SECOND")
+                .await();
         List<String> expected =
                 Arrays.asList(
                         "+I[1, HiHi, Hi1]",

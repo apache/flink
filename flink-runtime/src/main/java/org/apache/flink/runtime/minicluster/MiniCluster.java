@@ -378,6 +378,7 @@ public class MiniCluster implements AutoCloseableAsync {
                             MetricUtils.startRemoteMetricsRpcService(
                                     configuration,
                                     commonRpcService.getAddress(),
+                                    null,
                                     rpcSystem.deref());
                 }
 

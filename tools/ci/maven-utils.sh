@@ -74,7 +74,7 @@ function collect_coredumps {
 	local SEARCHDIR=$1
 	local TARGET_DIR=$2
 	echo "Searching for .dump, .dumpstream and related files in '$SEARCHDIR'"
-	for file in `find $SEARCHDIR -type f -regextype posix-extended -iregex '.*\.hprof|.*\.dump|.*\.dumpstream|.*hs.*\.log|.*/core(.[0-9]+)?$'`; do
+	for file in `find $SEARCHDIR -type f -regextype posix-extended -iregex '.*\.hprof|.*\.dump|.*\.dumpstream|.*hs.*\.log(\.[0-9]+)?|.*/core(\.[0-9]+)?$'`; do
 		echo "Moving '$file' to target directory ('$TARGET_DIR')"
 		mv $file $TARGET_DIR/$(echo $file | tr "/" "-")
 	done
@@ -111,19 +111,3 @@ MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR+="$PROFILE "
 export MVN_GLOBAL_OPTIONS="${MVN_GLOBAL_OPTIONS_WITHOUT_MIRROR} "
 # use google mirror everywhere
 MVN_GLOBAL_OPTIONS+="--settings $MAVEN_MIRROR_CONFIG_FILE ${NPM_PROXY_PROFILE_ACTIVATION} "
-
-print_system_info() {
-    echo "CPU information"
-    lscpu
-
-    echo "Memory information"
-    cat /proc/meminfo
-
-    echo "Disk information"
-    df -hH
-
-    echo "Running build as"
-    whoami
-}
-
-print_system_info

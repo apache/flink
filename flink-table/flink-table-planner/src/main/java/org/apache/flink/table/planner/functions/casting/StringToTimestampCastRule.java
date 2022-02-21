@@ -57,7 +57,7 @@ class StringToTimestampCastRule
     }
 
     @Override
-    public boolean canFail() {
+    public boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType) {
         return true;
     }
 }

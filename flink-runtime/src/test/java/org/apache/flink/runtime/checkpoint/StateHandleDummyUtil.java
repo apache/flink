@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
 
 import java.util.ArrayList;
@@ -169,9 +170,11 @@ public class StateHandleDummyUtil {
         private static final long serialVersionUID = 1L;
 
         private final KeyGroupRange keyGroupRange;
+        private final StateHandleID stateHandleId;
 
         private DummyKeyedStateHandle(KeyGroupRange keyGroupRange) {
             this.keyGroupRange = keyGroupRange;
+            this.stateHandleId = StateHandleID.randomStateHandleId();
         }
 
         @Override
@@ -182,6 +185,11 @@ public class StateHandleDummyUtil {
         @Override
         public KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
             return new DummyKeyedStateHandle(this.keyGroupRange.getIntersection(keyGroupRange));
+        }
+
+        @Override
+        public StateHandleID getStateHandleId() {
+            return stateHandleId;
         }
 
         @Override

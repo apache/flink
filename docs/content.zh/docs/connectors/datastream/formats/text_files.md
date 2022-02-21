@@ -3,8 +3,8 @@ title:  "Text files"
 weight: 4
 type: docs
 aliases:
-- /dev/connectors/formats/text_files.html
-- /apis/streaming/connectors/formats/text_files.html
+- /zh//connectors/formats/text_files.html
+- /zh/apis/streaming/connectors/formats/text_files.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

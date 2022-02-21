@@ -21,13 +21,17 @@ package org.apache.flink.table.api.bridge.scala.internal
 import org.apache.flink.annotation.Internal
 import org.apache.flink.table.api.bridge.scala.StreamStatementSet
 import org.apache.flink.table.api.internal.StatementSetImpl
-import org.apache.flink.table.api.{Table, TableDescriptor}
+import org.apache.flink.table.api.{ExplainDetail, Table, TableDescriptor, TablePipeline}
 
 /** Implementation for [[StreamStatementSet]]. */
 @Internal
 class StreamStatementSetImpl(tableEnvironment: StreamTableEnvironmentImpl)
     extends StatementSetImpl[StreamTableEnvironmentImpl](tableEnvironment)
     with StreamStatementSet {
+
+  override def add(tablePipeline: TablePipeline): StreamStatementSet = {
+    super.add(tablePipeline).asInstanceOf[StreamStatementSet]
+  }
 
   override def addInsertSql(statement: String): StreamStatementSet = {
     super.addInsertSql(statement).asInstanceOf[StreamStatementSet]
@@ -55,6 +59,11 @@ class StreamStatementSetImpl(tableEnvironment: StreamTableEnvironmentImpl)
       overwrite: Boolean)
     : StreamStatementSet = {
     super.addInsert(targetDescriptor, table, overwrite).asInstanceOf[StreamStatementSet]
+  }
+
+  override def printExplain(extraDetails: ExplainDetail*): StreamStatementSet = {
+    println(super.explain(extraDetails: _*))
+    this
   }
 
   override def attachAsDataStream(): Unit = {

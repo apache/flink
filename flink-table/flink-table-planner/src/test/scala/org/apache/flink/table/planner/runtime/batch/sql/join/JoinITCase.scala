@@ -25,7 +25,7 @@ import org.apache.flink.api.common.typeutils.TypeComparator
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.typeutils.{GenericTypeInfo, RowTypeInfo}
 import org.apache.flink.streaming.api.transformations.{LegacySinkTransformation, OneInputTransformation, TwoInputTransformation}
-import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.internal.{StatementSetImpl, TableEnvironmentInternal}
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.expressions.utils.FuncWithOpen
 import org.apache.flink.table.planner.runtime.batch.sql.join.JoinType.{BroadcastHashJoin, HashJoin, JoinType, NestedLoopJoin, SortMergeJoin}
@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.sinks.CollectRowTableSink
-import org.apache.flink.table.planner.utils.{TestingStatementSet, TestingTableEnvironment}
+import org.apache.flink.table.planner.utils.TestingTableEnvironment
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.types.Row
 
@@ -108,7 +108,7 @@ class JoinITCase(expectedJoinType: JoinType) extends BatchTestBase {
       val table = tEnv.sqlQuery("SELECT c FROM SmallTable3, Table5 WHERE b = e")
       stmtSet.addInsert("outputTable", table)
       val testingTEnv = tEnv.asInstanceOf[TestingTableEnvironment]
-      val testingStmtSet = stmtSet.asInstanceOf[TestingStatementSet]
+      val testingStmtSet = stmtSet.asInstanceOf[StatementSetImpl[_]]
       val transforms = testingTEnv.getPlanner.asInstanceOf[PlannerBase]
         .translate(testingStmtSet.getOperations)
       var haveTwoOp = false

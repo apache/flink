@@ -138,9 +138,6 @@ public class TpcdsTestProgram {
         TableEnvironment tEnv = TableEnvironment.create(environmentSettings);
 
         // config Optimizer parameters
-        tEnv.getConfig()
-                .getConfiguration()
-                .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4);
         // TODO use the default shuffle mode of batch runtime mode once FLINK-23470 is implemented
         tEnv.getConfig()
                 .getConfiguration()

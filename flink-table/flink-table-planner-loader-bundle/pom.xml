@@ -31,9 +31,9 @@
 	</parent>
 
 	<artifactId>flink-table-planner-loader-bundle</artifactId>
-	<name>Flink : Table : Planner Loader Helper</name>
+	<name>Flink : Table : Planner Loader Bundle</name>
 	<packaging>jar</packaging>
-	<description>Intermediate build artifact use by the planner-loader.</description>
+	<description>Intermediate build artifact used by the flink-table-planner-loader.</description>
 
 	<dependencies>
 		<dependency>
@@ -46,6 +46,22 @@
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>forbid-direct-table-planner-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<skip>true</skip>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-deploy-plugin</artifactId>

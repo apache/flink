@@ -17,7 +17,7 @@
 
 package org.apache.flink.connector.elasticsearch.sink;
 
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple2;
 
 import org.elasticsearch.action.index.IndexRequest;

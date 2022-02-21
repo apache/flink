@@ -79,6 +79,11 @@ class BatchPhysicalSortWindowAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (grouping.length == 0) {
+      InputProperty.SINGLETON_DISTRIBUTION
+    } else {
+      InputProperty.hashDistribution(grouping)
+    }
     new BatchExecSortWindowAggregate(
       grouping,
       auxGrouping,
@@ -91,7 +96,7 @@ class BatchPhysicalSortWindowAggregate(
       enableAssignPane,
       isMerge,
       true, // isFinal is always true
-      InputProperty.DEFAULT,
+      InputProperty.builder().requiredDistribution(requiredDistribution).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

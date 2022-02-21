@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -132,6 +133,7 @@ public class JsonSerdeUtil {
 
     private static void registerSerializers(SimpleModule module) {
         module.addSerializer(new ExecNodeGraphJsonSerializer());
+        module.addSerializer(new FlinkVersionJsonSerializer());
         // ObjectIdentifierJsonSerializer is needed for LogicalType serialization
         module.addSerializer(new ObjectIdentifierJsonSerializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization
@@ -157,6 +159,7 @@ public class JsonSerdeUtil {
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static void registerDeserializers(SimpleModule module) {
         module.addDeserializer(ExecNodeGraph.class, new ExecNodeGraphJsonDeserializer());
+        module.addDeserializer(FlinkVersion.class, new FlinkVersionJsonDeserializer());
         // ObjectIdentifierJsonDeserializer is needed for LogicalType deserialization
         module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization

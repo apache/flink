@@ -133,6 +133,7 @@ public class StatefulJobSavepointMigrationITCase extends SavepointMigrationTestB
         env.enableCheckpointing(500);
         env.setParallelism(parallelism);
         env.setMaxParallelism(parallelism);
+        env.enableChangelogStateBackend(false);
 
         SourceFunction<Tuple2<Long, Long>> nonParallelSource;
         SourceFunction<Tuple2<Long, Long>> parallelSource;

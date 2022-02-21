@@ -791,6 +791,29 @@ Rank(rankType=[RANK], rankRange=[rankStart=1, rankEnd=10], partitionBy=[a, c], o
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testRemoveSingletonShuffle_HashAgg">
+    <Resource name="sql">
+      <![CDATA[SELECT MAX(b) FROM (SELECT SUM(b) AS b FROM x)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
++- LogicalAggregate(group=[{}], b=[SUM($0)])
+   +- LogicalProject(b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+HashAggregate(isMerge=[false], select=[MAX(b) AS EXPR$0])
++- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS b])
+   +- Exchange(distribution=[single])
+      +- LocalHashAggregate(select=[Partial_SUM(b) AS sum$0])
+         +- Calc(select=[b])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testRemoveHashShuffle_Rank_Singleton1">
     <Resource name="sql">
       <![CDATA[
@@ -1232,6 +1255,53 @@ Calc(select=[c, cnt, c0, cnt0])
       +- LocalHashAggregate(groupBy=[f], select=[f, Partial_COUNT(d) AS count$0])
          +- Calc(select=[f, d], where=[(e < 100)])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, y, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveSingletonShuffle_SortAgg">
+    <Resource name="sql">
+      <![CDATA[SELECT MAX(b) FROM (SELECT SUM(b) AS b FROM x)]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalAggregate(group=[{}], EXPR$0=[MAX($0)])
++- LogicalAggregate(group=[{}], b=[SUM($0)])
+   +- LogicalProject(b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+SortAggregate(isMerge=[false], select=[MAX(b) AS EXPR$0])
++- SortAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS b])
+   +- Exchange(distribution=[single])
+      +- LocalSortAggregate(select=[Partial_SUM(b) AS sum$0])
+         +- Calc(select=[b])
+            +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRemoveSingletonShuffle_OverAgg">
+    <Resource name="sql">
+      <![CDATA[SELECT SUM(b) sum_b, AVG(SUM(b)) OVER () avg_b FROM x]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(sum_b=[$0], avg_b=[/(CASE(>(COUNT($0) OVER (), 0), $SUM0($0) OVER (), null:BIGINT), COUNT($0) OVER ())])
++- LogicalAggregate(group=[{}], sum_b=[SUM($0)])
+   +- LogicalProject(b=[$1])
+      +- LogicalTableScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[sum_b, (CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS avg_b])
++- OverAggregate(window#0=[COUNT(sum_b) AS w0$o0, $SUM0(sum_b) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[sum_b, w0$o0, w0$o1])
+   +- HashAggregate(isMerge=[true], select=[Final_SUM(sum$0) AS sum_b])
+      +- Exchange(distribution=[single])
+         +- LocalHashAggregate(select=[Partial_SUM(b) AS sum$0])
+            +- Calc(select=[b])
+               +- LegacyTableSourceScan(table=[[default_catalog, default_database, x, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>

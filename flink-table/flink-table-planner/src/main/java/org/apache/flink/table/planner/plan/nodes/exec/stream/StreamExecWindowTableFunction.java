@@ -43,6 +43,7 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-window-table-function",
         version = 1,
+        consumedOptions = "table.local-time-zone",
         producedTransformations = CommonExecWindowTableFunction.WINDOW_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)

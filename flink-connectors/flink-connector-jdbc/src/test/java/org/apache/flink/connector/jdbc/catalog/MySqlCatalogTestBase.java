@@ -23,8 +23,8 @@ import org.apache.flink.table.api.Schema;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.ClassRule;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.MySQLContainer;
@@ -67,7 +67,7 @@ public class MySqlCatalogTestBase {
                     .column("col_date", DataTypes.DATE())
                     .column("col_datetime", DataTypes.TIMESTAMP(0))
                     .column("col_decimal", DataTypes.DECIMAL(10, 0))
-                    .column("col_decimal_unsigned", DataTypes.DECIMAL(10, 0))
+                    .column("col_decimal_unsigned", DataTypes.DECIMAL(11, 0))
                     .column("col_double", DataTypes.DOUBLE())
                     .column("col_double_unsigned", DataTypes.DOUBLE())
                     .column("col_enum", DataTypes.CHAR(6))
@@ -83,20 +83,20 @@ public class MySqlCatalogTestBase {
                     .column("col_mediumblob", DataTypes.BYTES())
                     .column("col_mediumint", DataTypes.INT())
                     .column("col_mediumint_unsigned", DataTypes.INT())
-                    .column("col_mediumtext", DataTypes.VARCHAR(16777215))
+                    .column("col_mediumtext", DataTypes.VARCHAR(5592405))
                     .column("col_numeric", DataTypes.DECIMAL(10, 0))
-                    .column("col_numeric_unsigned", DataTypes.DECIMAL(10, 0))
+                    .column("col_numeric_unsigned", DataTypes.DECIMAL(11, 0))
                     .column("col_real", DataTypes.DOUBLE())
                     .column("col_real_unsigned", DataTypes.DOUBLE())
                     .column("col_set", DataTypes.CHAR(18))
                     .column("col_smallint", DataTypes.SMALLINT())
                     .column("col_smallint_unsigned", DataTypes.INT())
-                    .column("col_text", DataTypes.VARCHAR(65535))
+                    .column("col_text", DataTypes.VARCHAR(21845))
                     .column("col_time", DataTypes.TIME(0))
                     .column("col_timestamp", DataTypes.TIMESTAMP(0))
-                    .column("col_tinytext", DataTypes.VARCHAR(255))
+                    .column("col_tinytext", DataTypes.VARCHAR(85))
                     .column("col_tinyint", DataTypes.TINYINT())
-                    .column("col_tinyint_unsinged", DataTypes.TINYINT())
+                    .column("col_tinyint_unsinged", DataTypes.SMALLINT())
                     .column("col_tinyblob", DataTypes.BYTES())
                     .column("col_varchar", DataTypes.VARCHAR(255))
                     .column("col_datetime_p3", DataTypes.TIMESTAMP(3).notNull())
@@ -106,6 +106,7 @@ public class MySqlCatalogTestBase {
                     .primaryKeyNamed("PRIMARY", Lists.newArrayList("pid"))
                     .build();
 
+    @ClassRule
     public static final MySQLContainer<?> MYSQL_CONTAINER =
             new MySQLContainer<>(MYSQL_57_IMAGE)
                     .withUsername("root")
@@ -114,23 +115,14 @@ public class MySqlCatalogTestBase {
                     .withInitScript(MYSQL_INIT_SCRIPT)
                     .withLogConsumer(new Slf4jLogConsumer(LOG));
 
-    protected static String baseUrl;
-
     protected static MySqlCatalog catalog;
 
     @BeforeClass
-    public static void launchContainer() {
-        MYSQL_CONTAINER.start();
-        baseUrl =
+    public static void beforeAll() {
+        String baseUrl =
                 MYSQL_CONTAINER
                         .getJdbcUrl()
                         .substring(0, MYSQL_CONTAINER.getJdbcUrl().lastIndexOf("/"));
         catalog = new MySqlCatalog(TEST_CATALOG_NAME, TEST_DB, TEST_USERNAME, TEST_PWD, baseUrl);
-    }
-
-    @AfterClass
-    public static void shutdownContainer() {
-        MYSQL_CONTAINER.stop();
-        MYSQL_CONTAINER.close();
     }
 }

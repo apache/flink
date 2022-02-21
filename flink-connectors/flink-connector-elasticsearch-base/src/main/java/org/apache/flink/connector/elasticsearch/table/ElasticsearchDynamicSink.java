@@ -26,7 +26,7 @@ import org.apache.flink.connector.elasticsearch.sink.FlushBackoffType;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.RowKind;
@@ -157,7 +157,7 @@ class ElasticsearchDynamicSink implements DynamicTableSink {
             builder.setSocketTimeout((int) config.getSocketTimeout().get().getSeconds());
         }
 
-        return SinkProvider.of(builder.build(), config.getParallelism().orElse(null));
+        return SinkV2Provider.of(builder.build(), config.getParallelism().orElse(null));
     }
 
     @Override

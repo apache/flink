@@ -35,6 +35,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.MasterTriggerRestoreHook;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -52,7 +53,9 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
+import org.apache.flink.runtime.scheduler.exceptionhistory.TestingAccessExecution;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingTopology;
+import org.apache.flink.runtime.scheduler.strategy.TestingSchedulingTopology;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.util.OptionalFailure;
@@ -65,6 +68,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -84,6 +88,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     private final JobID jobId = new JobID();
     private static final ArchivedExecutionConfig archivedExecutionConfig =
             new ExecutionConfig().archive();
+    private final Map<ExecutionAttemptID, TestingAccessExecution> executions = new HashMap<>();
 
     private void transitionToState(JobStatus targetState) {
         if (!state.isTerminalState()) {
@@ -242,7 +247,7 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
 
     @Override
     public SchedulingTopology getSchedulingTopology() {
-        throw new UnsupportedOperationException();
+        return new TestingSchedulingTopology();
     }
 
     @Override
@@ -369,5 +374,19 @@ class StateTrackingMockExecutionGraph implements ExecutionGraph {
     @Override
     public void notifyNewlyInitializedJobVertices(List<ExecutionJobVertex> vertices) {
         throw new UnsupportedOperationException();
+    }
+
+    public void registerExecution(TestingAccessExecution execution) {
+        executions.put(execution.getAttemptId(), execution);
+    }
+
+    @Override
+    public Optional<String> findVertexWithAttempt(ExecutionAttemptID attemptId) {
+        return Optional.of("dummy");
+    }
+
+    @Override
+    public Optional<AccessExecution> findExecution(ExecutionAttemptID attemptId) {
+        return Optional.ofNullable(executions.get(attemptId));
     }
 }

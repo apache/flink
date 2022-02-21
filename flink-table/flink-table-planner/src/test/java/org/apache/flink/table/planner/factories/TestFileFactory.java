@@ -31,8 +31,10 @@ import org.apache.flink.connector.file.table.FileSystemConnectorOptions;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
@@ -215,8 +217,12 @@ public class TestFileFactory implements DynamicTableSourceFactory, DynamicTableS
         }
 
         @Override
-        public DataStream<RowData> produceDataStream(StreamExecutionEnvironment execEnv) {
-            return execEnv.fromSource(fileSource, WatermarkStrategy.noWatermarks(), name);
+        public DataStream<RowData> produceDataStream(
+                ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
+            DataStreamSource<RowData> sourceStream =
+                    execEnv.fromSource(fileSource, WatermarkStrategy.noWatermarks(), name);
+            providerContext.generateUid("file").ifPresent(sourceStream::uid);
+            return sourceStream;
         }
 
         @Override

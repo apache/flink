@@ -105,7 +105,6 @@ under the License.
 		<flink.reuseForks>true</flink.reuseForks>
 		<flink.shaded.version>15.0</flink.shaded.version>
 		<flink.shaded.jackson.version>2.12.4</flink.shaded.jackson.version>
-		<guava.version>18.0</guava.version>
 		<target.java.version>1.8</target.java.version>
 		<slf4j.version>1.7.32</slf4j.version>
 		<log4j.version>2.17.1</log4j.version>
@@ -123,7 +122,6 @@ under the License.
 		<!-- keep FlinkContainersBuilder#buildZookeeperContainer() in sync -->
 		<zookeeper.version>3.5.9</zookeeper.version>
 		<curator.version>5.2.0</curator.version>
-		<prometheus.version>0.8.1</prometheus.version>
 		<avro.version>1.10.0</avro.version>
 		<javax.activation.api.version>1.2.0</javax.activation.api.version>
 		<jaxb.api.version>2.3.1</jaxb.api.version>
@@ -137,7 +135,6 @@ under the License.
 		<py4j.version>0.10.9.3</py4j.version>
 		<beam.version>2.27.0</beam.version>
 		<protoc.version>3.17.3</protoc.version>
-		<arrow.version>0.16.0</arrow.version>
 		<okhttp.version>3.14.9</okhttp.version>
 		<testcontainers.version>1.16.2</testcontainers.version>
 		<lz4.version>1.8.0</lz4.version>
@@ -1597,6 +1594,7 @@ under the License.
 						<project.basedir>${project.basedir}</project.basedir>
 						<!--suppress MavenModelInspection -->
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
+						<junit.jupiter.extensions.autodetection.enabled>true</junit.jupiter.extensions.autodetection.enabled>
 					</systemPropertyVariables>
 					<argLine>-Xms256m -Xmx2048m -Dmvn.forkNumber=${surefire.forkNumber} -XX:+UseG1GC -Duser.country=US -Duser.language=en</argLine>
 				</configuration>
@@ -1739,6 +1737,28 @@ under the License.
 									</excludes>
 									<message>
 										Direct dependencies on flink-rpc-akka are not allowed. Depend on flink-rpc-akka-loader instead, and use RpcSystem#load or the TestingRpcService.
+									</message>
+								</bannedDependencies>
+							</rules>
+						</configuration>
+					</execution>
+					<execution>
+						<id>forbid-direct-table-planner-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<rules>
+								<bannedDependencies>
+									<excludes>
+										<exclude>org.apache.flink:flink-table-planner_${scala.binary.version}</exclude>
+									</excludes>
+									<includes>
+										<include>org.apache.flink:flink-table-planner_${scala.binary.version}:*:*:test</include>
+									</includes>
+									<message>
+										Direct dependencies on flink-table-planner are not allowed.
+										You should depend on either Table API modules or flink-table-planner-loader.
 									</message>
 								</bannedDependencies>
 							</rules>

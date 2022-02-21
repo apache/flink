@@ -110,6 +110,7 @@ class StatefulJobWBroadcastStateMigrationITCase(
         env.setStateBackend(new HashMapStateBackend())
       case _ => throw new UnsupportedOperationException
     }
+    env.enableChangelogStateBackend(false)
 
     lazy val firstBroadcastStateDesc = new MapStateDescriptor[Long, Long](
       "broadcast-state-1",
@@ -179,6 +180,7 @@ class StatefulJobWBroadcastStateMigrationITCase(
         env.setStateBackend(new HashMapStateBackend())
       case _ => throw new UnsupportedOperationException
     }
+    env.enableChangelogStateBackend(false)
 
     lazy val firstBroadcastStateDesc = new MapStateDescriptor[Long, Long](
       "broadcast-state-1",

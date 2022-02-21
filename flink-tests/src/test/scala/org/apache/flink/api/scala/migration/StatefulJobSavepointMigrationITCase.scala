@@ -153,6 +153,7 @@ class StatefulJobSavepointMigrationITCase(
         env.setStateBackend(new HashMapStateBackend())
       case _ => throw new UnsupportedOperationException
     }
+    env.enableChangelogStateBackend(false);
 
     env.setStateBackend(new MemoryStateBackend)
     env.enableCheckpointing(500)

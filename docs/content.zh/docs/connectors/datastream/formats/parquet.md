@@ -3,8 +3,8 @@ title:  "Parquet"
 weight: 4
 type: docs
 aliases:
-- /dev/connectors/formats/parquet.html
-- /apis/streaming/connectors/formats/parquet.html
+- /zh/dev/connectors/formats/parquet.html
+- /zh/apis/streaming/connectors/formats/parquet.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

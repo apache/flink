@@ -63,6 +63,11 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-changelog-normalize",
         version = 1,
+        consumedOptions = {
+            "table.exec.state.ttl",
+            "table.exec.mini-batch.enabled",
+            "table.exec.mini-batch.size",
+        },
         producedTransformations = StreamExecChangelogNormalize.CHANGELOG_NORMALIZE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)

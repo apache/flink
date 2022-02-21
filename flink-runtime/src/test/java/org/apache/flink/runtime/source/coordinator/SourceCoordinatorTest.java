@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.source.coordinator;
 
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
@@ -246,7 +247,8 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 coordinatorExecutor,
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
-                                new CoordinatorStoreImpl())) {
+                                new CoordinatorStoreImpl(),
+                                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED)) {
 
             coordinator.start();
             waitUtil(
@@ -270,7 +272,8 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                     throw failureReason;
                                 }),
                         context,
-                        new CoordinatorStoreImpl());
+                        new CoordinatorStoreImpl(),
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
 
         coordinator.start();
 
@@ -296,7 +299,8 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
                                 coordinatorExecutor,
                                 new EnumeratorCreatingSource<>(() -> splitEnumerator),
                                 context,
-                                new CoordinatorStoreImpl())) {
+                                new CoordinatorStoreImpl(),
+                                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED)) {
 
             coordinator.start();
             coordinator.handleEventFromOperator(1, new SourceEventWrapper(new SourceEvent() {}));
@@ -318,7 +322,12 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         final EnumeratorCreatingSource<?, ClassLoaderTestEnumerator> source =
                 new EnumeratorCreatingSource<>(ClassLoaderTestEnumerator::new);
         final SourceCoordinatorProvider<?> provider =
-                new SourceCoordinatorProvider<>("testOperator", context.getOperatorId(), source, 1);
+                new SourceCoordinatorProvider<>(
+                        "testOperator",
+                        context.getOperatorId(),
+                        source,
+                        1,
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
 
         final OperatorCoordinator coordinator = provider.getCoordinator(context);
         coordinator.start();
@@ -340,7 +349,12 @@ public class SourceCoordinatorTest extends SourceCoordinatorTestBase {
         final EnumeratorCreatingSource<?, ClassLoaderTestEnumerator> source =
                 new EnumeratorCreatingSource<>(ClassLoaderTestEnumerator::new);
         final SourceCoordinatorProvider<?> provider =
-                new SourceCoordinatorProvider<>("testOperator", context.getOperatorId(), source, 1);
+                new SourceCoordinatorProvider<>(
+                        "testOperator",
+                        context.getOperatorId(),
+                        source,
+                        1,
+                        WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
 
         final OperatorCoordinator coordinator = provider.getCoordinator(context);
         coordinator.resetToCheckpoint(1L, createEmptyCheckpoint());

@@ -17,10 +17,11 @@
 
 package org.apache.flink.connector.kinesis.sink;
 
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
+import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -36,6 +37,7 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -83,6 +85,34 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
             boolean failOnError,
             String streamName,
             Properties kinesisClientProperties) {
+        this(
+                elementConverter,
+                context,
+                maxBatchSize,
+                maxInFlightRequests,
+                maxBufferedRequests,
+                maxBatchSizeInBytes,
+                maxTimeInBufferMS,
+                maxRecordSizeInBytes,
+                failOnError,
+                streamName,
+                kinesisClientProperties,
+                Collections.emptyList());
+    }
+
+    KinesisDataStreamsSinkWriter(
+            ElementConverter<InputT, PutRecordsRequestEntry> elementConverter,
+            Sink.InitContext context,
+            int maxBatchSize,
+            int maxInFlightRequests,
+            int maxBufferedRequests,
+            long maxBatchSizeInBytes,
+            long maxTimeInBufferMS,
+            long maxRecordSizeInBytes,
+            boolean failOnError,
+            String streamName,
+            Properties kinesisClientProperties,
+            Collection<BufferedRequestState<PutRecordsRequestEntry>> states) {
         super(
                 elementConverter,
                 context,
@@ -91,7 +121,8 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
                 maxBufferedRequests,
                 maxBatchSizeInBytes,
                 maxTimeInBufferMS,
-                maxRecordSizeInBytes);
+                maxRecordSizeInBytes,
+                states);
         this.failOnError = failOnError;
         this.streamName = streamName;
         this.metrics = context.metricGroup();

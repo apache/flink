@@ -39,7 +39,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
@@ -70,8 +69,6 @@ public class ResourceManagerServiceImplTest extends TestLogger {
     private TestingLeaderElectionService leaderElectionService;
     private ResourceManagerServiceImpl resourceManagerService;
 
-    private Properties sysProps;
-
     @BeforeClass
     public static void setupClass() {
         rpcService = new TestingRpcService();
@@ -81,8 +78,6 @@ public class ResourceManagerServiceImplTest extends TestLogger {
 
     @Before
     public void setup() throws Exception {
-        sysProps = System.getProperties();
-        System.setProperty(ResourceManagerServiceImpl.ENABLE_MULTI_LEADER_SESSION_PROPERTY, "");
 
         fatalErrorHandler.clearError();
 
@@ -105,8 +100,6 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         if (fatalErrorHandler.hasExceptionOccurred()) {
             fatalErrorHandler.rethrowError();
         }
-
-        System.setProperties(sysProps);
     }
 
     @AfterClass
@@ -335,8 +328,9 @@ public class ResourceManagerServiceImplTest extends TestLogger {
     }
 
     @Test
-    public void revokeLeadership_terminateService_multiLeaderSessionDisabled() throws Exception {
-        System.clearProperty(ResourceManagerServiceImpl.ENABLE_MULTI_LEADER_SESSION_PROPERTY);
+    public void revokeLeadership_terminateService_multiLeaderSessionNotSupported()
+            throws Exception {
+        rmFactoryBuilder.setSupportMultiLeaderSession(false);
 
         createAndStartResourceManager();
 

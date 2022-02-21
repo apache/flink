@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkContextImpl;
+import org.apache.flink.table.planner.calcite.FlinkConvertletTable;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkRelFactories;
@@ -147,6 +148,7 @@ public class PlannerContext {
                 .parserConfig(getSqlParserConfig())
                 .costFactory(new FlinkCostFactory())
                 .typeSystem(typeSystem)
+                .convertletTable(FlinkConvertletTable.INSTANCE)
                 .sqlToRelConverterConfig(getSqlToRelConverterConfig(getCalciteConfig(tableConfig)))
                 .operatorTable(getSqlOperatorTable(getCalciteConfig(tableConfig)))
                 // set the executor to evaluate constant expressions

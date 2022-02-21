@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.retriever.impl;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.runtime.dispatcher.cleanup.TestingRetryStrategies;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.leaderretrieval.SettableLeaderRetrievalService;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
@@ -28,13 +29,11 @@ import org.apache.flink.runtime.rpc.RpcTimeout;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.util.TestLogger;
-import org.apache.flink.util.concurrent.FixedRetryStrategy;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -80,7 +79,7 @@ public class RpcGatewayRetrieverTest extends TestLogger {
                         rpcService,
                         DummyGateway.class,
                         Function.identity(),
-                        new FixedRetryStrategy(0, Duration.ZERO));
+                        TestingRetryStrategies.NO_RETRY_STRATEGY);
         SettableLeaderRetrievalService settableLeaderRetrievalService =
                 new SettableLeaderRetrievalService();
         DummyRpcEndpoint dummyRpcEndpoint =

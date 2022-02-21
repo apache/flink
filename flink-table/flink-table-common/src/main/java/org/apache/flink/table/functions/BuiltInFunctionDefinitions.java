@@ -1718,6 +1718,14 @@ public final class BuiltInFunctionDefinitions {
                             nullableIfArgs(ConstantArgumentCount.to(0), TypeStrategies.argument(1)))
                     .build();
 
+    public static final BuiltInFunctionDefinition TRY_CAST =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("tryCast")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.CAST)
+                    .outputTypeStrategy(forceNullable(TypeStrategies.argument(1)))
+                    .build();
+
     public static final BuiltInFunctionDefinition REINTERPRET_CAST =
             BuiltInFunctionDefinition.newBuilder()
                     .name("reinterpretCast")
