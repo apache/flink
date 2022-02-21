@@ -532,9 +532,8 @@ public class NetworkBufferPoolTest extends TestLogger {
      * NetworkBufferPool#requestMemorySegments(int)} and recycled by {@link
      * NetworkBufferPool#recycleMemorySegments(Collection)}.
      */
-    @Test(timeout = 10000L)
-    public void testIsAvailableOrNotAfterRequestAndRecycleMultiSegments()
-            throws InterruptedException, IOException {
+    @Test
+    public void testIsAvailableOrNotAfterRequestAndRecycleMultiSegments() throws Exception {
         final int numberOfSegmentsToRequest = 5;
         final int numBuffers = 2 * numberOfSegmentsToRequest;
 
@@ -556,28 +555,14 @@ public class NetworkBufferPoolTest extends TestLogger {
             assertFalse(globalPool.getAvailableFuture().isDone());
             assertEquals(numberOfSegmentsToRequest, segments2.size());
 
-            // request another 5 segments
-            final CountDownLatch latch = new CountDownLatch(1);
-            final List<MemorySegment> segments3 = new ArrayList<>(numberOfSegmentsToRequest);
-            CheckedThread asyncRequest =
-                    new CheckedThread() {
-                        @Override
-                        public void go() throws Exception {
-                            // this request should be blocked until at least 5 segments are recycled
-                            segments3.addAll(
-                                    globalPool.requestMemorySegments(numberOfSegmentsToRequest));
-                            latch.countDown();
-                        }
-                    };
-            asyncRequest.start();
-
             // recycle 5 segments
             CompletableFuture<?> availableFuture = globalPool.getAvailableFuture();
             globalPool.recycleMemorySegments(segments1);
             assertTrue(availableFuture.isDone());
 
-            // wait util the third request is fulfilled
-            latch.await();
+            // request another 5 segments
+            final List<MemorySegment> segments3 =
+                    globalPool.requestMemorySegments(numberOfSegmentsToRequest);
             assertFalse(globalPool.getAvailableFuture().isDone());
             assertEquals(numberOfSegmentsToRequest, segments3.size());
 
