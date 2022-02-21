@@ -290,11 +290,7 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "EXPR$1",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 2 ],
       "filterArg" : -1,
       "distinct" : false,

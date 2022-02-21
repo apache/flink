@@ -173,11 +173,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
@@ -186,11 +183,8 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "uv",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -314,11 +308,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
@@ -327,11 +318,8 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "uv",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -665,11 +653,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
@@ -678,11 +663,8 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "uv",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -806,11 +788,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
@@ -819,11 +798,8 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "uv",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : true,
