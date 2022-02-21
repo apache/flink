@@ -607,7 +607,11 @@ object ScalarOperatorGens {
       }
       // both sides are numeric
       else if (isNumeric(left.resultType) && isNumeric(right.resultType)) {
-        (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
+        operator match {
+          case "==" => (leftTerm, rightTerm) => s"$NUMERIC_UTIL.equals($leftTerm, $rightTerm)"
+          case "!=" => (leftTerm, rightTerm) => s"!$NUMERIC_UTIL.equals($leftTerm, $rightTerm)"
+          case _ => (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
+        }
       }
 
       // both sides are timestamp
@@ -626,7 +630,11 @@ object ScalarOperatorGens {
       // both sides are temporal of same type
       else if (isTemporal(left.resultType) &&
           isInteroperable(left.resultType, right.resultType)) {
-        (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
+        operator match {
+          case "==" => (leftTerm, rightTerm) => s"$NUMERIC_UTIL.equals($leftTerm, $rightTerm)"
+          case "!=" => (leftTerm, rightTerm) => s"!$NUMERIC_UTIL.equals($leftTerm, $rightTerm)"
+          case _ => (leftTerm, rightTerm) => s"$leftTerm $operator $rightTerm"
+        }
       }
       // both sides are boolean
       else if (isBoolean(left.resultType) &&
