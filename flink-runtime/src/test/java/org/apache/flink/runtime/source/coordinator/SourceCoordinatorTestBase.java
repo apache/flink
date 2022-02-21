@@ -37,8 +37,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -57,7 +57,7 @@ public abstract class SourceCoordinatorTestBase {
 
     // ---- Mocks for the Source Coordinator Context ----
     protected SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory;
-    protected ExecutorService coordinatorExecutor;
+    protected ScheduledExecutorService coordinatorExecutor;
     protected SplitAssignmentTracker<MockSourceSplit> splitSplitAssignmentTracker;
     protected SourceCoordinatorContext<MockSourceSplit> context;
 
@@ -78,7 +78,7 @@ public abstract class SourceCoordinatorTestBase {
                 new SourceCoordinatorProvider.CoordinatorExecutorThreadFactory(
                         coordinatorThreadName, getClass().getClassLoader());
 
-        coordinatorExecutor = Executors.newSingleThreadExecutor(coordinatorThreadFactory);
+        coordinatorExecutor = Executors.newSingleThreadScheduledExecutor(coordinatorThreadFactory);
         sourceCoordinator = getNewSourceCoordinator();
         context = sourceCoordinator.getContext();
     }
@@ -152,8 +152,7 @@ public abstract class SourceCoordinatorTestBase {
                         new MockSourceSplitSerializer(),
                         new MockSplitEnumeratorCheckpointSerializer());
 
-        return new SourceCoordinator<>(
-                OPERATOR_NAME, coordinatorExecutor, mockSource, getNewSourceCoordinatorContext());
+        return new SourceCoordinator<>(OPERATOR_NAME, mockSource, getNewSourceCoordinatorContext());
     }
 
     protected SourceCoordinatorContext<MockSourceSplit> getNewSourceCoordinatorContext() {

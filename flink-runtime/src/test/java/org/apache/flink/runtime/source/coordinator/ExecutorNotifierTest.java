@@ -22,6 +22,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,6 +30,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.shutdownExecutorForcefully;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
@@ -62,8 +64,8 @@ public class ExecutorNotifierTest {
 
     @After
     public void tearDown() throws InterruptedException {
-        notifier.close();
-        closeExecutorToNotify();
+        shutdownExecutorForcefully(workerExecutor, Duration.ofNanos(Long.MAX_VALUE));
+        shutdownExecutorForcefully(executorToNotify, Duration.ofNanos(Long.MAX_VALUE));
     }
 
     @Test
@@ -77,7 +79,6 @@ public class ExecutorNotifierTest {
                     latch.countDown();
                 });
         latch.await();
-        closeExecutorToNotify();
         assertEquals(1234, result.get());
     }
 
@@ -110,7 +111,6 @@ public class ExecutorNotifierTest {
                     throw exception2;
                 });
         latch.await();
-        closeExecutorToNotify();
         // The uncaught exception handler may fire after the executor has shutdown.
         // We need to wait on the countdown latch here.
         exceptionInHandlerLatch.await(10000L, TimeUnit.MILLISECONDS);
@@ -128,15 +128,9 @@ public class ExecutorNotifierTest {
                     throw exception;
                 });
         latch.await();
-        closeExecutorToNotify();
         // The uncaught exception handler may fire after the executor has shutdown.
         // We need to wait on the countdown latch here.
         exceptionInHandlerLatch.await(10000L, TimeUnit.MILLISECONDS);
         assertEquals(exception, exceptionInHandler);
-    }
-
-    private void closeExecutorToNotify() throws InterruptedException {
-        executorToNotify.shutdown();
-        executorToNotify.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
     }
 }
