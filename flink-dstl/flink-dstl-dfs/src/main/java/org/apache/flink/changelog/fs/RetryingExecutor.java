@@ -30,8 +30,11 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 
 /**
  * A {@link RetriableAction} executor that schedules a next attempt upon timeout based on {@link
@@ -71,24 +74,42 @@ class RetryingExecutor implements AutoCloseable {
      * <p>NOTE: the action must be idempotent because multiple instances of it can be executed
      * concurrently (if the policy allows retries).
      */
-    void execute(RetryPolicy retryPolicy, RetriableAction action) {
+    void execute(
+            RetryPolicy retryPolicy, RetriableAction action, Consumer<Throwable> failureCallback) {
         LOG.debug("execute with retryPolicy: {}", retryPolicy);
         RetriableTask task =
-                new RetriableTask(
-                        action, retryPolicy, blockingExecutor, attemptsPerTaskHistogram, timer);
+                RetriableTask.initialize(
+                        action,
+                        retryPolicy,
+                        blockingExecutor,
+                        attemptsPerTaskHistogram,
+                        timer,
+                        failureCallback);
         blockingExecutor.submit(task);
     }
 
     @Override
     public void close() throws Exception {
         LOG.debug("close");
-        timer.shutdownNow();
+        Exception closeException = null;
+        try {
+            timer.shutdownNow();
+        } catch (Exception e) {
+            closeException = e;
+        }
+        try {
+            blockingExecutor.shutdownNow();
+        } catch (Exception e) {
+            closeException = firstOrSuppressed(e, closeException);
+        }
         if (!timer.awaitTermination(1, TimeUnit.SECONDS)) {
             LOG.warn("Unable to cleanly shutdown scheduler in 1s");
         }
-        blockingExecutor.shutdownNow();
         if (!blockingExecutor.awaitTermination(1, TimeUnit.SECONDS)) {
             LOG.warn("Unable to cleanly shutdown blockingExecutor in 1s");
+        }
+        if (closeException != null) {
+            throw closeException;
         }
     }
 
@@ -102,6 +123,7 @@ class RetryingExecutor implements AutoCloseable {
 
     private static final class RetriableTask implements Runnable {
         private final RetriableAction runnable;
+        private final Consumer<Throwable> failureCallback;
         private final ScheduledExecutorService blockingExecutor;
         private final ScheduledExecutorService timer;
         private final int current;
@@ -118,25 +140,11 @@ class RetryingExecutor implements AutoCloseable {
          * to prevent double finalization ({@link #handleError}) by the executing thread and
          * timeouting thread.
          */
-        private final AtomicBoolean attemptCompleted = new AtomicBoolean(false);
+        private final AtomicBoolean attemptCompleted;
+
+        private final AtomicInteger activeAttempts;
 
         private final Histogram attemptsPerTaskHistogram;
-
-        RetriableTask(
-                RetriableAction runnable,
-                RetryPolicy retryPolicy,
-                ScheduledExecutorService blockingExecutor,
-                Histogram attemptsPerTaskHistogram,
-                ScheduledExecutorService timer) {
-            this(
-                    1,
-                    new AtomicBoolean(false),
-                    runnable,
-                    retryPolicy,
-                    blockingExecutor,
-                    attemptsPerTaskHistogram,
-                    timer);
-        }
 
         private RetriableTask(
                 int current,
@@ -144,25 +152,33 @@ class RetryingExecutor implements AutoCloseable {
                 RetriableAction runnable,
                 RetryPolicy retryPolicy,
                 ScheduledExecutorService blockingExecutor,
-                Histogram attemptsPerTaskHistogram,
-                ScheduledExecutorService timer) {
+                ScheduledExecutorService timer,
+                Consumer<Throwable> failureCallback,
+                AtomicInteger activeAttempts,
+                Histogram attemptsPerTaskHistogram) {
             this.current = current;
             this.runnable = runnable;
+            this.failureCallback = failureCallback;
             this.retryPolicy = retryPolicy;
             this.blockingExecutor = blockingExecutor;
             this.actionCompleted = actionCompleted;
             this.attemptsPerTaskHistogram = attemptsPerTaskHistogram;
             this.timer = timer;
+            this.activeAttempts = activeAttempts;
+            this.attemptCompleted = new AtomicBoolean(false);
         }
 
         @Override
         public void run() {
+            LOG.debug("starting attempt {}", current);
             if (!actionCompleted.get()) {
                 Optional<ScheduledFuture<?>> timeoutFuture = scheduleTimeout();
                 try {
                     runnable.run();
-                    actionCompleted.set(true);
-                    attemptsPerTaskHistogram.update(current);
+                    if (actionCompleted.compareAndSet(false, true)) {
+                        LOG.debug("succeeded with {} attempts", current);
+                        attemptsPerTaskHistogram.update(current);
+                    }
                     attemptCompleted.set(true);
                 } catch (Exception e) {
                     handleError(e);
@@ -173,19 +189,49 @@ class RetryingExecutor implements AutoCloseable {
         }
 
         private void handleError(Exception e) {
-            LOG.info("execution attempt {} failed: {}", current, e.getMessage());
-            // prevent double completion in case of a timeout and another failure
-            boolean attemptTransition = attemptCompleted.compareAndSet(false, true);
-            if (attemptTransition && !actionCompleted.get()) {
-                long nextAttemptDelay = retryPolicy.retryAfter(current, e);
-                if (nextAttemptDelay == 0L) {
-                    blockingExecutor.submit(next());
-                } else if (nextAttemptDelay > 0L) {
-                    blockingExecutor.schedule(next(), nextAttemptDelay, MILLISECONDS);
-                } else {
-                    actionCompleted.set(true);
-                }
+            if (!attemptCompleted.compareAndSet(false, true) || actionCompleted.get()) {
+                // either this attempt was already completed (e.g. timed out);
+                // or another attempt completed the task
+                return;
             }
+            LOG.debug("execution attempt {} failed: {}", current, e.getMessage());
+            long nextAttemptDelay = retryPolicy.retryAfter(current, e);
+            if (nextAttemptDelay >= 0L) {
+                activeAttempts.incrementAndGet();
+                scheduleNext(nextAttemptDelay, next());
+            }
+            if (activeAttempts.decrementAndGet() == 0
+                    && actionCompleted.compareAndSet(false, true)) {
+                LOG.info("failed with {} attempts: {}", current, e.getMessage());
+                failureCallback.accept(e);
+            }
+        }
+
+        private void scheduleNext(long nextAttemptDelay, RetriableTask next) {
+            if (nextAttemptDelay == 0L) {
+                blockingExecutor.submit(next);
+            } else if (nextAttemptDelay > 0L) {
+                blockingExecutor.schedule(next, nextAttemptDelay, MILLISECONDS);
+            }
+        }
+
+        private static RetriableTask initialize(
+                RetriableAction runnable,
+                RetryPolicy retryPolicy,
+                ScheduledExecutorService blockingExecutor,
+                Histogram attemptsPerTaskHistogram,
+                ScheduledExecutorService timer,
+                Consumer<Throwable> failureCallback) {
+            return new RetriableTask(
+                    1,
+                    new AtomicBoolean(false),
+                    runnable,
+                    retryPolicy,
+                    blockingExecutor,
+                    timer,
+                    failureCallback,
+                    new AtomicInteger(1),
+                    attemptsPerTaskHistogram);
         }
 
         private RetriableTask next() {
@@ -195,8 +241,10 @@ class RetryingExecutor implements AutoCloseable {
                     runnable,
                     retryPolicy,
                     blockingExecutor,
-                    attemptsPerTaskHistogram,
-                    timer);
+                    timer,
+                    failureCallback,
+                    activeAttempts,
+                    attemptsPerTaskHistogram);
         }
 
         private Optional<ScheduledFuture<?>> scheduleTimeout() {
