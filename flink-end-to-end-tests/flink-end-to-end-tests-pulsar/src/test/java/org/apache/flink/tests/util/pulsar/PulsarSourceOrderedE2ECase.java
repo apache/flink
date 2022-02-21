@@ -29,11 +29,15 @@ import org.apache.flink.tests.util.pulsar.cases.ExclusiveSubscriptionContext;
 import org.apache.flink.tests.util.pulsar.cases.FailoverSubscriptionContext;
 import org.apache.flink.tests.util.pulsar.common.FlinkContainerWithPulsarEnvironment;
 import org.apache.flink.tests.util.pulsar.common.PulsarContainerTestEnvironment;
+import org.apache.flink.testutils.junit.FailsOnJava11;
+
+import org.junit.experimental.categories.Category;
 
 /**
  * Pulsar E2E test based on connector testing framework. It's used for Failover & Exclusive
  * subscription.
  */
+@Category(value = {FailsOnJava11.class})
 public class PulsarSourceOrderedE2ECase extends SourceTestSuiteBase<String> {
 
     // Defines the Semantic.

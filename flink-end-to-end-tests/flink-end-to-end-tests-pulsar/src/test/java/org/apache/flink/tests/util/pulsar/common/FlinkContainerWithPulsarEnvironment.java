@@ -42,6 +42,7 @@ public class FlinkContainerWithPulsarEnvironment extends FlinkContainerTestEnvir
                 resourcePath("bcprov-jdk15on.jar"),
                 resourcePath("bcutil-jdk15on.jar"),
                 resourcePath("bcprov-ext-jdk15on.jar"),
+                resourcePath("jaxb-api.jar"),
                 resourcePath("jul-to-slf4j.jar"));
     }
 
