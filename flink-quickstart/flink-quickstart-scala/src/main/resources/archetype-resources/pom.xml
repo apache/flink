@@ -47,7 +47,7 @@ under the License.
 		<flink.version>@project.version@</flink.version>
 		<target.java.version>@target.java.version@</target.java.version>
 		<scala.binary.version>2.12</scala.binary.version>
-		<scala.version>2.12.7</scala.version>
+		<scala.version>2.12.15</scala.version>
 		<log4j.version>@log4j.version@</log4j.version>
 	</properties>
 
