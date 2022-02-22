@@ -1671,13 +1671,17 @@ public class SqlToOperationConverterTest {
         Stream.of("HELP", "HELP;", "HELP ;", "HELP\t;", "HELP\n;")
                 .forEach(
                         command -> {
-                            Operation operation1 = extendedParser
-                                    .parse(command)
-                                    .orElseThrow(() -> new RuntimeException(
-                                            "Fail to parse '" + command + "'"));
-                            assertThat(operation1).isInstanceOf(ClearOperation.class);
-                        }
-                );
+                            Operation operation1 =
+                                    extendedParser
+                                            .parse(command)
+                                            .orElseThrow(
+                                                    () ->
+                                                            new RuntimeException(
+                                                                    "Fail to parse '"
+                                                                            + command
+                                                                            + "'"));
+                            assertThat(operation1).isInstanceOf(HelpOperation.class);
+                        });
     }
 
     @Test
@@ -1686,28 +1690,38 @@ public class SqlToOperationConverterTest {
         Stream.of("CLEAR", "CLEAR;", "CLEAR ;", "CLEAR\t;", "CLEAR\n;")
                 .forEach(
                         command -> {
-                            Operation operation1 = extendedParser
-                                    .parse(command)
-                                    .orElseThrow(() -> new RuntimeException(
-                                            "Fail to parse '" + command + "'"));
+                            Operation operation1 =
+                                    extendedParser
+                                            .parse(command)
+                                            .orElseThrow(
+                                                    () ->
+                                                            new RuntimeException(
+                                                                    "Fail to parse '"
+                                                                            + command
+                                                                            + "'"));
                             assertThat(operation1).isInstanceOf(ClearOperation.class);
-                        }
-                );
+                        });
     }
 
     @Test
     public void testQuitCommands() {
         ExtendedParser extendedParser = new ExtendedParser();
-        Stream.of("QUIT", "QUIT;", "QUIT ;", "QUIT\t;", "QUIT\n;", "EXIT", "EXIT;", "EXIT ;", "EXIT\t;", "EXIT\n;")
+        Stream.of(
+                        "QUIT", "QUIT;", "QUIT ;", "QUIT\t;", "QUIT\n;", "EXIT", "EXIT;", "EXIT ;",
+                        "EXIT\t;", "EXIT\n;")
                 .forEach(
-                command -> {
-                    Operation operation1 = extendedParser
-                            .parse(command)
-                            .orElseThrow(() -> new RuntimeException(
-                                    "Fail to parse '" + command + "'"));
-                    assertThat(operation1).isInstanceOf(ClearOperation.class);
-                }
-        );
+                        command -> {
+                            Operation operation1 =
+                                    extendedParser
+                                            .parse(command)
+                                            .orElseThrow(
+                                                    () ->
+                                                            new RuntimeException(
+                                                                    "Fail to parse '"
+                                                                            + command
+                                                                            + "'"));
+                            assertThat(operation1).isInstanceOf(QuitOperation.class);
+                        });
     }
 
     // ~ Tool Methods ----------------------------------------------------------
