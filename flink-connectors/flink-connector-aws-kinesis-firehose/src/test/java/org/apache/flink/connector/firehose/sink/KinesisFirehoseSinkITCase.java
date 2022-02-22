@@ -92,7 +92,7 @@ public class KinesisFirehoseSinkITCase {
     }
 
     @Test
-    public void test() throws Exception {
+    public void eachElementArrivingAtSinkWillBeWrittenToFirehoseAtLeastOnce() throws Exception {
         LOG.info("1 - Creating the bucket for Firehose to deliver into...");
         createBucket(s3AsyncClient, BUCKET_NAME);
         LOG.info("2 - Creating the IAM Role for Firehose to write into the s3 bucket...");
@@ -126,11 +126,7 @@ public class KinesisFirehoseSinkITCase {
         generator.sinkTo(kdsSink);
         env.execute("Integration Test");
 
-        List<S3Object> objects =
-                listBucketObjects(
-                        createS3Client(mockFirehoseContainer.getEndpoint(), httpClient),
-                        BUCKET_NAME);
-        assertThat(objects.size()).isEqualTo(NUMBER_OF_ELEMENTS);
+        List<S3Object> objects = listBucketObjects(s3AsyncClient, BUCKET_NAME);
         assertThat(
                         readObjectsFromS3Bucket(
                                 s3AsyncClient,
