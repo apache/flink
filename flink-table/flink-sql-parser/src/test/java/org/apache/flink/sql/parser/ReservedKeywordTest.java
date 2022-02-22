@@ -30,6 +30,7 @@ import java.io.StringReader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
+/** Test class to check parser keywords. */
 @Execution(CONCURRENT)
 public class ReservedKeywordTest {
 
