@@ -1666,35 +1666,48 @@ public class SqlToOperationConverterTest {
     }
 
     @Test
-    public void testSqlClientCommands() {
+    public void testHelpCommands() {
         ExtendedParser extendedParser = new ExtendedParser();
-        Map<Class<? extends Operation>, String[]> operation2commands = new HashMap<>();
-        operation2commands.put(
-                ClearOperation.class,
-                new String[] {"CLEAR", "CLEAR;", "CLEAR ;", "CLEAR\t;", "CLEAR\n;"});
-        operation2commands.put(
-                HelpOperation.class,
-                new String[] {"HELP", "HELP;", "HELP ;", "HELP\t;", "HELP\n;"});
-        operation2commands.put(
-                QuitOperation.class,
-                new String[] {"QUIT", "QUIT;", "QUIT ;", "QUIT\t;", "QUIT\n;"});
-        operation2commands.forEach(
-                (key, value) ->
-                        Stream.of(value)
-                                .forEach(
-                                        command -> {
-                                            Operation operation1 =
-                                                    extendedParser
-                                                            .parse(command)
-                                                            .orElseThrow(
-                                                                    () ->
-                                                                            new RuntimeException(
-                                                                                    "Fail to parse '"
-                                                                                            + command
-                                                                                            + "'"));
-                                            assertThat(operation1)
-                                                    .isInstanceOf(ClearOperation.class);
-                                        }));
+        Stream.of("HELP", "HELP;", "HELP ;", "HELP\t;", "HELP\n;")
+                .forEach(
+                        command -> {
+                            Operation operation1 = extendedParser
+                                    .parse(command)
+                                    .orElseThrow(() -> new RuntimeException(
+                                            "Fail to parse '" + command + "'"));
+                            assertThat(operation1).isInstanceOf(ClearOperation.class);
+                        }
+                );
+    }
+
+    @Test
+    public void testClearCommands() {
+        ExtendedParser extendedParser = new ExtendedParser();
+        Stream.of("CLEAR", "CLEAR;", "CLEAR ;", "CLEAR\t;", "CLEAR\n;")
+                .forEach(
+                        command -> {
+                            Operation operation1 = extendedParser
+                                    .parse(command)
+                                    .orElseThrow(() -> new RuntimeException(
+                                            "Fail to parse '" + command + "'"));
+                            assertThat(operation1).isInstanceOf(ClearOperation.class);
+                        }
+                );
+    }
+
+    @Test
+    public void testQuitCommands() {
+        ExtendedParser extendedParser = new ExtendedParser();
+        Stream.of("QUIT", "QUIT;", "QUIT ;", "QUIT\t;", "QUIT\n;", "EXIT", "EXIT;", "EXIT ;", "EXIT\t;", "EXIT\n;")
+                .forEach(
+                command -> {
+                    Operation operation1 = extendedParser
+                            .parse(command)
+                            .orElseThrow(() -> new RuntimeException(
+                                    "Fail to parse '" + command + "'"));
+                    assertThat(operation1).isInstanceOf(ClearOperation.class);
+                }
+        );
     }
 
     // ~ Tool Methods ----------------------------------------------------------
