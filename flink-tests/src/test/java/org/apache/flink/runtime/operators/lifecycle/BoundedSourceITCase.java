@@ -68,7 +68,7 @@ public class BoundedSourceITCase extends AbstractTestBase {
                                         .setCheckpointStorage(
                                                 TEMPORARY_FOLDER.newFolder().toURI()));
 
-        TestJobExecutor.execute(testJob, miniClusterResource)
+        TestJobExecutor.execute(testJob, MINI_CLUSTER_RESOURCE)
                 .waitForEvent(CheckpointCompletedEvent.class)
                 .sendBroadcastCommand(FINISH_SOURCES, ALL_SUBTASKS)
                 .waitForTermination()

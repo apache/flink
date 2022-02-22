@@ -63,7 +63,7 @@ public abstract class AbstractTestBase extends TestBaseUtils {
     private static final int DEFAULT_PARALLELISM = 4;
 
     @ClassRule
-    public static MiniClusterWithClientResource miniClusterResource =
+    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
@@ -74,16 +74,16 @@ public abstract class AbstractTestBase extends TestBaseUtils {
 
     @After
     public final void cleanupRunningJobs() throws Exception {
-        if (!miniClusterResource.getMiniCluster().isRunning()) {
+        if (!MINI_CLUSTER_RESOURCE.getMiniCluster().isRunning()) {
             // do nothing if the MiniCluster is not running
             LOG.warn("Mini cluster is not running after the test!");
             return;
         }
 
-        for (JobStatusMessage path : miniClusterResource.getClusterClient().listJobs().get()) {
+        for (JobStatusMessage path : MINI_CLUSTER_RESOURCE.getClusterClient().listJobs().get()) {
             if (!path.getJobState().isTerminalState()) {
                 try {
-                    miniClusterResource.getClusterClient().cancel(path.getJobId()).get();
+                    MINI_CLUSTER_RESOURCE.getClusterClient().cancel(path.getJobId()).get();
                 } catch (Exception ignored) {
                     // ignore exceptions when cancelling dangling jobs
                 }

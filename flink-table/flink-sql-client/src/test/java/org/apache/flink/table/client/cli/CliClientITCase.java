@@ -113,10 +113,10 @@ public class CliClientITCase extends AbstractTestBase {
         replaceVars.put("$VAR_PIPELINE_JARS_URL", udfDependency.toString());
         replaceVars.put(
                 "$VAR_REST_PORT",
-                miniClusterResource.getClientConfiguration().get(PORT).toString());
+                MINI_CLUSTER_RESOURCE.getClientConfiguration().get(PORT).toString());
         replaceVars.put(
                 "$VAR_JOBMANAGER_RPC_ADDRESS",
-                miniClusterResource.getClientConfiguration().get(ADDRESS));
+                MINI_CLUSTER_RESOURCE.getClientConfiguration().get(ADDRESS));
     }
 
     @Before
@@ -150,7 +150,7 @@ public class CliClientITCase extends AbstractTestBase {
         DefaultContext defaultContext =
                 new DefaultContext(
                         Collections.emptyList(),
-                        new Configuration(miniClusterResource.getClientConfiguration())
+                        new Configuration(MINI_CLUSTER_RESOURCE.getClientConfiguration())
                                 // Make sure we use the new cast behaviour
                                 .set(
                                         ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,

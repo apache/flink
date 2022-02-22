@@ -173,7 +173,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
         jobGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, false));
 
-        ClusterClient<?> client = miniClusterResource.getClusterClient();
+        ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
         Optional<SerializedThrowable> serializedThrowable =
                 client.submitJob(jobGraph)
                         .thenCompose(client::requestJobResult)
@@ -225,7 +225,7 @@ public class WritableSavepointITCase extends AbstractTestBase {
         jobGraph.setSavepointRestoreSettings(
                 SavepointRestoreSettings.forPath(savepointPath, false));
 
-        ClusterClient<?> client = miniClusterResource.getClusterClient();
+        ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
         Optional<SerializedThrowable> serializedThrowable =
                 client.submitJob(jobGraph)
                         .thenCompose(client::requestJobResult)
