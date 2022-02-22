@@ -1667,19 +1667,30 @@ public class SqlToOperationConverterTest {
     }
 
     @ParameterizedTest
+    @ValueSource(strings = {"SET", "SET;", "SET ;", "SET\t;", "SET\n;"})
+    public void testSetCommands(String command) {
+        ExtendedParser extendedParser = new ExtendedParser();
+        assertThat(extendedParser.parse(command))
+                .get()
+                .isInstanceOf(SetOperation.class);
+    }
+
+    @ParameterizedTest
     @ValueSource(strings = {"HELP", "HELP;", "HELP ;", "HELP\t;", "HELP\n;"})
     public void testHelpCommands(String command) {
         ExtendedParser extendedParser = new ExtendedParser();
-        Operation operation1 = extendedParser.parse(command).get();
-        assertThat(operation1).isInstanceOf(HelpOperation.class);
+        assertThat(extendedParser.parse(command))
+                .get()
+                .isInstanceOf(HelpOperation.class);
     }
 
     @ParameterizedTest
     @ValueSource(strings = {"CLEAR", "CLEAR;", "CLEAR ;", "CLEAR\t;", "CLEAR\n;"})
     public void testClearCommands(String command) {
         ExtendedParser extendedParser = new ExtendedParser();
-        Operation operation1 = extendedParser.parse(command).get();
-        assertThat(operation1).isInstanceOf(ClearOperation.class);
+        assertThat(extendedParser.parse(command))
+                .get()
+                .isInstanceOf(ClearOperation.class);
     }
 
     @ParameterizedTest
@@ -1690,8 +1701,9 @@ public class SqlToOperationConverterTest {
             })
     public void testQuitCommands(String command) {
         ExtendedParser extendedParser = new ExtendedParser();
-        Operation operation1 = extendedParser.parse(command).get();
-        assertThat(operation1).isInstanceOf(QuitOperation.class);
+        assertThat(extendedParser.parse(command))
+                .get()
+                .isInstanceOf(QuitOperation.class);
     }
 
     // ~ Tool Methods ----------------------------------------------------------
