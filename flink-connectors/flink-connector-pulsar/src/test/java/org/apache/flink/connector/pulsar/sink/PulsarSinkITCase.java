@@ -22,11 +22,10 @@ import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestSuiteBase;
 import org.apache.flink.connector.pulsar.testutils.function.ControlSource;
-import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
-import org.apache.flink.runtime.testutils.MiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.junit.SharedObjectsExtension;
 
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -46,7 +45,8 @@ class PulsarSinkITCase extends PulsarTestSuiteBase {
 
     private static final int PARALLELISM = 1;
 
-    public static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
@@ -54,11 +54,6 @@ class PulsarSinkITCase extends PulsarTestSuiteBase {
                             .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
                             .withHaLeadershipControl()
                             .build());
-
-    @SuppressWarnings("unused")
-    @RegisterExtension
-    public static final AllCallbackWrapper<MiniClusterExtension> CALLBACK_WRAPPER =
-            new AllCallbackWrapper<>(MINI_CLUSTER_RESOURCE);
 
     // Using this extension for creating shared reference which would be used in source function.
     @RegisterExtension final SharedObjectsExtension sharedObjects = SharedObjectsExtension.create();
