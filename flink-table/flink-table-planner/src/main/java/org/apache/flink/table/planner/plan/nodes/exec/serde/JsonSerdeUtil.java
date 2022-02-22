@@ -109,8 +109,14 @@ public class JsonSerdeUtil {
         OBJECT_MAPPER_INSTANCE.registerModule(createFlinkTableJacksonModule());
     }
 
-    /** Get the {@link ObjectMapper} instance. */
-    public static ObjectMapper getObjectMapper() {
+    /**
+     * Get the {@link ObjectMapper} instance.
+     *
+     * <p>This is not exposed outside this package to avoid bad usages, like adding new modules. If
+     * you need to read and write json, just use {@link #createObjectWriter(SerdeContext)} and
+     * {@link #createObjectReader(SerdeContext)}.
+     */
+    static ObjectMapper getObjectMapper() {
         return OBJECT_MAPPER_INSTANCE;
     }
 
