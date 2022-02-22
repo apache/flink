@@ -117,9 +117,17 @@ public final class LogicalTypeCasts {
 
         // cast specification
 
-        castTo(CHAR).implicitFrom(CHAR).explicitFromFamily(PREDEFINED).build();
+        castTo(CHAR)
+                .implicitFrom(CHAR)
+                .explicitFromFamily(PREDEFINED, CONSTRUCTED)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE)
+                .build();
 
-        castTo(VARCHAR).implicitFromFamily(CHARACTER_STRING).explicitFromFamily(PREDEFINED).build();
+        castTo(VARCHAR)
+                .implicitFromFamily(CHARACTER_STRING)
+                .explicitFromFamily(PREDEFINED, CONSTRUCTED)
+                .explicitFrom(RAW, NULL, STRUCTURED_TYPE)
+                .build();
 
         castTo(BOOLEAN)
                 .implicitFrom(BOOLEAN)
@@ -319,17 +327,17 @@ public final class LogicalTypeCasts {
             // field
             return isSingleFieldInterval(targetType);
         } else if ((sourceType.is(CONSTRUCTED) || sourceType.is(STRUCTURED_TYPE))
-                && targetType.is(CHARACTER_STRING)) {
-            return supportsCollectionAndStructuredToStringCasting(sourceType, allowExplicit);
-        } else if (sourceType.is(CONSTRUCTED) || targetType.is(CONSTRUCTED)) {
-            return supportsConstructedCasting(sourceType, targetType, allowExplicit);
-        } else if (sourceRoot == STRUCTURED_TYPE || targetRoot == STRUCTURED_TYPE) {
+                && (targetType.is(CONSTRUCTED) || targetType.is(STRUCTURED_TYPE))) {
+            if (sourceType.is(CONSTRUCTED) || targetType.is(CONSTRUCTED)) {
+                return supportsConstructedCasting(sourceType, targetType, allowExplicit);
+            }
             return supportsStructuredCasting(
                     sourceType, targetType, (s, t) -> supportsCasting(s, t, allowExplicit));
-        } else if (sourceType.is(RAW) && targetType.is(CHARACTER_STRING)) {
-            // We always support RAW to STRING
-            return true;
-        } else if (sourceRoot == RAW && !targetType.is(BINARY_STRING) || targetRoot == RAW) {
+
+        } else if (sourceRoot == RAW
+                        && !targetType.is(BINARY_STRING)
+                        && !targetType.is(CHARACTER_STRING)
+                || targetRoot == RAW) {
             // the two raw types are not equal (from initial invariant), casting is not possible
             return false;
         } else if (sourceRoot == SYMBOL || targetRoot == SYMBOL) {
@@ -413,17 +421,6 @@ public final class LogicalTypeCasts {
             return true;
         }
         return false;
-    }
-
-    private static boolean supportsCollectionAndStructuredToStringCasting(
-            LogicalType sourceType, boolean allowExplicit) {
-        final List<LogicalType> sourceChildren = sourceType.getChildren();
-        for (LogicalType sourceChild : sourceChildren) {
-            if (!supportsCasting(sourceChild, VarCharType.STRING_TYPE, allowExplicit)) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private static CastingRuleBuilder castTo(LogicalTypeRoot targetType) {

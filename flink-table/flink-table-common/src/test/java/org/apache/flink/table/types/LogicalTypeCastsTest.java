@@ -49,7 +49,6 @@ import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.runners.Parameterized.Parameters;
 
 import java.util.Arrays;
 import java.util.stream.Stream;
@@ -60,7 +59,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Execution(ExecutionMode.CONCURRENT)
 class LogicalTypeCastsTest {
 
-    @Parameters(name = "{index}: [From: {0}, To: {1}, Implicit: {2}, Explicit: {3}]")
     public static Stream<Arguments> testData() {
         return Stream.of(
                 Arguments.of(new SmallIntType(), new BigIntType(), true, true),
@@ -249,8 +247,14 @@ class LogicalTypeCastsTest {
 
                 // raw to binary
                 Arguments.of(
-                        new RawType(Integer.class, IntSerializer.INSTANCE),
+                        new RawType<>(Integer.class, IntSerializer.INSTANCE),
                         new BinaryType(),
+                        false,
+                        true),
+                // raw to binary
+                Arguments.of(
+                        new RawType<>(Integer.class, IntSerializer.INSTANCE),
+                        VarCharType.STRING_TYPE,
                         false,
                         true));
     }

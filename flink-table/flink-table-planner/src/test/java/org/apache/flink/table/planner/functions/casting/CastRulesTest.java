@@ -39,6 +39,8 @@ import org.apache.flink.table.utils.DateTimeUtils;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -98,6 +100,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  * This class runs unit tests of {@link CastRule} implementations. For IT test cases, check out the
  * {@link CastFunctionITCase}
  */
+@Execution(ExecutionMode.CONCURRENT)
 class CastRulesTest {
 
     private static final ZoneId CET = ZoneId.of("CET");
