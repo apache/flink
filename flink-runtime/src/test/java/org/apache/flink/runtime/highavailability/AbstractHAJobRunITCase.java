@@ -29,6 +29,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
+import org.apache.flink.test.junit5.InjectMiniCluster;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
@@ -46,6 +47,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * {@code AbstractHAJobRunITCase} runs a job storing in HA mode and provides {@code abstract}
  * methods for initializing a specific {@link FileSystem}.
+ *
+ * <p>Sub-classes must use a {@link
+ * org.apache.flink.runtime.testutils.InternalMiniClusterExtension}.
  */
 @ExtendWith(TestLoggerExtension.class)
 public abstract class AbstractHAJobRunITCase {
@@ -72,12 +76,9 @@ public abstract class AbstractHAJobRunITCase {
 
     protected void runAfterJobTermination() throws Exception {}
 
-    protected abstract MiniCluster getMiniCluster();
-
     @Test
-    public void testJobExecutionInHaMode() throws Exception {
-        final MiniCluster flinkCluster = getMiniCluster();
-
+    public void testJobExecutionInHaMode(@InjectMiniCluster MiniCluster flinkCluster)
+            throws Exception {
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
 
         // providing a timeout helps making the test fail in case some issue occurred while

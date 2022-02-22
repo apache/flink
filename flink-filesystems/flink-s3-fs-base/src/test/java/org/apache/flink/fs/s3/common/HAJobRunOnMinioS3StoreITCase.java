@@ -22,16 +22,14 @@ import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
-import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.core.testutils.TestContainerExtension;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.highavailability.AbstractHAJobRunITCase;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
-import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.MiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
@@ -65,21 +63,15 @@ public abstract class HAJobRunOnMinioS3StoreITCase extends AbstractHAJobRunITCas
 
     @RegisterExtension
     @Order(3)
-    private static final EachCallbackWrapper<MiniClusterExtension> miniClusterExtension =
-            new EachCallbackWrapper<>(
-                    new MiniClusterExtension(
-                            () -> {
-                                final Configuration configuration = createConfiguration();
-                                FileSystem.initialize(configuration, null);
-                                return new MiniClusterResourceConfiguration.Builder()
-                                        .setConfiguration(configuration)
-                                        .build();
-                            }));
-
-    @Override
-    public MiniCluster getMiniCluster() {
-        return miniClusterExtension.getCustomExtension().getMiniCluster();
-    }
+    private static final MiniClusterExtension miniClusterExtension =
+            new MiniClusterExtension(
+                    () -> {
+                        final Configuration configuration = createConfiguration();
+                        FileSystem.initialize(configuration, null);
+                        return new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(configuration)
+                                .build();
+                    });
 
     private static MinioTestContainer getMinioContainer() {
         return MINIO_EXTENSION.getCustomExtension().getTestContainer();

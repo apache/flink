@@ -27,7 +27,6 @@ import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -39,7 +38,8 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
-import org.apache.flink.test.util.MiniClusterWithClientExtension;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.testutils.logging.LoggerAuditingExtension;
 
 import org.junit.jupiter.api.Test;
@@ -71,21 +71,17 @@ public class AlignedWatermarksITCase {
 
     private static final InMemoryReporter reporter = InMemoryReporter.createWithRetainedMetrics();
 
-    public static final MiniClusterWithClientExtension MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientExtension(
+    @RegisterExtension
+    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setConfiguration(reporter.addToConfiguration(new Configuration()))
                             .build());
 
-    @RegisterExtension
-    public static final AllCallbackWrapper<MiniClusterWithClientExtension> ALL_WRAPPER =
-            new AllCallbackWrapper<>(MINI_CLUSTER_RESOURCE);
-
     @Test
-    public void testAlignment() throws Exception {
+    public void testAlignment(@InjectMiniCluster MiniCluster miniCluster) throws Exception {
         final JobGraph jobGraph = getJobGraph();
-        final MiniCluster miniCluster = MINI_CLUSTER_RESOURCE.getMiniCluster();
         final CompletableFuture<JobSubmissionResult> submission = miniCluster.submitJob(jobGraph);
         final JobID jobID = submission.get().getJobID();
         CommonTestUtils.waitForAllTaskRunning(miniCluster, jobID, false);
