@@ -86,7 +86,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testSetPlannerType: Unit = {
-    tEnv.getConfig.getConfiguration.set(TableConfigOptions.TABLE_PLANNER, PlannerType.OLD)
+    tEnv.getConfig.set(TableConfigOptions.TABLE_PLANNER, PlannerType.OLD)
 
     TestTableSourceSinks.createCsvTemporarySinkTable(
       tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
@@ -106,9 +106,9 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
   @Test
   def testSetExecutionMode(): Unit = {
     if (isStreaming) {
-      tEnv.getConfig.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+      tEnv.getConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     } else {
-      tEnv.getConfig.getConfiguration.set(ExecutionOptions.RUNTIME_MODE,
+      tEnv.getConfig.set(ExecutionOptions.RUNTIME_MODE,
         RuntimeExecutionMode.STREAMING)
     }
 
@@ -377,7 +377,7 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
 
   @Test
   def testTableDMLSync(): Unit = {
-    tEnv.getConfig.getConfiguration.set(TableConfigOptions.TABLE_DML_SYNC, Boolean.box(true))
+    tEnv.getConfig.set(TableConfigOptions.TABLE_DML_SYNC, Boolean.box(true))
     val sink1Path = _tempFolder.newFolder().toString
     tEnv.executeSql(
       s"""

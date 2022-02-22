@@ -53,7 +53,6 @@ public abstract class OperatorNameTestBase extends TableTestBase {
         util.getStreamEnv().setParallelism(2);
         tEnv = util.getTableEnv();
         tEnv.getConfig()
-                .getConfiguration()
                 .set(
                         ExecutionConfigOptions.TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED,
                         isNameSimplifyEnabled);

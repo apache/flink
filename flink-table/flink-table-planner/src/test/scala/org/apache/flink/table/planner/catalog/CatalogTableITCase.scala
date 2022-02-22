@@ -62,8 +62,7 @@ class CatalogTableITCase(isStreamingMode: Boolean) extends AbstractTestBase {
   @Before
   def before(): Unit = {
     tableEnv.getConfig
-      .getConfiguration
-      .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
+      .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
     TestCollectionTableFactory.reset()
 
     val func = new CatalogFunctionImpl(

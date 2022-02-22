@@ -342,8 +342,9 @@ class TableSourceITCase extends BatchTestBase {
 
   @Test
   def testTableHintWithLogicalTableScanReuse(): Unit = {
-    tEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
+    tEnv.getConfig.set(
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      Boolean.box(true))
     val resultPath = TEMPORARY_FOLDER.newFolder().getAbsolutePath
     tEnv.executeSql(
       s"""

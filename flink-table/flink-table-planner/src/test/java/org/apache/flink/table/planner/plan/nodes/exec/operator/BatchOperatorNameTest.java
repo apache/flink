@@ -65,9 +65,7 @@ public class BatchOperatorNameTest extends OperatorNameTestBase {
     /** Verify Sort, SortAggregate. */
     @Test
     public void testSortAggregate() {
-        tEnv.getConfig()
-                .getConfiguration()
-                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        tEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
         createTestSource();
         verifyQuery("SELECT a, " + "count(distinct b) as b " + "FROM MyTable GROUP BY a");
     }
@@ -95,8 +93,7 @@ public class BatchOperatorNameTest extends OperatorNameTestBase {
     @Test
     public void testNestedLoopJoin() {
         tEnv.getConfig()
-                .getConfiguration()
-                .setString(
+                .set(
                         ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
                         "HashJoin, SortMergeJoin");
         testJoinInternal();
@@ -106,8 +103,7 @@ public class BatchOperatorNameTest extends OperatorNameTestBase {
     @Test
     public void testSortMergeJoin() {
         tEnv.getConfig()
-                .getConfiguration()
-                .setString(
+                .set(
                         ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
                         "HashJoin, NestedLoopJoin");
         testJoinInternal();

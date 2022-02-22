@@ -136,10 +136,8 @@ class CodeSplitITCase extends BatchTestBase {
   }
 
   private[flink] def runTest(sql: String, results: Seq[Row]): Unit = {
-    tEnv.getConfig.getConfiguration.setInteger(
-      TableConfigOptions.MAX_LENGTH_GENERATED_CODE, 4000)
-    tEnv.getConfig.getConfiguration.setInteger(
-      TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, 10000)
+    tEnv.getConfig.set(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, Int.box(4000))
+    tEnv.getConfig.set(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, Int.box(10000))
     checkResult(sql.mkString, results)
   }
 }
