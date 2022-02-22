@@ -138,6 +138,8 @@ public class TestingLongStateHandleHelper
 
         private final int stateReference;
 
+        private boolean isMarkedForDeletion = false;
+
         public LongRetrievableStateHandle(int stateReference) {
             this.stateReference = stateReference;
         }
@@ -145,6 +147,16 @@ public class TestingLongStateHandleHelper
         @Override
         public LongStateHandle retrieveState() {
             return STATE_STORAGE.get(stateReference);
+        }
+
+        @Override
+        public boolean isMarkedForDeletion() {
+            return isMarkedForDeletion;
+        }
+
+        @Override
+        public void markForDeletion() {
+            isMarkedForDeletion = true;
         }
 
         @Override

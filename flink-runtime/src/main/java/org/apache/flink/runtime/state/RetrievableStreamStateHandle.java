@@ -44,6 +44,8 @@ public class RetrievableStreamStateHandle<T extends Serializable>
     /** wrapped inner stream state handle from which we deserialize on retrieval */
     private final StreamStateHandle wrappedStreamStateHandle;
 
+    private boolean isMarkedForDeletion = false;
+
     public RetrievableStreamStateHandle(StreamStateHandle streamStateHandle) {
         this.wrappedStreamStateHandle = Preconditions.checkNotNull(streamStateHandle);
     }
@@ -59,6 +61,16 @@ public class RetrievableStreamStateHandle<T extends Serializable>
             return InstantiationUtil.deserializeObject(
                     in, Thread.currentThread().getContextClassLoader());
         }
+    }
+
+    @Override
+    public boolean isMarkedForDeletion() {
+        return isMarkedForDeletion;
+    }
+
+    @Override
+    public void markForDeletion() {
+        isMarkedForDeletion = true;
     }
 
     @Override

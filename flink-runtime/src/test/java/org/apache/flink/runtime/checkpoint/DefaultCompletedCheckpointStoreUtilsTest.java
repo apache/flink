@@ -66,9 +66,21 @@ public class DefaultCompletedCheckpointStoreUtilsTest extends TestLogger {
 
         private static final int serialVersionUID = 1;
 
+        private boolean isMarkedForDeletion = false;
+
         @Override
         public T retrieveState() throws IOException, ClassNotFoundException {
             throw new IOException("Test exception.");
+        }
+
+        @Override
+        public boolean isMarkedForDeletion() {
+            return isMarkedForDeletion;
+        }
+
+        @Override
+        public void markForDeletion() {
+            isMarkedForDeletion = true;
         }
 
         @Override

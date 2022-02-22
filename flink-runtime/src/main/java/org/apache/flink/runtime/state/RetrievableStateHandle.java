@@ -26,4 +26,8 @@ public interface RetrievableStateHandle<T extends Serializable> extends StateObj
 
     /** Retrieves the object that was previously written to state. */
     T retrieveState() throws IOException, ClassNotFoundException;
+
+    boolean isMarkedForDeletion();
+
+    void markForDeletion();
 }

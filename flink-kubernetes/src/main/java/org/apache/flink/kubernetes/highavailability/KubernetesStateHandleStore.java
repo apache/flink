@@ -45,6 +45,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
@@ -388,8 +389,17 @@ public class KubernetesStateHandleStore<T extends Serializable>
                                 final String content = configMap.getData().remove(key);
                                 if (content != null) {
                                     try {
-                                        stateHandleRefer.set(deserializeObject(content));
-                                    } catch (IOException e) {
+                                        final RetrievableStateHandle<T> stateHandle =
+                                                deserializeObject(content);
+                                        stateHandle.markForDeletion();
+                                        stateHandleRefer.set(stateHandle);
+
+                                        final byte[] serializedStateHandle =
+                                                serializeOrDiscard(stateHandle);
+                                        configMap
+                                                .getData()
+                                                .put(key, encodeStateHandle(serializedStateHandle));
+                                    } catch (Exception e) {
                                         LOG.warn(
                                                 "Could not retrieve the state handle of {} from ConfigMap {}.",
                                                 key,
@@ -413,6 +423,22 @@ public class KubernetesStateHandleStore<T extends Serializable>
                                 }
                             }
                         })
+                .thenCompose(
+                        succeed -> {
+                            if (succeed) {
+                                return kubeClient.checkAndUpdateConfigMap(
+                                        configMapName,
+                                        configMap -> {
+                                            if (isValidOperation(configMap)) {
+                                                configMap.getData().remove(key);
+                                                return Optional.of(configMap);
+                                            }
+                                            return Optional.empty();
+                                        });
+                            }
+
+                            return CompletableFuture.completedFuture(false);
+                        })
                 .get();
     }
 
@@ -423,31 +449,39 @@ public class KubernetesStateHandleStore<T extends Serializable>
      */
     @Override
     public void releaseAndTryRemoveAll() throws Exception {
-        final List<RetrievableStateHandle<T>> validStateHandles = new ArrayList<>();
+        final Map<String, RetrievableStateHandle<T>> validStateHandles = new HashMap<>();
         kubeClient
                 .checkAndUpdateConfigMap(
                         configMapName,
                         c -> {
                             if (isValidOperation(c)) {
-                                final Map<String, String> updateData = new HashMap<>(c.getData());
                                 c.getData().entrySet().stream()
                                         .filter(entry -> configMapKeyFilter.test(entry.getKey()))
                                         .forEach(
                                                 entry -> {
                                                     try {
-                                                        validStateHandles.add(
-                                                                deserializeObject(
-                                                                        entry.getValue()));
-                                                        updateData.remove(entry.getKey());
-                                                    } catch (IOException e) {
+                                                        final RetrievableStateHandle<T>
+                                                                stateHandle =
+                                                                        deserializeObject(
+                                                                                entry.getValue());
+                                                        stateHandle.markForDeletion();
+                                                        validStateHandles.put(
+                                                                entry.getKey(), stateHandle);
+
+                                                        final byte[] serializedStateHandle =
+                                                                serializeOrDiscard(stateHandle);
+                                                        c.getData()
+                                                                .put(
+                                                                        entry.getKey(),
+                                                                        encodeStateHandle(
+                                                                                serializedStateHandle));
+                                                    } catch (Exception e) {
                                                         LOG.warn(
                                                                 "ConfigMap {} contained corrupted data. Ignoring the key {}.",
                                                                 configMapName,
                                                                 entry.getKey());
                                                     }
                                                 });
-                                c.getData().clear();
-                                c.getData().putAll(updateData);
                                 return Optional.of(c);
                             }
                             return Optional.empty();
@@ -456,7 +490,8 @@ public class KubernetesStateHandleStore<T extends Serializable>
                         (succeed, ignore) -> {
                             if (succeed) {
                                 Exception exception = null;
-                                for (RetrievableStateHandle<T> stateHandle : validStateHandles) {
+                                for (RetrievableStateHandle<T> stateHandle :
+                                        validStateHandles.values()) {
                                     try {
                                         stateHandle.discardState();
                                     } catch (Exception e) {
@@ -470,6 +505,28 @@ public class KubernetesStateHandleStore<T extends Serializable>
                                                     exception));
                                 }
                             }
+                        })
+                .thenCompose(
+                        succeed -> {
+                            if (succeed) {
+                                kubeClient.checkAndUpdateConfigMap(
+                                        configMapName,
+                                        configMap -> {
+                                            if (isValidOperation(configMap)) {
+                                                validStateHandles
+                                                        .keySet()
+                                                        .forEach(
+                                                                key ->
+                                                                        configMap
+                                                                                .getData()
+                                                                                .remove(key));
+                                                return Optional.of(configMap);
+                                            }
+                                            return Optional.empty();
+                                        });
+                            }
+
+                            return CompletableFuture.completedFuture(false);
                         })
                 .get();
     }

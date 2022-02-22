@@ -42,6 +42,7 @@ public final class TestingRetrievableStateStorageHelper<T extends Serializable>
         private static final long serialVersionUID = 137053380713794300L;
 
         private final T state;
+        private boolean isMarkedForDeletion = false;
 
         private TestingRetrievableStateHandle(T state) {
             this.state = state;
@@ -50,6 +51,16 @@ public final class TestingRetrievableStateStorageHelper<T extends Serializable>
         @Override
         public T retrieveState() {
             return state;
+        }
+
+        @Override
+        public boolean isMarkedForDeletion() {
+            return isMarkedForDeletion;
+        }
+
+        @Override
+        public void markForDeletion() {
+            isMarkedForDeletion = true;
         }
 
         @Override

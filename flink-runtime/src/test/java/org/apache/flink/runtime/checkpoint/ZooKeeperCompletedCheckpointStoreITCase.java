@@ -427,6 +427,8 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
 
         private final int key;
 
+        private boolean isMarkedForDeletion = false;
+
         public HeapRetrievableStateHandle(T state) {
             key = nextKey.getAndIncrement();
             stateMap.put(key, state);
@@ -436,6 +438,16 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
         @Override
         public T retrieveState() {
             return (T) stateMap.get(key);
+        }
+
+        @Override
+        public boolean isMarkedForDeletion() {
+            return isMarkedForDeletion;
+        }
+
+        @Override
+        public void markForDeletion() {
+            isMarkedForDeletion = true;
         }
 
         @Override

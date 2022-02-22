@@ -69,6 +69,8 @@ public final class TestingRetrievableStateStorageHelper<T extends Serializable>
 
         private final T state;
 
+        private boolean isMarkedForDeletion = false;
+
         private TestingRetrievableStateHandle(T state) {
             this.state = state;
         }
@@ -76,6 +78,16 @@ public final class TestingRetrievableStateStorageHelper<T extends Serializable>
         @Override
         public T retrieveState() throws IOException {
             return retrieveStateFunction.apply(state);
+        }
+
+        @Override
+        public boolean isMarkedForDeletion() {
+            return isMarkedForDeletion;
+        }
+
+        @Override
+        public void markForDeletion() {
+            isMarkedForDeletion = true;
         }
 
         @Override

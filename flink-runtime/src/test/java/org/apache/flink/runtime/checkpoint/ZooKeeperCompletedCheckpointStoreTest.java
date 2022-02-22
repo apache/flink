@@ -206,6 +206,8 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
         private final Function<Long, CompletedCheckpoint> checkpointSupplier;
         private final long id;
 
+        private boolean isMarkedForDeletion = false;
+
         CheckpointStateHandle(Function<Long, CompletedCheckpoint> checkpointSupplier, long id) {
             this.checkpointSupplier = checkpointSupplier;
             this.id = id;
@@ -214,6 +216,16 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
         @Override
         public CompletedCheckpoint retrieveState() {
             return checkpointSupplier.apply(id);
+        }
+
+        @Override
+        public boolean isMarkedForDeletion() {
+            return isMarkedForDeletion;
+        }
+
+        @Override
+        public void markForDeletion() {
+            isMarkedForDeletion = true;
         }
 
         @Override
