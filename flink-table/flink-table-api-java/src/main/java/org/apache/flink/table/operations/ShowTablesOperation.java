@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.operations;
 
+import static org.apache.flink.util.Preconditions.checkNotNull;
+
 /** Operation to describe a SHOW TABLES statement. */
 public class ShowTablesOperation implements ShowOperation {
 
@@ -40,7 +42,7 @@ public class ShowTablesOperation implements ShowOperation {
     public ShowTablesOperation(String likePattern, boolean useLike, boolean notLike) {
         this.catalogName = null;
         this.databaseName = null;
-        this.likePattern = likePattern;
+        this.likePattern = useLike ? checkNotNull(likePattern, "Like pattern must not be null") : null;
         this.useLike = useLike;
         this.notLike = notLike;
         this.preposition = null;
@@ -53,12 +55,12 @@ public class ShowTablesOperation implements ShowOperation {
             boolean useLike,
             boolean notLike,
             String preposition) {
-        this.catalogName = catalogName;
-        this.databaseName = databaseName;
-        this.likePattern = likePattern;
+        this.catalogName = checkNotNull(catalogName, "Catalog name must not be null");
+        this.databaseName = checkNotNull(databaseName, "Database name must not be null");
+        this.likePattern = useLike ? checkNotNull(likePattern, "Like pattern must not be null") : null;
         this.useLike = useLike;
         this.notLike = notLike;
-        this.preposition = preposition;
+        this.preposition = checkNotNull(preposition, "Preposition must not be null");
     }
 
     public String getLikePattern() {

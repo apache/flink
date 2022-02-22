@@ -414,34 +414,19 @@ SqlShowViews SqlShowViews() :
 */
 SqlShowTables SqlShowTables() :
 {
-    SqlIdentifier databaseName;
+    SqlIdentifier databaseName = null;
     SqlCharStringLiteral likeLiteral = null;
-    String prep = "FROM";
+    String prep = null;
     boolean notLike = false;
     SqlParserPos pos;
 }
 {
     <SHOW> <TABLES>
+    { pos = getPos(); }
     [
-        [( <FROM> | <IN> { prep = "IN"; } )]
+        ( <FROM> { prep = "FROM"; } | <IN> { prep = "IN"; } )
         { pos = getPos(); }
         databaseName = CompoundIdentifier()
-        [
-            [
-                <NOT>
-                {
-                    notLike = true;
-                }
-            ]
-            <LIKE>  <QUOTED_STRING>
-            {
-                String likeCondition = SqlParserUtil.parseString(token.image);
-                likeLiteral = SqlLiteral.createCharString(likeCondition, getPos());
-            }
-        ]
-        {
-            return new SqlShowTables(pos, prep, databaseName, notLike, likeLiteral);
-        }
     ]
     [
         [
@@ -457,7 +442,7 @@ SqlShowTables SqlShowTables() :
         }
     ]
     {
-        return new SqlShowTables(getPos(), notLike, likeLiteral);
+        return new SqlShowTables(pos, prep, databaseName, notLike, likeLiteral);
     }
 }
 

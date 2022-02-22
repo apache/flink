@@ -53,14 +53,6 @@ public class SqlShowTables extends SqlCall {
         this.likeLiteral = null;
     }
 
-    public SqlShowTables(SqlParserPos pos, boolean notLike, SqlCharStringLiteral likeLiteral) {
-        super(pos);
-        this.preposition = null;
-        this.databaseName = null;
-        this.notLike = notLike;
-        this.likeLiteral = likeLiteral;
-    }
-
     public SqlShowTables(
             SqlParserPos pos,
             String preposition,
@@ -68,9 +60,8 @@ public class SqlShowTables extends SqlCall {
             boolean notLike,
             SqlCharStringLiteral likeLiteral) {
         super(pos);
-        this.preposition =
-                requireNonNull(preposition, "Preposition of 'SHOW TABLES' must be 'FROM' or 'IN'.");
-        this.databaseName = requireNonNull(databaseName, "databaseName should not be null.");
+        this.preposition = preposition;
+        this.databaseName = preposition != null ? requireNonNull(databaseName, "Database name must not be null.") : null;
         this.notLike = notLike;
         this.likeLiteral = likeLiteral;
     }

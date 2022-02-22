@@ -184,6 +184,7 @@ import org.apache.calcite.sql.dialect.CalciteSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -947,7 +948,7 @@ public class SqlToOperationConverter {
         }
         String[] fullDatabaseName = sqlShowTables.fullDatabaseName();
         if (fullDatabaseName.length > 2) {
-            throw new ValidationException("show tables from/in identifier format error");
+            throw new ValidationException(String.format("show tables from/in identifier [ %s ] format error", String.join(".", fullDatabaseName)));
         }
         String catalogName =
                 (fullDatabaseName.length == 1)
