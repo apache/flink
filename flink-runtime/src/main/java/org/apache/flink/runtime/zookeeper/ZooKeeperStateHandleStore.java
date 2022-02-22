@@ -428,11 +428,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
         release(pathInZooKeeper);
 
         try {
-            client.delete().forPath(getLocksChildPath(path));
-        } catch (KeeperException.NoNodeException ignored) {
-            LOG.debug(
-                    "ZNode '{}' is already marked for deletion. Command is ignored.",
-                    pathInZooKeeper);
+            deleteIdempotently(getLocksChildPath(path));
         } catch (KeeperException.NotEmptyException ignored) {
             LOG.debug(
                     "Could not delete znode {} because it is still locked.",
@@ -444,11 +440,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
             stateHandle.discardState();
         }
 
-        try {
-            client.delete().forPath(path);
-        } catch (KeeperException.NoNodeException e) {
-            LOG.debug("Znode '{}' does not exist anymore. Deletion request is ignored.", path);
-        }
+        deleteIdempotently(path);
 
         return true;
     }
@@ -492,12 +484,18 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
     public void release(String pathInZooKeeper) throws Exception {
         final String path = normalizePath(pathInZooKeeper);
         try {
-            client.delete().forPath(getLockPath(path));
-        } catch (KeeperException.NoNodeException ignored) {
-            // we have never locked this node
+            deleteIdempotently(getLockPath(path));
         } catch (Exception e) {
             throw new Exception(
                     "Could not release the lock: " + getLockPath(pathInZooKeeper) + '.', e);
+        }
+    }
+
+    private void deleteIdempotently(String path) throws Exception {
+        try {
+            client.delete().forPath(path);
+        } catch (KeeperException.NoNodeException ignored) {
+            LOG.debug("ZNode '{}' is already marked for deletion. Command is ignored.", path);
         }
     }
 
