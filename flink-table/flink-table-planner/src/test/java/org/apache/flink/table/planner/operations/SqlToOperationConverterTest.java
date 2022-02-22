@@ -69,6 +69,9 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.ClearOperation;
+import org.apache.flink.table.operations.command.HelpOperation;
+import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
@@ -90,6 +93,7 @@ import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.expressions.utils.Func8$;
 import org.apache.flink.table.planner.parse.CalciteParser;
+import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
@@ -114,6 +118,7 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
@@ -1658,6 +1663,38 @@ public class SqlToOperationConverterTest {
         assertThat(operation2).isInstanceOf(ResetOperation.class);
         assertThat(((ResetOperation) operation2).getKey()).isPresent();
         assertThat(((ResetOperation) operation2).getKey()).hasValue("test-key");
+    }
+
+    @Test
+    public void testSqlClientCommands() {
+        ExtendedParser extendedParser = new ExtendedParser();
+        Map<Class<? extends Operation>, String[]> operation2commands = new HashMap<>();
+        operation2commands.put(
+                ClearOperation.class,
+                new String[] {"CLEAR", "CLEAR;", "CLEAR ;", "CLEAR\t;", "CLEAR\n;"});
+        operation2commands.put(
+                HelpOperation.class,
+                new String[] {"HELP", "HELP;", "HELP ;", "HELP\t;", "HELP\n;"});
+        operation2commands.put(
+                QuitOperation.class,
+                new String[] {"QUIT", "QUIT;", "QUIT ;", "QUIT\t;", "QUIT\n;"});
+        operation2commands.forEach(
+                (key, value) ->
+                        Stream.of(value)
+                                .forEach(
+                                        command -> {
+                                            Operation operation1 =
+                                                    extendedParser
+                                                            .parse(command)
+                                                            .orElseThrow(
+                                                                    () ->
+                                                                            new RuntimeException(
+                                                                                    "Fail to parse '"
+                                                                                            + command
+                                                                                            + "'"));
+                                            assertThat(operation1)
+                                                    .isInstanceOf(ClearOperation.class);
+                                        }));
     }
 
     // ~ Tool Methods ----------------------------------------------------------
