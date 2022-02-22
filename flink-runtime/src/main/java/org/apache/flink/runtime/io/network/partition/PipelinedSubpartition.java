@@ -499,10 +499,8 @@ public class PipelinedSubpartition extends ResultSubpartition
 
                 // if we have an empty finished buffer and the exclusive credit is 0, we just return
                 // the empty buffer so that the downstream task can release the allocated credit for
-                // this empty buffer, this happens in two main scenarios currently:
-                // 1. all data of a buffer builder has been read and after that the buffer builder
-                // is finished
-                // 2. in approximate recovery mode, a partial record takes a whole buffer builder
+                // this empty buffer, this happens in the scenarios that all data of a buffer
+                // builder has been read and after that the buffer builder is finished.
                 if (receiverExclusiveBuffersPerChannel == 0 && bufferConsumer.isFinished()) {
                     break;
                 }

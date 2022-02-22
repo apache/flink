@@ -48,8 +48,5 @@ public enum GlobalStreamExchangeMode {
     POINTWISE_EDGES_PIPELINED,
 
     /** Set all job edges {@link ResultPartitionType#PIPELINED_BOUNDED}. */
-    ALL_EDGES_PIPELINED,
-
-    /** Set all job edges {@link ResultPartitionType#PIPELINED_APPROXIMATE}. */
-    ALL_EDGES_PIPELINED_APPROXIMATE
+    ALL_EDGES_PIPELINED
 }

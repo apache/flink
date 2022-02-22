@@ -141,8 +141,7 @@ public class ResultPartitionFactory {
 
         final ResultPartition partition;
         if (type == ResultPartitionType.PIPELINED
-                || type == ResultPartitionType.PIPELINED_BOUNDED
-                || type == ResultPartitionType.PIPELINED_APPROXIMATE) {
+                || type == ResultPartitionType.PIPELINED_BOUNDED) {
             final PipelinedResultPartition pipelinedPartition =
                     new PipelinedResultPartition(
                             taskNameWithSubtaskAndId,
@@ -156,15 +155,9 @@ public class ResultPartitionFactory {
                             bufferPoolFactory);
 
             for (int i = 0; i < subpartitions.length; i++) {
-                if (type == ResultPartitionType.PIPELINED_APPROXIMATE) {
-                    subpartitions[i] =
-                            new PipelinedApproximateSubpartition(
-                                    i, configuredNetworkBuffersPerChannel, pipelinedPartition);
-                } else {
-                    subpartitions[i] =
-                            new PipelinedSubpartition(
-                                    i, configuredNetworkBuffersPerChannel, pipelinedPartition);
-                }
+                subpartitions[i] =
+                        new PipelinedSubpartition(
+                                i, configuredNetworkBuffersPerChannel, pipelinedPartition);
             }
 
             partition = pipelinedPartition;

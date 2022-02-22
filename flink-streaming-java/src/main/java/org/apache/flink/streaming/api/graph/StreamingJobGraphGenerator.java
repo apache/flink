@@ -166,9 +166,6 @@ public class StreamingJobGraphGenerator {
         preValidate();
         jobGraph.setJobType(streamGraph.getJobType());
 
-        jobGraph.enableApproximateLocalRecovery(
-                streamGraph.getCheckpointConfig().isApproximateLocalRecoveryEnabled());
-
         // Generate deterministic hashes for the nodes in order to identify them across
         // submission iff they didn't change.
         Map<Integer, byte[]> hashes =
@@ -1043,8 +1040,6 @@ public class StreamingJobGraphGenerator {
                 }
             case ALL_EDGES_PIPELINED:
                 return ResultPartitionType.PIPELINED_BOUNDED;
-            case ALL_EDGES_PIPELINED_APPROXIMATE:
-                return ResultPartitionType.PIPELINED_APPROXIMATE;
             default:
                 throw new RuntimeException(
                         "Unrecognized global data exchange mode "

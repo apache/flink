@@ -383,7 +383,7 @@ public class StreamGraphGenerator {
         graph.setChangelogStateBackendEnabled(changelogStateBackendEnabled);
         graph.setCheckpointStorage(checkpointStorage);
         graph.setSavepointDirectory(savepointDir);
-        graph.setGlobalStreamExchangeMode(deriveGlobalStreamExchangeModeStreaming());
+        graph.setGlobalStreamExchangeMode(GlobalStreamExchangeMode.ALL_EDGES_PIPELINED);
     }
 
     private String deriveJobName(String defaultJobName) {
@@ -403,20 +403,6 @@ public class StreamGraphGenerator {
                                 "Unsupported shuffle mode '%s' in BATCH runtime mode.",
                                 shuffleMode.toString()));
         }
-    }
-
-    private GlobalStreamExchangeMode deriveGlobalStreamExchangeModeStreaming() {
-        if (checkpointConfig.isApproximateLocalRecoveryEnabled()) {
-            checkApproximateLocalRecoveryCompatibility();
-            return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED_APPROXIMATE;
-        }
-        return GlobalStreamExchangeMode.ALL_EDGES_PIPELINED;
-    }
-
-    private void checkApproximateLocalRecoveryCompatibility() {
-        checkState(
-                !checkpointConfig.isUnalignedCheckpointsEnabled(),
-                "Approximate Local Recovery and Unaligned Checkpoint can not be used together yet");
     }
 
     private void setBatchStateBackendAndTimerService(StreamGraph graph) {

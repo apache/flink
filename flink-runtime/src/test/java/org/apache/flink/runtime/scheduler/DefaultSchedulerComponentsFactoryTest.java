@@ -29,10 +29,8 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 /**
  * Tests for the factory method {@link DefaultSchedulerComponents#createSchedulerComponents(
@@ -62,33 +60,10 @@ public class DefaultSchedulerComponentsFactoryTest extends TestLogger {
                 instanceOf(PipelinedRegionSchedulingStrategy.Factory.class));
     }
 
-    @Test
-    public void testCreatingPipelinedRegionSchedulingStrategyFactoryWithApproximateLocalRecovery() {
-        final Configuration configuration = new Configuration();
-
-        try {
-            createSchedulerComponents(configuration, true, JobType.STREAMING);
-            fail("expected failure");
-        } catch (IllegalArgumentException e) {
-            assertThat(
-                    e,
-                    containsMessage(
-                            "Approximate local recovery can not be used together with PipelinedRegionScheduler for now"));
-        }
-    }
-
     private static DefaultSchedulerComponents createSchedulerComponents(
             final Configuration configuration) {
-        return createSchedulerComponents(configuration, false, JobType.BATCH);
-    }
-
-    private static DefaultSchedulerComponents createSchedulerComponents(
-            final Configuration configuration,
-            boolean iApproximateLocalRecoveryEnabled,
-            JobType jobType) {
         return DefaultSchedulerComponents.createSchedulerComponents(
-                jobType,
-                iApproximateLocalRecoveryEnabled,
+                JobType.BATCH,
                 configuration,
                 SlotPoolUtils.createDeclarativeSlotPoolBridge(),
                 Time.milliseconds(10L));

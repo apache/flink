@@ -81,11 +81,6 @@ public class ChannelPersistenceITCase {
     }
 
     @Test
-    public void testNotBlocksAfterRecoveringStateForApproximateLocalRecovery() throws Exception {
-        upstreamBlocksAfterRecoveringState(ResultPartitionType.PIPELINED_APPROXIMATE);
-    }
-
-    @Test
     public void testReadWritten() throws Exception {
         byte[] inputChannelInfoData = randomBytes(1024);
         byte[] resultSubpartitionInfoData = randomBytes(1024);
@@ -152,11 +147,9 @@ public class ChannelPersistenceITCase {
             resultPartition.emitRecord(ByteBuffer.wrap(dataAfterRecovery), 0);
             ResultSubpartitionView view =
                     resultPartition.createSubpartitionView(0, new NoOpBufferAvailablityListener());
-            if (type != ResultPartitionType.PIPELINED_APPROXIMATE) {
-                assertEquals(RECOVERY_COMPLETION, view.getNextBuffer().buffer().getDataType());
-                assertNull(view.getNextBuffer());
-                view.resumeConsumption();
-            }
+            assertEquals(RECOVERY_COMPLETION, view.getNextBuffer().buffer().getDataType());
+            assertNull(view.getNextBuffer());
+            view.resumeConsumption();
             assertArrayEquals(dataAfterRecovery, collectBytes(view.getNextBuffer().buffer()));
         } finally {
             networkBufferPool.destroy();

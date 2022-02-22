@@ -301,38 +301,6 @@ public class RestartPipelinedRegionFailoverStrategyTest extends TestLogger {
         verifyThatFailedExecution(strategy, v2).partitionConnectionCause(v1out).restarts();
     }
 
-    /**
-     * Tests approximate local recovery downstream failover .
-     *
-     * <pre>
-     *     (v1) -----> (v2) -----> (v4)
-     *      |                       ^
-     *      |--------> (v3) --------|
-     * </pre>
-     */
-    @Test
-    public void testRegionFailoverForPipelinedApproximate() {
-        final TestingSchedulingTopology topology = new TestingSchedulingTopology();
-
-        TestingSchedulingExecutionVertex v1 = topology.newExecutionVertex(ExecutionState.RUNNING);
-        TestingSchedulingExecutionVertex v2 = topology.newExecutionVertex(ExecutionState.RUNNING);
-        TestingSchedulingExecutionVertex v3 = topology.newExecutionVertex(ExecutionState.RUNNING);
-        TestingSchedulingExecutionVertex v4 = topology.newExecutionVertex(ExecutionState.RUNNING);
-
-        topology.connect(v1, v2, ResultPartitionType.PIPELINED_APPROXIMATE);
-        topology.connect(v1, v3, ResultPartitionType.PIPELINED_APPROXIMATE);
-        topology.connect(v2, v4, ResultPartitionType.PIPELINED_APPROXIMATE);
-        topology.connect(v3, v4, ResultPartitionType.PIPELINED_APPROXIMATE);
-
-        RestartPipelinedRegionFailoverStrategy strategy =
-                new RestartPipelinedRegionFailoverStrategy(topology);
-
-        verifyThatFailedExecution(strategy, v1).restarts(v1, v2, v3, v4);
-        verifyThatFailedExecution(strategy, v2).restarts(v2, v4);
-        verifyThatFailedExecution(strategy, v3).restarts(v3, v4);
-        verifyThatFailedExecution(strategy, v4).restarts(v4);
-    }
-
     private static VerificationContext verifyThatFailedExecution(
             FailoverStrategy strategy, SchedulingExecutionVertex executionVertex) {
         return new VerificationContext(strategy, executionVertex);

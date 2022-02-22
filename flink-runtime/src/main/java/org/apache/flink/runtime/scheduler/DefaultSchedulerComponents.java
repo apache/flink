@@ -36,8 +36,6 @@ import org.apache.flink.util.clock.SystemClock;
 
 import java.util.function.Consumer;
 
-import static org.apache.flink.util.Preconditions.checkArgument;
-
 /**
  * Components to create a {@link DefaultScheduler}. Currently only supports {@link
  * PipelinedRegionSchedulingStrategy}.
@@ -72,14 +70,9 @@ public class DefaultSchedulerComponents {
 
     static DefaultSchedulerComponents createSchedulerComponents(
             final JobType jobType,
-            final boolean isApproximateLocalRecoveryEnabled,
             final Configuration jobMasterConfiguration,
             final SlotPool slotPool,
             final Time slotRequestTimeout) {
-
-        checkArgument(
-                !isApproximateLocalRecoveryEnabled,
-                "Approximate local recovery can not be used together with PipelinedRegionScheduler for now! ");
         return createPipelinedRegionSchedulerComponents(
                 jobType, jobMasterConfiguration, slotPool, slotRequestTimeout);
     }

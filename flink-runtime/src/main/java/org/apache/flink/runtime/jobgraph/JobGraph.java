@@ -84,12 +84,6 @@ public class JobGraph implements Serializable {
 
     private JobType jobType = JobType.BATCH;
 
-    /**
-     * Whether approximate local recovery is enabled. This flag will be removed together with legacy
-     * scheduling strategies.
-     */
-    private boolean approximateLocalRecovery = false;
-
     // --- checkpointing ---
 
     /** Job specific execution config. */
@@ -215,14 +209,6 @@ public class JobGraph implements Serializable {
 
     public JobType getJobType() {
         return jobType;
-    }
-
-    public void enableApproximateLocalRecovery(boolean enabled) {
-        this.approximateLocalRecovery = enabled;
-    }
-
-    public boolean isApproximateLocalRecoveryEnabled() {
-        return approximateLocalRecovery;
     }
 
     /**

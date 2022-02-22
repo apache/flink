@@ -35,7 +35,7 @@ public final class PipelinedRegionComputeUtil {
     static <V extends Vertex<?, ?, V, R>, R extends Result<?, ?, V, R>>
             Map<V, Set<V>> buildRawRegions(
                     final Iterable<? extends V> topologicallySortedVertices,
-                    final Function<V, Iterable<R>> getNonReconnectableConsumedResults) {
+                    final Function<V, Iterable<R>> getIsPipelinedConsumedResults) {
 
         final Map<V, Set<V>> vertexToRegion = new IdentityHashMap<>();
 
@@ -45,11 +45,7 @@ public final class PipelinedRegionComputeUtil {
             currentRegion.add(vertex);
             vertexToRegion.put(vertex, currentRegion);
 
-            // Similar to the BLOCKING ResultPartitionType, each vertex connected through
-            // PIPELINED_APPROXIMATE is also considered as a single region. This attribute is
-            // called "reconnectable". Reconnectable will be removed after FLINK-19895, see also
-            // {@link ResultPartitionType#isReconnectable}
-            for (R consumedResult : getNonReconnectableConsumedResults.apply(vertex)) {
+            for (R consumedResult : getIsPipelinedConsumedResults.apply(vertex)) {
                 final V producerVertex = consumedResult.getProducer();
                 final Set<V> producerRegion = vertexToRegion.get(producerVertex);
 
