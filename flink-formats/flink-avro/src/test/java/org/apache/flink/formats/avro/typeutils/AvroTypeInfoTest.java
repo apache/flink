@@ -29,7 +29,7 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link AvroTypeInfo}. */
-class AvroTypeInfoTest extends TypeInformationTestBase<AvroTypeInfo<?>> {
+public class AvroTypeInfoTest extends TypeInformationTestBase<AvroTypeInfo<?>> {
 
     @Override
     protected AvroTypeInfo<?>[] getTestData() {

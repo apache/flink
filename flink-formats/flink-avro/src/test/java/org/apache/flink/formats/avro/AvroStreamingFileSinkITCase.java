@@ -137,15 +137,13 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
     private static <T> void validateResults(
             File folder, DatumReader<T> datumReader, List<T> expected) throws Exception {
         File[] buckets = folder.listFiles();
-        assertThat(buckets).isNotNull();
-        assertThat(buckets.length).isEqualTo(1);
+        assertThat(buckets).isNotNull().hasSize(1);
 
         File[] partFiles = buckets[0].listFiles();
-        assertThat(partFiles).isNotNull();
-        assertThat(partFiles.length).isEqualTo(2);
+        assertThat(partFiles).isNotNull().hasSize(2);
 
         for (File partFile : partFiles) {
-            assertThat(partFile.length() > 0).isTrue();
+            assertThat(partFile.length()).isPositive();
 
             final List<T> fileContent = readAvroFile(partFile, datumReader);
             assertThat(fileContent).isEqualTo(expected);

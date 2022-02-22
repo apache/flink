@@ -26,7 +26,7 @@ import org.apache.flink.formats.avro.utils.TestDataGenerator;
 import java.util.Random;
 
 /** Tests for the {@link AvroSerializer} that test specific avro types. */
-class AvroSerializerTest extends SerializerTestBase<User> {
+public class AvroSerializerTest extends SerializerTestBase<User> {
 
     @Override
     protected TypeSerializer<User> createSerializer() {
