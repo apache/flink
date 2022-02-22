@@ -20,13 +20,13 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.SortCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
@@ -62,23 +62,22 @@ public class BatchExecSort extends ExecNodeBase<RowData> implements BatchExecNod
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         ExecEdge inputEdge = getInputEdges().get(0);
         Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
 
-        TableConfig config = planner.getTableConfig();
         RowType inputType = (RowType) inputEdge.getOutputType();
-        SortCodeGenerator codeGen = new SortCodeGenerator(config, inputType, sortSpec);
+        SortCodeGenerator codeGen =
+                new SortCodeGenerator(config.getTableConfig(), inputType, sortSpec);
 
         SortOperator operator =
                 new SortOperator(
                         codeGen.generateNormalizedKeyComputer("BatchExecSortComputer"),
                         codeGen.generateRecordComparator("BatchExecSortComparator"));
         long sortMemory =
-                config.getConfiguration()
-                        .get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY)
-                        .getBytes();
+                config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_SORT_MEMORY).getBytes();
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
                 createTransformationName(config),

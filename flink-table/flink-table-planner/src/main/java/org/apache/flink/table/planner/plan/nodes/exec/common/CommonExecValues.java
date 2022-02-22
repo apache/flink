@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.codegen.ValuesCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer;
@@ -59,10 +60,11 @@ public abstract class CommonExecValues extends ExecNodeBase<RowData>
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ValuesInputFormat inputFormat =
                 ValuesCodeGenerator.generatorInputFormat(
-                        planner.getTableConfig(),
+                        config.getTableConfig(),
                         (RowType) getOutputType(),
                         tuples,
                         getClass().getSimpleName());
@@ -70,8 +72,7 @@ public abstract class CommonExecValues extends ExecNodeBase<RowData>
                 planner.getExecEnv()
                         .createInput(inputFormat, inputFormat.getProducedType())
                         .getTransformation();
-        createTransformationMeta(VALUES_TRANSFORMATION, planner.getTableConfig())
-                .fill(transformation);
+        createTransformationMeta(VALUES_TRANSFORMATION, config).fill(transformation);
         transformation.setParallelism(1);
         transformation.setMaxParallelism(1);
         return transformation;

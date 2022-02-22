@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
@@ -43,6 +42,7 @@ import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
 import org.apache.flink.table.planner.plan.logical.TumblingGroupWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
@@ -179,7 +179,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final boolean isCountWindow;
         if (window instanceof TumblingGroupWindow) {
             isCountWindow = hasRowIntervalType(((TumblingGroupWindow) window).size());
@@ -189,10 +190,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
             isCountWindow = false;
         }
 
-        final TableConfig tableConfig = planner.getTableConfig();
-        if (isCountWindow
-                && grouping.length > 0
-                && tableConfig.getMinIdleStateRetentionTime() < 0) {
+        if (isCountWindow && grouping.length > 0 && config.getStateRetentionTime() < 0) {
             LOGGER.warn(
                     "No state retention interval configured for a query which accumulates state."
                             + " Please provide a query configuration with valid retention interval to"
@@ -225,18 +223,19 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
 
         final ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(
-                        window.timeAttribute().getOutputDataType().getLogicalType(), tableConfig);
+                        window.timeAttribute().getOutputDataType().getLogicalType(),
+                        config.getLocalTimeZone());
         Tuple2<WindowAssigner<?>, Trigger<?>> windowAssignerAndTrigger =
                 generateWindowAssignerAndTrigger();
         WindowAssigner<?> windowAssigner = windowAssignerAndTrigger.f0;
         Trigger<?> trigger = windowAssignerAndTrigger.f1;
-        Configuration mergedConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
+        Configuration pythonConfig =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
         boolean isGeneralPythonUDAF =
                 Arrays.stream(aggCalls)
                         .anyMatch(x -> PythonUtil.isPythonAggregate(x, PythonFunctionKind.GENERAL));
         OneInputTransformation<RowData, RowData> transform;
-        WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(tableConfig, window);
+        WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(config, window);
         if (isGeneralPythonUDAF) {
             final boolean[] aggCallNeedRetractions = new boolean[aggCalls.length];
             Arrays.fill(aggCallNeedRetractions, needRetraction);
@@ -257,7 +256,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             windowAssigner,
                             aggInfoList,
                             emitStrategy.getAllowLateness(),
-                            mergedConfig,
+                            pythonConfig,
                             shiftTimeZone);
         } else {
             transform =
@@ -269,12 +268,12 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             windowAssigner,
                             trigger,
                             emitStrategy.getAllowLateness(),
-                            mergedConfig,
-                            planner.getTableConfig(),
+                            pythonConfig,
+                            config,
                             shiftTimeZone);
         }
 
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(mergedConfig)) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         // set KeyType and Selector for state
@@ -359,8 +358,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     WindowAssigner<?> windowAssigner,
                     Trigger<?> trigger,
                     long allowance,
-                    Configuration mergedConfig,
-                    TableConfig tableConfig,
+                    Configuration pythonConfig,
+                    ExecNodeConfig config,
                     ZoneId shiftTimeZone) {
 
         Tuple2<int[], PythonFunctionInfo[]> aggInfos =
@@ -369,8 +368,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         PythonFunctionInfo[] pythonFunctionInfos = aggInfos.f1;
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPandasPythonStreamGroupWindowAggregateFunctionOperator(
-                        tableConfig,
-                        mergedConfig,
+                        config,
+                        pythonConfig,
                         inputRowType,
                         outputRowType,
                         windowAssigner,
@@ -382,8 +381,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                         shiftTimeZone);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationName(tableConfig),
-                createTransformationDescription(tableConfig),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
@@ -433,8 +432,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
     @SuppressWarnings({"unchecked", "rawtypes"})
     private OneInputStreamOperator<RowData, RowData>
             getPandasPythonStreamGroupWindowAggregateFunctionOperator(
-                    TableConfig tableConfig,
-                    Configuration mergedConfig,
+                    ExecNodeConfig config,
+                    Configuration pythonConfig,
                     RowType inputRowType,
                     RowType outputRowType,
                     WindowAssigner<?> windowAssigner,
@@ -473,7 +472,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                             ZoneId.class,
                             GeneratedProjection.class);
             return ctor.newInstance(
-                    mergedConfig,
+                    pythonConfig,
                     pythonFunctionInfos,
                     inputRowType,
                     userDefinedFunctionInputType,
@@ -485,7 +484,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                     namedWindowProperties,
                     shiftTimeZone,
                     ProjectionCodeGenerator.generateProjection(
-                            CodeGeneratorContext.apply(tableConfig),
+                            CodeGeneratorContext.apply(config.getTableConfig()),
                             "UdafInputProjection",
                             inputRowType,
                             userDefinedFunctionInputType,

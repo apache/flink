@@ -23,7 +23,6 @@ import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
@@ -32,6 +31,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -166,7 +166,8 @@ public class StreamExecRank extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         switch (rankType) {
             case ROW_NUMBER:
                 break;
@@ -201,16 +202,14 @@ public class StreamExecRank extends ExecNodeBase<RowData>
                                         sortSpec.getFieldSpec(idx).getIsAscendingOrder(),
                                         sortSpec.getFieldSpec(idx).getNullIsLast()));
         SortSpec sortSpecInSortKey = builder.build();
-        TableConfig tableConfig = planner.getTableConfig();
         GeneratedRecordComparator sortKeyComparator =
                 ComparatorCodeGenerator.gen(
-                        tableConfig,
+                        config.getTableConfig(),
                         "StreamExecSortComparator",
                         RowType.of(sortSpec.getFieldTypes(inputType)),
                         sortSpecInSortKey);
-        long cacheSize = tableConfig.getConfiguration().getLong(TABLE_EXEC_RANK_TOPN_CACHE_SIZE);
-        StateTtlConfig ttlConfig =
-                StateConfigUtil.createTtlConfig(tableConfig.getIdleStateRetention().toMillis());
+        long cacheSize = config.get(TABLE_EXEC_RANK_TOPN_CACHE_SIZE);
+        StateTtlConfig ttlConfig = StateConfigUtil.createTtlConfig(config.getStateRetentionTime());
 
         AbstractTopNFunction processFunction;
         if (rankStrategy instanceof RankProcessStrategy.AppendFastStrategy) {
@@ -323,7 +322,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        createTransformationMeta(RANK_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(RANK_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of((RowType) getOutputType()),
                         inputTransform.getParallelism());

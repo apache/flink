@@ -21,8 +21,7 @@ import org.apache.flink.api.common.time.Time
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.api.java.functions.KeySelector
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.configuration.{CheckpointingOptions, Configuration}
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.contrib.streaming.state.RocksDBStateBackend
 import org.apache.flink.runtime.state.StateBackend
 import org.apache.flink.runtime.state.memory.MemoryStateBackend
@@ -31,13 +30,14 @@ import org.apache.flink.streaming.api.scala.DataStream
 import org.apache.flink.streaming.api.transformations.{OneInputTransformation, PartitionTransformation}
 import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.util.{KeyedOneInputStreamOperatorTestHarness, OneInputStreamOperatorTestHarness}
+import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.planner.JLong
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.{HEAP_BACKEND, ROCKSDB_BACKEND, StateBackendMode}
-
 import org.junit.runners.Parameterized
 
+import java.time.Duration
 import java.util
 
 import scala.collection.JavaConversions._
@@ -132,6 +132,7 @@ class HarnessTestBase(mode: StateBackendMode) extends StreamingTestBase {
     override def getMaxIdleStateRetentionTime: Long = maxIdleStateRetentionTime
 
     override def setIdleStateRetentionTime(minTime: Time, maxTime: Time): Unit = {
+      super.setIdleStateRetention(Duration.ofMillis(minTime.toMilliseconds))
       minIdleStateRetentionTime = minTime.toMilliseconds
       maxIdleStateRetentionTime = maxTime.toMilliseconds
     }
