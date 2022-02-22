@@ -32,7 +32,7 @@ entire lifecycle of your software project.
 ## Requirements
 
 - Maven 3.0.4 (or higher)
-- Java 8.x
+- Java 11
 
 ## Importing the project into your IDE
 
