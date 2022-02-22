@@ -432,8 +432,8 @@ trait FileSystemITCaseBase {
 
   @Test
   def testLimitPushDown(): Unit = {
-    tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
     tableEnv.executeSql("insert into nonPartitionedTable select x, y, a, b from originalT").await()
 
     check(

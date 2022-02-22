@@ -72,8 +72,7 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                     }
                 });
         tableEnv.getConfig()
-                .getConfiguration()
-                .setString(
+                .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
                         aggPhase.toString());
     }
@@ -181,9 +180,7 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
     @Test
     public void testDistinctSplitEnabled() throws Exception {
         tableEnv.getConfig()
-                .getConfiguration()
-                .setBoolean(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
         createTestValuesSinkTable(
                 "MySink", "name STRING", "max_double DOUBLE", "cnt_distinct_int BIGINT");
 

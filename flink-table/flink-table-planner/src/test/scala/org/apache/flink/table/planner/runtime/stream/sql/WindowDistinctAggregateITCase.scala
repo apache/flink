@@ -172,8 +172,9 @@ class WindowDistinctAggregateITCase(
          |)
          |""".stripMargin)
 
-    tEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, splitDistinct)
+    tEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED,
+      Boolean.box(splitDistinct))
   }
 
   @Test

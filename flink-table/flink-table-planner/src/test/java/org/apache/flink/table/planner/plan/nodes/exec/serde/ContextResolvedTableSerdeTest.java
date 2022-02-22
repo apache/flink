@@ -811,13 +811,12 @@ public class ContextResolvedTableSerdeTest {
             TableConfigOptions.CatalogPlanCompilation planCompilationOption,
             TableConfigOptions.CatalogPlanRestore planRestoreOption) {
         // Create table options
-        TableConfig tableConfig = TableConfig.getDefault();
-        tableConfig
-                .getConfiguration()
-                .set(TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS, planRestoreOption);
-        tableConfig
-                .getConfiguration()
-                .set(TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS, planCompilationOption);
+        TableConfig tableConfig =
+                TableConfig.getDefault()
+                        .set(TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS, planRestoreOption)
+                        .set(
+                                TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS,
+                                planCompilationOption);
 
         return JsonSerdeTestUtil.configuredSerdeContext(CATALOG_MANAGER, tableConfig);
     }

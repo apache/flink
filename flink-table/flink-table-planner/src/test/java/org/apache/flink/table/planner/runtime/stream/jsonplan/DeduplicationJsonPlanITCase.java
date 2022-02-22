@@ -68,9 +68,7 @@ public class DeduplicationJsonPlanITCase extends JsonPlanTestBase {
                                 + "    ROW_NUMBER() OVER (PARTITION BY product ORDER BY event_time ASC) AS row_num\n"
                                 + "  FROM MyTable)\n"
                                 + "WHERE row_num = 1 \n");
-        tableEnv.getConfig()
-                .getConfiguration()
-                .setInteger(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
+        tableEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
         checkTransformationUids(compiledPlan);
         tableEnv.executePlan(compiledPlan).await();
 

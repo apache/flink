@@ -1333,10 +1333,8 @@ class CalcITCase extends BatchTestBase {
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
       "a, b, c",
       nullablesOfNullData3)
-    tableConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
-    tableConfig.getConfiguration.setBoolean(
-      BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED, true)
+    tableConfig.set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
+    tableConfig.set(BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED, Boolean.box(true))
     checkResult(
       "select * from BinaryT order by c",
       nullData3.sortBy((x : Row) =>

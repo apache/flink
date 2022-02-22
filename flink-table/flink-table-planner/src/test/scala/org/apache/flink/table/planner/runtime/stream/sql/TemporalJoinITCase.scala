@@ -702,12 +702,12 @@ class TemporalJoinITCase(state: StateBackendMode)
 
   @Test
   def testMiniBatchEventTimeViewTemporalJoin(): Unit = {
-    tEnv.getConfig.getConfiguration.setBoolean(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    tEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY.key(), "10 s")
-    tEnv.getConfig.getConfiguration.setLong(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 4L)
+    tEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    tEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY.key(), "10 s")
+    tEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(4L))
 
     val sql = "INSERT INTO rowtime_default_sink " +
       " SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time " +

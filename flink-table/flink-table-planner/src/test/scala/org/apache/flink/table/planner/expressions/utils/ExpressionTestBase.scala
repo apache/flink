@@ -100,7 +100,7 @@ abstract class ExpressionTestBase {
 
   @Before
   def prepare(): Unit = {
-    config.getConfiguration.set(
+    config.set(
       ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
       ExecutionConfigOptions.LegacyCastBehaviour.DISABLED
     )

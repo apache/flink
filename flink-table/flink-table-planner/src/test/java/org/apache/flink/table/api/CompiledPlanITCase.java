@@ -218,7 +218,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
 
     @Test
     public void testCompilePlanOverwrite() throws Exception {
-        tableEnv.getConfig().getConfiguration().set(TableConfigOptions.PLAN_FORCE_RECOMPILE, true);
+        tableEnv.getConfig().set(TableConfigOptions.PLAN_FORCE_RECOMPILE, true);
 
         Path planPath =
                 Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json")
