@@ -202,7 +202,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
     @Test(timeout = 30000L)
     public void testProducerWhenCommitEmptyPartitionsToOutdatedTxnCoordinator() throws Exception {
         String topic = "flink-kafka-producer-txn-coordinator-changed";
-        createTestTopic(topic, 1, 2);
+        createTestTopic(topic, 1, 1);
         Producer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties);
         try {
             kafkaProducer.initTransactions();

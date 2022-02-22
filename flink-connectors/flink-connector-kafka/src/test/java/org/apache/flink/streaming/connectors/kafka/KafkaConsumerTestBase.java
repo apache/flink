@@ -820,7 +820,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         final int elementsPerPartition = 100;
         final int totalElements = parallelism * elementsPerPartition;
 
-        createTestTopic(topic, parallelism, 2);
+        createTestTopic(topic, parallelism, 1);
         createTestTopic(
                 additionalEmptyTopic,
                 parallelism,
@@ -1468,7 +1468,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         final int totalElements = parallelism * numElementsPerPartition;
         final int failAfterElements = numElementsPerPartition / 3;
 
-        createTestTopic(topic, parallelism, 2);
+        createTestTopic(topic, parallelism, 1);
 
         DataGenerators.generateRandomizedIntegerSequence(
                 StreamExecutionEnvironment.getExecutionEnvironment(),
