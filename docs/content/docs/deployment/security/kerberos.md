@@ -37,7 +37,7 @@ authentication for client/server applications by using secret-key cryptography.
 
 A Flink program may use first- or third-party connectors, necessitating arbitrary authentication methods 
 (Kerberos, SSL/TLS, username/password, etc.). While satisfying the security requirements for all connectors 
-is an ongoing effort, Flink provides first-class support for Kerberos authentication only.
+is an ongoing effort, Flink provides first-class support for Kerberos authentication and SSL/TLS only.
 
 Kerberos can be used to authenticate connections to:
 - Hadoop and its components (YARN, HDFS, HBase)
@@ -51,8 +51,14 @@ authentication modes:
 
 In production deployments, streaming jobs usually run for long periods of time. It is important to be 
 able to authenticate to secured data sources throughout the lifetime of the job. Kerberos keytabs are 
-the preferred authentication approach because they won't expire during the lifetime of long-running 
-stream processing applications, unlike a Hadoop delegation token or ticket cache entry.
+the preferred authentication approach because they can be used during the entire lifetime of long-running 
+stream processing applications, unlike a Hadoop delegation token or ticket cache entry (which expires).
+
+{{< hint info >}}
+Keytabs are subject to any password expiration policies that may be imposed on a principal. Thus, if 
+a principal's password expires (or the password is changed), a keytab generated using that password 
+will be rendered invalid.
+{{< /hint >}}
 
 Note that the credentials are tied to a Flink cluster and not to a running job. Thus, all applications 
 that run on the same cluster use the same authentication token and all jobs within a cluster will share 
@@ -62,12 +68,12 @@ Flink cluster with a different configuration. Numerous Flink clusters may run si
 or YARN environment.
 
 Note that it is possible to enable and configure the use of Kerberos independently for each service 
-or connector that is capable of being used with Kerberos. For example, you may enable Hadoop security 
-without enabling the use of Kerberos for ZooKeeper, or vice versa. 
+or connector that is capable of being used with Kerberos. For example, you can decide to use Kerberos 
+for Hadoop security, but not for ZooKeeper. 
 
 All services using Kerberos will use the same credentials. If you need to run some jobs with different 
 Kerberos credentials, those jobs will have to run in a different cluster that is configured to use 
-those other credentials. For example, you can decide to use Kerberos for Hadoop security, but not for ZooKeeper.
+those other credentials. 
 
 ## Using Kerberos with Flink Security Modules
 
@@ -90,7 +96,7 @@ configuration to the cluster, making available the configured Kerberos credentia
 and other such components that rely on JAAS.
 
 Note that the user may also provide a static JAAS configuration file using the mechanisms described 
-in the [Java SE Documentation](http://docs.oracle.com/javase/7/docs/technotes/guides/security/jgss/tutorials/LoginConfigFile.html).   
+in the [Java SE Documentation](http://docs.oracle.com/javase/8/docs/technotes/guides/security/jgss/tutorials/LoginConfigFile.html).   
 Static entries override any dynamic entries provided by this module.
 
 ### ZooKeeper Security Module
@@ -100,8 +106,9 @@ service name (default: `zookeeper`) and the JAAS login context name (default: `C
 
 ## Ticket Renewal
 
-A Ticket Granting Ticket (TGT) is a small, encrypted identification file with a limited validity period.
-The TGT file contains the session key, its expiration date, and the user's IP address.
+A Ticket Granting Ticket (TGT) is typically a small, encrypted identification file (but can also be 
+a directory, API, keyring, etc) with a limited validity period. The TGT contains the client ID, the 
+client network address, the ticket validity period, and the Ticket Granting Server session key.
 
 Each component that uses Kerberos is independently responsible for renewing the Kerberos TGT. Hadoop, 
 ZooKeeper, and Kafka all renew the TGT automatically when provided a keytab. In the delegation token 

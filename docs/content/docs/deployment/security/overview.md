@@ -26,14 +26,20 @@ under the License.
 
 Frameworks that process data are sensitive components; you must use authentication and encryption to 
 secure your data and data sources. Apache Flink supports authentication with [Kerberos](https://web.mit.edu/kerberos/) 
-and can be configured to encrypt all network communication with [SSL](https://www.ssl.com/faqs/faq-what-is-ssl/).
+and can be configured to encrypt all network communication with [SSL/TLS](https://www.ssl.com/faqs/faq-what-is-ssl/).
+
+{{< hint info >}}
+SSL and TLS are both encryption protocols for the transport layer, used for encrypting data between
+the client and server. The TLS protocol is the successor to SSL. Flink enforces TLS by default, but 
+you can also switch back to SSL.
+{{< /hint >}}
 
 When we talk about security for Flink, we generally make a distinction between securing the internal 
-communication within the Flink cluster (i.e. between the Task Managers, between the Task Managers and 
-the Flink Master) and securing the external communication between the cluster and the outside world.
+communication within the Flink cluster (i.e. between the Taskmanagers, between the Taskmanagers and 
+the Jobmanager) and securing the external communication between the cluster and the outside world.
 
-Internally, netty is used for the TCP connections used for data exchange among the task managers, 
-and Akka is used for RPC between the Flink master and the task managers.
+Internally, [Netty](https://netty.io) is used for the TCP connections used for data exchange among 
+the Taskmanagers, and Akka is used for RPC between the Jobmanager and the Taskmanagers.
 
 Externally, HTTP is used for pretty much everything, except that some external services used as sources 
 or sinks may use some other network protocol.
@@ -46,13 +52,15 @@ measures are currently supported:
 
 - Authentication of connections between Flink processes 
 - Encryption of data transferred between Flink processes using SSL (Note that there is a performance 
-  degradation when SSL is enabled, the magnitude of which depends on the CPU type and the JVM implementation.)
+  degradation when SSL is enabled, the magnitude of which depends on the CPU type, the JVM implementation, 
+  and the key size.)
 - Authorization of read / write operations by clients 
 - Authorization is pluggable and integration with external authorization services is supported
 
-It is worth noting that security is optional because the overall philosophy in Flink is to have defaults 
-that work out-of-the-box, without any configuration. Thus, non-secured clusters are supported, as well 
-as a mix of authenticated, unauthenticated, encrypted and unencrypted clients. 
+It is worth noting that security needs to be manually configured because the overall philosophy in 
+Flink is to have defaults that work out-of-the-box, without any configuration. Thus, non-secured 
+clusters are supported, as well as a mix of authenticated, unauthenticated, encrypted and unencrypted 
+clients. 
 
 ## How to use this section 
 

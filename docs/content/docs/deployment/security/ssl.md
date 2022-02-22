@@ -71,8 +71,8 @@ This includes:
 - communication with the Dispatcher to submit Flink jobs (session clusters)
 - communication of the Flink CLI with the JobManager to inspect and modify a running Flink job/application
 
-Most of these connections are exposed via REST/HTTP endpoints (and used by the web UI). Some external 
-services used as sources or sinks may use some other network protocol.
+These connections are exposed via REST/HTTP endpoints (and are used by Flink's web UI). Some 
+application-specific external services such as sources and sinks may use some other network protocol.
 
 The server will, by default, accept connections from any client, meaning that the REST endpoint does 
 not authenticate the client. These REST endpoints, however, can be configured to require SSL encryption 
@@ -238,6 +238,4 @@ security.ssl.rest.truststore-password: truststore_password
 security.ssl.rest.authentication-enabled: false
 ```
 
-### Complete List of SSL Options
 
-{{< generated/security_configuration >}}

@@ -41,6 +41,13 @@ Incorporating security in this mode involves the following steps:
    setting on all cluster nodes.
 3. Deploy the Flink cluster as normal.
 
+{{< hint info >}}
+`HADOOP_TOKEN_FILE_LOCATION` is an important environment variable that specifies the location of your 
+credential files/tokens. The service instances uses this location to find the file to load the credentials 
+and run the tasks. Launched containers must load the delegation tokens from this location, and use them 
+(including renewals) until they can no longer be renewed.
+{{< /hint >}}
+
 You need to have an appropriate Java keystore and truststore accessible from each node in the Flink 
 cluster. For standalone setups, this means copying the files to each node, or adding them to a shared 
 mounted directory. For externally facing REST endpoints, the common name or subject alternative names 
@@ -65,10 +72,17 @@ Incorporating security in this mode involves the following steps:
 When deploying Flink on Kubernetes, the Kerberos keytab file is automatically copied from the client 
 node to the Flink containers.
 
-To enable Kerberos authentication, the Kerberos configuration file is also required. This file can be
-either fetched from the cluster environment or uploaded by Flink. In the latter case, you need to
-configure the `security.kerberos.krb5-conf.path` setting to indicate the path of the Kerberos configuration
-file and Flink will copy this file to its containers/pods.
+To enable Kerberos authentication, the Kerberos configuration file is also required. This file should 
+be present in the cluster nodes / classpath. If you want Flink to upload a new file, you need to configure 
+the `security.kerberos.krb5-conf.path` setting to indicate the path of the Kerberos configuration file
+and Flink will copy this file to its containers/pods.
+
+{{< hint info >}}
+`HADOOP_TOKEN_FILE_LOCATION` is an important environment variable that specifies the location of your
+credential files/tokens. The service instances uses this location to find the file to load the credentials
+and run the tasks. Launched containers must load the delegation tokens from this location, and use them
+(including renewals) until they can no longer be renewed.
+{{< /hint >}}
 
 ### Setting up keystores and truststores
 
@@ -100,6 +114,13 @@ either fetched from the cluster environment or uploaded by Flink. In the latter 
 configure the `security.kerberos.krb5-conf.path` setting to indicate the path of the Kerberos configuration
 file and Flink will copy this file to its containers/pods.
 
+{{< hint info >}}
+`HADOOP_TOKEN_FILE_LOCATION` is an important environment variable that specifies the location of your
+credential files/tokens. The service instances uses this location to find the file to load the credentials
+and run the tasks. Launched containers must load the delegation tokens from this location, and use them
+(including renewals) until they can no longer be renewed.
+{{< /hint >}}
+
 #### Using `kinit` and without keytabs
 
 [`kinit`](https://web.mit.edu/kerberos/krb5-1.12/doc/user/user_commands/kinit.html) is used to obtain 
@@ -129,16 +150,16 @@ should match the node's hostname and IP address.
 
 For more information, see the [documentation on YARN security](https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md).
 
-## Setting Up SSL 
+## Setting up SSL/TLS 
 
-The easiest way to set up SSL is to generate a dedicated public/private key pair and self-signed 
+The easiest way to set up SSL/TLS is to generate a dedicated public/private key pair and self-signed 
 certificate for the Flink deployment. The keystore and truststore are identical and contains
 only that key pair and certificate. 
 
 In an environment where operators are constrained to use firm-wide Internal Certificate Authorities 
 (cannot generate self-signed certificates), we recommend to still have a dedicated key pair and certificate
 for the Flink deployment, signed by that CA. However, the truststore must then also contain the
-CA's public certificate to accept the deployment's certificate during the SSL handshake (a requirement
+CA's public certificate to accept the deployment's certificate during the SSL/TLS handshake (a requirement
 in the JDK truststore implementation).
 
 {{< hint danger >}}
@@ -178,14 +199,7 @@ truststore on the YARN proxy node.
 Execute the following keytool commands to create a key pair in a keystore:
 
 ```bash
-$ keytool -genkeypair \
-  -alias flink.internal \
-  -keystore internal.keystore \
-  -dname "CN=flink.internal" \
-  -storepass internal_store_password \
-  -keyalg RSA \
-  -keysize 4096 \
-  -storetype PKCS12
+$ keytool -genkeypair -alias flink.internal -keystore internal.keystore -dname "CN=flink.internal" -storepass internal_store_password -keyalg RSA -keysize 4096 -storetype PKCS12
 ```
 
 The single key/certificate in the keystore is used the same way by the server and the client endpoints
@@ -200,6 +214,11 @@ security.ssl.internal.keystore-password: internal_store_password
 security.ssl.internal.truststore-password: internal_store_password
 security.ssl.internal.key-password: internal_store_password
 ```
+
+{{< hint warning >}}
+Storing plaintext passwords in config files should not be used in production. Consider using [Kubernetes 
+secrets](https://kubernetes.io/docs/concepts/configuration/secret/) or environment variables instead. 
+{{< /hint >}}
 
 #### External Connections (REST Endpoints)
 
@@ -232,6 +251,11 @@ security.ssl.rest.keystore-password: rest_keystore_password
 security.ssl.rest.truststore-password: rest_truststore_password
 security.ssl.rest.key-password: rest_keystore_password
 ```
+
+{{< hint warning >}}
+Storing plaintext passwords in config files should not be used in production. Consider using [Kubernetes
+secrets](https://kubernetes.io/docs/concepts/configuration/secret/) or environment variables instead.
+{{< /hint >}}
 
 **REST endpoint (with a self-signed CA)**
 
@@ -270,6 +294,11 @@ security.ssl.rest.keystore-password: rest_keystore_password
 security.ssl.rest.key-password: rest_keystore_password
 security.ssl.rest.truststore-password: ca_truststore_password
 ```
+
+{{< hint warning >}}
+Storing plaintext passwords in config files should not be used in production. Consider using [Kubernetes
+secrets](https://kubernetes.io/docs/concepts/configuration/secret/) or environment variables instead.
+{{< /hint >}}
 
 **Querying the REST endpoint with the cURL utility**
 
