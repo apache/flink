@@ -1375,6 +1375,7 @@ under the License.
 					</execution>
 				</executions>
 				<configuration>
+					<consoleOutput>true</consoleOutput>
 					<excludeSubProjects>false</excludeSubProjects>
 					<numUnapprovedLicenses>0</numUnapprovedLicenses>
 					<licenses>
