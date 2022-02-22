@@ -71,23 +71,23 @@ final class ContextResolvedTableJsonSerializer extends StdSerializer<ContextReso
             // Serialize object identifier
             jsonGenerator.writeObjectField(
                     FIELD_NAME_IDENTIFIER, contextResolvedTable.getIdentifier());
-try {
             if (contextResolvedTable.isPermanent()
                     && planCompilationOption != CatalogPlanCompilation.IDENTIFIER) {
                 jsonGenerator.writeFieldName(FIELD_NAME_CATALOG_TABLE);
-                ResolvedCatalogTableJsonSerializer.serialize(
-                        contextResolvedTable.getResolvedTable(),
-                        planCompilationOption == CatalogPlanCompilation.ALL,
-                        jsonGenerator,
-                        serializerProvider);
+                try {
+                    ResolvedCatalogTableJsonSerializer.serialize(
+                            contextResolvedTable.getResolvedTable(),
+                            planCompilationOption == CatalogPlanCompilation.ALL,
+                            jsonGenerator,
+                            serializerProvider);
+                } catch (ValidationException e) {
+                    throw new ValidationException(
+                            String.format(
+                                    "Error when trying to serialize table '%s'.",
+                                    contextResolvedTable.getIdentifier()),
+                            e);
+                }
             }
-} catch (ValidationException e) {
-    throw new ValidationException(
-            String.format(
-                    "Error when trying to serialize table '%s'.",
-                    contextResolvedTable.getIdentifier()),
-            e);
-}
         }
 
         jsonGenerator.writeEndObject();
