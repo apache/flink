@@ -29,7 +29,7 @@ package org.apache.flink.util;
 public class DockerImageVersions {
 
     public static final String ELASTICSEARCH_7 =
-            "docker.elastic.co/elasticsearch/elasticsearch:7.15.2";
+            "docker.elastic.co/elasticsearch/elasticsearch:7.10.2";
 
     public static final String ELASTICSEARCH_6 =
             "docker.elastic.co/elasticsearch/elasticsearch:6.8.20";
