@@ -29,7 +29,7 @@ public class HelpOperationParseStrategy extends AbstractRegexParseStrategy {
     static final HelpOperationParseStrategy INSTANCE = new HelpOperationParseStrategy();
 
     private HelpOperationParseStrategy() {
-        super(Pattern.compile("HELP;?", DEFAULT_PATTERN_FLAGS));
+        super(Pattern.compile("HELP\\s*;?", DEFAULT_PATTERN_FLAGS));
     }
 
     @Override
