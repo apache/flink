@@ -19,9 +19,11 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { EMPTY, Subject } from 'rxjs';
-import { catchError, mergeMap, takeUntil } from 'rxjs/operators';
+import { catchError, mergeMap, takeUntil, tap } from 'rxjs/operators';
 
-import { JobService, StatusService } from 'services';
+import { JobService, StatusService } from '@flink-runtime-web/services';
+
+import { JobLocalService } from './job-local.service';
 
 @Component({
   selector: 'flink-job',
@@ -40,6 +42,7 @@ export class JobComponent implements OnInit, OnDestroy {
     private readonly cdr: ChangeDetectorRef,
     private readonly activatedRoute: ActivatedRoute,
     private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
     private readonly statusService: StatusService
   ) {}
 
@@ -49,6 +52,9 @@ export class JobComponent implements OnInit, OnDestroy {
         takeUntil(this.destroy$),
         mergeMap(() =>
           this.jobService.loadJob(this.activatedRoute.snapshot.params.jid).pipe(
+            tap(job => {
+              this.jobLocalService.setJobDetail(job);
+            }),
             catchError(() => {
               this.jobService.loadExceptions(this.activatedRoute.snapshot.params.jid, 10).subscribe(data => {
                 this.errorDetails = data['root-exception'];

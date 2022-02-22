@@ -18,13 +18,12 @@
 
 import { Component, ChangeDetectionStrategy, ElementRef, Input, ViewChild } from '@angular/core';
 
+import { JobFlameGraphNode } from '@flink-runtime-web/interfaces';
 import * as _d3 from 'd3';
 import { flamegraph, offCpuColorMapper } from 'd3-flame-graph';
 import { format } from 'd3-format';
 import { select } from 'd3-selection';
 import _d3Tip from 'd3-tip';
-
-import { JobFlameGraphNode } from 'interfaces';
 
 @Component({
   selector: 'flink-flame-graph',

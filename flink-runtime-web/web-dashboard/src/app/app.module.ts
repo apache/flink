@@ -62,6 +62,8 @@ import {
   ShrinkOutline,
   PicCenterOutline
 } from '@ant-design/icons-angular/icons';
+import { Configuration } from '@flink-runtime-web/interfaces';
+import { StatusService } from '@flink-runtime-web/services';
 import { NzAlertModule } from 'ng-zorro-antd/alert';
 import { NzBadgeModule } from 'ng-zorro-antd/badge';
 import { NZ_CONFIG, NzConfig } from 'ng-zorro-antd/core/config';
@@ -72,9 +74,6 @@ import { NZ_ICONS, NzIconModule } from 'ng-zorro-antd/icon';
 import { NzLayoutModule } from 'ng-zorro-antd/layout';
 import { NzMenuModule } from 'ng-zorro-antd/menu';
 import { NzNotificationModule } from 'ng-zorro-antd/notification';
-
-import { Configuration } from 'interfaces';
-import { StatusService } from 'services';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';

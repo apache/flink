@@ -21,28 +21,36 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 
-import { BASE_URL } from 'config';
-import { JobManagerLogItem, JobManagerThreadDump } from 'interfaces';
+import {
+  JobManagerLogItem,
+  JobManagerThreadDump,
+  JobMetric,
+  MetricMap,
+  JobManagerLogDetail,
+  JobManagerConfig
+} from '@flink-runtime-web/interfaces';
+
+import { ConfigService } from './config.service';
 
 @Injectable({
   providedIn: 'root'
 })
 export class JobManagerService {
-  constructor(private readonly httpClient: HttpClient) {}
+  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
 
-  public loadConfig(): Observable<Array<{ key: string; value: string }>> {
-    return this.httpClient.get<Array<{ key: string; value: string }>>(`${BASE_URL}/jobmanager/config`);
+  public loadConfig(): Observable<JobManagerConfig[]> {
+    return this.httpClient.get<JobManagerConfig[]>(`${this.configService.BASE_URL}/jobmanager/config`);
   }
 
   public loadLogs(): Observable<string> {
-    return this.httpClient.get(`${BASE_URL}/jobmanager/log`, {
+    return this.httpClient.get(`${this.configService.BASE_URL}/jobmanager/log`, {
       responseType: 'text',
       headers: new HttpHeaders().append('Cache-Control', 'no-cache')
     });
   }
 
   public loadStdout(): Observable<string> {
-    return this.httpClient.get(`${BASE_URL}/jobmanager/stdout`, {
+    return this.httpClient.get(`${this.configService.BASE_URL}/jobmanager/stdout`, {
       responseType: 'text',
       headers: new HttpHeaders().append('Cache-Control', 'no-cache')
     });
@@ -50,12 +58,12 @@ export class JobManagerService {
 
   public loadLogList(): Observable<JobManagerLogItem[]> {
     return this.httpClient
-      .get<{ logs: JobManagerLogItem[] }>(`${BASE_URL}/jobmanager/logs`)
+      .get<{ logs: JobManagerLogItem[] }>(`${this.configService.BASE_URL}/jobmanager/logs`)
       .pipe(map(data => data.logs));
   }
 
-  public loadLog(logName: string): Observable<{ data: string; url: string }> {
-    const url = `${BASE_URL}/jobmanager/logs/${logName}`;
+  public loadLog(logName: string): Observable<JobManagerLogDetail> {
+    const url = `${this.configService.BASE_URL}/jobmanager/logs/${logName}`;
     return this.httpClient
       .get(url, { responseType: 'text', headers: new HttpHeaders().append('Cache-Control', 'no-cache') })
       .pipe(
@@ -69,31 +77,29 @@ export class JobManagerService {
   }
 
   public loadThreadDump(): Observable<string> {
-    return this.httpClient.get<JobManagerThreadDump>(`${BASE_URL}/jobmanager/thread-dump`).pipe(
+    return this.httpClient.get<JobManagerThreadDump>(`${this.configService.BASE_URL}/jobmanager/thread-dump`).pipe(
       map(JobManagerThreadDump => {
         return JobManagerThreadDump.threadInfos.map(threadInfo => threadInfo.stringifiedThreadInfo).join('');
       })
     );
   }
 
-  public getMetricsName(): Observable<string[]> {
+  public loadMetricsName(): Observable<string[]> {
     return this.httpClient
-      .get<Array<{ id: string }>>(`${BASE_URL}/jobmanager/metrics`)
+      .get<Array<{ id: string }>>(`${this.configService.BASE_URL}/jobmanager/metrics`)
       .pipe(map(arr => arr.map(item => item.id)));
   }
 
-  public getMetrics(listOfMetricName: string[]): Observable<{ [p: string]: number }> {
+  public loadMetrics(listOfMetricName: string[]): Observable<MetricMap> {
     const metricName = listOfMetricName.join(',');
-    return this.httpClient
-      .get<Array<{ id: string; value: string }>>(`${BASE_URL}/jobmanager/metrics?get=${metricName}`)
-      .pipe(
-        map(arr => {
-          const result: { [id: string]: number } = {};
-          arr.forEach(item => {
-            result[item.id] = parseInt(item.value, 10);
-          });
-          return result;
-        })
-      );
+    return this.httpClient.get<JobMetric[]>(`${this.configService.BASE_URL}/jobmanager/metrics?get=${metricName}`).pipe(
+      map(arr => {
+        const result: MetricMap = {};
+        arr.forEach(item => {
+          result[item.id] = parseInt(item.value, 10);
+        });
+        return result;
+      })
+    );
   }
 }

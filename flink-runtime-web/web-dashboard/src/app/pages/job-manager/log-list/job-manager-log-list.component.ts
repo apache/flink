@@ -19,8 +19,8 @@
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 import { finalize } from 'rxjs/operators';
 
-import { JobManagerLogItem } from 'interfaces';
-import { JobManagerService } from 'services';
+import { JobManagerLogItem } from '@flink-runtime-web/interfaces';
+import { JobManagerService } from '@flink-runtime-web/services';
 
 import { typeDefinition } from '../../../utils/strong-type';
 

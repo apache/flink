@@ -16,17 +16,20 @@
  * limitations under the License.
  */
 
-import { NodesItem, NodesItemCorrect, VerticesLink } from './job-detail';
+import { Injectable } from '@angular/core';
+import { Observable, ReplaySubject } from 'rxjs';
 
-export interface Plan {
-  plan: {
-    jid: string;
-    name: string;
-    nodes: NodesItem[];
-  };
-}
+import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
 
-export interface PlanDetail {
-  nodes: NodesItemCorrect[];
-  links: VerticesLink[];
+@Injectable()
+export class TaskManagerLocalService {
+  private readonly taskManagerDetail$ = new ReplaySubject<TaskManagerDetail>(1);
+
+  public taskManagerDetailChanges(): Observable<TaskManagerDetail> {
+    return this.taskManagerDetail$.asObservable();
+  }
+
+  public setTaskManagerDetail(detail: TaskManagerDetail): void {
+    this.taskManagerDetail$.next(detail);
+  }
 }

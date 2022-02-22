@@ -20,8 +20,8 @@ import { ChangeDetectionStrategy, Component, OnDestroy, OnInit } from '@angular/
 import { Observable, Subject } from 'rxjs';
 import { mergeMap, share, takeUntil } from 'rxjs/operators';
 
-import { JobsItem } from 'interfaces';
-import { JobService, StatusService } from 'services';
+import { JobsItem } from '@flink-runtime-web/interfaces';
+import { JobService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-overview',

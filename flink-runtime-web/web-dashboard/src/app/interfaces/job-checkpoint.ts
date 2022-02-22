@@ -28,6 +28,8 @@ export interface Checkpoint {
     checkpointed_size: CheckpointMinMaxAvgStatistics;
     state_size: CheckpointMinMaxAvgStatistics;
     end_to_end_duration: CheckpointMinMaxAvgStatistics;
+    processed_data: CheckpointMinMaxAvgStatistics;
+    persisted_data: CheckpointMinMaxAvgStatistics;
     alignment_buffered: CheckpointMinMaxAvgStatistics;
   };
   latest: {

@@ -20,7 +20,7 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
 
-import { JobManagerService, StatusService } from 'services';
+import { JobManagerService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-manager-metrics',
@@ -51,14 +51,14 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
     });
     this.statusService.refresh$.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.jobManagerService
-        .getMetricsName()
+        .loadMetricsName()
         .pipe(map(arr => arr.filter(item => item.indexOf('Status.JVM.GarbageCollector') !== -1)))
         .subscribe(data => {
           this.listOfGCName = data;
           this.cdr.markForCheck();
         });
       this.jobManagerService
-        .getMetrics([
+        .loadMetrics([
           'Status.JVM.Memory.Heap.Used',
           'Status.JVM.Memory.Heap.Max',
           'Status.JVM.Memory.Metaspace.Used',

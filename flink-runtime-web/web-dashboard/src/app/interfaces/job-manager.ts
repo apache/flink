@@ -16,11 +16,22 @@
  * limitations under the License.
  */
 
+export interface JobManagerConfig {
+  key: string;
+  value: string;
+}
+
 export interface JobManagerLogItem {
   name: string;
   size: number;
   mtime: number;
 }
+
+export interface JobManagerLogDetail {
+  data: string;
+  url: string;
+}
+
 export interface JobManagerThreadDump {
   threadInfos: JobManagerThreadInfo[];
 }

@@ -16,11 +16,10 @@
  * limitations under the License.
  */
 
+import { NodesItemCorrect, NodesItemLink } from '@flink-runtime-web/interfaces';
 import { curveLinear, line } from 'd3';
 import * as dagre from 'dagre';
 import { GraphEdge, graphlib } from 'dagre';
-
-import { NodesItemCorrect, NodesItemLink } from 'interfaces';
 
 import Graph = graphlib.Graph;
 

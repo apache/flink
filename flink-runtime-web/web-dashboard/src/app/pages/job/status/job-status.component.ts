@@ -17,11 +17,13 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { Subject } from 'rxjs';
-import { distinctUntilKeyChanged, takeUntil } from 'rxjs/operators';
+import { merge, Subject } from 'rxjs';
+import { distinctUntilKeyChanged, takeUntil, tap } from 'rxjs/operators';
 
-import { JobDetailCorrect } from 'interfaces';
-import { JobService, StatusService } from 'services';
+import { JobDetailCorrect } from '@flink-runtime-web/interfaces';
+import { JobService, StatusService } from '@flink-runtime-web/services';
+
+import { JobLocalService } from '../job-local.service';
 
 @Component({
   selector: 'flink-job-status',
@@ -56,35 +58,29 @@ export class JobStatusComponent implements OnInit, OnDestroy {
     }
   ];
 
-  public checkpointIndexOfNavigation = this.checkpointIndexOfNav();
   public webCancelEnabled = this.statusService.configuration.features['web-cancel'];
 
-  private readonly destroy$ = new Subject<void>();
+  private checkpointIndexOfNavigation = this.checkpointIndexOfNav();
+  private destroy$ = new Subject<void>();
 
   constructor(
     private readonly jobService: JobService,
+    private readonly jobLocalService: JobLocalService,
     public readonly statusService: StatusService,
     private readonly cdr: ChangeDetectorRef
   ) {}
 
   public ngOnInit(): void {
-    const jobDetail$ = this.jobService.jobDetail$.pipe(takeUntil(this.destroy$));
-    jobDetail$.subscribe(data => {
-      this.jobDetail = data;
-      this.cdr.markForCheck();
-      var index = this.checkpointIndexOfNav();
-      if (data.plan.type == 'STREAMING' && index == -1) {
-        this.listOfNavigation.splice(this.checkpointIndexOfNavigation, 0, {
-          path: 'checkpoints',
-          title: 'Checkpoints'
-        });
-      } else if (data.plan.type == 'BATCH' && index > -1) {
-        this.listOfNavigation.splice(index, 1);
-      }
-    });
-    jobDetail$.pipe(distinctUntilKeyChanged('state')).subscribe(() => {
-      this.statusTips = '';
-    });
+    const updateList$ = this.jobLocalService.jobDetailChanges().pipe(tap(data => this.handleJobDetailChanged(data)));
+    const updateTip$ = this.jobLocalService.jobDetailChanges().pipe(
+      distinctUntilKeyChanged('state'),
+      tap(() => {
+        this.statusTips = '';
+        this.cdr.markForCheck();
+      })
+    );
+
+    merge(updateList$, updateTip$).pipe(takeUntil(this.destroy$)).subscribe();
   }
 
   public ngOnDestroy(): void {
@@ -101,5 +97,19 @@ export class JobStatusComponent implements OnInit, OnDestroy {
 
   public checkpointIndexOfNav(): number {
     return this.listOfNavigation.findIndex(item => item.path === 'checkpoints');
+  }
+
+  private handleJobDetailChanged(data: JobDetailCorrect): void {
+    this.jobDetail = data;
+    const index = this.checkpointIndexOfNav();
+    if (data.plan.type == 'STREAMING' && index == -1) {
+      this.listOfNavigation.splice(this.checkpointIndexOfNavigation, 0, {
+        path: 'checkpoints',
+        title: 'Checkpoints'
+      });
+    } else if (data.plan.type == 'BATCH' && index > -1) {
+      this.listOfNavigation.splice(index, 1);
+    }
+    this.cdr.markForCheck();
   }
 }

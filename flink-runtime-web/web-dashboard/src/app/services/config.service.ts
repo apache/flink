@@ -16,22 +16,46 @@
  * limitations under the License.
  */
 
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { EMPTY, Observable } from 'rxjs';
-import { catchError } from 'rxjs/operators';
 
-import { Overview } from '@flink-runtime-web/interfaces';
-
-import { ConfigService } from './config.service';
+export type ColorKey =
+  | 'TOTAL'
+  | 'RUNNING'
+  | 'FAILED'
+  | 'FINISHED'
+  | 'CANCELED'
+  | 'CANCELING'
+  | 'CREATED'
+  | 'DEPLOYING'
+  | 'RECONCILING'
+  | 'IN_PROGRESS'
+  | 'SCHEDULED'
+  | 'COMPLETED'
+  | 'RESTARTING'
+  | 'INITIALIZING';
 
 @Injectable({
   providedIn: 'root'
 })
-export class OverviewService {
-  constructor(private readonly httpClient: HttpClient, private readonly configService: ConfigService) {}
+export class ConfigService {
+  BASE_URL = '.';
 
-  public loadOverview(): Observable<Overview> {
-    return this.httpClient.get<Overview>(`${this.configService.BASE_URL}/overview`).pipe(catchError(() => EMPTY));
-  }
+  COLOR_MAP: Record<ColorKey, string> = {
+    TOTAL: '#112641',
+    RUNNING: '#52c41a',
+    FAILED: '#f5222d',
+    FINISHED: '#1890ff',
+    CANCELED: '#fa8c16',
+    CANCELING: '#faad14',
+    CREATED: '#2f54eb',
+    DEPLOYING: '#13c2c2',
+    RECONCILING: '#eb2f96',
+    IN_PROGRESS: '#faad14',
+    SCHEDULED: '#722ed1',
+    COMPLETED: '#1890ff',
+    RESTARTING: '#13c2c2',
+    INITIALIZING: '#738df8'
+  };
+
+  LONG_MIN_VALUE = -9223372036854776000;
 }

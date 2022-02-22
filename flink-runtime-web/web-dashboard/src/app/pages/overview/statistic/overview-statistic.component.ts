@@ -20,8 +20,8 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnIni
 import { Subject } from 'rxjs';
 import { mergeMap, takeUntil } from 'rxjs/operators';
 
-import { Overview } from 'interfaces';
-import { OverviewService, StatusService } from 'services';
+import { Overview } from '@flink-runtime-web/interfaces';
+import { OverviewService, StatusService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-overview-statistic',

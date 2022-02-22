@@ -20,11 +20,12 @@ import { ChangeDetectorRef, Component, OnInit, ChangeDetectionStrategy, OnDestro
 import { Subject } from 'rxjs';
 import { first, takeUntil } from 'rxjs/operators';
 
+import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
+import { TaskManagerService } from '@flink-runtime-web/services';
+import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
-import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
-import { TaskManagerDetail } from 'interfaces';
-import { TaskManagerService } from 'services';
+import { TaskManagerLocalService } from '../task-manager-local.service';
 
 @Component({
   selector: 'flink-task-manager-thread-dump',
@@ -41,14 +42,21 @@ export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly taskManagerService: TaskManagerService,
+    private readonly taskManagerLocalService: TaskManagerLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   public ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$.pipe(first(), takeUntil(this.destroy$)).subscribe(data => {
-      this.taskManagerDetail = data;
-      this.reload();
-      this.cdr.markForCheck();
-    });
+    this.taskManagerLocalService
+      .taskManagerDetailChanges()
+      .pipe(first(), takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.taskManagerDetail = data;
+        this.reload();
+        this.cdr.markForCheck();
+      });
   }
 
   public ngOnDestroy(): void {
@@ -70,6 +78,7 @@ export class TaskManagerThreadDumpComponent implements OnInit, OnDestroy {
             this.cdr.markForCheck();
           },
           () => {
+            this.loading = false;
             this.cdr.markForCheck();
           }
         );
