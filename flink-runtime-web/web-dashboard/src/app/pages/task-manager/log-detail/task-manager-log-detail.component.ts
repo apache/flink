@@ -19,11 +19,12 @@ import { ActivatedRoute } from '@angular/router';
 import { Subject } from 'rxjs';
 import { first, takeUntil } from 'rxjs/operators';
 
+import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
+import { TaskManagerService } from '@flink-runtime-web/services';
+import { flinkEditorOptions } from '@flink-runtime-web/share/common/editor/editor-config';
 import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
-import { flinkEditorOptions } from 'share/common/editor/editor-config';
 
-import { TaskManagerDetail } from 'interfaces';
-import { TaskManagerService } from 'services';
+import { TaskManagerLocalService } from '../task-manager-local.service';
 
 @Component({
   selector: 'flink-task-manager-log-detail',
@@ -48,16 +49,20 @@ export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
 
   constructor(
     private readonly taskManagerService: TaskManagerService,
+    private readonly taskManagerLocalService: TaskManagerLocalService,
     private readonly cdr: ChangeDetectorRef,
     private readonly activatedRoute: ActivatedRoute
   ) {}
 
   public ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$.pipe(first(), takeUntil(this.destroy$)).subscribe(data => {
-      this.taskManagerDetail = data;
-      this.logName = this.activatedRoute.snapshot.params.logName;
-      this.reloadLog();
-    });
+    this.taskManagerLocalService
+      .taskManagerDetailChanges()
+      .pipe(first(), takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.taskManagerDetail = data;
+        this.logName = this.activatedRoute.snapshot.params.logName;
+        this.reloadLog();
+      });
   }
 
   public ngOnDestroy(): void {
@@ -91,5 +96,6 @@ export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
 
   public toggleFullScreen(fullScreen: boolean): void {
     this.isFullScreen = fullScreen;
+    this.cdr.markForCheck();
   }
 }

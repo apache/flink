@@ -20,6 +20,7 @@ import { CommonModule } from '@angular/common';
 import { NgModule } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import { ShareModule } from '@flink-runtime-web/share/share.module';
 import { NzBreadCrumbModule } from 'ng-zorro-antd/breadcrumb';
 import { NzCardModule } from 'ng-zorro-antd/card';
 import { NzCodeEditorModule } from 'ng-zorro-antd/code-editor';
@@ -30,7 +31,6 @@ import { NzProgressModule } from 'ng-zorro-antd/progress';
 import { NzSkeletonModule } from 'ng-zorro-antd/skeleton';
 import { NzTableModule } from 'ng-zorro-antd/table';
 import { NzToolTipModule } from 'ng-zorro-antd/tooltip';
-import { ShareModule } from 'share/share.module';
 
 import { TaskManagerListComponent } from './list/task-manager-list.component';
 import { TaskManagerLogDetailComponent } from './log-detail/task-manager-log-detail.component';
@@ -39,6 +39,7 @@ import { TaskManagerLogsComponent } from './logs/task-manager-logs.component';
 import { TaskManagerMetricsComponent } from './metrics/task-manager-metrics.component';
 import { TaskManagerStatusComponent } from './status/task-manager-status.component';
 import { TaskManagerStdoutComponent } from './stdout/task-manager-stdout.component';
+import { TaskManagerLocalService } from './task-manager-local.service';
 import { TaskManagerRoutingModule } from './task-manager-routing.module';
 import { TaskManagerComponent } from './task-manager.component';
 import { TaskManagerThreadDumpComponent } from './thread-dump/task-manager-thread-dump.component';
@@ -70,6 +71,7 @@ import { TaskManagerThreadDumpComponent } from './thread-dump/task-manager-threa
     TaskManagerThreadDumpComponent,
     TaskManagerLogsComponent,
     TaskManagerStdoutComponent
-  ]
+  ],
+  providers: [TaskManagerLocalService]
 })
 export class TaskManagerModule {}

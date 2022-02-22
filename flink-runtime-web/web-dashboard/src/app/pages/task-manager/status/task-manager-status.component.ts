@@ -20,8 +20,9 @@ import { ChangeDetectionStrategy, ChangeDetectorRef, Component, Input, OnDestroy
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
-import { TaskManagerDetail } from 'interfaces';
-import { TaskManagerService } from 'services';
+import { TaskManagerDetail } from '@flink-runtime-web/interfaces';
+
+import { TaskManagerLocalService } from '../task-manager-local.service';
 
 @Component({
   selector: 'flink-task-manager-status',
@@ -44,13 +45,19 @@ export class TaskManagerStatusComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
 
-  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+  constructor(
+    private readonly taskManagerLocalService: TaskManagerLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   public ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$.pipe(takeUntil(this.destroy$)).subscribe(data => {
-      this.taskManagerDetail = data;
-      this.cdr.markForCheck();
-    });
+    this.taskManagerLocalService
+      .taskManagerDetailChanges()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(data => {
+        this.taskManagerDetail = data;
+        this.cdr.markForCheck();
+      });
   }
 
   public ngOnDestroy(): void {

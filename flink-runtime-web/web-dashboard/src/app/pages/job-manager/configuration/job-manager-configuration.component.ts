@@ -18,7 +18,7 @@
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
 
-import { JobManagerService } from 'services';
+import { JobManagerService } from '@flink-runtime-web/services';
 
 @Component({
   selector: 'flink-job-manager-configuration',

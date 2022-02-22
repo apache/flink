@@ -18,9 +18,8 @@
 
 import { ChangeDetectionStrategy, Component, ElementRef, EventEmitter, Input, Output } from '@angular/core';
 
+import { NodesItemCorrect } from '@flink-runtime-web/interfaces';
 import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
-
-import { NodesItemCorrect } from 'interfaces';
 
 function createSortFn(
   selector: (item: NodesItemCorrect) => number | string | undefined

@@ -21,11 +21,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, Subject } from 'rxjs';
 import { flatMap, takeUntil } from 'rxjs/operators';
 
+import { JobsItem } from '@flink-runtime-web/interfaces';
+import { JobService, StatusService } from '@flink-runtime-web/services';
+import { isNil } from '@flink-runtime-web/utils';
 import { NzMessageService } from 'ng-zorro-antd/message';
-
-import { JobsItem } from 'interfaces';
-import { JobService, StatusService } from 'services';
-import { isNil } from 'utils';
 
 @Component({
   selector: 'flink-job-list',

@@ -14,20 +14,22 @@
  *   limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit } from '@angular/core';
-import { first, mergeMap } from 'rxjs/operators';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
+import { Subject } from 'rxjs';
+import { first, mergeMap, takeUntil } from 'rxjs/operators';
 
-import { TaskManagerLogItem } from 'interfaces';
-import { TaskManagerService } from 'services';
+import { TaskManagerLogItem } from '@flink-runtime-web/interfaces';
+import { TaskManagerService } from '@flink-runtime-web/services';
 
 import { typeDefinition } from '../../../utils/strong-type';
+import { TaskManagerLocalService } from '../task-manager-local.service';
 
 @Component({
   selector: 'flink-task-manager-log-list',
   templateUrl: './task-manager-log-list.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class TaskManagerLogListComponent implements OnInit {
+export class TaskManagerLogListComponent implements OnInit, OnDestroy {
   public readonly trackByName = (_: number, log: TaskManagerLogItem): string => log.name;
   public readonly narrowLogData = typeDefinition<TaskManagerLogItem>();
 
@@ -38,13 +40,21 @@ export class TaskManagerLogListComponent implements OnInit {
   public listOfLog: TaskManagerLogItem[] = [];
   public isLoading = true;
 
-  constructor(private readonly taskManagerService: TaskManagerService, private readonly cdr: ChangeDetectorRef) {}
+  private destroy$ = new Subject<void>();
+
+  constructor(
+    private readonly taskManagerService: TaskManagerService,
+    private readonly taskManagerLocalService: TaskManagerLocalService,
+    private readonly cdr: ChangeDetectorRef
+  ) {}
 
   public ngOnInit(): void {
-    this.taskManagerService.taskManagerDetail$
+    this.taskManagerLocalService
+      .taskManagerDetailChanges()
       .pipe(
         first(),
-        mergeMap(data => this.taskManagerService.loadLogList(data.id))
+        mergeMap(data => this.taskManagerService.loadLogList(data.id)),
+        takeUntil(this.destroy$)
       )
       .subscribe(
         data => {
@@ -57,5 +67,10 @@ export class TaskManagerLogListComponent implements OnInit {
           this.cdr.markForCheck();
         }
       );
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 }
