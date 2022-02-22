@@ -441,7 +441,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             inputTransform, rowtimeFieldIndex, sinkParallelism, config);
             final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
             final DataStreamSinkProvider provider = (DataStreamSinkProvider) runtimeProvider;
-            return provider.consumeDataStream(createProviderContext(), dataStream)
+            return provider.consumeDataStream(createProviderContext(config), dataStream)
                     .getTransformation();
         } else if (runtimeProvider instanceof TransformationSinkProvider) {
             final TransformationSinkProvider provider =
@@ -460,7 +460,7 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
 
                         @Override
                         public Optional<String> generateUid(String name) {
-                            return createProviderContext().generateUid(name);
+                            return createProviderContext(config).generateUid(name);
                         }
                     });
         } else if (runtimeProvider instanceof SinkFunctionProvider) {
@@ -513,9 +513,10 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
         }
     }
 
-    private ProviderContext createProviderContext() {
+    private ProviderContext createProviderContext(ReadableConfig config) {
         return name -> {
-            if (this instanceof StreamExecNode) {
+            if (this instanceof StreamExecNode
+                    && !config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
                 return Optional.of(createTransformationUid(name));
             }
             return Optional.empty();
