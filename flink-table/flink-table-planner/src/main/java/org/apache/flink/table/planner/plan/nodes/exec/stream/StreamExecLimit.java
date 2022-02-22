@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -106,11 +107,12 @@ public class StreamExecLimit extends StreamExecRank {
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         if (limitEnd == Long.MAX_VALUE) {
             throw new TableException(
                     "FETCH is missed, which on streaming table is not supported currently.");
         }
-        return super.translateToPlanInternal(planner);
+        return super.translateToPlanInternal(planner, config);
     }
 }

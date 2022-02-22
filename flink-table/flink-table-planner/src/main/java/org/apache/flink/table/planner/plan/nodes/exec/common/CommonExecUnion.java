@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -51,7 +52,8 @@ public abstract class CommonExecUnion extends ExecNodeBase<RowData>
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final List<Transformation<RowData>> inputTransforms = new ArrayList<>();
         for (ExecEdge inputEdge : getInputEdges()) {
             inputTransforms.add((Transformation<RowData>) inputEdge.translateToPlan(planner));

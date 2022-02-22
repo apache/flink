@@ -22,13 +22,13 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -166,7 +166,8 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -179,7 +180,6 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                         partialAggNeedRetraction,
                         false);
 
-        final TableConfig config = planner.getTableConfig();
         final GeneratedAggsHandleFunction partialAggsHandler =
                 generateAggsHandler(
                         "PartialGroupAggsHandler",
@@ -221,7 +221,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                         partialAggsHandler,
                         finalAggsHandler,
                         finalKeySelector,
-                        config.getIdleStateRetention().toMillis());
+                        config.getStateRetentionTime());
 
         final OneInputStreamOperator<RowData, RowData> operator =
                 new KeyedMapBundleOperator<>(
@@ -232,8 +232,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
                         createTransformationMeta(
-                                INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION,
-                                planner.getTableConfig()),
+                                INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
@@ -249,13 +248,13 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
             AggregateInfoList aggInfoList,
             int mergedAccOffset,
             DataType[] mergedAccExternalTypes,
-            TableConfig config,
+            ExecNodeConfig config,
             RelBuilder relBuilder,
             boolean inputFieldCopy) {
 
         AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(config.getTableConfig()),
                         relBuilder,
                         JavaScalaConversionUtil.toScala(partialLocalAggInputType.getChildren()),
                         inputFieldCopy);

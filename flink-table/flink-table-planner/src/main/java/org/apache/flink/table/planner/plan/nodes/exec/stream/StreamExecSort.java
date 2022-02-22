@@ -19,13 +19,13 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
@@ -66,10 +66,9 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        TableConfig config = planner.getTableConfig();
-        if (!config.getConfiguration()
-                .getBoolean(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED)) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        if (!config.get(InternalConfigOptions.TABLE_EXEC_NON_TEMPORAL_SORT_ENABLED)) {
             throw new TableException("Sort on a non-time-attribute field is not supported.");
         }
 
@@ -78,7 +77,7 @@ public class StreamExecSort extends ExecNodeBase<RowData> implements StreamExecN
         // sort code gen
         GeneratedRecordComparator rowComparator =
                 ComparatorCodeGenerator.gen(
-                        config, "StreamExecSortComparator", inputType, sortSpec);
+                        config.getTableConfig(), "StreamExecSortComparator", inputType, sortSpec);
         StreamSortOperator sortOperator =
                 new StreamSortOperator(InternalTypeInfo.of(inputType), rowComparator);
         Transformation<RowData> inputTransform =

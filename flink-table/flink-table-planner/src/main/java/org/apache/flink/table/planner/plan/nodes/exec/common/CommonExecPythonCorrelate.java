@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
@@ -35,6 +34,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -82,16 +82,16 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
-        final Configuration mergedConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
+        final Configuration pythonConfig =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
-                createPythonOneInputTransformation(
-                        inputTransform, planner.getTableConfig(), mergedConfig);
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(mergedConfig)) {
+                createPythonOneInputTransformation(inputTransform, config, pythonConfig);
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         return transform;
@@ -99,8 +99,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
 
     private OneInputTransformation<RowData, RowData> createPythonOneInputTransformation(
             Transformation<RowData> inputTransform,
-            TableConfig tableConfig,
-            Configuration mergedConfig) {
+            ExecNodeConfig config,
+            Configuration pythonConfig) {
         Tuple2<int[], PythonFunctionInfo> extractResult = extractPythonTableFunctionInfo();
         int[] pythonUdtfInputOffsets = extractResult.f0;
         PythonFunctionInfo pythonFunctionInfo = extractResult.f1;
@@ -110,16 +110,16 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                 InternalTypeInfo.of((RowType) getOutputType());
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonTableFunctionOperator(
-                        tableConfig,
-                        mergedConfig,
+                        config,
+                        pythonConfig,
                         pythonOperatorInputRowType,
                         pythonOperatorOutputRowType,
                         pythonFunctionInfo,
                         pythonUdtfInputOffsets);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationName(mergedConfig),
-                createTransformationDescription(mergedConfig),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 pythonOperator,
                 pythonOperatorOutputRowType,
                 inputTransform.getParallelism());
@@ -140,8 +140,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonTableFunctionOperator(
-            TableConfig tableConfig,
-            Configuration config,
+            ExecNodeConfig config,
+            Configuration pythonConfig,
             InternalTypeInfo<RowData> inputRowType,
             InternalTypeInfo<RowData> outputRowType,
             PythonFunctionInfo pythonFunctionInfo,
@@ -168,14 +168,14 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                             GeneratedProjection.class);
             return (OneInputStreamOperator<RowData, RowData>)
                     ctor.newInstance(
-                            config,
+                            pythonConfig,
                             pythonFunctionInfo,
                             inputType,
                             udfInputType,
                             udfOutputType,
                             joinType,
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(tableConfig),
+                                    CodeGeneratorContext.apply(config.getTableConfig()),
                                     "UdtfInputProjection",
                                     inputType,
                                     udfInputType,

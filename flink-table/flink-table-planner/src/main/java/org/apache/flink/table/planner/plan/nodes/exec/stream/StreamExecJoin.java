@@ -22,11 +22,11 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -122,7 +122,8 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge leftInputEdge = getInputEdges().get(0);
         final ExecEdge rightInputEdge = getInputEdges().get(1);
 
@@ -146,11 +147,11 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
         final JoinInputSideSpec rightInputSpec =
                 JoinUtil.analyzeJoinInput(rightTypeInfo, rightJoinKey, rightUniqueKeys);
 
-        final TableConfig tableConfig = planner.getTableConfig();
         GeneratedJoinCondition generatedCondition =
-                JoinUtil.generateConditionFunction(tableConfig, joinSpec, leftType, rightType);
+                JoinUtil.generateConditionFunction(
+                        config.getTableConfig(), joinSpec, leftType, rightType);
 
-        long minRetentionTime = tableConfig.getMinIdleStateRetentionTime();
+        long minRetentionTime = config.getStateRetentionTime();
 
         AbstractStreamingJoinOperator operator;
         FlinkJoinType joinType = joinSpec.getJoinType();
@@ -187,7 +188,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        createTransformationMeta(JOIN_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(JOIN_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());
