@@ -39,6 +39,8 @@ import static org.apache.flink.streaming.util.TestHarnessUtil.buildSubtaskState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
+import static org.junit.Assert.assertTrue;
 
 /** Test the {@link StreamingCommitterHandler}. */
 public class StreamingCommitterHandlerTest extends TestLogger {
@@ -65,8 +67,13 @@ public class StreamingCommitterHandlerTest extends TestLogger {
         testHarness.prepareSnapshotPreBarrier(1);
         testHarness.snapshot(1L, 1L);
         testHarness.notifyOfCompletedCheckpoint(1L);
+
+        assertTrue(testHarness.getOutput().isEmpty());
+
         testHarness.snapshot(2L, 2L);
         testHarness.notifyOfCompletedCheckpoint(2L);
+
+        assertThat(testHarness.getOutput(), hasSize(2));
 
         testHarness.close();
 

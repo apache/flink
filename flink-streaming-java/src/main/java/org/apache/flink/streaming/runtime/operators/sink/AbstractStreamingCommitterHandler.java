@@ -33,11 +33,14 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 /**
  * Abstract base class for operators that work with a {@link Committer} or a {@link
@@ -140,8 +143,17 @@ abstract class AbstractStreamingCommitterHandler<InputT, CommT>
         }
 
         LOG.info("Committing the state for checkpoint {}", checkpointId);
-        recoveredCommittables(commit(readyCommittables));
-        return readyCommittables;
+        final List<CommT> failedCommittables = commit(readyCommittables);
+        recoveredCommittables(failedCommittables);
+
+        // Do not forward failed committables
+        final Set<CommT> failedCommittableSet = Collections.newSetFromMap(new IdentityHashMap<>());
+        failedCommittableSet.addAll(failedCommittables);
+
+        // Retain ordering of the committables
+        return readyCommittables.stream()
+                .filter(c -> !failedCommittableSet.contains(c))
+                .collect(Collectors.toList());
     }
 
     @Override
