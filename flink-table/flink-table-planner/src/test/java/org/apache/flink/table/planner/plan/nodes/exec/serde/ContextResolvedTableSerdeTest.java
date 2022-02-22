@@ -36,6 +36,7 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -55,7 +56,6 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTest
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonDoesNotContain;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectReader;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectWriter;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.getObjectMapper;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -632,13 +632,13 @@ public class ContextResolvedTableSerdeTest {
 
     private Tuple2<JsonNode, ContextResolvedTable> serDe(
             SerdeContext serdeCtx, ContextResolvedTable contextResolvedTable) throws Exception {
-        // Serialize/Deserialize test
         final byte[] actualSerialized =
                 createObjectWriter(serdeCtx).writeValueAsBytes(contextResolvedTable);
-        final JsonNode middleDeserialized = getObjectMapper().readTree(actualSerialized);
+
+        final ObjectReader objectReader = createObjectReader(serdeCtx);
+        final JsonNode middleDeserialized = objectReader.readTree(actualSerialized);
         final ContextResolvedTable actualDeserialized =
-                createObjectReader(serdeCtx)
-                        .readValue(actualSerialized, ContextResolvedTable.class);
+                objectReader.readValue(actualSerialized, ContextResolvedTable.class);
 
         return Tuple2.of(middleDeserialized, actualDeserialized);
     }
