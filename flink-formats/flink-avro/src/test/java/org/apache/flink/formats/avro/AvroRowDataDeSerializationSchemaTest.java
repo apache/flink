@@ -68,7 +68,7 @@ import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for the Avro serialization and deserialization schema. */
 class AvroRowDataDeSerializationSchemaTest {
@@ -225,10 +225,10 @@ class AvroRowDataDeSerializationSchemaTest {
         rowData.setField(0, 1);
         rowData.setField(1, 2); // This should be a STRING
 
-        assertThatExceptionOfType(RuntimeException.class)
-                .isThrownBy(() -> serializationSchema.serialize(rowData))
-                .withMessageContaining("Failed to serialize row.")
-                .withStackTraceContaining("Fail to serialize at field: f1");
+        assertThatThrownBy(() -> serializationSchema.serialize(rowData))
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Failed to serialize row.")
+                .hasStackTraceContaining("Fail to serialize at field: f1");
     }
 
     private AvroRowDataSerializationSchema createSerializationSchema(DataType dataType)

@@ -20,7 +20,7 @@ package org.apache.flink.formats.avro.typeutils;
 
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * A test that validates that the concurrency checks in the Avro Serializer are not hard coded to
@@ -47,11 +47,11 @@ class AvroSerializerConcurrencyCheckInactiveITCase {
      */
     @Test
     void testWithNoConcurrencyCheck() throws Exception {
-        assertThatExceptionOfType(AssertionError.class)
+        assertThatThrownBy(
+                        () -> new AvroSerializerConcurrencyTest().testConcurrentUseOfSerializer())
                 .as(
                         "testConcurrentUseOfSerializer() should fail if "
                                 + "concurrency checks are off by default")
-                .isThrownBy(
-                        () -> new AvroSerializerConcurrencyTest().testConcurrentUseOfSerializer());
+                .isInstanceOf(AssertionError.class);
     }
 }

@@ -43,7 +43,7 @@ import org.junit.jupiter.api.Test;
 import java.io.IOException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link AvroSchemaConverter}. */
 class AvroSchemaConverterTest {
@@ -118,9 +118,9 @@ class AvroSchemaConverterTest {
                                 .toRowDataType()
                                 .getLogicalType();
 
-        assertThatExceptionOfType(UnsupportedOperationException.class)
-                .isThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
-                .withMessageStartingWith("Unsupported to derive Schema for type: RAW");
+        assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageStartingWith("Unsupported to derive Schema for type: RAW");
     }
 
     @Test
@@ -134,9 +134,9 @@ class AvroSchemaConverterTest {
                                 .toRowDataType()
                                 .getLogicalType();
 
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
-                .withMessage(
+        assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
                         "Avro does not support TIMESTAMP type with precision: 9, "
                                 + "it only supports precision less than 3.");
     }
@@ -152,9 +152,9 @@ class AvroSchemaConverterTest {
                                 .toRowDataType()
                                 .getLogicalType();
 
-        assertThatExceptionOfType(IllegalArgumentException.class)
-                .isThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
-                .withMessage(
+        assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
                         "Avro does not support TIME type with precision: 6, it only supports precision less than 3.");
     }
 

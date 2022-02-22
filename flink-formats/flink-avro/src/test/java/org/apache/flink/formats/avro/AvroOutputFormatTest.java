@@ -116,7 +116,7 @@ class AvroOutputFormatTest {
                 new ObjectInputStream(new ByteArrayInputStream(bos.toByteArray()))) {
             // then
             Object o = ois.readObject();
-            assertThat(o instanceof AvroOutputFormat).isTrue();
+            assertThat(o).isInstanceOf(AvroOutputFormat.class);
             @SuppressWarnings("unchecked")
             final AvroOutputFormat<User> restored = (AvroOutputFormat<User>) o;
             final AvroOutputFormat.Codec restoredCodec =
@@ -124,9 +124,8 @@ class AvroOutputFormatTest {
             final Schema restoredSchema =
                     (Schema) Whitebox.getInternalState(restored, "userDefinedSchema");
 
-            assertThat(codec != null ? restoredCodec == codec : restoredCodec == null).isTrue();
-            assertThat(schema != null ? restoredSchema.equals(schema) : restoredSchema == null)
-                    .isTrue();
+            assertThat(codec).isSameAs(restoredCodec);
+            assertThat(schema).isEqualTo(restoredSchema);
         }
     }
 
@@ -216,9 +215,9 @@ class AvroOutputFormatTest {
 
         while (dataFileReader.hasNext()) {
             GenericRecord record = dataFileReader.next();
-            assertThat("testUser").isEqualTo(record.get("user_name").toString());
-            assertThat(1).isEqualTo(record.get("favorite_number"));
-            assertThat("blue").isEqualTo(record.get("favorite_color").toString());
+            assertThat(record.get("user_name").toString()).isEqualTo("testUser");
+            assertThat(record.get("favorite_number")).isEqualTo(1);
+            assertThat(record.get("favorite_color").toString()).isEqualTo("blue");
         }
 
         // cleanup

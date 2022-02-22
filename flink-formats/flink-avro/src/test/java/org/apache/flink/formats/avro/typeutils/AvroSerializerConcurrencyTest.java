@@ -60,7 +60,6 @@ class AvroSerializerConcurrencyTest {
         sync.awaitBlocker();
 
         // this should fail with an exception
-
         try {
             serializer.serialize("value", regularOut);
             fail("should have failed with an exception");

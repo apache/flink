@@ -69,6 +69,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.MapEntry.entry;
 
 /**
  * Test the avro input format. (The testcase is mostly the getting started tutorial of avro)
@@ -211,14 +212,13 @@ public class AvroRecordInputFormatTest {
 
         format.configure(parameters);
         FileInputSplit[] splits = format.createInputSplits(1);
-        assertThat(splits.length).isEqualTo(1);
+        assertThat(splits).hasSize(1);
         format.open(splits[0]);
 
         User u = format.nextRecord(null);
         assertThat(u).isNotNull();
 
         String name = u.getName().toString();
-        assertThat(name).isNotNull();
         assertThat(name).isEqualTo(TEST_NAME);
 
         // check arrays
@@ -236,9 +236,9 @@ public class AvroRecordInputFormatTest {
         // check maps
         Map<CharSequence, Long> lm = u.getTypeMap();
         assertThat(lm)
-                .containsEntry(new Utf8(TEST_MAP_KEY1), TEST_MAP_VALUE1)
-                .containsEntry(new Utf8(TEST_MAP_KEY2), TEST_MAP_VALUE2)
-                .hasSize(2);
+                .containsOnly(
+                        entry(new Utf8(TEST_MAP_KEY1), TEST_MAP_VALUE1),
+                        entry(new Utf8(TEST_MAP_KEY2), TEST_MAP_VALUE2));
 
         assertThat(format.reachedEnd()).as("expecting second element").isFalse();
         assertThat(format.nextRecord(u)).as("expecting second element").isNotNull();
@@ -260,14 +260,13 @@ public class AvroRecordInputFormatTest {
 
         format.configure(parameters);
         FileInputSplit[] splits = format.createInputSplits(1);
-        assertThat(splits.length).isEqualTo(1);
+        assertThat(splits).hasSize(1);
         format.open(splits[0]);
 
         User u = format.nextRecord(null);
         assertThat(u).isNotNull();
 
         String name = u.getName().toString();
-        assertThat(name).isNotNull();
         assertThat(name).isEqualTo(TEST_NAME);
 
         // check arrays
@@ -285,9 +284,9 @@ public class AvroRecordInputFormatTest {
         // check maps
         Map<CharSequence, Long> lm = u.getTypeMap();
         assertThat(lm)
-                .containsEntry(new Utf8(TEST_MAP_KEY1), TEST_MAP_VALUE1)
-                .containsEntry(new Utf8(TEST_MAP_KEY2), TEST_MAP_VALUE2)
-                .hasSize(2);
+                .containsOnly(
+                        entry(new Utf8(TEST_MAP_KEY1), TEST_MAP_VALUE1),
+                        entry(new Utf8(TEST_MAP_KEY2), TEST_MAP_VALUE2));
 
         assertThat(format.reachedEnd()).as("expecting second element").isFalse();
         assertThat(format.nextRecord(u)).as("expecting second element").isNotNull();
@@ -423,7 +422,7 @@ public class AvroRecordInputFormatTest {
         try {
             format.configure(parameters);
             FileInputSplit[] splits = format.createInputSplits(1);
-            assertThat(splits.length).isEqualTo(1);
+            assertThat(splits).hasSize(1);
             format.open(splits[0]);
 
             GenericRecord u = format.nextRecord(null);
@@ -431,7 +430,6 @@ public class AvroRecordInputFormatTest {
             assertThat(u.getSchema()).isEqualTo(userSchema);
 
             String name = u.get("name").toString();
-            assertThat(name).isNotNull();
             assertThat(name).isEqualTo(TEST_NAME);
 
             // check arrays
@@ -449,9 +447,9 @@ public class AvroRecordInputFormatTest {
             // check maps
             Map<CharSequence, Long> lm = (Map<CharSequence, Long>) u.get("type_map");
             assertThat(lm)
-                    .containsEntry(new Utf8(TEST_MAP_KEY1), TEST_MAP_VALUE1)
-                    .containsEntry(new Utf8(TEST_MAP_KEY2), TEST_MAP_VALUE2)
-                    .hasSize(2);
+                    .containsOnly(
+                            entry(new Utf8(TEST_MAP_KEY1), TEST_MAP_VALUE1),
+                            entry(new Utf8(TEST_MAP_KEY2), TEST_MAP_VALUE2));
 
             assertThat(format.reachedEnd()).as("expecting second element").isFalse();
             assertThat(format.nextRecord(u)).as("expecting second element").isNotNull();

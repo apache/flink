@@ -64,7 +64,6 @@ class AvroTypeExtractionTest {
                     new MiniClusterResourceConfiguration.Builder()
                             .setNumberTaskManagers(1)
                             .setNumberSlotsPerTaskManager(PARALLELISM)
-                            .withHaLeadershipControl()
                             .build());
 
     @RegisterExtension
