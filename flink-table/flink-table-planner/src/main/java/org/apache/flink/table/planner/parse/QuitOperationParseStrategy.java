@@ -29,7 +29,7 @@ public class QuitOperationParseStrategy extends AbstractRegexParseStrategy {
     static final QuitOperationParseStrategy INSTANCE = new QuitOperationParseStrategy();
 
     private QuitOperationParseStrategy() {
-        super(Pattern.compile("(EXIT|QUIT)(\\s*;)?", DEFAULT_PATTERN_FLAGS));
+        super(Pattern.compile("(EXIT|QUIT)\\s*;", DEFAULT_PATTERN_FLAGS));
     }
 
     @Override
@@ -39,6 +39,6 @@ public class QuitOperationParseStrategy extends AbstractRegexParseStrategy {
 
     @Override
     public String[] getHints() {
-        return new String[] {"EXIT", "QUIT"};
+        return new String[] {"EXIT;", "QUIT;"};
     }
 }

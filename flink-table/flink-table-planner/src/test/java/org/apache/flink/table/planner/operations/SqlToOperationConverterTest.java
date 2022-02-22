@@ -101,9 +101,11 @@ import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.apache.calcite.sql.SqlNode;
 import org.assertj.core.api.HamcrestCondition;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -118,7 +120,6 @@ import java.util.TreeMap;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 import static org.apache.flink.table.planner.utils.OperationMatchers.entry;
@@ -174,7 +175,7 @@ public class SqlToOperationConverterTest {
         return plannerContext;
     }
 
-    @Before
+    @BeforeEach
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
         catalogManager.initSchemaResolver(
                 isStreamingMode,
@@ -196,7 +197,7 @@ public class SqlToOperationConverterTest {
         catalog.createTable(path2, catalogTable, true);
     }
 
-    @After
+    @AfterEach
     public void after() throws TableNotExistException {
         final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
         final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
@@ -1665,63 +1666,32 @@ public class SqlToOperationConverterTest {
         assertThat(((ResetOperation) operation2).getKey()).hasValue("test-key");
     }
 
-    @Test
-    public void testHelpCommands() {
+    @ParameterizedTest
+    @ValueSource(strings = {"HELP", "HELP;", "HELP ;", "HELP\t;", "HELP\n;"})
+    public void testHelpCommands(String command) {
         ExtendedParser extendedParser = new ExtendedParser();
-        Stream.of("HELP", "HELP;", "HELP ;", "HELP\t;", "HELP\n;")
-                .forEach(
-                        command -> {
-                            Operation operation1 =
-                                    extendedParser
-                                            .parse(command)
-                                            .orElseThrow(
-                                                    () ->
-                                                            new RuntimeException(
-                                                                    "Fail to parse '"
-                                                                            + command
-                                                                            + "'"));
-                            assertThat(operation1).isInstanceOf(HelpOperation.class);
-                        });
+        Operation operation1 = extendedParser.parse(command).get();
+        assertThat(operation1).isInstanceOf(HelpOperation.class);
     }
 
-    @Test
-    public void testClearCommands() {
+    @ParameterizedTest
+    @ValueSource(strings = {"CLEAR", "CLEAR;", "CLEAR ;", "CLEAR\t;", "CLEAR\n;"})
+    public void testClearCommands(String command) {
         ExtendedParser extendedParser = new ExtendedParser();
-        Stream.of("CLEAR", "CLEAR;", "CLEAR ;", "CLEAR\t;", "CLEAR\n;")
-                .forEach(
-                        command -> {
-                            Operation operation1 =
-                                    extendedParser
-                                            .parse(command)
-                                            .orElseThrow(
-                                                    () ->
-                                                            new RuntimeException(
-                                                                    "Fail to parse '"
-                                                                            + command
-                                                                            + "'"));
-                            assertThat(operation1).isInstanceOf(ClearOperation.class);
-                        });
+        Operation operation1 = extendedParser.parse(command).get();
+        assertThat(operation1).isInstanceOf(ClearOperation.class);
     }
 
-    @Test
-    public void testQuitCommands() {
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "QUIT;", "QUIT;", "QUIT ;", "QUIT\t;", "QUIT\n;", "EXIT;", "EXIT ;", "EXIT\t;",
+                "EXIT\n;", "EXIT ; "
+            })
+    public void testQuitCommands(String command) {
         ExtendedParser extendedParser = new ExtendedParser();
-        Stream.of(
-                        "QUIT", "QUIT;", "QUIT ;", "QUIT\t;", "QUIT\n;", "EXIT", "EXIT;", "EXIT ;",
-                        "EXIT\t;", "EXIT\n;")
-                .forEach(
-                        command -> {
-                            Operation operation1 =
-                                    extendedParser
-                                            .parse(command)
-                                            .orElseThrow(
-                                                    () ->
-                                                            new RuntimeException(
-                                                                    "Fail to parse '"
-                                                                            + command
-                                                                            + "'"));
-                            assertThat(operation1).isInstanceOf(QuitOperation.class);
-                        });
+        Operation operation1 = extendedParser.parse(command).get();
+        assertThat(operation1).isInstanceOf(QuitOperation.class);
     }
 
     // ~ Tool Methods ----------------------------------------------------------
