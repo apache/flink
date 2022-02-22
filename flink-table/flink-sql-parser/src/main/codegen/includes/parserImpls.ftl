@@ -1752,7 +1752,6 @@ SqlNode SqlRichExplain() :
     <EXPLAIN>
     )
     (
-        LOOKAHEAD(2)
         stmt = SqlStatementSet()
         |
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
@@ -1775,7 +1774,6 @@ SqlNode SqlExecute() :
 {
     <EXECUTE>{ startPos = getPos(); }
     (
-        LOOKAHEAD(2)
         stmt = SqlStatementSet()
         |
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
