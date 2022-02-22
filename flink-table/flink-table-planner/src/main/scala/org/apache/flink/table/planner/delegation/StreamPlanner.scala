@@ -52,11 +52,11 @@ import _root_.scala.collection.JavaConversions._
 
 class StreamPlanner(
     executor: Executor,
-    config: TableConfig,
+    tableConfig: TableConfig,
     moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager)
-  extends PlannerBase(executor, config, moduleManager, functionCatalog, catalogManager,
+  extends PlannerBase(executor, tableConfig, moduleManager, functionCatalog, catalogManager,
     isStreamingMode = true) {
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
@@ -131,7 +131,7 @@ class StreamPlanner(
   private def createDummyPlanner(): StreamPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new DefaultExecutor(dummyExecEnv)
-    new StreamPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
+    new StreamPlanner(executor, tableConfig, moduleManager, functionCatalog, catalogManager)
   }
 
   override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
@@ -142,15 +142,14 @@ class StreamPlanner(
         objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
       case contentPlanReference: ContentPlanReference =>
         objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
-      case resourcePlanReference: ResourcePlanReference => {
+      case resourcePlanReference: ResourcePlanReference =>
         val url = resourcePlanReference.getClassLoader
           .getResource(resourcePlanReference.getResourcePath)
         if (url == null) {
           throw new IOException(
-            "Cannot load the plan reference from classpath: " + planReference);
+            "Cannot load the plan reference from classpath: " + planReference)
         }
         objectReader.readValue(new File(url.toURI), classOf[ExecNodeGraph])
-      }
       case _ => throw new IllegalStateException(
         "Unknown PlanReference. This is a bug, please contact the developers")
     }
@@ -192,7 +191,7 @@ class StreamPlanner(
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
 
-    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
+    val streamGraph = executor.createPipeline(transformations, tableConfig.getConfiguration, null)
       .asInstanceOf[StreamGraph]
 
     val sb = new StringBuilder

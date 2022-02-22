@@ -227,7 +227,9 @@ public final class DynamicSourceUtils {
 
     /** Returns true if the table source produces duplicate change events. */
     public static boolean isSourceChangeEventsDuplicate(
-            ResolvedSchema resolvedSchema, DynamicTableSource tableSource, TableConfig config) {
+            ResolvedSchema resolvedSchema,
+            DynamicTableSource tableSource,
+            TableConfig tableConfig) {
         if (!(tableSource instanceof ScanTableSource)) {
             return false;
         }
@@ -235,7 +237,8 @@ public final class DynamicSourceUtils {
         boolean isCDCSource =
                 !mode.containsOnly(RowKind.INSERT) && !isUpsertSource(resolvedSchema, tableSource);
         boolean changeEventsDuplicate =
-                config.getConfiguration()
+                tableConfig
+                        .getConfiguration()
                         .getBoolean(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
         boolean hasPrimaryKey = resolvedSchema.getPrimaryKey().isPresent();
         return isCDCSource && changeEventsDuplicate && hasPrimaryKey;

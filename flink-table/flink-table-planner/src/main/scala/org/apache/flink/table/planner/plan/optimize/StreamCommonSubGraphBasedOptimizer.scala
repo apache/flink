@@ -36,7 +36,6 @@ import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.TableScan
-import org.apache.calcite.rex.RexBuilder
 
 import java.util
 import java.util.Collections
@@ -50,7 +49,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
   extends CommonSubGraphBasedOptimizer {
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
-    val config = planner.getTableConfig
+    val config = planner.getConfiguration
     // build RelNodeBlock plan
     val sinkBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, config)
     // infer trait properties for sink block
@@ -58,9 +57,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       // don't require update before by default
       sinkBlock.setUpdateBeforeRequired(false)
 
-      val miniBatchInterval: MiniBatchInterval = if (config.getConfiguration.getBoolean(
+      val miniBatchInterval: MiniBatchInterval = if (config.get(
         ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)) {
-        val miniBatchLatency = config.getConfiguration.get(
+        val miniBatchLatency = config.get(
           ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY).toMillis
         Preconditions.checkArgument(miniBatchLatency > 0,
           "MiniBatch Latency must be greater than 0 ms.", null)

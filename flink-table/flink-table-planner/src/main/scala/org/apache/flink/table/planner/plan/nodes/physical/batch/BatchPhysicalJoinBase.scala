@@ -48,10 +48,10 @@ abstract class BatchPhysicalJoinBase(
   with BatchPhysicalRel {
 
   private[flink] def generateCondition(
-      config: TableConfig,
+      tableConfig: TableConfig,
       leftType: RowType,
       rightType: RowType): GeneratedJoinCondition = {
-    val ctx = CodeGeneratorContext(config)
+    val ctx = CodeGeneratorContext(tableConfig)
     val exprGenerator = new ExprCodeGenerator(ctx, false)
         .bindInput(leftType)
         .bindSecondInput(rightType)

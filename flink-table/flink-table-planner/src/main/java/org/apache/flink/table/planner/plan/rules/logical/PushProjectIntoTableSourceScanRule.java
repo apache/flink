@@ -202,13 +202,13 @@ public class PushProjectIntoTableSourceScanRule
         return projections;
     }
 
-    private static boolean requiresPrimaryKey(TableSourceTable table, TableConfig config) {
+    private static boolean requiresPrimaryKey(TableSourceTable table, TableConfig tableConfig) {
         return DynamicSourceUtils.isUpsertSource(
                         table.contextResolvedTable().getResolvedSchema(), table.tableSource())
                 || DynamicSourceUtils.isSourceChangeEventsDuplicate(
                         table.contextResolvedTable().getResolvedSchema(),
                         table.tableSource(),
-                        config);
+                        tableConfig);
     }
 
     private List<RexNode> getPrimaryKeyProjections(LogicalTableScan scan) {

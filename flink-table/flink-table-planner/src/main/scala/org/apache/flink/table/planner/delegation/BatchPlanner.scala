@@ -47,11 +47,11 @@ import scala.collection.JavaConversions._
 
 class BatchPlanner(
     executor: Executor,
-    config: TableConfig,
+    tableConfig: TableConfig,
     moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager)
-  extends PlannerBase(executor, config, moduleManager, functionCatalog, catalogManager,
+  extends PlannerBase(executor, tableConfig, moduleManager, functionCatalog, catalogManager,
     isStreamingMode = false) {
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
@@ -132,7 +132,7 @@ class BatchPlanner(
   private def createDummyPlanner(): BatchPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new DefaultExecutor(dummyExecEnv)
-    new BatchPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
+    new BatchPlanner(executor, tableConfig, moduleManager, functionCatalog, catalogManager)
   }
 
   override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {

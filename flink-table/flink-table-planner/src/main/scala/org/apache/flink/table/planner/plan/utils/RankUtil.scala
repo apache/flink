@@ -65,17 +65,17 @@ object RankUtil {
     * @param  oriPred             the original predicate
     * @param  rankFieldIndex      the index of rank field
     * @param  rexBuilder          RexBuilder
-    * @param  config              TableConfig
+    * @param  tableConfig         TableConfig
     * @return A Tuple2 of extracted rank range and remaining predicates.
     */
   def extractRankRange(
       oriPred: RexNode,
       rankFieldIndex: Int,
       rexBuilder: RexBuilder,
-      config: TableConfig): (Option[RankRange], Option[RexNode]) = {
+      tableConfig: TableConfig): (Option[RankRange], Option[RexNode]) = {
     val predicate = FlinkRexUtil.expandSearch(rexBuilder, oriPred)
     // Converts the condition to conjunctive normal form (CNF)
-    val cnfNodeCount = config.getConfiguration.getInteger(
+    val cnfNodeCount = tableConfig.getConfiguration.getInteger(
       FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
     val cnfCondition = FlinkRexUtil.toCnf(rexBuilder, cnfNodeCount, predicate)
 
@@ -105,7 +105,7 @@ object RankUtil {
       return (None, Some(predicate))
     }
 
-    val sortBounds = limitPreds.map(computeWindowBoundFromPredicate(_, rexBuilder, config))
+    val sortBounds = limitPreds.map(computeWindowBoundFromPredicate(_, rexBuilder, tableConfig))
     val rankRange = sortBounds match {
       case Seq(Some(LowerBoundary(x)), Some(UpperBoundary(y))) =>
         new ConstantRankRange(x, y)
@@ -207,7 +207,7 @@ object RankUtil {
   private def computeWindowBoundFromPredicate(
       limitPred: LimitPredicate,
       rexBuilder: RexBuilder,
-      config: TableConfig): Option[Boundary] = {
+      tableConfig: TableConfig): Option[Boundary] = {
 
     val bound: BoundDefine = limitPred.pred.getKind match {
       case SqlKind.GREATER_THAN | SqlKind.GREATER_THAN_OR_EQUAL if limitPred.rankOnLeftSide =>
@@ -233,7 +233,7 @@ object RankUtil {
       case (_: RexInputRef, Lower) => None
       case _ =>
         // reduce predicate to constants to compute bounds
-        val literal = reduceComparisonPredicate(limitPred, rexBuilder, config)
+        val literal = reduceComparisonPredicate(limitPred, rexBuilder, tableConfig)
         if (literal.isEmpty) {
           None
         } else {
@@ -264,15 +264,15 @@ object RankUtil {
     * Replaces the rank aggregate reference on of a predicate by a zero literal and
     * reduces the expressions on both sides to a long literal.
     *
-    * @param limitPred The limit predicate which both sides are reduced.
-    * @param rexBuilder A RexBuilder
-    * @param config A TableConfig.
+    * @param limitPred   The limit predicate which both sides are reduced.
+    * @param rexBuilder  A RexBuilder
+    * @param tableConfig A TableConfig.
     * @return The values of the reduced literals on both sides of the comparison predicate.
     */
   private def reduceComparisonPredicate(
       limitPred: LimitPredicate,
       rexBuilder: RexBuilder,
-      config: TableConfig): Option[Long] = {
+      tableConfig: TableConfig): Option[Long] = {
 
     val expression = if (limitPred.rankOnLeftSide) {
       limitPred.pred.operands.get(1)
@@ -285,7 +285,7 @@ object RankUtil {
     }
 
     // reduce expression to literal
-     val exprReducer = new ExpressionReducer(config)
+     val exprReducer = new ExpressionReducer(tableConfig)
      val originList = new util.ArrayList[RexNode]()
      originList.add(expression)
      val reduceList = new util.ArrayList[RexNode]()

@@ -1312,14 +1312,14 @@ class CalcITCase extends BatchTestBase {
   def testCalcBinary(): Unit = {
     registerCollection(
       "BinaryT",
-      nullData3.map((r) => row(r.getField(0), r.getField(1),
+      nullData3.map(r => row(r.getField(0), r.getField(1),
         r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
       "a, b, c",
       nullablesOfNullData3)
     checkResult(
       "select a, b, c from BinaryT where b < 1000",
-      nullData3.map((r) => row(r.getField(0), r.getField(1),
+      nullData3.map(r => row(r.getField(0), r.getField(1),
         r.getField(2).toString.getBytes(StandardCharsets.UTF_8)))
     )
   }
@@ -1328,19 +1328,19 @@ class CalcITCase extends BatchTestBase {
   def testOrderByBinary(): Unit = {
     registerCollection(
       "BinaryT",
-      nullData3.map((r) => row(r.getField(0), r.getField(1),
+      nullData3.map(r => row(r.getField(0), r.getField(1),
         r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
       new RowTypeInfo(INT_TYPE_INFO, LONG_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO),
       "a, b, c",
       nullablesOfNullData3)
-    conf.getConfiguration.setInteger(
+    tableConfig.getConfiguration.setInteger(
       ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
-    conf.getConfiguration.setBoolean(
+    tableConfig.getConfiguration.setBoolean(
       BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED, true)
     checkResult(
       "select * from BinaryT order by c",
       nullData3.sortBy((x : Row) =>
-        x.getField(2).asInstanceOf[String]).map((r) =>
+        x.getField(2).asInstanceOf[String]).map(r =>
         row(r.getField(0), r.getField(1),
           r.getField(2).toString.getBytes(StandardCharsets.UTF_8))),
       isSorted = true
@@ -1351,7 +1351,7 @@ class CalcITCase extends BatchTestBase {
   def testGroupByBinary(): Unit = {
     registerCollection(
       "BinaryT2",
-      nullData3.map((r) => row(r.getField(0),
+      nullData3.map(r => row(r.getField(0),
         r.getField(1).toString.getBytes(StandardCharsets.UTF_8), r.getField(2))),
       new RowTypeInfo(INT_TYPE_INFO, BYTE_PRIMITIVE_ARRAY_TYPE_INFO, STRING_TYPE_INFO),
       "a, b, c",
@@ -1443,7 +1443,7 @@ class CalcITCase extends BatchTestBase {
 
     val query = """
                   |select * from myTable where f0 in (1.0, 2.0, 3.0)
-                  |""".stripMargin;
+                  |""".stripMargin
 
     checkResult(
       query,

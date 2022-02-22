@@ -30,7 +30,7 @@ import org.apache.flink.table.types.logical.RowType
   * RANGE allow the compound ORDER BY and the random type when the bound is current row.
   */
 class MultiFieldRangeBoundComparatorCodeGenerator(
-    conf: TableConfig,
+    tableConfig: TableConfig,
     inputType: RowType,
     sortSpec: SortSpec,
     isLowerBound: Boolean = true) {
@@ -45,7 +45,7 @@ class MultiFieldRangeBoundComparatorCodeGenerator(
       if (isLowerBound) s"return $comp >= 0 ? 1 : -1;" else s"return $comp > 0 ? 1 : -1;"
     }
 
-    val ctx = CodeGeneratorContext(conf)
+    val ctx = CodeGeneratorContext(tableConfig)
     val compareCode = GenerateUtils.generateRowCompare(ctx, inputType, sortSpec, input, current)
 
     val code =

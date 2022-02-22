@@ -213,7 +213,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   /**
     * @return Comment to be added as a header comment on the generated class
     */
-  def getClassHeaderComment(): String = {
+  def getClassHeaderComment: String = {
     s"""
     |/*
     | * ${reusableHeaderComments.mkString("\n * ")}
@@ -857,9 +857,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     * @param constant constant expression
     * @return generated expression with the fieldTerm and nullTerm
     */
-  def addReusableConstant(
-      constant: GeneratedExpression,
-      nullCheck: Boolean): GeneratedExpression = {
+  def addReusableConstant(constant: GeneratedExpression): GeneratedExpression = {
     require(constant.literal, "Literal expected")
 
     val fieldTerm = newName("constant")
@@ -977,7 +975,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 }
 
 object CodeGeneratorContext {
-  def apply(config: TableConfig): CodeGeneratorContext = {
-    new CodeGeneratorContext(config)
+  def apply(tableConfig: TableConfig): CodeGeneratorContext = {
+    new CodeGeneratorContext(tableConfig)
   }
 }
