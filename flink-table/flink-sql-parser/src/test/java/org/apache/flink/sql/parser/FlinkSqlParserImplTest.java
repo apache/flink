@@ -220,11 +220,11 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
         sql("show tables ^catalog1^.db1")
                 .fails("(?s).*Encountered \"catalog1\" at line 1, column 13.\n.*");
 
-        sql("show tables ^search^ db1").fails("(?s).*Encountered \"search\" at line 1, column 13.\n.*");
+        sql("show tables ^search^ db1")
+                .fails("(?s).*Encountered \"search\" at line 1, column 13.\n.*");
 
         sql("show tables from db1 ^likes^ '%t'")
                 .fails("(?s).*Encountered \"likes\" at line 1, column 22.\n.*");
-
     }
 
     @Test

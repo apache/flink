@@ -42,7 +42,8 @@ public class ShowTablesOperation implements ShowOperation {
     public ShowTablesOperation(String likePattern, boolean useLike, boolean notLike) {
         this.catalogName = null;
         this.databaseName = null;
-        this.likePattern = useLike ? checkNotNull(likePattern, "Like pattern must not be null") : null;
+        this.likePattern =
+                useLike ? checkNotNull(likePattern, "Like pattern must not be null") : null;
         this.useLike = useLike;
         this.notLike = notLike;
         this.preposition = null;
@@ -57,7 +58,8 @@ public class ShowTablesOperation implements ShowOperation {
             String preposition) {
         this.catalogName = checkNotNull(catalogName, "Catalog name must not be null");
         this.databaseName = checkNotNull(databaseName, "Database name must not be null");
-        this.likePattern = useLike ? checkNotNull(likePattern, "Like pattern must not be null") : null;
+        this.likePattern =
+                useLike ? checkNotNull(likePattern, "Like pattern must not be null") : null;
         this.useLike = useLike;
         this.notLike = notLike;
         this.preposition = checkNotNull(preposition, "Preposition must not be null");

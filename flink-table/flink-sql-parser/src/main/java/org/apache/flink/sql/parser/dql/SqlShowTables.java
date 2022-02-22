@@ -61,7 +61,10 @@ public class SqlShowTables extends SqlCall {
             SqlCharStringLiteral likeLiteral) {
         super(pos);
         this.preposition = preposition;
-        this.databaseName = preposition != null ? requireNonNull(databaseName, "Database name must not be null.") : null;
+        this.databaseName =
+                preposition != null
+                        ? requireNonNull(databaseName, "Database name must not be null.")
+                        : null;
         this.notLike = notLike;
         this.likeLiteral = likeLiteral;
     }
