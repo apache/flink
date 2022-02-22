@@ -40,7 +40,7 @@ import org.apache.calcite.rex._
 object CorrelateCodeGenerator {
 
   def generateCorrelateTransformation(
-      config: TableConfig,
+      tableConfig: TableConfig,
       operatorCtx: CodeGeneratorContext,
       inputTransformation: Transformation[RowData],
       inputType: RowType,
@@ -74,7 +74,7 @@ object CorrelateCodeGenerator {
 
     val substituteStreamOperator = generateOperator(
       operatorCtx,
-      config,
+      tableConfig,
       inputType,
       condition.map(_.accept(changeInputRefIndexShuttle)),
       outputType,
@@ -97,7 +97,7 @@ object CorrelateCodeGenerator {
     */
   private[flink] def generateOperator[T <: Function](
       ctx: CodeGeneratorContext,
-      config: TableConfig,
+      tableConfig: TableConfig,
       inputType: RowType,
       condition: Option[RexNode],
       returnType: RowType,
@@ -114,7 +114,7 @@ object CorrelateCodeGenerator {
     // 1.1 compile correlate collector
     val correlateCollectorTerm = generateCorrelateCollector(
       ctx,
-      config,
+      tableConfig,
       inputType,
       functionResultType,
       returnType,
@@ -181,7 +181,7 @@ object CorrelateCodeGenerator {
    */
   private def generateCorrelateCollector(
       ctx: CodeGeneratorContext,
-      config: TableConfig,
+      tableConfig: TableConfig,
       inputType: RowType,
       functionResultType: RowType,
       resultType: RowType,
@@ -193,7 +193,7 @@ object CorrelateCodeGenerator {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val udtfInputTerm = CodeGenUtils.DEFAULT_INPUT2_TERM
 
-    val collectorCtx = CodeGeneratorContext(config)
+    val collectorCtx = CodeGeneratorContext(tableConfig)
 
     val body = {
       // completely output left input + right

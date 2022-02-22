@@ -134,8 +134,8 @@ public class TableConfig {
      *
      * <pre>{@code
      * TableEnvironment tEnv = ...
-     * TableConfig config = tEnv.getConfig
-     * config.setLocalTimeZone(ZoneOffset.ofHours(2));
+     * TableConfig tableConfig = tEnv.getConfig
+     * tableConfig.setLocalTimeZone(ZoneOffset.ofHours(2));
      * tEnv("CREATE TABLE testTable (id BIGINT, tmstmp TIMESTAMP WITH LOCAL TIME ZONE)");
      * tEnv("INSERT INTO testTable VALUES ((1, '2000-01-01 2:00:00'), (2, TIMESTAMP '2000-01-01 2:00:00'))");
      * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+2
@@ -154,7 +154,7 @@ public class TableConfig {
      * <p>If we change the local time zone and query the same table:
      *
      * <pre>{@code
-     * config.setLocalTimeZone(ZoneOffset.ofHours(0));
+     * tableConfig.setLocalTimeZone(ZoneOffset.ofHours(0));
      * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+0
      * }</pre>
      *
@@ -352,8 +352,8 @@ public class TableConfig {
      *
      * <pre>{@code
      * Map<String, String> params = ...
-     * TableConfig config = tEnv.getConfig;
-     * config.getConfiguration().set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
+     * TableConfig tableConfig = tEnv.getConfig;
+     * tableConfig.getConfiguration().set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
      * }</pre>
      */
     @Experimental

@@ -77,8 +77,8 @@ public final class FunctionCatalog {
     private PlannerTypeInferenceUtil plannerTypeInferenceUtil;
 
     public FunctionCatalog(
-            TableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {
-        this(checkNotNull(config).getConfiguration(), catalogManager, moduleManager);
+            TableConfig tableConfig, CatalogManager catalogManager, ModuleManager moduleManager) {
+        this(checkNotNull(tableConfig).getConfiguration(), catalogManager, moduleManager);
     }
 
     public FunctionCatalog(

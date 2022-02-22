@@ -144,7 +144,7 @@ class AggsHandlerCodeGenerator(
     this.constants = literals
     val exprGenerator = new ExprCodeGenerator(ctx, INPUT_NOT_NULL)
     val exprs = literals.map(exprGenerator.generateExpression)
-    this.constantExprs = exprs.map(ctx.addReusableConstant(_, nullCheck = true))
+    this.constantExprs = exprs.map(ctx.addReusableConstant)
     this
   }
 
@@ -309,7 +309,6 @@ class AggsHandlerCodeGenerator(
       aggName: String): Option[Expression] = {
 
     if (filterArg > 0) {
-      val name = s"agg_${aggIndex}_filter"
       val filterType = inputFieldTypes(filterArg)
       if (!filterType.isInstanceOf[BooleanType]) {
         throw new TableException(s"filter arg must be boolean, but is $filterType, " +

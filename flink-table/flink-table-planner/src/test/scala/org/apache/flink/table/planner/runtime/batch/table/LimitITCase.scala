@@ -26,7 +26,7 @@ class LimitITCase extends LegacyLimitITCase {
 
   @Before
   override def before(): Unit = {
-    BatchTestBase.configForMiniCluster(conf)
+    BatchTestBase.configForMiniCluster(tableConfig)
 
     val myTableDataId = TestValuesTableFactory.registerData(TestData.data3)
     val ddl =
