@@ -136,6 +136,15 @@ public class EnvironmentSettings {
         return configuration.get(RUNTIME_MODE) == STREAMING;
     }
 
+    /**
+     * Returns the user {@link ClassLoader} to use for code generation, UDF loading and other
+     * operations requiring reflections on user code.
+     */
+    @Internal
+    public ClassLoader getUserClassLoader() {
+        return classLoader;
+    }
+
     /** A builder for {@link EnvironmentSettings}. */
     @PublicEvolving
     public static class Builder {
@@ -200,8 +209,26 @@ public class EnvironmentSettings {
             return this;
         }
 
+        /**
+         * Specifies the classloader to use in the planner for operations related to code
+         * generation, UDF loading, operations requiring reflections on user classes, discovery of
+         * factories.
+         *
+         * <p>By default, this is configured using {@code
+         * Thread.currentThread().getContextClassLoader()}.
+         *
+         * <p>Modify the {@link ClassLoader} only if you know what you're doing.
+         */
+        public Builder withClassLoader(ClassLoader classLoader) {
+            this.classLoader = classLoader;
+            return this;
+        }
+
         /** Returns an immutable instance of {@link EnvironmentSettings}. */
         public EnvironmentSettings build() {
+            if (classLoader == null) {
+                classLoader = Thread.currentThread().getContextClassLoader();
+            }
             return new EnvironmentSettings(configuration);
         }
     }
