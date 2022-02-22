@@ -23,17 +23,17 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
-import org.apache.flink.table.api.internal.CompiledPlanInternal
-import org.apache.flink.table.api.{CompiledPlan, ExplainDetail, PlanReference, TableConfig, TableException}
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.{ExplainDetail, PlanReference, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
-import org.apache.flink.table.delegation.Executor
+import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{ModifyOperation, Operation}
-import org.apache.flink.table.planner.plan.ExecNodeGraphCompiledPlan
+import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.processor.ExecNodeGraphProcessor
-import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
@@ -134,7 +134,7 @@ class StreamPlanner(
     new StreamPlanner(executor, tableConfig, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
+  override def loadPlan(planReference: PlanReference): InternalPlan = {
     val ctx = createSerdeContext
     val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
     val execNodeGraph = planReference match {
@@ -154,40 +154,39 @@ class StreamPlanner(
         "Unknown PlanReference. This is a bug, please contact the developers")
     }
 
-    new ExecNodeGraphCompiledPlan(
-      this,
-      JsonSerdeUtil.createObjectWriter(createSerdeContext)
+    new ExecNodeGraphInternalPlan(
+      JsonSerdeUtil.createObjectWriter(ctx)
         .withDefaultPrettyPrinter()
         .writeValueAsString(execNodeGraph),
       execNodeGraph)
   }
 
-  override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlanInternal = {
+  override def compilePlan(
+     modifyOperations: util.List[ModifyOperation]): InternalPlan = {
     validateAndOverrideConfiguration()
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
     cleanupInternalConfigurations()
 
-    new ExecNodeGraphCompiledPlan(
-      this,
+    new ExecNodeGraphInternalPlan(
       JsonSerdeUtil.createObjectWriter(createSerdeContext)
         .withDefaultPrettyPrinter()
         .writeValueAsString(execGraph),
       execGraph)
   }
 
-  override def translatePlan(plan: CompiledPlanInternal): util.List[Transformation[_]] = {
+  override def translatePlan(plan: InternalPlan): util.List[Transformation[_]] = {
     validateAndOverrideConfiguration()
-    val execGraph = plan.asInstanceOf[ExecNodeGraphCompiledPlan].getExecNodeGraph
+    val execGraph = plan.asInstanceOf[ExecNodeGraphInternalPlan].getExecNodeGraph
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
     transformations
   }
 
-  override def explainPlan(plan: CompiledPlanInternal, extraDetails: ExplainDetail*): String = {
+  override def explainPlan(plan: InternalPlan, extraDetails: ExplainDetail*): String = {
     validateAndOverrideConfiguration()
-    val execGraph = plan.asInstanceOf[ExecNodeGraphCompiledPlan].getExecNodeGraph
+    val execGraph = plan.asInstanceOf[ExecNodeGraphInternalPlan].getExecNodeGraph
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
 

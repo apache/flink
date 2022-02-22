@@ -21,12 +21,10 @@ package org.apache.flink.table.planner.plan;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CompiledPlan;
-import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.TableConfigOptions;
-import org.apache.flink.table.api.internal.CompiledPlanInternal;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink;
 
@@ -40,15 +38,12 @@ import java.util.stream.Collectors;
 
 /** Implementation of {@link CompiledPlan} backed by an {@link ExecNodeGraph}. */
 @Internal
-public class ExecNodeGraphCompiledPlan implements CompiledPlanInternal {
+public class ExecNodeGraphInternalPlan implements InternalPlan {
 
-    private final PlannerBase planner;
     private final String serializedPlan;
     private final ExecNodeGraph execNodeGraph;
 
-    public ExecNodeGraphCompiledPlan(
-            PlannerBase planner, String serializedPlan, ExecNodeGraph execNodeGraph) {
-        this.planner = planner;
+    public ExecNodeGraphInternalPlan(String serializedPlan, ExecNodeGraph execNodeGraph) {
         this.serializedPlan = serializedPlan;
         this.execNodeGraph = execNodeGraph;
     }
@@ -63,13 +58,13 @@ public class ExecNodeGraphCompiledPlan implements CompiledPlanInternal {
     }
 
     @Override
-    public void writeToFile(File file, boolean ignoreIfExists) {
+    public void writeToFile(File file, boolean ignoreIfExists, boolean failIfExists) {
         if (file.exists()) {
             if (ignoreIfExists) {
                 return;
             }
 
-            if (!planner.getConfiguration().get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
+            if (failIfExists) {
                 throw new TableException(
                         String.format(
                                 "Cannot overwrite the plan file '%s'. "
@@ -96,11 +91,6 @@ public class ExecNodeGraphCompiledPlan implements CompiledPlanInternal {
     }
 
     @Override
-    public String explain(ExplainDetail... explainDetails) {
-        return planner.explainPlan(this, explainDetails);
-    }
-
-    @Override
     public List<String> getSinkIdentifiers() {
         return this.execNodeGraph.getRootNodes().stream()
                 .filter(execNode -> execNode instanceof StreamExecSink)
@@ -112,10 +102,5 @@ public class ExecNodeGraphCompiledPlan implements CompiledPlanInternal {
                                         .getIdentifier())
                 .map(ObjectIdentifier::asSummaryString)
                 .collect(Collectors.toList());
-    }
-
-    @Override
-    public String toString() {
-        return explain();
     }
 }

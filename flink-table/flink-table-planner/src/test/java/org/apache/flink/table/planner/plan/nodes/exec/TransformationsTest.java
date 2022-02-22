@@ -32,9 +32,7 @@ import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.api.internal.TableEnvironmentImpl;
-import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.ExecNodeGraphCompiledPlan;
+import org.apache.flink.table.api.internal.CompiledPlanUtils;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
@@ -132,9 +130,7 @@ class TransformationsTest {
 
         // There should be 3 transformations in this list: sink -> calc -> source
         final List<Transformation<?>> transformations =
-                ((PlannerBase) ((TableEnvironmentImpl) env).getPlanner())
-                        .translateToPlan(
-                                ((ExecNodeGraphCompiledPlan) compiledPlan).getExecNodeGraph())
+                CompiledPlanUtils.toTransformations(env, compiledPlan)
                         .get(0)
                         .getTransitivePredecessors();
         assertThat(transformations).hasSize(3);
