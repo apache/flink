@@ -187,7 +187,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     protected TransformationMetadata createTransformationMeta(
             String operatorName, ReadableConfig config) {
-        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())
+                || config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
             return new TransformationMetadata(
                     createTransformationName(config), createTransformationDescription(config));
         } else {
@@ -203,7 +204,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             String operatorName, String detailName, String simplifiedName, ReadableConfig config) {
         final String name = createFormattedTransformationName(detailName, simplifiedName, config);
         final String desc = createFormattedTransformationDescription(detailName, config);
-        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())
+                || config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
             return new TransformationMetadata(name, desc);
         } else {
             // Only classes supporting metadata util need to set the uid
