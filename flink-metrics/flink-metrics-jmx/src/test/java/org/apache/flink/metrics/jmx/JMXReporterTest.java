@@ -221,7 +221,7 @@ class JMXReporterTest {
 
         MBeanAttributeInfo[] attributeInfos = info.getAttributes();
 
-        assertThat(attributeInfos.length).isEqualTo(11);
+        assertThat(attributeInfos).hasSize(11);
 
         assertThat(mBeanServer.getAttribute(objectName, "Count")).isEqualTo(histogram.getCount());
         HistogramStatistics statistics = histogram.getStatistics();
@@ -265,7 +265,7 @@ class JMXReporterTest {
 
         MBeanAttributeInfo[] attributeInfos = info.getAttributes();
 
-        assertThat(attributeInfos.length).isEqualTo(2);
+        assertThat(attributeInfos).hasSize(2);
 
         assertThat(mBeanServer.getAttribute(objectName, "Rate")).isEqualTo(meter.getRate());
         assertThat(mBeanServer.getAttribute(objectName, "Count")).isEqualTo(meter.getCount());

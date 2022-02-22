@@ -43,10 +43,12 @@ class JMXReporterFactoryTest {
 
         JMXReporter metricReporter = new JMXReporterFactory().createMetricReporter(properties);
         try {
-
-            assertThat(metricReporter.getPort().get())
-                    .isGreaterThanOrEqualTo(9000)
-                    .isLessThanOrEqualTo(9010);
+            assertThat(metricReporter.getPort())
+                    .hasValueSatisfying(
+                            port ->
+                                    assertThat(port)
+                                            .isGreaterThanOrEqualTo(9000)
+                                            .isLessThanOrEqualTo(9010));
         } finally {
             metricReporter.close();
         }

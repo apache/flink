@@ -39,7 +39,6 @@ import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.util.MiniClusterWithClientExtension;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.jupiter.api.Test;
@@ -56,7 +55,7 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests to verify JMX reporter functionality on the JobManager. */
-class JMXJobManagerMetricTest extends TestLogger {
+class JMXJobManagerMetricTest {
 
     private static final MiniClusterWithClientExtension MINI_CLUSTER_RESOURCE =
             new MiniClusterWithClientExtension(
