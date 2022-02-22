@@ -39,6 +39,6 @@ public class QuitOperationParseStrategy extends AbstractRegexParseStrategy {
 
     @Override
     public String[] getHints() {
-        return new String[] {"EXIT;", "QUIT;"};
+        return new String[] {"EXIT", "QUIT"};
     }
 }
