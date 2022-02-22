@@ -62,7 +62,7 @@ public class LocalstackContainer extends GenericContainer<LocalstackContainer> {
         @Override
         protected void waitUntilReady() {
             try {
-                Thread.sleep(10000);
+                Thread.sleep(30_000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 throw new IllegalStateException("Localstack Container startup was interrupted");
