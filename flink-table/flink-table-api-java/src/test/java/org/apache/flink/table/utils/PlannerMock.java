@@ -19,10 +19,10 @@
 package org.apache.flink.table.utils;
 
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.internal.CompiledPlanInternal;
+import org.apache.flink.table.api.internal.CompiledPlanInternalFactory;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.operations.ModifyOperation;
@@ -50,12 +50,12 @@ public class PlannerMock implements Planner {
     }
 
     @Override
-    public CompiledPlan loadPlan(PlanReference planReference) throws IOException {
+    public CompiledPlanInternalFactory loadPlan(PlanReference planReference) throws IOException {
         return null;
     }
 
     @Override
-    public CompiledPlanInternal compilePlan(List<ModifyOperation> modifyOperations) {
+    public CompiledPlanInternalFactory compilePlan(List<ModifyOperation> modifyOperations) {
         return null;
     }
 

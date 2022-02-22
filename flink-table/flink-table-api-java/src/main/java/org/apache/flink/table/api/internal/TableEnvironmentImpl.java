@@ -710,7 +710,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public CompiledPlan loadPlan(PlanReference planReference) {
         try {
-            return planner.loadPlan(planReference);
+            return planner.loadPlan(planReference).create(this);
         } catch (IOException e) {
             throw new TableException(String.format("Cannot load %s.", planReference), e);
         }
@@ -724,15 +724,15 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             throw new TableException(UNSUPPORTED_QUERY_IN_COMPILE_PLAN_SQL_MSG);
         }
 
-        return planner.compilePlan(Collections.singletonList((ModifyOperation) operations.get(0)));
+        return planner.compilePlan(Collections.singletonList((ModifyOperation) operations.get(0)))
+                .create(this);
     }
 
     @Override
-    public TableResult executePlan(CompiledPlan plan) {
-        CompiledPlanInternal planInternal = (CompiledPlanInternal) plan;
-        List<Transformation<?>> transformations = planner.translatePlan(planInternal);
+    public TableResultInternal executePlan(CompiledPlanInternal plan) {
+        List<Transformation<?>> transformations = planner.translatePlan(plan);
         List<String> sinkIdentifierNames =
-                deduplicateSinkIdentifierNames(planInternal.getSinkIdentifiers());
+                deduplicateSinkIdentifierNames(plan.getSinkIdentifiers());
         return executeInternal(transformations, sinkIdentifierNames);
     }
 
@@ -773,7 +773,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public CompiledPlan compilePlan(List<ModifyOperation> operations) {
-        return planner.compilePlan(operations);
+        return planner.compilePlan(operations).create(this);
     }
 
     @Override
@@ -1321,7 +1321,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             compileAndExecutePlanOperation.getFilePath(),
                             true,
                             compileAndExecutePlanOperation.getOperation());
-            return (TableResultInternal) executePlan(compiledPlan);
+            return (TableResultInternal) compiledPlan.execute();
         } else if (operation instanceof NopOperation) {
             return TableResultImpl.TABLE_RESULT_OK;
         } else {
@@ -1832,7 +1832,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public String explainPlan(CompiledPlan compiledPlan, ExplainDetail... extraDetails) {
-        return planner.explainPlan((CompiledPlanInternal) compiledPlan, extraDetails);
+    public String explainPlan(CompiledPlanInternal compiledPlan, ExplainDetail... extraDetails) {
+        return planner.explainPlan(compiledPlan, extraDetails);
     }
 }

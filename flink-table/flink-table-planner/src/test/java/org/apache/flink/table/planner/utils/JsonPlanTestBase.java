@@ -75,7 +75,7 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
     protected TableResult compileSqlAndExecutePlan(String sql) {
         CompiledPlan compiledPlan = tableEnv.compilePlanSql(sql);
         checkTransformationUids(compiledPlan);
-        return tableEnv.executePlan(compiledPlan);
+        return compiledPlan.execute();
     }
 
     protected void checkTransformationUids(CompiledPlan compiledPlan) {

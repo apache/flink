@@ -23,7 +23,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
-import org.apache.flink.table.api.internal.CompiledPlanInternal
+import org.apache.flink.table.api.internal.{CompiledPlanInternal, CompiledPlanInternalFactory, TableEnvironmentInternal}
 import org.apache.flink.table.api.{CompiledPlan, ExplainDetail, PlanReference, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.Executor
@@ -33,7 +33,7 @@ import org.apache.flink.table.planner.plan.ExecNodeGraphCompiledPlan
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.processor.ExecNodeGraphProcessor
-import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
@@ -134,7 +134,7 @@ class StreamPlanner(
     new StreamPlanner(executor, tableConfig, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
+  override def loadPlan(planReference: PlanReference): CompiledPlanInternalFactory = {
     val ctx = createSerdeContext
     val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
     val execNodeGraph = planReference match {
@@ -154,27 +154,18 @@ class StreamPlanner(
         "Unknown PlanReference. This is a bug, please contact the developers")
     }
 
-    new ExecNodeGraphCompiledPlan(
-      this,
-      JsonSerdeUtil.createObjectWriter(createSerdeContext)
-        .withDefaultPrettyPrinter()
-        .writeValueAsString(execNodeGraph),
-      execNodeGraph)
+    createCompiledPlanInternalFactory(ctx, execNodeGraph)
   }
 
-  override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlanInternal = {
+  override def compilePlan(
+                            modifyOperations: util.List[ModifyOperation]): CompiledPlanInternalFactory = {
     validateAndOverrideConfiguration()
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
     cleanupInternalConfigurations()
 
-    new ExecNodeGraphCompiledPlan(
-      this,
-      JsonSerdeUtil.createObjectWriter(createSerdeContext)
-        .withDefaultPrettyPrinter()
-        .writeValueAsString(execGraph),
-      execGraph)
+    createCompiledPlanInternalFactory(createSerdeContext, execGraph)
   }
 
   override def translatePlan(plan: CompiledPlanInternal): util.List[Transformation[_]] = {
@@ -220,5 +211,16 @@ class StreamPlanner(
           "Please instantiate a new TableEnvironment if necessary."
       )
     }
+  }
+
+  def createCompiledPlanInternalFactory(
+                                         ctx: SerdeContext, execGraph: ExecNodeGraph): CompiledPlanInternalFactory = {
+    (tEnv: TableEnvironmentInternal) =>
+      new ExecNodeGraphCompiledPlan(
+        tEnv,
+        JsonSerdeUtil.createObjectWriter(ctx)
+          .withDefaultPrettyPrinter()
+          .writeValueAsString(execGraph),
+        execGraph)
   }
 }
