@@ -85,25 +85,6 @@ class TableEnvironmentITCase(tableEnvName: String, isStreaming: Boolean) extends
   }
 
   @Test
-  def testSetPlannerType: Unit = {
-    tEnv.getConfig.set(TableConfigOptions.TABLE_PLANNER, PlannerType.OLD)
-
-    TestTableSourceSinks.createCsvTemporarySinkTable(
-      tEnv, new TableSchema(Array("first"), Array(STRING)), "MySink1")
-
-
-    thrown.expect(classOf[IllegalArgumentException])
-    thrown.expectMessage(
-      "Mismatch between configured planner and actual planner. " +
-        "Currently, the 'table.planner' can only be set " +
-        "when instantiating the table environment. Subsequent changes are not supported. " +
-        "Please instantiate a new TableEnvironment if necessary."
-    )
-
-    tEnv.executeSql("insert into MySink1 select first from MyTable")
-  }
-
-  @Test
   def testSetExecutionMode(): Unit = {
     if (isStreaming) {
       tEnv.getConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)

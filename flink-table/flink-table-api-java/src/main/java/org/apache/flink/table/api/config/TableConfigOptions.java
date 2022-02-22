@@ -25,7 +25,6 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.DescribedEnum;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.InlineElement;
-import org.apache.flink.table.api.PlannerType;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.catalog.Catalog;
 
@@ -40,17 +39,6 @@ import static org.apache.flink.configuration.description.TextElement.text;
 @PublicEvolving
 public class TableConfigOptions {
     private TableConfigOptions() {}
-
-    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
-    @Deprecated
-    public static final ConfigOption<PlannerType> TABLE_PLANNER =
-            key("table.planner")
-                    .enumType(PlannerType.class)
-                    .defaultValue(PlannerType.BLINK)
-                    .withDescription(
-                            "The old planner has been removed in Flink 1.14. "
-                                    + "Since there is only one planner left (previously called the 'blink' planner), "
-                                    + "this option is obsolete and will be removed in future versions.");
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_DML_SYNC =
