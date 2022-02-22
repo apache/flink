@@ -26,6 +26,7 @@ import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.persistence.StringResourceVersion;
 import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.FunctionUtils;
@@ -624,6 +625,46 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
     }
 
     @Test
+    public void testRepeatableCleanup() throws Exception {
+        final RuntimeException expectedRuntimeException =
+                new RuntimeException("Expected RuntimeException");
+        final TestingLongStateHandleHelper.LongStateHandle onceFailingToDiscardHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(12345L, expectedRuntimeException);
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+                            store.addAndLock(key, onceFailingToDiscardHandle);
+                            assertThat(store.getAllAndLock().size(), is(1));
+                            try {
+                                store.releaseAndTryRemove(key);
+                            } catch (Exception e) {
+                                ExceptionUtils.assertThrowable(e, expectedRuntimeException::equals);
+                            }
+                            assertThat(store.getAllAndLock().size(), is(1));
+
+                            // State should also be discarded.
+                            assertThat(onceFailingToDiscardHandle.isDiscarded(), is(false));
+
+                            assertThat(store.releaseAndTryRemove(key), is(true));
+                            assertThat(store.getAllAndLock().size(), is(0));
+                        });
+            }
+        };
+    }
+
+    @Test
     public void testRemoveFailedShouldNotDiscardState() throws Exception {
         new Context() {
             {
@@ -683,6 +724,49 @@ public class KubernetesStateHandleStoreTest extends KubernetesHighAvailabilityTe
                             store.releaseAndTryRemoveAll();
                             assertThat(store.getAllAndLock().size(), is(0));
                             assertThat(TestingLongStateHandleHelper.getGlobalDiscardCount(), is(2));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testRepeatableRemoveAll() throws Exception {
+        final RuntimeException expectedRuntimeException =
+                new RuntimeException("Expected RuntimeException");
+        final TestingLongStateHandleHelper.LongStateHandle onceFailingToDiscardHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(12345L, expectedRuntimeException);
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final KubernetesStateHandleStore<
+                                            TestingLongStateHandleHelper.LongStateHandle>
+                                    store =
+                                            new KubernetesStateHandleStore<>(
+                                                    flinkKubeClient,
+                                                    LEADER_CONFIGMAP_NAME,
+                                                    longStateStorage,
+                                                    filter,
+                                                    LOCK_IDENTITY);
+                            store.addAndLock(key, onceFailingToDiscardHandle);
+                            assertThat(store.getAllAndLock().size(), is(1));
+                            store.addAndLock(
+                                    key + "1",
+                                    new TestingLongStateHandleHelper.LongStateHandle(2L));
+                            try {
+                                store.releaseAndTryRemoveAll();
+                            } catch (Exception e) {
+                                ExceptionUtils.assertThrowable(e, expectedRuntimeException::equals);
+                            }
+                            assertThat(store.getAllAndLock().size(), is(2));
+
+                            // State should also be discarded.
+                            assertThat(onceFailingToDiscardHandle.isDiscarded(), is(false));
+
+                            store.releaseAndTryRemoveAll();
+                            assertThat(store.getAllAndLock().size(), is(0));
                         });
             }
         };
