@@ -57,7 +57,7 @@ class MeasurementInfoProviderTest {
                                 logicalScope,
                                 metricName));
         assertThat(info.getTags())
-                .containsExactly(entry("A", "a"), entry("B", "b"), entry("C", "c"));
+                .containsOnly(entry("A", "a"), entry("B", "b"), entry("C", "c"));
     }
 
     @Test
