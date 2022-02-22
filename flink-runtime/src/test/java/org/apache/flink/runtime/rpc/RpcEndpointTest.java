@@ -20,11 +20,12 @@ package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.concurrent.Callable;
@@ -35,25 +36,26 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the RpcEndpoint, its self gateways and MainThreadExecutor scheduling command. */
-public class RpcEndpointTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class RpcEndpointTest {
 
     private static final Time TIMEOUT = Time.seconds(10L);
     private static RpcService rpcService = null;
 
-    @BeforeClass
+    @BeforeAll
     public static void setup() throws Exception {
         rpcService = RpcSystem.load().localServiceBuilder(new Configuration()).createAndStart();
     }
 
-    @AfterClass
+    @AfterAll
     public static void teardown() throws Exception {
         rpcService.stopService().get();
     }
@@ -84,21 +86,26 @@ public class RpcEndpointTest extends TestLogger {
      * Tests that we cannot accidentally obtain a wrong self gateway type which is not implemented
      * by the RpcEndpoint.
      */
-    @Test(expected = RuntimeException.class)
-    public void testWrongSelfGateway() throws Exception {
-        int expectedValue = 1337;
-        BaseEndpoint baseEndpoint = new BaseEndpoint(rpcService, expectedValue);
+    @Test
+    public void testWrongSelfGateway() {
+        assertThrows(
+                RuntimeException.class,
+                () -> {
+                    int expectedValue = 1337;
+                    BaseEndpoint baseEndpoint = new BaseEndpoint(rpcService, expectedValue);
 
-        try {
-            baseEndpoint.start();
+                    try {
+                        baseEndpoint.start();
 
-            DifferentGateway differentGateway = baseEndpoint.getSelfGateway(DifferentGateway.class);
+                        DifferentGateway differentGateway =
+                                baseEndpoint.getSelfGateway(DifferentGateway.class);
 
-            fail(
-                    "Expected to fail with a RuntimeException since we requested the wrong gateway type.");
-        } finally {
-            RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
-        }
+                        fail(
+                                "Expected to fail with a RuntimeException since we requested the wrong gateway type.");
+                    } finally {
+                        RpcUtils.terminateRpcEndpoint(baseEndpoint, TIMEOUT);
+                    }
+                });
     }
 
     /**
@@ -142,7 +149,7 @@ public class RpcEndpointTest extends TestLogger {
 
         try {
             endpoint.start();
-            assertThat(gateway.queryIsRunningFlag().get(), is(true));
+            assertTrue(gateway.queryIsRunningFlag().get());
         } finally {
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
         }
@@ -161,7 +168,7 @@ public class RpcEndpointTest extends TestLogger {
         endpoint.start();
         CompletableFuture<Void> terminationFuture = endpoint.closeAndWaitUntilOnStopCalled();
 
-        assertThat(gateway.queryIsRunningFlag().get(), is(false));
+        assertFalse(gateway.queryIsRunningFlag().get());
 
         stopFuture.complete(null);
         terminationFuture.get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
@@ -324,7 +331,7 @@ public class RpcEndpointTest extends TestLogger {
 
         scheduler.accept(mainThreadExecutor, expectedDelay);
 
-        assertThat(actualDelayMsFuture.get(), is(expectedDelay.toMillis()));
+        assertEquals(actualDelayMsFuture.get(), expectedDelay.toMillis());
     }
 
     /**
@@ -376,7 +383,7 @@ public class RpcEndpointTest extends TestLogger {
             final Throwable throwable = throwableFuture.get();
 
             assertNotNull(throwable);
-            assertThat(throwable, instanceOf(TimeoutException.class));
+            assertTrue(throwable instanceof TimeoutException);
         } finally {
             latch.countDown();
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
