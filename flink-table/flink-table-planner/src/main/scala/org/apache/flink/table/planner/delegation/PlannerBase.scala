@@ -483,13 +483,6 @@ abstract class PlannerBase(
    */
   protected def validateAndOverrideConfiguration(): Unit = {
     val configuration = tableConfig.getConfiguration
-    if (!configuration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
-      throw new IllegalArgumentException(
-        "Mismatch between configured planner and actual planner. " +
-          "Currently, the 'table.planner' can only be set when instantiating the " +
-          "table environment. Subsequent changes are not supported. " +
-          "Please instantiate a new TableEnvironment if necessary.");
-    }
 
     // Add query start time to TableConfig, these config are used internally,
     // these configs will be used by temporal functions like CURRENT_TIMESTAMP,LOCALTIMESTAMP.
