@@ -19,7 +19,19 @@ package org.apache.flink.runtime.checkpoint;
 
 /** A checkpoint, pending or completed. */
 public interface Checkpoint {
+    DiscardObject NOOP_DISCARD_OBJECT = () -> {};
+
     long getCheckpointID();
 
-    void discard() throws Exception;
+    /**
+     * This method precede the {@link DiscardObject#discard()} method and should be called from the
+     * {@link CheckpointCoordinator}(under the lock) while {@link DiscardObject#discard()} can be
+     * called from any thread/place.
+     */
+    DiscardObject markAsDiscarded();
+
+    /** Extra interface for discarding the checkpoint. */
+    interface DiscardObject {
+        void discard() throws Exception;
+    }
 }

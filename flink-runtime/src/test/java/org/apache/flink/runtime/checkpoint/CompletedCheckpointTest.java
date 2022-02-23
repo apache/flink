@@ -271,7 +271,7 @@ public class CompletedCheckpointTest {
         verify(state, times(1)).registerSharedStates(sharedStateRegistry, 0L);
 
         // Subsume
-        checkpoint.discardOnSubsume();
+        checkpoint.markAsDiscardedOnSubsume().discard();
 
         verify(state, times(1)).discardState();
         assertTrue(location.isDisposed());
@@ -319,7 +319,7 @@ public class CompletedCheckpointTest {
                             retainedLocation,
                             null);
 
-            checkpoint.discardOnShutdown(status);
+            checkpoint.markAsDiscardedOnShutdown(status).discard();
 
             verify(state, times(0)).discardState();
             assertFalse(retainedLocation.isDisposed());
@@ -347,7 +347,7 @@ public class CompletedCheckpointTest {
                             discardLocation,
                             null);
 
-            checkpoint.discardOnShutdown(status);
+            checkpoint.markAsDiscardedOnShutdown(status).discard();
 
             verify(state, times(1)).discardState();
             assertTrue(discardLocation.isDisposed());
@@ -388,7 +388,7 @@ public class CompletedCheckpointTest {
                         new TestCompletedCheckpointStorageLocation(),
                         checkpointStats);
 
-        completed.discardOnShutdown(JobStatus.FINISHED);
+        completed.markAsDiscardedOnShutdown(JobStatus.FINISHED).discard();
         assertTrue(checkpointStats.isDiscarded());
     }
 

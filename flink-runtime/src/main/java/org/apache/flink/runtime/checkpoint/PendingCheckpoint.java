@@ -38,6 +38,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -64,6 +65,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * <p>Note that the pending checkpoint, as well as the successful checkpoint keep the state handles
  * always as serialized values, never as actual values.
  */
+@NotThreadSafe
 public class PendingCheckpoint implements Checkpoint {
 
     /** Result of the {@link PendingCheckpoint#acknowledgedTasks} method. */
@@ -591,35 +593,9 @@ public class PendingCheckpoint implements Checkpoint {
         }
     }
 
-    /**
-     * Discard state. Must be called after {@link #dispose(boolean, CheckpointsCleaner, Runnable,
-     * Executor) dispose}.
-     */
     @Override
-    public void discard() {
-        synchronized (lock) {
-            if (discarded) {
-                Preconditions.checkState(
-                        disposed, "Checkpoint should be disposed before being discarded");
-                return;
-            } else {
-                discarded = true;
-            }
-        }
-        // discard the private states.
-        // unregistered shared states are still considered private at this point.
-        try {
-            StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
-            targetLocation.disposeOnFailure();
-        } catch (Throwable t) {
-            LOG.warn(
-                    "Could not properly dispose the private states in the pending checkpoint {} of job {}.",
-                    checkpointId,
-                    jobId,
-                    t);
-        } finally {
-            operatorStates.clear();
-        }
+    public DiscardObject markAsDiscarded() {
+        return new PendingCheckpointDiscardObject();
     }
 
     private void cancelCanceller() {
@@ -659,5 +635,42 @@ public class PendingCheckpoint implements Checkpoint {
                 checkpointTimestamp,
                 getNumberOfAcknowledgedTasks(),
                 getNumberOfNonAcknowledgedTasks());
+    }
+
+    /**
+     * Implementation of {@link org.apache.flink.runtime.checkpoint.Checkpoint.DiscardObject} for
+     * {@link PendingCheckpoint}.
+     */
+    public class PendingCheckpointDiscardObject implements DiscardObject {
+        /**
+         * Discard state. Must be called after {@link #dispose(boolean, CheckpointsCleaner,
+         * Runnable, Executor) dispose}.
+         */
+        @Override
+        public void discard() {
+            synchronized (lock) {
+                if (discarded) {
+                    Preconditions.checkState(
+                            disposed, "Checkpoint should be disposed before being discarded");
+                    return;
+                } else {
+                    discarded = true;
+                }
+            }
+            // discard the private states.
+            // unregistered shared states are still considered private at this point.
+            try {
+                StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
+                targetLocation.disposeOnFailure();
+            } catch (Throwable t) {
+                LOG.warn(
+                        "Could not properly dispose the private states in the pending checkpoint {} of job {}.",
+                        checkpointId,
+                        jobId,
+                        t);
+            } finally {
+                operatorStates.clear();
+            }
+        }
     }
 }
