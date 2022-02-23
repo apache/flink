@@ -77,6 +77,9 @@ Currently, it still doesn't support to execute Python UDFs in `MULTI-THREAD` and
 in all places. It will fall back to `PROCESS` execution mode in these cases. So it may happen that you configure a job
 to execute in `MULTI-THREAD` or `SUB-INTERPRETER` execution modes, however, it's actually executed in `PROCESS` execution mode.
 {{< /hint >}}
+{{< hint info >}}
+`MULTI-THREAD` execution mode only supports Python 3.7+. `SUB-INTERPRETER` execution mode only supports Python 3.8+.  
+{{< /hint >}}
 
 ## Execution Behavior
 
