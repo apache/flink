@@ -303,10 +303,7 @@ public class PendingCheckpoint implements Checkpoint {
     }
 
     public CompletedCheckpoint finalizeCheckpoint(
-            CheckpointsCleaner checkpointsCleaner,
-            Runnable postCleanup,
-            Executor executor,
-            CheckpointStatsTracker statsTracker)
+            CheckpointsCleaner checkpointsCleaner, Runnable postCleanup, Executor executor)
             throws IOException {
 
         synchronized (lock) {
@@ -341,19 +338,6 @@ public class PendingCheckpoint implements Checkpoint {
                                 props,
                                 finalizedLocation,
                                 toCompletedCheckpointStats(finalizedLocation));
-
-                CompletedCheckpointStats completedCheckpointStats = completed.getStatistic();
-                if (completedCheckpointStats != null) {
-                    LOG.trace(
-                            "Checkpoint {} size: {}Kb, duration: {}ms",
-                            checkpointId,
-                            completedCheckpointStats.getStateSize() == 0
-                                    ? 0
-                                    : completedCheckpointStats.getStateSize() / 1024,
-                            completedCheckpointStats.getEndToEndDuration());
-
-                    statsTracker.reportCompletedCheckpoint(completedCheckpointStats);
-                }
 
                 onCompletionPromise.complete(completed);
 
