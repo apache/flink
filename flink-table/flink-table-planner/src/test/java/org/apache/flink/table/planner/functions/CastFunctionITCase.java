@@ -34,7 +34,6 @@ import org.apache.flink.types.Row;
 import org.junit.runners.Parameterized;
 
 import java.math.BigDecimal;
-import java.text.ParseException;
 import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
@@ -44,6 +43,7 @@ import java.time.LocalTime;
 import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -835,9 +835,9 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build(),
                 CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
                         .fromCase(TIMESTAMP_LTZ(), null, null)
-                        .failRuntime(CHAR(3), "foo", ParseException.class)
-                        .failRuntime(VARCHAR(5), "Flink", ParseException.class)
-                        .failRuntime(STRING(), "Apache", ParseException.class)
+                        .failRuntime(CHAR(3), "foo", DateTimeParseException.class)
+                        .failRuntime(VARCHAR(5), "Flink", DateTimeParseException.class)
+                        .failRuntime(STRING(), "Apache", DateTimeParseException.class)
                         .fromCase(
                                 STRING(),
                                 "2021-09-27",
