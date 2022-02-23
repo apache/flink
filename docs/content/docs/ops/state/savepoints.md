@@ -171,7 +171,7 @@ savepoint. You need this path to restore and dispose savepoints. You can also pa
 the savepoint should be taken. By default the savepoint will be taken in canonical format.
 
 ```shell
-$ bin/flink savepoint -type [native/canonical] :jobId [:targetDirectory]
+$ bin/flink savepoint --type [native/canonical] :jobId [:targetDirectory]
 ```
 
 #### Trigger a Savepoint with YARN
@@ -185,10 +185,13 @@ This will trigger a savepoint for the job with ID `:jobId` and YARN application 
 #### Stopping a Job with Savepoint
 
 ```shell
-$ bin/flink stop --savepointPath [:targetDirectory] :jobId
+$ bin/flink stop --type [native/canonical] --savepointPath [:targetDirectory] :jobId
 ```
 
-This will atomically trigger a savepoint for the job with ID `:jobid` and stop the job. Furthermore, you can specify a target file system directory to store the savepoint in.  The directory needs to be accessible by the JobManager(s) and TaskManager(s).
+This will atomically trigger a savepoint for the job with ID `:jobid` and stop the job. Furthermore,
+you can specify a target file system directory to store the savepoint in. The directory needs to be
+accessible by the JobManager(s) and TaskManager(s). You can also pass a type in which the savepoint
+should be taken. By default the savepoint will be taken in canonical format.
 
 ### Resuming from Savepoints
 
