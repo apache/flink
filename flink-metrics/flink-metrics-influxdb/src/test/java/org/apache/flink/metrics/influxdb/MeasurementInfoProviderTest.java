@@ -56,8 +56,7 @@ class MeasurementInfoProviderTest {
                                 "" + MeasurementInfoProvider.SCOPE_SEPARATOR,
                                 logicalScope,
                                 metricName));
-        assertThat(info.getTags())
-                .containsOnly(entry("A", "a"), entry("B", "b"), entry("C", "c"));
+        assertThat(info.getTags()).containsOnly(entry("A", "a"), entry("B", "b"), entry("C", "c"));
     }
 
     @Test
