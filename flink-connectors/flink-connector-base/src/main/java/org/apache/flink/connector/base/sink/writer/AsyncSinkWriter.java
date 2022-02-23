@@ -53,6 +53,9 @@ import java.util.function.Consumer;
 public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable>
         implements StatefulSink.StatefulSinkWriter<InputT, BufferedRequestState<RequestEntryT>> {
 
+    private static final int INFLIGHT_MESSAGES_LIMIT_INCREASE_RATE = 10;
+    private static final double INFLIGHT_MESSAGES_LIMIT_DECREASE_FACTOR = 0.5;
+
     private final MailboxExecutor mailboxExecutor;
     private final ProcessingTimeService timeService;
 
@@ -70,6 +73,19 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     /* Counter for number of records this sink has attempted to send to the destination. */
     private final Counter numRecordsOutCounter;
+
+    /**
+     * Rate limiting strategy {@code inflightMessages} at any given time, {@code
+     * rateLimitingStrategy.getRateLimit()} is used to adjust the sink's throughput not to exceed
+     * destination's throttle rate.
+     *
+     * <p>throttled requests should update limit by calling {@code rateLimitingStrategy.scaleDown()}
+     * and successful requests should update by calling {@code rateLimitingStrategy.scaleUp()}
+     *
+     * <p>Failure of throttled request decreases limit resulting in yielding on fewer number of
+     * messages.
+     */
+    private final AIMDRateLimitingStrategy rateLimitingStrategy;
 
     private final int maxBatchSize;
     private final int maxInFlightRequests;
@@ -117,6 +133,16 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * fail, which could then lead to data loss.
      */
     private int inFlightRequestsCount;
+
+    /**
+     * Tracks number of messages (request entries) in the inflight requests. This variable is used
+     * to control rate of outbound messages flow as {@code inFlightMessages} should not exceed
+     * {@code rateLimitingStrategy}.
+     *
+     * <p>{@code inFlightMessages} should also be consistent with {@code inFlightRequestsCount}
+     * where {@code inFlightMessages} should never exceed {@code inFlightRequestsCount} at any time.
+     */
+    private int inFlightMessages;
 
     /**
      * Tracks the cumulative size of all elements in {@code bufferedRequestEntries} to facilitate
@@ -259,6 +285,14 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         this.inFlightRequestsCount = 0;
         this.bufferedRequestEntriesTotalSizeInBytes = 0;
 
+        this.inFlightMessages = 0;
+        this.rateLimitingStrategy =
+                new AIMDRateLimitingStrategy(
+                        INFLIGHT_MESSAGES_LIMIT_INCREASE_RATE,
+                        INFLIGHT_MESSAGES_LIMIT_DECREASE_FACTOR,
+                        maxBatchSize * maxInFlightRequests,
+                        maxBatchSize * maxInFlightRequests);
+
         this.metrics = context.metricGroup();
         this.metrics.setCurrentSendTimeGauge(() -> this.ackTime - this.lastSendTimestamp);
         this.numBytesOutCounter = this.metrics.getIOMetricGroup().getNumBytesOutCounter();
@@ -299,7 +333,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     }
 
     private void flushIfAble() {
-        while (bufferedRequestEntries.size() >= maxBatchSize
+        while (bufferedRequestEntries.size() >= getNextBatchSizeLimit()
                 || bufferedRequestEntriesTotalSizeInBytes >= maxBatchSizeInBytes) {
             flush();
         }
@@ -312,11 +346,13 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * <p>The method blocks if too many async requests are in flight.
      */
     private void flush() {
-        while (inFlightRequestsCount >= maxInFlightRequests) {
+        while (inFlightRequestsCount >= maxInFlightRequests
+                || inFlightMessages >= rateLimitingStrategy.getRateLimit()) {
             mailboxExecutor.tryYield();
         }
 
         List<RequestEntryT> batch = createNextAvailableBatch();
+        int batchSize = batch.size();
 
         if (batch.size() == 0) {
             return;
@@ -326,11 +362,16 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         Consumer<List<RequestEntryT>> requestResult =
                 failedRequestEntries ->
                         mailboxExecutor.execute(
-                                () -> completeRequest(failedRequestEntries, timestampOfRequest),
+                                () ->
+                                        completeRequest(
+                                                failedRequestEntries,
+                                                batchSize,
+                                                timestampOfRequest),
                                 "Mark in-flight request as completed and requeue %d request entries",
                                 failedRequestEntries.size());
 
         inFlightRequestsCount++;
+        inFlightMessages += batchSize;
         submitRequestEntries(batch, requestResult);
     }
 
@@ -339,7 +380,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * {@code maxBatchSizeInBytes}. Also adds these to the metrics counters.
      */
     private List<RequestEntryT> createNextAvailableBatch() {
-        int batchSize = Math.min(maxBatchSize, bufferedRequestEntries.size());
+        int batchSize = Math.min(getNextBatchSizeLimit(), bufferedRequestEntries.size());
         List<RequestEntryT> batch = new ArrayList<>(batchSize);
 
         int batchSizeBytes = 0;
@@ -366,14 +407,28 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      *
      * @param failedRequestEntries requestEntries that need to be retried
      */
-    private void completeRequest(List<RequestEntryT> failedRequestEntries, long requestStartTime) {
+    private void completeRequest(
+            List<RequestEntryT> failedRequestEntries, int batchSize, long requestStartTime) {
         lastSendTimestamp = requestStartTime;
         ackTime = System.currentTimeMillis();
+
         inFlightRequestsCount--;
+        inFlightMessages -= batchSize;
+
+        updateInFlightMessagesLimit(failedRequestEntries.size() == 0);
+
         ListIterator<RequestEntryT> iterator =
                 failedRequestEntries.listIterator(failedRequestEntries.size());
         while (iterator.hasPrevious()) {
             addEntryToBuffer(iterator.previous(), true);
+        }
+    }
+
+    private void updateInFlightMessagesLimit(boolean isSuccessfulRequest) {
+        if (isSuccessfulRequest) {
+            rateLimitingStrategy.scaleUp();
+        } else {
+            rateLimitingStrategy.scaleDown();
         }
     }
 
@@ -453,6 +508,10 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
     @Override
     public void close() {}
+
+    private int getNextBatchSizeLimit() {
+        return Math.min(maxBatchSize, rateLimitingStrategy.getRateLimit());
+    }
 
     protected Consumer<Exception> getFatalExceptionCons() {
         return fatalExceptionCons;
