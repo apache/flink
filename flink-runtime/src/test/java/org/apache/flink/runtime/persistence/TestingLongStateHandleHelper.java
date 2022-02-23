@@ -22,6 +22,8 @@ import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.AbstractID;
 
+import javax.annotation.Nullable;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
@@ -79,8 +81,16 @@ public class TestingLongStateHandleHelper
 
         private int numberOfDiscardCalls = 0;
 
+        @Nullable private RuntimeException initialDiscardRuntimeException;
+
         public LongStateHandle(long value) {
+            this(value, null);
+        }
+
+        public LongStateHandle(
+                long value, @Nullable RuntimeException initialDiscardRuntimeException) {
             this.value = value;
+            this.initialDiscardRuntimeException = initialDiscardRuntimeException;
         }
 
         public long getValue() {
@@ -89,11 +99,21 @@ public class TestingLongStateHandleHelper
 
         @Override
         public void discardState() {
+            if (initialDiscardRuntimeException != null) {
+                final RuntimeException actualException = initialDiscardRuntimeException;
+                initialDiscardRuntimeException = null;
+                throw actualException;
+            }
+
             numberOfDiscardCalls++;
         }
 
         public int getNumberOfDiscardCalls() {
             return numberOfDiscardCalls;
+        }
+
+        public boolean isDiscarded() {
+            return numberOfDiscardCalls > 0;
         }
 
         @Override

@@ -54,8 +54,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /**
  * Class which stores state via the provided {@link RetrievableStateStorageHelper} and writes the
  * returned state handle to ZooKeeper. The ZooKeeper node can be locked by creating an ephemeral
- * child and only allowing the deletion of the ZooKeeper node if it does not have any children. That
- * way we protect concurrent accesses from different ZooKeeperStateHandleStore instances.
+ * child in the lock sub-path. The implementation only allows the deletion of the ZooKeeper node if
+ * the lock sub-path has no children. That way we protect concurrent accesses from different
+ * ZooKeeperStateHandleStore instances.
  *
  * <p>Added state is persisted via {@link RetrievableStateHandle RetrievableStateHandles}, which in
  * turn are written to ZooKeeper. This level of indirection is necessary to keep the amount of data
@@ -195,6 +196,10 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
                 .create()
                 .withMode(CreateMode.PERSISTENT)
                 .forPath(path, serializedStoreHandle)
+                .and()
+                .create()
+                .withMode(CreateMode.PERSISTENT)
+                .forPath(getLocksChildPath(path))
                 .and()
                 .create()
                 .withMode(CreateMode.EPHEMERAL)
@@ -423,14 +428,26 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
         release(pathInZooKeeper);
 
         try {
-            client.delete().forPath(path);
+            client.delete().forPath(getLocksChildPath(path));
+        } catch (KeeperException.NoNodeException ignored) {
+            LOG.debug(
+                    "ZNode '{}' is already marked for deletion. Command is ignored.",
+                    pathInZooKeeper);
         } catch (KeeperException.NotEmptyException ignored) {
-            LOG.debug("Could not delete znode {} because it is still locked.", path);
+            LOG.debug(
+                    "Could not delete znode {} because it is still locked.",
+                    getLocksChildPath(path));
             return false;
         }
 
         if (stateHandle != null) {
             stateHandle.discardState();
+        }
+
+        try {
+            client.delete().forPath(path);
+        } catch (KeeperException.NoNodeException e) {
+            LOG.debug("Znode '{}' does not exist anymore. Deletion request is ignored.", path);
         }
 
         return true;
@@ -537,7 +554,17 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
      */
     @VisibleForTesting
     String getLockPath(String rootPath) {
-        return rootPath + '/' + lockNode;
+        return getLocksChildPath(rootPath) + '/' + lockNode;
+    }
+
+    /**
+     * Returns the sub-path for lock nodes of the corresponding node (referred to through the passed
+     * {@code rooPath}. The returned sub-path collects the lock nodes for the {@code rootPath}'s
+     * node. The {@code rootPath} is marked for deletion if the sub-path for lock nodes is deleted.
+     */
+    @VisibleForTesting
+    static String getLocksChildPath(String rootPath) {
+        return rootPath + "/locks";
     }
 
     // ---------------------------------------------------------------------------------------------------------

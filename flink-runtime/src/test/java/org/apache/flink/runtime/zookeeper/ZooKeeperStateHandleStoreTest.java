@@ -30,6 +30,7 @@ import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
@@ -54,6 +55,7 @@ import java.util.Set;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -115,14 +117,34 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         List<String> children = ZOOKEEPER.getClient().getChildren().forPath(pathInZooKeeper);
 
-        // there should be one child which is the lock
+        // there should be one child which is the locks subfolder
         assertEquals(1, children.size());
 
-        stat = ZOOKEEPER.getClient().checkExists().forPath(pathInZooKeeper + '/' + children.get(0));
+        final String locksSubfolderChild = children.get(0);
+        stat =
+                ZOOKEEPER
+                        .getClient()
+                        .checkExists()
+                        .forPath(pathInZooKeeper + '/' + locksSubfolderChild);
         assertNotNull(stat);
 
-        // check that the child is an ephemeral node
-        assertNotEquals(0, stat.getEphemeralOwner());
+        assertEquals("The lock subfolder shouldn't be ephereral", 0, stat.getEphemeralOwner());
+
+        List<String> lockChildren =
+                ZOOKEEPER
+                        .getClient()
+                        .getChildren()
+                        .forPath(pathInZooKeeper + '/' + locksSubfolderChild);
+        assertEquals("Only one lock is expected", 1, children.size());
+
+        final String lockChild = lockChildren.get(0);
+        stat =
+                ZOOKEEPER
+                        .getClient()
+                        .checkExists()
+                        .forPath(pathInZooKeeper + '/' + locksSubfolderChild + '/' + lockChild);
+
+        assertNotEquals("The lock node should be ephemeral", 0, stat.getEphemeralOwner());
 
         // Data is equal
         @SuppressWarnings("unchecked")
@@ -135,6 +157,88 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
                         .getValue();
 
         assertEquals(state, actual);
+    }
+
+    @Test
+    public void testRepeatableCleanup() throws Exception {
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> testInstance =
+                new ZooKeeperStateHandleStore<>(
+                        ZOOKEEPER.getClient(), new TestingLongStateHandleHelper());
+
+        final String pathInZooKeeper = "/testRepeatableCleanup";
+
+        final RuntimeException expectedException =
+                new RuntimeException("Expected RuntimeException");
+        final TestingLongStateHandleHelper.LongStateHandle stateHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(12354L, expectedException);
+
+        testInstance.addAndLock(pathInZooKeeper, stateHandle);
+
+        try {
+            testInstance.releaseAndTryRemove(pathInZooKeeper);
+            fail("Exception should have been thrown.");
+        } catch (Exception e) {
+            ExceptionUtils.assertThrowable(e, expectedException::equals);
+        }
+
+        try {
+            testInstance.getAndLock(pathInZooKeeper);
+            fail("NotExistException should have been thrown.");
+        } catch (StateHandleStore.NotExistException e) {
+            // expected a NotExistException due to the handle being marked as delete
+        }
+        assertFalse(stateHandle.isDiscarded());
+
+        assertTrue(testInstance.releaseAndTryRemove(pathInZooKeeper));
+        assertFalse(testInstance.exists(pathInZooKeeper).isExisting());
+        assertTrue(stateHandle.isDiscarded());
+    }
+
+    @Test
+    public void testRepeatableCleanupWithLockOnNode() throws Exception {
+        final TestingLongStateHandleHelper storage = new TestingLongStateHandleHelper();
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle>
+                stateHandleStore0 = new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), storage);
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle>
+                stateHandleStore1 = new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), storage);
+
+        final String pathInZooKeeper = "/testRepeatableCleanupWithLock";
+
+        final long actualValue = 12345L;
+        final RuntimeException expectedException =
+                new RuntimeException("RuntimeException for testing the failing discardState call.");
+        final TestingLongStateHandleHelper.LongStateHandle stateHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(actualValue, expectedException);
+
+        RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle> handle0 =
+                stateHandleStore0.addAndLock(pathInZooKeeper, stateHandle);
+
+        RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle> handle1 =
+                stateHandleStore1.getAndLock(pathInZooKeeper);
+
+        assertEquals(handle0.retrieveState().getValue(), actualValue);
+        assertEquals(handle1.retrieveState().getValue(), actualValue);
+
+        assertFalse(
+                "Deletion by StateHandleStore #0 shouldn't be successful because there's still a lock from StateHandleStore #1.",
+                stateHandleStore0.releaseAndTryRemove(pathInZooKeeper));
+
+        assertTrue(stateHandleStore0.exists(pathInZooKeeper).isExisting());
+        assertFalse(stateHandle.isDiscarded());
+
+        try {
+            stateHandleStore1.releaseAndTryRemove(pathInZooKeeper);
+            fail("Exception should have been thrown.");
+        } catch (Exception e) {
+            ExceptionUtils.assertThrowable(e, expectedException::equals);
+        }
+
+        assertTrue(stateHandleStore1.exists(pathInZooKeeper).isExisting());
+        assertFalse(stateHandle.isDiscarded());
+
+        assertTrue(stateHandleStore1.releaseAndTryRemove(pathInZooKeeper));
+        assertFalse(stateHandleStore1.exists(pathInZooKeeper).isExisting());
+        assertTrue(stateHandle.isDiscarded());
     }
 
     /**
@@ -686,6 +790,51 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         assertEquals(0, ZOOKEEPER.getClient().getChildren().forPath("/").size());
     }
 
+    @Test
+    public void testReleaseAndTryRemoveAllRepeatableAfterFailure() throws Exception {
+        // Setup
+        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
+                new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
+
+        // Config
+        final String pathInZooKeeper = "/testDiscardAllWithFailure";
+
+        final long actualValue = 12345L;
+        final RuntimeException expectedException =
+                new RuntimeException("RuntimeException for testing the failing discardState call.");
+        final TestingLongStateHandleHelper.LongStateHandle failingStateHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(actualValue, expectedException);
+        store.addAndLock(pathInZooKeeper + "-with-failure", failingStateHandle);
+
+        final TestingLongStateHandleHelper.LongStateHandle succeedingStateHandle =
+                TestingLongStateHandleHelper.createState(42);
+        store.addAndLock(pathInZooKeeper + "-without-failure", succeedingStateHandle);
+
+        try {
+            store.releaseAndTryRemoveAll();
+            fail("An Exception should have been thrown.");
+        } catch (Exception e) {
+            ExceptionUtils.assertThrowable(e, expectedException::equals);
+        }
+
+        assertEquals(
+                "One discardState call should have failed resulting in one node being left, still.",
+                1,
+                ZOOKEEPER.getClient().getChildren().forPath("/").size());
+        assertEquals(0, failingStateHandle.getNumberOfDiscardCalls());
+        assertEquals(1, succeedingStateHandle.getNumberOfDiscardCalls());
+
+        store.releaseAndTryRemoveAll();
+
+        assertTrue(
+                "The second removal attempt should have succeeded with no nodes left.",
+                ZOOKEEPER.getClient().getChildren().forPath("/").isEmpty());
+        assertEquals(1, failingStateHandle.getNumberOfDiscardCalls());
+        assertEquals(1, succeedingStateHandle.getNumberOfDiscardCalls());
+    }
+
     /**
      * Tests that the ZooKeeperStateHandleStore can handle corrupted data by releasing and trying to
      * remove the respective ZooKeeper ZNodes.
@@ -860,7 +1009,8 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
             // check that our state node still exists
             assertNotNull(stat);
 
-            Collection<String> children = client2.getChildren().forPath(path);
+            Collection<String> children =
+                    client2.getChildren().forPath(zkStore.getLocksChildPath(path));
 
             // check that the lock node has been released
             assertEquals(0, children.size());
@@ -891,7 +1041,11 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         zkStore.release(path);
 
-        stat = ZOOKEEPER.getClient().checkExists().forPath(path);
+        stat =
+                ZOOKEEPER
+                        .getClient()
+                        .checkExists()
+                        .forPath(ZooKeeperStateHandleStore.getLocksChildPath(path));
 
         // release should have removed the lock child
         assertEquals("Expected no lock nodes as children", 0, stat.getNumChildren());
@@ -930,7 +1084,11 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         zkStore.releaseAll();
 
         for (String path : paths) {
-            Stat stat = ZOOKEEPER.getClient().checkExists().forPath(path);
+            Stat stat =
+                    ZOOKEEPER
+                            .getClient()
+                            .checkExists()
+                            .forPath(ZooKeeperStateHandleStore.getLocksChildPath(path));
 
             assertEquals(0, stat.getNumChildren());
         }
