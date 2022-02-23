@@ -29,13 +29,13 @@ import java.util.Optional;
  * configuration. The table configuration has precedence.
  */
 @Internal
-public final class PlannerConfiguration implements ReadableConfig {
+public final class PlannerConfig implements ReadableConfig {
 
     private final ReadableConfig tableConfig;
 
     private final ReadableConfig executorConfig;
 
-    PlannerConfiguration(ReadableConfig tableConfig, ReadableConfig executorConfig) {
+    PlannerConfig(ReadableConfig tableConfig, ReadableConfig executorConfig) {
         this.tableConfig = tableConfig;
         this.executorConfig = executorConfig;
     }

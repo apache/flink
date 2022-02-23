@@ -102,7 +102,7 @@ abstract class PlannerBase(
   private var parser: Parser = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
 
-  private val plannerConfiguration: ReadableConfig = new PlannerConfiguration(
+  private val plannerConfiguration: ReadableConfig = new PlannerConfig(
     tableConfig.getConfiguration,
     executor.getConfiguration)
 
