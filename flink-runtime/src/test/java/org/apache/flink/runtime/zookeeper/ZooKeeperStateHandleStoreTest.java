@@ -30,6 +30,7 @@ import org.apache.flink.runtime.persistence.TestingLongStateHandleHelper;
 import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
@@ -38,10 +39,13 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
+import org.hamcrest.collection.IsIterableContainingInAnyOrder;
 import org.hamcrest.core.IsInstanceOf;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -51,10 +55,13 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 
+import static org.apache.flink.runtime.util.ZooKeeperUtils.generateZookeeperPath;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -116,14 +123,33 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         List<String> children = ZOOKEEPER.getClient().getChildren().forPath(pathInZooKeeper);
 
-        // there should be one child which is the lock
-        assertEquals(1, children.size());
-
-        stat = ZOOKEEPER.getClient().checkExists().forPath(pathInZooKeeper + '/' + children.get(0));
+        // There should be one child which is the locks subfolder
+        final String locksSubfolderChild = Iterables.getOnlyElement(children);
+        stat =
+                ZOOKEEPER
+                        .getClient()
+                        .checkExists()
+                        .forPath(generateZookeeperPath(pathInZooKeeper, locksSubfolderChild));
         assertNotNull(stat);
 
-        // check that the child is an ephemeral node
-        assertNotEquals(0, stat.getEphemeralOwner());
+        assertEquals("The lock subfolder shouldn't be ephemeral", 0, stat.getEphemeralOwner());
+
+        List<String> lockChildren =
+                ZOOKEEPER
+                        .getClient()
+                        .getChildren()
+                        .forPath(generateZookeeperPath(pathInZooKeeper, locksSubfolderChild));
+        // Only one lock is expected
+        final String lockChild = Iterables.getOnlyElement(lockChildren);
+        stat =
+                ZOOKEEPER
+                        .getClient()
+                        .checkExists()
+                        .forPath(
+                                generateZookeeperPath(
+                                        pathInZooKeeper, locksSubfolderChild, lockChild));
+
+        assertNotEquals("The lock node should be ephemeral", 0, stat.getEphemeralOwner());
 
         // Data is equal
         @SuppressWarnings("unchecked")
@@ -136,6 +162,138 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
                         .getValue();
 
         assertEquals(state, actual);
+    }
+
+    @Test
+    public void testAddAndLockOnMarkedForDeletionNode() throws Exception {
+        final CuratorFramework client =
+                ZooKeeperUtils.useNamespaceAndEnsurePath(
+                        ZOOKEEPER.getClient(), "/testAddAndLockOnMarkedForDeletionNode");
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore =
+                new ZooKeeperStateHandleStore<>(client, new TestingLongStateHandleHelper());
+
+        final long oldStateValue = 1L;
+        final TestingLongStateHandleHelper.LongStateHandle oldStateHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(oldStateValue);
+        final String markedForDeletionNode = "marked-for-deletion";
+        final String markedForDeletionNodePath = generateZookeeperPath(markedForDeletionNode);
+        zkStore.addAndLock(markedForDeletionNodePath, oldStateHandle);
+
+        markNodeForDeletion(client, markedForDeletionNode);
+
+        final long updatedStateValue = oldStateValue + 2;
+        final TestingLongStateHandleHelper.LongStateHandle updatedStateHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(updatedStateValue);
+        zkStore.addAndLock(markedForDeletionNodePath, updatedStateHandle);
+
+        assertEquals(
+                updatedStateValue,
+                zkStore.getAndLock(markedForDeletionNodePath).retrieveState().getValue());
+        assertTrue(oldStateHandle.isDiscarded());
+        assertFalse(updatedStateHandle.isDiscarded());
+    }
+
+    @Test
+    public void testRepeatableCleanup() throws Exception {
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> testInstance =
+                new ZooKeeperStateHandleStore<>(
+                        ZOOKEEPER.getClient(), new TestingLongStateHandleHelper());
+
+        final String pathInZooKeeper = "/testRepeatableCleanup";
+
+        final RuntimeException expectedException =
+                new RuntimeException("Expected RuntimeException");
+        final TestingLongStateHandleHelper.LongStateHandle stateHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(
+                        12354L, throwExceptionOnce(expectedException));
+
+        testInstance.addAndLock(pathInZooKeeper, stateHandle);
+
+        try {
+            testInstance.releaseAndTryRemove(pathInZooKeeper);
+            fail("Exception should have been thrown.");
+        } catch (Exception e) {
+            ExceptionUtils.assertThrowable(e, expectedException::equals);
+        }
+
+        assertThrows(
+                StateHandleStore.NotExistException.class,
+                () -> testInstance.getAndLock(pathInZooKeeper));
+        assertFalse(stateHandle.isDiscarded());
+
+        assertTrue(testInstance.releaseAndTryRemove(pathInZooKeeper));
+        assertFalse(testInstance.exists(pathInZooKeeper).isExisting());
+        assertTrue(stateHandle.isDiscarded());
+    }
+
+    @Test
+    public void testRepeatableCleanupWithLockOnNode() throws Exception {
+        final CuratorFramework client =
+                ZooKeeperUtils.useNamespaceAndEnsurePath(
+                        ZOOKEEPER.getClient(), "/testRepeatableCleanupWithLockOnNode");
+
+        final TestingLongStateHandleHelper storage = new TestingLongStateHandleHelper();
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle>
+                storeForCreation = new ZooKeeperStateHandleStore<>(client, storage);
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle>
+                storeForDeletion = new ZooKeeperStateHandleStore<>(client, storage);
+
+        final String pathInZooKeeper = "/testRepeatableCleanupWithLock";
+
+        final long actualValue = 12345L;
+        final RuntimeException expectedException =
+                new RuntimeException("RuntimeException for testing the failing discardState call.");
+        final TestingLongStateHandleHelper.LongStateHandle stateHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(
+                        actualValue, throwExceptionOnce(expectedException));
+
+        final RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle>
+                handleForCreation = storeForCreation.addAndLock(pathInZooKeeper, stateHandle);
+
+        final RetrievableStateHandle<TestingLongStateHandleHelper.LongStateHandle>
+                handleForDeletion = storeForDeletion.getAndLock(pathInZooKeeper);
+
+        assertEquals(handleForCreation.retrieveState().getValue(), actualValue);
+        assertEquals(handleForDeletion.retrieveState().getValue(), actualValue);
+
+        assertFalse(
+                "Deletion by the first StateHandleStore shouldn't be successful because there's still a lock from StateHandleStore #1.",
+                storeForCreation.releaseAndTryRemove(pathInZooKeeper));
+
+        assertNotNull(
+                "StateHandle should not be marked for deletion, yet.",
+                client.checkExists()
+                        .forPath(ZooKeeperStateHandleStore.getRootLockPath(pathInZooKeeper)));
+        assertNull(
+                "The lock for storeForCreation should have been removed",
+                client.checkExists()
+                        .forPath(storeForCreation.getInstanceLockPath(pathInZooKeeper)));
+        assertEquals(
+                "discardState shouldn't have been called, yet.",
+                0,
+                stateHandle.getNumberOfDiscardCalls());
+
+        try {
+            storeForDeletion.releaseAndTryRemove(pathInZooKeeper);
+            fail("Exception should have been thrown.");
+        } catch (Exception e) {
+            ExceptionUtils.assertThrowable(e, expectedException::equals);
+        }
+
+        assertNull(
+                "StateHandle should be marked for deletion.",
+                client.checkExists()
+                        .forPath(ZooKeeperStateHandleStore.getRootLockPath(pathInZooKeeper)));
+        assertNotNull(
+                "StateHandle should not be deleted, yet.",
+                client.checkExists().forPath(pathInZooKeeper));
+        assertFalse("The StateHandle should not be discarded, yet.", stateHandle.isDiscarded());
+
+        assertTrue(storeForDeletion.releaseAndTryRemove(pathInZooKeeper));
+        assertNull(
+                "The StateHandle node should have been removed",
+                client.checkExists().forPath(pathInZooKeeper));
+        assertTrue("The StateHandle should have been discarded.", stateHandle.isDiscarded());
     }
 
     /**
@@ -356,6 +514,33 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         assertEquals(replaceState, actual);
     }
 
+    @Test
+    public void testReplaceRequiringALock() throws Exception {
+        final CuratorFramework client =
+                ZooKeeperUtils.useNamespaceAndEnsurePath(
+                        ZOOKEEPER.getClient(), "/testReplaceOnMarkedForDeletionNode");
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore =
+                new ZooKeeperStateHandleStore<>(client, new TestingLongStateHandleHelper());
+
+        final long oldState = 1L;
+        final TestingLongStateHandleHelper.LongStateHandle oldStateHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(oldState);
+        final String nodeName = "node";
+        final String path = generateZookeeperPath(nodeName);
+
+        zkStore.addAndLock(path, oldStateHandle);
+        zkStore.release(path);
+
+        final IntegerResourceVersion versionBeforeDeletion = zkStore.exists(path);
+        final long updatedState = oldState + 2;
+        final TestingLongStateHandleHelper.LongStateHandle updatedStateHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(updatedState);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> zkStore.replace(path, versionBeforeDeletion, updatedStateHandle));
+    }
+
     /** Tests that a non existing path throws an Exception. */
     @Test(expected = Exception.class)
     public void testReplaceNonExistingPath() throws Exception {
@@ -554,6 +739,24 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         assertTrue(store.exists(pathInZooKeeper).getValue() >= 0);
     }
 
+    @Test
+    public void testExistsOnMarkedForDeletionNode() throws Exception {
+        final CuratorFramework client =
+                ZooKeeperUtils.useNamespaceAndEnsurePath(
+                        ZOOKEEPER.getClient(), "/testExistsOnMarkedForDeletionEntry");
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore =
+                new ZooKeeperStateHandleStore<>(client, new TestingLongStateHandleHelper());
+
+        final String markedForDeletionPath = "marked-for-deletion";
+        zkStore.addAndLock(
+                generateZookeeperPath(markedForDeletionPath),
+                new TestingLongStateHandleHelper.LongStateHandle(1L));
+
+        markNodeForDeletion(client, markedForDeletionPath);
+
+        assertFalse(zkStore.exists(generateZookeeperPath(markedForDeletionPath)).isExisting());
+    }
+
     /** Tests that a non existing path throws an Exception. */
     @Test(expected = Exception.class)
     public void testGetNonExistingPath() throws Exception {
@@ -746,6 +949,52 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         assertEquals(0, ZOOKEEPER.getClient().getChildren().forPath("/").size());
     }
 
+    @Test
+    public void testReleaseAndTryRemoveAllRepeatableAfterFailure() throws Exception {
+        // Setup
+        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+
+        ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> store =
+                new ZooKeeperStateHandleStore<>(ZOOKEEPER.getClient(), stateHandleProvider);
+
+        // Config
+        final String pathInZooKeeper = "/testDiscardAllWithFailure";
+
+        final long actualValue = 12345L;
+        final RuntimeException expectedException =
+                new RuntimeException("RuntimeException for testing the failing discardState call.");
+        final TestingLongStateHandleHelper.LongStateHandle failingStateHandle =
+                new TestingLongStateHandleHelper.LongStateHandle(
+                        actualValue, throwExceptionOnce(expectedException));
+        store.addAndLock(pathInZooKeeper + "-with-failure", failingStateHandle);
+
+        final TestingLongStateHandleHelper.LongStateHandle succeedingStateHandle =
+                TestingLongStateHandleHelper.createState(42);
+        store.addAndLock(pathInZooKeeper + "-without-failure", succeedingStateHandle);
+
+        try {
+            store.releaseAndTryRemoveAll();
+            fail("An Exception should have been thrown.");
+        } catch (Exception e) {
+            ExceptionUtils.assertThrowable(e, expectedException::equals);
+        }
+
+        assertEquals(
+                "One discardState call should have failed resulting in one node being left, still.",
+                1,
+                ZOOKEEPER.getClient().getChildren().forPath("/").size());
+        assertEquals(0, failingStateHandle.getNumberOfDiscardCalls());
+        assertEquals(1, succeedingStateHandle.getNumberOfDiscardCalls());
+
+        store.releaseAndTryRemoveAll();
+
+        assertTrue(
+                "The second removal attempt should have succeeded with no nodes left.",
+                ZOOKEEPER.getClient().getChildren().forPath("/").isEmpty());
+        assertEquals(1, failingStateHandle.getNumberOfDiscardCalls());
+        assertEquals(1, succeedingStateHandle.getNumberOfDiscardCalls());
+    }
+
     /**
      * Tests that the ZooKeeperStateHandleStore can handle corrupted data by releasing and trying to
      * remove the respective ZooKeeper ZNodes.
@@ -862,7 +1111,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         }
 
         // check that there is no lock node left
-        String lockNodePath = zkStore2.getLockPath(path);
+        String lockNodePath = zkStore2.getInstanceLockPath(path);
 
         Stat stat = ZOOKEEPER.getClient().checkExists().forPath(lockNodePath);
 
@@ -920,7 +1169,8 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
             // check that our state node still exists
             assertNotNull(stat);
 
-            Collection<String> children = client2.getChildren().forPath(path);
+            Collection<String> children =
+                    client2.getChildren().forPath(zkStore.getRootLockPath(path));
 
             // check that the lock node has been released
             assertEquals(0, children.size());
@@ -943,7 +1193,7 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         zkStore.addAndLock(path, new TestingLongStateHandleHelper.LongStateHandle(42L));
 
-        final String lockPath = zkStore.getLockPath(path);
+        final String lockPath = zkStore.getInstanceLockPath(path);
 
         Stat stat = ZOOKEEPER.getClient().checkExists().forPath(lockPath);
 
@@ -951,7 +1201,11 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
 
         zkStore.release(path);
 
-        stat = ZOOKEEPER.getClient().checkExists().forPath(path);
+        stat =
+                ZOOKEEPER
+                        .getClient()
+                        .checkExists()
+                        .forPath(ZooKeeperStateHandleStore.getRootLockPath(path));
 
         // release should have removed the lock child
         assertEquals("Expected no lock nodes as children", 0, stat.getNumChildren());
@@ -982,7 +1236,8 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         }
 
         for (String path : paths) {
-            Stat stat = ZOOKEEPER.getClient().checkExists().forPath(zkStore.getLockPath(path));
+            Stat stat =
+                    ZOOKEEPER.getClient().checkExists().forPath(zkStore.getInstanceLockPath(path));
 
             assertNotNull("Expecte and existing lock.", stat);
         }
@@ -990,7 +1245,11 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         zkStore.releaseAll();
 
         for (String path : paths) {
-            Stat stat = ZOOKEEPER.getClient().checkExists().forPath(path);
+            Stat stat =
+                    ZOOKEEPER
+                            .getClient()
+                            .checkExists()
+                            .forPath(ZooKeeperStateHandleStore.getRootLockPath(path));
 
             assertEquals(0, stat.getNumChildren());
         }
@@ -1013,5 +1272,50 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
         zkStore.clearEntries();
 
         assertThat(zkStore.getAllHandles(), is(empty()));
+    }
+
+    @Test
+    public void testGetAllHandlesWithMarkedForDeletionEntries() throws Exception {
+        final CuratorFramework client =
+                ZooKeeperUtils.useNamespaceAndEnsurePath(
+                        ZOOKEEPER.getClient(), "/testGetAllHandlesWithMarkedForDeletionEntries");
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> zkStore =
+                new ZooKeeperStateHandleStore<>(client, new TestingLongStateHandleHelper());
+
+        final String notMarkedForDeletionNodeName = "not-marked-for-deletion";
+        final String markedForDeletionNodeName = "marked-for-deletion";
+        zkStore.addAndLock(
+                generateZookeeperPath(notMarkedForDeletionNodeName),
+                new TestingLongStateHandleHelper.LongStateHandle(1L));
+        zkStore.addAndLock(
+                generateZookeeperPath(markedForDeletionNodeName),
+                new TestingLongStateHandleHelper.LongStateHandle(2L));
+
+        markNodeForDeletion(client, markedForDeletionNodeName);
+
+        assertThat(
+                zkStore.getAllHandles(),
+                IsIterableContainingInAnyOrder.containsInAnyOrder(
+                        notMarkedForDeletionNodeName, markedForDeletionNodeName));
+    }
+
+    private static void markNodeForDeletion(CuratorFramework client, String childNodeName)
+            throws Exception {
+        client.delete()
+                .deletingChildrenIfNeeded()
+                .forPath(
+                        ZooKeeperStateHandleStore.getRootLockPath(
+                                generateZookeeperPath(childNodeName)));
+    }
+
+    private static TestingLongStateHandleHelper.PreDiscardCallback throwExceptionOnce(
+            @Nullable RuntimeException e) {
+        final AtomicReference<RuntimeException> ref = new AtomicReference<>(e);
+        return ignoredValue -> {
+            final RuntimeException actualException = ref.getAndSet(null);
+            if (actualException != null) {
+                throw actualException;
+            }
+        };
     }
 }

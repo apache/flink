@@ -22,6 +22,7 @@ import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.util.AbstractID;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.StringJoiner;
@@ -68,6 +69,15 @@ public class TestingLongStateHandleHelper
     }
 
     /**
+     * Serialized callback that can be used in {@code LongStateHandle} to trigger functionality
+     * within the {@link LongStateHandle#discardState()} call.
+     */
+    @FunctionalInterface
+    public interface PreDiscardCallback extends Serializable {
+        void run(Long value);
+    }
+
+    /**
      * {@code LongStateHandle} implements {@link StateObject} to monitor the {@link
      * StateObject#discardState()} calls.
      */
@@ -77,10 +87,17 @@ public class TestingLongStateHandleHelper
 
         private final Long value;
 
+        private final PreDiscardCallback preDiscardCallback;
+
         private int numberOfDiscardCalls = 0;
 
         public LongStateHandle(long value) {
+            this(value, ignored -> {});
+        }
+
+        public LongStateHandle(long value, PreDiscardCallback preDiscardCallback) {
             this.value = value;
+            this.preDiscardCallback = preDiscardCallback;
         }
 
         public long getValue() {
@@ -89,11 +106,17 @@ public class TestingLongStateHandleHelper
 
         @Override
         public void discardState() {
+            preDiscardCallback.run(value);
+
             numberOfDiscardCalls++;
         }
 
         public int getNumberOfDiscardCalls() {
             return numberOfDiscardCalls;
+        }
+
+        public boolean isDiscarded() {
+            return numberOfDiscardCalls > 0;
         }
 
         @Override
