@@ -249,36 +249,50 @@ public class AsyncSinkWriterTest {
         /*
          * Writing 955 to the sink increases the buffer to size 3 containing [75, 95, 955]. This
          * triggers the outstanding in flight request with the failed 965 to be run, and 965 is
-         * placed at the front of the queue. The first {@code maxBatchSize = 3} elements are
-         * persisted, with 965 succeeding this (second) time. 955 remains in the buffer.
+         * placed at the front of the queue. The failure throttles down {@code maxBatchSize} to 1.
+         * buffer now should be [965, 75, 95, 955]
+         * A new batch containing 965 is then sent, success causes {@code maxBatchSize} to go up
+         * to 3 again.
+         * next batch is then created of all requests, 75 and 95 are also persisted.
+         * 955 is in flight after failure.
          */
         writeXToSinkAssertDestinationIsInStateYAndBufferHasZ(
-                sink, "955", Arrays.asList(25, 55, 965, 75, 95), Arrays.asList(955));
+                sink, "955", Arrays.asList(25, 55, 965, 75, 95), Arrays.asList());
 
         writeXToSinkAssertDestinationIsInStateYAndBufferHasZ(
-                sink, "550", Arrays.asList(25, 55, 965, 75, 95), Arrays.asList(955, 550));
+                sink, "550", Arrays.asList(25, 55, 965, 75, 95), Arrays.asList(550));
 
         /*
-         * [955, 550, 45] are attempted to be persisted
+         * [550, 45] are attempted to be persisted
          */
         writeXToSinkAssertDestinationIsInStateYAndBufferHasZ(
-                sink, "45", Arrays.asList(25, 55, 965, 75, 95, 45), Arrays.asList());
+                sink, "45", Arrays.asList(25, 55, 965, 75, 95), Arrays.asList(550, 45));
 
-        writeXToSinkAssertDestinationIsInStateYAndBufferHasZ(
-                sink, "35", Arrays.asList(25, 55, 965, 75, 95, 45), Arrays.asList(35));
-
-        /* [35, 535] should be in the bufferedRequestEntries
-         * [955, 550] should be in the inFlightRequest, ready to be added
-         * [25, 55, 965, 75, 95, 45] should be downstream already
+        /*
+         * [550,45,35] triggers inflight request to be added, buffer should be [955,550,45,35]
+         * batch size is reduced to 1.
+         * Next request would contain only [995] which is persisted,
+         * success causes batch size to rise again to 3. next batch is now [550,45,35].
+         * All are persisted and batch size is 3.
          */
         writeXToSinkAssertDestinationIsInStateYAndBufferHasZ(
-                sink, "535", Arrays.asList(25, 55, 965, 75, 95, 45), Arrays.asList(35, 535));
+                sink, "35", Arrays.asList(25, 55, 965, 75, 95, 955, 550, 45, 35), Arrays.asList());
+
+        /* ] should be in the bufferedRequestEntries
+         * [ 550] should be in the inFlightRequest, ready to be added
+         * [25, 55, 965, 75, 95, 995, 45, 35] should be downstream already
+         */
+        writeXToSinkAssertDestinationIsInStateYAndBufferHasZ(
+                sink,
+                "535",
+                Arrays.asList(25, 55, 965, 75, 95, 955, 550, 45, 35),
+                Arrays.asList(535));
 
         // Checkpoint occurs
         sink.flush(true);
 
         // Everything is saved
-        assertEquals(Arrays.asList(25, 55, 965, 75, 95, 45, 955, 550, 35, 535), res);
+        assertEquals(Arrays.asList(25, 55, 965, 75, 95, 955, 550, 45, 35, 535), res);
         assertEquals(0, getWriterState(sink).getStateSize());
     }
 
