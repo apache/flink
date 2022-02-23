@@ -110,7 +110,7 @@ public class StandaloneCompletedCheckpointStoreTest extends CompletedCheckpointS
                             new TestCompletedCheckpointStorageLocation(),
                             null) {
                         @Override
-                        public boolean discardOnSubsume() {
+                        public CompletedCheckpointDiscardObject markAsDiscardedOnSubsume() {
                             discardAttempted.countDown();
                             throw new RuntimeException();
                         }

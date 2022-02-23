@@ -182,9 +182,7 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
         return discarded;
     }
 
-    /**
-     * Mark the checkpoint has been discarded.
-     */
+    /** Mark the checkpoint has been discarded. */
     void discard() {
         discarded = true;
     }
