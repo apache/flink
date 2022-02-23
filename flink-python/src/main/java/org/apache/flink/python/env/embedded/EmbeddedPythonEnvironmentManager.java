@@ -69,12 +69,12 @@ public class EmbeddedPythonEnvironmentManager extends AbstractPythonEnvironmentM
         if (execType == PythonInterpreterConfig.ExecType.SUB_INTERPRETER) {
             if (pythonVersion.compareTo("3.8") < 0) {
                 throw new RuntimeException(
-                        "`SUB-INTERPRETER` execution mode only supports python 3.8");
+                        "`SUB-INTERPRETER` execution mode only supports Python 3.8+");
             }
         } else {
             if (pythonVersion.compareTo("3.7") < 0) {
                 throw new RuntimeException(
-                        "`MULTI-THREAD` execution mode only supports python 3.7, 3.8");
+                        "`MULTI-THREAD` execution mode only supports Python 3.7+");
             }
         }
 

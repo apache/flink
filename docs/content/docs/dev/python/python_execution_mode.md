@@ -78,7 +78,7 @@ in all places. It will fall back to `PROCESS` execution mode in these cases. So 
 to execute in `MULTI-THREAD` or `SUB-INTERPRETER` execution modes, however, it's actually executed in `PROCESS` execution mode.
 {{< /hint >}}
 {{< hint info >}}
-`MULTI-THREAD` execution mode only supports python 3.7, 3.8. `SUB-INTERPRETER` execution mode only supports python 3.8.  
+`MULTI-THREAD` execution mode only supports Python 3.7+. `SUB-INTERPRETER` execution mode only supports Python 3.8+.  
 {{< /hint >}}
 
 ## Execution Behavior
