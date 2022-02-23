@@ -26,15 +26,15 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.delegation.PlannerConfiguration;
+import org.apache.flink.table.planner.delegation.PlannerConfig;
 
 import java.time.ZoneId;
 import java.util.Optional;
 
 /**
- * Configuration view which is used combine the {@link PlannerConfiguration} with the {@link
+ * Configuration view which is used combine the {@link PlannerConfig} with the {@link
  * ExecNodeBase#getNodeConfig()} configuration. The persisted configuration of the {@link ExecNode}
- * which is deserialized from the JSON plan has precedence over the {@link PlannerConfiguration}.
+ * which is deserialized from the JSON plan has precedence over the {@link PlannerConfig}.
  */
 @Internal
 public final class ExecNodeConfig implements ReadableConfig {
