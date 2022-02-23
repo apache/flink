@@ -37,7 +37,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -142,9 +141,12 @@ public class ChangelogCompatibilityITCase {
         ClusterClient<?> client = miniClusterResource.getClusterClient();
         submit(jobGraph, client);
         if (testCase.restoreSource == RestoreSource.CHECKPOINT) {
-            String location = pathToString(waitForCheckpoint());
+            while (!getMostRecentCompletedCheckpointMaybe(checkpointDir).isPresent()) {
+                Thread.sleep(50);
+            }
             client.cancel(jobGraph.getJobID()).get();
-            return location;
+            // obtain the latest checkpoint *after* cancellation - that one won't be subsumed
+            return pathToString(getMostRecentCompletedCheckpointMaybe(checkpointDir).get());
         } else {
             return client.stopWithSavepoint(
                             jobGraph.getJobID(),
@@ -258,15 +260,6 @@ public class ChangelogCompatibilityITCase {
     private void submit(JobGraph jobGraph, ClusterClient<?> client) throws Exception {
         client.submitJob(jobGraph).get();
         waitForAllTaskRunning(miniClusterResource.getMiniCluster(), jobGraph.getJobID(), true);
-    }
-
-    private File waitForCheckpoint() throws IOException, InterruptedException {
-        Optional<File> location = getMostRecentCompletedCheckpointMaybe(checkpointDir);
-        while (!location.isPresent()) {
-            Thread.sleep(50);
-            location = getMostRecentCompletedCheckpointMaybe(checkpointDir);
-        }
-        return location.get();
     }
 
     private static String pathToString(File path) {
