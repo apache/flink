@@ -418,7 +418,8 @@ public class DefaultCompletedCheckpointStoreTest extends TestLogger {
                 Collections.emptyMap(),
                 Collections.emptyList(),
                 props,
-                new TestCompletedCheckpointStorageLocation());
+                new TestCompletedCheckpointStorageLocation(),
+                null);
     }
 
     private List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> createStateHandles(

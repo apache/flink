@@ -58,7 +58,8 @@ public class DefaultCompletedCheckpointStoreUtilsTest extends TestLogger {
                 new HashMap<>(),
                 Collections.emptyList(),
                 CheckpointProperties.forCheckpoint(CheckpointRetentionPolicy.RETAIN_ON_FAILURE),
-                new TestCompletedCheckpointStorageLocation());
+                new TestCompletedCheckpointStorageLocation(),
+                null);
     }
 
     private static class FailingRetrievableStateHandle<T extends Serializable>
