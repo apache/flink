@@ -1339,9 +1339,7 @@ public class CheckpointCoordinator {
         try {
             final CompletedCheckpoint completedCheckpoint =
                     pendingCheckpoint.finalizeCheckpoint(
-                            checkpointsCleaner,
-                            this::scheduleTriggerRequest,
-                            executor);
+                            checkpointsCleaner, this::scheduleTriggerRequest, executor);
 
             failureManager.handleCheckpointSuccess(pendingCheckpoint.getCheckpointID());
             return completedCheckpoint;
@@ -1401,11 +1399,22 @@ public class CheckpointCoordinator {
                 checkpointsCleaner.cleanCheckpointOnFailedStoring(completedCheckpoint, executor);
             }
 
+            reportFailedCheckpoint(checkpointId, exception);
             sendAbortedMessages(tasksToAbort, checkpointId, completedCheckpoint.getTimestamp());
             throw new CheckpointException(
                     "Could not complete the pending checkpoint " + checkpointId + '.',
                     CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE,
                     exception);
+        }
+    }
+
+    private void reportFailedCheckpoint(long checkpointId, Exception exception) {
+        PendingCheckpointStats pendingCheckpointStats =
+                statsTracker.getPendingCheckpointStats(checkpointId);
+        if (pendingCheckpointStats != null) {
+            statsTracker.reportFailedCheckpoint(
+                    pendingCheckpointStats.toFailedCheckpoint(
+                            System.currentTimeMillis(), exception));
         }
     }
 
