@@ -217,8 +217,7 @@ public class PendingCheckpointTest {
         assertFalse(future.isDone());
         pending.acknowledgeTask(ATTEMPT_ID, null, new CheckpointMetrics());
         assertTrue(pending.areTasksFullyAcknowledged());
-        pending.finalizeCheckpoint(
-                new CheckpointsCleaner(), () -> {}, Executors.directExecutor(), null);
+        pending.finalizeCheckpoint(new CheckpointsCleaner(), () -> {}, Executors.directExecutor());
         assertTrue(future.isDone());
 
         // Finalize (missing ACKs)
@@ -228,7 +227,7 @@ public class PendingCheckpointTest {
         assertFalse(future.isDone());
         try {
             pending.finalizeCheckpoint(
-                    new CheckpointsCleaner(), () -> {}, Executors.directExecutor(), null);
+                    new CheckpointsCleaner(), () -> {}, Executors.directExecutor());
             fail("Did not throw expected Exception");
         } catch (IllegalStateException ignored) {
             // Expected
