@@ -24,7 +24,6 @@ import org.apache.flink.metrics.util.TestMeter;
 import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.offset;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -38,10 +37,10 @@ class FlinkMeterWrapperTest {
         Meter meter = new TestMeter();
 
         FlinkMeterWrapper wrapper = new FlinkMeterWrapper(meter);
-        assertThat(wrapper.getMeanRate()).isEqualTo(0, offset(DELTA));
-        assertThat(wrapper.getOneMinuteRate()).isEqualTo(5, offset(DELTA));
-        assertThat(wrapper.getFiveMinuteRate()).isEqualTo(0, offset(DELTA));
-        assertThat(wrapper.getFifteenMinuteRate()).isEqualTo(0, offset(DELTA));
+        assertThat(wrapper.getMeanRate()).isEqualTo(0);
+        assertThat(wrapper.getOneMinuteRate()).isEqualTo(5);
+        assertThat(wrapper.getFiveMinuteRate()).isEqualTo(0);
+        assertThat(wrapper.getFifteenMinuteRate()).isEqualTo(0);
         assertThat(wrapper.getCount()).isEqualTo(100L);
     }
 

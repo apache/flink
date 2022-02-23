@@ -37,7 +37,7 @@ class DropwizardMeterWrapperTest {
 
         DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
 
-        assertThat(wrapper.getRate()).isEqualTo(1.0, offset(0.00001));
+        assertThat(wrapper.getRate()).isCloseTo(1.0, offset(0.00001));
         assertThat(wrapper.getCount()).isEqualTo(100L);
     }
 

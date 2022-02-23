@@ -87,7 +87,7 @@ class DropwizardFlinkHistogramWrapperTest extends AbstractHistogramTest {
         Snapshot snapshot = testingReporter.getNextHistogramSnapshot(fullMetricName);
 
         assertThat(snapshot.getMin()).isEqualTo(0);
-        assertThat(snapshot.getMedian()).isEqualTo((size - 1) / 2.0, offset(0.001));
+        assertThat(snapshot.getMedian()).isCloseTo((size - 1) / 2.0, offset(0.001));
         assertThat(snapshot.getMax()).isEqualTo(size - 1);
         assertThat(snapshot.size()).isEqualTo(size);
 

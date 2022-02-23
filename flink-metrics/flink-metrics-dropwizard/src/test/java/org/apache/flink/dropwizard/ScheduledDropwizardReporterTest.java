@@ -93,7 +93,7 @@ class ScheduledDropwizardReporterTest {
                         + delimiter
                         + reporter.filterCharacters(counterName);
 
-        assertThat(counters.get(myCounter)).isEqualTo(expectedCounterName);
+        assertThat(counters).containsEntry(myCounter, expectedCounterName);
     }
 
     /**
