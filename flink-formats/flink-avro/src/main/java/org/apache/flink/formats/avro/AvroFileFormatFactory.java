@@ -121,6 +121,12 @@ public class AvroFileFormatFactory implements BulkReaderFormatFactory, BulkWrite
                 DynamicTableSource.Context context,
                 DataType physicalDataType,
                 int[][] projections) {
+            // avro is a file format that keeps schemas in file headers,
+            // if the schema given to the reader is not equal to the schema in header,
+            // reader will automatically map the fields and give back records with our desired
+            // schema
+            //
+            // for detailed discussion see comments in https://github.com/apache/flink/pull/18657
             DataType producedDataType = Projection.of(projections).project(physicalDataType);
             return new AvroGenericRecordBulkFormat(
                     context, (RowType) producedDataType.getLogicalType().copy(false));

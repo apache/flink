@@ -45,7 +45,7 @@ object DateTimeTestUtil {
     if (s == null) {
       null
     } else {
-      DateTimeUtils.parseTimestampData(s).toLocalDateTime
+      DateTimeUtils.parseTimestampData(s, 9).toLocalDateTime
     }
   }
 

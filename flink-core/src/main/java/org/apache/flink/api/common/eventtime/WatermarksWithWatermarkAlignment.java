@@ -24,7 +24,7 @@ import java.time.Duration;
 
 /** A helper class to pass a watermark group and max allowed watermark drift to the runtime. */
 @Internal
-public final class WatermarksWithWatermarkAlignment<T> implements WatermarkStrategy<T> {
+final class WatermarksWithWatermarkAlignment<T> implements WatermarkStrategy<T> {
 
     static final Duration DEFAULT_UPDATE_INTERVAL = Duration.ofMillis(1000);
 

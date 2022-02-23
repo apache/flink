@@ -20,6 +20,7 @@ package org.apache.flink.connector.kinesis.sink;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -39,6 +40,7 @@ import org.rnorth.ducttape.ratelimits.RateLimiterBuilder;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
 import software.amazon.awssdk.core.SdkSystemSetting;
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.services.kinesis.KinesisAsyncClient;
 import software.amazon.awssdk.services.kinesis.model.CreateStreamRequest;
 import software.amazon.awssdk.services.kinesis.model.DescribeStreamRequest;
@@ -75,6 +77,7 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                     .withNetworkAliases("kinesalite");
 
     private StreamExecutionEnvironment env;
+    private SdkAsyncHttpClient httpClient;
     private KinesisAsyncClient kinesisClient;
 
     @Before
@@ -84,12 +87,14 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        kinesisClient = KINESALITE.getHostClient();
+        httpClient = KINESALITE.buildSdkAsyncHttpClient();
+        kinesisClient = KINESALITE.createHostClient(httpClient);
     }
 
     @After
     public void teardown() {
         System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
+        AWSGeneralUtil.closeResources(httpClient, kinesisClient);
     }
 
     @Test
@@ -312,7 +317,6 @@ public class KinesisDataStreamsSinkITCase extends TestLogger {
                             .withConstantThroughput()
                             .build();
 
-            KinesisAsyncClient kinesisClient = KINESALITE.getHostClient();
             kinesisClient
                     .createStream(
                             CreateStreamRequest.builder()

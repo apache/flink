@@ -56,7 +56,7 @@ public class StateHandleReuseITCase extends AbstractTestBase {
 
     @Test
     public void runTest() throws Exception {
-        TestJobExecutor.execute(buildJob(), miniClusterResource)
+        TestJobExecutor.execute(buildJob(), MINI_CLUSTER_RESOURCE)
                 // register once: should succeed
                 .waitForEvent(CheckpointCompletedEvent.class)
                 // register again: might fail without serialization

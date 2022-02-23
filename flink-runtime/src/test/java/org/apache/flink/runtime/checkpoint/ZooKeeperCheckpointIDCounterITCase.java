@@ -23,29 +23,34 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
 
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Unit tests for the {@link ZooKeeperCheckpointIDCounter}. The tests are inherited from the test
  * base class {@link CheckpointIDCounterTestBase}.
  */
-public class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestBase {
+class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestBase {
 
-    private static final ZooKeeperTestEnvironment ZooKeeper = new ZooKeeperTestEnvironment(1);
+    private static ZooKeeperTestEnvironment zookeeper;
 
-    @AfterClass
-    public static void tearDown() throws Exception {
-        ZooKeeper.shutdown();
+    @BeforeAll
+    public static void setUp() throws Exception {
+        zookeeper = new ZooKeeperTestEnvironment(1);
     }
 
-    @Before
-    public void cleanUp() throws Exception {
-        ZooKeeper.deleteAll();
+    @AfterAll
+    private static void tearDown() throws Exception {
+        zookeeper.shutdown();
+    }
+
+    @BeforeEach
+    private void cleanUp() throws Exception {
+        zookeeper.deleteAll();
     }
 
     /** Tests that counter node is removed from ZooKeeper after shutdown. */
@@ -54,11 +59,11 @@ public class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestB
         ZooKeeperCheckpointIDCounter counter = createCheckpointIdCounter();
         counter.start();
 
-        CuratorFramework client = ZooKeeper.getClient();
-        assertNotNull(client.checkExists().forPath(counter.getPath()));
+        CuratorFramework client = zookeeper.getClient();
+        assertThat(client.checkExists().forPath(counter.getPath())).isNotNull();
 
         counter.shutdown(JobStatus.FINISHED);
-        assertNull(client.checkExists().forPath(counter.getPath()));
+        assertThat(client.checkExists().forPath(counter.getPath())).isNull();
     }
 
     /** Tests that counter node is NOT removed from ZooKeeper after suspend. */
@@ -67,16 +72,16 @@ public class ZooKeeperCheckpointIDCounterITCase extends CheckpointIDCounterTestB
         ZooKeeperCheckpointIDCounter counter = createCheckpointIdCounter();
         counter.start();
 
-        CuratorFramework client = ZooKeeper.getClient();
-        assertNotNull(client.checkExists().forPath(counter.getPath()));
+        CuratorFramework client = zookeeper.getClient();
+        assertThat(client.checkExists().forPath(counter.getPath())).isNotNull();
 
         counter.shutdown(JobStatus.SUSPENDED);
-        assertNotNull(client.checkExists().forPath(counter.getPath()));
+        assertThat(client.checkExists().forPath(counter.getPath())).isNotNull();
     }
 
     @Override
     protected ZooKeeperCheckpointIDCounter createCheckpointIdCounter() throws Exception {
         return new ZooKeeperCheckpointIDCounter(
-                ZooKeeper.getClient(), new DefaultLastStateConnectionStateListener());
+                zookeeper.getClient(), new DefaultLastStateConnectionStateListener());
     }
 }

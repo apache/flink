@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.ExternalCatalogTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -83,7 +85,22 @@ class ResolvedCatalogTableJsonSerializer extends StdSerializer<ResolvedCatalogTa
             if (!resolvedCatalogTable.getComment().isEmpty()) {
                 jsonGenerator.writeObjectField(COMMENT, resolvedCatalogTable.getComment());
             }
-            jsonGenerator.writeObjectField(OPTIONS, resolvedCatalogTable.getOptions());
+            try {
+                jsonGenerator.writeObjectField(OPTIONS, resolvedCatalogTable.getOptions());
+            } catch (Exception e) {
+                throw new ValidationException(
+                        String.format(
+                                "The table is not serializable as %s#getOptions() failed. "
+                                        + "It seems the table is not intended to be stored in a "
+                                        + "persisted plan. Either declare the table as a temporary "
+                                        + "table or use '%s' = '%s' / '%s' to only compile an identifier "
+                                        + "into the plan.",
+                                resolvedCatalogTable.getOrigin().getClass(),
+                                TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS.key(),
+                                CatalogPlanCompilation.SCHEMA.name(),
+                                CatalogPlanCompilation.IDENTIFIER.name()),
+                        e);
+            }
         }
 
         jsonGenerator.writeEndObject();

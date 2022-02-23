@@ -25,16 +25,21 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
+import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
+import org.apache.flink.core.memory.DataInputViewStreamWrapper;
+import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.table.api.Types;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
 
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -72,7 +77,7 @@ public final class PythonTableUtils {
             final List<Object[]> data,
             final TypeInformation<Row> dataType,
             final ExecutionConfig config) {
-        Function<Object, Object> converter = converter(dataType);
+        Function<Object, Object> converter = converter(dataType, config);
         return new CollectionInputFormat<>(
                 data.stream()
                         .map(objects -> (Row) converter.apply(objects))
@@ -92,7 +97,7 @@ public final class PythonTableUtils {
     @SuppressWarnings("unchecked")
     public static <T> InputFormat<T, ?> getCollectionInputFormat(
             final List<T> data, final TypeInformation<T> dataType, final ExecutionConfig config) {
-        Function<Object, Object> converter = converter(dataType);
+        Function<Object, Object> converter = converter(dataType, config);
         return new CollectionInputFormat<>(
                 data.stream()
                         .map(objects -> (T) converter.apply(objects))
@@ -253,7 +258,8 @@ public final class PythonTableUtils {
         };
     }
 
-    private static Function<Object, Object> converter(final TypeInformation<?> dataType) {
+    private static Function<Object, Object> converter(
+            final TypeInformation<?> dataType, final ExecutionConfig config) {
         if (dataType.equals(Types.BOOLEAN())) {
             return b -> b instanceof Boolean ? b : null;
         }
@@ -409,7 +415,7 @@ public final class PythonTableUtils {
                                     ? ((BasicArrayTypeInfo<?, ?>) dataType).getComponentInfo()
                                     : ((ObjectArrayTypeInfo<?, ?>) dataType).getComponentInfo();
             boolean primitive = dataType instanceof PrimitiveArrayTypeInfo;
-            Function<Object, Object> elementConverter = converter(elementType);
+            Function<Object, Object> elementConverter = converter(elementType, config);
             BiFunction<Integer, Function<Integer, Object>, Object> arrayConstructor =
                     arrayConstructor(elementType, primitive);
             return c -> {
@@ -431,9 +437,9 @@ public final class PythonTableUtils {
         }
         if (dataType instanceof MapTypeInfo) {
             Function<Object, Object> keyConverter =
-                    converter(((MapTypeInfo<?, ?>) dataType).getKeyTypeInfo());
+                    converter(((MapTypeInfo<?, ?>) dataType).getKeyTypeInfo(), config);
             Function<Object, Object> valueConverter =
-                    converter(((MapTypeInfo<?, ?>) dataType).getValueTypeInfo());
+                    converter(((MapTypeInfo<?, ?>) dataType).getValueTypeInfo(), config);
             return c ->
                     c instanceof Map
                             ? ((Map<?, ?>) c)
@@ -450,7 +456,7 @@ public final class PythonTableUtils {
             TypeInformation<?>[] fieldTypes = ((RowTypeInfo) dataType).getFieldTypes();
             List<Function<Object, Object>> fieldConverters =
                     Arrays.stream(fieldTypes)
-                            .map(PythonTableUtils::converter)
+                            .map(x -> PythonTableUtils.converter(x, config))
                             .collect(Collectors.toList());
             return c -> {
                 if (c != null && c.getClass().isArray()) {
@@ -480,7 +486,7 @@ public final class PythonTableUtils {
             TypeInformation<?>[] fieldTypes = ((TupleTypeInfo<?>) dataType).getFieldTypes();
             List<Function<Object, Object>> fieldConverters =
                     Arrays.stream(fieldTypes)
-                            .map(PythonTableUtils::converter)
+                            .map(x -> PythonTableUtils.converter(x, config))
                             .collect(Collectors.toList());
             return c -> {
                 if (c != null && c.getClass().isArray()) {
@@ -505,7 +511,24 @@ public final class PythonTableUtils {
             };
         }
 
-        return Function.identity();
+        return c -> {
+            if (c.getClass() != byte[].class || dataType instanceof PickledByteArrayTypeInfo) {
+                return c;
+            }
+
+            // other typeinfos will use the corresponding serializer to deserialize data.
+            byte[] b = (byte[]) c;
+            TypeSerializer<?> dataSerializer = dataType.createSerializer(config);
+            ByteArrayInputStreamWithPos bais = new ByteArrayInputStreamWithPos();
+            DataInputViewStreamWrapper baisWrapper = new DataInputViewStreamWrapper(bais);
+            bais.setBuffer(b, 0, b.length);
+            try {
+                return dataSerializer.deserialize(baisWrapper);
+            } catch (IOException e) {
+                throw new IllegalStateException(
+                        "Failed to deserialize the object with datatype " + dataType, e);
+            }
+        };
     }
 
     private static int getOffsetFromLocalMillis(final long millisLocal) {

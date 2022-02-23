@@ -46,6 +46,13 @@ under the License.
 			<artifactId>flink-connector-pulsar</artifactId>
 			<version>${project.version}</version>
 		</dependency>
+		<!-- pulsar-client-all requires jaxb-api for javax.xml.bind.annotation.XmlElement -->
+		<!-- packaged in flink-dist but not provided in e2e environment. -->
+		<dependency>
+			<groupId>javax.xml.bind</groupId>
+			<artifactId>jaxb-api</artifactId>
+			<version>${jaxb.api.version}</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-pulsar</artifactId>
@@ -150,6 +157,14 @@ under the License.
 							<artifactId>bcprov-ext-jdk15on</artifactId>
 							<version>${bouncycastle.version}</version>
 							<destFileName>bcprov-ext-jdk15on.jar</destFileName>
+							<type>jar</type>
+							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
+						</dependency>
+						<dependency>
+							<groupId>javax.xml.bind</groupId>
+							<artifactId>jaxb-api</artifactId>
+							<version>${jaxb-api.version}</version>
+							<destFileName>jaxb-api.jar</destFileName>
 							<type>jar</type>
 							<outputDirectory>${project.build.directory}/dependencies</outputDirectory>
 						</dependency>
