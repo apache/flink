@@ -82,7 +82,7 @@ In the above example, the print sink is stateless and hence not part of the save
 
 You can use the [command line client]({{< ref "docs/deployment/cli" >}}#savepoints) to *trigger savepoints*, *cancel a job with a savepoint*, *resume from savepoints*, and *dispose savepoints*.
 
-With Flink >= 1.2.0 it is also possible to *resume from savepoints* using the webui.
+It is also possible to *resume from savepoints* using the webui.
 
 ### Triggering Savepoints
 
@@ -108,7 +108,7 @@ For example with a `FsStateBackend` or `RocksDBStateBackend`:
 /savepoints/savepoint-:shortjobid-:savepointid/...
 ```
 
-Since Flink 1.11.0, savepoints can generally be moved by moving (or copying) the entire savepoint directory to a different location, and Flink will be able to restore from the moved savepoint.
+Savepoints can generally be moved by moving (or copying) the entire savepoint directory to a different location, and Flink will be able to restore from the moved savepoint.
 
 {{< hint info >}}
 There are two exceptions: 
@@ -149,14 +149,7 @@ You can choose between two binary formats of a savepoint:
 * canonical format - a format that has been unified across all state backends, which lets you take a
   savepoint with one state backend and then restore it using another. This is the most stable
   format, that is targeted at maintaining the most compatibility with previous versions, schemas,
-  modifications etc. 
-  
-{{< hint info >}}
-State backends did not start producing a common canonical format until version 1.13. Therefore, if
-you want to switch the state backend you should first upgrade your Flink version then take a
-savepoint with the new version, and only after that, you can restore it with a different state
-backend.
-{{< /hint >}}
+  modifications etc.
 
 * native format - the downside of the canonical format is that often it is slow to take and restore
   from. Native format creates a snapshot in the format specific for the used state backend (e.g. SST
@@ -304,7 +297,7 @@ $ bin/flink savepoint -d :savepointPath
 
 This disposes the savepoint stored in `:savepointPath`.
 
-Note that it is possible to also manually delete a savepoint via regular file system operations without affecting other savepoints or checkpoints (recall that each savepoint is self-contained). Up to Flink 1.2, this was a more tedious task which was performed with the savepoint command above.
+Note that it is possible to also manually delete a savepoint via regular file system operations without affecting other savepoints or checkpoints (recall that each savepoint is self-contained).
 
 ### Configuration
 
@@ -371,12 +364,10 @@ If you did not assign IDs, the auto generated IDs of the stateful operators will
 
 ### What happens when I change the parallelism of my program when restoring?
 
-If the savepoint was triggered with Flink >= 1.2.0 and using no deprecated state API like `Checkpointed`, you can simply restore the program from a savepoint and specify a new parallelism.
-
-If you are resuming from a savepoint triggered with Flink < 1.2.0 or using now deprecated APIs you first have to migrate your job and savepoint to Flink >= 1.2.0 before being able to change the parallelism. See the [upgrading jobs and Flink versions guide]({{< ref "docs/ops/upgrading" >}}).
+You can simply restore the program from a savepoint and specify a new parallelism.
 
 ### Can I move the Savepoint files on stable storage?
 
-The quick answer to this question is currently "yes". Sink Flink 1.11.0, savepoints are self-contained and relocatable. You can move the file and restore from any location.
+The quick answer to this question is currently "yes". Savepoints are self-contained and relocatable. You can move the file and restore from any location.
 
 {{< top >}}
