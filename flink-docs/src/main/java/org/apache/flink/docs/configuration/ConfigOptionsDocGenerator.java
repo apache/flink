@@ -105,6 +105,9 @@ public class ConfigOptionsDocGenerator {
                         "flink-connectors/flink-connector-pulsar",
                         "org.apache.flink.connector.pulsar.source"),
                 new OptionsClassLocation(
+                        "flink-connectors/flink-connector-pulsar",
+                        "org.apache.flink.connector.pulsar.sink"),
+                new OptionsClassLocation(
                         "flink-libraries/flink-cep", "org.apache.flink.cep.configuration"),
                 new OptionsClassLocation(
                         "flink-dstl/flink-dstl-dfs", "org.apache.flink.changelog.fs"),
