@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.nodes.exec.serde.DataTypeJsonSerdeTest;
+import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -53,10 +54,8 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.runners.Parameterized.Parameters;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -64,10 +63,12 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
 import static org.apache.flink.table.test.TableAssertions.assertThat;
+import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for {@link LogicalRelDataTypeConverter}. */
-@Disabled // temporarily disabled see FLINK-25659
 public class LogicalRelDataTypeConverterTest {
 
     @ParameterizedTest
@@ -77,15 +78,26 @@ public class LogicalRelDataTypeConverterTest {
         final DataTypeFactoryMock dataTypeFactory = new DataTypeFactoryMock();
         final RelDataType relDataType =
                 LogicalRelDataTypeConverter.toRelDataType(logicalType, typeFactory);
-        assertThat(LogicalRelDataTypeConverter.toLogicalType(relDataType, dataTypeFactory))
-                .isEqualTo(logicalType);
+        final LogicalType actual =
+                LogicalRelDataTypeConverter.toLogicalType(relDataType, dataTypeFactory);
+        try {
+            assertThat(actual).isEqualTo(logicalType);
+        } catch (Throwable t) {
+            // temporary debug information see FLINK-25659
+            final SerdeContext serdeContext = configuredSerdeContext();
+            final String debugInfo =
+                    "\nACTUAL:\n"
+                            + toJson(serdeContext, actual)
+                            + "\nEXPECTED:\n"
+                            + toJson(serdeContext, logicalType);
+            fail(debugInfo, t);
+        }
     }
 
     // --------------------------------------------------------------------------------------------
     // Test data
     // --------------------------------------------------------------------------------------------
 
-    @Parameters(name = "{0}")
     private static Stream<LogicalType> testConversion() {
         return Stream.of(
                 new BooleanType(),
