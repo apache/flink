@@ -141,6 +141,14 @@ public class ApiAnnotationRules {
                                         public boolean apply(JavaMethodCall call) {
                                             final JavaClass targetOwner = call.getTargetOwner();
                                             final JavaClass originOwner = call.getOriginOwner();
+
+                                            // no violation for caller annotated with
+                                            // @VisibleForTesting
+                                            if (call.getOrigin()
+                                                    .isAnnotatedWith(VisibleForTesting.class)) {
+                                                return false;
+                                            }
+
                                             if (originOwner.equals(targetOwner)) {
                                                 return false;
                                             }
