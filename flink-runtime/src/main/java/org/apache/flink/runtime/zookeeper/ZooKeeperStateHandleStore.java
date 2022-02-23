@@ -408,8 +408,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
 
     /**
      * Releases the lock for the given state node and tries to remove the state node if it is no
-     * longer locked. It returns the {@link RetrievableStateHandle} stored under the given state
-     * node if any.
+     * longer locked.
      *
      * @param pathInZooKeeper Path of state handle to remove
      * @return True if the state handle could be released
@@ -448,8 +447,6 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
     /**
      * Releases all lock nodes of this ZooKeeperStateHandleStores and tries to remove all state
      * nodes which are not locked anymore.
-     *
-     * <p>The delete operation is executed asynchronously
      *
      * @throws Exception if the delete operation fails
      */
