@@ -42,13 +42,13 @@ CREATE TABLE MyUserTable (
   part_name1 INT,
   part_name2 STRING
 ) PARTITIONED BY (part_name1, part_name2) WITH (
-  'connector' = 'filesystem',           -- 必选项：指定连接器类型
-  'path' = 'file:///path/to/whatever',  -- 必选项：指定路径
-  'format' = '...',                     -- 必选项：文件系统连接器指定格式
+  'connector' = 'filesystem',           -- 必选：指定连接器类型
+  'path' = 'file:///path/to/whatever',  -- 必选：指定路径
+  'format' = '...',                     -- 必选：文件系统连接器指定格式
                                         -- 有关更多详情，请参考 Table Formats
-  'partition.default-name' = '...',     -- 可选项：默认的分区名，动态分区模式下分区字段值是 null 或空字符串
+  'partition.default-name' = '...',     -- 可选：默认的分区名，动态分区模式下分区字段值是 null 或空字符串
 
-  -- 可选项：该选项开启了在 sink 阶段通过动态分区字段来 shuffle 数据，该功能可以大大减少文件系统 sink 的文件数，但是可能会导致数据倾斜，默认值是 false
+  -- 可选：该选项开启了在 sink 阶段通过动态分区字段来 shuffle 数据，该功能可以大大减少文件系统 sink 的文件数，但是可能会导致数据倾斜，默认值是 false
   'sink.shuffle-by-partition.enable' = '...',
   ...
 )
@@ -94,7 +94,7 @@ path
 
 文件系统连接器支持多种格式：
 
-- CSV： [RFC-4180](https://tools.ietf.org/html/rfc4180) 。 非压缩格式。
+- CSV：[RFC-4180](https://tools.ietf.org/html/rfc4180) 。 非压缩格式。
 - JSON：注意，文件系统连接器的 JSON 格式不是传统的标准的 JSON 格式，而是非压缩的。[换行符分割的 JSON](http://jsonlines.org/) 。
 - Avro：[Apache Avro](http://avro.apache.org) 。通过配置 `avro.codec` 属性支持压缩。
 - Parquet：[Apache Parquet](http://parquet.apache.org) 。兼容 hive 。
