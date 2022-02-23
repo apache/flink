@@ -52,17 +52,9 @@ public class PendingCheckpointStatsTest {
         taskStats.put(task1.getJobVertexId(), task1);
         taskStats.put(task2.getJobVertexId(), task2);
 
-        CheckpointStatsTracker.PendingCheckpointStatsCallback callback =
-                mock(CheckpointStatsTracker.PendingCheckpointStatsCallback.class);
-
         PendingCheckpointStats pending =
                 new PendingCheckpointStats(
-                        checkpointId,
-                        triggerTimestamp,
-                        props,
-                        totalSubtaskCount,
-                        taskStats,
-                        callback);
+                        checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
 
         // Check initial state
         assertEquals(checkpointId, pending.getCheckpointId());
@@ -129,8 +121,7 @@ public class PendingCheckpointStatsTest {
         taskStats.put(task1.getJobVertexId(), task1);
         taskStats.put(task2.getJobVertexId(), task2);
 
-        CheckpointStatsTracker.PendingCheckpointStatsCallback callback =
-                mock(CheckpointStatsTracker.PendingCheckpointStatsCallback.class);
+        CheckpointStatsTracker callback = mock(CheckpointStatsTracker.class);
 
         PendingCheckpointStats pending =
                 new PendingCheckpointStats(
@@ -139,8 +130,7 @@ public class PendingCheckpointStatsTest {
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         task1.getNumberOfSubtasks() + task2.getNumberOfSubtasks(),
-                        taskStats,
-                        callback);
+                        taskStats);
 
         // Report subtasks
         for (int i = 0; i < task1.getNumberOfSubtasks(); i++) {
@@ -154,8 +144,7 @@ public class PendingCheckpointStatsTest {
         // Report completed
         String externalPath = "asdjkasdjkasd";
 
-        CompletedCheckpointStats.DiscardCallback discardCallback =
-                pending.reportCompletedCheckpoint(externalPath);
+        callback.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(externalPath));
 
         ArgumentCaptor<CompletedCheckpointStats> args =
                 ArgumentCaptor.forClass(CompletedCheckpointStats.class);
@@ -166,7 +155,7 @@ public class PendingCheckpointStatsTest {
         assertNotNull(completed);
         assertEquals(CheckpointStatsStatus.COMPLETED, completed.getStatus());
         assertFalse(completed.isDiscarded());
-        discardCallback.notifyDiscardedCheckpoint();
+        completed.discard();
         assertTrue(completed.isDiscarded());
         assertEquals(externalPath, completed.getExternalPath());
 
@@ -194,8 +183,7 @@ public class PendingCheckpointStatsTest {
         taskStats.put(task1.getJobVertexId(), task1);
         taskStats.put(task2.getJobVertexId(), task2);
 
-        CheckpointStatsTracker.PendingCheckpointStatsCallback callback =
-                mock(CheckpointStatsTracker.PendingCheckpointStatsCallback.class);
+        CheckpointStatsTracker callback = mock(CheckpointStatsTracker.class);
 
         long triggerTimestamp = 123123;
         PendingCheckpointStats pending =
@@ -205,8 +193,7 @@ public class PendingCheckpointStatsTest {
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         task1.getNumberOfSubtasks() + task2.getNumberOfSubtasks(),
-                        taskStats,
-                        callback);
+                        taskStats);
 
         // Report subtasks
         for (int i = 0; i < task1.getNumberOfSubtasks(); i++) {
@@ -220,7 +207,7 @@ public class PendingCheckpointStatsTest {
         // Report failed
         Exception cause = new Exception("test exception");
         long failureTimestamp = 112211137;
-        pending.reportFailedCheckpoint(failureTimestamp, cause);
+        callback.reportFailedCheckpoint(pending.toFailedCheckpoint(failureTimestamp, cause));
 
         ArgumentCaptor<FailedCheckpointStats> args =
                 ArgumentCaptor.forClass(FailedCheckpointStats.class);
@@ -263,8 +250,7 @@ public class PendingCheckpointStatsTest {
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         1337,
-                        taskStats,
-                        mock(CheckpointStatsTracker.PendingCheckpointStatsCallback.class));
+                        taskStats);
 
         PendingCheckpointStats copy = CommonTestUtils.createCopySerializable(pending);
 

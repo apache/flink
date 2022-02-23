@@ -254,7 +254,8 @@ public class ZooKeeperCompletedCheckpointStoreTest extends TestLogger {
                             Collections.emptyMap(),
                             Collections.emptyList(),
                             CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
-                            new TestCompletedCheckpointStorageLocation());
+                            new TestCompletedCheckpointStorageLocation(),
+                            null);
             // shouldn't fail despite the exception
             store.addCheckpointAndSubsumeOldestOne(
                     checkpointToAdd,

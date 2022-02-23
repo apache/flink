@@ -307,7 +307,8 @@ public abstract class CompletedCheckpointStoreTest extends TestLogger {
                     operatorGroupState,
                     null,
                     props,
-                    new TestCompletedCheckpointStorageLocation());
+                    new TestCompletedCheckpointStorageLocation(),
+                    null);
         }
 
         @Override

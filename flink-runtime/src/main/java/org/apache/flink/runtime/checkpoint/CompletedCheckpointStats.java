@@ -183,28 +183,10 @@ public class CompletedCheckpointStats extends AbstractCheckpointStats {
     }
 
     /**
-     * Returns the callback for the {@link CompletedCheckpoint}.
-     *
-     * @return Callback for the {@link CompletedCheckpoint}.
+     * Mark the checkpoint has been discarded.
      */
-    DiscardCallback getDiscardCallback() {
-        return new DiscardCallback();
-    }
-
-    /**
-     * Callback for the {@link CompletedCheckpoint} instance to notify about disposal of the
-     * checkpoint (most commonly when the checkpoint has been subsumed by a newer one).
-     */
-    class DiscardCallback {
-
-        /**
-         * Updates the discarded flag of the checkpoint stats.
-         *
-         * <p>After this notification, {@link #isDiscarded()} will return <code>true</code>.
-         */
-        void notifyDiscardedCheckpoint() {
-            discarded = true;
-        }
+    void discard() {
+        discarded = true;
     }
 
     @Override

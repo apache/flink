@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.runtime.checkpoint.CheckpointStatsTracker.PendingCheckpointStatsCallback;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 
 import javax.annotation.Nullable;
@@ -82,7 +81,6 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
                 totalSubtaskCount,
                 numAcknowledgedSubtasks,
                 taskStats,
-                FAILING_REPORT_CALLBACK,
                 checkpointedSize,
                 stateSize,
                 processedData,
@@ -122,19 +120,4 @@ public class FailedCheckpointStats extends PendingCheckpointStats {
     public String getFailureMessage() {
         return failureMsg;
     }
-
-    private static final PendingCheckpointStatsCallback FAILING_REPORT_CALLBACK =
-            new PendingCheckpointStatsCallback() {
-                @Override
-                public void reportCompletedCheckpoint(CompletedCheckpointStats completed) {
-                    throw new UnsupportedOperationException(
-                            "Failed checkpoint stats can't be completed");
-                }
-
-                @Override
-                public void reportFailedCheckpoint(FailedCheckpointStats failed) {
-                    throw new UnsupportedOperationException(
-                            "Failed checkpoint stats can't be failed");
-                }
-            };
 }

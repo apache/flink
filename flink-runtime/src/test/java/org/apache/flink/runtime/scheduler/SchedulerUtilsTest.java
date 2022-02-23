@@ -150,7 +150,8 @@ public class SchedulerUtilsTest extends TestLogger {
                 singletonMap(operatorID, operatorState),
                 emptyList(),
                 CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
-                new TestCompletedCheckpointStorageLocation());
+                new TestCompletedCheckpointStorageLocation(),
+                null);
     }
 
     private IncrementalRemoteKeyedStateHandle buildIncrementalHandle(

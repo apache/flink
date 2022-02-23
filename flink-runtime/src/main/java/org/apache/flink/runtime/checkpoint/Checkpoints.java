@@ -215,7 +215,8 @@ public class Checkpoints {
                 checkpointProperties,
                 restoreMode == RestoreMode.CLAIM
                         ? new ClaimModeCompletedStorageLocation(location)
-                        : location);
+                        : location,
+                null);
     }
 
     private static void throwNonRestoredStateException(
