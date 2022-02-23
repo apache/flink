@@ -192,8 +192,7 @@ Example configuration:
 
 ```yaml
 metrics.reporter.promgateway.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter
-metrics.reporter.promgateway.host: localhost
-metrics.reporter.promgateway.port: 9091
+metrics.reporter.promgateway.hostUrl: http://localhost:9091
 metrics.reporter.promgateway.jobName: myJob
 metrics.reporter.promgateway.randomJobNameSuffix: true
 metrics.reporter.promgateway.deleteOnShutdown: false

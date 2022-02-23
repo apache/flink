@@ -264,8 +264,16 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
     @VisibleForTesting
     protected void setStateHandle(String path, byte[] serializedStateHandle, int expectedVersion)
             throws Exception {
-        // Replace state handle in ZooKeeper.
-        client.setData().withVersion(expectedVersion).forPath(path, serializedStateHandle);
+        // Replace state handle in ZooKeeper. We use idempotent set here to avoid a scenario, where
+        // we retry an update, because we didn't receive a proper acknowledgement due to temporary
+        // connection loss. Without idempotent flag this would result in a BadVersionException,
+        // because the version on server no longer matches our expected version. With this flag,
+        // when curator receives BadVersionException internally, it checks whether the content on
+        // the server matches our intended update and its version is our expectedVersion + 1.
+        client.setData()
+                .idempotent()
+                .withVersion(expectedVersion)
+                .forPath(path, serializedStateHandle);
     }
 
     private boolean indicatesPossiblyInconsistentState(Exception e) {

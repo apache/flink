@@ -21,6 +21,7 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadExecutor;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
@@ -64,6 +65,9 @@ class MockStateWithExecutionGraphContext implements StateWithExecutionGraph.Cont
     public ComponentMainThreadExecutor getMainThreadExecutor() {
         return executor;
     }
+
+    @Override
+    public void archiveFailure(RootExceptionHistoryEntry failure) {}
 
     @Override
     public void close() throws Exception {

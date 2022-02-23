@@ -18,7 +18,9 @@
 package org.apache.flink.connector.base.sink.writer;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
@@ -37,6 +39,7 @@ import org.apache.flink.util.function.ThrowingRunnable;
 import java.util.Optional;
 import java.util.OptionalLong;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ScheduledFuture;
 
 /** A mock implementation of a {@code Sink.InitContext} to be used in sink unit tests. */
 public class TestSinkInitContext implements Sink.InitContext {
@@ -85,18 +88,19 @@ public class TestSinkInitContext implements Sink.InitContext {
     }
 
     @Override
-    public Sink.ProcessingTimeService getProcessingTimeService() {
-        return new Sink.ProcessingTimeService() {
+    public ProcessingTimeService getProcessingTimeService() {
+        return new ProcessingTimeService() {
             @Override
             public long getCurrentProcessingTime() {
                 return processingTimeService.getCurrentProcessingTime();
             }
 
             @Override
-            public void registerProcessingTimer(
+            public ScheduledFuture<?> registerTimer(
                     long time, ProcessingTimeCallback processingTimerCallback) {
                 processingTimeService.registerTimer(
                         time, processingTimerCallback::onProcessingTime);
+                return null;
             }
         };
     }
@@ -119,6 +123,11 @@ public class TestSinkInitContext implements Sink.InitContext {
     @Override
     public OptionalLong getRestoredCheckpointId() {
         return OptionalLong.empty();
+    }
+
+    @Override
+    public SerializationSchema.InitializationContext asSerializationSchemaInitializationContext() {
+        return null;
     }
 
     public TestProcessingTimeService getTestProcessingTimeService() {

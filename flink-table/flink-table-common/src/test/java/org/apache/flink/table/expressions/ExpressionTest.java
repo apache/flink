@@ -291,16 +291,16 @@ public class ExpressionTest {
         } else {
             nestedLiteral = new ValueLiteralExpression(null, DataTypes.INT());
         }
-        return new CallExpression(
+        return CallExpression.permanent(
                 AND,
                 asList(
                         new ValueLiteralExpression(true),
-                        new CallExpression(
+                        CallExpression.permanent(
                                 EQUALS,
                                 asList(
                                         new FieldReferenceExpression(
                                                 "field", DataTypes.INT(), 0, 0),
-                                        new CallExpression(
+                                        CallExpression.anonymous(
                                                 new ScalarFunctionDefinition(
                                                         "dummy", DUMMY_FUNCTION),
                                                 singletonList(nestedLiteral),

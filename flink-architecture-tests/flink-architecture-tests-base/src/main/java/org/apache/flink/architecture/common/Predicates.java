@@ -32,9 +32,11 @@ import java.util.Set;
 
 import static com.tngtech.archunit.lang.conditions.ArchPredicates.is;
 import static org.apache.flink.architecture.common.JavaFieldPredicates.annotatedWith;
+import static org.apache.flink.architecture.common.JavaFieldPredicates.isAssignableTo;
 import static org.apache.flink.architecture.common.JavaFieldPredicates.isFinal;
 import static org.apache.flink.architecture.common.JavaFieldPredicates.isNotStatic;
 import static org.apache.flink.architecture.common.JavaFieldPredicates.isPublic;
+import static org.apache.flink.architecture.common.JavaFieldPredicates.isStatic;
 import static org.apache.flink.architecture.common.JavaFieldPredicates.ofType;
 
 /** Common predicates for architecture tests. */
@@ -88,6 +90,14 @@ public class Predicates {
      */
     public static DescribedPredicate<JavaField> arePublicFinalOfType(Class<?> clazz) {
         return is(ofType(clazz)).and(isPublic()).and(isFinal()).and(isNotStatic());
+    }
+
+    /**
+     * Tests that the given field is {@code public static final} and is assignable to the given type
+     * {@code clazz} .
+     */
+    public static DescribedPredicate<JavaField> arePublicStaticFinalAssignableTo(Class<?> clazz) {
+        return is(isAssignableTo(clazz)).and(isPublic()).and(isStatic()).and(isFinal());
     }
 
     /**

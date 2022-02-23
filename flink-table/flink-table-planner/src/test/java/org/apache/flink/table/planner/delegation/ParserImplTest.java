@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.delegation;
 
+import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.Catalog;
@@ -43,6 +44,7 @@ import java.util.function.Supplier;
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.table.planner.delegation.ParserImplTest.TestSpec.forStatement;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
@@ -119,6 +121,21 @@ public class ParserImplTest {
                         () -> parser.parse(spec.statement));
             }
         }
+    }
+
+    @Test
+    public void testPartialParse() {
+        assertThatThrownBy(() -> parser.parse("select A From"))
+                .isInstanceOf(SqlParserEOFException.class);
+    }
+
+    @Test
+    public void testPartialParseWithStatementSet() {
+        assertThatThrownBy(
+                        () ->
+                                parser.parse(
+                                        "Execute Statement Set Begin insert into A select * from B"))
+                .isInstanceOf(SqlParserEOFException.class);
     }
 
     @Test

@@ -24,12 +24,16 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.typeutils.ListTypeInfo;
 import org.apache.flink.api.java.typeutils.MapTypeInfo;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.api.java.typeutils.TupleTypeInfoBase;
+import org.apache.flink.core.memory.ByteArrayOutputStreamWithPos;
+import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DateType;
@@ -305,8 +309,16 @@ public final class PythonBridgeUtils {
                     && BasicTypeInfo.getInfoFor(dataType.getTypeClass()) == FLOAT_TYPE_INFO) {
                 // Serialization of float type with pickler loses precision.
                 return pickler.dumps(String.valueOf(obj));
-            } else {
+            } else if (dataType instanceof PickledByteArrayTypeInfo
+                    || dataType instanceof BasicTypeInfo) {
                 return pickler.dumps(obj);
+            } else {
+                // other typeinfos will use the corresponding serializer to serialize data.
+                TypeSerializer serializer = dataType.createSerializer(null);
+                ByteArrayOutputStreamWithPos baos = new ByteArrayOutputStreamWithPos();
+                DataOutputViewStreamWrapper baosWrapper = new DataOutputViewStreamWrapper(baos);
+                serializer.serialize(obj, baosWrapper);
+                return pickler.dumps(baos.toByteArray());
             }
         }
     }

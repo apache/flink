@@ -224,4 +224,13 @@ class RowToRowCastRule extends AbstractNullAwareCodeGeneratorCastRule<RowData, R
         writer.stmt(methodCall(writerTerm, "complete")).assignStmt(returnVariable, rowTerm);
         return writer.toString();
     }
+
+    @Override
+    public boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType) {
+        final List<LogicalType> inputFields = LogicalTypeChecks.getFieldTypes(inputLogicalType);
+        final List<LogicalType> targetFields = LogicalTypeChecks.getFieldTypes(targetLogicalType);
+
+        return IntStream.range(0, Math.min(inputFields.size(), targetFields.size()))
+                .anyMatch(i -> CastRuleProvider.canFail(inputFields.get(i), targetFields.get(i)));
+    }
 }

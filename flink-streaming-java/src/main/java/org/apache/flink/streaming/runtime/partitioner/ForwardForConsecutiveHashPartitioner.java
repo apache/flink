@@ -54,7 +54,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
  *
  * }</pre>
  *
- * <p>his partitioner will be converted to following partitioners after the operator chain creation:
+ * <p>This partitioner will be converted to following partitioners after the operator chain
+ * creation:
  *
  * <p>1. Be converted to {@link ForwardPartitioner} if this partitioner is intra-chain.
  *

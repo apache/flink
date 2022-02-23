@@ -87,6 +87,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.function.Consumer;
@@ -1107,7 +1108,9 @@ public class KafkaDynamicTableFactoryTest {
         final DataStreamScanProvider dataStreamScanProvider = (DataStreamScanProvider) provider;
         final Transformation<RowData> transformation =
                 dataStreamScanProvider
-                        .produceDataStream(StreamExecutionEnvironment.createLocalEnvironment())
+                        .produceDataStream(
+                                n -> Optional.empty(),
+                                StreamExecutionEnvironment.createLocalEnvironment())
                         .getTransformation();
         assertThat(transformation).isInstanceOf(SourceTransformation.class);
         SourceTransformation<RowData, KafkaPartitionSplit, KafkaSourceEnumState>

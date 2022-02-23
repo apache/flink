@@ -68,7 +68,6 @@ import java.util.function.Supplier;
 
 import static java.nio.file.StandardOpenOption.CREATE;
 import static org.apache.flink.runtime.entrypoint.component.FileJobGraphRetriever.JOB_GRAPH_FILE_PATH;
-import static org.junit.Assert.assertNotNull;
 
 /** An integration test which recovers from checkpoint after regaining the leadership. */
 @ExtendWith(TestLoggerExtension.class)
@@ -137,11 +136,14 @@ public class JobDispatcherITCase {
             // job is suspended, wait until it's running
             awaitJobStatus(cluster, jobID, JobStatus.RUNNING, deadline);
 
-            assertNotNull(
-                    cluster.getArchivedExecutionGraph(jobID)
-                            .get()
-                            .getCheckpointStatsSnapshot()
-                            .getLatestRestoredCheckpoint());
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            cluster.getArchivedExecutionGraph(jobID)
+                                            .get()
+                                            .getCheckpointStatsSnapshot()
+                                            .getLatestRestoredCheckpoint()
+                                    != null,
+                    deadline);
         }
     }
 
@@ -211,6 +213,12 @@ public class JobDispatcherITCase {
         @Override
         public Future<Void> notifyCheckpointCompleteAsync(long checkpointId) {
             atLeastOneCheckpointCompleted.countDown();
+            return CompletableFuture.completedFuture(null);
+        }
+
+        @Override
+        public Future<Void> notifyCheckpointAbortAsync(
+                long checkpointId, long latestCompletedCheckpointId) {
             return CompletableFuture.completedFuture(null);
         }
     }

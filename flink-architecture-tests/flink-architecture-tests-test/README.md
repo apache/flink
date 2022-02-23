@@ -55,3 +55,12 @@ Please refer to [README](../README.md).
 ## How do I test Scala classes?
 
 Please refer to [README](../README.md).
+
+## What should I do if I modify an existing rule?
+
+In that case, you need to regenerate all the stores. Just run this on the root of the project:
+
+```
+rm -rf `find . -type d -name archunit-violations`
+mvn test -Dtest="*TestCodeArchitectureTest*" -DfailIfNoTests=false -Darchunit.freeze.refreeze=true -Darchunit.freeze.store.default.allowStoreCreation=true -Dfast
+```

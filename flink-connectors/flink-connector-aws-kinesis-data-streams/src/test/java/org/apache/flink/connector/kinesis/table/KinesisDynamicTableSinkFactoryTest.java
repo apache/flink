@@ -18,14 +18,14 @@
 
 package org.apache.flink.connector.kinesis.table;
 
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSink;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.TableOptionsBuilder;
 import org.apache.flink.table.factories.TestFormatFactory;
@@ -84,7 +84,7 @@ public class KinesisDynamicTableSinkFactoryTest extends TestLogger {
         // verify the produced sink
         DynamicTableSink.SinkRuntimeProvider sinkFunctionProvider =
                 actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        Sink<RowData, ?, ?, ?> sinkFunction = ((SinkProvider) sinkFunctionProvider).createSink();
+        Sink<RowData> sinkFunction = ((SinkV2Provider) sinkFunctionProvider).createSink();
         Assertions.assertThat(sinkFunction).isInstanceOf(KinesisDataStreamsSink.class);
     }
 
@@ -141,7 +141,7 @@ public class KinesisDynamicTableSinkFactoryTest extends TestLogger {
         // verify the produced sink
         DynamicTableSink.SinkRuntimeProvider sinkFunctionProvider =
                 actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        Sink<RowData, ?, ?, ?> sinkFunction = ((SinkProvider) sinkFunctionProvider).createSink();
+        Sink<RowData> sinkFunction = ((SinkV2Provider) sinkFunctionProvider).createSink();
         Assertions.assertThat(sinkFunction).isInstanceOf(KinesisDataStreamsSink.class);
     }
 
@@ -170,7 +170,7 @@ public class KinesisDynamicTableSinkFactoryTest extends TestLogger {
         // verify the produced sink
         DynamicTableSink.SinkRuntimeProvider sinkFunctionProvider =
                 actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        Sink<RowData, ?, ?, ?> sinkFunction = ((SinkProvider) sinkFunctionProvider).createSink();
+        Sink<RowData> sinkFunction = ((SinkV2Provider) sinkFunctionProvider).createSink();
         Assertions.assertThat(sinkFunction).isInstanceOf(KinesisDataStreamsSink.class);
     }
 
@@ -204,7 +204,7 @@ public class KinesisDynamicTableSinkFactoryTest extends TestLogger {
         // verify the produced sink
         DynamicTableSink.SinkRuntimeProvider sinkFunctionProvider =
                 actualSink.getSinkRuntimeProvider(new SinkRuntimeProviderContext(false));
-        Sink<RowData, ?, ?, ?> sinkFunction = ((SinkProvider) sinkFunctionProvider).createSink();
+        Sink<RowData> sinkFunction = ((SinkV2Provider) sinkFunctionProvider).createSink();
         Assertions.assertThat(sinkFunction).isInstanceOf(KinesisDataStreamsSink.class);
     }
 

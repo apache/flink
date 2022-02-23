@@ -32,6 +32,10 @@ under the License.
 	<artifactId>flink-metrics-prometheus</artifactId>
 	<name>Flink : Metrics : Prometheus</name>
 
+	<properties>
+		<prometheus.version>0.8.1</prometheus.version>
+	</properties>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.apache.flink</groupId>

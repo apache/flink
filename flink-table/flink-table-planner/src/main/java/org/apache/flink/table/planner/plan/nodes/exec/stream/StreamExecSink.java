@@ -57,6 +57,13 @@ import java.util.stream.Collectors;
 @ExecNodeMetadata(
         name = "stream-exec-sink",
         version = 1,
+        consumedOptions = {
+            "table.exec.state.ttl",
+            "table.exec.sink.not-null-enforcer",
+            "table.exec.sink.type-length-enforcer",
+            "table.exec.sink.upsert-materialize",
+            "table.exec.sink.keyed-shuffle"
+        },
         producedTransformations = {
             CommonExecSink.CONSTRAINT_VALIDATOR_TRANSFORMATION,
             CommonExecSink.PARTITIONER_TRANSFORMATION,

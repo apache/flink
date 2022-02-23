@@ -43,6 +43,7 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-sort-limit",
         version = 1,
+        consumedOptions = {"table.exec.state.ttl", "table.exec.rank.topn-cache-size"},
         producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)

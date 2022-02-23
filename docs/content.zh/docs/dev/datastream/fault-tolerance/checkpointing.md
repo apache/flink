@@ -195,5 +195,44 @@ Flink 现在为没有迭代（iterations）的作业提供一致性的处理保�
 
 请注意在环形边上游走的记录（以及与之相关的状态变化）在故障时会丢失。
 
+## 部分任务结束后的 Checkpoint
+
+从版本 1.14 开始 Flink 支持在部分任务结束后继续进行Checkpoint。
+如果一部分数据源是有限数据集，那么就可以出现这种情况。
+从版本 1.15 开始，这一特性被默认打开。如果想要关闭这一功能，可以执行：
+
+```java
+Configuration config = new Configuration();
+config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, false);
+StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
+```
+
+在这种情况下，结束的任务不会参与 Checkpoint 的过程。在实现自定义的算子或者 UDF （用户自定义函数）时需要考虑这一点。
+
+为了支持部分任务结束后的 Checkpoint 操作，我们调整了 [任务的生命周期]({{<ref "docs/internals/task_lifecycle" >}}) 并且引入了
+{{< javadoc file="org/apache/flink/streaming/api/operators/StreamOperator.html#finish--" name="StreamOperator#finish" >}} 方法。
+在这一方法中，用户需要写出所有缓冲区中的数据。在 finish 方法调用后的 checkpoint 中，这一任务一定不能再有缓冲区中的数据，因为在 `finish()` 后没有办法来输出这些数据。
+在大部分情况下，`finish()` 后这一任务的状态为空，唯一的例外是如果其中某些算子中包含外部系统事务的句柄（例如为了实现恰好一次语义），
+在这种情况下，在 `finish()` 后进行的 checkpoint 操作应该保留这些句柄，并且在结束 checkpoint（即任务退出前所等待的 checkpoint）时提交。
+一个可以参考的例子是满足恰好一次语义的 sink 接口与 `TwoPhaseCommitSinkFunction`。
+
+### 对 operator state 的影响
+
+在部分 Task 结束后的checkpoint中，Flink 对 `UnionListState` 进行了特殊的处理。
+`UnionListState` 一般用于实现对外部系统读取位置的一个全局视图（例如，用于记录所有 Kafka 分区的读取偏移）。
+如果我们在算子的某个并发调用 `close()` 方法后丢弃它的状态，我们就会丢失它所分配的分区的偏移量信息。
+为了解决这一问题，对于使用 `UnionListState` 的算子我们只允许在它的并发都在运行或都已结束的时候才能进行 checkpoint 操作。
+
+`ListState` 一般不会用于类似的场景，但是用户仍然需要注意在调用 `close()` 方法后进行的 checkpoint 会丢弃算子的状态并且
+这些状态在算子重启后不可用。
+
+任何支持并发修改操作的算子也可以支持部分并发实例结束后的恢复操作。从这种类型的快照中恢复等价于将算子的并发改为正在运行的并发实例数。
+
+### 任务结束前等待最后一次 Checkpoint
+
+为了保证使用两阶段提交的算子可以提交所有的数据，任务会在所有算子都调用 `finish()` 方法后等待下一次 checkpoint 成功后退出。
+需要注意的是，这一行为可能会延长任务运行的时间，如果 checkpoint 周期比较大，这一延迟会非常明显。
+极端情况下，如果 checkpoint 的周期被设置为 `Long.MAX_VALUE`，那么任务永远不会结束，因为下一次 checkpoint 不会进行。
+
 {{< top >}}
 

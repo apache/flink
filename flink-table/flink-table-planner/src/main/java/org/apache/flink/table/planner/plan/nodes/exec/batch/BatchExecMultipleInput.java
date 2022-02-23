@@ -41,6 +41,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
+
 /**
  * Batch {@link ExecNode} for multiple input which contains a sub-graph of {@link ExecNode}s. The
  * root node of the sub-graph is {@link #rootNode}, and the leaf nodes of the sub-graph are the
@@ -72,9 +74,13 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final ExecNode<?> rootNode;
+    private final List<ExecEdge> originalEdges;
 
     public BatchExecMultipleInput(
-            List<InputProperty> inputProperties, ExecNode<?> rootNode, String description) {
+            List<InputProperty> inputProperties,
+            ExecNode<?> rootNode,
+            List<ExecEdge> originalEdges,
+            String description) {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecMultipleInput.class),
@@ -82,6 +88,8 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
                 rootNode.getOutputType(),
                 description);
         this.rootNode = rootNode;
+        checkArgument(inputProperties.size() == originalEdges.size());
+        this.originalEdges = originalEdges;
     }
 
     @Override
@@ -134,5 +142,9 @@ public class BatchExecMultipleInput extends ExecNodeBase<RowData>
         multipleInputTransform.setChainingStrategy(ChainingStrategy.HEAD_WITH_SOURCES);
 
         return multipleInputTransform;
+    }
+
+    public List<ExecEdge> getOriginalEdges() {
+        return originalEdges;
     }
 }

@@ -91,7 +91,7 @@ String[] tables = tableEnv.listTables();
 val tableEnv = TableEnvironment.create(...)
 
 // 注册名为 “Orders” 的表
-tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
 // 字符串数组： ["Orders"]
 val tables = tableEnv.listTables()

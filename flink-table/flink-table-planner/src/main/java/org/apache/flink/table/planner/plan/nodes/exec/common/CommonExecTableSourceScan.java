@@ -29,6 +29,7 @@ import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.InputFormatProvider;
 import org.apache.flink.table.connector.source.ScanTableSource;
@@ -42,6 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
@@ -51,6 +53,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.Collections;
+import java.util.Optional;
 
 /**
  * Base {@link ExecNode} to read data from an external source defined by a {@link ScanTableSource}.
@@ -126,13 +129,16 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             return meta.fill(transformation);
         } else if (provider instanceof DataStreamScanProvider) {
             Transformation<RowData> transformation =
-                    ((DataStreamScanProvider) provider).produceDataStream(env).getTransformation();
+                    ((DataStreamScanProvider) provider)
+                            .produceDataStream(createProviderContext(), env)
+                            .getTransformation();
             meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
             return transformation;
         } else if (provider instanceof TransformationScanProvider) {
             final Transformation<RowData> transformation =
-                    ((TransformationScanProvider) provider).createTransformation();
+                    ((TransformationScanProvider) provider)
+                            .createTransformation(createProviderContext());
             meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
             return transformation;
@@ -140,6 +146,15 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
             throw new UnsupportedOperationException(
                     provider.getClass().getSimpleName() + " is unsupported now.");
         }
+    }
+
+    private ProviderContext createProviderContext() {
+        return name -> {
+            if (this instanceof StreamExecNode) {
+                return Optional.of(createTransformationUid(name));
+            }
+            return Optional.empty();
+        };
     }
 
     /**

@@ -2480,6 +2480,19 @@ public class StreamExecutionEnvironment {
                         name, new DistributedCache.DistributedCacheEntry(filePath, executable)));
     }
 
+    /**
+     * Checks whether it is currently permitted to explicitly instantiate a LocalEnvironment or a
+     * RemoteEnvironment.
+     *
+     * @return True, if it is possible to explicitly instantiate a LocalEnvironment or a
+     *     RemoteEnvironment, false otherwise.
+     */
+    @Internal
+    public static boolean areExplicitEnvironmentsAllowed() {
+        return contextEnvironmentFactory == null
+                && threadLocalContextEnvironmentFactory.get() == null;
+    }
+
     // Private helpers.
     @SuppressWarnings("unchecked")
     private <OUT, T extends TypeInformation<OUT>> T getTypeInfo(

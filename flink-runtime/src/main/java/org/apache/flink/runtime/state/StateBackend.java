@@ -21,6 +21,7 @@ package org.apache.flink.runtime.state;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
@@ -187,5 +188,9 @@ public interface StateBackend extends java.io.Serializable {
      */
     default boolean supportsNoClaimRestoreMode() {
         return false;
+    }
+
+    default boolean supportsSavepointFormat(SavepointFormatType formatType) {
+        return formatType == SavepointFormatType.CANONICAL;
     }
 }

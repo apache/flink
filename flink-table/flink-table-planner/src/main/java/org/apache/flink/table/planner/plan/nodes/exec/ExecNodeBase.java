@@ -21,10 +21,9 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
@@ -145,18 +144,13 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         visitor.visit(this);
     }
 
-    /** Whether there is singleton exchange node as input. */
+    /** Whether singleton distribution is required. */
     protected boolean inputsContainSingleton() {
-        return getInputEdges().stream()
-                .map(ExecEdge::getSource)
+        return getInputProperties().stream()
                 .anyMatch(
-                        i ->
-                                i instanceof CommonExecExchange
-                                        && i.getInputProperties()
-                                                        .get(0)
-                                                        .getRequiredDistribution()
-                                                        .getType()
-                                                == InputProperty.DistributionType.SINGLETON);
+                        p ->
+                                p.getRequiredDistribution().getType()
+                                        == InputProperty.DistributionType.SINGLETON);
     }
 
     @JsonIgnore
@@ -217,7 +211,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     protected String createFormattedTransformationDescription(
             String description, ReadableConfig config) {
-        if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+        if (config.get(ExecutionConfigOptions.TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
             return String.format("[%d]:%s", getId(), description);
         }
         return description;
@@ -225,7 +219,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     protected String createFormattedTransformationName(
             String detailName, String simplifiedName, ReadableConfig config) {
-        if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+        if (config.get(ExecutionConfigOptions.TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
             return String.format("%s[%d]", simplifiedName, getId());
         }
         return detailName;

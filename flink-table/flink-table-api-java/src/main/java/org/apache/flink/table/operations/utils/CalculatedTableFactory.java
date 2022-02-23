@@ -20,6 +20,7 @@ package org.apache.flink.table.operations.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -101,7 +102,6 @@ final class CalculatedTableFactory {
                 List<String> aliases,
                 List<ResolvedExpression> parameters) {
 
-            FunctionDefinition functionDefinition = callExpression.getFunctionDefinition();
             final ResolvedSchema resolvedSchema =
                     adjustNames(
                             extractSchema(callExpression.getOutputDataType()),
@@ -109,8 +109,7 @@ final class CalculatedTableFactory {
                             callExpression.getFunctionName());
 
             return new CalculatedQueryOperation(
-                    functionDefinition,
-                    callExpression.getFunctionIdentifier().orElse(null),
+                    ContextResolvedFunction.fromCallExpression(callExpression),
                     parameters,
                     resolvedSchema);
         }

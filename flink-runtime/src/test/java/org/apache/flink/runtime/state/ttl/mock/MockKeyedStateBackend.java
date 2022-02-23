@@ -40,6 +40,7 @@ import org.apache.flink.runtime.state.PriorityComparator;
 import org.apache.flink.runtime.state.SavepointResources;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateSnapshotTransformer;
 import org.apache.flink.runtime.state.StateSnapshotTransformer.StateSnapshotTransformFactory;
 import org.apache.flink.runtime.state.StateSnapshotTransformers;
@@ -304,9 +305,11 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         private static final long serialVersionUID = 1L;
 
         final Map<String, Map<K, Map<Object, Object>>> snapshotStates;
+        private final StateHandleID stateHandleId;
 
         MockKeyedStateHandle(Map<String, Map<K, Map<Object, Object>>> snapshotStates) {
             this.snapshotStates = snapshotStates;
+            this.stateHandleId = StateHandleID.randomStateHandleId();
         }
 
         @Override
@@ -335,6 +338,11 @@ public class MockKeyedStateBackend<K> extends AbstractKeyedStateBackend<K> {
         @Override
         public KeyedStateHandle getIntersection(KeyGroupRange keyGroupRange) {
             throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public StateHandleID getStateHandleId() {
+            return stateHandleId;
         }
     }
 

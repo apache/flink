@@ -64,8 +64,8 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
 
         assertEquals(expectedPartitions, topicPartitions);
 
-        operator().deleteTopic(TOPIC1, true);
-        operator().deleteTopic(TOPIC2, true);
+        operator().deleteTopic(TOPIC1);
+        operator().deleteTopic(TOPIC2);
     }
 
     @Test
@@ -91,8 +91,8 @@ class PulsarSubscriberTest extends PulsarTestSuiteBase {
 
         assertEquals(expectedPartitions, topicPartitions);
 
-        operator().deleteTopic(TOPIC1, true);
-        operator().deleteTopic(TOPIC2, true);
-        operator().deleteTopic(TOPIC3, true);
+        operator().deleteTopic(TOPIC1);
+        operator().deleteTopic(TOPIC2);
+        operator().deleteTopic(TOPIC3);
     }
 }

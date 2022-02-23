@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.kafka.sink;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
 
@@ -76,6 +77,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * @param <IN> type of records to be serialized
  * @see KafkaRecordSerializationSchema#builder()
  */
+@PublicEvolving
 public class KafkaRecordSerializationSchemaBuilder<IN> {
 
     @Nullable private Function<? super IN, String> topicSelector;

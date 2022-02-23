@@ -23,6 +23,7 @@ import org.apache.flink.connector.testframe.environment.ClusterControllable;
 import org.apache.flink.connector.testframe.environment.TestEnvironment;
 import org.apache.flink.connector.testframe.external.ExternalContext;
 import org.apache.flink.connector.testframe.external.ExternalContextFactory;
+import org.apache.flink.streaming.api.CheckpointingMode;
 
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
 import org.junit.jupiter.api.extension.Extension;
@@ -34,10 +35,12 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContext;
 import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.stream.Stream;
 
 import static org.apache.flink.connector.testframe.junit.extensions.ConnectorTestingExtension.EXTERNAL_CONTEXT_FACTORIES_STORE_KEY;
+import static org.apache.flink.connector.testframe.junit.extensions.ConnectorTestingExtension.SUPPORTED_SEMANTIC_STORE_KEY;
 import static org.apache.flink.connector.testframe.junit.extensions.ConnectorTestingExtension.TEST_ENV_STORE_KEY;
 import static org.apache.flink.connector.testframe.junit.extensions.ConnectorTestingExtension.TEST_RESOURCE_NAMESPACE;
 
@@ -77,13 +80,27 @@ public class TestCaseInvocationContextProvider implements TestTemplateInvocation
                         context.getStore(TEST_RESOURCE_NAMESPACE)
                                 .get(EXTERNAL_CONTEXT_FACTORIES_STORE_KEY);
 
+        // Fetch supported semantic from store
+        CheckpointingMode[] semantics =
+                (CheckpointingMode[])
+                        context.getStore(TEST_RESOURCE_NAMESPACE).get(SUPPORTED_SEMANTIC_STORE_KEY);
+
         // Create an invocation context for each external context factory
         return externalContextFactories.stream()
-                .map(
-                        factory ->
-                                new TestResourceProvidingInvocationContext(
-                                        testEnv,
-                                        factory.createExternalContext(context.getDisplayName())));
+                .flatMap(
+                        factory -> {
+                            List<TestResourceProvidingInvocationContext> result =
+                                    new LinkedList<>();
+                            for (CheckpointingMode semantic : semantics) {
+                                result.add(
+                                        new TestResourceProvidingInvocationContext(
+                                                testEnv,
+                                                factory.createExternalContext(
+                                                        context.getDisplayName()),
+                                                semantic));
+                            }
+                            return result.stream();
+                        });
     }
 
     /**
@@ -94,18 +111,22 @@ public class TestCaseInvocationContextProvider implements TestTemplateInvocation
 
         private final TestEnvironment testEnvironment;
         private final ExternalContext externalContext;
+        private final CheckpointingMode semantic;
 
         public TestResourceProvidingInvocationContext(
-                TestEnvironment testEnvironment, ExternalContext externalContext) {
+                TestEnvironment testEnvironment,
+                ExternalContext externalContext,
+                CheckpointingMode semantic) {
             this.testEnvironment = testEnvironment;
             this.externalContext = externalContext;
+            this.semantic = semantic;
         }
 
         @Override
         public String getDisplayName(int invocationIndex) {
             return String.format(
-                    "TestEnvironment: [%s], ExternalContext: [%s]",
-                    testEnvironment, externalContext);
+                    "TestEnvironment: [%s], ExternalContext: [%s], Semantic: [%s]",
+                    testEnvironment, externalContext, semantic);
         }
 
         @Override
@@ -115,8 +136,33 @@ public class TestCaseInvocationContextProvider implements TestTemplateInvocation
                     new TestEnvironmentResolver(testEnvironment),
                     new ExternalContextProvider(externalContext),
                     new ClusterControllableProvider(testEnvironment),
+                    new SemanticResolver(semantic),
                     // Extension for closing external context
                     (AfterTestExecutionCallback) ignore -> externalContext.close());
+        }
+    }
+
+    private static class SemanticResolver implements ParameterResolver {
+
+        private final CheckpointingMode semantic;
+
+        private SemanticResolver(CheckpointingMode semantic) {
+            this.semantic = semantic;
+        }
+
+        @Override
+        public boolean supportsParameter(
+                ParameterContext parameterContext, ExtensionContext extensionContext)
+                throws ParameterResolutionException {
+            return isAssignableFromParameterType(
+                    CheckpointingMode.class, parameterContext.getParameter().getType());
+        }
+
+        @Override
+        public Object resolveParameter(
+                ParameterContext parameterContext, ExtensionContext extensionContext)
+                throws ParameterResolutionException {
+            return this.semantic;
         }
     }
 

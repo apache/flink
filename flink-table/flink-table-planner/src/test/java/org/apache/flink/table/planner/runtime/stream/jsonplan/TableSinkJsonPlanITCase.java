@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.utils.JsonPlanTestBase;
 
@@ -49,9 +48,8 @@ public class TableSinkJsonPlanITCase extends JsonPlanTestBase {
                         new String[] {"a bigint", "p int not null", "b int", "c varchar"},
                         "b");
 
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql("insert into MySink partition (b=3) select * from MyTable");
-        tableEnv.executePlan(compiledPlan).await();
+        compileSqlAndExecutePlan("insert into MySink partition (b=3) select * from MyTable")
+                .await();
 
         assertResult(data, sinkPath);
     }
@@ -67,9 +65,7 @@ public class TableSinkJsonPlanITCase extends JsonPlanTestBase {
                     }
                 });
 
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql("insert into MySink select * from MyTable");
-        tableEnv.executePlan(compiledPlan).await();
+        compileSqlAndExecutePlan("insert into MySink select * from MyTable").await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(

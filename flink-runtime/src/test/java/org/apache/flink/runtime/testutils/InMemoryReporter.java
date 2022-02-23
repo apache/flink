@@ -18,6 +18,7 @@
 package org.apache.flink.runtime.testutils;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.LogicalScopeProvider;
@@ -27,6 +28,7 @@ import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.MetricReporterFactory;
+import org.apache.flink.runtime.metrics.scope.ScopeFormat;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +43,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -102,9 +105,9 @@ public class InMemoryReporter implements MetricReporter {
         }
     }
 
-    public Map<String, Metric> getMetricsByIdentifiers() {
+    public Map<String, Metric> getMetricsByIdentifiers(JobID jobId) {
         synchronized (this) {
-            return getMetricStream().collect(Collectors.toMap(Entry::getKey, Entry::getValue));
+            return getMetricStream(jobId).collect(Collectors.toMap(Entry::getKey, Entry::getValue));
         }
     }
 
@@ -123,16 +126,16 @@ public class InMemoryReporter implements MetricReporter {
         }
     }
 
-    public Map<String, Metric> findMetrics(String identifierPattern) {
+    public Map<String, Metric> findMetrics(JobID jobId, String identifierPattern) {
         synchronized (this) {
-            return getMetricStream(identifierPattern)
+            return getMetricStream(jobId, identifierPattern)
                     .collect(Collectors.toMap(Entry::getKey, Entry::getValue));
         }
     }
 
-    public Optional<Metric> findMetric(String patternString) {
+    public Optional<Metric> findMetric(JobID jobId, String patternString) {
         synchronized (this) {
-            return getMetricStream(patternString).map(Entry::getValue).findFirst();
+            return getMetricStream(jobId, patternString).map(Entry::getValue).findFirst();
         }
     }
 
@@ -148,14 +151,15 @@ public class InMemoryReporter implements MetricReporter {
         }
     }
 
-    public List<OperatorMetricGroup> findOperatorMetricGroups(String operatorPattern) {
+    public List<OperatorMetricGroup> findOperatorMetricGroups(JobID jobId, String operatorPattern) {
         Pattern pattern = Pattern.compile(operatorPattern);
         synchronized (this) {
             return metrics.keySet().stream()
                     .filter(
                             g ->
                                     g instanceof OperatorMetricGroup
-                                            && pattern.matcher(getOperatorName(g)).find())
+                                            && pattern.matcher(getOperatorName(g)).find()
+                                            && getJobId(g).equals(jobId.toString()))
                     .map(OperatorMetricGroup.class::cast)
                     .sorted(Comparator.comparing(this::getSubtaskId))
                     .collect(Collectors.toList());
@@ -163,11 +167,15 @@ public class InMemoryReporter implements MetricReporter {
     }
 
     private String getSubtaskId(OperatorMetricGroup g) {
-        return g.getScopeComponents()[g.getScopeComponents().length - 1];
+        return g.getAllVariables().get(ScopeFormat.SCOPE_TASK_SUBTASK_INDEX);
     }
 
     private String getOperatorName(MetricGroup g) {
-        return g.getScopeComponents()[g.getScopeComponents().length - 2];
+        return g.getAllVariables().get(ScopeFormat.SCOPE_OPERATOR_NAME);
+    }
+
+    private String getJobId(MetricGroup g) {
+        return g.getAllVariables().get(ScopeFormat.SCOPE_JOB_ID);
     }
 
     @Override
@@ -195,13 +203,15 @@ public class InMemoryReporter implements MetricReporter {
         }
     }
 
-    private Stream<Entry<String, Metric>> getMetricStream(String identifierPattern) {
+    private Stream<Entry<String, Metric>> getMetricStream(JobID jobID, String identifierPattern) {
         Pattern pattern = Pattern.compile(identifierPattern);
-        return getMetricStream().filter(m -> pattern.matcher(m.getKey()).find());
+        return getMetricStream(jobID).filter(m -> pattern.matcher(m.getKey()).find());
     }
 
-    private Stream<Entry<String, Metric>> getMetricStream() {
-        return metrics.entrySet().stream().flatMap(this::getGroupMetricStream);
+    private Stream<Entry<String, Metric>> getMetricStream(JobID jobId) {
+        return metrics.entrySet().stream()
+                .filter(gr -> Objects.equals(getJobId(gr.getKey()), jobId.toString()))
+                .flatMap(this::getGroupMetricStream);
     }
 
     private Stream<MetricGroup> getGroupStream(String groupPattern) {
@@ -231,7 +241,7 @@ public class InMemoryReporter implements MetricReporter {
                 : group;
     }
 
-    public void addToConfiguration(Configuration configuration) {
+    public Configuration addToConfiguration(Configuration configuration) {
         configuration.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "mini_cluster_resource_reporter."
@@ -240,6 +250,7 @@ public class InMemoryReporter implements MetricReporter {
         configuration.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX + "mini_cluster_resource_reporter." + ID,
                 id.toString());
+        return configuration;
     }
 
     /** The factory for the {@link InMemoryReporter}. */

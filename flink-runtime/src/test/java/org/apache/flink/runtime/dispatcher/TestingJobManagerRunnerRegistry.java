@@ -20,13 +20,18 @@ package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.jobmaster.JobManagerRunner;
+import org.apache.flink.util.CollectionUtil;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -46,7 +51,6 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
     private final Supplier<Collection<JobManagerRunner>> getJobManagerRunnersSupplier;
     private final Function<JobID, JobManagerRunner> unregisterFunction;
     private final BiFunction<JobID, Executor, CompletableFuture<Void>> localCleanupAsyncFunction;
-    private final BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupAsyncFunction;
 
     private TestingJobManagerRunnerRegistry(
             Function<JobID, Boolean> isRegisteredFunction,
@@ -56,8 +60,7 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
             Supplier<Set<JobID>> getRunningJobIdsSupplier,
             Supplier<Collection<JobManagerRunner>> getJobManagerRunnersSupplier,
             Function<JobID, JobManagerRunner> unregisterFunction,
-            BiFunction<JobID, Executor, CompletableFuture<Void>> localCleanupAsyncFunction,
-            BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupAsyncFunction) {
+            BiFunction<JobID, Executor, CompletableFuture<Void>> localCleanupAsyncFunction) {
         this.isRegisteredFunction = isRegisteredFunction;
         this.registerConsumer = registerConsumer;
         this.getFunction = getFunction;
@@ -66,7 +69,6 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
         this.getJobManagerRunnersSupplier = getJobManagerRunnersSupplier;
         this.unregisterFunction = unregisterFunction;
         this.localCleanupAsyncFunction = localCleanupAsyncFunction;
-        this.globalCleanupAsyncFunction = globalCleanupAsyncFunction;
     }
 
     @Override
@@ -109,13 +111,70 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
         return localCleanupAsyncFunction.apply(jobId, executor);
     }
 
-    @Override
-    public CompletableFuture<Void> globalCleanupAsync(JobID jobId, Executor executor) {
-        return globalCleanupAsyncFunction.apply(jobId, executor);
-    }
-
     public static Builder builder() {
         return new Builder();
+    }
+
+    /**
+     * Creates a {@code Builder} that simulates the {@link JobManagerRunnerRegistry} with at most
+     * one underlying {@link JobManagerRunner}. The default test implementation follows the {@code
+     * JobManagerRunnerRegistry} contract. The underlying {@code JobManagerRunner} instance is held
+     * by the {@code AtomicReference}, which makes it accessible to the test code.
+     */
+    public static Builder newSingleJobBuilder(
+            AtomicReference<JobManagerRunner> singleRunnerReference) {
+        return builder()
+                .withRegisterConsumer(
+                        jobManagerRunner -> {
+                            Preconditions.checkState(singleRunnerReference.get() == null);
+                            singleRunnerReference.set(jobManagerRunner);
+                        })
+                .withIsRegisteredFunction(
+                        actualJobId ->
+                                Optional.ofNullable(singleRunnerReference.get())
+                                        .map(JobManagerRunner::getJobID)
+                                        .map(actualJobId::equals)
+                                        .orElse(false))
+                .withGetFunction(
+                        actualJobId ->
+                                Optional.ofNullable(singleRunnerReference.get())
+                                        .orElseThrow(throwNoSuchElementException(actualJobId)))
+                .withGetJobManagerRunnersSupplier(
+                        () -> CollectionUtil.ofNullable(singleRunnerReference.get()))
+                .withSizeSupplier(
+                        () ->
+                                Optional.ofNullable(singleRunnerReference.get())
+                                        .map(ignored -> 1)
+                                        .orElse(0))
+                .withGetRunningJobIdsSupplier(
+                        () ->
+                                Optional.ofNullable(singleRunnerReference.get())
+                                        .map(JobManagerRunner::getJobID)
+                                        .map(Collections::singleton)
+                                        .orElse(Collections.emptySet()))
+                .withUnregisterFunction(
+                        actualJobId ->
+                                unregisterFromReference(singleRunnerReference, actualJobId)
+                                        .orElseThrow(throwNoSuchElementException(actualJobId)))
+                .withLocalCleanupAsyncFunction(
+                        (actualJobId, executor) ->
+                                unregisterFromReference(singleRunnerReference, actualJobId)
+                                        .map(JobManagerRunner::closeAsync)
+                                        .orElse(FutureUtils.completedVoidFuture()));
+    }
+
+    private static Optional<JobManagerRunner> unregisterFromReference(
+            AtomicReference<JobManagerRunner> singleRunnerReference, JobID actualJobId) {
+        return Optional.ofNullable(singleRunnerReference.get())
+                .map(JobManagerRunner::getJobID)
+                .filter(actualJobId::equals)
+                .map(ignored -> singleRunnerReference.getAndSet(null));
+    }
+
+    private static Supplier<NoSuchElementException> throwNoSuchElementException(JobID jobId) {
+        return () ->
+                new NoSuchElementException(
+                        "JobManagerRunner with job ID " + jobId + " is not registered.");
     }
 
     /** {@code Builder} for creating {@code TestingJobManagerRunnerRegistry} instances. */
@@ -177,12 +236,6 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
             return this;
         }
 
-        public Builder withGlobalCleanupAsyncFunction(
-                BiFunction<JobID, Executor, CompletableFuture<Void>> globalCleanupAsyncFunction) {
-            this.globalCleanupAsyncFunction = globalCleanupAsyncFunction;
-            return this;
-        }
-
         public TestingJobManagerRunnerRegistry build() {
             return new TestingJobManagerRunnerRegistry(
                     isRegisteredFunction,
@@ -192,8 +245,7 @@ public class TestingJobManagerRunnerRegistry implements JobManagerRunnerRegistry
                     getRunningJobIdsSupplier,
                     getJobManagerRunnersSupplier,
                     unregisterFunction,
-                    localCleanupAsyncFunction,
-                    globalCleanupAsyncFunction);
+                    localCleanupAsyncFunction);
         }
     }
 }

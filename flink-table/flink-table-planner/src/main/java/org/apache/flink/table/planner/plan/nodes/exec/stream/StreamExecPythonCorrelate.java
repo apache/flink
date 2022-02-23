@@ -18,17 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.FlinkVersion;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecPythonCorrelate;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.types.logical.RowType;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexNode;
@@ -37,12 +32,6 @@ import java.util.Collections;
 import java.util.List;
 
 /** Stream exec node which matches along with join a Python user defined table function. */
-@ExecNodeMetadata(
-        name = "stream-exec-python-correlate",
-        version = 1,
-        producedTransformations = CommonExecPythonCorrelate.PYTHON_CORRELATE_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_15,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecPythonCorrelate extends CommonExecPythonCorrelate
         implements StreamExecNode<RowData> {
 
@@ -62,15 +51,14 @@ public class StreamExecPythonCorrelate extends CommonExecPythonCorrelate
                 description);
     }
 
-    @JsonCreator
     public StreamExecPythonCorrelate(
-            @JsonProperty(FIELD_NAME_ID) int id,
-            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
-            @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType joinType,
-            @JsonProperty(FIELD_NAME_FUNCTION_CALL) RexNode invocation,
-            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
-            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+            int id,
+            ExecNodeContext context,
+            FlinkJoinType joinType,
+            RexNode invocation,
+            List<InputProperty> inputProperties,
+            RowType outputType,
+            String description) {
         super(
                 id,
                 context,

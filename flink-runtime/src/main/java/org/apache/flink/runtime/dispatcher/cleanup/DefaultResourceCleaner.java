@@ -111,11 +111,25 @@ public class DefaultResourceCleaner<T> implements ResourceCleaner {
             this.retryStrategy = retryStrategy;
         }
 
+        /**
+         * Prioritized cleanups run before their regular counterparts. This method enables the
+         * caller to model dependencies between cleanup tasks. The order in which cleanable
+         * resources are added matters, i.e. if two cleanable resources are added as prioritized
+         * cleanup tasks, the resource being added first will block the cleanup of the second
+         * resource. All prioritized cleanup resources will run and finish before any resource that
+         * is added using {@link #withRegularCleanup(Object)} is started.
+         */
         public Builder<T> withPrioritizedCleanup(T prioritizedCleanup) {
             this.prioritizedCleanup.add(prioritizedCleanup);
             return this;
         }
 
+        /**
+         * Regular cleanups are resources for which the cleanup is triggered after all prioritized
+         * cleanups succeeded. All added regular cleanups will run concurrently to each other.
+         *
+         * @see #withPrioritizedCleanup(Object)
+         */
         public Builder<T> withRegularCleanup(T regularCleanup) {
             this.regularCleanup.add(regularCleanup);
             return this;

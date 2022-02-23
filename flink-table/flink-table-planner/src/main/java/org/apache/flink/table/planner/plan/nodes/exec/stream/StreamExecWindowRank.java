@@ -68,6 +68,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @ExecNodeMetadata(
         name = "stream-exec-window-rank",
         version = 1,
+        consumedOptions = "table.local-time-zone",
         producedTransformations = StreamExecWindowRank.WINDOW_RANK_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)

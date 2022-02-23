@@ -25,6 +25,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.NullType;
+import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
@@ -113,6 +114,16 @@ public class CastRuleProvider {
      */
     public static boolean exists(LogicalType inputType, LogicalType targetType) {
         return resolve(inputType, targetType) != null;
+    }
+
+    /**
+     * Resolves the rule and returns the result of {@link CastRule#canFail(LogicalType,
+     * LogicalType)}. Fails with {@link NullPointerException} if the rule cannot be resolved.
+     */
+    public static boolean canFail(LogicalType inputType, LogicalType targetType) {
+        return Preconditions.checkNotNull(
+                        resolve(inputType, targetType), "Cast rule cannot be resolved")
+                .canFail(inputType, targetType);
     }
 
     /**

@@ -113,7 +113,7 @@ class ElasticsearchWriterITCase {
             writer.write(Tuple2.of(4, buildMessage(4)), null);
 
             // Ignore flush on checkpoint
-            writer.prepareCommit(false);
+            writer.flush(false);
 
             context.assertThatIdsAreNotWritten(index, 1, 2, 3, 4);
 
@@ -166,7 +166,7 @@ class ElasticsearchWriterITCase {
             context.assertThatIdsAreNotWritten(index, 1, 2, 3);
 
             // Trigger flush
-            writer.prepareCommit(false);
+            writer.flush(false);
 
             context.assertThatIdsAreWritten(index, 1, 2, 3);
         }

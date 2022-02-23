@@ -43,7 +43,7 @@ on the Flink APIs and, in addition, on certain connector libraries (i.e. Kafka, 
 When running Flink applications in the IDE, add a provided dependency to the [Flink runtime library](https://mvnrepository.com/artifact/org.apache.flink/flink-runtime).
 
 The guides in this section will show you how to configure your projects via popular build tools
-([Maven]({{< ref "docs/dev/configuration/maven" >}}), [Gradle]({{< ref "docs/dev/configuration/gradle" >}}),
+([Maven]({{< ref "docs/dev/configuration/maven" >}}), [Gradle]({{< ref "docs/dev/configuration/gradle" >}})),
 add the necessary dependencies (i.e. [connectors and formats]({{< ref "docs/dev/configuration/connector" >}}), 
 [testing]({{< ref "docs/dev/configuration/testing" >}})), and cover some 
 [advanced]({{< ref "docs/dev/configuration/advanced" >}}) configuration topics. 

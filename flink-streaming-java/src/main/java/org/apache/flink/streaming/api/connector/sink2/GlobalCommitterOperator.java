@@ -114,15 +114,6 @@ class GlobalCommitterOperator<CommT> extends AbstractStreamOperator<Void>
         commit(lastCompletedCheckpointId);
     }
 
-    private Collection<? extends CheckpointCommittableManager<CommT>> getCommittables() {
-        final Collection<? extends CheckpointCommittableManager<CommT>> committables =
-                committableCollector.getEndOfInputCommittables();
-        if (committables == null) {
-            return Collections.emptyList();
-        }
-        return committables;
-    }
-
     private Collection<? extends CheckpointCommittableManager<CommT>> getCommittables(
             long checkpointId) {
         final Collection<? extends CheckpointCommittableManager<CommT>> committables =
@@ -142,11 +133,13 @@ class GlobalCommitterOperator<CommT> extends AbstractStreamOperator<Void>
 
     @Override
     public void endInput() throws Exception {
-        do {
-            for (CommittableManager<CommT> committable : getCommittables()) {
-                committable.commit(false, committer);
-            }
-        } while (!committableCollector.isFinished());
+        final CommittableManager<CommT> endOfInputCommittable =
+                committableCollector.getEndOfInputCommittable();
+        if (endOfInputCommittable != null) {
+            do {
+                endOfInputCommittable.commit(false, committer);
+            } while (!committableCollector.isFinished());
+        }
     }
 
     @Override

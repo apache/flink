@@ -96,14 +96,14 @@ val tableEnv = TableEnvironment.create(...)
 
 // 对已注册的表进行 SQL 查询
 // 注册名为 “Orders” 的表
-tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 // 在表上执行 SQL 查询，并把得到的结果作为一个新的表
 val result = tableEnv.sqlQuery(
-  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'");
+  "SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")
 
 // 对已注册的表进行 INSERT 操作
 // 注册 TableSink
-tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)");
+tableEnv.executeSql("CREATE TABLE RubberOrders(product STRING, amount INT) WITH ('connector.path'='/path/to/file' ...)")
 // 在表上执行 INSERT 语句并向 TableSink 发出结果
 tableEnv.executeSql(
   "INSERT INTO RubberOrders SELECT product, amount FROM Orders WHERE product LIKE '%Rubber%'")

@@ -3,9 +3,9 @@ title: "概览"
 weight: 1
 type: docs
 aliases:
-  - /dev/table/sql/queries.html
-  - /dev/table/queries/
-  - /dev/table/sql.html
+  - /zh/dev/table/sql/queries.html
+  - /zh/dev/table/queries/
+  - /zh/dev/table/sql.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

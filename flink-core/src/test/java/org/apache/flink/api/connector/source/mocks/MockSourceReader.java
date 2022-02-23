@@ -42,6 +42,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
     private int timesClosed;
     private final WaitingForSplits waitingForSplitsBehaviour;
     private SplitsAssignmentState splitsAssignmentState = SplitsAssignmentState.NO_SPLITS_ASSIGNED;
+    private boolean idle = false;
 
     enum WaitingForSplits {
         WAIT_FOR_INITIAL,
@@ -105,6 +106,9 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
         }
         // Read from the split with available record.
         if (currentSplitIndex < assignedSplits.size()) {
+            if (idle) {
+                sourceOutput.markActive();
+            }
             sourceOutput.collect(assignedSplits.get(currentSplitIndex).getNext(false)[0]);
             return InputStatus.MORE_AVAILABLE;
         } else if (finished) {
@@ -113,6 +117,7 @@ public class MockSourceReader implements SourceReader<Integer, MockSourceSplit> 
             return InputStatus.END_OF_INPUT;
         } else {
             if (markIdleOnNoSplits) {
+                idle = true;
                 sourceOutput.markIdle();
             }
             markUnavailable();

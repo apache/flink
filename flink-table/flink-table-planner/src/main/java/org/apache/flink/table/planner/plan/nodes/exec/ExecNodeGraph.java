@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec;
 
-import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.FlinkVersion;
 
 import java.util.List;
 
@@ -27,14 +27,14 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The {@link ExecNodeGraph} representing the {@link ExecNode} topology. */
 public class ExecNodeGraph {
-    private final String flinkVersion;
+    private final FlinkVersion flinkVersion;
     private final List<ExecNode<?>> rootNodes;
 
     public ExecNodeGraph(List<ExecNode<?>> rootNodes) {
-        this(EnvironmentInformation.getVersion(), rootNodes);
+        this(FlinkVersion.current(), rootNodes);
     }
 
-    public ExecNodeGraph(String flinkVersion, List<ExecNode<?>> rootNodes) {
+    public ExecNodeGraph(FlinkVersion flinkVersion, List<ExecNode<?>> rootNodes) {
         this.flinkVersion = checkNotNull(flinkVersion, "The flinkVersion should not be null.");
         this.rootNodes = checkNotNull(rootNodes, "The rootNodes should not be null.");
         checkArgument(!rootNodes.isEmpty(), "The rootNodes should not be empty.");
@@ -44,7 +44,7 @@ public class ExecNodeGraph {
         return rootNodes;
     }
 
-    public String getFlinkVersion() {
+    public FlinkVersion getFlinkVersion() {
         return flinkVersion;
     }
 }

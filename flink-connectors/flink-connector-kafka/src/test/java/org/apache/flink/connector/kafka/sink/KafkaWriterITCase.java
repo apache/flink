@@ -33,7 +33,7 @@ import org.apache.flink.metrics.testutils.MetricListener;
 import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.UserCodeClassLoader;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
@@ -48,6 +48,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
@@ -84,7 +85,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Tests for the standalone KafkaWriter. */
-public class KafkaWriterITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class KafkaWriterITCase {
 
     private static final Logger LOG = LoggerFactory.getLogger(KafkaWriterITCase.class);
     private static final String INTER_CONTAINER_KAFKA_ALIAS = "kafka";

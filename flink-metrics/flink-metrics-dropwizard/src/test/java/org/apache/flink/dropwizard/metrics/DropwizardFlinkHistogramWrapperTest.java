@@ -32,21 +32,22 @@ import com.codahale.metrics.ScheduledReporter;
 import com.codahale.metrics.SlidingWindowReservoir;
 import com.codahale.metrics.Snapshot;
 import com.codahale.metrics.Timer;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.offset;
 
 /** Tests for the DropwizardFlinkHistogramWrapper. */
-public class DropwizardFlinkHistogramWrapperTest extends AbstractHistogramTest {
+class DropwizardFlinkHistogramWrapperTest extends AbstractHistogramTest {
 
     /** Tests the histogram functionality of the DropwizardHistogramWrapper. */
     @Test
-    public void testDropwizardHistogramWrapper() {
+    void testDropwizardHistogramWrapper() {
         int size = 10;
         DropwizardHistogramWrapper histogramWrapper =
                 new DropwizardHistogramWrapper(
@@ -59,7 +60,7 @@ public class DropwizardFlinkHistogramWrapperTest extends AbstractHistogramTest {
      * ScheduledReporter.
      */
     @Test
-    public void testDropwizardHistogramWrapperReporting() throws Exception {
+    void testDropwizardHistogramWrapperReporting() throws Exception {
         int size = 10;
         String histogramMetricName = "histogram";
 
@@ -75,7 +76,7 @@ public class DropwizardFlinkHistogramWrapperTest extends AbstractHistogramTest {
         testingReporter.notifyOfAddedMetric(histogramWrapper, histogramMetricName, metricGroup);
 
         // check that the metric has been registered
-        assertEquals(1, testingReporter.getMetrics().size());
+        assertThat(testingReporter.getMetrics()).hasSize(1);
 
         for (int i = 0; i < size; i++) {
             histogramWrapper.update(i);
@@ -85,15 +86,15 @@ public class DropwizardFlinkHistogramWrapperTest extends AbstractHistogramTest {
         String fullMetricName = metricGroup.getMetricIdentifier(histogramMetricName);
         Snapshot snapshot = testingReporter.getNextHistogramSnapshot(fullMetricName);
 
-        assertEquals(0, snapshot.getMin());
-        assertEquals((size - 1) / 2.0, snapshot.getMedian(), 0.001);
-        assertEquals(size - 1, snapshot.getMax());
-        assertEquals(size, snapshot.size());
+        assertThat(snapshot.getMin()).isEqualTo(0);
+        assertThat(snapshot.getMedian()).isCloseTo((size - 1) / 2.0, offset(0.001));
+        assertThat(snapshot.getMax()).isEqualTo(size - 1);
+        assertThat(snapshot.size()).isEqualTo(size);
 
         testingReporter.notifyOfRemovedMetric(histogramWrapper, histogramMetricName, metricGroup);
 
         // check that the metric has been de-registered
-        assertEquals(0, testingReporter.getMetrics().size());
+        assertThat(testingReporter.getMetrics()).hasSize(0);
     }
 
     /** Test reporter. */

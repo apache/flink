@@ -54,10 +54,25 @@ cd "$END_TO_END_DIR"
 
 echo "[INFO]Preparing Flink cluster..."
 
+SCHEDULER="${1:-Ng}"
+
+set_config_key "jobmanager.scheduler" "${SCHEDULER}"
 set_config_key "taskmanager.memory.process.size" "4096m"
-set_config_key "taskmanager.numberOfTaskSlots" "4"
-set_config_key "parallelism.default" "4"
 set_config_key "taskmanager.memory.network.fraction" "0.2"
+
+if [ "${SCHEDULER}" == "Ng" ]; then
+    set_config_key "taskmanager.numberOfTaskSlots" "4"
+    set_config_key "parallelism.default" "4"
+elif [ "${SCHEDULER}" == "AdaptiveBatch" ]; then
+    set_config_key "taskmanager.numberOfTaskSlots" "8"
+    set_config_key "parallelism.default" "-1"
+    set_config_key "jobmanager.adaptive-batch-scheduler.max-parallelism" "8"
+    set_config_key "jobmanager.adaptive-batch-scheduler.data-volume-per-task" "6m"
+else
+    echo "ERROR: Scheduler ${SCHEDULER} is unsupported for tpcds test. Aborting..."
+    exit 1
+fi
+
 start_cluster
 
 

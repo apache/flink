@@ -23,7 +23,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.internal.CompiledPlanInternal
-import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
+import org.apache.flink.table.api.{ExplainDetail, PlanReference, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.module.ModuleManager
@@ -31,7 +31,7 @@ import org.apache.flink.table.operations.{ModifyOperation, Operation}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNode
-import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakupProcessor, ExecNodeGraphProcessor, MultipleInputNodeCreationProcessor}
+import org.apache.flink.table.planner.plan.nodes.exec.processor.{DeadlockBreakupProcessor, ExecNodeGraphProcessor, ForwardHashExchangeProcessor, MultipleInputNodeCreationProcessor}
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{BatchCommonSubGraphBasedOptimizer, Optimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
@@ -72,6 +72,7 @@ class BatchPlanner(
       OptimizerConfigOptions.TABLE_OPTIMIZER_MULTIPLE_INPUT_ENABLED)) {
       processors.add(new MultipleInputNodeCreationProcessor(false))
     }
+    processors.add(new ForwardHashExchangeProcessor)
     processors
   }
 
@@ -134,17 +135,22 @@ class BatchPlanner(
     new BatchPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
   }
 
+  override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
+    throw new UnsupportedOperationException(
+      "The compiled plan feature is not supported in batch mode.")
+  }
+
   override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlanInternal =
     throw new UnsupportedOperationException(
-      "The batch planner doesn't support the persisted plan feature.")
+      "The compiled plan feature is not supported in batch mode.")
 
   override def translatePlan(plan: CompiledPlanInternal): util.List[Transformation[_]] =
     throw new UnsupportedOperationException(
-      "The batch planner doesn't support the persisted plan feature.")
+      "The compiled plan feature is not supported in batch mode.")
 
   override def explainPlan(plan: CompiledPlanInternal, extraDetails: ExplainDetail*): String =
     throw new UnsupportedOperationException(
-      "The batch planner doesn't support the persisted plan feature.")
+      "The compiled plan feature is not supported in batch mode.")
 
   override def validateAndOverrideConfiguration(): Unit = {
     super.validateAndOverrideConfiguration()

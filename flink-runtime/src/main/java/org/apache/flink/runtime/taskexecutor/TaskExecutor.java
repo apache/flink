@@ -1176,28 +1176,21 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     @Override
     public CompletableFuture<Acknowledge> freeSlot(
             AllocationID allocationId, Throwable cause, Time timeout) {
-        // only respond to freeing slots when not shutting down to avoid freeing slot allocation
-        // information
-        if (isRunning()) {
-            freeSlotInternal(allocationId, cause);
-        }
-
+        freeSlotInternal(allocationId, cause);
         return CompletableFuture.completedFuture(Acknowledge.get());
     }
 
     @Override
     public void freeInactiveSlots(JobID jobId, Time timeout) {
-        if (isRunning()) {
-            log.debug("Freeing inactive slots for job {}.", jobId);
+        log.debug("Freeing inactive slots for job {}.", jobId);
 
-            // need a copy to prevent ConcurrentModificationExceptions
-            final ImmutableList<TaskSlot<Task>> inactiveSlots =
-                    ImmutableList.copyOf(taskSlotTable.getAllocatedSlots(jobId));
-            for (TaskSlot<Task> slot : inactiveSlots) {
-                freeSlotInternal(
-                        slot.getAllocationId(),
-                        new FlinkException("Slot was re-claimed by resource manager."));
-            }
+        // need a copy to prevent ConcurrentModificationExceptions
+        final ImmutableList<TaskSlot<Task>> inactiveSlots =
+                ImmutableList.copyOf(taskSlotTable.getAllocatedSlots(jobId));
+        for (TaskSlot<Task> slot : inactiveSlots) {
+            freeSlotInternal(
+                    slot.getAllocationId(),
+                    new FlinkException("Slot was re-claimed by resource manager."));
         }
     }
 
@@ -1926,37 +1919,49 @@ public class TaskExecutor extends RpcEndpoint implements TaskExecutorGateway {
     private void freeSlotInternal(AllocationID allocationId, Throwable cause) {
         checkNotNull(allocationId);
 
-        log.debug("Free slot with allocation id {} because: {}", allocationId, cause.getMessage());
+        // only respond to freeing slots when not shutting down to avoid freeing slot allocation
+        // information
+        if (isRunning()) {
+            log.debug(
+                    "Free slot with allocation id {} because: {}",
+                    allocationId,
+                    cause.getMessage());
 
-        try {
-            final JobID jobId = taskSlotTable.getOwningJob(allocationId);
+            try {
+                final JobID jobId = taskSlotTable.getOwningJob(allocationId);
 
-            final int slotIndex = taskSlotTable.freeSlot(allocationId, cause);
+                final int slotIndex = taskSlotTable.freeSlot(allocationId, cause);
 
-            slotAllocationSnapshotPersistenceService.deleteAllocationSnapshot(slotIndex);
+                slotAllocationSnapshotPersistenceService.deleteAllocationSnapshot(slotIndex);
 
-            if (slotIndex != -1) {
+                if (slotIndex != -1) {
 
-                if (isConnectedToResourceManager()) {
-                    // the slot was freed. Tell the RM about it
-                    ResourceManagerGateway resourceManagerGateway =
-                            establishedResourceManagerConnection.getResourceManagerGateway();
+                    if (isConnectedToResourceManager()) {
+                        // the slot was freed. Tell the RM about it
+                        ResourceManagerGateway resourceManagerGateway =
+                                establishedResourceManagerConnection.getResourceManagerGateway();
 
-                    resourceManagerGateway.notifySlotAvailable(
-                            establishedResourceManagerConnection.getTaskExecutorRegistrationId(),
-                            new SlotID(getResourceID(), slotIndex),
-                            allocationId);
+                        resourceManagerGateway.notifySlotAvailable(
+                                establishedResourceManagerConnection
+                                        .getTaskExecutorRegistrationId(),
+                                new SlotID(getResourceID(), slotIndex),
+                                allocationId);
+                    }
+
+                    if (jobId != null) {
+                        closeJobManagerConnectionIfNoAllocatedResources(jobId);
+                    }
                 }
-
-                if (jobId != null) {
-                    closeJobManagerConnectionIfNoAllocatedResources(jobId);
-                }
+            } catch (SlotNotFoundException e) {
+                log.debug("Could not free slot for allocation id {}.", allocationId, e);
             }
-        } catch (SlotNotFoundException e) {
-            log.debug("Could not free slot for allocation id {}.", allocationId, e);
-        }
 
-        localStateStoresManager.releaseLocalStateForAllocationId(allocationId);
+            localStateStoresManager.releaseLocalStateForAllocationId(allocationId);
+        } else {
+            log.debug(
+                    "Ignoring the freeing of slot {} because the TaskExecutor is shutting down.",
+                    allocationId);
+        }
     }
 
     private void closeJobManagerConnectionIfNoAllocatedResources(JobID jobId) {

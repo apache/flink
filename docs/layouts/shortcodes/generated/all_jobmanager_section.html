@@ -9,6 +9,30 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.data-volume-per-task</h5></td>
+            <td style="word-wrap: break-word;">1 gb</td>
+            <td>MemorySize</td>
+            <td>The size of data volume to expect each task instance to process if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.default-source-parallelism</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The default parallelism of source vertices if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.max-parallelism</h5></td>
+            <td style="word-wrap: break-word;">128</td>
+            <td>Integer</td>
+            <td>The upper bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+        </tr>
+        <tr>
+            <td><h5>jobmanager.adaptive-batch-scheduler.min-parallelism</h5></td>
+            <td style="word-wrap: break-word;">1</td>
+            <td>Integer</td>
+            <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
+        </tr>
+        <tr>
             <td><h5>jobmanager.adaptive-scheduler.min-parallelism-increase</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
@@ -91,30 +115,6 @@
             <td style="word-wrap: break-word;">6123</td>
             <td>Integer</td>
             <td>The config parameter defining the network port to connect to for communication with the job manager. Like jobmanager.rpc.address, this value is only interpreted in setups where a single JobManager with static name/address and port exists (simple standalone setups, or container setups with dynamic service name resolution). This config option is not used in many high-availability setups, when a leader-election service (like ZooKeeper) is used to elect and discover the JobManager leader from potentially multiple standby JobManagers.</td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.scheduler.adaptive-batch.data-volume-per-task</h5></td>
-            <td style="word-wrap: break-word;">1 gb</td>
-            <td>MemorySize</td>
-            <td>The size of data volume to expect each task instance to process if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.scheduler.adaptive-batch.max-parallelism</h5></td>
-            <td style="word-wrap: break-word;">128</td>
-            <td>Integer</td>
-            <td>The upper bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.scheduler.adaptive-batch.min-parallelism</h5></td>
-            <td style="word-wrap: break-word;">1</td>
-            <td>Integer</td>
-            <td>The lower bound of allowed parallelism to set adaptively if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
-        </tr>
-        <tr>
-            <td><h5>jobmanager.scheduler.adaptive-batch.source-parallelism.default</h5></td>
-            <td style="word-wrap: break-word;">1</td>
-            <td>Integer</td>
-            <td>The default parallelism of source vertices if <code class="highlighter-rouge">jobmanager.scheduler</code> has been set to <code class="highlighter-rouge">AdaptiveBatch</code></td>
         </tr>
         <tr>
             <td><h5>jobstore.cache-size</h5></td>
