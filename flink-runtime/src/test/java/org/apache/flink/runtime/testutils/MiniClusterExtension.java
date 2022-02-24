@@ -18,21 +18,35 @@
 
 package org.apache.flink.runtime.testutils;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.core.testutils.CustomExtension;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
 
+import javax.annotation.Nullable;
+
 import java.net.URI;
+import java.util.function.Supplier;
 
 /** An extension which starts a {@link MiniCluster} for testing purposes. */
 public class MiniClusterExtension implements CustomExtension {
-    private final MiniClusterResource miniClusterResource;
+
+    private final Supplier<MiniClusterResourceConfiguration>
+            miniClusterResourceConfigurationSupplier;
+    @Nullable private MiniClusterResource miniClusterResource;
 
     public MiniClusterExtension(
             final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
-        this.miniClusterResource = new MiniClusterResource(miniClusterResourceConfiguration);
+        this(() -> miniClusterResourceConfiguration);
+    }
+
+    @Experimental
+    public MiniClusterExtension(
+            final Supplier<MiniClusterResourceConfiguration>
+                    miniClusterResourceConfigurationSupplier) {
+        this.miniClusterResourceConfigurationSupplier = miniClusterResourceConfigurationSupplier;
     }
 
     public int getNumberSlots() {
@@ -53,6 +67,8 @@ public class MiniClusterExtension implements CustomExtension {
 
     @Override
     public void before(ExtensionContext context) throws Exception {
+        this.miniClusterResource =
+                new MiniClusterResource(miniClusterResourceConfigurationSupplier.get());
         miniClusterResource.before();
     }
 
