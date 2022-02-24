@@ -1,0 +1,30 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>cleanup-strategy.exponential-delay.attempts</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>Integer</td>
+            <td>The number of times a failed cleanup is retried if <code class="highlighter-rouge">cleanup-strategy</code> has been set to <code class="highlighter-rouge">exponential-delay</code>. (no value means: infinitely).</td>
+        </tr>
+        <tr>
+            <td><h5>cleanup-strategy.exponential-delay.initial-backoff</h5></td>
+            <td style="word-wrap: break-word;">1 s</td>
+            <td>Duration</td>
+            <td>Starting duration between cleanup retries if <code class="highlighter-rouge">cleanup-strategy</code> has been set to <code class="highlighter-rouge">exponential-delay</code>. It can be specified using the following notation: "1 min", "20 s"</td>
+        </tr>
+        <tr>
+            <td><h5>cleanup-strategy.exponential-delay.max-backoff</h5></td>
+            <td style="word-wrap: break-word;">1 h</td>
+            <td>Duration</td>
+            <td>The highest possible duration between cleanup retries if <code class="highlighter-rouge">cleanup-strategy</code> has been set to <code class="highlighter-rouge">exponential-delay</code>. It can be specified using the following notation: "1 min", "20 s"</td>
+        </tr>
+    </tbody>
+</table>

@@ -136,6 +136,20 @@ The default restart strategy will only take effect if no job specific restart st
 
 {{< generated/failure_rate_restart_strategy_configuration >}}
 
+### Retryable Cleanup
+
+After jobs reach a globally-terminal state, a cleanup of all related resources is performed. This cleanup can be retried in case of failure. Different retry strategies can be configured to change this behavior:
+
+{{< generated/cleanup_configuration >}}
+
+**Fixed-Delay Cleanup Retry Strategy**
+
+{{< generated/fixed_delay_cleanup_strategy_configuration >}}
+
+**Exponential-Delay Cleanup Retry Strategy**
+
+{{< generated/exponential_delay_cleanup_strategy_configuration >}}
+
 ### Checkpoints and State Backends
 
 These options control the basic setup of state backends and checkpointing behavior.
