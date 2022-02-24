@@ -242,6 +242,9 @@
   }, {
     "id" : 5,
     "type" : "stream-exec-local-window-aggregate_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "grouping" : [ 0, 3 ],
     "aggCalls" : [ {
       "name" : null,
@@ -399,6 +402,9 @@
   }, {
     "id" : 7,
     "type" : "stream-exec-global-window-aggregate_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "grouping" : [ 0, 1 ],
     "aggCalls" : [ {
       "name" : null,
@@ -549,6 +555,9 @@
   }, {
     "id" : 9,
     "type" : "stream-exec-local-window-aggregate_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : null,
@@ -619,6 +628,9 @@
   }, {
     "id" : 11,
     "type" : "stream-exec-global-window-aggregate_1",
+    "configuration" : {
+      "table.local-time-zone" : "default"
+    },
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : null,
@@ -772,6 +784,12 @@
   }, {
     "id" : 13,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
