@@ -41,17 +41,15 @@ import static org.apache.flink.architecture.common.SourcePredicates.areJavaClass
 public class TableApiRules {
     @ArchTest
     public static final ArchRule CONFIG_OPTIONS_IN_OPTIONS_CLASSES =
-            freeze(
-                    fields().that(arePublicStaticOfType(ConfigOption.class))
-                            .and()
-                            .areDeclaredInClassesThat(
-                                    areJavaClasses()
-                                            .and(resideInAPackage("org.apache.flink.table..")))
-                            .should()
-                            .beDeclaredInClassesThat()
-                            .haveSimpleNameEndingWith("Options")
-                            .orShould()
-                            .beDeclaredIn(FactoryUtil.class));
+            fields().that(arePublicStaticOfType(ConfigOption.class))
+                    .and()
+                    .areDeclaredInClassesThat(
+                            areJavaClasses().and(resideInAPackage("org.apache.flink.table..")))
+                    .should()
+                    .beDeclaredInClassesThat()
+                    .haveSimpleNameEndingWith("Options")
+                    .orShould()
+                    .beDeclaredIn(FactoryUtil.class);
 
     @ArchTest
     public static final ArchRule TABLE_FACTORIES_CONTAIN_NO_CONFIG_OPTIONS =

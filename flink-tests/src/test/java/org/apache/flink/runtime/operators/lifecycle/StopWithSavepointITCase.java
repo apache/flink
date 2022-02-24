@@ -116,7 +116,7 @@ public class StopWithSavepointITCase extends AbstractTestBase {
                                         .setCheckpointStorage(
                                                 TEMPORARY_FOLDER.newFolder().toURI()));
 
-        TestJobExecutor.execute(testJob, miniClusterResource)
+        TestJobExecutor.execute(testJob, MINI_CLUSTER_RESOURCE)
                 .waitForEvent(WatermarkReceivedEvent.class)
                 .stopWithSavepoint(temporaryFolder, withDrain);
 

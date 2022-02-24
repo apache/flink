@@ -75,19 +75,13 @@
       "inputIndex" : 2,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "IS TRUE",
-        "kind" : "IS_TRUE",
-        "syntax" : "POSTFIX"
-      },
+      "kind" : "CALL",
+      "syntax" : "POSTFIX",
+      "internalName" : "$IS TRUE$1",
       "operands" : [ {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : ">",
-          "kind" : "GREATER_THAN",
-          "syntax" : "BINARY"
-        },
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$>$1",
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 0,
@@ -265,12 +259,9 @@
     "id" : 7,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
@@ -278,12 +269,9 @@
       } ],
       "type" : "DOUBLE"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
@@ -291,12 +279,9 @@
       } ],
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
@@ -304,12 +289,9 @@
       } ],
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,

@@ -25,19 +25,21 @@ import org.apache.flink.configuration.ConfigOptions;
 
 class TtlTestConfig {
     private static final ConfigOption<Integer> UPDATE_GENERATOR_SRC_KEYSPACE =
-            ConfigOptions.key("update_generator_source.keyspace").defaultValue(100);
+            ConfigOptions.key("update_generator_source.keyspace").intType().defaultValue(100);
 
     private static final ConfigOption<Long> UPDATE_GENERATOR_SRC_SLEEP_TIME =
-            ConfigOptions.key("update_generator_source.sleep_time").defaultValue(0L);
+            ConfigOptions.key("update_generator_source.sleep_time").longType().defaultValue(0L);
 
     private static final ConfigOption<Long> UPDATE_GENERATOR_SRC_SLEEP_AFTER_ELEMENTS =
-            ConfigOptions.key("update_generator_source.sleep_after_elements").defaultValue(0L);
+            ConfigOptions.key("update_generator_source.sleep_after_elements")
+                    .longType()
+                    .defaultValue(0L);
 
     private static final ConfigOption<Long> STATE_TTL_VERIFIER_TTL_MILLI =
-            ConfigOptions.key("state_ttl_verifier.ttl_milli").defaultValue(1000L);
+            ConfigOptions.key("state_ttl_verifier.ttl_milli").longType().defaultValue(1000L);
 
     private static final ConfigOption<Long> REPORT_STAT_AFTER_UPDATES_NUM =
-            ConfigOptions.key("report_stat.after_updates_num").defaultValue(200L);
+            ConfigOptions.key("report_stat.after_updates_num").longType().defaultValue(200L);
 
     final int keySpace;
     final long sleepAfterElements;

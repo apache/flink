@@ -99,14 +99,13 @@ class BinaryToStringCastRule extends AbstractNullAwareCodeGeneratorCastRule<byte
             final String hexStringTerm = newName("hexString");
             writer.declStmt(String.class, hexStringTerm)
                     .assignStmt(hexStringTerm, staticCall(EncodingUtils.class, "hex", inputTerm));
-            writer =
-                    CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
-                            writer,
-                            targetLogicalType,
-                            context.legacyBehaviour(),
-                            length,
-                            resultStringTerm,
-                            hexStringTerm);
+            CharVarCharTrimPadCastRule.padAndTrimStringIfNeeded(
+                    writer,
+                    targetLogicalType,
+                    context.legacyBehaviour(),
+                    length,
+                    resultStringTerm,
+                    hexStringTerm);
         }
         return writer
                 // Assign the result value

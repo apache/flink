@@ -90,8 +90,7 @@ public class PartitionedFileWriteReadTest {
                 }
             }
 
-            int[] writeOrder =
-                    PartitionSortedBufferTest.getRandomSubpartitionOrder(numSubpartitions);
+            int[] writeOrder = DataBufferTest.getRandomSubpartitionOrder(numSubpartitions);
             for (int index = 0; index < numSubpartitions; ++index) {
                 int subpartition = writeOrder[index];
                 fileWriter.writeBuffers(regionBuffers[subpartition]);

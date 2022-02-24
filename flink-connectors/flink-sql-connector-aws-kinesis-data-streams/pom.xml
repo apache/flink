@@ -55,8 +55,6 @@
 						<configuration>
 							<artifactSet>
 								<includes>
-									<include>org.apache.flink:flink-table-common</include>
-									<include>org.apache.flink:flink-streaming-java</include>
 									<include>org.apache.flink:flink-connector-base</include>
 									<include>org.apache.flink:flink-connector-aws-base</include>
 									<include>org.apache.flink:flink-connector-aws-kinesis-data-streams</include>
@@ -65,37 +63,32 @@
 									<include>com.typesafe.netty:*</include>
 									<include>org.apache.httpcomponents:*</include>
 									<include>io.netty:*</include>
+									<include>commons-logging:commons-logging</include>
 								</includes>
 							</artifactSet>
 							<relocations>
 								<relocation>
 									<pattern>software.amazon</pattern>
-									<shadedPattern>org.apache.flink.kinesis-streams.shaded.software.amazon</shadedPattern>
+									<shadedPattern>org.apache.flink.connector.kinesis.sink.shaded.software.amazon</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.reactivestreams</pattern>
-									<shadedPattern>org.apache.flink.kinesis-streams.shaded.org.reactivestreams</shadedPattern>
+									<shadedPattern>org.apache.flink.connector.kinesis.sink.shaded.org.reactivestreams</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>com.typesafe.netty</pattern>
-									<shadedPattern>org.apache.flink.kinesis-streams.shaded.com.typesafe.netty</shadedPattern>
+									<shadedPattern>org.apache.flink.connector.kinesis.sink.shaded.com.typesafe.netty</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>org.apache.http</pattern>
-									<shadedPattern>org.apache.flink.kinesis-streams.shaded.org.apache.http</shadedPattern>
+									<shadedPattern>org.apache.flink.connector.kinesis.sink.shaded.org.apache.http</shadedPattern>
 								</relocation>
 								<relocation>
 									<pattern>io.netty</pattern>
-									<shadedPattern>org.apache.flink.kinesis-streams.shaded.io.netty</shadedPattern>
+									<shadedPattern>org.apache.flink.connector.kinesis.sink.shaded.io.netty</shadedPattern>
 								</relocation>
 							</relocations>
 							<filters>
-							<filter>
-								<artifact>software.amazon.awssdk:*</artifact>
-								<excludes>
-									<exclude>META-INF/services/**</exclude>
-								</excludes>
-							</filter>
 							<filter>
 								<artifact>org.apache.flink:flink-connector-aws-kinesis-data-streams:*</artifact>
 								<excludes>

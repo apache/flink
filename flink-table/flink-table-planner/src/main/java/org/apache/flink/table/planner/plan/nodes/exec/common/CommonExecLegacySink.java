@@ -204,8 +204,8 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
                     "SinkConversion To " + resultDataType.getConversionClass().getSimpleName();
             return ExecNodeUtil.createOneInputTransformation(
                     inputTransform,
-                    getFormattedOperatorName(description, "SinkConversion", config),
-                    getFormattedOperatorDescription(description, config),
+                    createFormattedTransformationName(description, "SinkConversion", config),
+                    createFormattedTransformationDescription(description, config),
                     converterOperator,
                     outputTypeInfo,
                     inputTransform.getParallelism());

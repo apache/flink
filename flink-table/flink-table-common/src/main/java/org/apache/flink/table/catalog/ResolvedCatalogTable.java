@@ -31,8 +31,10 @@ import java.util.Optional;
  * A validated {@link CatalogTable} that is backed by the original metadata coming from the {@link
  * Catalog} but resolved by the framework.
  *
- * <p>Note: Compared to {@link CatalogTable}, instances of this class are serializable into a map of
- * string properties.
+ * <p>Note: Compared to {@link CatalogTable}, instances of this class are serializable for
+ * persistence if and only if the originating {@link CatalogTable} implements {@link
+ * CatalogTable#getOptions()}. Catalog implementations are encouraged to use {@link
+ * ResolvedCatalogTable#toProperties()}.
  */
 @PublicEvolving
 public final class ResolvedCatalogTable
@@ -59,6 +61,16 @@ public final class ResolvedCatalogTable
         return resolvedSchema;
     }
 
+    /**
+     * Convenience method for {@link Catalog} implementations for serializing instances of this
+     * class into a map of string properties. Instances are serializable for persistence if and only
+     * if the originating {@link CatalogTable} implements {@link CatalogTable#getOptions()}.
+     *
+     * <p>{@link CatalogTable#fromProperties(Map)} provides the reverse operation for
+     * deserialization. Note that the serialization and deserialization of catalog tables are not
+     * symmetric. The framework will resolve functions and perform other validation tasks. A catalog
+     * implementation must not deal with this during a read operation.
+     */
     @Override
     public Map<String, String> toProperties() {
         return CatalogPropertiesUtil.serializeCatalogTable(this);

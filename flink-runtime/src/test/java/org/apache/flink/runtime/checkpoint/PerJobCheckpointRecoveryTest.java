@@ -36,7 +36,9 @@ public class PerJobCheckpointRecoveryTest extends TestLogger {
     @Test
     public void testFactoryWithoutCheckpointStoreRecovery() throws Exception {
         final TestingCompletedCheckpointStore store =
-                new TestingCompletedCheckpointStore(new CompletableFuture<>());
+                TestingCompletedCheckpointStore
+                        .createStoreWithShutdownCheckAndNoCompletedCheckpoints(
+                                new CompletableFuture<>());
         final CheckpointRecoveryFactory factory =
                 PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
                         maxCheckpoints -> store);

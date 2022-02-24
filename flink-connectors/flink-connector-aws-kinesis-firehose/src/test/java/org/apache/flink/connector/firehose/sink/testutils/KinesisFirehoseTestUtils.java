@@ -20,6 +20,7 @@ package org.apache.flink.connector.firehose.sink.testutils;
 import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.firehose.sink.KinesisFirehoseConfigConstants;
 
+import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.services.firehose.FirehoseAsyncClient;
 import software.amazon.awssdk.services.firehose.model.CreateDeliveryStreamRequest;
 import software.amazon.awssdk.services.firehose.model.CreateDeliveryStreamResponse;
@@ -31,19 +32,21 @@ import java.net.URISyntaxException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.getConfig;
-import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.getHttpClient;
+import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.createConfig;
 
 /**
  * A set of static methods that can be used to call common AWS services on the Localstack container.
  */
 public class KinesisFirehoseTestUtils {
 
-    public static FirehoseAsyncClient getFirehoseClient(String endpoint) throws URISyntaxException {
+    public static FirehoseAsyncClient getFirehoseClient(
+            String endpoint, SdkAsyncHttpClient httpClient) throws URISyntaxException {
         return AWSAsyncSinkUtil.createAwsAsyncClient(
-                getConfig(endpoint),
-                getHttpClient(endpoint),
-                FirehoseAsyncClient.builder().endpointOverride(new URI(endpoint)),
+                createConfig(endpoint),
+                httpClient,
+                FirehoseAsyncClient.builder()
+                        .httpClient(httpClient)
+                        .endpointOverride(new URI(endpoint)),
                 KinesisFirehoseConfigConstants.BASE_FIREHOSE_USER_AGENT_PREFIX_FORMAT,
                 KinesisFirehoseConfigConstants.FIREHOSE_CLIENT_USER_AGENT_PREFIX);
     }

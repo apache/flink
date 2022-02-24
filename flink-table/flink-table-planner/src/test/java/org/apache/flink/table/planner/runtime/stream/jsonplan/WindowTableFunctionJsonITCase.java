@@ -73,8 +73,7 @@ public class WindowTableFunctionJsonITCase extends JsonPlanTestBase {
                 "window_start TIMESTAMP(3)",
                 "window_end TIMESTAMP(3)",
                 "window_time TIMESTAMP(3)");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink select\n"
                                 + "  `ts`,\n"
                                 + "  `int`,\n"
@@ -87,8 +86,8 @@ public class WindowTableFunctionJsonITCase extends JsonPlanTestBase {
                                 + "  window_start, \n"
                                 + "  window_end, \n"
                                 + "  window_time \n"
-                                + "FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "FROM TABLE(TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))")
+                .await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(

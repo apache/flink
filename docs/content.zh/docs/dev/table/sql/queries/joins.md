@@ -3,7 +3,7 @@ title: "Join"
 weight: 10
 type: docs
 aliases:
-  - /dev/table/streaming/joins.html
+  - /zh/dev/table/streaming/joins.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

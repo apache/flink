@@ -35,6 +35,7 @@ public class ResourceManagerOptions {
     /** Timeout for jobs which don't have a job manager as leader assigned. */
     public static final ConfigOption<String> JOB_TIMEOUT =
             ConfigOptions.key("resourcemanager.job.timeout")
+                    .stringType()
                     .defaultValue("5 minutes")
                     .withDescription(
                             "Timeout for jobs which don't have a job manager as leader assigned.");
@@ -43,6 +44,7 @@ public class ResourceManagerOptions {
     @Deprecated
     public static final ConfigOption<Integer> LOCAL_NUMBER_RESOURCE_MANAGER =
             ConfigOptions.key("local.number-resourcemanager")
+                    .intType()
                     .defaultValue(1)
                     .withDescription("The number of resource managers start.");
 
@@ -53,6 +55,7 @@ public class ResourceManagerOptions {
      */
     public static final ConfigOption<Integer> IPC_PORT =
             ConfigOptions.key("resourcemanager.rpc.port")
+                    .intType()
                     .defaultValue(0)
                     .withDescription(
                             "Defines the network port to connect to for communication with the resource manager. By"
@@ -147,6 +150,7 @@ public class ResourceManagerOptions {
     @Deprecated
     public static final ConfigOption<Long> SLOT_REQUEST_TIMEOUT =
             ConfigOptions.key("slotmanager.request-timeout")
+                    .longType()
                     .defaultValue(-1L)
                     .withDescription("The timeout for a slot request to be discarded.");
 
@@ -181,12 +185,14 @@ public class ResourceManagerOptions {
     @Deprecated
     public static final ConfigOption<Long> SLOT_MANAGER_TASK_MANAGER_TIMEOUT =
             ConfigOptions.key("slotmanager.taskmanager-timeout")
+                    .longType()
                     .defaultValue(30000L)
                     .withDescription("The timeout for an idle task manager to be released.");
 
     /** The timeout for an idle task manager to be released, in milliseconds. */
     public static final ConfigOption<Long> TASK_MANAGER_TIMEOUT =
             ConfigOptions.key("resourcemanager.taskmanager-timeout")
+                    .longType()
                     .defaultValue(30000L)
                     .withDeprecatedKeys(SLOT_MANAGER_TASK_MANAGER_TIMEOUT.key())
                     .withDescription(
@@ -206,6 +212,7 @@ public class ResourceManagerOptions {
     @Deprecated
     public static final ConfigOption<Boolean> TASK_MANAGER_RELEASE_WHEN_RESULT_CONSUMED =
             ConfigOptions.key("resourcemanager.taskmanager-release.wait.result.consumed")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             Description.builder()

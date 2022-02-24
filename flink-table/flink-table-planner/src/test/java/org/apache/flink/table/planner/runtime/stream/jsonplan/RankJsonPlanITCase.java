@@ -45,7 +45,7 @@ public class RankJsonPlanITCase extends JsonPlanTestBase {
                 "insert into `result` select * from "
                         + "(select a, b, row_number() over(partition by b order by c) as c from MyTable)"
                         + " where c = 1";
-        executeSqlWithJsonPlanVerified(sql).await();
+        compileSqlAndExecutePlan(sql).await();
 
         List<String> expected = Arrays.asList("+I[1, a, 1]", "+I[3, b, 1]", "+I[5, c, 1]");
         assertResult(expected, TestValuesTableFactory.getResults("result"));
@@ -65,7 +65,7 @@ public class RankJsonPlanITCase extends JsonPlanTestBase {
                 "insert into `result1` select * from "
                         + "(select a, b, row_number() over(partition by a order by t asc) as c from MyTable1)"
                         + " where c <= 2";
-        executeSqlWithJsonPlanVerified(sql).await();
+        compileSqlAndExecutePlan(sql).await();
 
         List<String> expected =
                 Arrays.asList(

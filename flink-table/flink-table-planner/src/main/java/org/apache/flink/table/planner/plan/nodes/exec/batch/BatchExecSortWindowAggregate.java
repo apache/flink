@@ -52,7 +52,7 @@ import java.util.Collections;
 
 /** Batch {@link ExecNode} for sort-based window aggregate operator. */
 public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
+        implements InputSortedExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final int[] grouping;
     private final int[] auxGrouping;
@@ -151,8 +151,8 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(tableConfig),
-                getOperatorDescription(tableConfig),
+                createTransformationName(tableConfig),
+                createTransformationDescription(tableConfig),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

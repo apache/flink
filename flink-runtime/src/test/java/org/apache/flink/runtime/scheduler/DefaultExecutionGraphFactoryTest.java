@@ -77,6 +77,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                     0L,
                     new DefaultVertexAttemptNumberStore(),
                     SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
+                    (execution, previousState, newState) -> {},
                     log);
             fail("Expected ExecutionGraph creation to fail because of non restored state.");
         } catch (Exception e) {
@@ -105,6 +106,7 @@ public class DefaultExecutionGraphFactoryTest extends TestLogger {
                 0L,
                 new DefaultVertexAttemptNumberStore(),
                 SchedulerBase.computeVertexParallelismStore(jobGraphWithNewOperator),
+                (execution, previousState, newState) -> {},
                 log);
 
         final CompletedCheckpoint savepoint = completedCheckpointStore.getLatestCheckpoint();

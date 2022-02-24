@@ -19,11 +19,13 @@
 package org.apache.flink.connector.file.sink;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.functions.sink.filesystem.InProgressFileWriter;
 
 import javax.annotation.Nullable;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -34,26 +36,51 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class FileSinkCommittable implements Serializable {
 
+    private final String bucketId;
+
     @Nullable private final InProgressFileWriter.PendingFileRecoverable pendingFile;
 
     @Nullable private final InProgressFileWriter.InProgressFileRecoverable inProgressFileToCleanup;
 
-    public FileSinkCommittable(InProgressFileWriter.PendingFileRecoverable pendingFile) {
+    @Nullable private final Path compactedFileToCleanup;
+
+    public FileSinkCommittable(
+            String bucketId, InProgressFileWriter.PendingFileRecoverable pendingFile) {
+        this.bucketId = bucketId;
         this.pendingFile = checkNotNull(pendingFile);
         this.inProgressFileToCleanup = null;
+        this.compactedFileToCleanup = null;
     }
 
     public FileSinkCommittable(
+            String bucketId,
             InProgressFileWriter.InProgressFileRecoverable inProgressFileToCleanup) {
+        this.bucketId = bucketId;
         this.pendingFile = null;
         this.inProgressFileToCleanup = checkNotNull(inProgressFileToCleanup);
+        this.compactedFileToCleanup = null;
+    }
+
+    public FileSinkCommittable(String bucketId, Path compactedFileToCleanup) {
+        this.bucketId = bucketId;
+        this.pendingFile = null;
+        this.inProgressFileToCleanup = null;
+        this.compactedFileToCleanup = checkNotNull(compactedFileToCleanup);
     }
 
     FileSinkCommittable(
+            String bucketId,
             @Nullable InProgressFileWriter.PendingFileRecoverable pendingFile,
-            @Nullable InProgressFileWriter.InProgressFileRecoverable inProgressFileToCleanup) {
+            @Nullable InProgressFileWriter.InProgressFileRecoverable inProgressFileToCleanup,
+            @Nullable Path compactedFileToCleanup) {
+        this.bucketId = bucketId;
         this.pendingFile = pendingFile;
         this.inProgressFileToCleanup = inProgressFileToCleanup;
+        this.compactedFileToCleanup = compactedFileToCleanup;
+    }
+
+    public String getBucketId() {
+        return bucketId;
     }
 
     public boolean hasPendingFile() {
@@ -72,5 +99,48 @@ public class FileSinkCommittable implements Serializable {
     @Nullable
     public InProgressFileWriter.InProgressFileRecoverable getInProgressFileToCleanup() {
         return inProgressFileToCleanup;
+    }
+
+    public boolean hasCompactedFileToCleanup() {
+        return compactedFileToCleanup != null;
+    }
+
+    @Nullable
+    public Path getCompactedFileToCleanup() {
+        return compactedFileToCleanup;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        FileSinkCommittable that = (FileSinkCommittable) o;
+        return Objects.equals(bucketId, that.bucketId)
+                && Objects.equals(pendingFile, that.pendingFile)
+                && Objects.equals(inProgressFileToCleanup, that.inProgressFileToCleanup)
+                && Objects.equals(compactedFileToCleanup, that.compactedFileToCleanup);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(bucketId, pendingFile, inProgressFileToCleanup, compactedFileToCleanup);
+    }
+
+    @Override
+    public String toString() {
+        return "FileSinkCommittable{"
+                + "bucketId='"
+                + bucketId
+                + ", pendingFile="
+                + pendingFile
+                + ", inProgressFileToCleanup="
+                + inProgressFileToCleanup
+                + ", compactedFileToCleanup="
+                + compactedFileToCleanup
+                + '}';
     }
 }

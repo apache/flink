@@ -17,10 +17,11 @@
 
 package org.apache.flink.connector.kinesis.sink;
 
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.connector.base.sink.writer.AsyncSinkWriter;
+import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -36,6 +37,7 @@ import software.amazon.awssdk.services.kinesis.model.PutRecordsResultEntry;
 import software.amazon.awssdk.services.kinesis.model.ResourceNotFoundException;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
@@ -65,8 +67,11 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
     /* The sink writer metric group */
     private final SinkWriterMetricGroup metrics;
 
+    /* The asynchronous http client for the asynchronous Kinesis client */
+    private final SdkAsyncHttpClient httpClient;
+
     /* The asynchronous Kinesis client - construction is by kinesisClientProperties */
-    private final KinesisAsyncClient client;
+    private final KinesisAsyncClient kinesisClient;
 
     /* Flag to whether fatally fail any time we encounter an exception when persisting records */
     private final boolean failOnError;
@@ -83,6 +88,34 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
             boolean failOnError,
             String streamName,
             Properties kinesisClientProperties) {
+        this(
+                elementConverter,
+                context,
+                maxBatchSize,
+                maxInFlightRequests,
+                maxBufferedRequests,
+                maxBatchSizeInBytes,
+                maxTimeInBufferMS,
+                maxRecordSizeInBytes,
+                failOnError,
+                streamName,
+                kinesisClientProperties,
+                Collections.emptyList());
+    }
+
+    KinesisDataStreamsSinkWriter(
+            ElementConverter<InputT, PutRecordsRequestEntry> elementConverter,
+            Sink.InitContext context,
+            int maxBatchSize,
+            int maxInFlightRequests,
+            int maxBufferedRequests,
+            long maxBatchSizeInBytes,
+            long maxTimeInBufferMS,
+            long maxRecordSizeInBytes,
+            boolean failOnError,
+            String streamName,
+            Properties kinesisClientProperties,
+            Collection<BufferedRequestState<PutRecordsRequestEntry>> states) {
         super(
                 elementConverter,
                 context,
@@ -91,19 +124,18 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
                 maxBufferedRequests,
                 maxBatchSizeInBytes,
                 maxTimeInBufferMS,
-                maxRecordSizeInBytes);
+                maxRecordSizeInBytes,
+                states);
         this.failOnError = failOnError;
         this.streamName = streamName;
         this.metrics = context.metricGroup();
         this.numRecordsOutErrorsCounter = metrics.getNumRecordsOutErrorsCounter();
-        this.client = buildClient(kinesisClientProperties);
+        this.httpClient = AWSGeneralUtil.createAsyncHttpClient(kinesisClientProperties);
+        this.kinesisClient = buildClient(kinesisClientProperties, this.httpClient);
     }
 
-    private KinesisAsyncClient buildClient(Properties kinesisClientProperties) {
-
-        final SdkAsyncHttpClient httpClient =
-                AWSGeneralUtil.createAsyncHttpClient(kinesisClientProperties);
-
+    private KinesisAsyncClient buildClient(
+            Properties kinesisClientProperties, SdkAsyncHttpClient httpClient) {
         return AWSAsyncSinkUtil.createAwsAsyncClient(
                 kinesisClientProperties,
                 httpClient,
@@ -122,7 +154,7 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
 
         LOG.trace("Request to submit {} entries to KDS using KDS Sink.", requestEntries.size());
 
-        CompletableFuture<PutRecordsResponse> future = client.putRecords(batchRequest);
+        CompletableFuture<PutRecordsResponse> future = kinesisClient.putRecords(batchRequest);
 
         future.whenComplete(
                 (response, err) -> {
@@ -151,6 +183,11 @@ class KinesisDataStreamsSinkWriter<InputT> extends AsyncSinkWriter<InputT, PutRe
         if (isRetryable(err)) {
             requestResult.accept(requestEntries);
         }
+    }
+
+    @Override
+    public void close() {
+        AWSGeneralUtil.closeResources(httpClient, kinesisClient);
     }
 
     private void handlePartiallyFailedRequest(

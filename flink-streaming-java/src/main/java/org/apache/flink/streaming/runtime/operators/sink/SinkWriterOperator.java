@@ -70,6 +70,8 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     private final Context<InputT> context;
 
     private final boolean emitDownstream;
+    private final boolean isBatchMode;
+    private final boolean isCheckpointingEnabled;
 
     // ------------------------------- runtime fields ---------------------------------------
 
@@ -78,17 +80,23 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
     private SinkWriter<InputT> sinkWriter;
 
+    private OptionalLong restoredCheckpointId = OptionalLong.empty();
+
     private final SinkWriterStateHandler<InputT> writerStateHandler;
 
     private final MailboxExecutor mailboxExecutor;
-    // record endOfInput state to avoid duplicate prepareCommit on final notifyCheckpointComplete
-    // once FLIP-147 is fully operational all endOfInput processing needs to be removed
+
     private boolean endOfInput = false;
+    private boolean finalEmission = false;
 
     SinkWriterOperator(
             Sink<InputT> sink,
             ProcessingTimeService processingTimeService,
-            MailboxExecutor mailboxExecutor) {
+            MailboxExecutor mailboxExecutor,
+            boolean isBatchMode,
+            boolean isCheckpointingEnabled) {
+        this.isBatchMode = isBatchMode;
+        this.isCheckpointingEnabled = isCheckpointingEnabled;
         this.processingTimeService = checkNotNull(processingTimeService);
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.context = new Context<>();
@@ -106,6 +114,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     public void initializeState(StateInitializationContext context) throws Exception {
         super.initializeState(context);
         OptionalLong checkpointId = context.getRestoredCheckpointId();
+        restoredCheckpointId = checkpointId;
         InitContext initContext =
                 createInitContext(checkpointId.isPresent() ? checkpointId.getAsLong() : null);
 
@@ -126,11 +135,17 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
 
     @Override
     public void prepareSnapshotPreBarrier(long checkpointId) throws Exception {
-        super.prepareSnapshotPreBarrier(checkpointId);
-        if (!endOfInput) {
-            sinkWriter.flush(false);
-            emitCommittables(checkpointId);
+        // If a streaming job finishes and a savepoint is triggered afterwards we do not want to
+        // flush again
+        if (finalEmission) {
+            return;
         }
+        if (endOfInput) {
+            finalEmission = true;
+        }
+        super.prepareSnapshotPreBarrier(checkpointId);
+        sinkWriter.flush(endOfInput);
+        emitCommittables(checkpointId);
     }
 
     @Override
@@ -144,8 +159,18 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     @Override
     public void endInput() throws Exception {
         endOfInput = true;
-        sinkWriter.flush(true);
-        emitCommittables(Long.MAX_VALUE);
+        // Only in batch mode we want to emit with the Long.MAX_VALUE checkpoint id. In streaming
+        // mode there will be a final checkpoint after endInput that flushes all pending
+        // committables.
+        if (isBatchMode) {
+            sinkWriter.flush(true);
+            emitCommittables(Long.MAX_VALUE);
+            return;
+        }
+        // There will be no final checkpoint but the job runs in streaming mode, so we try to commit
+        if (!isCheckpointingEnabled) {
+            prepareSnapshotPreBarrier(restoredCheckpointId.orElse(0) + 1);
+        }
     }
 
     private void emitCommittables(Long checkpointId) throws IOException, InterruptedException {

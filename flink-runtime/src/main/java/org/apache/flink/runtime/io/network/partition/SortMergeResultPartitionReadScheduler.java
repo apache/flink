@@ -264,6 +264,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             failedReaders.clear();
 
             if (allReaders.isEmpty()) {
+                bufferPool.unregisterRequester(this);
                 closeFileChannels();
             }
 
@@ -303,6 +304,9 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             PartitionedFileReader fileReader = createFileReader(resultFile, targetSubpartition);
             SortMergeSubpartitionReader subpartitionReader =
                     new SortMergeSubpartitionReader(availabilityListener, fileReader);
+            if (allReaders.isEmpty()) {
+                bufferPool.registerRequester(this);
+            }
             allReaders.add(subpartitionReader);
             subpartitionReader
                     .getReleaseFuture()
@@ -370,8 +374,8 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
 
         if (!isRunning
                 && !allReaders.isEmpty()
-                && numRequestedBuffers + bufferPool.getNumBuffersPerRequest()
-                        <= maxRequestedBuffers) {
+                && numRequestedBuffers + bufferPool.getNumBuffersPerRequest() <= maxRequestedBuffers
+                && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
             isRunning = true;
             ioExecutor.execute(this);
         }

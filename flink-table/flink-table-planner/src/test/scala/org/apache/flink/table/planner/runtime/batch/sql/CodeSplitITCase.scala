@@ -117,6 +117,24 @@ class CodeSplitITCase extends BatchTestBase {
     Assert.assertEquals(expected, TestValuesTableFactory.getResults("test_many_values"))
   }
 
+  @Test
+  def testManyIns(): Unit = {
+    val sql = new StringBuilder("SELECT a FROM SmallTable3 WHERE a IN (")
+    for (i <- 1 to 10000) {
+      sql.append(i)
+      if (i != 10000) {
+        sql.append(", ")
+      }
+    }
+    sql.append(")")
+
+    val result = Seq(
+      Row.of(java.lang.Integer.valueOf(1)),
+      Row.of(java.lang.Integer.valueOf(2)),
+      Row.of(java.lang.Integer.valueOf(3)))
+    runTest(sql.mkString, result)
+  }
+
   private[flink] def runTest(sql: String, results: Seq[Row]): Unit = {
     tEnv.getConfig.getConfiguration.setInteger(
       TableConfigOptions.MAX_LENGTH_GENERATED_CODE, 4000)

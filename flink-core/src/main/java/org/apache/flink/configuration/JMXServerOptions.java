@@ -32,6 +32,7 @@ public class JMXServerOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_DEBUGGING_AND_TUNING)
     public static final ConfigOption<String> JMX_SERVER_PORT =
             key("jmx.server.port")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             new Description.DescriptionBuilder()

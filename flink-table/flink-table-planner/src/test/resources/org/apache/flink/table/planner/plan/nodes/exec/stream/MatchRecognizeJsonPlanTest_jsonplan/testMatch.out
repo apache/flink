@@ -19,12 +19,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "PROCTIME",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
                   "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -61,12 +57,8 @@
       "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "PROCTIME",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$PROCTIME$1",
       "operands" : [ ],
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -136,19 +128,13 @@
     "type" : "stream-exec-match_1",
     "matchSpec" : {
       "pattern" : {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "",
-          "kind" : "PATTERN_CONCAT",
-          "syntax" : "BINARY"
-        },
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$$1",
         "operands" : [ {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "",
-            "kind" : "PATTERN_CONCAT",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$$1",
           "operands" : [ {
             "kind" : "LITERAL",
             "value" : "A\"",
@@ -168,19 +154,12 @@
       },
       "patternDefinitions" : {
         "A\"" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "=",
-            "kind" : "EQUALS",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : "LAST",
-              "kind" : "LAST",
-              "syntax" : "FUNCTION"
-            },
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
@@ -200,19 +179,12 @@
           "type" : "BOOLEAN"
         },
         "l" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "=",
-            "kind" : "EQUALS",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : "LAST",
-              "kind" : "LAST",
-              "syntax" : "FUNCTION"
-            },
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
@@ -232,19 +204,12 @@
           "type" : "BOOLEAN"
         },
         "C" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "=",
-            "kind" : "EQUALS",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : "LAST",
-              "kind" : "LAST",
-              "syntax" : "FUNCTION"
-            },
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
@@ -266,12 +231,9 @@
       },
       "measures" : {
         "aid" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "FINAL",
-            "kind" : "FINAL",
-            "syntax" : "PREFIX"
-          },
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
           "operands" : [ {
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "A\"",
@@ -281,12 +243,9 @@
           "type" : "BIGINT"
         },
         "bid" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "FINAL",
-            "kind" : "FINAL",
-            "syntax" : "PREFIX"
-          },
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
           "operands" : [ {
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "l",
@@ -296,12 +255,9 @@
           "type" : "BIGINT"
         },
         "cid" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "FINAL",
-            "kind" : "FINAL",
-            "syntax" : "PREFIX"
-          },
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
           "operands" : [ {
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "C",
@@ -313,8 +269,8 @@
       },
       "after" : {
         "kind" : "LITERAL",
+        "symbol" : "MATCH_RECOGNIZE_AFTER_OPTION",
         "value" : "SKIP_TO_NEXT_ROW",
-        "class" : "MATCH_RECOGNIZE_AFTER_OPTION",
         "type" : {
           "type" : "SYMBOL",
           "nullable" : false

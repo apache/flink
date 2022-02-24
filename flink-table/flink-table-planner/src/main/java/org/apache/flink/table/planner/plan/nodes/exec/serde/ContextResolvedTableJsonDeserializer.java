@@ -172,9 +172,10 @@ class ContextResolvedTableJsonDeserializer extends StdDeserializer<ContextResolv
     static ValidationException missingIdentifier() {
         return new ValidationException(
                 String.format(
-                        "The table cannot be deserialized, as no identifier is present within the JSON, "
-                                + "but lookup is forced by '%s' == '%s'. "
-                                + "Either allow restoring table from the catalog with '%s' == '%s' | '%s' or make sure you don't use anonymous tables when generating the plan.",
+                        "The table cannot be deserialized as no identifier is present in the persisted plan."
+                                + "However, lookup is forced by '%s' = '%s'. "
+                                + "Either allow restoring the table from the catalog with '%s' = '%s' / '%s' "
+                                + "or make sure to not use anonymous tables when generating the plan.",
                         PLAN_RESTORE_CATALOG_OBJECTS.key(),
                         IDENTIFIER.name(),
                         PLAN_RESTORE_CATALOG_OBJECTS.key(),
@@ -185,11 +186,12 @@ class ContextResolvedTableJsonDeserializer extends StdDeserializer<ContextResolv
     static ValidationException lookupDisabled(ObjectIdentifier objectIdentifier) {
         return new ValidationException(
                 String.format(
-                        "The table '%s' does not contain any '%s' field, "
-                                + "but lookup is disabled because option '%s' == '%s'. "
-                                + "Either enable the catalog lookup with '%s' == '%s' | '%s' or regenerate the plan with '%s' != '%s'.",
+                        "The persisted plan does not include all required catalog metadata for table '%s'. "
+                                + "However, lookup is disabled because option '%s' = '%s'. "
+                                + "Either enable the catalog lookup with '%s' = '%s' / '%s' or "
+                                + "regenerate the plan with '%s' != '%s'. "
+                                + "Make sure the table is not compiled as a temporary table.",
                         objectIdentifier.asSummaryString(),
-                        FIELD_NAME_CATALOG_TABLE,
                         PLAN_RESTORE_CATALOG_OBJECTS.key(),
                         CatalogPlanRestore.ALL_ENFORCED.name(),
                         PLAN_RESTORE_CATALOG_OBJECTS.key(),
@@ -205,8 +207,9 @@ class ContextResolvedTableJsonDeserializer extends StdDeserializer<ContextResolv
             ResolvedSchema schemaFromCatalog) {
         return new ValidationException(
                 String.format(
-                        "The schema of the table '%s' from the persisted plan does not match the schema loaded from the catalog: '%s' != '%s'. "
-                                + "Have you modified the table schema in the catalog before restoring the plan?.",
+                        "The schema of table '%s' from the persisted plan does not match the "
+                                + "schema loaded from the catalog: '%s' != '%s'. "
+                                + "Make sure the table schema in the catalog is still identical.",
                         objectIdentifier.asSummaryString(), schemaFromPlan, schemaFromCatalog));
     }
 
@@ -216,23 +219,25 @@ class ContextResolvedTableJsonDeserializer extends StdDeserializer<ContextResolv
         if (forcedLookup) {
             initialReason =
                     String.format(
-                            "Cannot resolve the table '%s' and catalog lookup is forced because '%s' == '%s'. ",
+                            "Cannot resolve table '%s' and catalog lookup is forced because '%s' = '%s'. ",
                             identifier.asSummaryString(),
                             PLAN_RESTORE_CATALOG_OBJECTS.key(),
                             IDENTIFIER);
         } else {
             initialReason =
                     String.format(
-                            "Cannot resolve the table '%s' and the persisted plan does not include the '%s' field. ",
-                            identifier.asSummaryString(), FIELD_NAME_CATALOG_TABLE);
+                            "Cannot resolve table '%s' and the persisted plan does not include "
+                                    + "all required catalog table metadata. ",
+                            identifier.asSummaryString());
         }
         return new ValidationException(
                 initialReason
                         + String.format(
-                                "Make sure a registered catalog contains the table when restoring, "
-                                        + "or it's not a temporary table, or regenerate the plan with '%s' != '%s'.",
+                                "Make sure a registered catalog contains the table when restoring or "
+                                        + "the table is available as a temporary table. "
+                                        + "Otherwise regenerate the plan with '%s' != '%s' and make "
+                                        + "sure the table was not compiled as a temporary table.",
                                 PLAN_COMPILE_CATALOG_OBJECTS.key(),
-                                CatalogPlanCompilation.IDENTIFIER.name())
-                        + ".");
+                                CatalogPlanCompilation.IDENTIFIER.name()));
     }
 }

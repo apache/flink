@@ -23,7 +23,13 @@ import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 
-/** Base class for per-job cluster entry points. */
+/**
+ * Base class for per-job cluster entry points.
+ *
+ * @deprecated Per-job mode has been deprecated in Flink 1.15 and will be removed in the future.
+ *     Please use application mode instead.
+ */
+@Deprecated
 public abstract class JobClusterEntrypoint extends ClusterEntrypoint {
 
     public JobClusterEntrypoint(Configuration configuration) {

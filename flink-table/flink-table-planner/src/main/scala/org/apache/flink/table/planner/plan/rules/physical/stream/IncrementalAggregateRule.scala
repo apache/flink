@@ -152,6 +152,7 @@ object IncrementalAggregateRule {
   @Experimental
   val TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED: ConfigOption[JBoolean] =
   key("table.optimizer.incremental-agg-enabled")
+      .booleanType()
       .defaultValue(JBoolean.valueOf(true))
       .withDescription("When both local aggregation and distinct aggregation splitting " +
           "are enabled, a distinct aggregation will be optimized into four aggregations, " +

@@ -19,8 +19,7 @@
 package org.apache.flink.connector.kinesis.table.util;
 
 import org.apache.flink.connector.aws.config.AWSConfigConstants;
-import org.apache.flink.connector.kinesis.table.KinesisDataStreamsConnectorOptionsUtils;
-import org.apache.flink.connector.kinesis.table.KinesisDataStreamsConnectorOptionsUtils.KinesisProducerOptionsMapper;
+import org.apache.flink.connector.kinesis.table.util.KinesisDataStreamsConnectorOptionsUtils.KinesisProducerOptionsMapper;
 import org.apache.flink.util.TestLogger;
 
 import org.assertj.core.api.Assertions;

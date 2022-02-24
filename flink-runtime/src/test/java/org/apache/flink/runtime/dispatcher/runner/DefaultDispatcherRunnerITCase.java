@@ -33,8 +33,10 @@ import org.apache.flink.runtime.dispatcher.PartialDispatcherServicesWithJobPersi
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.SingleJobJobGraphStore;
 import org.apache.flink.runtime.dispatcher.StandaloneDispatcher;
-import org.apache.flink.runtime.dispatcher.TestingJobManagerRunnerFactory;
+import org.apache.flink.runtime.dispatcher.TestingJobMasterServiceLeadershipRunnerFactory;
 import org.apache.flink.runtime.dispatcher.TestingPartialDispatcherServices;
+import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
+import org.apache.flink.runtime.dispatcher.cleanup.TestingCleanupRunnerFactory;
 import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -167,11 +169,13 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
     @Test
     public void leaderChange_withBlockingJobManagerTermination_doesNotAffectNewLeader()
             throws Exception {
-        final TestingJobManagerRunnerFactory jobManagerRunnerFactory =
-                new TestingJobManagerRunnerFactory(1);
+        final TestingJobMasterServiceLeadershipRunnerFactory jobManagerRunnerFactory =
+                new TestingJobMasterServiceLeadershipRunnerFactory(1);
+        final TestingCleanupRunnerFactory cleanupRunnerFactory = new TestingCleanupRunnerFactory();
         dispatcherRunnerFactory =
                 DefaultDispatcherRunnerFactory.createSessionRunner(
-                        new TestingDispatcherFactory(jobManagerRunnerFactory));
+                        new TestingDispatcherFactory(
+                                jobManagerRunnerFactory, cleanupRunnerFactory));
         jobGraphStore = new SingleJobJobGraphStore(jobGraph);
 
         try (final DispatcherRunner dispatcherRunner = createDispatcherRunner()) {
@@ -221,9 +225,13 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
 
     private static class TestingDispatcherFactory implements DispatcherFactory {
         private final JobManagerRunnerFactory jobManagerRunnerFactory;
+        private final CleanupRunnerFactory cleanupRunnerFactory;
 
-        private TestingDispatcherFactory(JobManagerRunnerFactory jobManagerRunnerFactory) {
+        private TestingDispatcherFactory(
+                JobManagerRunnerFactory jobManagerRunnerFactory,
+                CleanupRunnerFactory cleanupRunnerFactory) {
             this.jobManagerRunnerFactory = jobManagerRunnerFactory;
+            this.cleanupRunnerFactory = cleanupRunnerFactory;
         }
 
         @Override
@@ -244,7 +252,8 @@ public class DefaultDispatcherRunnerITCase extends TestLogger {
                     dispatcherBootstrapFactory,
                     DispatcherServices.from(
                             partialDispatcherServicesWithJobPersistenceComponents,
-                            jobManagerRunnerFactory));
+                            jobManagerRunnerFactory,
+                            cleanupRunnerFactory));
         }
     }
 

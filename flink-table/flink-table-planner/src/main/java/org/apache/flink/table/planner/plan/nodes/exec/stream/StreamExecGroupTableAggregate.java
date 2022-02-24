@@ -57,7 +57,10 @@ import java.util.Collections;
 /** Stream {@link ExecNode} for unbounded java/scala group table aggregate. */
 public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecGroupTableAggregate.class);
+
+    private static final String GROUP_TABLE_AGGREGATE_TRANSFORMATION = "group-table-aggregate";
 
     private final int[] grouping;
     private final AggregateCall[] aggCalls;
@@ -155,8 +158,8 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(planner.getTableConfig()),
-                        getOperatorDescription(planner.getTableConfig()),
+                        createTransformationMeta(
+                                GROUP_TABLE_AGGREGATE_TRANSFORMATION, planner.getTableConfig()),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

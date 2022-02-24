@@ -22,9 +22,12 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableDescriptor;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.ValidationException;
@@ -45,7 +48,6 @@ import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.ExceptionUtils;
 
-import org.hamcrest.Matcher;
 import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
 import org.junit.Rule;
@@ -65,17 +67,15 @@ import java.util.stream.Collectors;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
 /** Test for {@link CommonExecSink}. */
 @RunWith(Parameterized.class)
 public class CommonExecSinkITCase extends AbstractTestBase {
+
+    private static final int PARALLELISM = 4;
 
     private final boolean useSinkV2;
     private StreamExecutionEnvironment env;
@@ -92,7 +92,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     @Before
     public void before() {
         env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(4);
+        env.setParallelism(PARALLELISM);
     }
 
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
@@ -116,7 +116,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                         .sink(buildRuntimeSinkProvider(new TestTimestampWriter(timestamps)))
                         .build();
         tableEnv.createTable("T1", sourceDescriptor);
-        String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
+        final String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
         assertPlan(tableEnv, sqlStmt, true);
         tableEnv.executeSql(sqlStmt).await();
         assertTimestampResults(timestamps, rows);
@@ -134,6 +134,13 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                         Row.of(3, "foo", Instant.parse("2020-11-11T10:11:22.777Z")),
                         Row.of(4, "foo", Instant.parse("2020-11-11T10:11:23.888Z")));
 
+        final SinkFunction<RowData> sinkFunction =
+                new SinkFunction<RowData>() {
+                    @Override
+                    public void invoke(RowData value, Context context) {
+                        addElement(timestamps, context.timestamp());
+                    }
+                };
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(schemaStreamRecordTimestampInserter(true))
@@ -143,23 +150,13 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                     @Override
                                     public DataStreamSinkProvider getSinkRuntimeProvider(
                                             DynamicTableSink.Context context) {
-                                        return dataStream ->
-                                                dataStream.addSink(
-                                                        new SinkFunction<RowData>() {
-                                                            @Override
-                                                            public void invoke(
-                                                                    RowData value,
-                                                                    Context context) {
-                                                                addElement(
-                                                                        timestamps,
-                                                                        context.timestamp());
-                                                            }
-                                                        });
+                                        return (providerContext, dataStream) ->
+                                                dataStream.addSink(sinkFunction);
                                     }
                                 })
                         .build();
         tableEnv.createTable("T1", sourceDescriptor);
-        String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
+        final String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
         assertPlan(tableEnv, sqlStmt, true);
         tableEnv.executeSql(sqlStmt).await();
         Collections.sort(timestamps.get());
@@ -201,7 +198,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                         .sink(buildDataStreamSinkProvider(fetched))
                         .build();
         tableEnv.createTable("T1", sourceDescriptor);
-        String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
+        final String sqlStmt = "INSERT INTO T1 SELECT * FROM T1";
         tableEnv.executeSql(sqlStmt).await();
         final List<Integer> fetchedRows =
                 fetched.get().stream().map(r -> r.getInt(0)).sorted().collect(Collectors.toList());
@@ -232,7 +229,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
 
         final List<Row> results = new ArrayList<>();
         result.collect().forEachRemaining(results::add);
-        assertThat(results, containsInAnyOrder(rows.toArray()));
+        assertThat(results).containsExactlyInAnyOrderElementsOf(rows);
 
         // Change config option to "trim_pad", to trim or pad the strings
         // accordingly, based on their type length
@@ -254,7 +251,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                             Row.of(4, "Flink Pr", "SQL or", 44, 444, "Apache"));
             final List<Row> resultsTrimmed = new ArrayList<>();
             result.collect().forEachRemaining(resultsTrimmed::add);
-            assertThat(resultsTrimmed, containsInAnyOrder(expected.toArray()));
+            assertThat(resultsTrimmed).containsExactlyInAnyOrderElementsOf(expected);
 
         } finally {
             tableEnv.getConfig()
@@ -312,7 +309,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
 
         final List<Row> results = new ArrayList<>();
         result.collect().forEachRemaining(results::add);
-        assertThat(results, containsInAnyOrder(rows.toArray()));
+        assertThat(results).containsExactlyInAnyOrderElementsOf(rows);
 
         // Change config option to "trim_pad", to trim or pad the strings
         // accordingly, based on their type length
@@ -358,7 +355,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                     new byte[] {1, 2, 3, 4, 5, 6}));
             final List<Row> resultsTrimmed = new ArrayList<>();
             result.collect().forEachRemaining(resultsTrimmed::add);
-            assertThat(resultsTrimmed, containsInAnyOrder(expected.toArray()));
+            assertThat(resultsTrimmed).containsExactlyInAnyOrderElementsOf(expected);
 
         } finally {
             tableEnv.getConfig()
@@ -389,32 +386,31 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                         .build());
 
         // Default config - ignore (no trim)
-        ExecutionException ee =
+        final ExecutionException ee =
                 assertThrows(
                         ExecutionException.class,
                         () -> tableEnv.executeSql("INSERT INTO T1 SELECT * FROM T1").await());
         assertThat(
-                ExceptionUtils.findThrowableWithMessage(
-                                ee,
-                                "Column 'b' is NOT NULL, however, a null value is being written into it. "
-                                        + "You can set job configuration 'table.exec.sink.not-null-enforcer'='DROP' "
-                                        + "to suppress this exception and drop such records silently.")
-                        .isPresent(),
-                is(true));
+                        ExceptionUtils.findThrowableWithMessage(
+                                        ee,
+                                        "Column 'b' is NOT NULL, however, a null value is being written into it. "
+                                                + "You can set job configuration 'table.exec.sink.not-null-enforcer'='DROP' "
+                                                + "to suppress this exception and drop such records silently.")
+                                .isPresent())
+                .isTrue();
 
         // Test not including a NOT NULL column
         results.get().clear();
-        ValidationException ve =
+        final ValidationException ve =
                 assertThrows(
                         ValidationException.class,
                         () ->
                                 tableEnv.executeSql("INSERT INTO T1(a, b) SELECT (a, b) FROM T1")
                                         .await());
-        assertThat(
-                ve.getMessage(),
-                is(
+        assertThat(ve.getMessage())
+                .isEqualTo(
                         "SQL validation failed. At line 0, column 0: Column 'c' has no default "
-                                + "value and does not allow NULLs"));
+                                + "value and does not allow NULLs");
 
         // Change config option to "drop", to drop the columns instead of throwing errors
         try {
@@ -426,19 +422,57 @@ public class CommonExecSinkITCase extends AbstractTestBase {
 
             results.get().clear();
             tableEnv.executeSql("INSERT INTO T1 SELECT * FROM T1").await();
-            assertThat(results.get().size(), is(2));
-            assertThat(results.get().get(0).getInt(0), is(1));
-            assertThat(results.get().get(0).getString(1).toString(), is("Apache"));
-            assertThat(results.get().get(0).getInt(2), is(11));
-            assertThat(results.get().get(1).isNullAt(0), is(true));
-            assertThat(results.get().get(1).getString(1).toString(), is("Flink"));
-            assertThat(results.get().get(1).getInt(2), is(33));
+            assertThat(results.get().size()).isEqualTo(2);
+            assertThat(results.get().get(0).getInt(0)).isEqualTo(1);
+            assertThat(results.get().get(0).getString(1).toString()).isEqualTo("Apache");
+            assertThat(results.get().get(0).getInt(2)).isEqualTo(11);
+            assertThat(results.get().get(1).isNullAt(0)).isTrue();
+            assertThat(results.get().get(1).getString(1).toString()).isEqualTo("Flink");
+            assertThat(results.get().get(1).getInt(2)).isEqualTo(33);
         } finally {
             tableEnv.getConfig()
                     .getConfiguration()
                     .setString(
                             TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key(),
                             ExecutionConfigOptions.NotNullEnforcer.ERROR.name());
+        }
+    }
+
+    @Test
+    public void testFromValuesWatermarkPropagation() throws Exception {
+        final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
+        final SharedReference<List<Long>> watermarks = sharedObjects.add(new ArrayList<>());
+        final SinkFunction<RowData> sinkFunction =
+                new SinkFunction<RowData>() {
+                    @Override
+                    public void writeWatermark(
+                            org.apache.flink.api.common.eventtime.Watermark watermark) {
+                        addElement(watermarks, watermark.getTimestamp());
+                    }
+                };
+        final TableDescriptor sinkDescriptor =
+                TableFactoryHarness.newBuilder()
+                        .sink(
+                                new TableFactoryHarness.SinkBase() {
+                                    @Override
+                                    public DataStreamSinkProvider getSinkRuntimeProvider(
+                                            DynamicTableSink.Context context) {
+                                        return (providerContext, dataStream) ->
+                                                dataStream.addSink(sinkFunction);
+                                    }
+                                })
+                        .build();
+
+        final Table source =
+                tableEnv.fromValues(
+                        DataTypes.ROW(DataTypes.FIELD("a", DataTypes.INT())),
+                        Row.of(1),
+                        Row.of(2),
+                        Row.of(3));
+        source.executeInsert(sinkDescriptor).await();
+        assertThat(watermarks.get().size()).isEqualTo(env.getParallelism());
+        for (Long watermark : watermarks.get()) {
+            assertThat(watermark).isEqualTo(Watermark.MAX_WATERMARK.getTimestamp());
         }
     }
 
@@ -474,7 +508,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         return new TableFactoryHarness.SinkBase() {
             @Override
             public DataStreamSinkProvider getSinkRuntimeProvider(Context context) {
-                return dataStream -> {
+                return (providerContext, dataStream) -> {
                     TestSink<RowData> sink = buildRecordWriterTestSink(new RecordWriter(fetched));
                     if (useSinkV2) {
                         return dataStream.sinkTo(SinkV1Adapter.wrap(sink));
@@ -489,15 +523,17 @@ public class CommonExecSinkITCase extends AbstractTestBase {
             StreamTableEnvironment tableEnv,
             String sql,
             boolean containsStreamRecordTimestampInserter) {
-        Matcher<String> matcher = containsString("StreamRecordTimestampInserter(rowtime field: 2");
-        if (!containsStreamRecordTimestampInserter) {
-            matcher = not(matcher);
+        final String explainStr = tableEnv.explainSql(sql, ExplainDetail.JSON_EXECUTION_PLAN);
+        final String containedStr = "StreamRecordTimestampInserter(rowtime field: 2";
+        if (containsStreamRecordTimestampInserter) {
+            assertThat(explainStr).contains(containedStr);
+        } else {
+            assertThat(explainStr).doesNotContain(containedStr);
         }
-        assertThat(tableEnv.explainSql(sql, ExplainDetail.JSON_EXECUTION_PLAN), matcher);
     }
 
     private static Schema schemaStreamRecordTimestampInserter(boolean withWatermark) {
-        Schema.Builder builder =
+        final Schema.Builder builder =
                 Schema.newBuilder()
                         .column("a", "INT")
                         .column("b", "STRING")
@@ -562,7 +598,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                     context.createDataStructureConverter(
                             getFactoryContext().getPhysicalRowDataType());
 
-            return SourceFunctionProvider.of(new TestSourceFunction(rows, converter), true);
+            return SourceFunctionProvider.of(new TestSourceFunction(rows, converter), false);
         }
     }
 

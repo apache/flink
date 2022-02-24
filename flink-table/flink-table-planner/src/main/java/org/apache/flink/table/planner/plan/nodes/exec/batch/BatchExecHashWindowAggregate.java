@@ -151,8 +151,8 @@ public class BatchExecHashWindowAggregate extends ExecNodeBase<RowData>
                         .getBytes();
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(tableConfig),
-                getOperatorDescription(tableConfig),
+                createTransformationName(tableConfig),
+                createTransformationDescription(tableConfig),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism(),

@@ -134,14 +134,16 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
         try {
             final Class<?> udfClass =
                     Class.forName(runtimeClass, true, context.getBuiltInClassLoader());
-            final Constructor<?> udfConstructor = udfClass.getConstructor(SpecializedContext.class);
-            final UserDefinedFunction udf =
-                    (UserDefinedFunction) udfConstructor.newInstance(context);
-            // in case another level of specialization is required
-            if (udf instanceof SpecializedFunction) {
-                return ((SpecializedFunction) udf).specialize(context);
+            // In case another level of specialization is required
+            if (SpecializedFunction.class.isAssignableFrom(udfClass)) {
+                final SpecializedFunction specializedFunction =
+                        (SpecializedFunction) udfClass.newInstance();
+                return specializedFunction.specialize(context);
+            } else {
+                final Constructor<?> udfConstructor =
+                        udfClass.getConstructor(SpecializedContext.class);
+                return (UserDefinedFunction) udfConstructor.newInstance(context);
             }
-            return udf;
         } catch (Exception e) {
             throw new TableException(
                     String.format(
@@ -175,8 +177,9 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
     // Shared with BuiltInSqlOperator and BuiltInSqlFunction in planner
     // --------------------------------------------------------------------------------------------
 
+    // note that for SQL operators the name can contain spaces and dollar signs
     private static final Pattern INTERNAL_NAME_PATTERN =
-            Pattern.compile("\\$[A-Z0-9_]+\\$[1-9][0-9]*");
+            Pattern.compile("\\$[A-Z0-9_ $]+\\$[1-9][0-9]*");
 
     private static final String INTERNAL_NAME_FORMAT = "$%s$%s";
 
@@ -198,8 +201,7 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
     }
 
     public static String qualifyFunctionName(String name, int version) {
-        return String.format(
-                INTERNAL_NAME_FORMAT, name.replace(' ', '_').toUpperCase(Locale.ROOT), version);
+        return String.format(INTERNAL_NAME_FORMAT, name.toUpperCase(Locale.ROOT), version);
     }
 
     // --------------------------------------------------------------------------------------------

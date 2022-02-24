@@ -42,6 +42,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 @ExecNodeMetadata(
         name = "stream-exec-table-source-scan",
         version = 1,
+        producedTransformations = CommonExecTableSourceScan.SOURCE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecTableSourceScan extends CommonExecTableSourceScan

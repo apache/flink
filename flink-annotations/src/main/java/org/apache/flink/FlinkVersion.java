@@ -83,4 +83,9 @@ public enum FlinkVersion {
     public static Optional<FlinkVersion> byCode(String code) {
         return Optional.ofNullable(CODE_MAP.get(code));
     }
+
+    /** Returns the current version. */
+    public static FlinkVersion current() {
+        return values()[values().length - 1];
+    }
 }

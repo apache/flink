@@ -21,7 +21,6 @@ import org.apache.flink.api.java.DataSet;
 import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.batch.connectors.cassandra.CassandraPojoInputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraPojoOutputFormat;
-import org.apache.flink.batch.connectors.cassandra.CustomCassandraAnnotatedPojo;
 import org.apache.flink.streaming.connectors.cassandra.ClusterBuilder;
 
 import com.datastax.driver.core.Cluster;
@@ -50,16 +49,12 @@ public class BatchPojoExample {
         ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(1);
 
-        List<CustomCassandraAnnotatedPojo> customCassandraAnnotatedPojos =
+        List<Pojo> customCassandraAnnotatedPojos =
                 IntStream.range(0, 20)
-                        .mapToObj(
-                                x ->
-                                        new CustomCassandraAnnotatedPojo(
-                                                UUID.randomUUID().toString(), x, 0))
+                        .mapToObj(x -> new Pojo(UUID.randomUUID().toString(), x, 0))
                         .collect(Collectors.toList());
 
-        DataSet<CustomCassandraAnnotatedPojo> dataSet =
-                env.fromCollection(customCassandraAnnotatedPojos);
+        DataSet<Pojo> dataSet = env.fromCollection(customCassandraAnnotatedPojos);
 
         ClusterBuilder clusterBuilder =
                 new ClusterBuilder() {
@@ -74,7 +69,7 @@ public class BatchPojoExample {
         dataSet.output(
                 new CassandraPojoOutputFormat<>(
                         clusterBuilder,
-                        CustomCassandraAnnotatedPojo.class,
+                        Pojo.class,
                         () -> new Mapper.Option[] {Mapper.Option.saveNullFields(true)}));
 
         env.execute("Write");
@@ -82,12 +77,12 @@ public class BatchPojoExample {
         /*
          *	This is for the purpose of showing an example of creating a DataSet using CassandraPojoInputFormat.
          */
-        DataSet<CustomCassandraAnnotatedPojo> inputDS =
+        DataSet<Pojo> inputDS =
                 env.createInput(
                         new CassandraPojoInputFormat<>(
                                 SELECT_QUERY,
                                 clusterBuilder,
-                                CustomCassandraAnnotatedPojo.class,
+                                Pojo.class,
                                 () ->
                                         new Mapper.Option[] {
                                             Mapper.Option.consistencyLevel(ConsistencyLevel.ANY)

@@ -47,11 +47,16 @@ public final class CollectingDataOutput<E> implements PushingAsyncDataInput.Data
 
     @Override
     public void emitRecord(StreamRecord<E> streamRecord) throws Exception {
-        events.add(streamRecord);
+        // Bypass issues with object re-use disabled by copying the record
+        events.add(streamRecord.copy(streamRecord.getValue()));
     }
 
     @Override
     public void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception {
         events.add(latencyMarker);
+    }
+
+    public List<Object> getEvents() {
+        return events;
     }
 }

@@ -56,9 +56,12 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 @ExecNodeMetadata(
         name = "stream-exec-exchange",
         version = 1,
+        producedTransformations = StreamExecExchange.EXCHANGE_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecExchange extends CommonExecExchange implements StreamExecNode<RowData> {
+
+    public static final String EXCHANGE_TRANSFORMATION = "exchange";
 
     public StreamExecExchange(InputProperty inputProperty, RowType outputType, String description) {
         this(
@@ -115,6 +118,8 @@ public class StreamExecExchange extends CommonExecExchange implements StreamExec
 
         final Transformation<RowData> transformation =
                 new PartitionTransformation<>(inputTransform, partitioner);
+        createTransformationMeta(EXCHANGE_TRANSFORMATION, planner.getTableConfig())
+                .fill(transformation);
         transformation.setParallelism(parallelism);
         transformation.setOutputType(InternalTypeInfo.of(getOutputType()));
         return transformation;

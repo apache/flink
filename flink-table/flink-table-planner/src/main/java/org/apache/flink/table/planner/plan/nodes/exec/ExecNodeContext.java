@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -31,6 +32,7 @@ import javax.annotation.Nullable;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -46,6 +48,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 @Internal
 public final class ExecNodeContext {
+
+    private static final Pattern transformationNamePattern = Pattern.compile("[a-z\\-]+");
 
     /** This is used to assign a unique ID to every ExecNode. */
     private static final AtomicInteger idCounter = new AtomicInteger(0);
@@ -111,6 +115,18 @@ public final class ExecNodeContext {
     /** The version of the ExecNode in the JSON plan. See {@link ExecNodeMetadata#version()}. */
     public Integer getVersion() {
         return version;
+    }
+
+    /** Returns a new {@code uid} for transformations. */
+    public String generateUid(String transformationName) {
+        if (!transformationNamePattern.matcher(transformationName).matches()) {
+            throw new TableException(
+                    "Invalid transformation name '"
+                            + transformationName
+                            + "'. "
+                            + "This is a bug, please file an issue.");
+        }
+        return String.format("%s_%s_%s", getId(), getTypeAsString(), transformationName);
     }
 
     /**

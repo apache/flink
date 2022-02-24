@@ -396,29 +396,6 @@ under the License.
 						</relocation>
 					</relocations>
 				</configuration>
-				<executions>
-					<execution>
-						<!-- This configuration is essentially the same as shade-flink,
-						but it writes another jar to a separate file and it includes scala.
-						This jar is used by flink-table-planner-loader -->
-						<id>shade-loader-bundle</id>
-						<phase>package</phase>
-						<goals>
-							<goal>shade</goal>
-						</goals>
-						<configuration>
-							<shadedArtifactAttached>true</shadedArtifactAttached>
-							<shadedClassifierName>loader-bundle</shadedClassifierName>
-							<artifactSet>
-								<includes combine.children="append">
-									<!-- flink-table-planner scala dependencies -->
-									<include>org.scala-lang:*</include>
-									<include>org.apache.flink:flink-scala_${scala.binary.version}</include>
-								</includes>
-							</artifactSet>
-						</configuration>
-					</execution>
-				</executions>
 			</plugin>
 
 			<!-- Scala Code Style, most of the configuration done via plugin management -->

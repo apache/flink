@@ -50,6 +50,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData>
         implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
+    public static final String WINDOW_TRANSFORMATION = "window";
+
     public static final String FIELD_NAME_WINDOWING = "windowing";
 
     @JsonProperty(FIELD_NAME_WINDOWING)
@@ -82,8 +84,7 @@ public abstract class CommonExecWindowTableFunction extends ExecNodeBase<RowData
                         windowAssigner, windowingStrategy.getTimeAttributeIndex(), shiftTimeZone);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationMeta(WINDOW_TRANSFORMATION, planner.getTableConfig()),
                 windowTableFunctionOperator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

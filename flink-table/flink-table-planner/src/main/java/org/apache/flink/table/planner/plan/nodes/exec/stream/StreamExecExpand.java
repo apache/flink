@@ -39,6 +39,7 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-expand",
         version = 1,
+        producedTransformations = CommonExecExpand.EXPAND_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecExpand extends CommonExecExpand implements StreamExecNode<RowData> {

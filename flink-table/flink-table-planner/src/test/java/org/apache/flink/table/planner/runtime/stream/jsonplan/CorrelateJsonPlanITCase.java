@@ -49,7 +49,7 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
         String query =
                 "insert into MySink SELECT a, v FROM MyTable, lateral table(STRING_SPLIT(a, ',')) as T(v)";
-        executeSqlWithJsonPlanVerified(query).await();
+        compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]", "+I[1,1,hi, hi]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
@@ -62,7 +62,7 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
         String query =
                 "insert into MySink SELECT a, v FROM MyTable, lateral table(STRING_SPLIT(a, ',')) as T(v)";
-        executeSqlWithJsonPlanVerified(query).await();
+        compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]", "+I[1,1,hi, hi]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
@@ -75,7 +75,7 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
         String query =
                 "insert into MySink SELECT a, v FROM MyTable, lateral table(STRING_SPLIT(a, ',')) as T(v)";
-        executeSqlWithJsonPlanVerified(query).await();
+        compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]", "+I[1,1,hi, hi]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
@@ -88,7 +88,7 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
         String query =
                 "insert into MySink SELECT a, v FROM MyTable, lateral table(STRING_SPLIT(a, ',')) as T(v)";
-        executeSqlWithJsonPlanVerified(query).await();
+        compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]", "+I[1,1,hi, hi]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
@@ -100,7 +100,7 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
         String query =
                 "insert into MySink SELECT a, v FROM MyTable, lateral table(STRING_SPLIT(a, ',')) as T(v) where cast(v as int) > 0";
-        executeSqlWithJsonPlanVerified(query).await();
+        compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }

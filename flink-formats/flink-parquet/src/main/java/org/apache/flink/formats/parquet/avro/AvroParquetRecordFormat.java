@@ -42,7 +42,7 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** */
+/** A reader format that reads individual Avro records from a Parquet stream. */
 public class AvroParquetRecordFormat<E> implements StreamFormat<E> {
 
     private static final long serialVersionUID = 1L;

@@ -28,6 +28,7 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.utils.TypeConversions;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -41,6 +42,7 @@ import java.util.Objects;
  * columns to/from JSON, but also can write the metadata columns for {@link
  * SupportsWritingMetadata}.
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 @JsonTypeName("WritingMetadata")
 public final class WritingMetadataSpec implements SinkAbilitySpec {
     public static final String FIELD_NAME_METADATA_KEYS = "metadataKeys";

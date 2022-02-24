@@ -22,8 +22,11 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.dispatcher.cleanup.CleanupRunnerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.DispatcherResourceCleanerFactory;
 import org.apache.flink.runtime.dispatcher.cleanup.ResourceCleanerFactory;
+import org.apache.flink.runtime.dispatcher.cleanup.TestingCleanupRunnerFactory;
+import org.apache.flink.runtime.dispatcher.cleanup.TestingRetryStrategies;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultStore;
@@ -98,6 +101,7 @@ class TestingDispatcher extends Dispatcher {
             HistoryServerArchivist historyServerArchivist,
             ExecutionGraphInfoStore executionGraphInfoStore,
             JobManagerRunnerFactory jobManagerRunnerFactory,
+            CleanupRunnerFactory cleanupRunnerFactory,
             DispatcherBootstrapFactory dispatcherBootstrapFactory,
             DispatcherOperationCaches dispatcherOperationCaches,
             JobManagerRunnerRegistry jobManagerRunnerRegistry,
@@ -124,6 +128,7 @@ class TestingDispatcher extends Dispatcher {
                         jobGraphWriter,
                         jobResultStore,
                         jobManagerRunnerFactory,
+                        cleanupRunnerFactory,
                         ioExecutor),
                 jobManagerRunnerRegistry,
                 resourceCleanerFactory);
@@ -175,7 +180,7 @@ class TestingDispatcher extends Dispatcher {
         private RpcService rpcService = new TestingRpcService();
         private DispatcherId fencingToken = DispatcherId.generate();
         private Collection<JobGraph> recoveredJobs = Collections.emptyList();
-        private Collection<JobResult> recoveredDirtyJobs = Collections.emptyList();
+        @Nullable private Collection<JobResult> recoveredDirtyJobs = null;
         private HighAvailabilityServices highAvailabilityServices =
                 new TestingHighAvailabilityServices();
 
@@ -202,7 +207,8 @@ class TestingDispatcher extends Dispatcher {
         private ExecutionGraphInfoStore executionGraphInfoStore =
                 new MemoryExecutionGraphInfoStore();
         private JobManagerRunnerFactory jobManagerRunnerFactory =
-                new TestingJobManagerRunnerFactory(0);
+                new TestingJobMasterServiceLeadershipRunnerFactory();
+        private CleanupRunnerFactory cleanupRunnerFactory = new TestingCleanupRunnerFactory();
         private DispatcherBootstrapFactory dispatcherBootstrapFactory =
                 (dispatcher, scheduledExecutor, errorHandler) -> new NoOpDispatcherBootstrap();
         private DispatcherOperationCaches dispatcherOperationCaches =
@@ -226,7 +232,7 @@ class TestingDispatcher extends Dispatcher {
             return this;
         }
 
-        public Builder setRecoveredDirtyJobs(Collection<JobResult> recoveredDirtyJobs) {
+        public Builder setRecoveredDirtyJobs(@Nullable Collection<JobResult> recoveredDirtyJobs) {
             this.recoveredDirtyJobs = recoveredDirtyJobs;
             return this;
         }
@@ -309,6 +315,11 @@ class TestingDispatcher extends Dispatcher {
             return this;
         }
 
+        public Builder setCleanupRunnerFactory(CleanupRunnerFactory cleanupRunnerFactory) {
+            this.cleanupRunnerFactory = cleanupRunnerFactory;
+            return this;
+        }
+
         public Builder setDispatcherBootstrapFactory(
                 DispatcherBootstrapFactory dispatcherBootstrapFactory) {
             this.dispatcherBootstrapFactory = dispatcherBootstrapFactory;
@@ -335,6 +346,7 @@ class TestingDispatcher extends Dispatcher {
         private ResourceCleanerFactory createDefaultResourceCleanerFactory() {
             return new DispatcherResourceCleanerFactory(
                     ioExecutor,
+                    TestingRetryStrategies.NO_RETRY_STRATEGY,
                     jobManagerRunnerRegistry,
                     jobGraphWriter,
                     blobServer,
@@ -347,7 +359,9 @@ class TestingDispatcher extends Dispatcher {
                     rpcService,
                     fencingToken,
                     recoveredJobs,
-                    recoveredDirtyJobs,
+                    recoveredDirtyJobs == null
+                            ? jobResultStore.getDirtyResults()
+                            : recoveredDirtyJobs,
                     configuration,
                     highAvailabilityServices,
                     resourceManagerGatewayRetriever,
@@ -364,6 +378,7 @@ class TestingDispatcher extends Dispatcher {
                     historyServerArchivist,
                     executionGraphInfoStore,
                     jobManagerRunnerFactory,
+                    cleanupRunnerFactory,
                     dispatcherBootstrapFactory,
                     dispatcherOperationCaches,
                     jobManagerRunnerRegistry,

@@ -17,6 +17,7 @@
 
 package org.apache.flink.test.streaming.runtime;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.configuration.Configuration;
@@ -35,8 +36,7 @@ import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.util.TestLogger;
 
-import org.junit.After;
-import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 
@@ -55,29 +55,16 @@ import static org.hamcrest.Matchers.hasSize;
 public class SinkMetricsITCase extends TestLogger {
     private static final int DEFAULT_PARALLELISM = 4;
     @Rule public final SharedObjects sharedObjects = SharedObjects.create();
-    private InMemoryReporter reporter;
+    private static final InMemoryReporter reporter = InMemoryReporter.createWithRetainedMetrics();
 
-    private MiniClusterWithClientResource miniClusterResource;
-
-    @Before
-    public void setup() throws Exception {
-        reporter = InMemoryReporter.createWithRetainedMetrics();
-        Configuration configuration = new Configuration();
-        reporter.addToConfiguration(configuration);
-        miniClusterResource =
-                new MiniClusterWithClientResource(
-                        new MiniClusterResourceConfiguration.Builder()
-                                .setNumberTaskManagers(1)
-                                .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
-                                .setConfiguration(configuration)
-                                .build());
-        miniClusterResource.before();
-    }
-
-    @After
-    public void teardown() {
-        miniClusterResource.after();
-    }
+    @ClassRule
+    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
+            new MiniClusterWithClientResource(
+                    new MiniClusterResourceConfiguration.Builder()
+                            .setNumberTaskManagers(1)
+                            .setNumberSlotsPerTaskManager(DEFAULT_PARALLELISM)
+                            .setConfiguration(reporter.addToConfiguration(new Configuration()))
+                            .build());
 
     @Test
     public void testMetrics() throws Exception {
@@ -112,21 +99,23 @@ public class SinkMetricsITCase extends TestLogger {
                 .sinkTo(TestSink.newBuilder().setWriter(new MetricWriter()).build())
                 .name("MetricTestSink");
         JobClient jobClient = env.executeAsync();
+        final JobID jobId = jobClient.getJobID();
 
         beforeBarrier.get().await();
-        assertSinkMetrics(stopAtRecord1, env.getParallelism(), numSplits);
+        assertSinkMetrics(jobId, stopAtRecord1, env.getParallelism(), numSplits);
         afterBarrier.get().await();
 
         beforeBarrier.get().await();
-        assertSinkMetrics(stopAtRecord2, env.getParallelism(), numSplits);
+        assertSinkMetrics(jobId, stopAtRecord2, env.getParallelism(), numSplits);
         afterBarrier.get().await();
 
         jobClient.getJobExecutionResult().get();
     }
 
     private void assertSinkMetrics(
-            long processedRecordsPerSubtask, int parallelism, int numSplits) {
-        List<OperatorMetricGroup> groups = reporter.findOperatorMetricGroups("MetricTestSink");
+            JobID jobId, long processedRecordsPerSubtask, int parallelism, int numSplits) {
+        List<OperatorMetricGroup> groups =
+                reporter.findOperatorMetricGroups(jobId, "MetricTestSink");
         assertThat(groups, hasSize(parallelism));
 
         int subtaskWithMetrics = 0;

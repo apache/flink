@@ -39,12 +39,8 @@
     "type" : "stream-exec-correlate_1",
     "joinType" : "INNER",
     "functionCall" : {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "func1",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "systemName" : "func1",
       "operands" : [ {
         "kind" : "FIELD_ACCESS",
         "name" : "c",
@@ -54,7 +50,7 @@
           "type" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647), `d` TIMESTAMP(3), `s` VARCHAR(2147483647)> NOT NULL"
         }
       } ],
-      "type" : "ROW<`f0` VARCHAR(2147483647)> NOT NULL"
+      "type" : "ROW<`EXPR$0` VARCHAR(2147483647)> NOT NULL"
     },
     "condition" : null,
     "inputProperties" : [ {
@@ -64,8 +60,8 @@
       "damBehavior" : "PIPELINED",
       "priority" : 0
     } ],
-    "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647), `d` TIMESTAMP(3), `f0` VARCHAR(2147483647)>",
-    "description" : "Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,f0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) d, VARCHAR(2147483647) f0)], joinType=[INNER])"
+    "outputType" : "ROW<`a` BIGINT, `b` INT NOT NULL, `c` VARCHAR(2147483647), `d` TIMESTAMP(3), `EXPR$0` VARCHAR(2147483647)>",
+    "description" : "Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, TIMESTAMP(3) d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])"
   }, {
     "id" : 3,
     "type" : "stream-exec-calc_1",
@@ -87,7 +83,7 @@
       "priority" : 0
     } ],
     "outputType" : "ROW<`c` VARCHAR(2147483647), `s` VARCHAR(2147483647)>",
-    "description" : "Calc(select=[c, f0 AS s])"
+    "description" : "Calc(select=[c, EXPR$0 AS s])"
   }, {
     "id" : 4,
     "type" : "stream-exec-sink_1",

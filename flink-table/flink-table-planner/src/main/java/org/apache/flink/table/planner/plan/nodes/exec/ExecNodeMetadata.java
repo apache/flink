@@ -22,6 +22,7 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -80,11 +81,18 @@ public @interface ExecNodeMetadata {
      *
      * <p>Restore can verify whether the restored ExecNode config map contains only options of the
      * given keys.
+     *
+     * <p>Common options used for all {@link StreamExecNode}s:
+     *
+     * <ul>
+     *   <li>{@link ExecutionConfigOptions#TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED}
+     *   <li>{@link ExecutionConfigOptions#TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
+     * </ul>
      */
     String[] consumedOptions() default {};
 
     /**
-     * Set of operator names that can be part of the resulting {@link Transformation}s.
+     * Set of transformation names that can be part of the resulting {@link Transformation}s.
      *
      * <p>Restore and completeness tests can verify there exists at least one test that adds each
      * operator and that the created {@link Transformation}s contain only operators with {@link
@@ -94,7 +102,7 @@ public @interface ExecNodeMetadata {
      * various parameters (both configuration and ExecNode-specific arguments such as interval size
      * etc.).
      */
-    String[] producedOperators() default {};
+    String[] producedTransformations() default {};
 
     /**
      * Used for plan validation and potentially plan migration.

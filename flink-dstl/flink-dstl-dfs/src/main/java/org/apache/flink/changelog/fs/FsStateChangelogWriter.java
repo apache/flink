@@ -171,15 +171,14 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     }
 
     @Override
-    public SequenceNumber lastAppendedSequenceNumber() {
-        LOG.trace("query {} sqn: {}", logId, activeSequenceNumber);
-        SequenceNumber tmp = activeSequenceNumber;
+    public SequenceNumber nextSequenceNumber() {
         // the returned current sequence number must be able to distinguish between the changes
         // appended before and after this call so we need to use the next sequence number
         // At the same time, we don't want to increment SQN on each append (to avoid too many
         // objects and segments in the resulting file).
         rollover();
-        return tmp;
+        LOG.trace("query {} sqn: {}", logId, activeSequenceNumber);
+        return activeSequenceNumber;
     }
 
     @Override

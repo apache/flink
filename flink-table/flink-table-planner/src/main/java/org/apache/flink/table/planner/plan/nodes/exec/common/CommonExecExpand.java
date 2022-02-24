@@ -47,6 +47,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public abstract class CommonExecExpand extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
+    public static final String EXPAND_TRANSFORMATION = "expand";
+
     public static final String FIELD_NAME_PROJECTS = "projects";
 
     @JsonProperty(FIELD_NAME_PROJECTS)
@@ -90,8 +92,7 @@ public abstract class CommonExecExpand extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationMeta(EXPAND_TRANSFORMATION, planner.getTableConfig()),
                 operatorFactory,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

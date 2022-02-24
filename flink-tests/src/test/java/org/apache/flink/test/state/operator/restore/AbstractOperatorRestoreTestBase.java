@@ -214,6 +214,7 @@ public abstract class AbstractOperatorRestoreTestBase extends TestLogger {
         env.enableCheckpointing(500, CheckpointingMode.EXACTLY_ONCE);
         env.setRestartStrategy(RestartStrategies.noRestart());
         env.setStateBackend((StateBackend) new MemoryStateBackend());
+        env.enableChangelogStateBackend(false);
 
         switch (mode) {
             case MIGRATE:

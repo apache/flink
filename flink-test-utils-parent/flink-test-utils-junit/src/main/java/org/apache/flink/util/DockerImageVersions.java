@@ -22,6 +22,9 @@ package org.apache.flink.util;
  * Utility class for defining the image names and versions of Docker containers used during the Java
  * tests. The names/versions are centralised here in order to make testing version updates easier,
  * as well as to provide a central file to use as a key when caching testing Docker files.
+ *
+ * <p>In order for an image to be cached it must be added to {@code
+ * cache_docker_images.sh#DOCKER_IMAGE_CACHE_PATTERN}.
  */
 public class DockerImageVersions {
 
@@ -37,9 +40,11 @@ public class DockerImageVersions {
 
     public static final String KINESALITE = "instructure/kinesalite:latest";
 
-    public static final String LOCALSTACK = "localstack/localstack:latest";
+    public static final String LOCALSTACK = "localstack/localstack:0.13.3";
 
-    public static final String PULSAR = "apachepulsar/pulsar:2.8.0";
+    public static final String PULSAR = "apachepulsar/pulsar:2.9.1";
 
     public static final String CASSANDRA_3 = "cassandra:3.0";
+
+    public static final String MINIO = "minio/minio:RELEASE.2022-02-07T08-17-33Z";
 }

@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -486,7 +486,7 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
     private ExecNode<?> createMultipleInputNode(
             MultipleInputGroup group, Map<ExecNodeWrapper, ExecNode<?>> visitedMap) {
         // calculate the inputs of the multiple input node
-        List<Tuple2<ExecNode<?>, InputProperty>> inputs = new ArrayList<>();
+        List<Tuple3<ExecNode<?>, InputProperty, ExecEdge>> inputs = new ArrayList<>();
         for (ExecNodeWrapper member : group.members) {
             for (int i = 0; i < member.inputs.size(); i++) {
                 ExecNodeWrapper memberInput = member.inputs.get(i);
@@ -499,7 +499,8 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
 
                 ExecNode<?> inputNode = visitedMap.get(memberInput);
                 InputProperty inputProperty = member.execNode.getInputProperties().get(i);
-                inputs.add(Tuple2.of(inputNode, inputProperty));
+                ExecEdge edge = member.execNode.getInputEdges().get(i);
+                inputs.add(Tuple3.of(inputNode, inputProperty, edge));
             }
         }
 
@@ -511,11 +512,11 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
     }
 
     private StreamExecMultipleInput createStreamMultipleInputNode(
-            MultipleInputGroup group, List<Tuple2<ExecNode<?>, InputProperty>> inputs) {
+            MultipleInputGroup group, List<Tuple3<ExecNode<?>, InputProperty, ExecEdge>> inputs) {
         ExecNode<?> rootNode = group.root.execNode;
         List<ExecNode<?>> inputNodes = new ArrayList<>();
-        for (Tuple2<ExecNode<?>, InputProperty> tuple2 : inputs) {
-            inputNodes.add(tuple2.f0);
+        for (Tuple3<ExecNode<?>, InputProperty, ExecEdge> tuple3 : inputs) {
+            inputNodes.add(tuple3.f0);
         }
 
         String description =
@@ -537,11 +538,11 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
     }
 
     private BatchExecMultipleInput createBatchMultipleInputNode(
-            MultipleInputGroup group, List<Tuple2<ExecNode<?>, InputProperty>> inputs) {
+            MultipleInputGroup group, List<Tuple3<ExecNode<?>, InputProperty, ExecEdge>> inputs) {
         // first calculate the input orders using InputPriorityConflictResolver
         Set<ExecNode<?>> inputSet = new HashSet<>();
-        for (Tuple2<ExecNode<?>, InputProperty> tuple2 : inputs) {
-            inputSet.add(tuple2.f0);
+        for (Tuple3<ExecNode<?>, InputProperty, ExecEdge> tuple3 : inputs) {
+            inputSet.add(tuple3.f0);
         }
         InputOrderCalculator calculator =
                 new InputOrderCalculator(
@@ -552,9 +553,11 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
         ExecNode<?> rootNode = group.root.execNode;
         List<ExecNode<?>> inputNodes = new ArrayList<>();
         List<InputProperty> inputProperties = new ArrayList<>();
-        for (Tuple2<ExecNode<?>, InputProperty> tuple2 : inputs) {
-            ExecNode<?> inputNode = tuple2.f0;
-            InputProperty originalInputEdge = tuple2.f1;
+        List<ExecEdge> originalEdges = new ArrayList<>();
+        for (Tuple3<ExecNode<?>, InputProperty, ExecEdge> tuple3 : inputs) {
+            ExecNode<?> inputNode = tuple3.f0;
+            InputProperty originalInputEdge = tuple3.f1;
+            ExecEdge edge = tuple3.f2;
             inputNodes.add(inputNode);
             inputProperties.add(
                     InputProperty.builder()
@@ -562,12 +565,13 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
                             .damBehavior(originalInputEdge.getDamBehavior())
                             .priority(inputOrderMap.get(inputNode))
                             .build());
+            originalEdges.add(edge);
         }
 
         String description =
                 ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, inputProperties);
         BatchExecMultipleInput multipleInput =
-                new BatchExecMultipleInput(inputProperties, rootNode, description);
+                new BatchExecMultipleInput(inputProperties, rootNode, originalEdges, description);
 
         List<ExecEdge> inputEdges = new ArrayList<>(inputNodes.size());
         for (ExecNode<?> inputNode : inputNodes) {

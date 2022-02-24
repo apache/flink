@@ -34,6 +34,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -75,6 +76,8 @@ public class PythonEnvironmentManagerUtils {
             "import pyflink;"
                     + "import os;"
                     + "print(os.path.join(os.path.abspath(os.path.dirname(pyflink.__file__)), 'bin'))";
+
+    private static final String GET_PYTHON_VERSION = "import sys;print(sys.version)";
 
     /**
      * Installs the 3rd party libraries listed in the user-provided requirements file. An optional
@@ -161,6 +164,12 @@ public class PythonEnvironmentManagerUtils {
             runnerScriptPath = String.join(File.separator, runnerDir, PYFLINK_UDF_RUNNER_SH);
         }
         return runnerScriptPath;
+    }
+
+    public static String getPythonVersion(String pythonExecutable) throws IOException {
+        String[] commands = new String[] {pythonExecutable, "-c", GET_PYTHON_VERSION};
+        String out = execute(commands, new HashMap<>(), false);
+        return out.trim();
     }
 
     private static String getSitePackagesPath(

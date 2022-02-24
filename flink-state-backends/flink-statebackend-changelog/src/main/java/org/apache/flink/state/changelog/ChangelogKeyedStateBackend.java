@@ -189,10 +189,9 @@ public class ChangelogKeyedStateBackend<K>
     @Nullable private SequenceNumber lastUploadedFrom;
     /**
      * {@link SequenceNumber} denoting last upload range <b>end</b>, exclusive. Updated to {@link
-     * org.apache.flink.runtime.state.changelog.StateChangelogWriter#lastAppendedSequenceNumber}
-     * when {@link #snapshot(long, long, CheckpointStreamFactory, CheckpointOptions) starting
-     * snapshot}. Used to notify {@link #stateChangelogWriter} about changelog ranges that were
-     * confirmed or aborted by JM.
+     * StateChangelogWriter#nextSequenceNumber()} when {@link #snapshot(long, long,
+     * CheckpointStreamFactory, CheckpointOptions) starting snapshot}. Used to notify {@link
+     * #stateChangelogWriter} about changelog ranges that were confirmed or aborted by JM.
      */
     @Nullable private SequenceNumber lastUploadedTo;
 
@@ -374,7 +373,7 @@ public class ChangelogKeyedStateBackend<K>
         // have to split it somehow for the former option, so the latter is used.
         lastCheckpointId = checkpointId;
         lastUploadedFrom = changelogSnapshotState.lastMaterializedTo();
-        lastUploadedTo = getLastAppendedTo();
+        lastUploadedTo = stateChangelogWriter.nextSequenceNumber();
 
         LOG.info(
                 "snapshot of {} for checkpoint {}, change range: {}..{}",
@@ -413,12 +412,9 @@ public class ChangelogKeyedStateBackend<K>
                 && changelogStateBackendStateCopy.getMaterializedSnapshot().isEmpty()) {
             return SnapshotResult.empty();
         } else {
-            List<KeyedStateHandle> materializedSnapshot =
-                    changelogStateBackendStateCopy.getMaterializedSnapshot();
-
             return SnapshotResult.of(
                     new ChangelogStateBackendHandleImpl(
-                            materializedSnapshot,
+                            changelogStateBackendStateCopy.getMaterializedSnapshot(),
                             prevDeltaCopy,
                             getKeyGroupRange(),
                             changelogStateBackendStateCopy.materializationID,
@@ -629,7 +625,7 @@ public class ChangelogKeyedStateBackend<K>
      *     SequenceNumber} identifying the latest change in the changelog
      */
     public Optional<MaterializationRunnable> initMaterialization() throws Exception {
-        SequenceNumber upTo = getLastAppendedTo();
+        SequenceNumber upTo = stateChangelogWriter.nextSequenceNumber();
         SequenceNumber lastMaterializedTo = changelogSnapshotState.lastMaterializedTo();
 
         LOG.info(
@@ -675,14 +671,6 @@ public class ChangelogKeyedStateBackend<K>
 
             return Optional.empty();
         }
-    }
-
-    // TODO: Remove after fix FLINK-24436
-    //  FsStateChangelogWriter#lastAppendedSequenceNumber returns different seq number
-    //  the first time called vs called after the first time.
-    private SequenceNumber getLastAppendedTo() {
-        stateChangelogWriter.lastAppendedSequenceNumber();
-        return stateChangelogWriter.lastAppendedSequenceNumber();
     }
 
     /**

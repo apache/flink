@@ -19,7 +19,6 @@
 package org.apache.flink.table.api.bridge.java;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.CompositeType;
@@ -1132,23 +1131,4 @@ public interface StreamTableEnvironment extends TableEnvironment {
      */
     @Deprecated
     <T> DataStream<Tuple2<Boolean, T>> toRetractStream(Table table, TypeInformation<T> typeInfo);
-
-    /**
-     * Triggers the program execution. The environment will execute all parts of the program.
-     *
-     * <p>The program execution will be logged and displayed with the provided name
-     *
-     * <p>It calls the {@link StreamExecutionEnvironment#execute(String)} on the underlying {@link
-     * StreamExecutionEnvironment}. In contrast to the {@link TableEnvironment} this environment
-     * translates queries eagerly.
-     *
-     * @param jobName Desired name of the job
-     * @return The result of the job execution, containing elapsed time and accumulators.
-     * @throws Exception which occurs during job execution.
-     * @deprecated Use {@link StreamExecutionEnvironment#execute(String)} instead or directly call
-     *     the execute methods of the Table API such as {@link #executeSql(String)}.
-     */
-    @Deprecated
-    @Override
-    JobExecutionResult execute(String jobName) throws Exception;
 }

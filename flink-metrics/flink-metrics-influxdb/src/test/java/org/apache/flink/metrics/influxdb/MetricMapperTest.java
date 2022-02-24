@@ -25,29 +25,28 @@ import org.apache.flink.metrics.Meter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
-import org.apache.flink.util.TestLogger;
 
 import org.influxdb.dto.Point;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test for {@link MetricMapper} checking that metrics are converted to InfluxDB client objects as
  * expected.
  */
-public class MetricMapperTest extends TestLogger {
+class MetricMapperTest {
 
     private static final String NAME = "a-metric-name";
     private static final MeasurementInfo INFO = getMeasurementInfo(NAME);
     private static final Instant TIMESTAMP = Instant.now();
 
     @Test
-    public void testMapGauge() {
+    void testMapGauge() {
         verifyPoint(MetricMapper.map(INFO, TIMESTAMP, (Gauge<Number>) () -> 42), "value=42");
 
         verifyPoint(MetricMapper.map(INFO, TIMESTAMP, (Gauge<Number>) () -> null), "value=null");
@@ -59,7 +58,7 @@ public class MetricMapperTest extends TestLogger {
     }
 
     @Test
-    public void testMapCounter() {
+    void testMapCounter() {
         Counter counter = new SimpleCounter();
         counter.inc(42L);
 
@@ -67,7 +66,7 @@ public class MetricMapperTest extends TestLogger {
     }
 
     @Test
-    public void testMapHistogram() {
+    void testMapHistogram() {
         Histogram histogram = new TestHistogram();
 
         verifyPoint(
@@ -86,7 +85,7 @@ public class MetricMapperTest extends TestLogger {
     }
 
     @Test
-    public void testMapMeter() {
+    void testMapMeter() {
         Meter meter = new TestMeter();
 
         verifyPoint(MetricMapper.map(INFO, TIMESTAMP, meter), "count=100", "rate=5.0");
@@ -97,18 +96,19 @@ public class MetricMapperTest extends TestLogger {
         // are as expected.
         // An alternative can be to call lineProtocol() method, which additionally escapes values
         // for InfluxDB format.
-        assertEquals(
-                "Point [name="
-                        + NAME
-                        + ", time="
-                        + TIMESTAMP.toEpochMilli()
-                        + ", tags={tag-1=42, tag-2=green}"
-                        + ", precision=MILLISECONDS"
-                        + ", fields={"
-                        + String.join(", ", expectedFields)
-                        + "}"
-                        + "]",
-                point.toString());
+        assertThat(point.toString())
+                .isEqualTo(
+                        "Point [name="
+                                + NAME
+                                + ", time="
+                                + TIMESTAMP.toEpochMilli()
+                                + ", tags={tag-1=42, tag-2=green}"
+                                + ", precision=MILLISECONDS"
+                                + ", fields={"
+                                + String.join(", ", expectedFields)
+                                + "}"
+                                + "]",
+                        point.toString());
     }
 
     private static MeasurementInfo getMeasurementInfo(String name) {

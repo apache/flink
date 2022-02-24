@@ -19,6 +19,8 @@
 package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.dispatcher.DispatcherServices;
@@ -27,6 +29,8 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.jobmanager.JobGraphWriter;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
+import org.apache.flink.util.concurrent.RetryStrategy;
 
 import java.util.concurrent.Executor;
 
@@ -43,6 +47,8 @@ import java.util.concurrent.Executor;
 public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory {
 
     private final Executor cleanupExecutor;
+    private final RetryStrategy retryStrategy;
+
     private final JobManagerRunnerRegistry jobManagerRunnerRegistry;
     private final JobGraphWriter jobGraphWriter;
     private final BlobServer blobServer;
@@ -54,6 +60,7 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
             DispatcherServices dispatcherServices) {
         this(
                 dispatcherServices.getIoExecutor(),
+                createExponentialRetryStategy(dispatcherServices.getConfiguration()),
                 jobManagerRunnerRegistry,
                 dispatcherServices.getJobGraphWriter(),
                 dispatcherServices.getBlobServer(),
@@ -64,12 +71,14 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
     @VisibleForTesting
     public DispatcherResourceCleanerFactory(
             Executor cleanupExecutor,
+            RetryStrategy retryStrategy,
             JobManagerRunnerRegistry jobManagerRunnerRegistry,
             JobGraphWriter jobGraphWriter,
             BlobServer blobServer,
             HighAvailabilityServices highAvailabilityServices,
             JobManagerMetricGroup jobManagerMetricGroup) {
         this.cleanupExecutor = Preconditions.checkNotNull(cleanupExecutor);
+        this.retryStrategy = retryStrategy;
         this.jobManagerRunnerRegistry = Preconditions.checkNotNull(jobManagerRunnerRegistry);
         this.jobGraphWriter = Preconditions.checkNotNull(jobGraphWriter);
         this.blobServer = Preconditions.checkNotNull(blobServer);
@@ -81,7 +90,7 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
     public ResourceCleaner createLocalResourceCleaner(
             ComponentMainThreadExecutor mainThreadExecutor) {
         return DefaultResourceCleaner.forLocallyCleanableResources(
-                        mainThreadExecutor, cleanupExecutor)
+                        mainThreadExecutor, cleanupExecutor, retryStrategy)
                 .withPrioritizedCleanup(jobManagerRunnerRegistry)
                 .withRegularCleanup(jobGraphWriter)
                 .withRegularCleanup(blobServer)
@@ -92,13 +101,33 @@ public class DispatcherResourceCleanerFactory implements ResourceCleanerFactory 
     @Override
     public ResourceCleaner createGlobalResourceCleaner(
             ComponentMainThreadExecutor mainThreadExecutor) {
-
         return DefaultResourceCleaner.forGloballyCleanableResources(
-                        mainThreadExecutor, cleanupExecutor)
-                .withPrioritizedCleanup(jobManagerRunnerRegistry)
+                        mainThreadExecutor, cleanupExecutor, retryStrategy)
+                .withPrioritizedCleanup(ofLocalResource(jobManagerRunnerRegistry))
                 .withRegularCleanup(jobGraphWriter)
                 .withRegularCleanup(blobServer)
                 .withRegularCleanup(highAvailabilityServices)
+                .withRegularCleanup(ofLocalResource(jobManagerMetricGroup))
                 .build();
+    }
+
+    private static RetryStrategy createExponentialRetryStategy(Configuration config) {
+        return new ExponentialBackoffRetryStrategy(
+                Integer.MAX_VALUE,
+                config.get(JobManagerOptions.JOB_CLEANUP_MINIMUM_DELAY),
+                config.get(JobManagerOptions.JOB_CLEANUP_MAXIMUM_DELAY));
+    }
+
+    /**
+     * A simple wrapper for the resources that don't have any artifacts that can outlive the {@link
+     * org.apache.flink.runtime.dispatcher.Dispatcher}, but we still want to clean up their local
+     * state when we terminate globally.
+     *
+     * @param localResource Local resource that we want to clean during a global cleanup.
+     * @return Globally cleanable resource.
+     */
+    private static GloballyCleanableResource ofLocalResource(
+            LocallyCleanableResource localResource) {
+        return localResource::localCleanupAsync;
     }
 }

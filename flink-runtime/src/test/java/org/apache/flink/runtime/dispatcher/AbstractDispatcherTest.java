@@ -25,6 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
+import org.apache.flink.runtime.dispatcher.cleanup.CheckpointResourcesCleanupRunnerFactory;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
@@ -112,6 +113,7 @@ public class AbstractDispatcherTest extends TestLogger {
                 .setJobGraphWriter(haServices.getJobGraphStore())
                 .setJobResultStore(haServices.getJobResultStore())
                 .setJobManagerRunnerFactory(JobMasterServiceLeadershipRunnerFactory.INSTANCE)
+                .setCleanupRunnerFactory(CheckpointResourcesCleanupRunnerFactory.INSTANCE)
                 .setFatalErrorHandler(testingFatalErrorHandlerResource.getFatalErrorHandler())
                 .setBlobServer(blobServer);
     }

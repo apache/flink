@@ -1295,6 +1295,14 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                             RestoreMode.NO_CLAIM,
                             RestoreMode.CLAIM,
                             RestoreMode.LEGACY));
+        } else if (checkpointOptions.getCheckpointType().isSavepoint()) {
+            SavepointType savepointType = (SavepointType) checkpointOptions.getCheckpointType();
+            if (!stateBackend.supportsSavepointFormat(savepointType.getFormatType())) {
+                throw new IllegalStateException(
+                        String.format(
+                                "Configured state backend (%s) does not support %s savepoints",
+                                stateBackend, savepointType.getFormatType()));
+            }
         }
     }
 
