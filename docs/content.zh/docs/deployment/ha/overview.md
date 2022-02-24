@@ -73,3 +73,17 @@ Flink 提供了两种高可用服务实现：
 为了恢复提交的作业，Flink 持久化元数据和 job 组件。高可用数据将一直保存，直到相应的作业执行成功、被取消或最终失败。当这些情况发生时，将删除所有高可用数据，包括存储在高可用服务中的元数据。
 
 {{< top >}}
+
+## JobResultStore
+
+In order to preserve a job's scheduling status across failover events and prevent erroneous
+re-execution of globally terminated (i.e. finished, cancelled or failed) jobs, Flink persists
+status of terminated jobs to a filesystem using the JobResultStore.
+The JobResultStore allows job results to outlive a finished job, and can be used by
+Flink components involved in the recovery of a highly-available cluster in order to
+determine whether a job should be subject to recovery.
+
+The JobResultStore has sensible defaults for its behaviour, such as result storage
+location, but these can be [configured]({{< ref "docs/deployment/config#high-availability" >}}).
+
+{{< top >}}

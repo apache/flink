@@ -152,7 +152,12 @@ When deploying Flink, there are often multiple options available for each buildi
     </tbody>
 </table>
 
+### Repeatable Resource Cleanup
 
+Once a job has reached a globally terminal state of either finished, failed or cancelled, the
+external component resources associated with the job are then cleaned up. In the event of a
+failure when cleaning up a resource, Flink will attempt to retry the cleanup. You can
+[configure]({{< ref "docs/deployment/config#retryable-cleanup" >}}) the retry strategy used.
 
 ## Deployment Modes
 
