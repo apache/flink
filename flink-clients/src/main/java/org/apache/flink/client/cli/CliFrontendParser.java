@@ -457,13 +457,15 @@ public class CliFrontendParser {
     }
 
     private static Options getStopOptionsWithoutDeprecatedOptions(Options options) {
-        return options.addOption(STOP_WITH_SAVEPOINT_PATH).addOption(STOP_AND_DRAIN);
+        return options.addOption(STOP_WITH_SAVEPOINT_PATH)
+                .addOption(STOP_AND_DRAIN)
+                .addOption(SAVEPOINT_FORMAT_OPTION);
     }
 
     private static Options getSavepointOptionsWithoutDeprecatedOptions(Options options) {
-        options.addOption(SAVEPOINT_DISPOSE_OPTION);
-        options.addOption(JAR_OPTION);
-        return options;
+        return options.addOption(SAVEPOINT_DISPOSE_OPTION)
+                .addOption(SAVEPOINT_FORMAT_OPTION)
+                .addOption(JAR_OPTION);
     }
 
     /** Prints the help for the client. */
