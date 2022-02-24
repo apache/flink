@@ -74,7 +74,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         name = "stream-exec-deduplicate",
         version = 1,
         consumedOptions = {
-            "table.exec.state.ttl",
             "table.exec.mini-batch.enabled",
             "table.exec.mini-batch.size",
             "table.exec.deduplicate.insert-update-after-sensitive-enabled",

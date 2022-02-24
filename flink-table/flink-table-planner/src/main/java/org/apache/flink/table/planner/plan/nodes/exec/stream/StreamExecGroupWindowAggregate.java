@@ -104,7 +104,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
         version = 1,
         consumedOptions = {
             "table.local-time-zone",
-            "table.exec.state.ttl",
             "table.exec.mini-batch.enabled",
             "table.exec.mini-batch.size"
         },
