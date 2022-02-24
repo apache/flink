@@ -51,6 +51,8 @@ public class TestSinkInitContext implements Sink.InitContext {
     private final SinkWriterMetricGroup metricGroup =
             InternalSinkWriterMetricGroup.mock(
                     metricListener.getMetricGroup(), operatorIOMetricGroup);
+    private final MailboxExecutor mailboxExecutor;
+
     StreamTaskActionExecutor streamTaskActionExecutor =
             new StreamTaskActionExecutor() {
                 @Override
@@ -70,6 +72,14 @@ public class TestSinkInitContext implements Sink.InitContext {
                 }
             };
 
+    public TestSinkInitContext() {
+        mailboxExecutor =
+                new MailboxExecutorImpl(
+                        new TaskMailboxImpl(Thread.currentThread()),
+                        Integer.MAX_VALUE,
+                        streamTaskActionExecutor);
+    }
+
     static {
         processingTimeService = new TestProcessingTimeService();
     }
@@ -81,10 +91,7 @@ public class TestSinkInitContext implements Sink.InitContext {
 
     @Override
     public MailboxExecutor getMailboxExecutor() {
-        return new MailboxExecutorImpl(
-                new TaskMailboxImpl(Thread.currentThread()),
-                Integer.MAX_VALUE,
-                streamTaskActionExecutor);
+        return mailboxExecutor;
     }
 
     @Override
