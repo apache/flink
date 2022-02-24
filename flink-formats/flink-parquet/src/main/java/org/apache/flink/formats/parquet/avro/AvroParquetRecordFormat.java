@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.parquet.avro;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.Configuration;
@@ -42,7 +43,17 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** A reader format that reads individual Avro records from a Parquet stream. */
+/**
+ * A reader format that reads individual Avro records from a Parquet stream. This class leverages
+ * {@link ParquetReader} underneath. Developer should make sure the parquet files can be worked with
+ * provided avro schema and take care of any further compatibility issue.
+ *
+ * <p>It is recommended to use the factory class {@link AvroParquetReaders} which is capable to
+ * create {@link AvroParquetRecordFormat AvroParquetRecordFormats} that will work with {@link
+ * GenericRecord GenericRecords}, {@link org.apache.avro.specific.SpecificRecord SpecificRecords},
+ * or {@link org.apache.avro.reflect.ReflectData reflect records}
+ */
+@PublicEvolving
 public class AvroParquetRecordFormat<E> implements StreamFormat<E> {
 
     private static final long serialVersionUID = 1L;
