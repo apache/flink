@@ -20,14 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.operators.Input;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.RequiredDistributionJsonDeserializer;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.RequiredDistributionJsonSerializer;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -82,8 +78,6 @@ public class InputProperty {
      * corresponding input.
      */
     @JsonProperty(FIELD_NAME_REQUIRED_DISTRIBUTION)
-    @JsonSerialize(using = RequiredDistributionJsonSerializer.class)
-    @JsonDeserialize(using = RequiredDistributionJsonDeserializer.class)
     private final RequiredDistribution requiredDistribution;
 
     /** How does the input record trigger the output behavior of the target {@link ExecNode}. */

@@ -72,53 +72,53 @@ import static org.apache.flink.table.planner.typeutils.SymbolUtil.calciteToSeria
  * @see RexNodeJsonDeserializer for the reverse operation
  */
 @Internal
-public class RexNodeJsonSerializer extends StdSerializer<RexNode> {
+final class RexNodeJsonSerializer extends StdSerializer<RexNode> {
     private static final long serialVersionUID = 1L;
 
     // Common fields
-    public static final String FIELD_NAME_KIND = "kind";
-    public static final String FIELD_NAME_VALUE = "value";
-    public static final String FIELD_NAME_TYPE = "type";
-    public static final String FIELD_NAME_NAME = "name";
+    static final String FIELD_NAME_KIND = "kind";
+    static final String FIELD_NAME_VALUE = "value";
+    static final String FIELD_NAME_TYPE = "type";
+    static final String FIELD_NAME_NAME = "name";
 
     // INPUT_REF
-    public static final String KIND_INPUT_REF = "INPUT_REF";
-    public static final String FIELD_NAME_INPUT_INDEX = "inputIndex";
+    static final String KIND_INPUT_REF = "INPUT_REF";
+    static final String FIELD_NAME_INPUT_INDEX = "inputIndex";
 
     // LITERAL
-    public static final String KIND_LITERAL = "LITERAL";
+    static final String KIND_LITERAL = "LITERAL";
     // Sarg fields and values
-    public static final String FIELD_NAME_SARG = "sarg";
-    public static final String FIELD_NAME_RANGES = "ranges";
-    public static final String FIELD_NAME_BOUND_LOWER = "lower";
-    public static final String FIELD_NAME_BOUND_UPPER = "upper";
-    public static final String FIELD_NAME_BOUND_TYPE = "boundType";
-    public static final String FIELD_NAME_CONTAINS_NULL = "containsNull";
+    static final String FIELD_NAME_SARG = "sarg";
+    static final String FIELD_NAME_RANGES = "ranges";
+    static final String FIELD_NAME_BOUND_LOWER = "lower";
+    static final String FIELD_NAME_BOUND_UPPER = "upper";
+    static final String FIELD_NAME_BOUND_TYPE = "boundType";
+    static final String FIELD_NAME_CONTAINS_NULL = "containsNull";
     // Symbol fields
-    public static final String FIELD_NAME_SYMBOL = "symbol";
+    static final String FIELD_NAME_SYMBOL = "symbol";
 
     // FIELD_ACCESS
-    public static final String KIND_FIELD_ACCESS = "FIELD_ACCESS";
-    public static final String FIELD_NAME_EXPR = "expr";
+    static final String KIND_FIELD_ACCESS = "FIELD_ACCESS";
+    static final String FIELD_NAME_EXPR = "expr";
 
     // CORREL_VARIABLE
-    public static final String KIND_CORREL_VARIABLE = "CORREL_VARIABLE";
-    public static final String FIELD_NAME_CORREL = "correl";
+    static final String KIND_CORREL_VARIABLE = "CORREL_VARIABLE";
+    static final String FIELD_NAME_CORREL = "correl";
 
     // PATTERN_INPUT_REF
-    public static final String KIND_PATTERN_INPUT_REF = "PATTERN_INPUT_REF";
-    public static final String FIELD_NAME_ALPHA = "alpha";
+    static final String KIND_PATTERN_INPUT_REF = "PATTERN_INPUT_REF";
+    static final String FIELD_NAME_ALPHA = "alpha";
 
     // CALL
-    public static final String KIND_CALL = "CALL";
-    public static final String FIELD_NAME_OPERANDS = "operands";
-    public static final String FIELD_NAME_INTERNAL_NAME = "internalName";
-    public static final String FIELD_NAME_SYSTEM_NAME = "systemName";
-    public static final String FIELD_NAME_CATALOG_NAME = "catalogName";
-    public static final String FIELD_NAME_SYNTAX = "syntax";
-    public static final String FIELD_NAME_CLASS = "class";
+    static final String KIND_CALL = "CALL";
+    static final String FIELD_NAME_OPERANDS = "operands";
+    static final String FIELD_NAME_INTERNAL_NAME = "internalName";
+    static final String FIELD_NAME_SYSTEM_NAME = "systemName";
+    static final String FIELD_NAME_CATALOG_NAME = "catalogName";
+    static final String FIELD_NAME_SYNTAX = "syntax";
+    static final String FIELD_NAME_CLASS = "class";
 
-    public RexNodeJsonSerializer() {
+    RexNodeJsonSerializer() {
         super(RexNode.class);
     }
 

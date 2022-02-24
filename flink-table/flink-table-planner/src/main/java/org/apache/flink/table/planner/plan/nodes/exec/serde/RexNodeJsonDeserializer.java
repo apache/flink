@@ -110,10 +110,10 @@ import static org.apache.flink.table.planner.typeutils.SymbolUtil.serializableTo
  * @see RexNodeJsonSerializer for the reverse operation
  */
 @Internal
-public class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
+final class RexNodeJsonDeserializer extends StdDeserializer<RexNode> {
     private static final long serialVersionUID = 1L;
 
-    public RexNodeJsonDeserializer() {
+    RexNodeJsonDeserializer() {
         super(RexNode.class);
     }
 

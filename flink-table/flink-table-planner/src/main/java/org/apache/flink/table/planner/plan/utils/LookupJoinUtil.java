@@ -24,8 +24,6 @@ import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.functions.UserDefinedFunction;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonDeserializer;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer;
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.runtime.connector.source.LookupRuntimeProviderContext;
@@ -38,8 +36,6 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonPro
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonSubTypes;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeName;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.rex.RexLiteral;
@@ -77,8 +73,6 @@ public final class LookupJoinUtil {
         public final LogicalType sourceType;
 
         @JsonProperty(FIELD_NAME_LITERAL)
-        @JsonSerialize(using = RexNodeJsonSerializer.class)
-        @JsonDeserialize(using = RexNodeJsonDeserializer.class)
         public final RexLiteral literal;
 
         @JsonCreator

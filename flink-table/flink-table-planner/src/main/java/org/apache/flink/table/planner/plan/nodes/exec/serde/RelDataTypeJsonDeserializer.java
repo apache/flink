@@ -38,10 +38,10 @@ import java.io.IOException;
  * @see RelDataTypeJsonSerializer for the reverse operation
  */
 @Internal
-public class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
+final class RelDataTypeJsonDeserializer extends StdDeserializer<RelDataType> {
     private static final long serialVersionUID = 1L;
 
-    public RelDataTypeJsonDeserializer() {
+    RelDataTypeJsonDeserializer() {
         super(RelDataType.class);
     }
 

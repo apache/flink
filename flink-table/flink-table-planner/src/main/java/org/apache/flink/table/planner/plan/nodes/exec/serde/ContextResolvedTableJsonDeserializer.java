@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation;
 import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanRestore;
@@ -45,10 +46,16 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.ContextResolv
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ContextResolvedTableJsonSerializer.FIELD_NAME_IDENTIFIER;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogTableJsonSerializer.OPTIONS;
 
-class ContextResolvedTableJsonDeserializer extends StdDeserializer<ContextResolvedTable> {
+/**
+ * JSON deserializer for {@link ContextResolvedTable}.
+ *
+ * @see ContextResolvedTableJsonSerializer for the reverse operation
+ */
+@Internal
+final class ContextResolvedTableJsonDeserializer extends StdDeserializer<ContextResolvedTable> {
     private static final long serialVersionUID = 1L;
 
-    public ContextResolvedTableJsonDeserializer() {
+    ContextResolvedTableJsonDeserializer() {
         super(ContextResolvedTable.class);
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
@@ -41,12 +42,14 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexWindowBoun
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexWindowBoundJsonSerializer.KIND_UNBOUNDED_PRECEDING;
 
 /**
- * JSON deserializer for {@link RexWindowBound}. refer to {@link RexWindowBoundJsonSerializer} for
- * serializer.
+ * JSON deserializer for {@link RexWindowBound}.
+ *
+ * @see RexWindowBoundJsonSerializer for the reverse operation
  */
-public class RexWindowBoundJsonDeserializer extends StdDeserializer<RexWindowBound> {
+@Internal
+final class RexWindowBoundJsonDeserializer extends StdDeserializer<RexWindowBound> {
 
-    public RexWindowBoundJsonDeserializer() {
+    RexWindowBoundJsonDeserializer() {
         super(RexWindowBound.class);
     }
 

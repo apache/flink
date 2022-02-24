@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.Column;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -28,20 +29,26 @@ import java.io.IOException;
 
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.serializeOptionalField;
 
-class ColumnJsonSerializer extends StdSerializer<Column> {
+/**
+ * JSON serializer for {@link Column}.
+ *
+ * @see ColumnJsonDeserializer for the reverse operation
+ */
+@Internal
+final class ColumnJsonSerializer extends StdSerializer<Column> {
 
-    public static final String KIND = "kind";
-    public static final String KIND_PHYSICAL = "PHYSICAL";
-    public static final String KIND_COMPUTED = "COMPUTED";
-    public static final String KIND_METADATA = "METADATA";
-    public static final String NAME = "name";
-    public static final String DATA_TYPE = "dataType";
-    public static final String COMMENT = "comment";
-    public static final String EXPRESSION = "expression";
-    public static final String METADATA_KEY = "metadataKey";
-    public static final String IS_VIRTUAL = "isVirtual";
+    static final String KIND = "kind";
+    static final String KIND_PHYSICAL = "PHYSICAL";
+    static final String KIND_COMPUTED = "COMPUTED";
+    static final String KIND_METADATA = "METADATA";
+    static final String NAME = "name";
+    static final String DATA_TYPE = "dataType";
+    static final String COMMENT = "comment";
+    static final String EXPRESSION = "expression";
+    static final String METADATA_KEY = "metadataKey";
+    static final String IS_VIRTUAL = "isVirtual";
 
-    public ColumnJsonSerializer() {
+    ColumnJsonSerializer() {
         super(Column.class);
     }
 

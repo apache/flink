@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
@@ -40,10 +41,16 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatal
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogTableJsonSerializer.PARTITION_KEYS;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedCatalogTableJsonSerializer.RESOLVED_SCHEMA;
 
-class ResolvedCatalogTableJsonDeserializer extends StdDeserializer<ResolvedCatalogTable> {
+/**
+ * JSON deserializer for {@link ResolvedCatalogTable}.
+ *
+ * @see ResolvedCatalogTableJsonSerializer for the reverse operation
+ */
+@Internal
+final class ResolvedCatalogTableJsonDeserializer extends StdDeserializer<ResolvedCatalogTable> {
     private static final long serialVersionUID = 1L;
 
-    public ResolvedCatalogTableJsonDeserializer() {
+    ResolvedCatalogTableJsonDeserializer() {
         super(ResolvedCatalogTable.class);
     }
 

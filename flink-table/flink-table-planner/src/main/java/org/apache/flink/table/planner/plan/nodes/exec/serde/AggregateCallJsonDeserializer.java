@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
+
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonParser;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DeserializationContext;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -41,13 +43,15 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.AggregateCall
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.AggregateCallJsonSerializer.FIELD_NAME_TYPE;
 
 /**
- * JSON deserializer for {@link AggregateCall}. refer to {@link AggregateCallJsonSerializer} for
- * serializer.
+ * JSON deserializer for {@link AggregateCall}.
+ *
+ * @see AggregateCallJsonSerializer for the reverse operation
  */
-public class AggregateCallJsonDeserializer extends StdDeserializer<AggregateCall> {
+@Internal
+final class AggregateCallJsonDeserializer extends StdDeserializer<AggregateCall> {
     private static final long serialVersionUID = 1L;
 
-    public AggregateCallJsonDeserializer() {
+    AggregateCallJsonDeserializer() {
         super(AggregateCall.class);
     }
 
