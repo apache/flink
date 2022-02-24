@@ -28,8 +28,7 @@ under the License.
 
 	<groupId>org.apache.flink</groupId>
 	<artifactId>flink-parent</artifactId>
-	<version>1.17-SNAPSHOT</version>
-
+	<version>1.17.1.0</version>
 	<name>Flink : </name>
 	<packaging>pom</packaging>
 	<url>https://flink.apache.org</url>
@@ -107,10 +106,7 @@ under the License.
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<!-- TODO: -->
-		<hadoop.version>3.2.0</hadoop.version>
-		<flink.hadoop.version>2.10.2</flink.hadoop.version>
-		<!-- TODO: -->
+		<flink.hadoop.version>3.2.0</flink.hadoop.version>
 		<flink.XmxMax>3072m</flink.XmxMax>
 		<!-- XmxMax / forkCountITCase -->
 		<flink.XmxITCase>1536m</flink.XmxITCase>
