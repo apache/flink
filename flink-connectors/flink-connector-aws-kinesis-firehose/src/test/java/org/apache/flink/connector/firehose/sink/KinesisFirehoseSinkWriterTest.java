@@ -20,20 +20,22 @@ package org.apache.flink.connector.firehose.sink;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
-import org.apache.flink.connector.aws.testutils.AWSServicesTestUtils;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.connector.base.sink.writer.TestSinkInitContext;
 
 import org.junit.Before;
 import org.junit.Test;
 import software.amazon.awssdk.core.SdkBytes;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.services.firehose.model.Record;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
+import java.util.concurrent.CompletionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /** Covers construction, defaults and sanity checking of {@link KinesisFirehoseSinkWriter}. */
 public class KinesisFirehoseSinkWriterTest {
@@ -72,7 +74,7 @@ public class KinesisFirehoseSinkWriterTest {
                 .isEqualTo(testString.getBytes(StandardCharsets.US_ASCII).length);
     }
 
-    @Test(expected = KinesisFirehoseException.KinesisFirehoseFailFastException.class)
+    @Test
     public void getNumRecordsOutErrorsCounterRecordsCorrectNumberOfFailures()
             throws IOException, InterruptedException {
         TestSinkInitContext ctx = new TestSinkInitContext();
@@ -93,8 +95,11 @@ public class KinesisFirehoseSinkWriterTest {
         for (int i = 0; i < 12; i++) {
             writer.write("data_bytes", null);
         }
-        writer.flush(true);
-
+        assertThatExceptionOfType(CompletionException.class)
+                .isThrownBy(() -> writer.flush(true))
+                .withCauseInstanceOf(SdkClientException.class)
+                .withMessageContaining(
+                        "Unable to execute HTTP request: Connection refused: localhost/127.0.0.1:443");
         assertThat(ctx.metricGroup().getNumRecordsOutErrorsCounter().getCount()).isEqualTo(12);
     }
 }

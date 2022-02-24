@@ -344,10 +344,6 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * </ul>
      */
     private void nonBlockingFlush() throws InterruptedException {
-        boolean uncompletedInFlightResponses = true;
-        while (uncompletedInFlightResponses) {
-            uncompletedInFlightResponses = mailboxExecutor.tryYield();
-        }
         while (!isInFlightRequestOrMessageLimitExceeded()
                 && (bufferedRequestEntries.size() >= getNextBatchSizeLimit()
                         || bufferedRequestEntriesTotalSizeInBytes >= maxBatchSizeInBytes)) {
@@ -434,7 +430,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
      * @param failedRequestEntries requestEntries that need to be retried
      */
     private void completeRequest(
-            List<RequestEntryT> failedRequestEntries, int batchSize, long requestStartTime) {
+            List<RequestEntryT> failedRequestEntries, int batchSize, long requestStartTime)
+            throws InterruptedException {
         lastSendTimestamp = requestStartTime;
         ackTime = System.currentTimeMillis();
 
@@ -448,6 +445,7 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         while (iterator.hasPrevious()) {
             addEntryToBuffer(iterator.previous(), true);
         }
+        nonBlockingFlush();
     }
 
     private void updateInFlightMessagesLimit(boolean isSuccessfulRequest) {
@@ -493,10 +491,16 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     @Override
     public void flush(boolean flush) throws InterruptedException {
         while (inFlightRequestsCount > 0 || (bufferedRequestEntries.size() > 0 && flush)) {
-            mailboxExecutor.tryYield();
+            yieldIfThereExistsInFlightRequests();
             if (flush) {
                 flush();
             }
+        }
+    }
+
+    private void yieldIfThereExistsInFlightRequests() throws InterruptedException {
+        if (inFlightRequestsCount > 0) {
+            mailboxExecutor.yield();
         }
     }
 

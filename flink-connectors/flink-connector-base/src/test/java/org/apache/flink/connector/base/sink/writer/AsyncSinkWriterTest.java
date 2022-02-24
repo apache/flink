@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.base.sink.writer;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 
@@ -556,26 +557,29 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void prepareCommitFlushesInflightElementsIfFlushIsSetToFalse() throws Exception {
+    public void prepareCommitFlushesInflightElementsAndDoesNotFlushIfFlushIsSetToFalse()
+            throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
-                        .maxBatchSize(4)
+                        .maxBatchSize(8)
                         .maxBufferedRequests(10)
                         .simulateFailures(true)
                         .build();
         sink.write(String.valueOf(225)); // buffer: [225]
         sink.write(String.valueOf(0)); // buffer: [225, 0]
         sink.write(String.valueOf(1)); // buffer: [225, 0, 1]
-        sink.write(String.valueOf(2)); // buffer: [225, 0, 1, 2] // flushing next round
-        sink.write(String.valueOf(3)); // flushing, request is [225, 0, 1, 2], [225] fails
-        sink.write(String.valueOf(4)); // buffer: [225, 3, 4]
+        sink.write(String.valueOf(2)); // buffer: [2], inflight: [225], destination: [0, 1]
 
-        assertEquals(4, res.size());
-        sink.flush(false); // inflight should be added to  buffer still [225, 2]
-        assertEquals(4, res.size());
-        sink.flush(true); // buffer now flushed []
-        assertEquals(Arrays.asList(0, 1, 225, 2, 3, 4), res);
+        assertEquals(Arrays.asList(0, 1), res);
+        assertThatBufferStatesAreEqual(sink.wrapRequests(2), getWriterState(sink));
+
+        sink.flush(false); // buffer: [225, 2], inflight: [], destination: [0, 1]
+        assertEquals(Arrays.asList(0, 1), res);
+        assertThatBufferStatesAreEqual(sink.wrapRequests(225, 2), getWriterState(sink));
+
+        sink.flush(true); // buffer: [], inflight: [], destination: [0, 1, 225, 2]
+        assertEquals(Arrays.asList(0, 1, 225, 2), res);
     }
 
     @Test
@@ -851,7 +855,7 @@ public class AsyncSinkWriterTest {
         es.submit(
                 () -> {
                     try {
-                        sink.write("3");
+                        sink.writeAsNonMailboxThread("3");
                     } catch (IOException | InterruptedException e) {
                         e.printStackTrace();
                     }
@@ -867,6 +871,17 @@ public class AsyncSinkWriterTest {
                 "Executor Service stuck at termination, not terminated after 500ms!");
     }
 
+    /**
+     * A thread separate to the main thread is used to write 3 records to the destination and is
+     * blocked using the latch mechanism just before it writes to the destination, simulating a
+     * long-running in flight request.
+     *
+     * <p>Another thread separate to the main thread is then created and instructed to flush. The
+     * idea is to assert that this action is blocking because there is an in flight request it must
+     * wait to complete. Since the maximum number of inflight requests allowed is 1, we desire a
+     * blocking behaviour here. If the blocking behaviour is not achieved, then the test will
+     * immediately fail.
+     */
     @Test
     public void ifTheNumberOfUncompletedInFlightRequestsIsTooManyThenBlockInFlushMethod()
             throws Exception {
@@ -884,16 +899,33 @@ public class AsyncSinkWriterTest {
                 new Thread(
                         () -> {
                             try {
-                                sink.write("1");
-                                sink.write("2");
-                                sink.write("3");
+                                sink.writeAsNonMailboxThread("1");
+                                sink.writeAsNonMailboxThread("2");
+                                sink.writeAsNonMailboxThread("3");
                             } catch (IOException | InterruptedException e) {
                                 e.printStackTrace();
+                                fail(
+                                        "Auxiliary thread encountered an exception when writing to the sink",
+                                        e);
                             }
                         });
         t.start();
 
         delayedStartLatch.await();
+        Thread s =
+                new Thread(
+                        () -> {
+                            try {
+                                sink.flush(true);
+                                fail(
+                                        "Sink did not block successfully and reached here when it shouldn't have.");
+                            } catch (InterruptedException ignored) {
+
+                            }
+                        });
+        Thread.sleep(300);
+        assertFalse(s.isInterrupted());
+        s.interrupt();
         blockedWriteLatch.countDown();
 
         t.join();
@@ -964,6 +996,19 @@ public class AsyncSinkWriterTest {
         }
 
         public void write(String val) throws IOException, InterruptedException {
+            yieldMailbox(sinkInitContext.getMailboxExecutor());
+            yieldMailbox(sinkInitContextAnyThreadMailbox.getMailboxExecutor());
+            write(val, null);
+        }
+
+        public void yieldMailbox(MailboxExecutor mailbox) {
+            boolean canYield = true;
+            while (canYield) {
+                canYield = mailbox.tryYield();
+            }
+        }
+
+        public void writeAsNonMailboxThread(String val) throws IOException, InterruptedException {
             write(val, null);
         }
 
