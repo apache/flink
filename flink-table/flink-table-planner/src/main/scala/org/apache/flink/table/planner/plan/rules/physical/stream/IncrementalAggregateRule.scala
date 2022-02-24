@@ -53,10 +53,10 @@ class IncrementalAggregateRule
     val finalLocalAgg: StreamPhysicalLocalGroupAggregate = call.rel(2)
     val partialGlobalAgg: StreamPhysicalGlobalGroupAggregate = call.rel(3)
 
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
 
     // whether incremental aggregate is enabled
-    val incrementalAggEnabled = tableConfig.getConfiguration.getBoolean(
+    val incrementalAggEnabled = plannerConfig.get(
       IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED)
 
     partialGlobalAgg.partialFinalType == PartialFinalType.PARTIAL &&

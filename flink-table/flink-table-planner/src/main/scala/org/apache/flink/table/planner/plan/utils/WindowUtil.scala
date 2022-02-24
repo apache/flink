@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, ValidationException}
+import org.apache.flink.table.api.{DataTypes, TableException, ValidationException}
 import org.apache.flink.table.planner.JBigDecimal
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.functions.sql.{FlinkSqlOperatorTable, SqlWindowTableFunction}
@@ -28,11 +28,13 @@ import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.inferAggAccumulatorNames
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy.{TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, TABLE_EXEC_EMIT_LATE_FIRE_ENABLED}
 import org.apache.flink.table.planner.typeutils.RowTypeUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.TimestampType
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.canBeTimeAttributeType
 
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, Calc}
 import org.apache.calcite.rex._
@@ -253,10 +255,10 @@ object WindowUtil {
    * Window TVF based aggregations don't support early-fire and late-fire,
    * throws exception when the configurations are set.
    */
-  def checkEmitConfiguration(tableConfig: TableConfig): Unit = {
-    val conf = tableConfig.getConfiguration
-    if (conf.getBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED) ||
-      conf.getBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)) {
+  def checkEmitConfiguration(relNode: RelNode): Unit = {
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(relNode)
+    if (plannerConfig.get(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED) ||
+      plannerConfig.get(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)) {
       throw new TableException("Currently, window table function based aggregate doesn't " +
         s"support early-fire and late-fire configuration " +
         s"'${TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED.key()}' and " +

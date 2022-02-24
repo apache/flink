@@ -25,15 +25,16 @@ import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.WindowBounds
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.schema.TimeIndicatorRelDataType
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.RelOptUtil
-import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.fun.SqlStdOperatorTable
-import org.apache.calcite.sql.validate.SqlValidatorUtil
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rex._
 import org.apache.calcite.sql.SqlKind
+import org.apache.calcite.sql.`type`.SqlTypeName
+import org.apache.calcite.sql.fun.SqlStdOperatorTable
+import org.apache.calcite.sql.validate.SqlValidatorUtil
 
 import java.util
 
@@ -62,7 +63,7 @@ object IntervalJoinUtil {
     * @param  leftLogicalFieldCnt number of attributes on the left join input
     * @param  joinRowType         row type of the join result
     * @param  rexBuilder          RexBuilder
-    * @param  config              TableConfig
+    * @param  tableConfig         TableConfig
     * @return A Tuple2 of extracted window bounds and remaining predicates.
     */
   private[flink] def extractWindowBoundsFromPredicate(
@@ -468,7 +469,7 @@ object IntervalJoinUtil {
       join.getCluster.getTypeFactory,
       null,
       join.getSystemFieldList)
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
+    val tableConfig = ShortcutUtils.unwrapTableConfig(join)
     val (windowBounds, _) = extractWindowBoundsFromPredicate(
       join.getCondition,
       newLeft.getRowType.getFieldCount,
@@ -479,7 +480,7 @@ object IntervalJoinUtil {
   }
 
   def extractWindowBounds(join: FlinkLogicalJoin): (Option[WindowBounds], Option[RexNode]) = {
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(join)
+    val tableConfig = ShortcutUtils.unwrapTableConfig(join)
     extractWindowBoundsFromPredicate(
       join.getCondition,
       join.getLeft.getRowType.getFieldCount,

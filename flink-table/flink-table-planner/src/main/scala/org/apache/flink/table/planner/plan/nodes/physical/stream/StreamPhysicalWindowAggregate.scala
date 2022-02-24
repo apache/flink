@@ -101,7 +101,7 @@ class StreamPhysicalWindowAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    checkEmitConfiguration(FlinkRelOptUtil.getTableConfigFromContext(this))
+    checkEmitConfiguration(this)
     new StreamExecWindowAggregate(
       grouping,
       aggCalls.toArray,

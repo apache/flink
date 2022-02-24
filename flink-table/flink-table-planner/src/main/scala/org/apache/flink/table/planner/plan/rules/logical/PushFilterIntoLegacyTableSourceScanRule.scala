@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.rules.logical
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.expressions.Expression
-import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, LegacyTableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -49,9 +48,9 @@ class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
   "PushFilterIntoLegacyTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val config = ShortcutUtils.unwrapPlannerConfig(call)
-    if (!config.get(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED)) {
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
+    if (!plannerConfig
+      .get(OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED)) {
       return false
     }
 
@@ -85,7 +84,7 @@ class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
       relOptTable: FlinkPreparingTableBase): Unit = {
 
     val relBuilder = call.builder()
-    val context = call.getPlanner.getContext.unwrap(classOf[FlinkContext])
+    val context = ShortcutUtils.unwrapContext(call)
     val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan)
     val (predicates, unconvertedRexNodes) =
       RexNodeExtractor.extractConjunctiveConditions(

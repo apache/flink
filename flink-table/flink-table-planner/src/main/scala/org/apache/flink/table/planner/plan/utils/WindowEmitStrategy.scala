@@ -141,16 +141,16 @@ class WindowEmitStrategy(
 }
 
 object WindowEmitStrategy {
-  def apply(config: ReadableConfig, window: LogicalWindow): WindowEmitStrategy = {
+  def apply(plannerConfig: ReadableConfig, window: LogicalWindow): WindowEmitStrategy = {
     val isEventTime = isRowtimeAttribute(window.timeAttribute)
     val isSessionWindow = window.isInstanceOf[SessionGroupWindow]
 
-    val allowLateness = parseAllowLateness(isSessionWindow, config)
-    val enableEarlyFireDelay = config.get(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED)
-    val earlyFireDelay: Duration = config.getOptional(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY)
+    val allowLateness = parseAllowLateness(isSessionWindow, plannerConfig)
+    val enableEarlyFireDelay = plannerConfig.get(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED)
+    val earlyFireDelay: Duration = plannerConfig.getOptional(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY)
       .orElse(null)
-    val enableLateFireDelay = config.get(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
-    val lateFireDelay: Duration = config.getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
+    val enableLateFireDelay = plannerConfig.get(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
+    val lateFireDelay: Duration = plannerConfig.getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
       .orElse(null)
       new WindowEmitStrategy(
       isEventTime,
@@ -164,9 +164,9 @@ object WindowEmitStrategy {
 
   private def parseAllowLateness(
       isSessionWindow: Boolean,
-      config: ReadableConfig): Long = {
-    val enableLateFireDelay = config.get(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
-    val emitAllowLateness: Duration = config.getOptional(TABLE_EXEC_EMIT_ALLOW_LATENESS)
+      plannerConfig: ReadableConfig): Long = {
+    val enableLateFireDelay = plannerConfig.get(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
+    val emitAllowLateness: Duration = plannerConfig.getOptional(TABLE_EXEC_EMIT_ALLOW_LATENESS)
       .orElse(null)
     if (isSessionWindow) {
       // ignore allow lateness in session window because retraction is not supported
@@ -177,12 +177,12 @@ object WindowEmitStrategy {
     } else if (emitAllowLateness != null) {
       // return emit allow-lateness if it is set
       emitAllowLateness.toMillis
-    } else if (config.get(IDLE_STATE_RETENTION).toMillis < 0) {
+    } else if (plannerConfig.get(IDLE_STATE_RETENTION).toMillis < 0) {
       // min idle state retention time is not set, use 0L as default which means not allow lateness
       0L
     } else {
       // use min idle state retention time as allow lateness
-      config.get(IDLE_STATE_RETENTION).toMillis
+      plannerConfig.get(IDLE_STATE_RETENTION).toMillis
     }
   }
 

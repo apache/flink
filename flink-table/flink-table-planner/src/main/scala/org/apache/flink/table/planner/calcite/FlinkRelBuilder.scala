@@ -18,13 +18,16 @@
 
 package org.apache.flink.table.planner.calcite
 
+import org.apache.flink.table.catalog.ObjectIdentifier
 import org.apache.flink.table.operations.QueryOperation
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.{ExpandFactory, RankFactory}
 import org.apache.flink.table.planner.expressions.WindowProperty
+import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.plan.QueryOperationConverter
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalTableAggregate, LogicalWatermarkAssigner, LogicalWindowAggregate, LogicalWindowTableAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 
@@ -39,8 +42,6 @@ import org.apache.calcite.sql.SqlKind
 import org.apache.calcite.tools.RelBuilder.{AggCall, Config, GroupKey}
 import org.apache.calcite.tools.{RelBuilder, RelBuilderFactory}
 import org.apache.calcite.util.{ImmutableBitSet, Util}
-import org.apache.flink.table.catalog.ObjectIdentifier
-import org.apache.flink.table.planner.hint.FlinkHints
 
 import java.lang.Iterable
 import java.util
@@ -64,7 +65,7 @@ class FlinkRelBuilder(
   require(context != null)
 
   private val toRelNodeConverter = {
-    new QueryOperationConverter(this, context.unwrap(classOf[FlinkContext]).isBatchMode)
+    new QueryOperationConverter(this, ShortcutUtils.unwrapContext(context).isBatchMode)
   }
 
   private val expandFactory: ExpandFactory = {

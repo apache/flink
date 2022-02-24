@@ -64,8 +64,8 @@ class BatchPhysicalHashAggRule
   with BatchPhysicalAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
-    if (isOperatorDisabled(tableConfig, OperatorType.HashAgg)) {
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
+    if (isOperatorDisabled(plannerConfig, OperatorType.HashAgg)) {
       return false
     }
     val agg: FlinkLogicalAggregate = call.rel(0)
@@ -75,7 +75,7 @@ class BatchPhysicalHashAggRule
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
     val agg: FlinkLogicalAggregate = call.rel(0)
     val input: RelNode = call.rel(1)
     val inputRowType = input.getRowType
@@ -94,7 +94,7 @@ class BatchPhysicalHashAggRule
     val aggProvidedTraitSet = agg.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
 
     // create two-phase agg if possible
-    if (isTwoPhaseAggWorkable(aggFunctions, tableConfig)) {
+    if (isTwoPhaseAggWorkable(aggFunctions, plannerConfig)) {
       // create BatchPhysicalLocalHashAggregate
       val localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       val newInput = RelOptRule.convert(input, localRequiredTraitSet)
@@ -150,7 +150,7 @@ class BatchPhysicalHashAggRule
     }
 
     // create one-phase agg if possible
-    if (isOnePhaseAggWorkable(agg, aggFunctions, tableConfig)) {
+    if (isOnePhaseAggWorkable(agg, aggFunctions, plannerConfig)) {
       val requiredDistributions = if (agg.getGroupCount != 0) {
         val distributionFields = groupSet.map(Integer.valueOf).toList
         Seq(

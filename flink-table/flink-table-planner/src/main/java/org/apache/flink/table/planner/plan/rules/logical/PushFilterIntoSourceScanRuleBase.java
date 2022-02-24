@@ -17,7 +17,6 @@
 
 package org.apache.flink.table.planner.plan.rules.logical;
 
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
@@ -57,12 +56,8 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
 
     @Override
     public boolean matches(RelOptRuleCall call) {
-        TableConfig tableConfig =
-                ShortcutUtils.unwrapContext(call.getPlanner()).getPlannerConfig().getTableConfig();
-        return tableConfig
-                .getConfiguration()
-                .getBoolean(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED);
+        return ShortcutUtils.unwrapPlannerConfig(call)
+                .get(OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED);
     }
 
     protected List<RexNode> convertExpressionToRexNode(

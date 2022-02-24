@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.stream;
 
-import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.planner.plan.logical.SliceAttachedWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.logical.WindowAttachedWindowingStrategy;
@@ -81,11 +81,11 @@ public class TwoStageOptimizedWindowAggregateRule extends RelOptRule {
     public boolean matches(RelOptRuleCall call) {
         final StreamPhysicalWindowAggregate windowAgg = call.rel(0);
         final RelNode realInput = call.rel(2);
-        final TableConfig tableConfig = ShortcutUtils.unwrapTableConfig(call);
+        final ReadableConfig config = ShortcutUtils.unwrapPlannerConfig(call);
         final WindowingStrategy windowing = windowAgg.windowing();
 
         // the two-phase optimization must be enabled
-        if (getAggPhaseStrategy(tableConfig) == AggregatePhaseStrategy.ONE_PHASE) {
+        if (getAggPhaseStrategy(config) == AggregatePhaseStrategy.ONE_PHASE) {
             return false;
         }
 

@@ -53,8 +53,8 @@ class BatchPhysicalSortMergeJoinRule
   override def matches(call: RelOptRuleCall): Boolean = {
     val join: Join = call.rel(0)
     val joinInfo = join.analyzeCondition
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
-    val isSortMergeJoinEnabled = !isOperatorDisabled(tableConfig, OperatorType.SortMergeJoin)
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
+    val isSortMergeJoinEnabled = !isOperatorDisabled(plannerConfig, OperatorType.SortMergeJoin)
     !joinInfo.pairs().isEmpty && isSortMergeJoinEnabled
   }
 
@@ -108,8 +108,8 @@ class BatchPhysicalSortMergeJoinRule
       call.transformTo(newJoin)
     }
 
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
-    val candidates = if (tableConfig.getConfiguration.getBoolean(
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
+    val candidates = if (plannerConfig.get(
       BatchPhysicalSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
       // add more possibility to remove redundant sort, and longer optimization time
       Array((false, false), (true, false), (false, true), (true, true))
@@ -127,7 +127,7 @@ class BatchPhysicalSortMergeJoinRule
     }
 
     // add more possibility to only shuffle by partial joinKeys, now only single one
-    val isShuffleByPartialKeyEnabled = tableConfig.getConfiguration.getBoolean(
+    val isShuffleByPartialKeyEnabled = plannerConfig.get(
       BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
     if (isShuffleByPartialKeyEnabled && joinInfo.pairs().length > 1) {
       joinInfo.pairs().foreach { pair =>

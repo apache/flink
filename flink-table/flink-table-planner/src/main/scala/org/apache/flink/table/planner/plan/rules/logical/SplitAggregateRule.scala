@@ -125,10 +125,10 @@ class SplitAggregateRule extends RelOptRule(
   "SplitAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
     val agg: FlinkLogicalAggregate = call.rel(0)
 
-    val splitDistinctAggEnabled = tableConfig.getConfiguration.getBoolean(
+    val splitDistinctAggEnabled = plannerConfig.get(
       OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED)
     val isAllAggSplittable = doAllAggSupportSplit(agg.getAggCallList)
 
@@ -146,7 +146,7 @@ class SplitAggregateRule extends RelOptRule(
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
     val originalAggregate: FlinkLogicalAggregate = call.rel(0)
     val aggCalls = originalAggregate.getAggCallList
     val input: FlinkRelNode = call.rel(1)
@@ -165,8 +165,8 @@ class SplitAggregateRule extends RelOptRule(
     }.distinct.diff(aggGroupSet).sorted.toArray
 
     val hashFieldsMap: util.Map[Int, Int] = new util.HashMap()
-    val buckets = tableConfig.getConfiguration.getInteger(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM)
+    val buckets = plannerConfig
+      .get(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM)
 
     if (hashFieldIndexes.nonEmpty) {
       val projects = new util.ArrayList[RexNode](relBuilder.fields)

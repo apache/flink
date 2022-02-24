@@ -58,7 +58,7 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
   "TwoStageOptimizedAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
     val agg: StreamPhysicalGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
 
@@ -76,9 +76,8 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
       needRetraction,
       isStateBackendDataViews = true)
 
-    val isMiniBatchEnabled = tableConfig.getConfiguration.getBoolean(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
-    val isTwoPhaseEnabled = getAggPhaseStrategy(tableConfig) != AggregatePhaseStrategy.ONE_PHASE
+    val isMiniBatchEnabled = plannerConfig.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
+    val isTwoPhaseEnabled = getAggPhaseStrategy(plannerConfig) != AggregatePhaseStrategy.ONE_PHASE
 
     isMiniBatchEnabled && isTwoPhaseEnabled &&
       AggregateUtil.doAllSupportPartialMerge(aggInfoList.aggInfos) &&

@@ -49,8 +49,7 @@ class OverAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(m
   override def before(): Unit = {
     super.before()
     val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
-    val config = new TestTableConfig
-    this.tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
+    this.tEnv = StreamTableEnvironmentImpl.create(env, setting, new TestTableConfig)
   }
 
   @Test

@@ -29,7 +29,6 @@ import org.apache.flink.table.planner.plan.utils.{DefaultRelShuttle, ExpandTable
 import org.apache.flink.util.Preconditions
 
 import com.google.common.collect.Sets
-
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.{Aggregate, Project, Snapshot, TableFunctionScan, Union}
 import org.apache.calcite.rex.RexNode
@@ -258,12 +257,12 @@ class RelNodeWrapper(relNode: RelNode) {
 /**
   * Builds [[RelNodeBlock]] plan
   */
-class RelNodeBlockPlanBuilder private(config: ReadableConfig) {
+class RelNodeBlockPlanBuilder private(plannerConfig: ReadableConfig) {
 
   private val node2Wrapper = new util.IdentityHashMap[RelNode, RelNodeWrapper]()
   private val node2Block = new util.IdentityHashMap[RelNode, RelNodeBlock]()
 
-  private val isUnionAllAsBreakPointEnabled = config
+  private val isUnionAllAsBreakPointEnabled = plannerConfig
     .get(RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED)
 
   /**
@@ -415,7 +414,7 @@ object RelNodeBlockPlanBuilder {
     */
   def buildRelNodeBlockPlan(
       sinkNodes: Seq[RelNode],
-      config: ReadableConfig): Seq[RelNodeBlock] = {
+      plannerConfig: ReadableConfig): Seq[RelNodeBlock] = {
     require(sinkNodes.nonEmpty)
 
     // expand QueryOperationCatalogViewTable in TableScan
@@ -426,8 +425,8 @@ object RelNodeBlockPlanBuilder {
       Seq(new RelNodeBlock(convertedRelNodes.head))
     } else {
       // merge multiple RelNode trees to RelNode dag
-      val relNodeDag = reuseRelNodes(convertedRelNodes, config)
-      val builder = new RelNodeBlockPlanBuilder(config)
+      val relNodeDag = reuseRelNodes(convertedRelNodes, plannerConfig)
+      val builder = new RelNodeBlockPlanBuilder(plannerConfig)
       builder.buildRelNodeBlockPlan(relNodeDag)
     }
   }
@@ -438,8 +437,8 @@ object RelNodeBlockPlanBuilder {
     * @param relNodes RelNode trees
     * @return RelNode dag which reuse common subPlan in each tree
     */
-  private def reuseRelNodes(relNodes: Seq[RelNode], config: ReadableConfig): Seq[RelNode] = {
-    val findOpBlockWithDigest = config
+  private def reuseRelNodes(relNodes: Seq[RelNode], plannerConfig: ReadableConfig): Seq[RelNode] = {
+    val findOpBlockWithDigest = plannerConfig
       .get(RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
     if (!findOpBlockWithDigest) {
       return relNodes

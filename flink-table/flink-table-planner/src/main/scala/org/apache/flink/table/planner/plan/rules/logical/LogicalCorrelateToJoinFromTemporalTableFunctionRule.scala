@@ -29,7 +29,7 @@ import org.apache.flink.table.planner.plan.utils.TemporalJoinUtil.{makeProcTimeT
 import org.apache.flink.table.planner.plan.utils.{ExpandTableScanShuttle, RexDefaultVisitor}
 import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, TIMESTAMP_WITH_LOCAL_TIME_ZONE}
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{isProctimeAttribute}
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isProctimeAttribute
 import org.apache.flink.util.Preconditions.checkState
 
 import org.apache.calcite.plan.RelOptRule.{any, none, operand, some}
@@ -97,7 +97,7 @@ class LogicalCorrelateToJoinFromTemporalTableFunctionRule
           .getUnderlyingHistoryTable
         val rexBuilder = cluster.getRexBuilder
 
-        val flinkContext = ShortcutUtils.unwrapContext(call.getPlanner)
+        val flinkContext = ShortcutUtils.unwrapContext(call)
           .asInstanceOf[FlinkOptimizeContext]
         val relBuilder = flinkContext.getFlinkRelBuilder
 

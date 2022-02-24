@@ -53,8 +53,7 @@ class BatchPhysicalSortRule extends ConverterRule(
     val sort: FlinkLogicalSort = rel.asInstanceOf[FlinkLogicalSort]
     val input = sort.getInput
     val plannerConfig = ShortcutUtils.unwrapPlannerConfig(sort)
-    val enableRangeSort = plannerConfig.get(
-      BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED)
+    val enableRangeSort = plannerConfig.get(BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED)
     val distribution = if (enableRangeSort) {
       FlinkRelDistribution.range(sort.getCollation.getFieldCollations)
     } else {

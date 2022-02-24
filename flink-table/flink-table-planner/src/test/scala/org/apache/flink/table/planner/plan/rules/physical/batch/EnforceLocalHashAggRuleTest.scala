@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.CalciteConfig
@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 
 import org.apache.calcite.rel.core.Aggregate
 import org.apache.calcite.tools.RuleSets
+
 import org.junit.Before
 
 
@@ -66,10 +67,10 @@ class EnforceLocalHashAggRuleTest extends EnforceLocalAggRuleTestBase {
  */
 class BatchPhysicalHashAggRuleForOnePhase extends BatchPhysicalHashAggRule {
   override protected def isTwoPhaseAggWorkable(
-      aggFunctions: Array[UserDefinedFunction], tableConfig: TableConfig): Boolean = false
+      aggFunctions: Array[UserDefinedFunction], plannerConfig: ReadableConfig): Boolean = false
 
   override protected def isOnePhaseAggWorkable(agg: Aggregate,
-      aggFunctions: Array[UserDefinedFunction], tableConfig: TableConfig): Boolean = true
+      aggFunctions: Array[UserDefinedFunction], plannerConfig: ReadableConfig): Boolean = true
 }
 
 object BatchPhysicalHashAggRuleForOnePhase {

@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.connectors;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -229,7 +228,7 @@ public final class DynamicSourceUtils {
     public static boolean isSourceChangeEventsDuplicate(
             ResolvedSchema resolvedSchema,
             DynamicTableSource tableSource,
-            TableConfig tableConfig) {
+            ReadableConfig plannerConfig) {
         if (!(tableSource instanceof ScanTableSource)) {
             return false;
         }
@@ -237,9 +236,7 @@ public final class DynamicSourceUtils {
         boolean isCDCSource =
                 !mode.containsOnly(RowKind.INSERT) && !isUpsertSource(resolvedSchema, tableSource);
         boolean changeEventsDuplicate =
-                tableConfig
-                        .getConfiguration()
-                        .getBoolean(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
+                plannerConfig.get(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE);
         boolean hasPrimaryKey = resolvedSchema.getPrimaryKey().isPresent();
         return isCDCSource && changeEventsDuplicate && hasPrimaryKey;
     }

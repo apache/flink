@@ -51,6 +51,7 @@ import org.apache.calcite.rel.logical.LogicalCalc
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
+
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{After, Before, Rule}
@@ -62,7 +63,7 @@ import scala.collection.mutable
 
 abstract class ExpressionTestBase {
 
-  val config = new TableConfig()
+  val tableConfig = TableConfig.getDefault()
 
   // (originalExpr, optimizedExpr, expectedResult)
   private val validExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
@@ -76,7 +77,7 @@ abstract class ExpressionTestBase {
   private val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
   // use impl class instead of interface class to avoid
   // "Static methods in interface require -target:jvm-1.8"
-  private val tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
+  private val tEnv = StreamTableEnvironmentImpl.create(env, setting, tableConfig)
     .asInstanceOf[StreamTableEnvironmentImpl]
   private val resolvedDataType = if (containsLegacyTypes) {
     TypeConversions.fromLegacyInfoToDataType(typeInfo)
@@ -100,7 +101,7 @@ abstract class ExpressionTestBase {
 
   @Before
   def prepare(): Unit = {
-    config.set(
+    tableConfig.getConfiguration.set(
       ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
       ExecutionConfigOptions.LegacyCastBehaviour.DISABLED
     )
@@ -361,7 +362,7 @@ abstract class ExpressionTestBase {
 
   private def getCodeGenFunction(rexNodes: List[RexNode]):
     GeneratedFunction[MapFunction[RowData, BinaryRowData]] = {
-    val ctx = CodeGeneratorContext(config)
+    val ctx = CodeGeneratorContext(tableConfig)
     val inputType = if (containsLegacyTypes) {
       fromTypeInfoToLogicalType(typeInfo)
     } else {

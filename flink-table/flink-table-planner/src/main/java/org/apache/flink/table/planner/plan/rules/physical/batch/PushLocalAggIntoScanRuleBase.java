@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch;
 
-import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.abilities.SupportsAggregatePushDown;
@@ -77,12 +77,9 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
             RelOptRuleCall call,
             BatchPhysicalGroupAggregateBase aggregate,
             BatchPhysicalTableSourceScan tableSourceScan) {
-        TableConfig tableConfig =
-                ShortcutUtils.unwrapContext(call.getPlanner()).getPlannerConfig().getTableConfig();
-        if (!tableConfig
-                .getConfiguration()
-                .getBoolean(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED)) {
+        ReadableConfig plannerConfig = ShortcutUtils.unwrapPlannerConfig(call);
+        if (!plannerConfig.get(
+                OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED)) {
             return false;
         }
 

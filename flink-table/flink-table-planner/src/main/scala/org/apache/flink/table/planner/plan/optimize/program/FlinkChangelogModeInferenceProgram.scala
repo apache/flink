@@ -826,11 +826,11 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      *  contain upsertKeys of the input update stream.
      */
     private def analyzeUpsertMaterializeStrategy(sink: StreamPhysicalSink): Boolean = {
-      val tableConfig = ShortcutUtils.unwrapTableConfig(sink)
+      val plannerConfig = ShortcutUtils.unwrapPlannerConfig(sink)
       val inputChangelogMode = ChangelogPlanUtils.getChangelogMode(
         sink.getInput.asInstanceOf[StreamPhysicalRel]).get
       val primaryKeys = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
-      val upsertMaterialize = tableConfig.getConfiguration.get(
+      val upsertMaterialize = plannerConfig.get(
         ExecutionConfigOptions.TABLE_EXEC_SINK_UPSERT_MATERIALIZE) match {
         case UpsertMaterialize.FORCE => primaryKeys.nonEmpty
         case UpsertMaterialize.NONE => false

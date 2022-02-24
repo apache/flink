@@ -127,8 +127,8 @@ public class StreamPhysicalPythonGroupWindowAggregateRule extends ConverterRule 
         RelTraitSet providedTraitSet =
                 rel.getTraitSet().replace(FlinkConventions.STREAM_PHYSICAL());
         RelNode newInput = RelOptRule.convert(input, requiredTraitSet);
-        ReadableConfig config = ShortcutUtils.unwrapPlannerConfig(rel);
-        WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(config, agg.getWindow());
+        ReadableConfig plannerConfig = ShortcutUtils.unwrapPlannerConfig(rel);
+        WindowEmitStrategy emitStrategy = WindowEmitStrategy.apply(plannerConfig, agg.getWindow());
 
         if (emitStrategy.produceUpdates()) {
             throw new TableException(

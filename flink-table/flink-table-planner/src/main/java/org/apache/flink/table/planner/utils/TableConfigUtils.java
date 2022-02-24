@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
@@ -35,12 +36,12 @@ public class TableConfigUtils {
     /**
      * Returns whether the given operator type is disabled.
      *
-     * @param tableConfig TableConfig object
+     * @param config Configuration
      * @param operatorType operator type to check
      * @return true if the given operator is disabled.
      */
-    public static boolean isOperatorDisabled(TableConfig tableConfig, OperatorType operatorType) {
-        String value = tableConfig.getConfiguration().getString(TABLE_EXEC_DISABLED_OPERATORS);
+    public static boolean isOperatorDisabled(ReadableConfig config, OperatorType operatorType) {
+        String value = config.get(TABLE_EXEC_DISABLED_OPERATORS);
         if (value == null) {
             return false;
         }
@@ -64,12 +65,11 @@ public class TableConfigUtils {
     /**
      * Returns the aggregate phase strategy configuration.
      *
-     * @param tableConfig TableConfig object
+     * @param config Configuration
      * @return the aggregate phase strategy
      */
-    public static AggregatePhaseStrategy getAggPhaseStrategy(TableConfig tableConfig) {
-        String aggPhaseConf =
-                tableConfig.getConfiguration().getString(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY).trim();
+    public static AggregatePhaseStrategy getAggPhaseStrategy(ReadableConfig config) {
+        String aggPhaseConf = config.get(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY).trim();
         if (aggPhaseConf.isEmpty()) {
             return AggregatePhaseStrategy.AUTO;
         } else {

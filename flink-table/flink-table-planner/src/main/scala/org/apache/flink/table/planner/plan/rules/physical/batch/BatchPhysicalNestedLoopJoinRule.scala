@@ -41,8 +41,8 @@ class BatchPhysicalNestedLoopJoinRule
   with BatchPhysicalNestedLoopJoinRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
-    !isOperatorDisabled(tableConfig, OperatorType.NestedLoopJoin)
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
+    !isOperatorDisabled(plannerConfig, OperatorType.NestedLoopJoin)
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {

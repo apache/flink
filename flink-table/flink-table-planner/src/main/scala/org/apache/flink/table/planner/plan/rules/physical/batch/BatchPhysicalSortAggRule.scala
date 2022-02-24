@@ -66,14 +66,14 @@ class BatchPhysicalSortAggRule
   with BatchPhysicalAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
     val agg: FlinkLogicalAggregate = call.rel(0)
-    !isOperatorDisabled(tableConfig, OperatorType.SortAgg) &&
+    !isOperatorDisabled(plannerConfig, OperatorType.SortAgg) &&
       !agg.getAggCallList.exists(isPythonAggregate(_))
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
     val agg: FlinkLogicalAggregate = call.rel(0)
     val input: RelNode = call.rel(1)
     val inputRowType = input.getRowType
@@ -88,7 +88,7 @@ class BatchPhysicalSortAggRule
     val aggProvidedTraitSet = agg.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
 
     // create two-phase agg if possible
-    if (isTwoPhaseAggWorkable(aggFunctions, tableConfig)) {
+    if (isTwoPhaseAggWorkable(aggFunctions, plannerConfig)) {
       // create BatchPhysicalLocalSortAggregate
       var localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       if (agg.getGroupCount != 0) {
@@ -156,7 +156,7 @@ class BatchPhysicalSortAggRule
     }
 
     // create one-phase agg if possible
-    if (isOnePhaseAggWorkable(agg, aggFunctions, tableConfig)) {
+    if (isOnePhaseAggWorkable(agg, aggFunctions, plannerConfig)) {
       val requiredDistributions = if (agg.getGroupCount != 0) {
         val distributionFields = groupSet.map(Integer.valueOf).toList
         Seq(

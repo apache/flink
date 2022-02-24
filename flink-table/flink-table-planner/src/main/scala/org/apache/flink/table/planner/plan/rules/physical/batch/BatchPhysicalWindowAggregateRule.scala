@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
 import org.apache.commons.math3.util.ArithmeticUtils
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.calcite.{FlinkRelFactories, FlinkTypeFactory}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
@@ -105,7 +105,7 @@ class BatchPhysicalWindowAggregateRule
       FlinkTypeFactory.toLogicalRowType(input.getRowType), aggCallsWithoutAuxGroupCalls)
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggregates)
     val internalAggBufferTypes = aggBufferTypes.map(_.map(fromDataTypeToLogicalType))
-    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(call)
 
     window match {
       case TumblingGroupWindow(_, _, size) if hasTimeIntervalType(size) =>
@@ -120,7 +120,7 @@ class BatchPhysicalWindowAggregateRule
           internalAggBufferTypes,
           useHashWindowAgg(agg),
           enableAssignPane = false,
-          supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, sizeInLong))
+          supportLocalWindowAgg(aggregates, sizeInLong, sizeInLong))
 
       case SlidingGroupWindow(_, _, size, slide) if hasTimeIntervalType(size) =>
         val (sizeInLong, slideInLong) = (
@@ -136,7 +136,7 @@ class BatchPhysicalWindowAggregateRule
           internalAggBufferTypes,
           useHashWindowAgg(agg),
           useAssignPane(aggregates, sizeInLong, slideInLong),
-          supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, slideInLong))
+          supportLocalWindowAgg(aggregates, sizeInLong, slideInLong))
 
       case _ => // sliding & tumbling count window and session window not supported
         throw new TableException(s"Window $window is not supported right now.")
@@ -167,8 +167,8 @@ class BatchPhysicalWindowAggregateRule
     // local-agg output order: groupSet | assignTs | auxGroupSet | aggCalls
     val newInputTimeFieldIndexFromLocal = groupSet.length
 
-    val config = ShortcutUtils.unwrapTableConfig(input)
-    if (!isEnforceOnePhaseAgg(config) && supportLocalAgg) {
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(input)
+    if (!isEnforceOnePhaseAgg(plannerConfig) && supportLocalAgg) {
       val windowType = if (inputTimeIsDate) new IntType() else new BigIntType()
       // local
       var localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
@@ -279,7 +279,7 @@ class BatchPhysicalWindowAggregateRule
       call.transformTo(globalAgg)
     }
     // disable one-phase agg if prefer two-phase agg
-    if (!isEnforceTwoPhaseAgg(config) || !supportLocalAgg) {
+    if (!isEnforceTwoPhaseAgg(plannerConfig) || !supportLocalAgg) {
       var requiredTraitSet = agg.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       // distribute by grouping keys
       requiredTraitSet = if (agg.getGroupCount != 0) {
@@ -358,8 +358,6 @@ class BatchPhysicalWindowAggregateRule
    * to use a local aggregate or not.
    */
   private def supportLocalWindowAgg(
-      call: RelOptRuleCall,
-      tableConfig: TableConfig,
       aggregateList: Array[UserDefinedFunction],
       windowSize: Long,
       slideSize: Long): Boolean = {

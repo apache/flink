@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.rules.logical;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
@@ -39,6 +39,7 @@ import org.apache.flink.table.planner.plan.utils.NestedColumn;
 import org.apache.flink.table.planner.plan.utils.NestedProjectionUtil;
 import org.apache.flink.table.planner.plan.utils.NestedSchema;
 import org.apache.flink.table.planner.plan.utils.RexNodeExtractor;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -62,7 +63,6 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createProducedType;
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createRequiredMetadataKeys;
-import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 
 /**
@@ -191,24 +191,25 @@ public class PushProjectIntoTableSourceScanRule
 
     private List<RexNode> getProjections(LogicalProject project, LogicalTableScan scan) {
         final TableSourceTable source = scan.getTable().unwrap(TableSourceTable.class);
-        final TableConfig tableConfig = unwrapTableConfig(scan);
+        final ReadableConfig plannerConfig = ShortcutUtils.unwrapPlannerConfig(scan);
 
         final List<RexNode> projections = new ArrayList<>(project.getProjects());
         if (supportsProjectionPushDown(source.tableSource())
-                && requiresPrimaryKey(source, tableConfig)) {
+                && requiresPrimaryKey(source, plannerConfig)) {
             projections.addAll(getPrimaryKeyProjections(scan));
         }
 
         return projections;
     }
 
-    private static boolean requiresPrimaryKey(TableSourceTable table, TableConfig tableConfig) {
+    private static boolean requiresPrimaryKey(
+            TableSourceTable table, ReadableConfig plannerConfig) {
         return DynamicSourceUtils.isUpsertSource(
                         table.contextResolvedTable().getResolvedSchema(), table.tableSource())
                 || DynamicSourceUtils.isSourceChangeEventsDuplicate(
                         table.contextResolvedTable().getResolvedSchema(),
                         table.tableSource(),
-                        tableConfig);
+                        plannerConfig);
     }
 
     private List<RexNode> getPrimaryKeyProjections(LogicalTableScan scan) {
