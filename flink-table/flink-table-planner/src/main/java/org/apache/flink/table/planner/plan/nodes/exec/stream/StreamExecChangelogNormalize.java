@@ -64,7 +64,6 @@ import java.util.List;
         name = "stream-exec-changelog-normalize",
         version = 1,
         consumedOptions = {
-            "table.exec.state.ttl",
             "table.exec.mini-batch.enabled",
             "table.exec.mini-batch.size",
         },
