@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.JoinUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
@@ -126,12 +127,13 @@ class StreamPhysicalJoin(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecJoin(
-        joinSpec,
-        getUniqueKeys(left, joinSpec.getLeftKeys),
-        getUniqueKeys(right, joinSpec.getRightKeys),
-        InputProperty.DEFAULT,
-        InputProperty.DEFAULT,
-        FlinkTypeFactory.toLogicalRowType(getRowType),
-        getRelDetailedDescription)
+      ShortcutUtils.unwrapPlannerConfig(this),
+      joinSpec,
+      getUniqueKeys(left, joinSpec.getLeftKeys),
+      getUniqueKeys(right, joinSpec.getRightKeys),
+      InputProperty.DEFAULT,
+      InputProperty.DEFAULT,
+      FlinkTypeFactory.toLogicalRowType(getRowType),
+      getRelDetailedDescription)
   }
 }

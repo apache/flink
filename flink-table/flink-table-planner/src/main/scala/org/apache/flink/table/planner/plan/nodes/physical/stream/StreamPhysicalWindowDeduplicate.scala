@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.logical.WindowingStrategy
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowDeduplicate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel._
@@ -79,13 +80,13 @@ class StreamPhysicalWindowDeduplicate(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecWindowDeduplicate(
+      ShortcutUtils.unwrapPlannerConfig(this),
       partitionKeys,
       orderKey,
       keepLastRow,
       windowing,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }
