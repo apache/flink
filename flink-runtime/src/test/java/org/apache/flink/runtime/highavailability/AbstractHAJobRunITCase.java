@@ -25,18 +25,15 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
-import org.apache.flink.core.testutils.EachCallbackWrapper;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.testutils.MiniClusterExtension;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.runtime.zookeeper.ZooKeeperExtension;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -54,25 +51,17 @@ import static org.assertj.core.api.Assertions.assertThat;
 public abstract class AbstractHAJobRunITCase {
 
     @RegisterExtension
+    @Order(1)
     private static final AllCallbackWrapper<ZooKeeperExtension> ZOOKEEPER_EXTENSION =
             new AllCallbackWrapper<>(new ZooKeeperExtension());
 
-    @RegisterExtension
-    private final EachCallbackWrapper<MiniClusterExtension> miniClusterExtension =
-            new EachCallbackWrapper<>(
-                    new MiniClusterExtension(
-                            new MiniClusterResourceConfiguration.Builder()
-                                    .setConfiguration(getFlinkConfiguration())
-                                    .build()));
-
-    private Configuration getFlinkConfiguration() {
-        final Configuration config = createConfiguration();
-
+    protected static Configuration addHaConfiguration(
+            final Configuration config, final String haStoragePath) {
         config.set(HighAvailabilityOptions.HA_MODE, "ZOOKEEPER");
         config.set(
                 HighAvailabilityOptions.HA_ZOOKEEPER_QUORUM,
                 ZOOKEEPER_EXTENSION.getCustomExtension().getConnectString());
-        config.set(HighAvailabilityOptions.HA_STORAGE_PATH, getHAStoragePath());
+        config.set(HighAvailabilityOptions.HA_STORAGE_PATH, haStoragePath);
 
         // getFlinkConfiguration() is called on each new instantiation of the MiniCluster which is
         // happening before each test run
@@ -81,26 +70,13 @@ public abstract class AbstractHAJobRunITCase {
         return config;
     }
 
-    @AfterEach
-    public void unsetFileSystem() {
-        FileSystem.initialize(new Configuration(), null);
-    }
-
-    /**
-     * Should return the path to the HA storage which will be injected into the Flink configuration.
-     *
-     * @see HighAvailabilityOptions#HA_STORAGE_PATH
-     */
-    protected abstract String getHAStoragePath();
-
-    /** Initializes the {@link Configuration} used for the Flink cluster. */
-    protected abstract Configuration createConfiguration();
-
     protected void runAfterJobTermination() throws Exception {}
+
+    protected abstract MiniCluster getMiniCluster();
 
     @Test
     public void testJobExecutionInHaMode() throws Exception {
-        final MiniCluster flinkCluster = miniClusterExtension.getCustomExtension().getMiniCluster();
+        final MiniCluster flinkCluster = getMiniCluster();
 
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
 
