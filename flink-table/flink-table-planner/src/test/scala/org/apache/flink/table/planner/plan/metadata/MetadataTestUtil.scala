@@ -19,13 +19,14 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
-import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, TableSchema}
+import org.apache.flink.table.api.{DataTypes, TableException, TableSchema}
 import org.apache.flink.table.catalog.{CatalogTable, Column, ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkContextImpl, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.delegation.PlannerConfig
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, TableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
@@ -252,9 +253,11 @@ object MetadataTestUtil {
     getMetadataTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats))
   }
 
+  val plannerConfig: PlannerConfig = PlannerConfig.getDefault
+
   private val flinkContext = new FlinkContextImpl(
     false,
-    TableConfig.getDefault,
+    plannerConfig,
     new ModuleManager,
     null,
     CatalogManagerMocks.createEmptyCatalogManager,

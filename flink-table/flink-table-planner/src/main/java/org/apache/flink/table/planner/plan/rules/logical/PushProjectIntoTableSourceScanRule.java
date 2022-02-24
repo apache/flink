@@ -62,7 +62,7 @@ import java.util.stream.Stream;
 
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createProducedType;
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createRequiredMetadataKeys;
-import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
+import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory;
 
 /**
@@ -191,7 +191,7 @@ public class PushProjectIntoTableSourceScanRule
 
     private List<RexNode> getProjections(LogicalProject project, LogicalTableScan scan) {
         final TableSourceTable source = scan.getTable().unwrap(TableSourceTable.class);
-        final TableConfig tableConfig = unwrapContext(scan).getTableConfig();
+        final TableConfig tableConfig = unwrapTableConfig(scan);
 
         final List<RexNode> projections = new ArrayList<>(project.getProjects());
         if (supportsProjectionPushDown(source.tableSource())

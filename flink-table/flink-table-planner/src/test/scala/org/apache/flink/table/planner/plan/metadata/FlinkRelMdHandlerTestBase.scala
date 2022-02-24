@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
@@ -27,7 +27,7 @@ import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunction
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.TableSourceQueryOperation
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, FlinkTypeFactory}
-import org.apache.flink.table.planner.delegation.PlannerContext
+import org.apache.flink.table.planner.delegation.{PlannerConfig, PlannerContext}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
 import org.apache.flink.table.planner.plan.PartialFinalType
@@ -69,6 +69,7 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.{SqlAggFunction, SqlWindow}
 import org.apache.calcite.util._
+
 import org.junit.{Before, BeforeClass}
 
 import java.math.BigDecimal
@@ -80,7 +81,8 @@ import scala.collection.JavaConversions._
 
 class FlinkRelMdHandlerTestBase {
 
-  val tableConfig = new TableConfig()
+  val plannerConfig = PlannerConfig.getDefault
+  val tableConfig = plannerConfig.getTableConfig
   val rootSchema: SchemaPlus = MetadataTestUtil.initRootSchema()
 
   val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
@@ -91,7 +93,7 @@ class FlinkRelMdHandlerTestBase {
   val plannerContext: PlannerContext =
   new PlannerContext(
     false,
-    tableConfig,
+    plannerConfig,
     moduleManager,
     new FunctionCatalog(tableConfig, catalogManager, moduleManager),
     catalogManager,

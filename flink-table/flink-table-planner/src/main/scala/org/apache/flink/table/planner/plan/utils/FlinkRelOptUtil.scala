@@ -17,10 +17,12 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
+import org.apache.commons.math3.util.ArithmeticUtils
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.planner.JBoolean
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkPlannerImpl, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchMode}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan.RelOptUtil
@@ -30,7 +32,6 @@ import org.apache.calcite.rex.{RexBuilder, RexCall, RexInputRef, RexLiteral, Rex
 import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.commons.math3.util.ArithmeticUtils
 
 import java.io.{PrintWriter, StringWriter}
 import java.math.BigDecimal
@@ -195,7 +196,7 @@ object FlinkRelOptUtil {
   }
 
   def getTableConfigFromContext(rel: RelNode): TableConfig = {
-    rel.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    ShortcutUtils.unwrapTableConfig(rel)
   }
 
   /** Get max cnf node limit by context of rel */

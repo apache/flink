@@ -56,7 +56,7 @@ public class PushWatermarkIntoTableSourceScanRule extends PushWatermarkIntoTable
                         watermarkAssigner,
                         watermarkAssigner.watermarkExpr(),
                         scan,
-                        ShortcutUtils.unwrapContext(scan).getTableConfig(),
+                        ShortcutUtils.unwrapTableConfig(scan),
                         true); // useWatermarkAssignerRowType
 
         call.transformTo(newScan);

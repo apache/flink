@@ -71,7 +71,7 @@ class PushPartitionIntoLegacyTableSourceScanRule extends RelOptRule(
     val filter: Filter = call.rel(0)
     val scan: LogicalTableScan = call.rel(1)
     val context = call.getPlanner.getContext.unwrap(classOf[FlinkContext])
-    val config = context.getTableConfig
+    val config = context.getPlannerConfig.getTableConfig
     val tableSourceTable = scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]])
     val tableIdentifier = tableSourceTable.tableIdentifier
     val catalogOption = toScala(context.getCatalogManager.getCatalog(

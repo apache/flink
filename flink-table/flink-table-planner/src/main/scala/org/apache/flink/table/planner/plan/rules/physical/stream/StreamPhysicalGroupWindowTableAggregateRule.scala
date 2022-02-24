@@ -70,7 +70,7 @@ class StreamPhysicalGroupWindowTableAggregateRule
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
 
-    val config = ShortcutUtils.unwrapTableConfig(rel)
+    val config = ShortcutUtils.unwrapPlannerConfig(rel)
     val emitStrategy = WindowEmitStrategy(config, agg.getWindow)
 
     new StreamPhysicalGroupWindowTableAggregate(

@@ -81,7 +81,10 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
                             context.getSourceRowType().getFieldNames().toArray(new String[0]),
                             context.getFunctionCatalog(),
                             context.getCatalogManager(),
-                            TimeZone.getTimeZone(context.getTableConfig().getLocalTimeZone()));
+                            TimeZone.getTimeZone(
+                                    context.getPlannerConfig()
+                                            .getTableConfig()
+                                            .getLocalTimeZone()));
             List<Expression> filters =
                     predicates.stream()
                             .map(
@@ -101,7 +104,7 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
                             .collect(Collectors.toList());
             ExpressionResolver resolver =
                     ExpressionResolver.resolverFor(
-                                    context.getTableConfig(),
+                                    context.getPlannerConfig().getTableConfig(),
                                     name -> Optional.empty(),
                                     context.getFunctionCatalog()
                                             .asLookup(

@@ -77,7 +77,8 @@ public abstract class PushLocalAggIntoScanRuleBase extends RelOptRule {
             RelOptRuleCall call,
             BatchPhysicalGroupAggregateBase aggregate,
             BatchPhysicalTableSourceScan tableSourceScan) {
-        TableConfig tableConfig = ShortcutUtils.unwrapContext(call.getPlanner()).getTableConfig();
+        TableConfig tableConfig =
+                ShortcutUtils.unwrapContext(call.getPlanner()).getPlannerConfig().getTableConfig();
         if (!tableConfig
                 .getConfiguration()
                 .getBoolean(

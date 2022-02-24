@@ -95,7 +95,7 @@ public class PushWatermarkIntoTableSourceScanAcrossCalcRule
                         watermarkAssigner,
                         newWatermarkExpr,
                         call.rel(2),
-                        ShortcutUtils.unwrapContext(calc).getTableConfig(),
+                        ShortcutUtils.unwrapTableConfig(calc),
                         false); // useWatermarkAssignerRowType
 
         FlinkTypeFactory typeFactory = ShortcutUtils.unwrapTypeFactory(calc);

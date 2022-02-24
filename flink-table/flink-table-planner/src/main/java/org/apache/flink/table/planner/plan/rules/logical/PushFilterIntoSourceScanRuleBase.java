@@ -57,7 +57,8 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
 
     @Override
     public boolean matches(RelOptRuleCall call) {
-        TableConfig tableConfig = ShortcutUtils.unwrapContext(call.getPlanner()).getTableConfig();
+        TableConfig tableConfig =
+                ShortcutUtils.unwrapContext(call.getPlanner()).getPlannerConfig().getTableConfig();
         return tableConfig
                 .getConfiguration()
                 .getBoolean(
@@ -136,7 +137,8 @@ public abstract class PushFilterIntoSourceScanRuleBase extends RelOptRule {
                         inputNames,
                         context.getFunctionCatalog(),
                         context.getCatalogManager(),
-                        TimeZone.getTimeZone(context.getTableConfig().getLocalTimeZone()));
+                        TimeZone.getTimeZone(
+                                context.getPlannerConfig().getTableConfig().getLocalTimeZone()));
 
         return RexNodeExtractor.extractConjunctiveConditions(
                 filterExpression, maxCnfNodeCount, rexBuilder, converter);

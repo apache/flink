@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableColumn.ComputedColumn
 import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.catalog.CatalogTable
-import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactory, TableSourceFactoryContextImpl}
+import org.apache.flink.table.factories.TableFactoryUtil
 import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
@@ -81,11 +81,11 @@ class LegacyCatalogSourceTable[T](
       .unwrap(classOf[FlinkContext])
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
-    val conf = flinkContext.getTableConfig.getConfiguration
+    val conf = flinkContext.getPlannerConfig
 
     val hintedOptions = FlinkHints.getHintedOptions(context.getTableHints)
     if (hintedOptions.nonEmpty
-      && !conf.getBoolean(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
+      && !conf.get(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
       throw new ValidationException(s"${FlinkHints.HINT_NAME_OPTIONS} hint is allowed only when "
         + s"${TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key} "
         + s"is set to true")

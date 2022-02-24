@@ -85,6 +85,7 @@ import org.apache.flink.table.operations.ddl.DropDatabaseOperation;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.ParserImpl;
+import org.apache.flink.table.planner.delegation.PlannerConfig;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
@@ -127,8 +128,10 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /** Test cases for {@link SqlToOperationConverter}. */
 public class SqlToOperationConverterTest {
+
     private final boolean isStreamingMode = false;
-    private final TableConfig tableConfig = new TableConfig();
+    private final TableConfig tableConfig = TableConfig.getDefault();
+    private final PlannerConfig plannerConfig = PlannerConfig.of(tableConfig);
     private final Catalog catalog = new GenericInMemoryCatalog("MockCatalog", "default");
     private final CatalogManager catalogManager =
             CatalogManagerMocks.preparedCatalogManager()
@@ -151,7 +154,7 @@ public class SqlToOperationConverterTest {
     private final PlannerContext plannerContext =
             new PlannerContext(
                     true,
-                    tableConfig,
+                    plannerConfig,
                     moduleManager,
                     functionCatalog,
                     catalogManager,

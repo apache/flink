@@ -18,13 +18,13 @@
 
 package org.apache.flink.table.planner.calcite
 
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
+import org.apache.flink.table.planner.delegation.PlannerConfig
 
 class FlinkContextImpl(
     inBatchMode: Boolean,
-    tableConfig: TableConfig,
+    plannerConfig: PlannerConfig,
     moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager,
@@ -33,7 +33,7 @@ class FlinkContextImpl(
 
   override def isBatchMode: Boolean = inBatchMode
 
-  override def getTableConfig: TableConfig = tableConfig
+  override def getPlannerConfig: PlannerConfig = plannerConfig
 
   override def getModuleManager: ModuleManager = moduleManager
 

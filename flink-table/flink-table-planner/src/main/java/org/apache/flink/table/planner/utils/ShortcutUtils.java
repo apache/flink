@@ -19,18 +19,20 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.delegation.PlannerConfig;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptRuleCall;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rex.RexCall;
@@ -88,8 +90,20 @@ public final class ShortcutUtils {
         return context.unwrap(FlinkContext.class);
     }
 
-    public static ReadableConfig unwrapTableConfig(RelNode relNode) {
-        return unwrapContext(relNode).getTableConfig().getConfiguration();
+    public static PlannerConfig unwrapPlannerConfig(RelNode relNode) {
+        return unwrapContext(relNode).getPlannerConfig();
+    }
+
+    public static PlannerConfig unwrapPlannerConfig(RelOptRuleCall relOptRuleCall) {
+        return unwrapContext(relOptRuleCall.getPlanner()).getPlannerConfig();
+    }
+
+    public static TableConfig unwrapTableConfig(RelNode relNode) {
+        return unwrapPlannerConfig(relNode).getTableConfig();
+    }
+
+    public static TableConfig unwrapTableConfig(RelOptRuleCall relOptRuleCall) {
+        return unwrapPlannerConfig(relOptRuleCall).getTableConfig();
     }
 
     public static @Nullable FunctionDefinition unwrapFunctionDefinition(

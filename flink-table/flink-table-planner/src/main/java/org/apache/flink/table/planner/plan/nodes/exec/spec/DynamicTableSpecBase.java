@@ -39,8 +39,7 @@ class DynamicTableSpecBase {
         //  loaded from the catalog
         final TableConfigOptions.CatalogPlanRestore catalogPlanRestore =
                 flinkContext
-                        .getTableConfig()
-                        .getConfiguration()
+                        .getPlannerConfig()
                         .get(TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS);
         if (contextResolvedTable.isAnonymous()
                 || catalogPlanRestore != TableConfigOptions.CatalogPlanRestore.ALL) {

@@ -105,18 +105,18 @@ public class PlannerContext {
 
     public PlannerContext(
             boolean isBatchMode,
-            TableConfig tableConfig,
+            PlannerConfig plannerConfig,
             ModuleManager moduleManager,
             FunctionCatalog functionCatalog,
             CatalogManager catalogManager,
             CalciteSchema rootSchema,
             List<RelTraitDef> traitDefs) {
-        this.tableConfig = tableConfig;
+        this.tableConfig = plannerConfig.getTableConfig();
 
         this.context =
                 new FlinkContextImpl(
                         isBatchMode,
-                        tableConfig,
+                        plannerConfig,
                         moduleManager,
                         functionCatalog,
                         catalogManager,

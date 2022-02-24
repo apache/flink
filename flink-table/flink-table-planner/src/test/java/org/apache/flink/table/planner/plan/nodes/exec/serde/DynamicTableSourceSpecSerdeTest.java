@@ -248,7 +248,7 @@ public class DynamicTableSourceSpecSerdeTest {
                 false);
 
         SerdeContext serdeCtx =
-                configuredSerdeContext(catalogManager, plannerMocks.getTableConfig());
+                configuredSerdeContext(catalogManager, plannerMocks.getPlannerConfig());
 
         // Re-init the spec to be permanent with correct catalog
         spec =
@@ -308,7 +308,7 @@ public class DynamicTableSourceSpecSerdeTest {
 
         // Mock the context
         SerdeContext serdeCtx =
-                configuredSerdeContext(catalogManager, plannerMocks.getTableConfig());
+                configuredSerdeContext(catalogManager, plannerMocks.getPlannerConfig());
 
         DynamicTableSourceSpec planSpec =
                 new DynamicTableSourceSpec(

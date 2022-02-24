@@ -80,7 +80,7 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
                             contextResolvedTable.getIdentifier(),
                             contextResolvedTable.getResolvedTable(),
                             loadOptionsFromCatalogTable(contextResolvedTable, flinkContext),
-                            flinkContext.getTableConfig().getConfiguration(),
+                            flinkContext.getPlannerConfig(),
                             flinkContext.getClassLoader(),
                             contextResolvedTable.isTemporary());
 

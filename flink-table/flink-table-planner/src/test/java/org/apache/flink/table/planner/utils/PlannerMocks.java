@@ -30,10 +30,10 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.ParserImpl;
+import org.apache.flink.table.planner.delegation.PlannerConfig;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import java.util.ArrayList;
 import java.util.Collections;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
@@ -47,27 +47,28 @@ public class PlannerMocks {
     private final FlinkPlannerImpl planner;
     private final ParserImpl parser;
     private final CatalogManager catalogManager;
-    private final TableConfig tableConfig;
+    private final FunctionCatalog functionCatalog;
+    private final PlannerConfig plannerConfig;
     private final PlannerContext plannerContext;
 
-    private PlannerMocks(TableConfig tableConfig) {
+    private PlannerMocks(boolean isBatchMode, PlannerConfig plannerConfig) {
         this.catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
-        this.tableConfig = tableConfig;
+        this.plannerConfig = plannerConfig;
 
         final ModuleManager moduleManager = new ModuleManager();
 
-        final FunctionCatalog functionCatalog =
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+        this.functionCatalog =
+                new FunctionCatalog(plannerConfig.getTableConfig(), catalogManager, moduleManager);
 
         this.plannerContext =
                 new PlannerContext(
-                        false,
-                        tableConfig,
+                        isBatchMode,
+                        plannerConfig,
                         moduleManager,
                         functionCatalog,
                         catalogManager,
-                        asRootSchema(new CatalogManagerCalciteSchema(catalogManager, true)),
-                        new ArrayList<>());
+                        asRootSchema(new CatalogManagerCalciteSchema(catalogManager, !isBatchMode)),
+                        Collections.emptyList());
 
         this.planner =
                 plannerContext.createFlinkPlanner(
@@ -82,7 +83,7 @@ public class PlannerMocks {
         catalogManager.initSchemaResolver(
                 true,
                 ExpressionResolver.resolverFor(
-                        tableConfig,
+                        plannerConfig.getTableConfig(),
                         name -> {
                             throw new UnsupportedOperationException();
                         },
@@ -103,8 +104,12 @@ public class PlannerMocks {
         return catalogManager;
     }
 
-    public TableConfig getTableConfig() {
-        return tableConfig;
+    public FunctionCatalog getFunctionCatalog() {
+        return functionCatalog;
+    }
+
+    public PlannerConfig getPlannerConfig() {
+        return plannerConfig;
     }
 
     public PlannerContext getPlannerContext() {
@@ -128,12 +133,16 @@ public class PlannerMocks {
     }
 
     public static PlannerMocks create() {
-        return new PlannerMocks(new TableConfig());
+        return create(false);
+    }
+
+    public static PlannerMocks create(boolean batchMode) {
+        return new PlannerMocks(batchMode, PlannerConfig.getDefault());
     }
 
     public static PlannerMocks create(Configuration configuration) {
-        TableConfig tableConfig = new TableConfig();
+        TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.addConfiguration(configuration);
-        return new PlannerMocks(tableConfig);
+        return new PlannerMocks(false, PlannerConfig.of(tableConfig));
     }
 }

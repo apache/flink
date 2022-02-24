@@ -18,12 +18,11 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.FunctionCatalog
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
-import org.apache.flink.table.planner.delegation.PlannerContext
+import org.apache.flink.table.planner.delegation.{PlannerConfig, PlannerContext}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.{JDouble, JLong}
@@ -42,6 +41,7 @@ import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.util.{DateString, TimeString, TimestampString}
+
 import org.junit.Assert._
 import org.junit.{Before, BeforeClass, Test}
 
@@ -78,7 +78,7 @@ class SelectivityEstimatorTest {
 
   private def mockScan(
       statistic: FlinkStatistic = FlinkStatistic.UNKNOWN,
-      tableConfig: TableConfig = TableConfig.getDefault): TableScan = {
+      plannerConfig: PlannerConfig = PlannerConfig.getDefault): TableScan = {
     val moduleManager = new ModuleManager
     val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val rootSchema = CalciteSchema.createRootSchema(true, false).plus()
@@ -87,9 +87,9 @@ class SelectivityEstimatorTest {
     val plannerContext: PlannerContext =
       new PlannerContext(
         false,
-        tableConfig,
+        plannerConfig,
         moduleManager,
-        new FunctionCatalog(tableConfig, catalogManager, moduleManager),
+        new FunctionCatalog(plannerConfig.getTableConfig, catalogManager, moduleManager),
         catalogManager,
         CalciteSchema.from(rootSchema),
         util.Arrays.asList(

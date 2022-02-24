@@ -527,7 +527,7 @@ public class QueryOperationConverter extends QueryOperationDefaultVisitor<RelNod
                 boolean isTopLevelRecord,
                 ChangelogMode changelogMode) {
             final FlinkContext flinkContext = ShortcutUtils.unwrapContext(relBuilder);
-            final ReadableConfig config = flinkContext.getTableConfig().getConfiguration();
+            final ReadableConfig config = flinkContext.getPlannerConfig();
             return DynamicSourceUtils.convertDataStreamToRel(
                     flinkContext.isBatchMode(),
                     config,

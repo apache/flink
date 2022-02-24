@@ -18,12 +18,11 @@
 
 package org.apache.flink.table.planner.plan.optimize
 
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelBuilder, SqlExprToRexConverterFactory}
-import org.apache.flink.table.planner.delegation.StreamPlanner
+import org.apache.flink.table.planner.delegation.{PlannerConfig, StreamPlanner}
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode, ModifyKindSet, ModifyKindSetTraitDef, UpdateKind, UpdateKindTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
@@ -153,10 +152,10 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       miniBatchInterval: MiniBatchInterval,
       isSinkBlock: Boolean): RelNode = {
 
-    val config = planner.getTableConfig
-    val calciteConfig = TableConfigUtils.getCalciteConfig(config)
+    val plannerConfig = planner.getConfiguration
+    val calciteConfig = TableConfigUtils.getCalciteConfig(plannerConfig.getTableConfig)
     val programs = calciteConfig.getStreamProgram
-      .getOrElse(FlinkStreamProgram.buildProgram(config.getConfiguration))
+      .getOrElse(FlinkStreamProgram.buildProgram(plannerConfig))
     Preconditions.checkNotNull(programs)
 
     val context = relNode.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
@@ -165,7 +164,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
       override def isBatchMode: Boolean = false
 
-      override def getTableConfig: TableConfig = config
+      override def getPlannerConfig: PlannerConfig = plannerConfig
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 

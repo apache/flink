@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.abilities.source;
 
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.connector.source.DynamicTableSource;
@@ -26,6 +25,7 @@ import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.calcite.SqlExprToRexConverterFactory;
+import org.apache.flink.table.planner.delegation.PlannerConfig;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -59,8 +59,8 @@ public class SourceAbilityContext implements FlinkContext {
     }
 
     @Override
-    public TableConfig getTableConfig() {
-        return context.getTableConfig();
+    public PlannerConfig getPlannerConfig() {
+        return context.getPlannerConfig();
     }
 
     @Override

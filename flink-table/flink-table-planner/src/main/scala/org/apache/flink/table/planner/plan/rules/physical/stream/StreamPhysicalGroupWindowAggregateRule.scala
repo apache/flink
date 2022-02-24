@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate
@@ -72,7 +71,7 @@ class StreamPhysicalGroupWindowAggregateRule
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
 
-    val config = ShortcutUtils.unwrapTableConfig(rel)
+    val config = ShortcutUtils.unwrapPlannerConfig(rel)
     val emitStrategy = WindowEmitStrategy(config, agg.getWindow)
 
     new StreamPhysicalGroupWindowAggregate(

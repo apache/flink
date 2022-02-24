@@ -43,7 +43,7 @@ public class CallExpressionResolver {
         FlinkContext context = unwrapContext(relBuilder.getCluster());
         this.resolver =
                 ExpressionResolver.resolverFor(
-                                context.getTableConfig(),
+                                context.getPlannerConfig().getTableConfig(),
                                 name -> Optional.empty(),
                                 context.getFunctionCatalog()
                                         .asLookup(

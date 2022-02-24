@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.plan.trait.ModifyKindSetTrait;
 import org.apache.flink.table.planner.plan.trait.UpdateKindTrait;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptRuleCall;
@@ -43,7 +44,6 @@ import org.apache.calcite.rel.RelNode;
 
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
 import static org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy;
 
 /**
@@ -81,7 +81,7 @@ public class TwoStageOptimizedWindowAggregateRule extends RelOptRule {
     public boolean matches(RelOptRuleCall call) {
         final StreamPhysicalWindowAggregate windowAgg = call.rel(0);
         final RelNode realInput = call.rel(2);
-        final TableConfig tableConfig = unwrapContext(call.getPlanner()).getTableConfig();
+        final TableConfig tableConfig = ShortcutUtils.unwrapTableConfig(call);
         final WindowingStrategy windowing = windowAgg.windowing();
 
         // the two-phase optimization must be enabled

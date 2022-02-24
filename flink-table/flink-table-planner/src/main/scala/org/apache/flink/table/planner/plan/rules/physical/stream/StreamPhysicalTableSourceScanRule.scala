@@ -19,13 +19,13 @@
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.connector.source.ScanTableSource
+import org.apache.flink.table.planner.connectors.DynamicSourceUtils.{isSourceChangeEventsDuplicate, isUpsertSource}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalChangelogNormalize, StreamPhysicalTableSourceScan}
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
 import org.apache.flink.table.planner.plan.utils.ScanUtil
-import org.apache.flink.table.planner.connectors.DynamicSourceUtils.{isSourceChangeEventsDuplicate, isUpsertSource}
 import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall, RelTraitSet}
@@ -63,7 +63,7 @@ class StreamPhysicalTableSourceScanRule
   def convert(rel: RelNode): RelNode = {
     val scan = rel.asInstanceOf[FlinkLogicalTableSourceScan]
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
-    val config = ShortcutUtils.unwrapContext(rel.getCluster).getTableConfig
+    val config = ShortcutUtils.unwrapTableConfig(rel)
     val table = scan.getTable.asInstanceOf[TableSourceTable]
 
     val newScan = new StreamPhysicalTableSourceScan(

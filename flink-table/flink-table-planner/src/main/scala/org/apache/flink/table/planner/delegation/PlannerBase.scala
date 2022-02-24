@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.delegation
 
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.dag.Transformation
-import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api._
@@ -102,15 +101,15 @@ abstract class PlannerBase(
   private var parser: Parser = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
 
-  private val plannerConfiguration: ReadableConfig = new PlannerConfig(
-    tableConfig.getConfiguration,
+  private val plannerConfiguration: PlannerConfig = new PlannerConfig(
+    tableConfig,
     executor.getConfiguration)
 
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
     new PlannerContext(
       !isStreamingMode,
-      tableConfig,
+      plannerConfiguration,
       moduleManager,
       functionCatalog,
       catalogManager,
@@ -151,7 +150,7 @@ abstract class PlannerBase(
    *
    * This configuration should be the main source of truth in the planner module.
    */
-  def getConfiguration: ReadableConfig = plannerConfiguration
+  def getConfiguration: PlannerConfig = plannerConfiguration
 
   /**
    * @deprecated Do not use this method anymore. Use [[getConfiguration]] to access options.

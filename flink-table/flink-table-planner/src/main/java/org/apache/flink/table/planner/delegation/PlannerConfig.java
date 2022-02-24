@@ -20,7 +20,9 @@ package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.TableConfig;
 
 import java.util.Optional;
 
@@ -31,23 +33,38 @@ import java.util.Optional;
 @Internal
 public final class PlannerConfig implements ReadableConfig {
 
-    private final ReadableConfig tableConfig;
+    private final TableConfig tableConfig;
 
     private final ReadableConfig executorConfig;
 
-    PlannerConfig(ReadableConfig tableConfig, ReadableConfig executorConfig) {
+    PlannerConfig(TableConfig tableConfig, ReadableConfig executorConfig) {
         this.tableConfig = tableConfig;
         this.executorConfig = executorConfig;
     }
 
+    public static PlannerConfig of(TableConfig tableConfig) {
+        return new PlannerConfig(tableConfig, new Configuration());
+    }
+
+    public static PlannerConfig getDefault() {
+        return new PlannerConfig(TableConfig.getDefault(), new Configuration());
+    }
+
+    public TableConfig getTableConfig() {
+        return tableConfig;
+    }
+
     @Override
     public <T> T get(ConfigOption<T> option) {
-        return tableConfig.getOptional(option).orElseGet(() -> executorConfig.get(option));
+        return tableConfig
+                .getConfiguration()
+                .getOptional(option)
+                .orElseGet(() -> executorConfig.get(option));
     }
 
     @Override
     public <T> Optional<T> getOptional(ConfigOption<T> option) {
-        final Optional<T> tableValue = tableConfig.getOptional(option);
+        final Optional<T> tableValue = tableConfig.getConfiguration().getOptional(option);
         if (tableValue.isPresent()) {
             return tableValue;
         }

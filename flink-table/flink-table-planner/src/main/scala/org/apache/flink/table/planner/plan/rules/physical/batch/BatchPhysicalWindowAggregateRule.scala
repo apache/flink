@@ -18,19 +18,21 @@
 
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
+import org.apache.commons.math3.util.ArithmeticUtils
 import org.apache.flink.table.api.config.OptimizerConfigOptions
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
-import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkRelFactories, FlinkTypeFactory}
+import org.apache.flink.table.planner.calcite.{FlinkRelFactories, FlinkTypeFactory}
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalLocalSortWindowAggregate, BatchPhysicalSortWindowAggregate, BatchPhysicalHashWindowAggregate, BatchPhysicalLocalHashWindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalHashWindowAggregate, BatchPhysicalLocalHashWindowAggregate, BatchPhysicalLocalSortWindowAggregate, BatchPhysicalSortWindowAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType}
 
@@ -41,7 +43,6 @@ import org.apache.calcite.rel.core.Aggregate.Group
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.commons.math3.util.ArithmeticUtils
 
 import scala.collection.JavaConversions._
 
@@ -104,7 +105,7 @@ class BatchPhysicalWindowAggregateRule
       FlinkTypeFactory.toLogicalRowType(input.getRowType), aggCallsWithoutAuxGroupCalls)
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggregates)
     val internalAggBufferTypes = aggBufferTypes.map(_.map(fromDataTypeToLogicalType))
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = ShortcutUtils.unwrapPlannerConfig(call).getTableConfig
 
     window match {
       case TumblingGroupWindow(_, _, size) if hasTimeIntervalType(size) =>
@@ -166,7 +167,7 @@ class BatchPhysicalWindowAggregateRule
     // local-agg output order: groupSet | assignTs | auxGroupSet | aggCalls
     val newInputTimeFieldIndexFromLocal = groupSet.length
 
-    val config = input.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val config = ShortcutUtils.unwrapTableConfig(input)
     if (!isEnforceOnePhaseAgg(config) && supportLocalAgg) {
       val windowType = if (inputTimeIsDate) new IntType() else new BigIntType()
       // local

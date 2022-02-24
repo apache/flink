@@ -166,7 +166,7 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
         Function<List<Map<String, String>>, List<Map<String, String>>> defaultPruner =
                 partitions ->
                         PartitionPruner.prunePartitions(
-                                context.getTableConfig(),
+                                context.getPlannerConfig().getTableConfig(),
                                 partitionFieldNames.toArray(new String[0]),
                                 partitionFieldTypes,
                                 partitions,
@@ -341,7 +341,8 @@ public class PushPartitionIntoTableSourceScanRule extends RelOptRule {
                         allFieldNames.toArray(new String[0]),
                         context.getFunctionCatalog(),
                         context.getCatalogManager(),
-                        TimeZone.getTimeZone(context.getTableConfig().getLocalTimeZone()));
+                        TimeZone.getTimeZone(
+                                context.getPlannerConfig().getTableConfig().getLocalTimeZone()));
         ArrayList<Expression> partitionFilters = new ArrayList<>();
         Option<ResolvedExpression> subExpr;
         for (RexNode node : JavaConversions.seqAsJavaList(partitionPredicate)) {

@@ -21,11 +21,11 @@ package org.apache.flink.table.planner.plan.rules.physical.batch
 import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalSort
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSort
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -52,8 +52,8 @@ class BatchPhysicalSortRule extends ConverterRule(
   override def convert(rel: RelNode): RelNode = {
     val sort: FlinkLogicalSort = rel.asInstanceOf[FlinkLogicalSort]
     val input = sort.getInput
-    val config = sort.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    val enableRangeSort = config.getConfiguration.getBoolean(
+    val plannerConfig = ShortcutUtils.unwrapPlannerConfig(sort)
+    val enableRangeSort = plannerConfig.get(
       BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED)
     val distribution = if (enableRangeSort) {
       FlinkRelDistribution.range(sort.getCollation.getFieldCollations)
