@@ -277,7 +277,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
         // use configuration to init table config
-        final TableConfig tableConfig = new TableConfig();
+        final TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.addConfiguration(configuration);
 
         final ModuleManager moduleManager = new ModuleManager();

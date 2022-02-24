@@ -39,7 +39,7 @@ public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
         RowType keyType = RowType.of(new IntType());
         Assert.assertTrue(LongHashJoinGenerator.support(type, keyType, new boolean[] {true}));
         return LongHashJoinGenerator.gen(
-                new TableConfig(),
+                TableConfig.getDefault(),
                 type,
                 keyType,
                 RowType.of(new IntType(), new IntType()),

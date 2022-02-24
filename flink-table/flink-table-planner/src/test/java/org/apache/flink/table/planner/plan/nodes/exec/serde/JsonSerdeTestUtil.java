@@ -60,6 +60,10 @@ class JsonSerdeTestUtil {
                 CatalogManagerMocks.createEmptyCatalogManager(), configuration);
     }
 
+    static SerdeContext configuredSerdeContext(CatalogManager catalogManager) {
+        return configuredSerdeContext(catalogManager, TableConfig.getDefault());
+    }
+
     static SerdeContext configuredSerdeContext(
             CatalogManager catalogManager, Configuration configuration) {
         final TableConfig tableConfig = TableConfig.getDefault();

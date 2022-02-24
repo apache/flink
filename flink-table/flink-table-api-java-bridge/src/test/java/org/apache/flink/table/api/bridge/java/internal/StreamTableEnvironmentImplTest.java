@@ -74,7 +74,7 @@ public class StreamTableEnvironmentImplTest {
 
     private StreamTableEnvironmentImpl getStreamTableEnvironment(
             StreamExecutionEnvironment env, DataStreamSource<Integer> elements) {
-        TableConfig tableConfig = new TableConfig();
+        TableConfig tableConfig = TableConfig.getDefault();
         CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
         ModuleManager moduleManager = new ModuleManager();
         return new StreamTableEnvironmentImpl(

@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.Column;
@@ -114,8 +113,7 @@ public class TemporalTableSourceSpecSerdeTest {
                 spec.getTableSourceSpec().getContextResolvedTable().getIdentifier(),
                 false);
 
-        SerdeContext serdeCtx =
-                JsonSerdeTestUtil.configuredSerdeContext(catalogManager, new TableConfig());
+        SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext(catalogManager);
 
         String json = JsonSerdeTestUtil.toJson(serdeCtx, spec);
         TemporalTableSourceSpec actual =

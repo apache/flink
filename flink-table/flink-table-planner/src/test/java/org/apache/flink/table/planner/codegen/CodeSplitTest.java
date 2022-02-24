@@ -219,7 +219,7 @@ public class CodeSplitTest {
     }
 
     private void runTest(Consumer<TableConfig> consumer) {
-        TableConfig splitTableConfig = new TableConfig();
+        TableConfig splitTableConfig = TableConfig.getDefault();
         splitTableConfig
                 .getConfiguration()
                 .setInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, 4000);
@@ -228,7 +228,7 @@ public class CodeSplitTest {
                 .setInteger(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, 10000);
         consumer.accept(splitTableConfig);
 
-        TableConfig noSplitTableConfig = new TableConfig();
+        TableConfig noSplitTableConfig = TableConfig.getDefault();
         noSplitTableConfig
                 .getConfiguration()
                 .setInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, Integer.MAX_VALUE);

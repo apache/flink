@@ -62,7 +62,7 @@ import scala.collection.mutable
 
 abstract class ExpressionTestBase {
 
-  val config = new TableConfig()
+  val config = TableConfig.getDefault()
 
   // (originalExpr, optimizedExpr, expectedResult)
   private val validExprs = mutable.ArrayBuffer[(String, RexNode, String)]()

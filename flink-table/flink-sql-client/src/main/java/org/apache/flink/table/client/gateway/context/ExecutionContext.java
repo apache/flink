@@ -106,7 +106,7 @@ public class ExecutionContext {
                     "The old planner is not supported anymore. Please update to new default planner.");
         }
 
-        TableConfig tableConfig = new TableConfig();
+        TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.addConfiguration(flinkConfig);
 
         StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();

@@ -82,7 +82,7 @@ import scala.collection.JavaConversions._
 
 class FlinkRelMdHandlerTestBase {
 
-  val tableConfig = new TableConfig()
+  val tableConfig = TableConfig.getDefault()
   val rootSchema: SchemaPlus = MetadataTestUtil.initRootSchema()
 
   val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()

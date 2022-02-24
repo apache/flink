@@ -636,7 +636,8 @@ public class SortCodeGeneratorTest {
 
     public static Tuple2<NormalizedKeyComputer, RecordComparator> getSortBaseWithNulls(
             String namePrefix, RowType inputType, SortSpec sortSpec) {
-        SortCodeGenerator generator = new SortCodeGenerator(new TableConfig(), inputType, sortSpec);
+        SortCodeGenerator generator =
+                new SortCodeGenerator(TableConfig.getDefault(), inputType, sortSpec);
         GeneratedNormalizedKeyComputer computer =
                 generator.generateNormalizedKeyComputer(namePrefix + "Computer");
         GeneratedRecordComparator comparator =

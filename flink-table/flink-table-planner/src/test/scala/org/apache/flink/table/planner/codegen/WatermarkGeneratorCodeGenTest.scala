@@ -164,7 +164,11 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
 
     if (useDefinedConstructor) {
       val generated = WatermarkGeneratorCodeGenerator
-        .generateWatermarkGenerator(new TableConfig(), rowType, rexNode, Option.apply("context"))
+        .generateWatermarkGenerator(
+          TableConfig.getDefault(),
+          rowType,
+          rexNode,
+          Option.apply("context"))
       val newReferences = generated.getReferences :+
           new WatermarkGeneratorSupplier.Context {
             override def getMetricGroup: MetricGroup = null
@@ -172,7 +176,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
       generated.newInstance(Thread.currentThread().getContextClassLoader, newReferences)
     } else {
       val generated = WatermarkGeneratorCodeGenerator
-        .generateWatermarkGenerator(new TableConfig(), rowType, rexNode)
+        .generateWatermarkGenerator(TableConfig.getDefault(), rowType, rexNode)
       generated.newInstance(Thread.currentThread().getContextClassLoader)
     }
   }

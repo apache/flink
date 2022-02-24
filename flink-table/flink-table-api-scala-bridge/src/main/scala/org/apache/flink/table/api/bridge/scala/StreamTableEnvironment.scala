@@ -899,7 +899,7 @@ object StreamTableEnvironment {
       executionEnvironment: StreamExecutionEnvironment,
       settings: EnvironmentSettings)
     : StreamTableEnvironment = {
-    val config = new TableConfig()
+    val config = TableConfig.getDefault()
     config.addConfiguration(settings.toConfiguration)
     StreamTableEnvironmentImpl
       .create(executionEnvironment, settings, config)
