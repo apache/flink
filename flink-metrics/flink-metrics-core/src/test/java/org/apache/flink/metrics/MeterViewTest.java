@@ -97,8 +97,9 @@ class MeterViewTest {
     @Test
     void testTimeSpanBelowUpdateRate() {
         int timeSpanInSeconds = 1;
+        // make sure that the chosen timespan is actually lower than update rate
+        assertThat(timeSpanInSeconds).isLessThan(UPDATE_INTERVAL_SECONDS);
         MeterView m = new MeterView(timeSpanInSeconds);
-        assert timeSpanInSeconds < UPDATE_INTERVAL_SECONDS;
         m.markEvent();
         m.update();
         assertThat(m.getRate()).isEqualTo(0.2);
