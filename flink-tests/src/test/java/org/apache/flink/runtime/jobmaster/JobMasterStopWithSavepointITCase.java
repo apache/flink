@@ -210,7 +210,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
     }
 
     private CompletableFuture<String> stopWithSavepoint(boolean terminate) {
-        return miniClusterResource
+        return MINI_CLUSTER_RESOURCE
                 .getMiniCluster()
                 .stopWithSavepoint(
                         jobGraph.getJobID(),
@@ -241,9 +241,9 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
 
         Assume.assumeTrue(
                 "ClusterClient is not an instance of MiniClusterClient",
-                miniClusterResource.getClusterClient() instanceof MiniClusterClient);
+                MINI_CLUSTER_RESOURCE.getClusterClient() instanceof MiniClusterClient);
 
-        clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
+        clusterClient = (MiniClusterClient) MINI_CLUSTER_RESOURCE.getClusterClient();
 
         final ExecutionConfig config = new ExecutionConfig();
         config.setRestartStrategy(restartStrategy);
@@ -283,7 +283,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         JobID jobID = jobGraph.getJobID();
         CommonTestUtils.waitForAllTaskRunning(
                 () ->
-                        miniClusterResource
+                        MINI_CLUSTER_RESOURCE
                                 .getMiniCluster()
                                 .getExecutionGraph(jobID)
                                 .get(60, TimeUnit.SECONDS),

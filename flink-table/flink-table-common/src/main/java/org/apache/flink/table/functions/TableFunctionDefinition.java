@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.functions;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.DataTypeFactory;
@@ -33,8 +32,10 @@ import java.util.Set;
  * stack.
  *
  * <p>This class can be dropped once we introduce a new type inference.
+ *
+ * @deprecated Non-legacy functions can simply omit this wrapper for declarations.
  */
-@Internal
+@Deprecated
 public final class TableFunctionDefinition implements FunctionDefinition {
 
     private final String name;

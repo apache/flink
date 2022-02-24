@@ -159,7 +159,9 @@ public class RocksFullSnapshotStrategy<K>
                                 checkpointId,
                                 CheckpointedStateScope.EXCLUSIVE,
                                 primaryStreamFactory,
-                                localRecoveryConfig.getLocalStateDirectoryProvider())
+                                localRecoveryConfig
+                                        .getLocalStateDirectoryProvider()
+                                        .orElseThrow(LocalRecoveryConfig.localRecoveryNotEnabled()))
                 : () ->
                         CheckpointStreamWithResultProvider.createSimpleStream(
                                 CheckpointedStateScope.EXCLUSIVE, primaryStreamFactory);

@@ -30,6 +30,7 @@ import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.expressions.TimePointUnit;
 import org.apache.flink.table.utils.DateTimeUtils;
 
+import com.google.common.collect.BoundType;
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.avatica.util.TimeUnitRange;
 import org.apache.calcite.sql.SqlJsonConstructorNullClause;
@@ -39,6 +40,7 @@ import org.apache.calcite.sql.SqlJsonQueryEmptyOrErrorBehavior;
 import org.apache.calcite.sql.SqlJsonQueryWrapperBehavior;
 import org.apache.calcite.sql.SqlJsonValueEmptyOrErrorBehavior;
 import org.apache.calcite.sql.SqlMatchRecognize;
+import org.apache.calcite.sql.SqlSyntax;
 import org.apache.calcite.sql.fun.SqlTrimFunction;
 
 import javax.annotation.Nullable;
@@ -57,6 +59,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public final class SymbolUtil {
 
+    private static final Map<Class<?>, String> calciteToSymbolKind = new HashMap<>();
     private static final Map<SerializableSymbol, Enum<?>> serializableToCalcite = new HashMap<>();
     private static final Map<Enum<?>, SerializableSymbol> calciteToSerializable = new HashMap<>();
     private static final Map<Enum<?>, Enum<?>> calciteToCommon = new HashMap<>();
@@ -414,6 +417,20 @@ public final class SymbolUtil {
                 SqlMatchRecognize.AfterOption.SKIP_PAST_LAST_ROW,
                 "MATCH_RECOGNIZE_AFTER_OPTION",
                 "SKIP_PAST_LAST_ROW");
+
+        // SYNTAX
+        addSymbolMapping(null, null, SqlSyntax.FUNCTION, "SYNTAX", "FUNCTION");
+        addSymbolMapping(null, null, SqlSyntax.FUNCTION_STAR, "SYNTAX", "FUNCTION_STAR");
+        addSymbolMapping(null, null, SqlSyntax.BINARY, "SYNTAX", "BINARY");
+        addSymbolMapping(null, null, SqlSyntax.PREFIX, "SYNTAX", "PREFIX");
+        addSymbolMapping(null, null, SqlSyntax.POSTFIX, "SYNTAX", "POSTFIX");
+        addSymbolMapping(null, null, SqlSyntax.SPECIAL, "SYNTAX", "SPECIAL");
+        addSymbolMapping(null, null, SqlSyntax.FUNCTION_ID, "SYNTAX", "FUNCTION_ID");
+        addSymbolMapping(null, null, SqlSyntax.INTERNAL, "SYNTAX", "INTERNAL");
+
+        // BOUND
+        addSymbolMapping(null, null, BoundType.OPEN, "BOUND", "OPEN");
+        addSymbolMapping(null, null, BoundType.CLOSED, "BOUND", "CLOSED");
     }
 
     /**
@@ -473,6 +490,19 @@ public final class SymbolUtil {
                             serializableSymbol));
         }
         return calciteSymbol;
+    }
+
+    @SuppressWarnings("unchecked")
+    public static <T extends Enum<T>> T serializableToCalcite(
+            Class<T> calciteSymbolClass, String value) {
+        final String symbolKind = calciteToSymbolKind.get(calciteSymbolClass);
+        if (symbolKind == null) {
+            throw new TableException(
+                    String.format(
+                            "Cannot find a corresponding symbol kind for class '%s'.",
+                            calciteSymbolClass.getName()));
+        }
+        return (T) serializableToCalcite.get(SerializableSymbol.of(symbolKind, value));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -540,6 +570,15 @@ public final class SymbolUtil {
         final SerializableSymbol serializableSymbol =
                 SerializableSymbol.of(serializableKind, serializableValue);
         checkCalciteSymbol(calciteSymbol);
+        final Class<?> calciteSymbolClass = calciteSymbol.getDeclaringClass();
+        if (calciteToSymbolKind.containsKey(calciteSymbolClass)) {
+            checkArgument(
+                    calciteToSymbolKind.get(calciteSymbolClass).equals(serializableKind),
+                    "All Calcite symbols should map to the same kind.");
+        } else {
+            calciteToSymbolKind.put(calciteSymbolClass, serializableKind);
+        }
+
         serializableToCalcite.put(serializableSymbol, calciteSymbol);
         calciteToSerializable.put(calciteSymbol, serializableSymbol);
         if (commonSymbol != null) {
@@ -556,8 +595,11 @@ public final class SymbolUtil {
     }
 
     private static void checkCalciteSymbol(Enum<?> calciteSymbol) {
+        final String className = calciteSymbol.getClass().getName();
+        // some Calcite symbols directly rely on Guava classes (e.g. Sarg literal boundaries)
         checkArgument(
-                calciteSymbol.getClass().getName().startsWith("org.apache.calcite."),
+                className.startsWith("org.apache.calcite.")
+                        || className.startsWith("com.google.common.collect."),
                 "Class '%s' is not a Calcite symbol.",
                 calciteSymbol);
     }

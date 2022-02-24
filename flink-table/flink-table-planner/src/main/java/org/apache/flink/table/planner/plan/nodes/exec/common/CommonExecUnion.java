@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.types.logical.RowType;
@@ -40,8 +41,12 @@ public abstract class CommonExecUnion extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
 
     public CommonExecUnion(
-            int id, List<InputProperty> inputProperties, RowType outputType, String description) {
-        super(id, inputProperties, outputType, description);
+            int id,
+            ExecNodeContext context,
+            List<InputProperty> inputProperties,
+            RowType outputType,
+            String description) {
+        super(id, context, inputProperties, outputType, description);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

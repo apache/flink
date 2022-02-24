@@ -1735,7 +1735,7 @@ SqlNode SqlStatementSet() :
 }
 
 /**
-* Parses a explain module statement.
+* Parses an explain module statement.
 */
 SqlNode SqlRichExplain() :
 {
@@ -1766,7 +1766,7 @@ SqlNode SqlRichExplain() :
 }
 
 /**
-* Parses a execute statement.
+* Parses an execute statement.
 */
 SqlNode SqlExecute() :
 {
@@ -1784,6 +1784,80 @@ SqlNode SqlExecute() :
     )
     {
         return new SqlExecute(stmt, startPos);
+    }
+}
+
+/**
+* Parses an execute plan statement.
+*/
+SqlNode SqlExecutePlan() :
+{
+    SqlNode filePath;
+}
+{
+    <EXECUTE> <PLAN>
+
+    filePath = StringLiteral()
+
+    {
+        return new SqlExecutePlan(getPos(), filePath);
+    }
+}
+
+/**
+* Parses a compile plan statement.
+*/
+SqlNode SqlCompileAndExecutePlan() :
+{
+    SqlParserPos startPos;
+    SqlNode filePath;
+    SqlNode operand;
+}
+{
+    <COMPILE> <AND> <EXECUTE> <PLAN> { startPos = getPos(); }
+
+    filePath = StringLiteral()
+
+    <FOR>
+
+    (
+        operand = SqlStatementSet()
+    |
+        operand = RichSqlInsert()
+    )
+
+    {
+        return new SqlCompileAndExecutePlan(startPos, filePath, operand);
+    }
+}
+
+/**
+* Parses a compile plan statement.
+*/
+SqlNode SqlCompilePlan() :
+{
+    SqlParserPos startPos;
+    SqlNode filePath;
+    boolean ifNotExists;
+    SqlNode operand;
+}
+{
+    <COMPILE> <PLAN> { startPos = getPos(); }
+
+    filePath = StringLiteral()
+
+    ifNotExists = IfNotExistsOpt()
+
+    <FOR>
+
+    (
+        operand = SqlStatementSet()
+    |
+        operand = RichSqlInsert()
+    )
+
+    {
+        return new SqlCompilePlan(startPos, filePath, ifNotExists, operand);
     }
 }
 
@@ -1902,5 +1976,33 @@ SqlNode SqlReset() :
     ]
     {
         return new SqlReset(span.end(this), key);
+    }
+}
+
+
+/** Parses a TRY_CAST invocation. */
+SqlNode TryCastFunctionCall() :
+{
+    final Span s;
+    final SqlOperator operator;
+    List<SqlNode> args = null;
+    SqlNode e = null;
+}
+{
+    <TRY_CAST> {
+        s = span();
+        operator = new SqlUnresolvedTryCastFunction(s.pos());
+    }
+    <LPAREN>
+        e = Expression(ExprContext.ACCEPT_SUB_QUERY) { args = startList(e); }
+    <AS>
+    (
+        e = DataType() { args.add(e); }
+    |
+        <INTERVAL> e = IntervalQualifier() { args.add(e); }
+    )
+    <RPAREN>
+    {
+        return operator.createCall(s.end(this), args);
     }
 }

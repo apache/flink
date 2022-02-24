@@ -171,7 +171,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
     private String takeSavepoint(JobGraph jobGraph) throws Exception {
         SavepointSource.initializeForTest();
 
-        ClusterClient<?> client = miniClusterResource.getClusterClient();
+        ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
         JobID jobId = jobGraph.getJobID();
 
         Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
@@ -181,7 +181,7 @@ public abstract class SavepointReaderITTestBase extends AbstractTestBase {
         try {
             JobID jobID = client.submitJob(jobGraph).get();
 
-            waitForAllRunningOrSomeTerminal(jobID, miniClusterResource);
+            waitForAllRunningOrSomeTerminal(jobID, MINI_CLUSTER_RESOURCE);
             boolean finished = false;
             while (deadline.hasTimeLeft()) {
                 if (SavepointSource.isFinished()) {

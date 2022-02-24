@@ -117,7 +117,7 @@ abstract class AbstractCodeGeneratorCastRule<IN, OUT> extends AbstractCastRule<I
         bodyWriter.declStmt("boolean", inputIsNullTerm, "_myInputObj == null");
         ctx.variableDeclarationStatements.forEach(decl -> bodyWriter.appendBlock(decl + "\n"));
 
-        if (this.canFail()) {
+        if (this.canFail(inputLogicalType, targetLogicalType)) {
             bodyWriter.tryCatchStmt(
                     tryWriter ->
                             tryWriter.append(codeBlock).stmt("return " + codeBlock.getReturnTerm()),

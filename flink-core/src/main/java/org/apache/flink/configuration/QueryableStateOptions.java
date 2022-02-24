@@ -50,6 +50,7 @@ public class QueryableStateOptions {
      */
     public static final ConfigOption<String> PROXY_PORT_RANGE =
             key("queryable-state.proxy.ports")
+                    .stringType()
                     .defaultValue("9069")
                     .withDescription(
                             "The port range of the queryable state proxy. The specified range can be a single "
@@ -60,6 +61,7 @@ public class QueryableStateOptions {
     /** Number of network (event loop) threads for the client proxy (0 => #slots). */
     public static final ConfigOption<Integer> PROXY_NETWORK_THREADS =
             key("queryable-state.proxy.network-threads")
+                    .intType()
                     .defaultValue(0)
                     .withDescription(
                             "Number of network (Netty's event loop) Threads for queryable state proxy.")
@@ -68,6 +70,7 @@ public class QueryableStateOptions {
     /** Number of async query threads for the client proxy (0 => #slots). */
     public static final ConfigOption<Integer> PROXY_ASYNC_QUERY_THREADS =
             key("queryable-state.proxy.query-threads")
+                    .intType()
                     .defaultValue(0)
                     .withDescription(
                             "Number of query Threads for queryable state proxy. Uses the number of slots if set to 0.")
@@ -93,6 +96,7 @@ public class QueryableStateOptions {
      */
     public static final ConfigOption<String> SERVER_PORT_RANGE =
             key("queryable-state.server.ports")
+                    .stringType()
                     .defaultValue("9067")
                     .withDescription(
                             "The port range of the queryable state server. The specified range can be a single "
@@ -103,6 +107,7 @@ public class QueryableStateOptions {
     /** Number of network (event loop) threads for the KvState server (0 => #slots). */
     public static final ConfigOption<Integer> SERVER_NETWORK_THREADS =
             key("queryable-state.server.network-threads")
+                    .intType()
                     .defaultValue(0)
                     .withDescription(
                             "Number of network (Netty's event loop) Threads for queryable state server.")
@@ -111,6 +116,7 @@ public class QueryableStateOptions {
     /** Number of async query threads for the KvStateServerHandler (0 => #slots). */
     public static final ConfigOption<Integer> SERVER_ASYNC_QUERY_THREADS =
             key("queryable-state.server.query-threads")
+                    .intType()
                     .defaultValue(0)
                     .withDescription(
                             "Number of query Threads for queryable state server. Uses the number of slots if set to 0.")
@@ -125,6 +131,7 @@ public class QueryableStateOptions {
      */
     public static final ConfigOption<Boolean> ENABLE_QUERYABLE_STATE_PROXY_SERVER =
             key("queryable-state.enable")
+                    .booleanType()
                     .defaultValue(false)
                     .withDescription(
                             "Option whether the queryable state proxy and server should be enabled where possible"
@@ -140,6 +147,7 @@ public class QueryableStateOptions {
      */
     public static final ConfigOption<Integer> CLIENT_NETWORK_THREADS =
             key("queryable-state.client.network-threads")
+                    .intType()
                     .defaultValue(0)
                     .withDescription(
                             "Number of network (Netty's event loop) Threads for queryable state client.")

@@ -152,7 +152,6 @@ public class StreamTaskTestHarness<OUT> {
                 taskFactory,
                 outputType,
                 new LocalRecoveryConfig(
-                        true,
                         new LocalRecoveryDirectoryProviderImpl(
                                 localRootDir, new JobID(), new JobVertexID(), 0)));
     }

@@ -18,16 +18,20 @@
 
 package org.apache.flink.runtime.clusterframework;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.util.Arrays;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the {@link ApplicationStatus}. */
 @ExtendWith(TestLoggerExtension.class)
@@ -51,6 +55,67 @@ public class ApplicationStatusTest {
     public void notSucceededNorCancelledStatusMapsToNonSuccessExitCode() {
         Iterable<Integer> exitCodes = exitCodes(notSucceededNorCancelledStatus());
         assertThat(exitCodes).doesNotContain(SUCCESS_EXIT_CODE);
+    }
+
+    @Test
+    public void testJobStatusFromSuccessApplicationStatus() {
+        assertThat(ApplicationStatus.SUCCEEDED.deriveJobStatus()).isEqualTo(JobStatus.FINISHED);
+    }
+
+    @Test
+    public void testJobStatusFromFailedApplicationStatus() {
+        assertThat(ApplicationStatus.FAILED.deriveJobStatus()).isEqualTo(JobStatus.FAILED);
+    }
+
+    @Test
+    public void testJobStatusFromCancelledApplicationStatus() {
+        assertThat(ApplicationStatus.CANCELED.deriveJobStatus()).isEqualTo(JobStatus.CANCELED);
+    }
+
+    @Test
+    public void testJobStatusFailsFromUnknownApplicationStatuses() {
+        assertThatThrownBy(ApplicationStatus.UNKNOWN::deriveJobStatus)
+                .isInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    public void testSuccessApplicationStatusFromJobStatus() {
+        assertThat(ApplicationStatus.fromJobStatus(JobStatus.FINISHED))
+                .isEqualTo(ApplicationStatus.SUCCEEDED);
+    }
+
+    @Test
+    public void testFailedApplicationStatusFromJobStatus() {
+        assertThat(ApplicationStatus.fromJobStatus(JobStatus.FAILED))
+                .isEqualTo(ApplicationStatus.FAILED);
+    }
+
+    @Test
+    public void testCancelledApplicationStatusFromJobStatus() {
+        assertThat(ApplicationStatus.fromJobStatus(JobStatus.CANCELED))
+                .isEqualTo(ApplicationStatus.CANCELED);
+    }
+
+    @ParameterizedTest
+    @EnumSource(
+            value = JobStatus.class,
+            names = {
+                "INITIALIZING",
+                "CREATED",
+                "RUNNING",
+                "FAILING",
+                "CANCELLING",
+                "RESTARTING",
+                "SUSPENDED",
+                "RECONCILING"
+            })
+    public void testUnknownApplicationStatusFromJobStatus(JobStatus jobStatus) {
+        assertThat(ApplicationStatus.fromJobStatus(jobStatus)).isEqualTo(ApplicationStatus.UNKNOWN);
+    }
+
+    @Test
+    public void testUnknownApplicationStatusForMissingJobStatus() {
+        assertThat(ApplicationStatus.fromJobStatus(null)).isEqualTo(ApplicationStatus.UNKNOWN);
     }
 
     private static Iterable<Integer> exitCodes(Iterable<ApplicationStatus> statuses) {

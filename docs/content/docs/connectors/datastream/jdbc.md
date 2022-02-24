@@ -32,7 +32,7 @@ To use it, add the following dependency to your project (along with your JDBC dr
 
 {{< artifact flink-connector-jdbc >}}
 
-Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 A driver dependency is also required to connect to a specified database. Please consult your database documentation on how to add the corresponding driver.
 
 ## `JdbcSink.sink`

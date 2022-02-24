@@ -45,7 +45,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class FileJobGraphRetriever extends AbstractUserClassPathJobGraphRetriever {
 
     public static final ConfigOption<String> JOB_GRAPH_FILE_PATH =
-            ConfigOptions.key("internal.jobgraph-path").defaultValue("job.graph");
+            ConfigOptions.key("internal.jobgraph-path").stringType().defaultValue("job.graph");
 
     @Nonnull private final String jobGraphFile;
 

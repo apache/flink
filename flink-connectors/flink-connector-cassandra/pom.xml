@@ -39,6 +39,7 @@ under the License.
 	<properties>
 		<cassandra.version>2.2.5</cassandra.version>
 		<driver.version>3.0.0</driver.version>
+		<guava.version>18.0</guava.version>
 	</properties>
 
 	<build>
@@ -164,14 +165,6 @@ under the License.
 			<scope>provided</scope>
 			<optional>true</optional>
 		</dependency>
-		<!-- A planner dependency won't be necessary once FLIP-32 has been completed. -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
-		</dependency>
 
 		<!-- Test dependencies -->
 
@@ -202,6 +195,12 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>cassandra</artifactId>
 			<scope>test</scope>
@@ -211,6 +210,14 @@ under the License.
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
 			<version>4.1.46.Final</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

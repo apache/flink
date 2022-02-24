@@ -349,6 +349,8 @@ public class StreamGraphGenerator {
         graph.setUserArtifacts(userArtifacts);
         graph.setTimeCharacteristic(timeCharacteristic);
         graph.setVertexDescriptionMode(configuration.get(PipelineOptions.VERTEX_DESCRIPTION_MODE));
+        graph.setVertexNameIncludeIndexPrefix(
+                configuration.get(PipelineOptions.VERTEX_NAME_INCLUDE_INDEX_PREFIX));
 
         if (shouldExecuteInBatchMode) {
             configureStreamGraphBatch(graph);
@@ -924,6 +926,11 @@ public class StreamGraphGenerator {
         @Override
         public ReadableConfig getGraphGeneratorConfig() {
             return config;
+        }
+
+        @Override
+        public Collection<Integer> transform(Transformation<?> transformation) {
+            return streamGraphGenerator.transform(transformation);
         }
     }
 }

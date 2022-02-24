@@ -26,13 +26,11 @@ under the License.
 
 # SQL Client
 
-
 Flink’s Table & SQL API makes it possible to work with queries written in the SQL language, but these queries need to be embedded within a table program that is written in either Java or Scala. Moreover, these programs need to be packaged with a build tool before being submitted to a cluster. This more or less limits the usage of Flink to Java/Scala programmers.
 
 The *SQL Client* aims to provide an easy way of writing, debugging, and submitting table programs to a Flink cluster without a single line of Java or Scala code. The *SQL Client CLI* allows for retrieving and visualizing real-time results from the running distributed application on the command line.
 
 {{< img width="80%" src="/fig/sql_client_demo.gif" alt="Animated demo of the Flink SQL Client CLI running table programs on a cluster" >}}
-
 
 Getting Started
 ---------------
@@ -44,7 +42,6 @@ The SQL Client is bundled in the regular Flink distribution and thus runnable ou
 ```bash
 ./bin/start-cluster.sh
 ```
-
 ### Starting the SQL Client CLI
 
 The SQL Client scripts are also located in the binary directory of Flink. [In the future](#limitations--future), a user will have two possibilities of starting the SQL Client CLI either by starting an embedded standalone process or by connecting to a remote SQL Client Gateway. At the moment only the `embedded` mode is supported, and default mode is `embedded`. You can start the CLI by calling:
@@ -417,14 +414,17 @@ When execute queries or insert statements, please enter the interactive mode or 
 
 ### Dependencies
 
-The SQL Client does not require to setup a Java project using Maven or SBT. Instead, you can pass the
-dependencies as regular JAR files that get submitted to the cluster. You can either specify each JAR
-file separately (using `--jar`) or define entire library directories (using `--library`). For
+The SQL Client does not require setting up a Java project using Maven, Gradle, or sbt. Instead, you 
+can pass the dependencies as regular JAR files that get submitted to the cluster. You can either specify 
+each JAR file separately (using `--jar`) or define entire library directories (using `--library`). For
 connectors to external systems (such as Apache Kafka) and corresponding data formats (such as JSON),
 Flink provides **ready-to-use JAR bundles**. These JAR files can be downloaded for each release from
 the Maven central repository.
 
-The full list of offered SQL JARs and documentation about how to use them can be found on the [connection to external systems page]({{< ref "docs/connectors/table/overview" >}}).
+The full list of offered SQL JARs can be found on the [connection to external systems page]({{< ref "docs/connectors/table/overview" >}}).
+
+You can refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section for
+information on how to configure connector and format dependencies.
 
 {{< top >}}
 
@@ -508,13 +508,15 @@ of executing multiple queries.
 
 #### Syntax
 ```sql
-BEGIN STATEMENT SET;
+EXECUTE STATEMENT SET 
+BEGIN
   -- one or more INSERT INTO statements
   { INSERT INTO|OVERWRITE <select_statement>; }+
 END;
 ```
 
 <span class="label label-danger">Attention</span> The statements of enclosed in the `STATEMENT SET` must be separated by a semicolon (;).
+The old syntax `BEGIN STATEMENT SET; ... END;` is deprecated, may be removed in the future version.
 
 {{< tabs "statement set" >}}
 
@@ -553,22 +555,20 @@ Flink SQL> CREATE TABLE uniqueview (
 > );
 [INFO] Execute statement succeed.
 
-Flink SQL> BEGIN STATEMENT SET;
-[INFO] Begin a statement set.
-
-Flink SQL> INSERT INTO pageviews
+Flink SQL> EXECUTE STATEMENT SET
+> BEGIN
+>
+> INSERT INTO pageview
 > SELECT page_id, count(1)
 > FROM pageviews
 > GROUP BY page_id;
-[INFO] Add SQL update statement to the statement set.
-
-Flink SQL> INSERT INTO uniqueview
+>
+> INSERT INTO uniqueview
 > SELECT page_id, count(distinct user_id)
 > FROM pageviews
 > GROUP BY page_id;
-[INFO] Add SQL update statement to the statement set.
-
-Flink SQL> END;
+>
+> END;
 [INFO] Submitting SQL update statement to the cluster...
 [INFO] SQL update statement has been successfully submitted to the cluster:
 Job ID: 6b1af540c0c0bb3fcfcad50ac037c862
@@ -607,9 +607,10 @@ CREATE TABLE uniqueview (
   'table-name' = 'uniqueview'
 );
 
-BEGIN STATEMENT SET;
+EXECUTE STATEMENT SET
+BEGIN
 
-INSERT INTO pageviews
+INSERT INTO pageview
 SELECT page_id, count(1)
 FROM pageviews
 GROUP BY page_id;

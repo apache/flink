@@ -29,7 +29,6 @@ from pyflink.table.sources import TableSource
 from pyflink.common.typeinfo import TypeInformation
 from pyflink.datastream.data_stream import DataStream
 
-from pyflink.common import JobExecutionResult
 from pyflink.java_gateway import get_gateway
 from pyflink.serializers import BatchedSerializer, PickleSerializer
 from pyflink.table import Table, EnvironmentSettings, Expression, ExplainDetail, \
@@ -636,34 +635,6 @@ class TableEnvironment(object):
         """
         return Table(get_method(self._j_tenv, "from")(descriptor._j_table_descriptor), self)
 
-    def insert_into(self, target_path: str, table: Table):
-        """
-        Instructs to write the content of a :class:`~pyflink.table.Table` API object into a table.
-
-        See the documentation of :func:`use_database` or :func:`use_catalog` for the rules on the
-        path resolution.
-
-        Example:
-        ::
-
-            >>> tab = table_env.scan("tableName")
-            >>> table_env.insert_into("sink", tab)
-
-        :param target_path: The path of the registered :class:`~pyflink.table.TableSink` to which
-                            the :class:`~pyflink.table.Table` is written.
-        :param table: The Table to write to the sink.
-
-        .. versionchanged:: 1.10.0
-            The signature is changed, e.g. the parameter *table_path_continued* was removed and
-            the parameter *target_path* is moved before the parameter *table*.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_insert` for single sink,
-                  use :func:`create_statement_set` for multiple sinks.
-        """
-        warnings.warn("Deprecated in 1.11. Use Table#execute_insert for single sink,"
-                      "use create_statement_set for multiple sinks.", DeprecationWarning)
-        self._j_tenv.insertInto(target_path, table._j_table)
-
     def list_catalogs(self) -> List[str]:
         """
         Gets the names of all catalogs registered in this environment.
@@ -801,25 +772,6 @@ class TableEnvironment(object):
         """
         return self._j_tenv.dropTemporaryView(view_path)
 
-    def explain(self, table: Table = None, extended: bool = False) -> str:
-        """
-        Returns the AST of the specified Table API and SQL queries and the execution plan to compute
-        the result of the given :class:`~pyflink.table.Table` or multi-sinks plan.
-
-        :param table: The table to be explained. If table is None, explain for multi-sinks plan,
-                      else for given table.
-        :param extended: If the plan should contain additional properties.
-                         e.g. estimated cost, traits
-        :return: The table for which the AST and execution plan will be returned.
-
-        .. note:: Deprecated in 1.11. Use :class:`Table`#:func:`explain` instead.
-        """
-        warnings.warn("Deprecated in 1.11. Use Table#explain instead.", DeprecationWarning)
-        if table is None:
-            return self._j_tenv.explain(extended)
-        else:
-            return self._j_tenv.explain(table._j_table, extended)
-
     def explain_sql(self, stmt: str, *extra_details: ExplainDetail) -> str:
         """
         Returns the AST of the specified statement and the execution plan.
@@ -887,83 +839,6 @@ class TableEnvironment(object):
         """
         _j_statement_set = self._j_tenv.createStatementSet()
         return StatementSet(_j_statement_set, self)
-
-    def sql_update(self, stmt: str):
-        """
-        Evaluates a SQL statement such as INSERT, UPDATE or DELETE or a DDL statement
-
-        .. note::
-
-            Currently only SQL INSERT statements and CREATE TABLE statements are supported.
-
-        All tables referenced by the query must be registered in the TableEnvironment.
-        A :class:`~pyflink.table.Table` is automatically registered when its
-        :func:`~Table.__str__` method is called, for example when it is embedded into a String.
-        Hence, SQL queries can directly reference a :class:`~pyflink.table.Table` as follows:
-        ::
-
-            # register the table sink into which the result is inserted.
-            >>> table_env.register_table_sink("sink_table", table_sink)
-            >>> source_table = ...
-            # source_table is not registered to the table environment
-            >>> table_env.sql_update("INSERT INTO sink_table SELECT * FROM %s" % source_table)
-
-        A DDL statement can also be executed to create/drop a table:
-        For example, the below DDL statement would create a CSV table named `tbl1`
-        into the current catalog::
-
-            create table tbl1(
-                a int,
-                b bigint,
-                c varchar
-            ) with (
-                'connector.type' = 'filesystem',
-                'format.type' = 'csv',
-                'connector.path' = 'xxx'
-            )
-
-        SQL queries can directly execute as follows:
-        ::
-
-            >>> source_ddl = \\
-            ... '''
-            ... create table sourceTable(
-            ...     a int,
-            ...     b varchar
-            ... ) with (
-            ...     'connector.type' = 'kafka',
-            ...     'update-mode' = 'append',
-            ...     'connector.topic' = 'xxx',
-            ...     'connector.properties.bootstrap.servers' = 'localhost:9092'
-            ... )
-            ... '''
-
-            >>> sink_ddl = \\
-            ... '''
-            ... create table sinkTable(
-            ...     a int,
-            ...     b varchar
-            ... ) with (
-            ...     'connector.type' = 'filesystem',
-            ...     'format.type' = 'csv',
-            ...     'connector.path' = 'xxx'
-            ... )
-            ... '''
-
-            >>> query = "INSERT INTO sinkTable SELECT FROM sourceTable"
-            >>> table_env.sql(source_ddl)
-            >>> table_env.sql(sink_ddl)
-            >>> table_env.sql(query)
-            >>> table_env.execute("MyJob")
-
-        :param stmt: The SQL statement to evaluate.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single statement,
-                  use :func:`create_statement_set` for multiple DML statements.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_sql for single statement, "
-                      "use create_statement_set for multiple DML statements.", DeprecationWarning)
-        self._j_tenv.sqlUpdate(stmt)
 
     def get_current_catalog(self) -> str:
         """
@@ -1431,34 +1306,6 @@ class TableEnvironment(object):
             python_files = archive_path
         self.get_config().get_configuration().set_string(
             jvm.PythonOptions.PYTHON_ARCHIVES.key(), python_files)
-
-    def execute(self, job_name: str) -> JobExecutionResult:
-        """
-        Triggers the program execution. The environment will execute all parts of
-        the program.
-
-        The program execution will be logged and displayed with the provided name.
-
-        .. note::
-
-            It is highly advised to set all parameters in the :class:`~pyflink.table.TableConfig`
-            on the very beginning of the program. It is undefined what configurations values will
-            be used for the execution if queries are mixed with config changes. It depends on
-            the characteristic of the particular parameter. For some of them the value from the
-            point in time of query construction (e.g. the current catalog) will be used. On the
-            other hand some values might be evaluated according to the state from the time when
-            this method is called (e.g. timezone).
-
-        :param job_name: Desired name of the job.
-        :return: The result of the job execution, containing elapsed time and accumulators.
-
-        .. note:: Deprecated in 1.11. Use :func:`execute_sql` for single sink,
-                  use :func:`create_statement_set` for multiple sinks.
-        """
-        warnings.warn("Deprecated in 1.11. Use execute_sql for single sink, "
-                      "use create_statement_set for multiple sinks.", DeprecationWarning)
-        self._before_execute()
-        return JobExecutionResult(self._j_tenv.execute(job_name))
 
     def from_elements(self, elements: Iterable, schema: Union[DataType, List[str]] = None,
                       verify_schema: bool = True) -> Table:

@@ -35,6 +35,7 @@ import org.apache.flink.kubernetes.kubeclient.decorators.FlinkConfMountDecorator
 import org.apache.flink.kubernetes.kubeclient.decorators.HadoopConfMountDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.InternalServiceDecorator;
 import org.apache.flink.kubernetes.kubeclient.decorators.KerberosMountDecorator;
+import org.apache.flink.kubernetes.kubeclient.services.HeadlessClusterIPService;
 import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
@@ -287,7 +288,7 @@ public class KubernetesJobManagerFactoryTest extends KubernetesJobManagerTestBas
 
         assertNull(resultInternalService.getSpec().getType());
         assertEquals(
-                Constants.HEADLESS_SERVICE_CLUSTER_IP,
+                HeadlessClusterIPService.HEADLESS_CLUSTER_IP,
                 resultInternalService.getSpec().getClusterIP());
         assertEquals(2, resultInternalService.getSpec().getPorts().size());
         assertEquals(3, resultInternalService.getSpec().getSelector().size());

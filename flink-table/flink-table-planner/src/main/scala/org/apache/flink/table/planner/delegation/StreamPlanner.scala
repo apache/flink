@@ -22,25 +22,30 @@ import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.graph.StreamGraph
-import org.apache.flink.table.api.{ExplainDetail, TableConfig, TableException}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier}
+import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
+import org.apache.flink.table.api.internal.CompiledPlanInternal
+import org.apache.flink.table.api.{CompiledPlan, ExplainDetail, PlanReference, TableConfig, TableException}
+import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.Executor
 import org.apache.flink.table.module.ModuleManager
-import org.apache.flink.table.operations.{ModifyOperation, Operation, QueryOperation, SinkModifyOperation}
-import org.apache.flink.table.planner.operations.PlannerQueryOperation
+import org.apache.flink.table.operations.{ModifyOperation, Operation}
+import org.apache.flink.table.planner.plan.ExecNodeGraphCompiledPlan
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.processor.ExecNodeGraphProcessor
+import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 import org.apache.flink.table.planner.utils.DummyStreamExecutionEnvironment
 
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
+
 import org.apache.calcite.plan.{ConventionTraitDef, RelTrait, RelTraitDef}
-import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.sql.SqlExplainLevel
 
+import java.io.{File, IOException}
 import java.util
 
 import _root_.scala.collection.JavaConversions._
@@ -129,9 +134,61 @@ class StreamPlanner(
     new StreamPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def explainJsonPlan(jsonPlan: String, extraDetails: ExplainDetail*): String = {
+  override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
+    val ctx = createSerdeContext
+    val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
+    val execNodeGraph = planReference match {
+      case filePlanReference: FilePlanReference =>
+        objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
+      case contentPlanReference: ContentPlanReference =>
+        objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
+      case resourcePlanReference: ResourcePlanReference => {
+        val url = resourcePlanReference.getClassLoader
+          .getResource(resourcePlanReference.getResourcePath)
+        if (url == null) {
+          throw new IOException(
+            "Cannot load the plan reference from classpath: " + planReference);
+        }
+        objectReader.readValue(new File(url.toURI), classOf[ExecNodeGraph])
+      }
+      case _ => throw new IllegalStateException(
+        "Unknown PlanReference. This is a bug, please contact the developers")
+    }
+
+    new ExecNodeGraphCompiledPlan(
+      this,
+      JsonSerdeUtil.createObjectWriter(createSerdeContext)
+        .withDefaultPrettyPrinter()
+        .writeValueAsString(execNodeGraph),
+      execNodeGraph)
+  }
+
+  override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlanInternal = {
     validateAndOverrideConfiguration()
-    val execGraph = ExecNodeGraph.createExecNodeGraph(jsonPlan, createSerdeContext)
+    val relNodes = modifyOperations.map(translateToRel)
+    val optimizedRelNodes = optimize(relNodes)
+    val execGraph = translateToExecNodeGraph(optimizedRelNodes)
+    cleanupInternalConfigurations()
+
+    new ExecNodeGraphCompiledPlan(
+      this,
+      JsonSerdeUtil.createObjectWriter(createSerdeContext)
+        .withDefaultPrettyPrinter()
+        .writeValueAsString(execGraph),
+      execGraph)
+  }
+
+  override def translatePlan(plan: CompiledPlanInternal): util.List[Transformation[_]] = {
+    validateAndOverrideConfiguration()
+    val execGraph = plan.asInstanceOf[ExecNodeGraphCompiledPlan].getExecNodeGraph
+    val transformations = translateToPlan(execGraph)
+    cleanupInternalConfigurations()
+    transformations
+  }
+
+  override def explainPlan(plan: CompiledPlanInternal, extraDetails: ExplainDetail*): String = {
+    validateAndOverrideConfiguration()
+    val execGraph = plan.asInstanceOf[ExecNodeGraphCompiledPlan].getExecNodeGraph
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
 

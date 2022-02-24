@@ -22,7 +22,7 @@
 ##
 MVN=${MVN:-mvn}
 
-if [ -z "${RELEASE_VERSION}" ]; then
+if [ -z "${RELEASE_VERSION:-}" ]; then
     echo "RELEASE_VERSION was not set."
     exit 1
 fi

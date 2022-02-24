@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.api.datastream;
 
-import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
@@ -42,7 +41,7 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.Utils;
 import org.apache.flink.api.java.functions.KeySelector;
@@ -71,7 +70,6 @@ import org.apache.flink.streaming.api.operators.StreamFilter;
 import org.apache.flink.streaming.api.operators.StreamFlatMap;
 import org.apache.flink.streaming.api.operators.StreamMap;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
-import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectResultIterator;
 import org.apache.flink.streaming.api.operators.collect.CollectSinkOperator;
@@ -1240,12 +1238,7 @@ public class DataStream<T> {
             ((InputTypeConfigurable) sinkFunction).setInputType(getType(), getExecutionConfig());
         }
 
-        StreamSink<T> sinkOperator = new StreamSink<>(clean(sinkFunction));
-
-        DataStreamSink<T> sink = new DataStreamSink<>(this, sinkOperator);
-
-        getExecutionEnvironment().addOperator(sink.getLegacyTransformation());
-        return sink;
+        return DataStreamSink.forSinkFunction(this, clean(sinkFunction));
     }
 
     /**
@@ -1255,12 +1248,27 @@ public class DataStream<T> {
      * @param sink The user defined sink.
      * @return The closed DataStream.
      */
-    @Experimental
-    public DataStreamSink<T> sinkTo(Sink<T, ?, ?, ?> sink) {
+    @PublicEvolving
+    public DataStreamSink<T> sinkTo(org.apache.flink.api.connector.sink.Sink<T, ?, ?, ?> sink) {
         // read the output type of the input Transform to coax out errors about MissingTypeInfo
         transformation.getOutputType();
 
-        return new DataStreamSink<>(this, sink);
+        return DataStreamSink.forSinkV1(this, sink);
+    }
+
+    /**
+     * Adds the given {@link Sink} to this DataStream. Only streams with sinks added will be
+     * executed once the {@link StreamExecutionEnvironment#execute()} method is called.
+     *
+     * @param sink The user defined sink.
+     * @return The closed DataStream.
+     */
+    @PublicEvolving
+    public DataStreamSink<T> sinkTo(Sink<T> sink) {
+        // read the output type of the input Transform to coax out errors about MissingTypeInfo
+        transformation.getOutputType();
+
+        return DataStreamSink.forSink(this, sink);
     }
 
     /**

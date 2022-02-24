@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.utils.{ExecNodeUtil, TransformationMetadata}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -51,8 +51,7 @@ object CorrelateCodeGenerator {
       parallelism: Int,
       retainHeader: Boolean,
       opName: String,
-      transformationName: String,
-      transformationDescription: String)
+      transformationMeta: TransformationMetadata)
   : Transformation[RowData] = {
 
     // according to the SQL standard, every scalar function should also be a table function
@@ -86,8 +85,7 @@ object CorrelateCodeGenerator {
 
     ExecNodeUtil.createOneInputTransformation(
       inputTransformation,
-      transformationName,
-      transformationDescription,
+      transformationMeta,
       substituteStreamOperator,
       InternalTypeInfo.of(outputType),
       parallelism,

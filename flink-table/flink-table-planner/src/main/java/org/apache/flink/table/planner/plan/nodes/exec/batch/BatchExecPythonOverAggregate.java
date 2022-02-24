@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
@@ -72,7 +73,13 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(overSpec, inputProperty, outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecPythonOverAggregate.class),
+                overSpec,
+                inputProperty,
+                outputType,
+                description);
         lowerBoundary = new ArrayList<>();
         upperBoundary = new ArrayList<>();
         aggCalls = new ArrayList<>();
@@ -180,8 +187,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                         pythonFunctionInfos);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(mergedConfig),
-                getOperatorDescription(mergedConfig),
+                createTransformationName(mergedConfig),
+                createTransformationDescription(mergedConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

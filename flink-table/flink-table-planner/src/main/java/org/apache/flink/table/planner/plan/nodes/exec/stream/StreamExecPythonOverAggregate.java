@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
@@ -49,7 +50,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
@@ -69,6 +69,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Stream {@link ExecNode} for python time-based over operator. */
 public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonOverAggregate.class);
 
     private static final String
@@ -88,9 +89,6 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                     "org.apache.flink.table.runtime.operators.python.aggregate.arrow.stream."
                             + "StreamArrowPythonProcTimeBoundedRowsOperator";
 
-    public static final String FIELD_NAME_OVER_SPEC = "overSpec";
-
-    @JsonProperty(FIELD_NAME_OVER_SPEC)
     private final OverSpec overSpec;
 
     public StreamExecPythonOverAggregate(
@@ -99,8 +97,9 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
             RowType outputType,
             String description) {
         this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecPythonOverAggregate.class),
                 overSpec,
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -108,12 +107,13 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
 
     @JsonCreator
     public StreamExecPythonOverAggregate(
-            @JsonProperty(FIELD_NAME_OVER_SPEC) OverSpec overSpec,
-            @JsonProperty(FIELD_NAME_ID) int id,
-            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
-            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, inputProperties, outputType, description);
+            int id,
+            ExecNodeContext context,
+            OverSpec overSpec,
+            List<InputProperty> inputProperties,
+            RowType outputType,
+            String description) {
+        super(id, context, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.overSpec = checkNotNull(overSpec);
     }
@@ -239,8 +239,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(mergedConfig),
-                getOperatorDescription(mergedConfig),
+                createTransformationName(mergedConfig),
+                createTransformationDescription(mergedConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());

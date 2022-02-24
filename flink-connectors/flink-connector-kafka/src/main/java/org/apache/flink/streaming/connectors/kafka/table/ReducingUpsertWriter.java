@@ -17,8 +17,9 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.common.operators.ProcessingTimeService;
+import org.apache.flink.api.connector.sink2.SinkWriter;
+import org.apache.flink.api.connector.sink2.StatefulSink;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.DataType;
@@ -27,7 +28,6 @@ import org.apache.flink.types.RowKind;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,26 +39,27 @@ import static org.apache.flink.types.RowKind.UPDATE_AFTER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-class ReducingUpsertWriter<WriterState> implements SinkWriter<RowData, Void, WriterState> {
+class ReducingUpsertWriter<WriterState>
+        implements StatefulSink.StatefulSinkWriter<RowData, WriterState> {
 
-    private final SinkWriter<RowData, ?, WriterState> wrappedWriter;
+    private final StatefulSink.StatefulSinkWriter<RowData, WriterState> wrappedWriter;
     private final WrappedContext wrappedContext = new WrappedContext();
     private final int batchMaxRowNums;
     private final Function<RowData, RowData> valueCopyFunction;
     private final Map<RowData, Tuple2<RowData, Long>> reduceBuffer = new HashMap<>();
     private final Function<RowData, RowData> keyExtractor;
-    private final Sink.ProcessingTimeService timeService;
+    private final ProcessingTimeService timeService;
     private final long batchIntervalMs;
 
     private boolean closed = false;
     private long lastFlush = System.currentTimeMillis();
 
     ReducingUpsertWriter(
-            SinkWriter<RowData, ?, WriterState> wrappedWriter,
+            StatefulSink.StatefulSinkWriter<RowData, WriterState> wrappedWriter,
             DataType physicalDataType,
             int[] keyProjection,
             SinkBufferFlushMode bufferFlushMode,
-            Sink.ProcessingTimeService timeService,
+            ProcessingTimeService timeService,
             Function<RowData, RowData> valueCopyFunction) {
         checkArgument(bufferFlushMode != null && bufferFlushMode.isEnabled());
         this.wrappedWriter = checkNotNull(wrappedWriter);
@@ -85,9 +86,8 @@ class ReducingUpsertWriter<WriterState> implements SinkWriter<RowData, Void, Wri
     }
 
     @Override
-    public List<Void> prepareCommit(boolean flush) throws IOException, InterruptedException {
+    public void flush(boolean endOfInput) throws IOException, InterruptedException {
         flush();
-        return Collections.emptyList();
     }
 
     @Override
@@ -117,7 +117,7 @@ class ReducingUpsertWriter<WriterState> implements SinkWriter<RowData, Void, Wri
         if (closed) {
             return;
         }
-        timeService.registerProcessingTimer(
+        timeService.registerTimer(
                 lastFlush + batchIntervalMs,
                 (t) -> {
                     if (t >= lastFlush + batchIntervalMs) {

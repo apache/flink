@@ -91,8 +91,9 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
 
     @Override
     public StreamExecutionEnvironment setParallelism(int parallelism) {
-        throw new UnsupportedOperationException(
-                "This is a dummy StreamExecutionEnvironment, setParallelism method is unsupported.");
+        // Please always reset the parallelism back to the original one after changed
+        realExecEnv.setParallelism(parallelism);
+        return this;
     }
 
     @Override

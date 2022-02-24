@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.OperatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacyTableSourceScan;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
@@ -67,7 +68,13 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
             List<String> qualifiedName,
             RowType outputType,
             String description) {
-        super(tableSource, qualifiedName, outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecLegacyTableSourceScan.class),
+                tableSource,
+                qualifiedName,
+                outputType,
+                description);
     }
 
     @SuppressWarnings("unchecked")
@@ -109,8 +116,10 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
                             outputType,
                             qualifiedName,
                             (detailName, simplifyName) ->
-                                    getFormattedOperatorName(detailName, simplifyName, config),
-                            (description) -> getFormattedOperatorDescription(description, config),
+                                    createFormattedTransformationName(
+                                            detailName, simplifyName, config),
+                            (description) ->
+                                    createFormattedTransformationDescription(description, config),
                             JavaScalaConversionUtil.toScala(Optional.ofNullable(rowtimeExpression)),
                             extractElement,
                             resetElement);

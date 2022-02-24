@@ -1,7 +1,8 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`WatermarkTable`",
@@ -25,19 +26,16 @@
               "rowtimeAttribute" : "c",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "-",
-                    "kind" : "MINUS",
-                    "syntax" : "SPECIAL"
-                  },
+                  "kind" : "CALL",
+                  "syntax" : "SPECIAL",
+                  "internalName" : "$-$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
                     "inputIndex" : 2,
                     "type" : "TIMESTAMP(3)"
                   }, {
                     "kind" : "LITERAL",
-                    "value" : 5000,
+                    "value" : "5000",
                     "type" : "INTERVAL SECOND(6) NOT NULL"
                   } ],
                   "type" : "TIMESTAMP(3)"
@@ -58,19 +56,16 @@
       "abilities" : [ {
         "type" : "WatermarkPushDown",
         "watermarkExpr" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "-",
-            "kind" : "MINUS",
-            "syntax" : "SPECIAL"
-          },
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$-$1",
           "operands" : [ {
             "kind" : "INPUT_REF",
             "inputIndex" : 2,
             "type" : "TIMESTAMP(3)"
           }, {
             "kind" : "LITERAL",
-            "value" : 5000,
+            "value" : "5000",
             "type" : "INTERVAL SECOND(6) NOT NULL"
           } ],
           "type" : "TIMESTAMP(3)"
@@ -96,7 +91,6 @@
         }
       } ]
     },
-    "id" : 1,
     "outputType" : {
       "type" : "ROW",
       "fields" : [ {
@@ -117,7 +111,8 @@
     "description" : "TableSourceScan(table=[[default_catalog, default_database, WatermarkTable, watermark=[-(c, 5000:INTERVAL SECOND)]]], fields=[a, b, c])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 2,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`sink`",
@@ -144,7 +139,6 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

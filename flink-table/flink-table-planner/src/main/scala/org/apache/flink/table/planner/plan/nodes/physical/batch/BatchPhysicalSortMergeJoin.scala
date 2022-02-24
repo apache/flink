@@ -179,8 +179,14 @@ class BatchPhysicalSortMergeJoin(
       joinSpec.getFilterNulls,
       condition,
       estimateOutputSize(getLeft) < estimateOutputSize(getRight),
-      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
-      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
+      InputProperty.builder()
+        .requiredDistribution(InputProperty.hashDistribution(joinSpec.getLeftKeys))
+        .damBehavior(InputProperty.DamBehavior.END_INPUT)
+        .build(),
+      InputProperty.builder()
+        .requiredDistribution(InputProperty.hashDistribution(joinSpec.getRightKeys))
+        .damBehavior(InputProperty.DamBehavior.END_INPUT)
+        .build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

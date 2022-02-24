@@ -62,10 +62,6 @@ CREATE TABLE MyUserTable (
 Make sure to include [Flink File System specific dependencies]({{< ref "docs/deployment/filesystems/overview" >}}).
 {{< /hint >}}
 
-{{< hint info >}}
-File system sources for streaming is still under development. In the future, the community will add support for common streaming use cases, i.e., partition and directory monitoring.
-{{< /hint >}}
-
 {{< hint warning >}}
 The behaviour of file system connector is much different from `previous legacy filesystem connector`:
 the path parameter is specified for a directory not for a file and you can't get a human-readable file in the path that you declare.
@@ -111,9 +107,9 @@ When using a directory as the source path, there is **no defined order of ingest
 
 ### Directory watching
 
-The file system connector automatically watches the input directory when the runtime mode is configured as STREAMING.
+By default, the file system connector is bounded, that is it will scan the configured path once and then close itself.
 
-You can modify the watch interval using the following option.
+You can enable continuous directory watching by configuring the option `source.monitor-interval`:
 
 <table class="table table-bordered">
   <thead>

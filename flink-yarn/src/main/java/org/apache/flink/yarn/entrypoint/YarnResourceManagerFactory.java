@@ -65,4 +65,12 @@ public class YarnResourceManagerFactory extends ActiveResourceManagerFactory<Yar
         return ResourceManagerRuntimeServicesConfiguration.fromConfiguration(
                 configuration, YarnWorkerResourceSpecFactory.INSTANCE);
     }
+
+    @Override
+    public boolean supportMultiLeaderSession() {
+        // Multiple leader session is not supported by the Yarn deployment, because Flink RM relies
+        // on the registration response from Yarn RM for recovering previous resources, but Yarn
+        // only allows each AM process to register for once.
+        return false;
+    }
 }

@@ -67,6 +67,7 @@ import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
@@ -434,7 +435,9 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
-                        false, new File[] {tmp.newFolder()}, Executors.directExecutor());
+                        false,
+                        Reference.owned(new File[] {tmp.newFolder()}),
+                        Executors.directExecutor());
 
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()

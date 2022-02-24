@@ -29,6 +29,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacyTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
@@ -58,7 +59,13 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
             List<String> qualifiedName,
             RowType outputType,
             String description) {
-        super(tableSource, qualifiedName, outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecLegacyTableSourceScan.class),
+                tableSource,
+                qualifiedName,
+                outputType,
+                description);
     }
 
     @Override
@@ -93,8 +100,8 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
                     (RowType) getOutputType(),
                     qualifiedName,
                     (detailName, simplifyName) ->
-                            getFormattedOperatorName(detailName, simplifyName, config),
-                    (description) -> getFormattedOperatorDescription(description, config),
+                            createFormattedTransformationName(detailName, simplifyName, config),
+                    (description) -> createFormattedTransformationDescription(description, config),
                     JavaScalaConversionUtil.toScala(Optional.ofNullable(rowtimeExpression)),
                     "",
                     "");

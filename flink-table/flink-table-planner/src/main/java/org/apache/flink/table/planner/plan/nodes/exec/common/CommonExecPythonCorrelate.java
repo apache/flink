@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
@@ -43,9 +44,6 @@ import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -58,30 +56,25 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Base {@link ExecNode} which matches along with join a Python user defined table function. */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
-
-    public static final String FIELD_NAME_JOIN_TYPE = "joinType";
-    public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
 
     private static final String PYTHON_TABLE_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.table.PythonTableFunctionOperator";
 
-    @JsonProperty(FIELD_NAME_JOIN_TYPE)
     private final FlinkJoinType joinType;
 
-    @JsonProperty(FIELD_NAME_FUNCTION_CALL)
     private final RexCall invocation;
 
     public CommonExecPythonCorrelate(
+            int id,
+            ExecNodeContext context,
             FlinkJoinType joinType,
             RexCall invocation,
-            int id,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.joinType = joinType;
         this.invocation = invocation;
@@ -125,8 +118,8 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                         pythonUdtfInputOffsets);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(mergedConfig),
-                getOperatorDescription(mergedConfig),
+                createTransformationName(mergedConfig),
+                createTransformationDescription(mergedConfig),
                 pythonOperator,
                 pythonOperatorOutputRowType,
                 inputTransform.getParallelism());

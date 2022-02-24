@@ -3,8 +3,8 @@ title: "Checkpointing under backpressure"
 weight: 9
 type: docs
 aliases:
-- /ops/state/unalgined_checkpoints.html
-- /ops/state/checkpointing_under_backpressure.html
+- /zh/ops/state/unalgined_checkpoints.html
+- /zh/ops/state/checkpointing_under_backpressure.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -35,8 +35,8 @@ For details on Pulsar compatibility, please refer to the [PIP-72](https://github
 
 {{< artifact flink-connector-pulsar >}}
 
-Flink's streaming connectors are not currently part of the binary distribution.
-See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+Flink's streaming connectors are not part of the binary distribution.
+See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 ## Pulsar Source
 

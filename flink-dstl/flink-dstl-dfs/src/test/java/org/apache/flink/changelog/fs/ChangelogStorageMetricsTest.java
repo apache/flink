@@ -24,6 +24,7 @@ import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
+import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.testutils.EmptyStreamStateHandle;
 
 import org.junit.Rule;
@@ -61,8 +62,9 @@ public class ChangelogStorageMetricsTest {
 
             int numUploads = 5;
             for (int i = 0; i < numUploads; i++) {
+                SequenceNumber from = writer.nextSequenceNumber();
                 writer.append(0, new byte[] {0, 1, 2, 3});
-                writer.persist(writer.lastAppendedSequenceNumber()).get();
+                writer.persist(from).get();
             }
             assertEquals(numUploads, metrics.getUploadsCounter().getCount());
             assertTrue(metrics.getUploadLatenciesNanos().getStatistics().getMin() > 0);
@@ -80,14 +82,16 @@ public class ChangelogStorageMetricsTest {
             FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
 
             // upload single byte to infer header size
+            SequenceNumber from = writer.nextSequenceNumber();
             writer.append(0, new byte[] {0});
-            writer.persist(writer.lastAppendedSequenceNumber()).get();
+            writer.persist(from).get();
             long headerSize = metrics.getUploadSizes().getStatistics().getMin() - 1;
 
             byte[] upload = new byte[33];
             for (int i = 0; i < 5; i++) {
+                from = writer.nextSequenceNumber();
                 writer.append(0, upload);
-                writer.persist(writer.lastAppendedSequenceNumber()).get();
+                writer.persist(from).get();
             }
             long expected = upload.length + headerSize;
             assertEquals(expected, metrics.getUploadSizes().getStatistics().getMax());
@@ -105,9 +109,10 @@ public class ChangelogStorageMetricsTest {
 
             int numUploads = 5;
             for (int i = 0; i < numUploads; i++) {
+                SequenceNumber from = writer.nextSequenceNumber();
                 writer.append(0, new byte[] {0, 1, 2, 3});
                 try {
-                    writer.persist(writer.lastAppendedSequenceNumber()).get();
+                    writer.persist(from).get();
                 } catch (IOException e) {
                     // ignore
                 }
@@ -148,10 +153,10 @@ public class ChangelogStorageMetricsTest {
             for (int upload = 0; upload < numUploads; upload++) {
                 for (int writer = 0; writer < numWriters; writer++) {
                     // with all thresholds on MAX and manually triggered executor, this shouldn't
-                    // cause
-                    // actual uploads
+                    // cause actual uploads
+                    SequenceNumber from = writers[writer].nextSequenceNumber();
                     writers[writer].append(0, new byte[] {0, 1, 2, 3});
-                    writers[writer].persist(writers[writer].lastAppendedSequenceNumber());
+                    writers[writer].persist(from);
                 }
                 // now the uploads should be grouped and executed at once
                 scheduler.triggerScheduledTasks();
@@ -186,8 +191,9 @@ public class ChangelogStorageMetricsTest {
 
         try {
             for (int upload = 0; upload < numUploads; upload++) {
+                SequenceNumber from = writer.nextSequenceNumber();
                 writer.append(0, new byte[] {0, 1, 2, 3});
-                writer.persist(writer.lastAppendedSequenceNumber()).get();
+                writer.persist(from).get();
             }
             HistogramStatistics histogram = metrics.getAttemptsPerUpload().getStatistics();
             assertEquals(maxAttempts, histogram.getMin());
@@ -236,8 +242,9 @@ public class ChangelogStorageMetricsTest {
             FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
             int numUploads = 11;
             for (int i = 0; i < numUploads; i++) {
+                SequenceNumber from = writer.nextSequenceNumber();
                 writer.append(0, new byte[] {0});
-                writer.persist(writer.lastAppendedSequenceNumber());
+                writer.persist(from);
             }
             assertEquals(numUploads, (int) queueSizeGauge.get().getValue());
             scheduler.triggerScheduledTasks();

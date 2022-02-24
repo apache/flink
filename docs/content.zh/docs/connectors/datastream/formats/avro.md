@@ -3,8 +3,8 @@ title:  "Avro"
 weight: 4
 type: docs
 aliases:
-- /dev/connectors/formats/avro.html
-- /apis/streaming/connectors/formats/avro.html
+- /zh/dev/connectors/formats/avro.html
+- /zh/apis/streaming/connectors/formats/avro.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

@@ -49,6 +49,9 @@ Dependencies
 
 {{< sql_download_table "upsert-kafka" >}}
 
+The Upsert Kafka connector is not part of the binary distribution.
+See how to link with it for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
+
 Full Example
 ----------------
 

@@ -25,6 +25,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.jmx.JMXReporter;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
@@ -36,14 +37,12 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.jobgraph.tasks.JobCheckpointingSettings;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.MiniClusterWithClientExtension;
 import org.apache.flink.testutils.TestingUtils;
-import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.Assert;
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import javax.management.MBeanServer;
 import javax.management.ObjectName;
@@ -53,19 +52,22 @@ import java.time.Duration;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests to verify JMX reporter functionality on the JobManager. */
-public class JMXJobManagerMetricTest extends TestLogger {
+class JMXJobManagerMetricTest {
 
-    @ClassRule
-    public static final MiniClusterWithClientResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterWithClientResource(
+    private static final MiniClusterWithClientExtension MINI_CLUSTER_RESOURCE =
+            new MiniClusterWithClientExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getConfiguration())
                             .setNumberSlotsPerTaskManager(1)
                             .setNumberTaskManagers(1)
                             .build());
+
+    @RegisterExtension
+    private static final AllCallbackWrapper<MiniClusterWithClientExtension> ALL_WRAPPER =
+            new AllCallbackWrapper<>(MINI_CLUSTER_RESOURCE);
 
     private static Configuration getConfiguration() {
         Configuration flinkConfiguration = new Configuration();
@@ -82,7 +84,7 @@ public class JMXJobManagerMetricTest extends TestLogger {
 
     /** Tests that metrics registered on the JobManager are actually accessible via JMX. */
     @Test
-    public void testJobManagerJMXMetricAccess() throws Exception {
+    void testJobManagerJMXMetricAccess() throws Exception {
         Deadline deadline = Deadline.now().plus(Duration.ofMinutes(2));
 
         try {
@@ -128,8 +130,8 @@ public class JMXJobManagerMetricTest extends TestLogger {
                             new ObjectName(
                                     "org.apache.flink.jobmanager.job.lastCheckpointSize:job_name=TestingJob,*"),
                             null);
-            Assert.assertEquals(1, nameSet.size());
-            assertEquals(-1L, mBeanServer.getAttribute(nameSet.iterator().next(), "Value"));
+            assertThat(nameSet).hasSize(1);
+            assertThat(mBeanServer.getAttribute(nameSet.iterator().next(), "Value")).isEqualTo(-1L);
 
             BlockingInvokable.unblock();
         } finally {

@@ -228,13 +228,18 @@ class BatchPhysicalRank(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (partitionKey.length() == 0) {
+      InputProperty.SINGLETON_DISTRIBUTION
+    } else {
+      InputProperty.hashDistribution(partitionKey.toArray)
+    }
     new BatchExecRank(
       partitionKey.toArray,
       orderKey.getFieldCollations.map(_.getFieldIndex).toArray,
       rankStart,
       rankEnd,
       outputRankNumber,
-      InputProperty.DEFAULT,
+      InputProperty.builder().requiredDistribution(requiredDistribution).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

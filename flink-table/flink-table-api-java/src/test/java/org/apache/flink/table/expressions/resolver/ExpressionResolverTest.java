@@ -60,6 +60,7 @@ import java.util.Optional;
 
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.col;
 import static org.apache.flink.table.api.Expressions.range;
 import static org.apache.flink.table.api.Expressions.withColumns;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
@@ -100,8 +101,7 @@ public class ExpressionResolverTest {
                                         .build())
                         .select($("f0").flatten())
                         .equalTo(
-                                new CallExpression(
-                                        FunctionIdentifier.of("get"),
+                                CallExpression.permanent(
                                         BuiltInFunctionDefinitions.GET,
                                         Arrays.asList(
                                                 new FieldReferenceExpression(
@@ -115,8 +115,7 @@ public class ExpressionResolverTest {
                                                         0),
                                                 new ValueLiteralExpression("n0")),
                                         DataTypes.BIGINT()),
-                                new CallExpression(
-                                        FunctionIdentifier.of("get"),
+                                CallExpression.permanent(
                                         BuiltInFunctionDefinitions.GET,
                                         Arrays.asList(
                                                 new FieldReferenceExpression(
@@ -138,8 +137,7 @@ public class ExpressionResolverTest {
                                         .build())
                         .select($("f0").isEqual($("f1")))
                         .equalTo(
-                                new CallExpression(
-                                        FunctionIdentifier.of("equals"),
+                                CallExpression.permanent(
                                         BuiltInFunctionDefinitions.EQUALS,
                                         Arrays.asList(
                                                 new FieldReferenceExpression(
@@ -154,7 +152,7 @@ public class ExpressionResolverTest {
                                 new ScalarFunctionDefinition("func", new LegacyScalarFunc()))
                         .select(call("func", 1, $("f0")))
                         .equalTo(
-                                new CallExpression(
+                                CallExpression.permanent(
                                         FunctionIdentifier.of("func"),
                                         new ScalarFunctionDefinition(
                                                 "func", new LegacyScalarFunc()),
@@ -168,7 +166,7 @@ public class ExpressionResolverTest {
                         .lookupFunction("func", new ScalarFunc())
                         .select(call("func", 1, $("f0")))
                         .equalTo(
-                                new CallExpression(
+                                CallExpression.permanent(
                                         FunctionIdentifier.of("func"),
                                         new ScalarFunc(),
                                         Arrays.asList(
@@ -180,7 +178,7 @@ public class ExpressionResolverTest {
                         .inputSchemas(TableSchema.builder().field("f0", DataTypes.INT()).build())
                         .select(call(ScalarFunc.class, 1, $("f0")))
                         .equalTo(
-                                new CallExpression(
+                                CallExpression.anonymous(
                                         new ScalarFunc(),
                                         Arrays.asList(
                                                 valueLiteral(1),
@@ -192,7 +190,7 @@ public class ExpressionResolverTest {
                         .lookupFunction(ObjectIdentifier.of("cat", "db", "func"), new ScalarFunc())
                         .select(call("cat.db.func", 1, $("f0")))
                         .equalTo(
-                                new CallExpression(
+                                CallExpression.permanent(
                                         FunctionIdentifier.of(
                                                 ObjectIdentifier.of("cat", "db", "func")),
                                         new ScalarFunc(),
@@ -206,14 +204,14 @@ public class ExpressionResolverTest {
                         .lookupFunction("func", new ScalarFunc())
                         .select(call("func", call(new ScalarFunc(), call("func", 1, $("f0")))))
                         .equalTo(
-                                new CallExpression(
+                                CallExpression.permanent(
                                         FunctionIdentifier.of("func"),
                                         new ScalarFunc(),
                                         Collections.singletonList(
-                                                new CallExpression(
+                                                CallExpression.anonymous(
                                                         new ScalarFunc(),
                                                         Collections.singletonList(
-                                                                new CallExpression(
+                                                                CallExpression.permanent(
                                                                         FunctionIdentifier.of(
                                                                                 "func"),
                                                                         new ScalarFunc(),
@@ -243,7 +241,7 @@ public class ExpressionResolverTest {
                         .lookupFunction("func", new ScalarFunc())
                         .select(call("func", $("*")))
                         .equalTo(
-                                new CallExpression(
+                                CallExpression.permanent(
                                         FunctionIdentifier.of("func"),
                                         new ScalarFunc(),
                                         Arrays.asList(
@@ -251,7 +249,11 @@ public class ExpressionResolverTest {
                                                         "f0", DataTypes.INT(), 0, 0),
                                                 new FieldReferenceExpression(
                                                         "f1", DataTypes.STRING(), 0, 1)),
-                                        DataTypes.INT().notNull().bridgedTo(int.class))));
+                                        DataTypes.INT().notNull().bridgedTo(int.class))),
+                TestSpec.test("Test field reference with col()")
+                        .inputSchemas(TableSchema.builder().field("i", DataTypes.INT()).build())
+                        .select(col("i"))
+                        .equalTo(new FieldReferenceExpression("i", DataTypes.INT(), 0, 0)));
     }
 
     @Parameterized.Parameter public TestSpec testSpec;

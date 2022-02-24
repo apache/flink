@@ -31,6 +31,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.RunnableWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.Test;
 
@@ -40,7 +41,6 @@ import java.util.ArrayDeque;
 import java.util.Queue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.function.Consumer;
 
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.is;
@@ -130,7 +130,7 @@ public class AbstractHaServicesTest extends TestLogger {
                         () -> {},
                         jobCleanupFuture::complete);
 
-        haServices.cleanupJobData(jobID);
+        haServices.globalCleanupAsync(jobID, Executors.directExecutor()).join();
         JobID jobIDCleaned = jobCleanupFuture.get();
         assertThat(jobIDCleaned, is(jobID));
     }
@@ -185,7 +185,7 @@ public class AbstractHaServicesTest extends TestLogger {
 
         private final Queue<? super CloseOperations> closeOperations;
         private final RunnableWithException internalCleanupRunnable;
-        private final Consumer<JobID> internalJobCleanupConsumer;
+        private final ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer;
 
         private TestingHaServices(
                 Configuration config,
@@ -193,7 +193,7 @@ public class AbstractHaServicesTest extends TestLogger {
                 BlobStoreService blobStoreService,
                 Queue<? super CloseOperations> closeOperations,
                 RunnableWithException internalCleanupRunnable,
-                Consumer<JobID> internalJobCleanupConsumer) {
+                ThrowingConsumer<JobID, Exception> internalJobCleanupConsumer) {
             super(
                     config,
                     ioExecutor,

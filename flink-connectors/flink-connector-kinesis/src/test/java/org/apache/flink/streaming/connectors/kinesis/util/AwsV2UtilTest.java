@@ -19,10 +19,12 @@ package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.junit.Test;
 import software.amazon.awssdk.http.SdkHttpConfigurationOption;
+import software.amazon.awssdk.services.kinesis.model.LimitExceededException;
 import software.amazon.awssdk.utils.AttributeMap;
 
 import java.time.Duration;
 import java.util.Properties;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.EAGER;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.LAZY;
@@ -130,5 +132,37 @@ public class AwsV2UtilTest {
 
         prop.setProperty(EFO_REGISTRATION_TYPE, NONE.name());
         assertTrue(AwsV2Util.isNoneEfoRegistrationType(prop));
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForRecoverable() {
+        Exception recoverable = LimitExceededException.builder().build();
+        assertTrue(AwsV2Util.isRecoverableException(new ExecutionException(recoverable)));
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForNonRecoverable() {
+        Exception nonRecoverable = new IllegalArgumentException("abc");
+        assertFalse(AwsV2Util.isRecoverableException(new ExecutionException(nonRecoverable)));
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForRuntimeExceptionWrappingRecoverable() {
+        Exception recoverable = LimitExceededException.builder().build();
+        Exception runtime = new RuntimeException("abc", recoverable);
+        assertTrue(AwsV2Util.isRecoverableException(runtime));
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForRuntimeExceptionWrappingNonRecoverable() {
+        Exception nonRecoverable = new IllegalArgumentException("abc");
+        Exception runtime = new RuntimeException("abc", nonRecoverable);
+        assertFalse(AwsV2Util.isRecoverableException(runtime));
+    }
+
+    @Test
+    public void testIsRecoverableExceptionForNullCause() {
+        Exception nonRecoverable = new IllegalArgumentException("abc");
+        assertFalse(AwsV2Util.isRecoverableException(nonRecoverable));
     }
 }

@@ -269,6 +269,11 @@ object BuiltInMethods {
     "timestampWithLocalZoneToTimestamp",
     classOf[TimestampData], classOf[TimeZone])
 
+  val TIMESTAMP_FROM_EPOCH_MILLIS = Types.lookupMethod(
+    classOf[TimestampData],
+    "fromEpochMillis",
+    classOf[Long])
+
   val STRING_TO_DATE_WITH_FORMAT = Types.lookupMethod(
     classOf[DateTimeUtils],
     "parseDate",
@@ -537,10 +542,14 @@ object BuiltInMethods {
     classOf[BinaryStringDataUtil], "toTime", classOf[BinaryStringData])
 
   val STRING_DATA_TO_TIMESTAMP = Types.lookupMethod(
-    classOf[BinaryStringDataUtil], "toTimestamp", classOf[BinaryStringData])
+    classOf[BinaryStringDataUtil], "toTimestamp", classOf[BinaryStringData], classOf[Int])
 
   val STRING_DATA_TO_TIMESTAMP_WITH_ZONE = Types.lookupMethod(
-    classOf[BinaryStringDataUtil], "toTimestamp", classOf[BinaryStringData], classOf[TimeZone])
+    classOf[BinaryStringDataUtil],
+    "toTimestamp",
+    classOf[BinaryStringData],
+    classOf[Int],
+    classOf[TimeZone])
 
   val STRING_LIKE = Types.lookupMethod(
     classOf[SqlLikeUtils], "like", classOf[String], classOf[String])

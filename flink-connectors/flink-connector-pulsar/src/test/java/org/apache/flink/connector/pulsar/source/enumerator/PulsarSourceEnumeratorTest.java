@@ -381,7 +381,6 @@ class PulsarSourceEnumeratorTest extends PulsarTestSuiteBase {
                 subscriber,
                 StartCursor.earliest(),
                 new FullRangeGenerator(),
-                configuration,
                 sourceConfiguration,
                 enumContext,
                 assignmentState);

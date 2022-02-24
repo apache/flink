@@ -45,12 +45,12 @@ class TestingOperatorCoordinatorHandler implements OperatorCoordinatorHandler {
 
     @Override
     public void initializeOperatorCoordinators(ComponentMainThreadExecutor mainThreadExecutor) {
-        throw new UnsupportedOperationException();
+        // No-op.
     }
 
     @Override
     public void startAllOperatorCoordinators() {
-        throw new UnsupportedOperationException();
+        // No-op.
     }
 
     @Override

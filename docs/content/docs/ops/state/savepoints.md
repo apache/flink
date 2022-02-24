@@ -269,10 +269,18 @@ the snapshot, while others still depend on it.
   {{< img src="/fig/restore-mode-claim.svg" alt="CLAIM restore mode" width="70%" >}}
 </div>
 
-{{< hint info >}}
-Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk_<x>`. Flink does not
+{{< hint warning >}}
+**Attention:**
+1. Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk_<x>`. Flink does not
 take ownership of the `<checkpoint_dir>/<job_id>` directory, but only the `chk_<x>`. The directory
 of the old job will not be deleted by Flink
+
+2. [Native](#savepoint-format) format supports incremental RocksDB savepoints. For those savepoints Flink puts all
+SST files inside the savepoints directory. This means such savepoints are self-contained and relocatable.
+However, when restored in CLAIM mode, subsequent checkpoints might reuse some SST files, which
+in turn might block deleting the savepoints directory at the time the savepoint is subsumed. Later
+on Flink will delete the reused shared SST files, but it won't retry deleting the savepoints directory.
+Therefore, it is possible Flink leaves an empty savepoints directory if it was restored in CLAIM mode.    
 {{< /hint >}}
 
 **LEGACY**

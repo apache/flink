@@ -74,7 +74,8 @@ public class TestingDefaultExecutionGraphBuilder {
     private CheckpointIDCounter checkpointIdCounter = new StandaloneCheckpointIDCounter();
     private ExecutionDeploymentListener executionDeploymentListener =
             NoOpExecutionDeploymentListener.get();
-    private ExecutionStateUpdateListener executionStateUpdateListener = (execution, newState) -> {};
+    private ExecutionStateUpdateListener executionStateUpdateListener =
+            (execution, previousState, newState) -> {};
     private VertexParallelismStore vertexParallelismStore;
 
     private TestingDefaultExecutionGraphBuilder() {}

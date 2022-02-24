@@ -57,6 +57,7 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsOverwrite;
@@ -97,6 +98,7 @@ import java.util.UUID;
 
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_CHECK_INTERVAL;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_FILE_SIZE;
+import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_INACTIVITY_INTERVAL;
 import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.SINK_ROLLING_POLICY_ROLLOVER_INTERVAL;
 import static org.apache.flink.connector.file.table.stream.compact.CompactOperator.convertToUncompacted;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
@@ -144,11 +146,15 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         DataStructureConverter converter =
                 context.createDataStructureConverter(tableSchema.toRowDataType());
         return (DataStreamSinkProvider)
-                dataStream -> consume(dataStream, context.isBounded(), converter);
+                (providerContext, dataStream) ->
+                        consume(providerContext, dataStream, context.isBounded(), converter);
     }
 
     private DataStreamSink<?> consume(
-            DataStream<RowData> dataStream, boolean isBounded, DataStructureConverter converter) {
+            ProviderContext providerContext,
+            DataStream<RowData> dataStream,
+            boolean isBounded,
+            DataStructureConverter converter) {
         checkAcidTable(catalogTable.getOptions(), identifier.toObjectPath());
 
         try (HiveMetastoreClientWrapper client =
@@ -194,7 +200,13 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
                 Properties tableProps = HiveReflectionUtils.getTableMetadata(hiveShim, table);
                 return createStreamSink(
-                        dataStream, sd, tableProps, writerFactory, fileNamingBuilder, parallelism);
+                        providerContext,
+                        dataStream,
+                        sd,
+                        tableProps,
+                        writerFactory,
+                        fileNamingBuilder,
+                        parallelism);
             }
         } catch (TException e) {
             throw new CatalogException("Failed to query Hive metaStore", e);
@@ -240,6 +252,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
     }
 
     private DataStreamSink<?> createStreamSink(
+            ProviderContext providerContext,
             DataStream<RowData> dataStream,
             StorageDescriptor sd,
             Properties tableProps,
@@ -272,7 +285,8 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         HiveRollingPolicy rollingPolicy =
                 new HiveRollingPolicy(
                         conf.get(SINK_ROLLING_POLICY_FILE_SIZE).getBytes(),
-                        conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis());
+                        conf.get(SINK_ROLLING_POLICY_ROLLOVER_INTERVAL).toMillis(),
+                        conf.get(SINK_ROLLING_POLICY_INACTIVITY_INTERVAL).toMillis());
 
         boolean autoCompaction = conf.getBoolean(FileSystemConnectorOptions.AUTO_COMPACTION);
         if (autoCompaction) {
@@ -322,6 +336,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
             writerStream =
                     StreamingSink.compactionWriter(
+                            providerContext,
                             dataStream,
                             bucketCheckInterval,
                             builder,
@@ -333,6 +348,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         } else {
             writerStream =
                     StreamingSink.writer(
+                            providerContext,
                             dataStream,
                             bucketCheckInterval,
                             builder,
@@ -342,7 +358,14 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
         }
 
         return StreamingSink.sink(
-                writerStream, path, identifier, getPartitionKeys(), msFactory(), fsFactory(), conf);
+                providerContext,
+                writerStream,
+                path,
+                identifier,
+                getPartitionKeys(),
+                msFactory(),
+                fsFactory(),
+                conf);
     }
 
     private CompactReader.Factory<RowData> createCompactReaderFactory(
@@ -486,12 +509,16 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
 
         private final long rollingFileSize;
         private final long rollingTimeInterval;
+        private final long inactivityInterval;
 
-        private HiveRollingPolicy(long rollingFileSize, long rollingTimeInterval) {
+        private HiveRollingPolicy(
+                long rollingFileSize, long rollingTimeInterval, long inactivityInterval) {
             Preconditions.checkArgument(rollingFileSize > 0L);
             Preconditions.checkArgument(rollingTimeInterval > 0L);
+            Preconditions.checkArgument(inactivityInterval > 0L);
             this.rollingFileSize = rollingFileSize;
             this.rollingTimeInterval = rollingTimeInterval;
+            this.inactivityInterval = inactivityInterval;
         }
 
         @Override
@@ -509,6 +536,7 @@ public class HiveTableSink implements DynamicTableSink, SupportsPartitioning, Su
                 PartFileInfo<String> partFileState, long currentTime) {
             try {
                 return currentTime - partFileState.getCreationTime() >= rollingTimeInterval
+                        || currentTime - partFileState.getLastUpdateTime() >= inactivityInterval
                         || partFileState.getSize() > rollingFileSize;
             } catch (IOException e) {
                 throw new UncheckedIOException(e);

@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.runtime.batch.sql
+package org.apache.flink.table.planner.runtime.batch.sql
 
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo}
 import org.apache.flink.table.api.Types
@@ -248,6 +248,24 @@ class UnnestITCase extends BatchTestBase {
       "SELECT a, b, A.f0, A.f1 FROM T, UNNEST(T.b) AS A where A.f0 > 13",
       Seq(row(2, Array(row(13, 41.6), row(14, 45.2136)), 14, 45.2136),
         row(3, Array(row(18, 42.6)), 18, 42.6))
+    )
+  }
+
+  @Test
+  def testUnnestMapWithDifferentKeyValueType(): Unit = {
+    val data = List(
+      row(1, Map("a" -> 10, "b" -> 11).asJava),
+      row(2, Map("c" -> 20, "d" -> 21).asJava)
+    )
+
+    registerCollection("T", data,
+      new RowTypeInfo(Types.INT, Types.MAP(Types.STRING, Types.INT)),
+      "a, b")
+
+    checkResult(
+      "SELECT a, k, v FROM T, UNNEST(T.b) as A(k, v)",
+      Seq(row(1, "a", 10), row(1, "b", 11), row(2, "c", 20),
+        row(2, "d", 21))
     )
   }
 

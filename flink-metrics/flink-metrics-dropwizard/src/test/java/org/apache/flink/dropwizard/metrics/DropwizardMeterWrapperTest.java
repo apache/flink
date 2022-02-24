@@ -18,30 +18,31 @@
 
 package org.apache.flink.dropwizard.metrics;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.offset;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /** Tests for the DropwizardMeterWrapper. */
-public class DropwizardMeterWrapperTest {
+class DropwizardMeterWrapperTest {
 
     @Test
-    public void testWrapper() {
+    void testWrapper() {
         com.codahale.metrics.Meter dropwizardMeter = mock(com.codahale.metrics.Meter.class);
         when(dropwizardMeter.getOneMinuteRate()).thenReturn(1.0);
         when(dropwizardMeter.getCount()).thenReturn(100L);
 
         DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
 
-        assertEquals(1.0, wrapper.getRate(), 0.00001);
-        assertEquals(100L, wrapper.getCount());
+        assertThat(wrapper.getRate()).isCloseTo(1.0, offset(0.00001));
+        assertThat(wrapper.getCount()).isEqualTo(100L);
     }
 
     @Test
-    public void testMarkEvent() {
+    void testMarkEvent() {
         com.codahale.metrics.Meter dropwizardMeter = mock(com.codahale.metrics.Meter.class);
         DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
         wrapper.markEvent();
@@ -50,7 +51,7 @@ public class DropwizardMeterWrapperTest {
     }
 
     @Test
-    public void testMarkEventN() {
+    void testMarkEventN() {
         com.codahale.metrics.Meter dropwizardMeter = mock(com.codahale.metrics.Meter.class);
         DropwizardMeterWrapper wrapper = new DropwizardMeterWrapper(dropwizardMeter);
         wrapper.markEvent(10L);

@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.pulsar.source;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
@@ -27,7 +28,6 @@ import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
 import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumState;
 import org.apache.flink.connector.pulsar.source.enumerator.PulsarSourceEnumStateSerializer;
@@ -72,11 +72,9 @@ public final class PulsarSource<OUT>
     private static final long serialVersionUID = 7773108631275567433L;
 
     /**
-     * The common configuration for pulsar source, we don't support the pulsar's configuration class
+     * The configuration for pulsar source, we don't support the pulsar's configuration class
      * directly.
      */
-    private final Configuration configuration;
-
     private final SourceConfiguration sourceConfiguration;
 
     private final PulsarSubscriber subscriber;
@@ -97,16 +95,14 @@ public final class PulsarSource<OUT>
      * PulsarSourceBuilder}.
      */
     PulsarSource(
-            Configuration configuration,
+            SourceConfiguration sourceConfiguration,
             PulsarSubscriber subscriber,
             RangeGenerator rangeGenerator,
             StartCursor startCursor,
             StopCursor stopCursor,
             Boundedness boundedness,
             PulsarDeserializationSchema<OUT> deserializationSchema) {
-
-        this.configuration = configuration;
-        this.sourceConfiguration = new SourceConfiguration(configuration);
+        this.sourceConfiguration = sourceConfiguration;
         this.subscriber = subscriber;
         this.rangeGenerator = rangeGenerator;
         this.startCursor = startCursor;
@@ -120,7 +116,6 @@ public final class PulsarSource<OUT>
      *
      * @return a Pulsar source builder.
      */
-    @SuppressWarnings("java:S4977")
     public static <OUT> PulsarSourceBuilder<OUT> builder() {
         return new PulsarSourceBuilder<>();
     }
@@ -130,17 +125,20 @@ public final class PulsarSource<OUT>
         return boundedness;
     }
 
+    @Internal
     @Override
     public SourceReader<OUT, PulsarPartitionSplit> createReader(SourceReaderContext readerContext)
             throws Exception {
         // Initialize the deserialization schema before creating the pulsar reader.
-        deserializationSchema.open(
-                new PulsarDeserializationSchemaInitializationContext(readerContext));
+        PulsarDeserializationSchemaInitializationContext initializationContext =
+                new PulsarDeserializationSchemaInitializationContext(readerContext);
+        deserializationSchema.open(initializationContext, sourceConfiguration);
 
         return PulsarSourceReaderFactory.create(
-                readerContext, deserializationSchema, configuration, sourceConfiguration);
+                readerContext, deserializationSchema, sourceConfiguration);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<PulsarPartitionSplit, PulsarSourceEnumState> createEnumerator(
             SplitEnumeratorContext<PulsarPartitionSplit> enumContext) {
@@ -150,12 +148,12 @@ public final class PulsarSource<OUT>
                 subscriber,
                 startCursor,
                 rangeGenerator,
-                configuration,
                 sourceConfiguration,
                 enumContext,
                 assignmentState);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<PulsarPartitionSplit, PulsarSourceEnumState> restoreEnumerator(
             SplitEnumeratorContext<PulsarPartitionSplit> enumContext,
@@ -166,17 +164,18 @@ public final class PulsarSource<OUT>
                 subscriber,
                 startCursor,
                 rangeGenerator,
-                configuration,
                 sourceConfiguration,
                 enumContext,
                 assignmentState);
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<PulsarPartitionSplit> getSplitSerializer() {
         return PulsarPartitionSplitSerializer.INSTANCE;
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<PulsarSourceEnumState> getEnumeratorCheckpointSerializer() {
         return PulsarSourceEnumStateSerializer.INSTANCE;

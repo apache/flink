@@ -27,6 +27,7 @@ import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.FutureUtils;
 
+import org.hamcrest.collection.IsEmptyCollection;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -44,7 +45,6 @@ import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -317,14 +317,12 @@ public class BlobCacheCleanupTest extends TestLogger {
     }
 
     @Test
-    public void testTransientBlobNoJobCleanup()
-            throws IOException, InterruptedException, ExecutionException {
+    public void testTransientBlobNoJobCleanup() throws Exception {
         testTransientBlobCleanup(null);
     }
 
     @Test
-    public void testTransientBlobForJobCleanup()
-            throws IOException, InterruptedException, ExecutionException {
+    public void testTransientBlobForJobCleanup() throws Exception {
         testTransientBlobCleanup(new JobID());
     }
 
@@ -332,8 +330,7 @@ public class BlobCacheCleanupTest extends TestLogger {
      * Tests that {@link TransientBlobCache} cleans up after a default TTL and keeps files which are
      * constantly accessed.
      */
-    private void testTransientBlobCleanup(@Nullable final JobID jobId)
-            throws IOException, InterruptedException, ExecutionException {
+    private void testTransientBlobCleanup(@Nullable final JobID jobId) throws Exception {
 
         // 1s should be a safe-enough buffer to still check for existence after a BLOB's last access
         long cleanupInterval = 1L; // in seconds
@@ -351,6 +348,7 @@ public class BlobCacheCleanupTest extends TestLogger {
 
         long cleanupLowerBound;
 
+        final ExecutorService executorService = Executors.newSingleThreadExecutor();
         try (BlobServer server =
                         new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
                 final BlobCacheService cache =
@@ -390,7 +388,7 @@ public class BlobCacheCleanupTest extends TestLogger {
             // files are cached now for the given TTL - remove from server so that they are not
             // re-downloaded
             if (jobId != null) {
-                server.cleanupJob(jobId, true);
+                server.globalCleanupAsync(jobId, executorService).join();
             } else {
                 server.deleteFromCache(key1);
                 server.deleteFromCache(key2);
@@ -430,6 +428,8 @@ public class BlobCacheCleanupTest extends TestLogger {
             filesFuture.get();
 
             verifyDeletedEventually(server, jobId, key1, key2);
+        } finally {
+            assertThat(executorService.shutdownNow(), IsEmptyCollection.empty());
         }
     }
 

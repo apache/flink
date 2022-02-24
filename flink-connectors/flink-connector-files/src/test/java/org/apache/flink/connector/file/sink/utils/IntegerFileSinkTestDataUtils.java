@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.sink.utils;
 
 import org.apache.flink.api.common.serialization.Encoder;
+import org.apache.flink.connector.file.sink.compactor.DecoderBasedReader.Decoder;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
@@ -28,6 +29,7 @@ import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -53,6 +55,30 @@ public class IntegerFileSinkTestDataUtils {
         public void encode(Integer element, OutputStream stream) throws IOException {
             stream.write(ByteBuffer.allocate(4).putInt(element).array());
             stream.flush();
+        }
+    }
+
+    /** Testing sink {@link Decoder} that reads integer for compaction. */
+    public static class IntDecoder implements Decoder<Integer> {
+
+        private InputStream input;
+
+        @Override
+        public void open(InputStream input) throws IOException {
+            this.input = input;
+        }
+
+        @Override
+        public Integer decodeNext() throws IOException {
+            byte[] bytes = new byte[4];
+            int read = input.read(bytes);
+            return read < 0 ? null : ByteBuffer.wrap(bytes).getInt();
+        }
+
+        @Override
+        public void close() throws IOException {
+            input.close();
+            input = null;
         }
     }
 

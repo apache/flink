@@ -221,7 +221,7 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
                 String exceptionMsg =
                         getImplicitConversionFromStringExceptionMsg(
                                 rightType.getLogicalType().getTypeRoot());
-                testSpec.testSqlRuntimeError(
+                testSpec.testSqlValidationError(
                         String.format(
                                 "CAST(%s AS %s) = CAST(%s AS %s)",
                                 leftColumnName, leftType.toString(), rightColumnName, rightType),

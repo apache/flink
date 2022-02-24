@@ -19,6 +19,7 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.TableTestUtil;
 
@@ -63,14 +64,16 @@ public class StatementSetImplTest {
                         + "  'table-sink-class' = 'DEFAULT')";
         tableEnv.executeSql(sinkTableDdl);
 
-        StatementSetImpl stmtSet = (StatementSetImpl) tableEnv.createStatementSet();
+        StatementSet stmtSet = tableEnv.createStatementSet();
         stmtSet.addInsertSql("INSERT INTO MySink SELECT * FROM MyTable");
-        String jsonPlan = stmtSet.getJsonPlan();
+        String jsonPlan = stmtSet.compilePlan().asJsonString();
         String actual = TableTestUtil.readFromResource("/jsonplan/testGetJsonPlan.out");
         assertEquals(
-                TableTestUtil.replaceExecNodeId(
-                        TableTestUtil.replaceFlinkVersion(
-                                TableTestUtil.getFormattedJson(jsonPlan))),
-                TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(actual)));
+                TableTestUtil.getFormattedJson(
+                        TableTestUtil.replaceExecNodeId(
+                                TableTestUtil.replaceFlinkVersion(
+                                        TableTestUtil.getFormattedJson(jsonPlan)))),
+                TableTestUtil.getFormattedJson(
+                        TableTestUtil.replaceExecNodeId(TableTestUtil.getFormattedJson(actual))));
     }
 }

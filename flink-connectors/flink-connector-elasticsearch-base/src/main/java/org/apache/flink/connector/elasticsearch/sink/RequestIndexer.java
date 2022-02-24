@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.elasticsearch.sink;
 
-import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 
 import org.elasticsearch.action.delete.DeleteRequest;
 import org.elasticsearch.action.index.IndexRequest;
@@ -28,7 +28,7 @@ import org.elasticsearch.action.update.UpdateRequest;
  * Users add multiple delete, index or update requests to a {@link RequestIndexer} to prepare them
  * for sending to an Elasticsearch cluster.
  */
-@Internal
+@PublicEvolving
 public interface RequestIndexer {
     /**
      * Add multiple {@link DeleteRequest} to the indexer to prepare for sending requests to

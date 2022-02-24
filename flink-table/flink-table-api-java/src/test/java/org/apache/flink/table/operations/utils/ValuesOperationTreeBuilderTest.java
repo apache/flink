@@ -29,7 +29,6 @@ import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
-import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.types.DataType;
@@ -59,8 +58,7 @@ import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.typeLiteral;
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link OperationTreeBuilder#values}. */
 @RunWith(Parameterized.class)
@@ -288,7 +286,7 @@ public class ValuesOperationTreeBuilderTest {
                                         asList(
                                                 singletonList(
                                                         cast(
-                                                                new CallExpression(
+                                                                CallExpression.anonymous(
                                                                         new IntScalarFunction(),
                                                                         Collections.emptyList(),
                                                                         DataTypes.INT()),
@@ -305,7 +303,7 @@ public class ValuesOperationTreeBuilderTest {
                                 new ValuesQueryOperation(
                                         singletonList(
                                                 singletonList(
-                                                        new CallExpression(
+                                                        CallExpression.anonymous(
                                                                 new RowScalarFunction(),
                                                                 Collections.emptyList(),
                                                                 DataTypes.ROW(
@@ -431,24 +429,19 @@ public class ValuesOperationTreeBuilderTest {
         }
 
         if (testSpec.queryOperation != null) {
-            assertThat(
-                    operation.getResolvedSchema(),
-                    equalTo(testSpec.queryOperation.getResolvedSchema()));
-            assertThat(operation.getValues(), equalTo(testSpec.queryOperation.getValues()));
+            assertThat(operation.getResolvedSchema())
+                    .isEqualTo(testSpec.queryOperation.getResolvedSchema());
+            assertThat(operation.getValues()).isEqualTo(testSpec.queryOperation.getValues());
         }
     }
 
     private static ResolvedExpression rowCtor(DataType dataType, ResolvedExpression... expression) {
-        return new CallExpression(
-                FunctionIdentifier.of("row"),
-                BuiltInFunctionDefinitions.ROW,
-                Arrays.asList(expression),
-                dataType);
+        return CallExpression.permanent(
+                BuiltInFunctionDefinitions.ROW, Arrays.asList(expression), dataType);
     }
 
     private static ResolvedExpression cast(ResolvedExpression expression, DataType dataType) {
-        return new CallExpression(
-                FunctionIdentifier.of("cast"),
+        return CallExpression.permanent(
                 BuiltInFunctionDefinitions.CAST,
                 Arrays.asList(expression, typeLiteral(dataType)),
                 dataType);

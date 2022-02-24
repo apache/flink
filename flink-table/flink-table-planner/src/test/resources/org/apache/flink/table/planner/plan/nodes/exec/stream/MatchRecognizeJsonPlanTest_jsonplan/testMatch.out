@@ -1,7 +1,8 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MyTable`",
@@ -18,12 +19,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "PROCTIME",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
                   "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -45,12 +42,12 @@
         }
       }
     },
-    "id" : 1,
     "outputType" : "ROW<`id` BIGINT, `name` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[id, name])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -60,12 +57,8 @@
       "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "PROCTIME",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$PROCTIME$1",
       "operands" : [ ],
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -75,7 +68,6 @@
       }
     } ],
     "condition" : null,
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -103,8 +95,8 @@
     },
     "description" : "Calc(select=[id, name, PROCTIME() AS proctime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 3,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "SINGLETON"
@@ -132,22 +124,17 @@
     },
     "description" : "Exchange(distribution=[single])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecMatch",
+    "id" : 4,
+    "type" : "stream-exec-match_1",
     "matchSpec" : {
       "pattern" : {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "",
-          "kind" : "PATTERN_CONCAT",
-          "syntax" : "BINARY"
-        },
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$$1",
         "operands" : [ {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "",
-            "kind" : "PATTERN_CONCAT",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$$1",
           "operands" : [ {
             "kind" : "LITERAL",
             "value" : "A\"",
@@ -167,19 +154,12 @@
       },
       "patternDefinitions" : {
         "A\"" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "=",
-            "kind" : "EQUALS",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : "LAST",
-              "kind" : "LAST",
-              "syntax" : "FUNCTION"
-            },
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
@@ -199,19 +179,12 @@
           "type" : "BOOLEAN"
         },
         "l" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "=",
-            "kind" : "EQUALS",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : "LAST",
-              "kind" : "LAST",
-              "syntax" : "FUNCTION"
-            },
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
@@ -231,19 +204,12 @@
           "type" : "BOOLEAN"
         },
         "C" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "=",
-            "kind" : "EQUALS",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$=$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : "LAST",
-              "kind" : "LAST",
-              "syntax" : "FUNCTION"
-            },
+            "kind" : "CALL",
+            "internalName" : "$LAST$1",
             "operands" : [ {
               "kind" : "PATTERN_INPUT_REF",
               "alpha" : "*",
@@ -265,12 +231,9 @@
       },
       "measures" : {
         "aid" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "FINAL",
-            "kind" : "FINAL",
-            "syntax" : "PREFIX"
-          },
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
           "operands" : [ {
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "A\"",
@@ -280,12 +243,9 @@
           "type" : "BIGINT"
         },
         "bid" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "FINAL",
-            "kind" : "FINAL",
-            "syntax" : "PREFIX"
-          },
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
           "operands" : [ {
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "l",
@@ -295,12 +255,9 @@
           "type" : "BIGINT"
         },
         "cid" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "FINAL",
-            "kind" : "FINAL",
-            "syntax" : "PREFIX"
-          },
+          "kind" : "CALL",
+          "syntax" : "PREFIX",
+          "internalName" : "$FINAL$1",
           "operands" : [ {
             "kind" : "PATTERN_INPUT_REF",
             "alpha" : "C",
@@ -312,8 +269,8 @@
       },
       "after" : {
         "kind" : "LITERAL",
+        "symbol" : "MATCH_RECOGNIZE_AFTER_OPTION",
         "value" : "SKIP_TO_NEXT_ROW",
-        "class" : "MATCH_RECOGNIZE_AFTER_OPTION",
         "type" : {
           "type" : "SYMBOL",
           "nullable" : false
@@ -333,7 +290,6 @@
       },
       "interval" : null
     },
-    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -344,7 +300,8 @@
     "outputType" : "ROW<`aid` BIGINT, `bid` BIGINT, `cid` BIGINT>",
     "description" : "Match(orderBy=[proctime ASC], measures=[FINAL(A\".id) AS aid, FINAL(l.id) AS bid, FINAL(C.id) AS cid], rowsPerMatch=[ONE ROW PER MATCH], after=[SKIP TO NEXT ROW], pattern=[((_UTF-16LE'A\"', _UTF-16LE'l'), _UTF-16LE'C')], define=[{A\"==(LAST(*.$1, 0), _UTF-16LE'a'), l==(LAST(*.$1, 0), _UTF-16LE'b'), C==(LAST(*.$1, 0), _UTF-16LE'c')}])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 5,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -372,7 +329,6 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 5,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

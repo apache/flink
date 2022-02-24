@@ -26,11 +26,12 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResul
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executor;
 import java.util.function.Function;
 
 /**
@@ -73,7 +74,7 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
 
     private CompletableFuture<Void> closeAndCleanupAllDataFuture = new CompletableFuture<>();
 
-    private volatile CompletableFuture<JobID> jobCleanupFuture;
+    private volatile CompletableFuture<JobID> globalCleanupFuture;
 
     // ------------------------------------------------------------------------
     //  Setters for mock / testing implementations
@@ -148,8 +149,8 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
         this.closeAndCleanupAllDataFuture = closeAndCleanupAllDataFuture;
     }
 
-    public void setCleanupJobDataFuture(CompletableFuture<JobID> jobCleanupFuture) {
-        this.jobCleanupFuture = jobCleanupFuture;
+    public void setGlobalCleanupFuture(CompletableFuture<JobID> globalCleanupFuture) {
+        this.globalCleanupFuture = globalCleanupFuture;
     }
 
     // ------------------------------------------------------------------------
@@ -286,7 +287,11 @@ public class TestingHighAvailabilityServices implements HighAvailabilityServices
     }
 
     @Override
-    public void cleanupJobData(JobID jobID) {
-        Optional.ofNullable(jobCleanupFuture).ifPresent(f -> f.complete(jobID));
+    public CompletableFuture<Void> globalCleanupAsync(JobID jobID, Executor executor) {
+        if (globalCleanupFuture != null) {
+            globalCleanupFuture.complete(jobID);
+        }
+
+        return FutureUtils.completedVoidFuture();
     }
 }

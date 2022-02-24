@@ -19,14 +19,13 @@
 package org.apache.flink.table.expressions.resolver.rules;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.catalog.FunctionLookup;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.UnresolvedCallExpression;
 import org.apache.flink.table.functions.BuiltInFunctionDefinition;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionIdentifier;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -55,26 +54,22 @@ final class QualifyBuiltInFunctionsRule implements ResolverRule {
         public Expression visit(UnresolvedCallExpression unresolvedCall) {
             final FunctionDefinition definition = unresolvedCall.getFunctionDefinition();
 
-            final FunctionIdentifier identifier;
+            final List<Expression> args =
+                    unresolvedCall.getChildren().stream()
+                            .map(c -> c.accept(this))
+                            .collect(Collectors.toList());
+
             if (!unresolvedCall.getFunctionIdentifier().isPresent()
                     && definition instanceof BuiltInFunctionDefinition) {
-                final FunctionLookup.Result functionLookup =
+                final ContextResolvedFunction resolvedFunction =
                         resolutionContext
                                 .functionLookup()
                                 .lookupBuiltInFunction(
                                         ((BuiltInFunctionDefinition)
                                                 unresolvedCall.getFunctionDefinition()));
-                identifier = functionLookup.getFunctionIdentifier();
-            } else {
-                identifier = unresolvedCall.getFunctionIdentifier().orElse(null);
+                return ApiExpressionUtils.unresolvedCall(resolvedFunction, args);
             }
-
-            return ApiExpressionUtils.unresolvedCall(
-                    identifier,
-                    definition,
-                    unresolvedCall.getChildren().stream()
-                            .map(c -> c.accept(this))
-                            .collect(Collectors.toList()));
+            return unresolvedCall.replaceArgs(args);
         }
 
         @Override

@@ -59,7 +59,7 @@ public class FlinkKinesisITCase extends TestLogger {
     public static final String TEST_STREAM = "test_stream";
 
     @ClassRule
-    public static MiniClusterWithClientResource miniCluster =
+    public static final MiniClusterWithClientResource MINI_CLUSTER =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder().build());
 
@@ -138,8 +138,8 @@ public class FlinkKinesisITCase extends TestLogger {
 
     private String stopWithSavepoint() throws Exception {
         JobStatusMessage job =
-                miniCluster.getClusterClient().listJobs().get().stream().findFirst().get();
-        return miniCluster
+                MINI_CLUSTER.getClusterClient().listJobs().get().stream().findFirst().get();
+        return MINI_CLUSTER
                 .getClusterClient()
                 .stopWithSavepoint(
                         job.getJobId(),

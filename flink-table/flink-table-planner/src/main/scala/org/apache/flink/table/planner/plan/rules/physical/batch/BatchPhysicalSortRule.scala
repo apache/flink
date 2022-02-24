@@ -83,6 +83,7 @@ object BatchPhysicalSortRule {
   @Experimental
   val TABLE_EXEC_RANGE_SORT_ENABLED: ConfigOption[JBoolean] =
   key("table.exec.range-sort.enabled")
+      .booleanType()
       .defaultValue(JBoolean.valueOf(false))
       .withDescription("Sets whether to enable range sort, use range sort to sort all data in" +
           " several partitions. When it is false, sorting in only one partition")

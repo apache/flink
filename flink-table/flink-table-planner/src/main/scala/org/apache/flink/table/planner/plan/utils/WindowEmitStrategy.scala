@@ -195,6 +195,7 @@ object WindowEmitStrategy {
   @Experimental
   val TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED: ConfigOption[JBoolean] =
   key("table.exec.emit.early-fire.enabled")
+      .booleanType()
       .defaultValue(Boolean.box(false))
       .withDescription("Specifies whether to enable early-fire emit." +
           "Early-fire is an emit strategy before watermark advanced to end of window.")
@@ -215,6 +216,7 @@ object WindowEmitStrategy {
   @Experimental
   val TABLE_EXEC_EMIT_LATE_FIRE_ENABLED: ConfigOption[JBoolean] =
   key("table.exec.emit.late-fire.enabled")
+      .booleanType()
       .defaultValue(Boolean.box(false))
       .withDescription("Specifies whether to enable late-fire emit. " +
           "Late-fire is an emit strategy after watermark advanced to end of window.")

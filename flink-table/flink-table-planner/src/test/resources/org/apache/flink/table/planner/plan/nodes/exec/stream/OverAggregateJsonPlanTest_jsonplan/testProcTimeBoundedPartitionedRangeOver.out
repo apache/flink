@@ -1,7 +1,8 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MyTable`",
@@ -28,12 +29,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "PROCTIME",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
                   "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -74,12 +71,12 @@
         "producedType" : "ROW<`a` INT, `c` BIGINT, `rowtime` TIMESTAMP(3)> NOT NULL"
       } ]
     },
-    "id" : 1,
     "outputType" : "ROW<`a` INT, `c` BIGINT, `rowtime` TIMESTAMP(3)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c, rowtime], metadata=[]]], fields=[a, c, rowtime])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -89,12 +86,8 @@
       "inputIndex" : 1,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "PROCTIME",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$PROCTIME$1",
       "operands" : [ ],
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -108,7 +101,6 @@
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -139,14 +131,14 @@
     },
     "description" : "Calc(select=[a, c, PROCTIME() AS proctime, rowtime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "id" : 3,
+    "type" : "stream-exec-watermark-assigner_1",
     "watermarkExpr" : {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
       "type" : "TIMESTAMP(3)"
     },
     "rowtimeFieldIndex" : 3,
-    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -181,7 +173,8 @@
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[rowtime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 4,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -200,12 +193,9 @@
         "kind" : "PROCTIME"
       }
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
@@ -214,7 +204,6 @@
       "type" : "BIGINT"
     } ],
     "condition" : null,
-    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -245,8 +234,8 @@
     },
     "description" : "Calc(select=[a, c, proctime, CAST(a AS BIGINT) AS $3])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 5,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -278,7 +267,8 @@
     },
     "description" : "Exchange(distribution=[hash[a]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecOverAggregate",
+    "id" : 6,
+    "type" : "stream-exec-over-aggregate_1",
     "overSpec" : {
       "partition" : {
         "fields" : [ 0 ]
@@ -334,12 +324,11 @@
       } ],
       "constants" : [ {
         "kind" : "LITERAL",
-        "value" : 7200000,
+        "value" : "7200000",
         "type" : "INTERVAL HOUR NOT NULL"
       } ],
       "originalInputFields" : 4
     },
-    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -376,39 +365,28 @@
     },
     "description" : "OverAggregate(partitionBy=[a], orderBy=[proctime ASC], window=[ RANG BETWEEN 7200000 PRECEDING AND CURRENT ROW], select=[a, c, proctime, $3, COUNT(c) AS w0$o0, $SUM0(c) AS w0$o1])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 7,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 3,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "/",
-          "kind" : "DIVIDE",
-          "syntax" : "BINARY"
-        },
+        "kind" : "CALL",
+        "syntax" : "BINARY",
+        "internalName" : "$/$1",
         "operands" : [ {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "CASE",
-            "kind" : "CASE",
-            "syntax" : "SPECIAL"
-          },
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$CASE$1",
           "operands" : [ {
-            "kind" : "REX_CALL",
-            "operator" : {
-              "name" : ">",
-              "kind" : "GREATER_THAN",
-              "syntax" : "BINARY"
-            },
+            "kind" : "CALL",
+            "syntax" : "BINARY",
+            "internalName" : "$>$1",
             "operands" : [ {
               "kind" : "INPUT_REF",
               "inputIndex" : 4,
@@ -439,7 +417,6 @@
       "type" : "DOUBLE"
     } ],
     "condition" : null,
-    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -450,7 +427,8 @@
     "outputType" : "ROW<`a` BIGINT, `b` DOUBLE>",
     "description" : "Calc(select=[$3 AS a, CAST((CASE((w0$o0 > 0), w0$o1, null:BIGINT) / w0$o0) AS DOUBLE) AS b])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 8,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -475,7 +453,6 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 8,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

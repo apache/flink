@@ -1,7 +1,8 @@
 {
   "flinkVersion" : "",
   "nodes" : [ {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 1,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MyTable`",
@@ -21,12 +22,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "TO_TIMESTAMP",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$TO_TIMESTAMP$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
                     "inputIndex" : 2,
@@ -41,12 +38,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "PROCTIME",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
                   "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -62,19 +55,16 @@
               "rowtimeAttribute" : "rowtime",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "-",
-                    "kind" : "MINUS",
-                    "syntax" : "SPECIAL"
-                  },
+                  "kind" : "CALL",
+                  "syntax" : "SPECIAL",
+                  "internalName" : "$-$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
                     "inputIndex" : 3,
                     "type" : "TIMESTAMP(3)"
                   }, {
                     "kind" : "LITERAL",
-                    "value" : 1000,
+                    "value" : "1000",
                     "type" : "INTERVAL SECOND(6) NOT NULL"
                   } ],
                   "type" : "TIMESTAMP(3)"
@@ -99,12 +89,12 @@
         "producedType" : "ROW<`a` INT, `c` VARCHAR(2147483647)> NOT NULL"
       } ]
     },
-    "id" : 1,
     "outputType" : "ROW<`a` INT, `c` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, c], metadata=[]]], fields=[a, c])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 2,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -114,12 +104,8 @@
       "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "TO_TIMESTAMP",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
@@ -128,7 +114,6 @@
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
-    "id" : 2,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -139,27 +124,24 @@
     "outputType" : "ROW<`a` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
     "description" : "Calc(select=[a, c, TO_TIMESTAMP(c) AS rowtime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "id" : 3,
+    "type" : "stream-exec-watermark-assigner_1",
     "watermarkExpr" : {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "-",
-        "kind" : "MINUS",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$-$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
         "type" : "TIMESTAMP(3)"
       }, {
         "kind" : "LITERAL",
-        "value" : 1000,
+        "value" : "1000",
         "type" : "INTERVAL SECOND(6) NOT NULL"
       } ],
       "type" : "TIMESTAMP(3)"
     },
     "rowtimeFieldIndex" : 2,
-    "id" : 3,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -186,7 +168,8 @@
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate",
+    "id" : 4,
+    "type" : "stream-exec-local-window-aggregate_1",
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
@@ -229,7 +212,6 @@
       "timeAttributeIndex" : 2,
       "isRowtime" : true
     },
-    "id" : 4,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -277,8 +259,8 @@
     },
     "description" : "LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 5,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -327,7 +309,8 @@
     },
     "description" : "Exchange(distribution=[hash[a]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate",
+    "id" : 6,
+    "type" : "stream-exec-global-window-aggregate_1",
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
@@ -410,7 +393,6 @@
         }
       }
     } ],
-    "id" : 6,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -464,7 +446,8 @@
     },
     "description" : "GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 7,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -487,7 +470,6 @@
       "type" : "BIGINT NOT NULL"
     } ],
     "condition" : null,
-    "id" : 7,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -498,8 +480,8 @@
     "outputType" : "ROW<`a` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `cnt` BIGINT NOT NULL, `uv` BIGINT NOT NULL>",
     "description" : "Calc(select=[a, window_start, window_end, cnt, uv])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 8,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -511,7 +493,8 @@
     "outputType" : "ROW<`a` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `cnt` BIGINT NOT NULL, `uv` BIGINT NOT NULL>",
     "description" : "Exchange(distribution=[hash[a]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTableSourceScan",
+    "id" : 9,
+    "type" : "stream-exec-table-source-scan_1",
     "scanTableSource" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MyTable2`",
@@ -531,12 +514,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "TO_TIMESTAMP",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$TO_TIMESTAMP$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
                     "inputIndex" : 2,
@@ -551,12 +530,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "PROCTIME",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
                   "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -572,19 +547,16 @@
               "rowtimeAttribute" : "rowtime",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "-",
-                    "kind" : "MINUS",
-                    "syntax" : "SPECIAL"
-                  },
+                  "kind" : "CALL",
+                  "syntax" : "SPECIAL",
+                  "internalName" : "$-$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
                     "inputIndex" : 3,
                     "type" : "TIMESTAMP(3)"
                   }, {
                     "kind" : "LITERAL",
-                    "value" : 1000,
+                    "value" : "1000",
                     "type" : "INTERVAL SECOND(6) NOT NULL"
                   } ],
                   "type" : "TIMESTAMP(3)"
@@ -609,12 +581,12 @@
         "producedType" : "ROW<`a` INT, `c` VARCHAR(2147483647)> NOT NULL"
       } ]
     },
-    "id" : 9,
     "outputType" : "ROW<`a` INT, `c` VARCHAR(2147483647)>",
     "description" : "TableSourceScan(table=[[default_catalog, default_database, MyTable2, project=[a, c], metadata=[]]], fields=[a, c])",
     "inputProperties" : [ ]
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 10,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -624,12 +596,8 @@
       "inputIndex" : 1,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "TO_TIMESTAMP",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
@@ -638,7 +606,6 @@
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : null,
-    "id" : 10,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -649,27 +616,24 @@
     "outputType" : "ROW<`a` INT, `c` VARCHAR(2147483647), `rowtime` TIMESTAMP(3)>",
     "description" : "Calc(select=[a, c, TO_TIMESTAMP(c) AS rowtime])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWatermarkAssigner",
+    "id" : 11,
+    "type" : "stream-exec-watermark-assigner_1",
     "watermarkExpr" : {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "-",
-        "kind" : "MINUS",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$-$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
         "type" : "TIMESTAMP(3)"
       }, {
         "kind" : "LITERAL",
-        "value" : 1000,
+        "value" : "1000",
         "type" : "INTERVAL SECOND(6) NOT NULL"
       } ],
       "type" : "TIMESTAMP(3)"
     },
     "rowtimeFieldIndex" : 2,
-    "id" : 11,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -696,7 +660,8 @@
     },
     "description" : "WatermarkAssigner(rowtime=[rowtime], watermark=[(rowtime - 1000:INTERVAL SECOND)])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWindowAggregate",
+    "id" : 12,
+    "type" : "stream-exec-local-window-aggregate_1",
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
@@ -739,7 +704,6 @@
       "timeAttributeIndex" : 2,
       "isRowtime" : true
     },
-    "id" : 12,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -787,8 +751,8 @@
     },
     "description" : "LocalWindowAggregate(groupBy=[a], window=[TUMBLE(time_col=[rowtime], size=[15 min])], select=[a, COUNT(*) AS count1$0, COUNT(distinct$0 c) AS count$1, DISTINCT(c) AS distinct$0, slice_end('w$) AS $slice_end])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 13,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -837,7 +801,8 @@
     },
     "description" : "Exchange(distribution=[hash[a]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalWindowAggregate",
+    "id" : 14,
+    "type" : "stream-exec-global-window-aggregate_1",
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt",
@@ -920,7 +885,6 @@
         }
       }
     } ],
-    "id" : 14,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -974,7 +938,8 @@
     },
     "description" : "GlobalWindowAggregate(groupBy=[a], window=[TUMBLE(slice_end=[$slice_end], size=[15 min])], select=[a, COUNT(count1$0) AS cnt, COUNT(distinct$0 count$1) AS uv, start('w$) AS window_start, end('w$) AS window_end, rowtime('w$) AS window_time])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 15,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -997,7 +962,6 @@
       "type" : "BIGINT NOT NULL"
     } ],
     "condition" : null,
-    "id" : 15,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -1008,8 +972,8 @@
     "outputType" : "ROW<`a` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `cnt` BIGINT NOT NULL, `uv` BIGINT NOT NULL>",
     "description" : "Calc(select=[a, window_start, window_end, cnt, uv])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange",
     "id" : 16,
+    "type" : "stream-exec-exchange_1",
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "HASH",
@@ -1021,7 +985,8 @@
     "outputType" : "ROW<`a` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `cnt` BIGINT NOT NULL, `uv` BIGINT NOT NULL>",
     "description" : "Exchange(distribution=[hash[a]])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowJoin",
+    "id" : 17,
+    "type" : "stream-exec-window-join_1",
     "joinSpec" : {
       "joinType" : "INNER",
       "leftKeys" : [ 0 ],
@@ -1059,7 +1024,6 @@
       "windowEnd" : 2,
       "isRowtime" : true
     },
-    "id" : 17,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -1076,7 +1040,8 @@
     "outputType" : "ROW<`a` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `cnt` BIGINT NOT NULL, `uv` BIGINT NOT NULL, `a0` INT, `window_start0` TIMESTAMP(3) NOT NULL, `window_end0` TIMESTAMP(3) NOT NULL, `cnt0` BIGINT NOT NULL, `uv0` BIGINT NOT NULL>",
     "description" : "WindowJoin(leftWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], rightWindow=[TUMBLE(win_start=[window_start], win_end=[window_end], size=[15 min])], joinType=[InnerJoin], where=[(a = a0)], select=[a, window_start, window_end, cnt, uv, a0, window_start0, window_end0, cnt0, uv0])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCalc",
+    "id" : 18,
+    "type" : "stream-exec-calc_1",
     "projection" : [ {
       "kind" : "INPUT_REF",
       "inputIndex" : 0,
@@ -1111,7 +1076,6 @@
       "type" : "BIGINT NOT NULL"
     } ],
     "condition" : null,
-    "id" : 18,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"
@@ -1122,7 +1086,8 @@
     "outputType" : "ROW<`a` INT, `window_start` TIMESTAMP(3) NOT NULL, `window_end` TIMESTAMP(3) NOT NULL, `cnt` BIGINT NOT NULL, `uv` BIGINT NOT NULL, `a0` INT, `cnt0` BIGINT NOT NULL, `uv0` BIGINT NOT NULL>",
     "description" : "Calc(select=[a, window_start, window_end, cnt, uv, a0, cnt0, uv0])"
   }, {
-    "class" : "org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink",
+    "id" : 19,
+    "type" : "stream-exec-sink_1",
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
@@ -1163,7 +1128,6 @@
       }
     },
     "inputChangelogMode" : [ "INSERT" ],
-    "id" : 19,
     "inputProperties" : [ {
       "requiredDistribution" : {
         "type" : "UNKNOWN"

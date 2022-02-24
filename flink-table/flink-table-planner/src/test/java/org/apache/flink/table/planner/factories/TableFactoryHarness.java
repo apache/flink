@@ -201,11 +201,24 @@ public class TableFactoryHarness {
             return new HarnessCatalogTable(super.toCatalogTable(), source, sink);
         }
 
+        @Override
+        public TableDescriptor.Builder toBuilder() {
+            return new Builder(this).source(source).sink(sink);
+        }
+
         /** Builder for {@link HarnessTableDescriptor}. */
-        public static class Builder {
+        public static class Builder extends TableDescriptor.Builder {
             private @Nullable Schema schema;
             private @Nullable SourceBase source;
             private @Nullable SinkBase sink;
+
+            private Builder() {
+                super();
+            }
+
+            private Builder(TableDescriptor descriptor) {
+                super(descriptor);
+            }
 
             /** Define the schema of the {@link TableDescriptor}. */
             public Builder schema(Schema schema) {

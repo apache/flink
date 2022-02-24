@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.FlinkVersion;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -28,10 +30,11 @@ import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
-import org.apache.flink.table.planner.plan.utils.ReflectionsUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
+import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.runtime.groupwindow.WindowReference;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.ExtractionUtils;
 import org.apache.flink.table.types.logical.LogicalType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -46,11 +49,14 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.Module;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.jsontype.NamedType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.module.SimpleModule;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.type.RelDataType;
@@ -61,7 +67,6 @@ import org.apache.calcite.rex.RexWindowBound;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
-import java.time.Duration;
 import java.util.Optional;
 
 /** An utility class that provide abilities for JSON serialization and deserialization. */
@@ -94,6 +99,9 @@ public class JsonSerdeUtil {
                         .getTypeFactory()
                         .withClassLoader(JsonSerdeUtil.class.getClassLoader()));
         OBJECT_MAPPER_INSTANCE.configure(MapperFeature.USE_GETTERS_AS_SETTERS, false);
+        OBJECT_MAPPER_INSTANCE.configure(SerializationFeature.WRITE_DURATIONS_AS_TIMESTAMPS, false);
+        OBJECT_MAPPER_INSTANCE.registerModule(new Jdk8Module().configureAbsentsAsNulls(true));
+        OBJECT_MAPPER_INSTANCE.registerModule(new JavaTimeModule());
         OBJECT_MAPPER_INSTANCE.registerModule(createFlinkTableJacksonModule());
     }
 
@@ -116,8 +124,7 @@ public class JsonSerdeUtil {
 
     private static Module createFlinkTableJacksonModule() {
         final SimpleModule module = new SimpleModule("Flink table module");
-        ReflectionsUtil.scanSubClasses(
-                        "org.apache.flink.table.planner.plan.nodes.exec", ExecNode.class)
+        ExecNodeMetadataUtil.execNodes().stream()
                 .forEach(c -> module.registerSubtypes(new NamedType(c, c.getName())));
         registerSerializers(module);
         registerDeserializers(module);
@@ -127,6 +134,8 @@ public class JsonSerdeUtil {
     }
 
     private static void registerSerializers(SimpleModule module) {
+        module.addSerializer(new ExecNodeGraphJsonSerializer());
+        module.addSerializer(new FlinkVersionJsonSerializer());
         // ObjectIdentifierJsonSerializer is needed for LogicalType serialization
         module.addSerializer(new ObjectIdentifierJsonSerializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization
@@ -138,7 +147,6 @@ public class JsonSerdeUtil {
         // RexNode is used in many exec nodes, so we register its serializer directly here
         module.addSerializer(new RexNodeJsonSerializer());
         module.addSerializer(new AggregateCallJsonSerializer());
-        module.addSerializer(new DurationJsonSerializer());
         module.addSerializer(new ChangelogModeJsonSerializer());
         module.addSerializer(new LogicalWindowJsonSerializer());
         module.addSerializer(new RexWindowBoundJsonSerializer());
@@ -152,6 +160,8 @@ public class JsonSerdeUtil {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static void registerDeserializers(SimpleModule module) {
+        module.addDeserializer(ExecNodeGraph.class, new ExecNodeGraphJsonDeserializer());
+        module.addDeserializer(FlinkVersion.class, new FlinkVersionJsonDeserializer());
         // ObjectIdentifierJsonDeserializer is needed for LogicalType deserialization
         module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
         // LogicalTypeJsonSerializer is needed for RelDataType serialization
@@ -166,7 +176,6 @@ public class JsonSerdeUtil {
         // with RexLiteral instead of RexNode.
         module.addDeserializer(RexLiteral.class, (StdDeserializer) new RexNodeJsonDeserializer());
         module.addDeserializer(AggregateCall.class, new AggregateCallJsonDeserializer());
-        module.addDeserializer(Duration.class, new DurationJsonDeserializer());
         module.addDeserializer(ChangelogMode.class, new ChangelogModeJsonDeserializer());
         module.addDeserializer(LogicalWindow.class, new LogicalWindowJsonDeserializer());
         module.addDeserializer(RexWindowBound.class, new RexWindowBoundJsonDeserializer());
@@ -235,6 +244,15 @@ public class JsonSerdeUtil {
             return Optional.of(ctx.readValue(traverse(objectNode.get(fieldName), codec), type));
         }
         return Optional.empty();
+    }
+
+    static Class<?> loadClass(String className, SerdeContext serdeContext, String explanation) {
+        try {
+            return ExtractionUtils.classForName(className, true, serdeContext.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new TableException(
+                    String.format("Could not load class '%s' for %s.", className, explanation), e);
+        }
     }
 
     private JsonSerdeUtil() {}

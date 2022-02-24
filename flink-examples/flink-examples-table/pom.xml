@@ -97,6 +97,23 @@ under the License.
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>forbid-direct-table-planner-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<!-- See comment above on table planner dependency -->
+							<skip>true</skip>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<!-- Fail compilation on deprecation warnings to prevent from showing users outdated examples. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

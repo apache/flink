@@ -49,9 +49,14 @@ However, there are a few points to consider when writing rules:
    wrapping it in `FreezingArchRule.freeze()`. This will add the rule to the violation store that
    records the existing violations. Add the new stored violations file within `violations` to your
    commit.
-2. In order to allow creating new violation store file, open `archunit.properties` in the submodule
+2. Please give the freezing rule a fixed description by
+   calling `FreezingArchRule.freeze().as(String newDescription)`. This will reduce the maintenance
+   effort for each rule update. Otherwise, since the description will be used as the key of the rule
+   to define the violation store, new violation stores will be created and old obsolete stores have
+   to be removed manually each time when rules have been changed.
+3. In order to allow creating new violation store file, open `archunit.properties` in the submodule
    and enable `freeze.store.default.allowStoreCreation=true`.
-3. ArchUnit does not work well with Scala classes. All rules should exclude non-Java classes by
+4. ArchUnit does not work well with Scala classes. All rules should exclude non-Java classes by
    utilizing the methods in `GivenJavaClasses`.
 
 ## How do I test Scala classes?

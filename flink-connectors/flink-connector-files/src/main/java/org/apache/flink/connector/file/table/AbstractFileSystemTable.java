@@ -19,23 +19,19 @@
 package org.apache.flink.connector.file.table;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.ObjectIdentifier;
-import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.types.DataType;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 /** Abstract File system table for providing some common methods. */
 abstract class AbstractFileSystemTable {
 
     final ObjectIdentifier tableIdentifier;
     final Configuration tableOptions;
-    final ResolvedSchema schema;
+    final DataType physicalRowDataType;
     final Path path;
     final String defaultPartName;
 
@@ -43,29 +39,15 @@ abstract class AbstractFileSystemTable {
 
     AbstractFileSystemTable(
             ObjectIdentifier tableIdentifier,
-            ResolvedSchema schema,
+            DataType physicalRowDataType,
             List<String> partitionKeys,
             ReadableConfig tableOptions) {
         this.tableIdentifier = tableIdentifier;
         this.tableOptions = (Configuration) tableOptions;
-        this.schema = schema;
+        this.physicalRowDataType = physicalRowDataType;
         this.path = new Path(this.tableOptions.get(FileSystemConnectorOptions.PATH));
         this.defaultPartName =
                 this.tableOptions.get(FileSystemConnectorOptions.PARTITION_DEFAULT_NAME);
         this.partitionKeys = partitionKeys;
-    }
-
-    ReadableConfig formatOptions(String identifier) {
-        return new DelegatingConfiguration(tableOptions, identifier + ".");
-    }
-
-    DataType getPhysicalDataType() {
-        return this.schema.toPhysicalRowDataType();
-    }
-
-    DataType getPhysicalDataTypeWithoutPartitionColumns() {
-        return DataType.getFields(getPhysicalDataType()).stream()
-                .filter(field -> !partitionKeys.contains(field.getName()))
-                .collect(Collectors.collectingAndThen(Collectors.toList(), DataTypes::ROW));
     }
 }

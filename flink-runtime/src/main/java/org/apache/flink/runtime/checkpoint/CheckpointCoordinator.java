@@ -1741,7 +1741,8 @@ public class CheckpointCoordinator {
                         checkpointLocation,
                         userClassLoader,
                         allowNonRestored,
-                        checkpointProperties);
+                        checkpointProperties,
+                        restoreSettings.getRestoreMode());
 
         // register shared state - even before adding the checkpoint to the store
         // because the latter might trigger subsumption so the ref counts must be up-to-date

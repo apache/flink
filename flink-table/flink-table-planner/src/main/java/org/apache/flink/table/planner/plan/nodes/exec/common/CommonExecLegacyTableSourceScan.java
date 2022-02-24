@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
 import org.apache.flink.table.planner.sources.TableSourceUtil;
@@ -67,11 +68,13 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
     protected final List<String> qualifiedName;
 
     public CommonExecLegacyTableSourceScan(
+            int id,
+            ExecNodeContext context,
             TableSource<?> tableSource,
             List<String> qualifiedName,
             RowType outputType,
             String description) {
-        super(Collections.emptyList(), outputType, description);
+        super(id, context, Collections.emptyList(), outputType, description);
         this.tableSource = tableSource;
         this.qualifiedName = qualifiedName;
     }

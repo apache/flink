@@ -47,7 +47,7 @@ import static org.apache.flink.connector.pulsar.source.PulsarSourceOptions.SOURC
  * PulsarSourceBuilder#setConfig(ConfigOption, Object)}. The {@link PulsarOptions} is also required
  * for pulsar source.
  *
- * @see PulsarOptions
+ * @see PulsarOptions for shared configure options.
  */
 @PublicEvolving
 @ConfigGroups(
@@ -122,7 +122,7 @@ public final class PulsarSourceOptions {
                                             " We would automatically commit the cursor using the given period (in ms).")
                                     .build());
 
-    public static final ConfigOption<Long> PULSAR_TRANSACTION_TIMEOUT_MILLIS =
+    public static final ConfigOption<Long> PULSAR_READ_TRANSACTION_TIMEOUT =
             ConfigOptions.key(SOURCE_CONFIG_PREFIX + "transactionTimeoutMillis")
                     .longType()
                     .defaultValue(Duration.ofHours(3).toMillis())
@@ -138,6 +138,14 @@ public final class PulsarSourceOptions {
                                     .text(
                                             "The value (in ms) should be greater than the checkpoint interval.")
                                     .build());
+
+    /**
+     * @deprecated Use {@link #PULSAR_READ_TRANSACTION_TIMEOUT} instead. This would be removed in
+     *     the next release.
+     */
+    @Deprecated
+    public static final ConfigOption<Long> PULSAR_TRANSACTION_TIMEOUT_MILLIS =
+            PULSAR_READ_TRANSACTION_TIMEOUT;
 
     public static final ConfigOption<Long> PULSAR_MAX_FETCH_TIME =
             ConfigOptions.key(SOURCE_CONFIG_PREFIX + "maxFetchTime")

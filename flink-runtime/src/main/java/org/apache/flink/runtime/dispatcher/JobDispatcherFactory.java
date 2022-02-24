@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.dispatcher;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.dispatcher.cleanup.CheckpointResourcesCleanupRunnerFactory;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypoint;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -64,7 +65,8 @@ public enum JobDispatcherFactory implements DispatcherFactory {
                 fencingToken,
                 DispatcherServices.from(
                         partialDispatcherServicesWithJobPersistenceComponents,
-                        JobMasterServiceLeadershipRunnerFactory.INSTANCE),
+                        JobMasterServiceLeadershipRunnerFactory.INSTANCE,
+                        CheckpointResourcesCleanupRunnerFactory.INSTANCE),
                 recoveredJobGraph,
                 recoveredDirtyJob,
                 dispatcherBootstrapFactory,

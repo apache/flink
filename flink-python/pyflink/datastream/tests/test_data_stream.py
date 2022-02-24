@@ -632,8 +632,6 @@ class DataStreamTests(object):
                 self.map_state = runtime_context.get_map_state(map_state_descriptor)
 
             def process_element(self, value, ctx):
-                import time
-                time.sleep(1)
                 current_value = self.value_state.value()
                 self.value_state.update(value[0])
                 current_list = [_ for _ in self.list_state.get()]

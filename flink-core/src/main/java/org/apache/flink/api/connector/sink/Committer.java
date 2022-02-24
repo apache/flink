@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.connector.sink;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.IOException;
 import java.util.List;
@@ -28,8 +28,10 @@ import java.util.List;
  * The {@code Committer} is responsible for committing the data staged by the sink.
  *
  * @param <CommT> The type of information needed to commit the staged data
+ * @deprecated Please use {@link org.apache.flink.api.connector.sink2.Committer}.
  */
-@Experimental
+@Deprecated
+@PublicEvolving
 public interface Committer<CommT> extends AutoCloseable {
 
     /**
