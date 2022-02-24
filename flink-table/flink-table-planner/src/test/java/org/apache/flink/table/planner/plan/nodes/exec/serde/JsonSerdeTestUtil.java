@@ -76,6 +76,7 @@ class JsonSerdeTestUtil {
         final PlannerContext plannerContext =
                 new PlannerContext(
                         false,
+                        tableConfig.getConfiguration(),
                         tableConfig,
                         moduleManager,
                         functionCatalog,

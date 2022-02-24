@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, TableSchema}
 import org.apache.flink.table.catalog.{CatalogTable, Column, ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
@@ -252,9 +253,13 @@ object MetadataTestUtil {
     getMetadataTable(fieldNames, fieldTypes, new FlinkStatistic(tableStats))
   }
 
+  val tableConfig = TableConfig.getDefault
+  val plannerConfig: ReadableConfig = tableConfig.getConfiguration
+
   private val flinkContext = new FlinkContextImpl(
     false,
-    TableConfig.getDefault,
+    plannerConfig,
+    tableConfig,
     new ModuleManager,
     null,
     CatalogManagerMocks.createEmptyCatalogManager,

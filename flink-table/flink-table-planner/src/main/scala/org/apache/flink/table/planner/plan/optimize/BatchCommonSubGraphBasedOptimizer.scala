@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.optimize
 
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
@@ -77,9 +78,10 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
     * @return The optimized [[RelNode]] tree
     */
   private def optimizeTree(relNode: RelNode): RelNode = {
-    val config = planner.getTableConfig
-    val programs = TableConfigUtils.getCalciteConfig(config).getBatchProgram
-      .getOrElse(FlinkBatchProgram.buildProgram(config.getConfiguration))
+    val plannerConfig = planner.getConfiguration
+    val tableConfig = planner.getTableConfig
+    val programs = TableConfigUtils.getCalciteConfig(tableConfig).getBatchProgram
+      .getOrElse(FlinkBatchProgram.buildProgram(plannerConfig))
     Preconditions.checkNotNull(programs)
 
     val context = relNode.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
@@ -88,7 +90,9 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
 
       override def isBatchMode: Boolean = true
 
-      override def getTableConfig: TableConfig = config
+      override def getPlannerConfig: ReadableConfig = plannerConfig
+
+      override def getTableConfig: TableConfig = tableConfig
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 

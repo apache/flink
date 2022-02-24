@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
@@ -105,6 +106,7 @@ public class PlannerContext {
 
     public PlannerContext(
             boolean isBatchMode,
+            ReadableConfig plannerConfig,
             TableConfig tableConfig,
             ModuleManager moduleManager,
             FunctionCatalog functionCatalog,
@@ -116,6 +118,7 @@ public class PlannerContext {
         this.context =
                 new FlinkContextImpl(
                         isBatchMode,
+                        plannerConfig,
                         tableConfig,
                         moduleManager,
                         functionCatalog,

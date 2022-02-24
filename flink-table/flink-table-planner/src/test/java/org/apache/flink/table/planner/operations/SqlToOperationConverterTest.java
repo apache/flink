@@ -127,6 +127,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
 /** Test cases for {@link SqlToOperationConverter}. */
 public class SqlToOperationConverterTest {
+
     private final boolean isStreamingMode = false;
     private final TableConfig tableConfig = new TableConfig();
     private final Catalog catalog = new GenericInMemoryCatalog("MockCatalog", "default");
@@ -151,6 +152,7 @@ public class SqlToOperationConverterTest {
     private final PlannerContext plannerContext =
             new PlannerContext(
                     true,
+                    tableConfig.getConfiguration(),
                     tableConfig,
                     moduleManager,
                     functionCatalog,

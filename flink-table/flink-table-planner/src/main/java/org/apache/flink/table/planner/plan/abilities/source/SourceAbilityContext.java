@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.abilities.source;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
@@ -56,6 +57,11 @@ public class SourceAbilityContext implements FlinkContext {
     @Override
     public boolean isBatchMode() {
         return context.isBatchMode();
+    }
+
+    @Override
+    public ReadableConfig getPlannerConfig() {
+        return context.getPlannerConfig();
     }
 
     @Override

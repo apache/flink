@@ -87,6 +87,7 @@ class SelectivityEstimatorTest {
     val plannerContext: PlannerContext =
       new PlannerContext(
         false,
+        tableConfig.getConfiguration,
         tableConfig,
         moduleManager,
         new FunctionCatalog(tableConfig, catalogManager, moduleManager),

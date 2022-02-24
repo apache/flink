@@ -19,20 +19,12 @@
 package org.apache.flink.table.planner.expressions.converter;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.expressions.TimePointUnit;
-import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.planner.delegation.PlannerContext;
-import org.apache.flink.table.planner.plan.metadata.MetadataTestUtil;
-import org.apache.flink.table.planner.plan.trait.FlinkRelDistributionTraitDef;
+import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.calcite.avatica.util.TimeUnit;
-import org.apache.calcite.jdbc.CalciteSchema;
-import org.apache.calcite.plan.ConventionTraitDef;
-import org.apache.calcite.rel.RelCollationTraitDef;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.type.SqlTypeName;
@@ -49,7 +41,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Period;
-import java.util.Arrays;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.valueLiteral;
 import static org.hamcrest.CoreMatchers.equalTo;
@@ -58,21 +49,8 @@ import static org.junit.Assert.assertThat;
 /** Test for {@link ExpressionConverter}. */
 public class ExpressionConverterTest {
 
-    private final TableConfig tableConfig = new TableConfig();
-    private final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
-    private final ModuleManager moduleManager = new ModuleManager();
-    private final PlannerContext plannerContext =
-            new PlannerContext(
-                    false,
-                    tableConfig,
-                    moduleManager,
-                    new FunctionCatalog(tableConfig, catalogManager, moduleManager),
-                    catalogManager,
-                    CalciteSchema.from(MetadataTestUtil.initRootSchema()),
-                    Arrays.asList(
-                            ConventionTraitDef.INSTANCE,
-                            FlinkRelDistributionTraitDef.INSTANCE(),
-                            RelCollationTraitDef.INSTANCE));
+    private final PlannerContext plannerContext = PlannerMocks.create().getPlannerContext();
+
     private final ExpressionConverter converter =
             new ExpressionConverter(
                     plannerContext.createRelBuilder(

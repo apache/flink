@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.calcite
 
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
@@ -39,6 +40,9 @@ trait FlinkContext extends Context {
     // temporary solution until FLINK-15635 is fixed
     Thread.currentThread().getContextClassLoader
   }
+
+  /** Returns the [[org.apache.flink.table.planner.delegation.PlannerConfig]]. */
+  def getPlannerConfig: ReadableConfig
 
   /** Returns the [[TableConfig]] defined in [[org.apache.flink.table.api.TableEnvironment]]. */
   def getTableConfig: TableConfig

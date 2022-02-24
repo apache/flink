@@ -33,7 +33,6 @@ import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 
-import java.util.ArrayList;
 import java.util.Collections;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
@@ -47,27 +46,28 @@ public class PlannerMocks {
     private final FlinkPlannerImpl planner;
     private final ParserImpl parser;
     private final CatalogManager catalogManager;
+    private final FunctionCatalog functionCatalog;
     private final TableConfig tableConfig;
     private final PlannerContext plannerContext;
 
-    private PlannerMocks(TableConfig tableConfig) {
+    private PlannerMocks(boolean batchMode, TableConfig tableConfig) {
         this.catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
         this.tableConfig = tableConfig;
 
         final ModuleManager moduleManager = new ModuleManager();
 
-        final FunctionCatalog functionCatalog =
-                new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+        this.functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
         this.plannerContext =
                 new PlannerContext(
-                        false,
+                        batchMode,
+                        tableConfig.getConfiguration(),
                         tableConfig,
                         moduleManager,
                         functionCatalog,
                         catalogManager,
-                        asRootSchema(new CatalogManagerCalciteSchema(catalogManager, true)),
-                        new ArrayList<>());
+                        asRootSchema(new CatalogManagerCalciteSchema(catalogManager, !batchMode)),
+                        Collections.emptyList());
 
         this.planner =
                 plannerContext.createFlinkPlanner(
@@ -103,6 +103,10 @@ public class PlannerMocks {
         return catalogManager;
     }
 
+    public FunctionCatalog getFunctionCatalog() {
+        return functionCatalog;
+    }
+
     public TableConfig getTableConfig() {
         return tableConfig;
     }
@@ -128,12 +132,16 @@ public class PlannerMocks {
     }
 
     public static PlannerMocks create() {
-        return new PlannerMocks(new TableConfig());
+        return create(false);
+    }
+
+    public static PlannerMocks create(boolean batchMode) {
+        return new PlannerMocks(batchMode, TableConfig.getDefault());
     }
 
     public static PlannerMocks create(Configuration configuration) {
-        TableConfig tableConfig = new TableConfig();
+        TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.addConfiguration(configuration);
-        return new PlannerMocks(tableConfig);
+        return new PlannerMocks(false, tableConfig);
     }
 }

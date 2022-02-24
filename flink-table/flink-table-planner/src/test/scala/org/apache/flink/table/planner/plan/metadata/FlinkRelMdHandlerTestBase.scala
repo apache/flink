@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.data.RowData
@@ -42,7 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, IntermediateRelTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.utils.Top3
+import org.apache.flink.table.planner.utils.{PlannerMocks, Top3}
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType, VariableRankRange}
 import org.apache.flink.table.types.AtomicDataType
@@ -69,6 +70,7 @@ import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.{SqlAggFunction, SqlWindow}
 import org.apache.calcite.util._
+
 import org.junit.{Before, BeforeClass}
 
 import java.math.BigDecimal
@@ -91,6 +93,7 @@ class FlinkRelMdHandlerTestBase {
   val plannerContext: PlannerContext =
   new PlannerContext(
     false,
+    tableConfig.getConfiguration,
     tableConfig,
     moduleManager,
     new FunctionCatalog(tableConfig, catalogManager, moduleManager),

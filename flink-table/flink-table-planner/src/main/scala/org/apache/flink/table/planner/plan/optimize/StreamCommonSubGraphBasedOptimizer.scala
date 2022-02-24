@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.optimize
 
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
@@ -153,10 +154,11 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       miniBatchInterval: MiniBatchInterval,
       isSinkBlock: Boolean): RelNode = {
 
-    val config = planner.getTableConfig
-    val calciteConfig = TableConfigUtils.getCalciteConfig(config)
+    val plannerConfig = planner.getConfiguration
+    val tableConfig = planner.getTableConfig
+    val calciteConfig = TableConfigUtils.getCalciteConfig(tableConfig)
     val programs = calciteConfig.getStreamProgram
-      .getOrElse(FlinkStreamProgram.buildProgram(config.getConfiguration))
+      .getOrElse(FlinkStreamProgram.buildProgram(plannerConfig))
     Preconditions.checkNotNull(programs)
 
     val context = relNode.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
@@ -165,7 +167,9 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
       override def isBatchMode: Boolean = false
 
-      override def getTableConfig: TableConfig = config
+      override def getPlannerConfig: ReadableConfig = plannerConfig
+
+      override def getTableConfig: TableConfig = tableConfig
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 

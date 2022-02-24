@@ -92,6 +92,10 @@ public final class ShortcutUtils {
         return unwrapContext(relNode).getTableConfig().getConfiguration();
     }
 
+    public static ReadableConfig unwrapPlannerConfig(RelNode relNode) {
+        return unwrapContext(relNode).getPlannerConfig();
+    }
+
     public static @Nullable FunctionDefinition unwrapFunctionDefinition(
             ResolvedExpression expression) {
         // Table API expression
