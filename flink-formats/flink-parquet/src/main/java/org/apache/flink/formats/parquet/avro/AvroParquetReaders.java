@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.parquet.avro;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.formats.avro.typeutils.AvroTypeInfo;
 import org.apache.flink.formats.avro.typeutils.GenericRecordAvroTypeInfo;
@@ -30,9 +31,10 @@ import org.apache.avro.specific.SpecificData;
 import org.apache.avro.specific.SpecificRecordBase;
 
 /**
- * Convenience builder to create {@link AvroParquetRecordFormat} instances for the different Avro
+ * Convenience factory to create {@link AvroParquetRecordFormat} instances for the different Avro
  * types.
  */
+@Experimental
 public class AvroParquetReaders {
 
     /**
