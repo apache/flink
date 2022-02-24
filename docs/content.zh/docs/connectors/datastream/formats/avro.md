@@ -25,11 +25,12 @@ specific language governing permissions and limitations
 under the License.
 -->
 
+<a name="avro-format"></a>
 
-# Avro 模式
+# Avro format
 
-Flink 已经支持 [Apache Avro](http://avro.apache.org/) 模式。在 Flink 中将更容易地基于 Avro 模式进行数据的读写。
-Flink 的序列化框架能够处理从 Avro 模式生成的类。为了使用 Avro 模式需要在自动构建工具（例如 Maven 或 SBT ）中添加如下依赖到工程中。
+Flink 内置支持 [Apache Avro](http://avro.apache.org/) 格式。在 Flink 中将更容易地读写基于 Avro schema 的 Avro 数据。
+Flink 的序列化框架可以处理基于 Avro schemas 生成的类。为了能够使用 Avro format，需要在自动构建工具（例如 Maven 或 SBT）中添加如下依赖到项目中。
 
 ```xml
 <dependency>
@@ -39,23 +40,23 @@ Flink 的序列化框架能够处理从 Avro 模式生成的类。为了使用 A
 </dependency>
 ```
 
-为了从 Avro 文件中读取数据，你必须指定 `AvroInputFormat` 。
+如果读取 Avro 文件数据，你必须指定 `AvroInputFormat`。
 
-**示例**:
+**示例**：
 
 ```java
 AvroInputFormat<User> users = new AvroInputFormat<User>(in, User.class);
 DataStream<User> usersDS = env.createInput(users);
 ```
 
-注意，`User` 是一个由 Avro 生成的 POJO 类。 Flink 还允许对这些 POJO 执行基于字符串的键选择。例如:
+注意，`User` 是一个通过 Avro schema生成的 POJO 类。Flink 还允许选择 POJO 中字符串类型的键。例如：
 
 ```java
 usersDS.keyBy("name")
 ```
 
 
-注意， 在 Flink 中可以使用 `GenericData.Record` 数据类型, 但是不推荐使用。因为记录包含完整模式，所以它的数据非常密集，使用起来可能很慢。
+注意，在 Flink 中可能会使用 `GenericData.Record` 类型，但是不推荐使用。由于该类型的记录中包含了完整的 schema，导致数据非常密集，使用起来可能很慢。
 
-Flink 的 POJO 字段选择也适用于 Avro 生成的POJO。因此，只有在字段类型正确写入生成的类中时，才可以使用。如果一个字段是 `Object` 类型，你不可以使用该字段进行 join 或者 group by 操作。
-在 Avro 中例如 `{"name": "type_double_test", "type": "double"},` 这种格式的数据指定字段是可以的，但是像 (`{"name": "type_double_test", "type": ["double"]},`) 这种格式数据去指定字段，字段就会生成为 `Object` 类型。注意，像 (`{"name": "type_double_test", "type": ["null", "double"]},`) 这种带有 NULL 类型格式的数据也是可能的!
+Flink 中在 Avro schema 生成的 POJO 类上也可以进行 POJO 字段选择。因此，只有在生成的类中正确写入字段类型时，才可以使用字段选择。如果一个字段类型是 `Object` 类型，你不可以选择该字段进行 join 或者 group by 操作。
+在 Avro 中类似 `{"name": "type_double_test", "type": "double"},` 这样指定字段是可行的，但是类似 (`{"name": "type_double_test", "type": ["double"]},`) 这样指定字段，字段类型就会生成为 `Object` 类型。注意，类似 (`{"name": "type_double_test", "type": ["null", "double"]},`) 这样指定 nullable 类型字段，也是有可能的!
