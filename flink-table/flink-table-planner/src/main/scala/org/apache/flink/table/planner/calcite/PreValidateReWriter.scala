@@ -35,7 +35,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.util.SqlBasicVisitor
 import org.apache.calcite.sql.validate.{SqlValidatorException, SqlValidatorTable, SqlValidatorUtil}
-import org.apache.calcite.sql.{SqlCall, SqlIdentifier, SqlKind, SqlLiteral, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlUtil}
+import org.apache.calcite.sql.{SqlCall, SqlIdentifier, SqlKind, SqlLiteral, SqlNode, SqlNodeList, SqlOrderBy, SqlSelect, SqlTableRef, SqlUtil}
 import org.apache.calcite.util.Static.RESOURCE
 
 import java.util
@@ -123,8 +123,14 @@ object PreValidateReWriter {
       source: SqlCall,
       partitions: SqlNodeList): SqlCall = {
     val calciteCatalogReader = validator.getCatalogReader.unwrap(classOf[CalciteCatalogReader])
-    val names = sqlInsert.getTargetTable.asInstanceOf[SqlIdentifier].names
-    val table = calciteCatalogReader.getTable(names)
+    val targetTable = sqlInsert.getTargetTable match {
+      case ref: SqlTableRef => ref.getOperandList
+        .find(_.isInstanceOf[SqlIdentifier]).get
+        .asInstanceOf[SqlIdentifier]
+      case identifier => identifier.asInstanceOf[SqlIdentifier]
+    }
+
+    val table = calciteCatalogReader.getTable(targetTable.names)
     if (table == null) {
       // There is no table exists in current catalog,
       // just skip to let other validation error throw.

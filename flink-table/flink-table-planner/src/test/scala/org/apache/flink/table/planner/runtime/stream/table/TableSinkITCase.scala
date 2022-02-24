@@ -1007,6 +1007,80 @@ class TableSinkITCase extends StreamingTestBase {
   }
 
   @Test
+  def testPartialInsertWithReorderAndHint(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE testSink (
+         |  `a` INT,
+         |  `b` AS `a` + 1,
+         |  `c` STRING,
+         |  `d` INT,
+         |  `e` DOUBLE
+         |)
+         |PARTITIONED BY (`c`, `d`)
+         |WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
+
+    val t = env.fromCollection(tupleData2).toTable(tEnv, 'x, 'y)
+    tEnv.createTemporaryView("MyTable", t)
+
+    tEnv.executeSql(
+      s"""
+         |-- the target columns is reordered (compare with the columns of sink)
+         |INSERT INTO testSink /*+ OPTIONS('sink-insert-only' = 'false') */ (e, d, c)
+         |SELECT sum(y), 1, '2021' FROM MyTable GROUP BY x
+         |""".stripMargin).await()
+    val expected = List(
+      "null,2021,1,0.1",
+      "null,2021,1,0.4",
+      "null,2021,1,1.0",
+      "null,2021,1,2.2",
+      "null,2021,1,3.9")
+    val result = TestValuesTableFactory.getResults("testSink")
+    assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
+  def testPartialInsertWithPartitionAndHint(): Unit = {
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE testSink (
+         |  `a` INT,
+         |  `b` DOUBLE,
+         |  `c` INT,
+         |  `d` STRING
+         |)
+         |PARTITIONED BY (`c`, `d`)
+         |WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
+
+    val t = env.fromCollection(tupleData2).toTable(tEnv, 'x, 'y)
+    tEnv.createTemporaryView("MyTable", t)
+
+    tEnv.executeSql(
+      s"""
+         |INSERT INTO testSink /*+ OPTIONS('sink-insert-only' = 'false') */
+         |PARTITION(`c`='2021', `d`='test')
+         |SELECT x, sum(y) FROM MyTable GROUP BY x
+         |""".stripMargin).await()
+
+    val expected = List(
+      "1,0.1,2021,test",
+      "2,0.4,2021,test",
+      "3,1.0,2021,test",
+      "4,2.2,2021,test",
+      "5,3.9,2021,test")
+    val result = TestValuesTableFactory.getResults("testSink")
+    assertEquals(expected.sorted, result.sorted)
+  }
+
+  @Test
   def testPartialInsertWithDynamicAndStaticPartition1(): Unit = {
     tEnv.executeSql(
       s"""
