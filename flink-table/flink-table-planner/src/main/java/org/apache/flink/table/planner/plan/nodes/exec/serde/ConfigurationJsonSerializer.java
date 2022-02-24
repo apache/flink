@@ -35,7 +35,7 @@ import java.util.TreeMap;
 @Internal
 class ConfigurationJsonSerializer extends StdSerializer<Configuration> {
 
-    public ConfigurationJsonSerializer() {
+    ConfigurationJsonSerializer() {
         super(Configuration.class);
     }
 

@@ -39,7 +39,7 @@ class ConfigurationJsonDeserializer extends StdDeserializer<Configuration> {
     private static final TypeReference<?> MAP_STRING_STRING_TYPE_REF =
             new TypeReference<Map<String, String>>() {};
 
-    public ConfigurationJsonDeserializer() {
+    ConfigurationJsonDeserializer() {
         super(Configuration.class);
     }
 
