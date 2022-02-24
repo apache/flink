@@ -59,9 +59,9 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil
  * @see DataTypeJsonSerializer for the reverse operation
  */
 @Internal
-public class DataTypeJsonDeserializer extends StdDeserializer<DataType> {
+final class DataTypeJsonDeserializer extends StdDeserializer<DataType> {
 
-    public DataTypeJsonDeserializer() {
+    DataTypeJsonDeserializer() {
         super(DataType.class);
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.ResolvedSchema;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -28,14 +29,20 @@ import java.io.IOException;
 
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.serializeOptionalField;
 
-class ResolvedSchemaJsonSerializer extends StdSerializer<ResolvedSchema> {
+/**
+ * JSON serializer for {@link ResolvedSchema}.
+ *
+ * @see ResolvedSchemaJsonDeserializer for the reverse operation
+ */
+@Internal
+final class ResolvedSchemaJsonSerializer extends StdSerializer<ResolvedSchema> {
     private static final long serialVersionUID = 1L;
 
-    public static final String COLUMNS = "columns";
-    public static final String WATERMARK_SPECS = "watermarkSpecs";
-    public static final String PRIMARY_KEY = "primaryKey";
+    static final String COLUMNS = "columns";
+    static final String WATERMARK_SPECS = "watermarkSpecs";
+    static final String PRIMARY_KEY = "primaryKey";
 
-    public ResolvedSchemaJsonSerializer() {
+    ResolvedSchemaJsonSerializer() {
         super(ResolvedSchema.class);
     }
 

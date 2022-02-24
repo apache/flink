@@ -97,10 +97,10 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJs
  * @see LogicalTypeJsonSerializer for the reverse operation
  */
 @Internal
-public class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
+final class LogicalTypeJsonDeserializer extends StdDeserializer<LogicalType> {
     private static final long serialVersionUID = 1L;
 
-    public LogicalTypeJsonDeserializer() {
+    LogicalTypeJsonDeserializer() {
         super(LogicalType.class);
     }
 

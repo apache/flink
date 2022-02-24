@@ -37,18 +37,18 @@ import java.io.IOException;
  * @see AggregateCallJsonDeserializer for the reverse operation
  */
 @Internal
-public class AggregateCallJsonSerializer extends StdSerializer<AggregateCall> {
+final class AggregateCallJsonSerializer extends StdSerializer<AggregateCall> {
     private static final long serialVersionUID = 1L;
 
-    public static final String FIELD_NAME_NAME = "name";
-    public static final String FIELD_NAME_ARG_LIST = "argList";
-    public static final String FIELD_NAME_FILTER_ARG = "filterArg";
-    public static final String FIELD_NAME_DISTINCT = "distinct";
-    public static final String FIELD_NAME_APPROXIMATE = "approximate";
-    public static final String FIELD_NAME_IGNORE_NULLS = "ignoreNulls";
-    public static final String FIELD_NAME_TYPE = "type";
+    static final String FIELD_NAME_NAME = "name";
+    static final String FIELD_NAME_ARG_LIST = "argList";
+    static final String FIELD_NAME_FILTER_ARG = "filterArg";
+    static final String FIELD_NAME_DISTINCT = "distinct";
+    static final String FIELD_NAME_APPROXIMATE = "approximate";
+    static final String FIELD_NAME_IGNORE_NULLS = "ignoreNulls";
+    static final String FIELD_NAME_TYPE = "type";
 
-    public AggregateCallJsonSerializer() {
+    AggregateCallJsonSerializer() {
         super(AggregateCall.class);
     }
 

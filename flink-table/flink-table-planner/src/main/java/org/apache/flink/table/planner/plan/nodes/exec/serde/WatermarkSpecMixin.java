@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.expressions.ResolvedExpression;
 
@@ -25,10 +26,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCre
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 /** Mixin for {@link WatermarkSpec}. */
+@Internal
 abstract class WatermarkSpecMixin {
 
-    public static final String ROWTIME_ATTRIBUTE = "rowtimeAttribute";
-    public static final String EXPRESSION = "expression";
+    static final String ROWTIME_ATTRIBUTE = "rowtimeAttribute";
+    static final String EXPRESSION = "expression";
 
     @JsonCreator
     private WatermarkSpecMixin(

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
@@ -28,14 +29,20 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 
-class ResolvedExpressionJsonSerializer extends StdSerializer<ResolvedExpression> {
+/**
+ * JSON serializer for {@link ResolvedExpression}.
+ *
+ * @see ResolvedExpressionJsonDeserializer for the reverse operation
+ */
+@Internal
+final class ResolvedExpressionJsonSerializer extends StdSerializer<ResolvedExpression> {
 
-    public static final String TYPE = "type";
-    public static final String TYPE_REX_NODE_EXPRESSION = "rexNodeExpression";
-    public static final String REX_NODE = "rexNode";
-    public static final String SERIALIZABLE_STRING = "serializableString";
+    static final String TYPE = "type";
+    static final String TYPE_REX_NODE_EXPRESSION = "rexNodeExpression";
+    static final String REX_NODE = "rexNode";
+    static final String SERIALIZABLE_STRING = "serializableString";
 
-    protected ResolvedExpressionJsonSerializer() {
+    ResolvedExpressionJsonSerializer() {
         super(ResolvedExpression.class);
     }
 
