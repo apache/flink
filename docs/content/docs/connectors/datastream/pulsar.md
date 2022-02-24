@@ -37,10 +37,8 @@ For details on Pulsar compatibility, refer to the [PIP-72](https://github.com/ap
 
 {{< hint info >}}
 Flink's streaming connectors are not part of the binary distribution.
-See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
+See how to link with them [here]({{< ref "docs/dev/configuration/overview" >}}).
 {{< /hint >}}
-
-
 
 ## Pulsar Source
 
@@ -148,7 +146,7 @@ You can directly consume messages from the topic partitions by using the non-par
 For example, use `PulsarSource.builder().setTopics("sample/flink/simple-string-partition-1", "sample/flink/simple-string-partition-2")` 
 would consume the partitions 1 and 2 of the `sample/flink/simple-string` topic.
 
-#### Setting Topic Pattern
+#### Setting Topic Regex Pattern
 
 Pulsar source extracts the topic type (`persistent` or `non-persistent`) from the given topic pattern.
 For example, you can use the `PulsarSource.builder().setTopicPattern("non-persistent://my-topic*")` to specify 
@@ -563,7 +561,7 @@ By default Pulsar Sink supports two router implementation.
 
 - `KeyHashTopicRouter`: use the hashcode of the message's key to decide the topic partition that messages are sent to.
 
-  The message key is provided by `PulsarSerializationSchema.key(IN, PulsarSinkContext)`.
+  The message key is provided by `PulsarMessageBuiilder.key(String key)`.
   You need to implement this interface and extract the message key when you want to send the message
   with the same key to the same topic partition.
 
@@ -576,10 +574,6 @@ By default Pulsar Sink supports two router implementation.
 
   All messages are sent to the first partition, and switch to the next partition after sending
   a fixed number of messages. The batch size can be customized by the `PulsarSinkOptions.PULSAR_BATCHING_MAX_MESSAGES` option.
-
-Let’s assume there are ten messages and two topics.Topic A has two partitions while topic B has three 
-partitions. The batch size is set to five messages. In this case,  
-Topic A has 5 messages per partition which topic B does not receive any messages.
 
 You can configure  custom routers by using the `TopicRouter` interface. If you implement a  `TopicRouter`, 
 ensure that  it is  serializable. And you can return partitions which are not
@@ -767,7 +761,7 @@ The first 6 metrics are standard Pulsar Sink metrics as described in
 
 {{< hint info >}}
 - `numBytesOut`, `numRecordsOut`, `numRecordsOutErrors` are retrieved from Pulsar client metrics.
-  See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
+  See how to link with them [here]({{< ref "docs/dev/configuration/overview" >}}).
 - `currentSendTime` tracks the time from when the producer calls `sendAync()` to
   the time when message is acknowledged by the broker. This metric is not available in `NONE` delivery guarantee.
 {{< /hint >}}
@@ -783,7 +777,7 @@ the Pulsar producer stats refresh interval to a smaller value (minimum 1 second)
     builder.setConfig(PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS. 1L)
 ```
 
-`numBytesOutRate` and `numRecordsOutRate` are calculated based on the `numBytesOut` and `numRecordsOUt`
+`numBytesOutRate` and `numRecordsOutRate` are calculated based on the `numBytesOut` and `numRecordsOut`
 counter respectively. Flink internally uses a fixed 60 seconds window to calculate the rates.
 
 
@@ -799,6 +793,7 @@ which means a new bunch of transactions will be created after a restart.
 Therefore, any message in previous pending transactions is  either aborted or timeout
 (Either way, they are not visible to the downstream Pulsar consumer).
 Pulsar team is working to optimize the resource cost bought by unfinished pending transactions.
+This design gurantees that SinkWriter is stateless.
 
 
 #### Pulsar Schema Evolution
