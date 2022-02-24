@@ -39,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for the DatadogHttpClient. */
-public class DatadogHttpClientTest {
+class DatadogHttpClientTest {
 
     private static final List<String> tags = Arrays.asList("tag1", "tag2");
     private static final String TAGS_AS_JSON =
@@ -57,26 +57,26 @@ public class DatadogHttpClientTest {
     private static final long MOCKED_SYSTEM_MILLIS = 123L;
 
     @Test
-    public void testClientWithEmptyKey() {
+    void testClientWithEmptyKey() {
         assertThatThrownBy(() -> new DatadogHttpClient("", null, 123, DataCenter.US, false))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testClientWithNullKey() {
+    void testClientWithNullKey() {
         assertThatThrownBy(() -> new DatadogHttpClient(null, null, 123, DataCenter.US, false))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    public void testGetProxyWithNullProxyHost() {
+    void testGetProxyWithNullProxyHost() {
         DatadogHttpClient client =
                 new DatadogHttpClient("anApiKey", null, 123, DataCenter.US, false);
         assert (client.getProxy() == Proxy.NO_PROXY);
     }
 
     @Test
-    public void testGetProxy() {
+    void testGetProxy() {
         DatadogHttpClient client =
                 new DatadogHttpClient("anApiKey", "localhost", 123, DataCenter.US, false);
 
@@ -89,7 +89,7 @@ public class DatadogHttpClientTest {
     }
 
     @Test
-    public void serializeGauge() throws JsonProcessingException {
+    void serializeGauge() throws JsonProcessingException {
         DSeries series = new DSeries();
         series.add(new DGauge(() -> 1, METRIC, HOST, tags, () -> MOCKED_SYSTEM_MILLIS));
 
@@ -99,7 +99,7 @@ public class DatadogHttpClientTest {
     }
 
     @Test
-    public void serializeGaugeWithoutHost() throws JsonProcessingException {
+    void serializeGaugeWithoutHost() throws JsonProcessingException {
         DSeries series = new DSeries();
         series.add(new DGauge(() -> 1, METRIC, null, tags, () -> MOCKED_SYSTEM_MILLIS));
 
@@ -109,7 +109,7 @@ public class DatadogHttpClientTest {
     }
 
     @Test
-    public void serializeCounter() throws JsonProcessingException {
+    void serializeCounter() throws JsonProcessingException {
         DSeries series = new DSeries();
         series.add(
                 new DCounter(new TestCounter(1), METRIC, HOST, tags, () -> MOCKED_SYSTEM_MILLIS));
@@ -120,7 +120,7 @@ public class DatadogHttpClientTest {
     }
 
     @Test
-    public void serializeCounterWithoutHost() throws JsonProcessingException {
+    void serializeCounterWithoutHost() throws JsonProcessingException {
         DSeries series = new DSeries();
         series.add(
                 new DCounter(new TestCounter(1), METRIC, null, tags, () -> MOCKED_SYSTEM_MILLIS));
@@ -131,7 +131,7 @@ public class DatadogHttpClientTest {
     }
 
     @Test
-    public void serializeMeter() throws JsonProcessingException {
+    void serializeMeter() throws JsonProcessingException {
         DSeries series = new DSeries();
         series.add(new DMeter(new TestMeter(0, 1), METRIC, HOST, tags, () -> MOCKED_SYSTEM_MILLIS));
 
@@ -141,7 +141,7 @@ public class DatadogHttpClientTest {
     }
 
     @Test
-    public void serializeMeterWithoutHost() throws JsonProcessingException {
+    void serializeMeterWithoutHost() throws JsonProcessingException {
         DSeries series = new DSeries();
         series.add(new DMeter(new TestMeter(0, 1), METRIC, null, tags, () -> MOCKED_SYSTEM_MILLIS));
 
@@ -151,7 +151,7 @@ public class DatadogHttpClientTest {
     }
 
     @Test
-    public void serializeHistogram() throws JsonProcessingException {
+    void serializeHistogram() throws JsonProcessingException {
         DHistogram h =
                 new DHistogram(new TestHistogram(), METRIC, HOST, tags, () -> MOCKED_SYSTEM_MILLIS);
 
