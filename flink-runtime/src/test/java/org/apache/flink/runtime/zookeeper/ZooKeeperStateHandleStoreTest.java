@@ -45,8 +45,6 @@ import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.annotation.Nullable;
-
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
@@ -55,7 +53,6 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.runtime.util.ZooKeeperUtils.generateZookeeperPath;
 import static org.hamcrest.Matchers.empty;
@@ -983,15 +980,18 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
                 "One discardState call should have failed resulting in one node being left, still.",
                 1,
                 ZOOKEEPER.getClient().getChildren().forPath("/").size());
-        assertEquals(0, failingStateHandle.getNumberOfDiscardCalls());
-        assertEquals(1, succeedingStateHandle.getNumberOfDiscardCalls());
+        assertEquals(0, failingStateHandle.getNumberOfSuccessfulDiscardCalls());
+        assertEquals(1, failingStateHandle.getNumberOfDiscardCalls());
+        assertEquals(1, succeedingStateHandle.getNumberOfSuccessfulDiscardCalls());
 
         store.releaseAndTryRemoveAll();
 
         assertTrue(
                 "The second removal attempt should have succeeded with no nodes left.",
                 ZOOKEEPER.getClient().getChildren().forPath("/").isEmpty());
-        assertEquals(1, failingStateHandle.getNumberOfDiscardCalls());
+        assertEquals(1, failingStateHandle.getNumberOfSuccessfulDiscardCalls());
+        assertEquals(2, failingStateHandle.getNumberOfDiscardCalls());
+        assertEquals(1, succeedingStateHandle.getNumberOfSuccessfulDiscardCalls());
         assertEquals(1, succeedingStateHandle.getNumberOfDiscardCalls());
     }
 
@@ -1309,12 +1309,10 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     }
 
     private static TestingLongStateHandleHelper.PreDiscardCallback throwExceptionOnce(
-            @Nullable RuntimeException e) {
-        final AtomicReference<RuntimeException> ref = new AtomicReference<>(e);
-        return ignoredValue -> {
-            final RuntimeException actualException = ref.getAndSet(null);
-            if (actualException != null) {
-                throw actualException;
+            RuntimeException e) {
+        return discardIdx -> {
+            if (discardIdx == 0) {
+                throw e;
             }
         };
     }
