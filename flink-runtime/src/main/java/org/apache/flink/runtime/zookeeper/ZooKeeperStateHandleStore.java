@@ -26,6 +26,7 @@ import org.apache.flink.runtime.persistence.RetrievableStateStorageHelper;
 import org.apache.flink.runtime.persistence.StateHandleStore;
 import org.apache.flink.runtime.state.RetrievableStateHandle;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
 import org.apache.flink.shaded.curator4.org.apache.curator.utils.ZKPaths;
@@ -344,30 +345,38 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
      */
     @Override
     public List<Tuple2<RetrievableStateHandle<T>, String>> getAllAndLock() throws Exception {
+        return getAllAndLock(parentNodePath -> client.getChildren().forPath(parentNodePath));
+    }
+
+    @VisibleForTesting
+    List<Tuple2<RetrievableStateHandle<T>, String>> getAllAndLock(
+            FunctionWithException<String, List<String>, Exception> getNodeChildren)
+            throws Exception {
         final List<Tuple2<RetrievableStateHandle<T>, String>> stateHandles = new ArrayList<>();
 
+        final String rootPath = "/";
         boolean success = false;
 
         retry:
         while (!success) {
             stateHandles.clear();
 
-            Stat stat = client.checkExists().forPath("/");
+            Stat stat = client.checkExists().forPath(rootPath);
             if (stat == null) {
                 break; // Node does not exist, done.
             } else {
                 // Initial cVersion (number of changes to the children of this node)
                 int initialCVersion = stat.getCversion();
 
-                List<String> children = client.getChildren().forPath("/");
+                final List<String> children = getNodeChildren.apply(rootPath);
 
                 for (String path : children) {
-                    path = "/" + path;
+                    path = rootPath + path;
 
                     try {
                         final RetrievableStateHandle<T> stateHandle = getAndLock(path);
                         stateHandles.add(new Tuple2<>(stateHandle, path));
-                    } catch (KeeperException.NoNodeException ignored) {
+                    } catch (NotExistException ignored) {
                         // Concurrent deletion, retry
                         continue retry;
                     } catch (IOException ioException) {
@@ -379,7 +388,7 @@ public class ZooKeeperStateHandleStore<T extends Serializable>
                     }
                 }
 
-                int finalCVersion = client.checkExists().forPath("/").getCversion();
+                int finalCVersion = client.checkExists().forPath(rootPath).getCversion();
 
                 // Check for concurrent modifications
                 success = initialCVersion == finalCVersion;

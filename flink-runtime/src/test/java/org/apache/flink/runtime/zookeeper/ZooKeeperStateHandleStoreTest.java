@@ -34,6 +34,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.KeeperException;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
@@ -593,6 +594,65 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
             assertTrue(expected.remove(val.f0.retrieveState().getValue()));
         }
         assertEquals(0, expected.size());
+    }
+
+    @Test
+    public void testGetAllAndLockOnConcurrentDelete() throws Exception {
+        final TestingLongStateHandleHelper stateHandleProvider = new TestingLongStateHandleHelper();
+        final CuratorFramework client =
+                ZooKeeperUtils.useNamespaceAndEnsurePath(
+                        ZOOKEEPER.getClient(), "/testGetAllAndLockOnConcurrentDelete");
+
+        // this store simulates the ZooKeeper connection for maintaining the lifecycle (i.e.
+        // creating and deleting the nodes) of the StateHandles
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle>
+                storeForCreationAndDeletion =
+                        new ZooKeeperStateHandleStore<>(client, stateHandleProvider);
+
+        // this store simulates a concurrent access to ZooKeeper
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle>
+                storeForRetrieval = new ZooKeeperStateHandleStore<>(client, stateHandleProvider);
+
+        final String pathInZooKeeperPrefix = "/node";
+
+        final long stateForDeletion = 42L;
+        final String handlePathForDeletion = pathInZooKeeperPrefix + "-for-deletion";
+        storeForCreationAndDeletion.addAndLock(
+                handlePathForDeletion,
+                new TestingLongStateHandleHelper.LongStateHandle(stateForDeletion));
+
+        final long stateToKeep = stateForDeletion + 2;
+        storeForCreationAndDeletion.addAndLock(
+                pathInZooKeeperPrefix + "-keep",
+                new TestingLongStateHandleHelper.LongStateHandle(stateToKeep));
+
+        final List<
+                        Tuple2<
+                                RetrievableStateHandle<
+                                        TestingLongStateHandleHelper.LongStateHandle>,
+                                String>>
+                actuallyLockedHandles =
+                        storeForRetrieval.getAllAndLock(
+                                parentPath -> {
+                                    final List<String> childNodes =
+                                            client.getChildren().forPath(parentPath);
+                                    // the following block simulates the concurrent deletion of the
+                                    // child node after the node names are delivered to the
+                                    // storeForRetrieval causing a retry
+                                    if (storeForCreationAndDeletion
+                                            .exists(handlePathForDeletion)
+                                            .isExisting()) {
+                                        storeForCreationAndDeletion.releaseAndTryRemove(
+                                                handlePathForDeletion);
+                                    }
+
+                                    return childNodes;
+                                });
+
+        assertEquals(
+                "Only the StateHandle that was expected to be kept should be returned.",
+                stateToKeep,
+                Iterables.getOnlyElement(actuallyLockedHandles).f0.retrieveState().getValue());
     }
 
     /** Tests that the state is returned sorted. */
