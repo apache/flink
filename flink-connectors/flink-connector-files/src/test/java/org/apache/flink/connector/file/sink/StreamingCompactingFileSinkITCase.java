@@ -27,6 +27,7 @@ import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils.I
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.Rule;
@@ -57,6 +58,13 @@ public class StreamingCompactingFileSinkITCase extends StreamingExecutionFileSin
                 .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy(1024))
                 .enableCompact(createFileCompactStrategy(), createFileCompactor())
                 .build();
+    }
+
+    @Override
+    protected void configureEnvironment(StreamExecutionEnvironment env) {
+        super.configureEnvironment(env);
+        // Disable unaligned checkpoints explicitly to avoid being randomly enabled
+        env.getCheckpointConfig().enableUnalignedCheckpoints(false);
     }
 
     private static FileCompactor createFileCompactor() {
