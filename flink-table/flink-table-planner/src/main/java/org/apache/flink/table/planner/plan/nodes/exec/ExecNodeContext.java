@@ -37,11 +37,11 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.DatabindC
 import javax.annotation.Nullable;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -199,19 +199,24 @@ public final class ExecNodeContext {
     @SuppressWarnings({"rawtypes", "unchecked"})
     public static <T extends ExecNode<?>> ReadableConfig newPersistedConfig(
             Class<T> execNodeClass, ReadableConfig plannerConfig) {
-        Map<String, ConfigOption<?>> configOptions =
-                Stream.concat(
-                                ExecNodeMetadataUtil.TABLE_CONFIG_OPTIONS.stream(),
-                                ExecNodeMetadataUtil.EXECUTION_CONFIG_OPTIONS.stream())
-                        .collect(Collectors.toMap(ConfigOption::key, o -> o));
+        final Map<String, ConfigOption<?>> configOptions = new HashMap<>();
+        Stream.concat(
+                        ExecNodeMetadataUtil.TABLE_CONFIG_OPTIONS.stream(),
+                        ExecNodeMetadataUtil.EXECUTION_CONFIG_OPTIONS.stream())
+                .forEach(
+                        co -> {
+                            configOptions.put(co.key(), co);
+                            co.fallbackKeys().forEach(k -> configOptions.put(k.getKey(), co));
+                        });
 
-        Configuration nodeConfiguration = new Configuration();
-        String[] consumedOptions = ExecNodeMetadataUtil.consumedOptions(execNodeClass);
+        final Configuration nodeConfiguration = new Configuration();
+        final String[] consumedOptions = ExecNodeMetadataUtil.consumedOptions(execNodeClass);
         if (consumedOptions == null) {
             return nodeConfiguration;
         }
 
-        for (String consumedOption : consumedOptions) {
+        final Map<ConfigOption, Object> nodeConfigOptions = new HashMap<>();
+        for (final String consumedOption : consumedOptions) {
             ConfigOption configOption = configOptions.get(consumedOption);
             if (configOption == null) {
                 throw new IllegalStateException(
@@ -220,13 +225,23 @@ public final class ExecNodeContext {
                                 execNodeClass.getCanonicalName(),
                                 consumedOption,
                                 String.join(
-                                        ",",
+                                        ", ",
                                         Arrays.asList(
                                                 TableConfigOptions.class.getSimpleName(),
                                                 ExecutionConfigOptions.class.getSimpleName()))));
             }
-            nodeConfiguration.set(configOption, plannerConfig.get(configOption));
+            if (nodeConfigOptions.containsKey(configOption)) {
+                throw new IllegalStateException(
+                        String.format(
+                                "ExecNode: %s, consumedOption: %s is listed multiple times in "
+                                        + "consumedOptions, potentially also with "
+                                        + "fallback/deprecated key.",
+                                execNodeClass.getCanonicalName(), consumedOption));
+            } else {
+                nodeConfigOptions.put(configOption, plannerConfig.get(configOption));
+            }
         }
+        nodeConfigOptions.forEach(nodeConfiguration::set);
         return nodeConfiguration;
     }
 }
