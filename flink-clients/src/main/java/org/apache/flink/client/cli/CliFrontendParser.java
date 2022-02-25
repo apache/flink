@@ -134,6 +134,7 @@ public class CliFrontendParser {
 
     public static final Option SAVEPOINT_RESTORE_MODE =
             new Option(
+                    "rm",
                     "restoreMode",
                     true,
                     "Defines how should we restore from the given savepoint. Supported options: "
