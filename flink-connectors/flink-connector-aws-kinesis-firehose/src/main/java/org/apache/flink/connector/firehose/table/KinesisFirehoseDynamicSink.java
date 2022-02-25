@@ -129,8 +129,8 @@ public class KinesisFirehoseDynamicSink extends AsyncDynamicTableSink<Record> {
 
     /** Builder class for {@link KinesisFirehoseDynamicSink}. */
     @Internal
-    public static class KinesisDataFirehoseDynamicSinkBuilder
-            extends AsyncDynamicTableSinkBuilder<Record, KinesisDataFirehoseDynamicSinkBuilder> {
+    public static class KinesisFirehoseDynamicSinkBuilder
+            extends AsyncDynamicTableSinkBuilder<Record, KinesisFirehoseDynamicSinkBuilder> {
 
         private DataType consumedDataType = null;
         private String deliveryStream = null;
@@ -138,30 +138,29 @@ public class KinesisFirehoseDynamicSink extends AsyncDynamicTableSink<Record> {
         private EncodingFormat<SerializationSchema<RowData>> encodingFormat = null;
         private Boolean failOnError = null;
 
-        public KinesisDataFirehoseDynamicSinkBuilder setConsumedDataType(
-                DataType consumedDataType) {
+        public KinesisFirehoseDynamicSinkBuilder setConsumedDataType(DataType consumedDataType) {
             this.consumedDataType = consumedDataType;
             return this;
         }
 
-        public KinesisDataFirehoseDynamicSinkBuilder setDeliveryStream(String deliveryStream) {
+        public KinesisFirehoseDynamicSinkBuilder setDeliveryStream(String deliveryStream) {
             this.deliveryStream = deliveryStream;
             return this;
         }
 
-        public KinesisDataFirehoseDynamicSinkBuilder setFirehoseClientProperties(
+        public KinesisFirehoseDynamicSinkBuilder setFirehoseClientProperties(
                 Properties firehoseClientProperties) {
             this.firehoseClientProperties = firehoseClientProperties;
             return this;
         }
 
-        public KinesisDataFirehoseDynamicSinkBuilder setEncodingFormat(
+        public KinesisFirehoseDynamicSinkBuilder setEncodingFormat(
                 EncodingFormat<SerializationSchema<RowData>> encodingFormat) {
             this.encodingFormat = encodingFormat;
             return this;
         }
 
-        public KinesisDataFirehoseDynamicSinkBuilder setFailOnError(Boolean failOnError) {
+        public KinesisFirehoseDynamicSinkBuilder setFailOnError(Boolean failOnError) {
             this.failOnError = failOnError;
             return this;
         }
