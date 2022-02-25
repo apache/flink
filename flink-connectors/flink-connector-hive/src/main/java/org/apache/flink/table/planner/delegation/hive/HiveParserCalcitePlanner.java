@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.delegation.hive;
 
+import com.google.common.collect.ImmutableSet;
+
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -910,7 +912,9 @@ public class HiveParserCalcitePlanner {
         RexNode factoredFilterExpr =
                 RexUtil.pullFactors(cluster.getRexBuilder(), convertedFilterExpr)
                         .accept(funcConverter);
-        RelNode filterRel = LogicalFilter.create(srcRel, factoredFilterExpr);
+        ImmutableSet<CorrelationId> variablesSet =
+                ImmutableSet.copyOf(HiveParserBaseSemanticAnalyzer.getVariablesSet(factoredFilterExpr));
+        RelNode filterRel = LogicalFilter.create(srcRel, factoredFilterExpr, variablesSet);
         relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));
         relToHiveColNameCalcitePosMap.put(filterRel, hiveColNameToCalcitePos);
 
@@ -1070,7 +1074,9 @@ public class HiveParserCalcitePlanner {
                             .convert(subQueryExpr)
                             .accept(funcConverter);
 
-            RelNode filterRel = LogicalFilter.create(srcRel, convertedFilterLHS);
+            ImmutableSet<CorrelationId> variablesSet =
+                    ImmutableSet.copyOf(HiveParserBaseSemanticAnalyzer.getVariablesSet(convertedFilterLHS));
+            RelNode filterRel = LogicalFilter.create(srcRel, convertedFilterLHS, variablesSet);
 
             relToHiveColNameCalcitePosMap.put(filterRel, relToHiveColNameCalcitePosMap.get(srcRel));
             relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));
