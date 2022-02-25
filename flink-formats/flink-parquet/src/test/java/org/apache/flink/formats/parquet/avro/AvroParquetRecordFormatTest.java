@@ -212,13 +212,19 @@ class AvroParquetRecordFormatTest {
     @Test
     void getDataModel() {
         assertEquals(
-                AvroParquetReaders.forGenericRecord(schema).getDataModel().getClass(),
+                ((AvroParquetRecordFormat) AvroParquetReaders.forGenericRecord(schema))
+                        .getDataModel()
+                        .getClass(),
                 GenericData.class);
         assertEquals(
-                AvroParquetReaders.forSpecificRecord(Address.class).getDataModel().getClass(),
+                ((AvroParquetRecordFormat) AvroParquetReaders.forSpecificRecord(Address.class))
+                        .getDataModel()
+                        .getClass(),
                 SpecificData.class);
         assertEquals(
-                AvroParquetReaders.forReflectRecord(Datum.class).getDataModel().getClass(),
+                ((AvroParquetRecordFormat) AvroParquetReaders.forReflectRecord(Datum.class))
+                        .getDataModel()
+                        .getClass(),
                 ReflectData.class);
     }
 
@@ -227,7 +233,7 @@ class AvroParquetRecordFormatTest {
     // ------------------------------------------------------------------------
 
     private <T> StreamFormat.Reader<T> createReader(
-            AvroParquetRecordFormat<T> format,
+            StreamFormat<T> format,
             Configuration config,
             Path filePath,
             long splitOffset,
@@ -250,7 +256,7 @@ class AvroParquetRecordFormatTest {
     }
 
     private <T> StreamFormat.Reader<T> restoreReader(
-            AvroParquetRecordFormat<T> format,
+            StreamFormat<T> format,
             Configuration config,
             Path filePath,
             long restoredOffset,
