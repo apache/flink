@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
@@ -52,6 +53,7 @@ import java.util.List;
 public class StreamExecCorrelate extends CommonExecCorrelate implements StreamExecNode<RowData> {
 
     public StreamExecCorrelate(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             RexCall invocation,
             @Nullable RexNode condition,
@@ -61,6 +63,7 @@ public class StreamExecCorrelate extends CommonExecCorrelate implements StreamEx
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecCorrelate.class),
+                ExecNodeContext.newPersistedConfig(StreamExecCorrelate.class, tableConfig),
                 joinType,
                 invocation,
                 condition,
@@ -73,6 +76,7 @@ public class StreamExecCorrelate extends CommonExecCorrelate implements StreamEx
     public StreamExecCorrelate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType joinType,
             @JsonProperty(FIELD_NAME_FUNCTION_CALL) RexNode invocation,
             @JsonProperty(FIELD_NAME_CONDITION) @Nullable RexNode condition,
@@ -82,6 +86,7 @@ public class StreamExecCorrelate extends CommonExecCorrelate implements StreamEx
         super(
                 id,
                 context,
+                persistedConfig,
                 joinType,
                 (RexCall) invocation,
                 condition,

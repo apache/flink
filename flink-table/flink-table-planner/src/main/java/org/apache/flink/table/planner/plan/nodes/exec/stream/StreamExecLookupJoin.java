@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
@@ -49,6 +50,7 @@ import java.util.Map;
         minStateVersion = FlinkVersion.v1_15)
 public class StreamExecLookupJoin extends CommonExecLookupJoin implements StreamExecNode<RowData> {
     public StreamExecLookupJoin(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             @Nullable RexNode joinCondition,
             TemporalTableSourceSpec temporalTableSourceSpec,
@@ -61,6 +63,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecLookupJoin.class),
+                ExecNodeContext.newPersistedConfig(StreamExecLookupJoin.class, tableConfig),
                 joinType,
                 joinCondition,
                 temporalTableSourceSpec,
@@ -76,6 +79,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
     public StreamExecLookupJoin(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_JOIN_TYPE) FlinkJoinType joinType,
             @JsonProperty(FIELD_NAME_JOIN_CONDITION) @Nullable RexNode joinCondition,
             @JsonProperty(FIELD_NAME_TEMPORAL_TABLE)
@@ -91,6 +95,7 @@ public class StreamExecLookupJoin extends CommonExecLookupJoin implements Stream
         super(
                 id,
                 context,
+                persistedConfig,
                 joinType,
                 joinCondition,
                 temporalTableSourceSpec,

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -58,6 +59,7 @@ public class BatchExecSortAggregate extends ExecNodeBase<RowData>
     private final boolean isFinal;
 
     public BatchExecSortAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             int[] auxGrouping,
             AggregateCall[] aggCalls,
@@ -70,6 +72,7 @@ public class BatchExecSortAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecSortAggregate.class),
+                ExecNodeContext.newPersistedConfig(BatchExecSortAggregate.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

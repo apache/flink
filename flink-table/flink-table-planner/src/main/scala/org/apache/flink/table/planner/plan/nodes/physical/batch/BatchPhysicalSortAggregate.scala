@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecSortAggrega
 import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
 import org.apache.calcite.rel.RelDistribution.Type.{HASH_DISTRIBUTED, SINGLETON}
@@ -155,6 +156,7 @@ class BatchPhysicalSortAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecSortAggregate(
+      unwrapTableConfig(this),
       grouping,
       auxGrouping,
       getAggCallList.toArray,
@@ -163,8 +165,7 @@ class BatchPhysicalSortAggregate(
       true, // isFinal is always true
       getInputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 
   private def getInputProperty: InputProperty = {

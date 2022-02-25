@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -36,6 +37,7 @@ public class StreamExecPythonCorrelate extends CommonExecPythonCorrelate
         implements StreamExecNode<RowData> {
 
     public StreamExecPythonCorrelate(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             RexCall invocation,
             InputProperty inputProperty,
@@ -44,6 +46,7 @@ public class StreamExecPythonCorrelate extends CommonExecPythonCorrelate
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecPythonCorrelate.class),
+                ExecNodeContext.newPersistedConfig(StreamExecPythonCorrelate.class, tableConfig),
                 joinType,
                 invocation,
                 Collections.singletonList(inputProperty),
@@ -54,6 +57,7 @@ public class StreamExecPythonCorrelate extends CommonExecPythonCorrelate
     public StreamExecPythonCorrelate(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             FlinkJoinType joinType,
             RexNode invocation,
             List<InputProperty> inputProperties,
@@ -62,6 +66,7 @@ public class StreamExecPythonCorrelate extends CommonExecPythonCorrelate
         super(
                 id,
                 context,
+                persistedConfig,
                 joinType,
                 (RexCall) invocation,
                 inputProperties,

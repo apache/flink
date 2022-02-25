@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
@@ -139,6 +140,7 @@ public class JsonSerdeUtil {
     private static void registerSerializers(SimpleModule module) {
         module.addSerializer(new ExecNodeGraphJsonSerializer());
         module.addSerializer(new FlinkVersionJsonSerializer());
+        module.addSerializer(new ConfigurationJsonSerializer());
         module.addSerializer(new ObjectIdentifierJsonSerializer());
         module.addSerializer(new LogicalTypeJsonSerializer());
         module.addSerializer(new DataTypeJsonSerializer());
@@ -161,6 +163,7 @@ public class JsonSerdeUtil {
     private static void registerDeserializers(SimpleModule module) {
         module.addDeserializer(ExecNodeGraph.class, new ExecNodeGraphJsonDeserializer());
         module.addDeserializer(FlinkVersion.class, new FlinkVersionJsonDeserializer());
+        module.addDeserializer(ReadableConfig.class, new ConfigurationJsonDeserializer());
         module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
         module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
         module.addDeserializer(RowType.class, (StdDeserializer) new LogicalTypeJsonDeserializer());

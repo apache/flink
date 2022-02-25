@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecPythonGroupWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, WindowEmitStrategy}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -71,6 +72,7 @@ class StreamPhysicalPythonGroupWindowAggregate(
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     val needRetraction = !ChangelogPlanUtils.inputInsertOnly(this)
     new StreamExecPythonGroupWindowAggregate(
+      unwrapTableConfig(this),
       grouping,
       aggCalls.toArray,
       window,
@@ -79,7 +81,6 @@ class StreamPhysicalPythonGroupWindowAggregate(
       needRetraction,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

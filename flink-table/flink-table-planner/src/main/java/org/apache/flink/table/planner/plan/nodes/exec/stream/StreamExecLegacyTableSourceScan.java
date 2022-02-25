@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -63,6 +64,7 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
         implements StreamExecNode<RowData> {
 
     public StreamExecLegacyTableSourceScan(
+            ReadableConfig tableConfig,
             TableSource<?> tableSource,
             List<String> qualifiedName,
             RowType outputType,
@@ -70,6 +72,8 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecLegacyTableSourceScan.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecLegacyTableSourceScan.class, tableConfig),
                 tableSource,
                 qualifiedName,
                 outputType,

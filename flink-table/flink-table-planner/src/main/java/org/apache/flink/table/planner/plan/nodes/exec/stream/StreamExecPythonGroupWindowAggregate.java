@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -71,8 +72,6 @@ import org.apache.flink.table.runtime.operators.window.triggers.Trigger;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.util.TimeWindowUtil;
 import org.apache.flink.table.types.logical.RowType;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
@@ -132,6 +131,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
     private final boolean generateUpdateBefore;
 
     public StreamExecPythonGroupWindowAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             LogicalWindow window,
@@ -144,6 +144,8 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecPythonGroupWindowAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecPythonGroupWindowAggregate.class, tableConfig),
                 grouping,
                 aggCalls,
                 window,
@@ -155,10 +157,10 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
                 description);
     }
 
-    @JsonCreator
     public StreamExecPythonGroupWindowAggregate(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             LogicalWindow window,
@@ -168,7 +170,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);

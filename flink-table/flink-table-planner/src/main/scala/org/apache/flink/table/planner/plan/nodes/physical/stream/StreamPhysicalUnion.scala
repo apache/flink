@@ -20,7 +20,8 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecUnion
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -59,9 +60,9 @@ class StreamPhysicalUnion(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecUnion(
+      unwrapTableConfig(this),
       getInputs.map(_ => InputProperty.DEFAULT),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

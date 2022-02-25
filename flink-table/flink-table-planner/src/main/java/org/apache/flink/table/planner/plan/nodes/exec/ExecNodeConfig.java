@@ -31,16 +31,16 @@ import java.util.Optional;
 
 /**
  * Configuration view which is used combine the {@link PlannerBase#getTableConfig()} with the {@link
- * ExecNodeBase#getNodeConfig()} configuration. The persisted configuration of the {@link ExecNode}
- * which is deserialized from the JSON plan has precedence over the {@link
+ * ExecNodeBase#getPersistedConfig()} configuration. The persisted configuration of the {@link
+ * ExecNode} which is deserialized from the JSON plan has precedence over the {@link
  * PlannerBase#getTableConfig()}.
  */
 @Internal
 public final class ExecNodeConfig implements ReadableConfig {
 
     // See https://issues.apache.org/jira/browse/FLINK-26190
-    // Used only for the deprecated getMaxIdleStateRetentionTime to also satisfy tests which
-    // manipulate maxIdleStateRetentionTime, like OverAggregateHarnessTest.
+    // Used only by CommonPythonUtil#getMergedConfig(StreamExecutionEnvironment, TableConfig)}
+    // otherwise it can be changed to ReadableConfig.
     private final TableConfig tableConfig;
 
     private final ReadableConfig nodeConfig;

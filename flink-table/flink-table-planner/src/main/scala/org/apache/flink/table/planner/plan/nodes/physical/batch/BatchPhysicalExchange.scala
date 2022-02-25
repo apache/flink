@@ -49,6 +49,7 @@ class BatchPhysicalExchange(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecExchange(
+      unwrapTableConfig(this),
       getInputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription)

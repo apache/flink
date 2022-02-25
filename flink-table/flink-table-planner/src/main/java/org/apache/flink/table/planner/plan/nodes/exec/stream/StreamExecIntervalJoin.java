@@ -96,6 +96,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
     private final IntervalJoinSpec intervalJoinSpec;
 
     public StreamExecIntervalJoin(
+            ReadableConfig tableConfig,
             IntervalJoinSpec intervalJoinSpec,
             InputProperty leftInputProperty,
             InputProperty rightInputProperty,
@@ -104,6 +105,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecIntervalJoin.class),
+                ExecNodeContext.newPersistedConfig(StreamExecIntervalJoin.class, tableConfig),
                 intervalJoinSpec,
                 Lists.newArrayList(leftInputProperty, rightInputProperty),
                 outputType,
@@ -114,11 +116,12 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
     public StreamExecIntervalJoin(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_INTERVAL_JOIN_SPEC) IntervalJoinSpec intervalJoinSpec,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         Preconditions.checkArgument(inputProperties.size() == 2);
         this.intervalJoinSpec = Preconditions.checkNotNull(intervalJoinSpec);
     }

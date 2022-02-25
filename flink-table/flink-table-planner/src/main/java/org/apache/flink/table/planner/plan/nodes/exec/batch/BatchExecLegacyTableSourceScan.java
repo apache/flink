@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.InputFormatSourceFunction;
@@ -55,6 +56,7 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
         implements BatchExecNode<RowData> {
 
     public BatchExecLegacyTableSourceScan(
+            ReadableConfig tableConfig,
             TableSource<?> tableSource,
             List<String> qualifiedName,
             RowType outputType,
@@ -62,6 +64,8 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecLegacyTableSourceScan.class),
+                ExecNodeContext.newPersistedConfig(
+                        BatchExecLegacyTableSourceScan.class, tableConfig),
                 tableSource,
                 qualifiedName,
                 outputType,

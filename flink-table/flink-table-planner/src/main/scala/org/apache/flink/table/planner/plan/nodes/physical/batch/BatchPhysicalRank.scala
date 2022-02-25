@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecRank
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange, RankType}
 
 import org.apache.calcite.plan._
@@ -234,6 +235,7 @@ class BatchPhysicalRank(
       InputProperty.hashDistribution(partitionKey.toArray)
     }
     new BatchExecRank(
+      unwrapTableConfig(this),
       partitionKey.toArray,
       orderKey.getFieldCollations.map(_.getFieldIndex).toArray,
       rankStart,
@@ -241,7 +243,6 @@ class BatchPhysicalRank(
       outputRankNumber,
       InputProperty.builder().requiredDistribution(requiredDistribution).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }
