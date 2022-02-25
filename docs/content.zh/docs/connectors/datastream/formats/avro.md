@@ -56,7 +56,7 @@ usersDS.keyBy("name")
 ```
 
 
-注意，在 Flink 中可能会使用 `GenericData.Record` 类型，但是不推荐使用。由于该类型的记录中包含了完整的 schema，导致数据非常密集，使用起来可能很慢。
+注意，在 Flink 中可以使用 `GenericData.Record` 类型，但是不推荐使用。因为该类型的记录中包含了完整的 schema，导致数据非常密集，使用起来可能很慢。
 
-Flink 中在 Avro schema 生成的 POJO 类上也可以进行 POJO 字段选择。因此，只有在生成的类中正确写入字段类型时，才可以使用字段选择。如果一个字段类型是 `Object` 类型，你不可以选择该字段进行 join 或者 group by 操作。
-在 Avro 中类似 `{"name": "type_double_test", "type": "double"},` 这样指定字段是可行的，但是类似 (`{"name": "type_double_test", "type": ["double"]},`) 这样指定字段，字段类型就会生成为 `Object` 类型。注意，类似 (`{"name": "type_double_test", "type": ["null", "double"]},`) 这样指定 nullable 类型字段，也是有可能的!
+Flink 的 POJO 字段选择也适用于从 Avro schema 生成的 POJO 类。但是，只有将字段类型正确写入生成的类时，才能使用。如果字段是 `Object` 类型，则不能将该字段用作 join 键或 grouping 键。
+在 Avro 中如 `{"name": "type_double_test", "type": "double"},` 这样指定字段是可行的，但是如 (`{"name": "type_double_test", "type": ["double"]},`) 这样指定包含一个字段的复合类型就会生成 `Object` 类型的字段。注意，如 (`{"name": "type_double_test", "type": ["null", "double"]},`) 这样指定 nullable 类型字段也是可能产生 `Object` 类型的!
