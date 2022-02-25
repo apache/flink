@@ -182,12 +182,18 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
         }
     }
 
-    /**
-     * Tests that a CLI call with a custom savepoint directory target is forwarded correctly to the
-     * cluster client.
-     */
     @Test
-    public void testTriggerSavepointCustomFormat() throws Exception {
+    public void testTriggerSavepointCustomFormatShortOption() throws Exception {
+        testTriggerSavepointCustomFormat("-t", SavepointFormatType.NATIVE);
+    }
+
+    @Test
+    public void testTriggerSavepointCustomFormatLongOption() throws Exception {
+        testTriggerSavepointCustomFormat("--type", SavepointFormatType.NATIVE);
+    }
+
+    private void testTriggerSavepointCustomFormat(String flag, SavepointFormatType formatType)
+            throws Exception {
         replaceStdOutAndStdErr();
 
         JobID jobId = new JobID();
@@ -200,13 +206,12 @@ public class CliFrontendSavepointTest extends CliFrontendTestBase {
             MockedCliFrontend frontend = new MockedCliFrontend(clusterClient);
 
             String[] parameters = {
-                jobId.toString(), savepointDirectory, "-type", SavepointFormatType.NATIVE.toString()
+                jobId.toString(), savepointDirectory, flag, formatType.toString()
             };
             frontend.savepoint(parameters);
 
             verify(clusterClient, times(1))
-                    .triggerSavepoint(
-                            eq(jobId), eq(savepointDirectory), eq(SavepointFormatType.NATIVE));
+                    .triggerSavepoint(eq(jobId), eq(savepointDirectory), eq(formatType));
 
             assertTrue(buffer.toString().contains(savepointDirectory));
         } finally {
