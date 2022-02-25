@@ -227,11 +227,11 @@ public class ExecNodeMetadataUtilTest {
         @JsonCreator
         protected DummyNode(
                 ExecNodeContext context,
-                ReadableConfig config,
+                ReadableConfig persistedConfig,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, config, properties, outputType, description);
+            super(10, context, persistedConfig, properties, outputType, description);
         }
 
         @Override
@@ -264,11 +264,11 @@ public class ExecNodeMetadataUtilTest {
         @JsonCreator
         protected DummyNodeMultipleAnnotations(
                 ExecNodeContext context,
-                ReadableConfig config,
+                ReadableConfig persistedConfig,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, config, properties, outputType, description);
+            super(10, context, persistedConfig, properties, outputType, description);
         }
 
         @Override
@@ -282,11 +282,11 @@ public class ExecNodeMetadataUtilTest {
 
         protected DummyNodeNoJsonCreator(
                 ExecNodeContext context,
-                ReadableConfig config,
+                ReadableConfig persistedConfig,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, config, properties, outputType, description);
+            super(10, context, persistedConfig, properties, outputType, description);
         }
 
         @Override
@@ -302,11 +302,11 @@ public class ExecNodeMetadataUtilTest {
         @JsonCreator
         protected DummyNodeNoAnnotation(
                 ExecNodeContext context,
-                ReadableConfig config,
+                ReadableConfig persistedConfig,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, config, properties, outputType, description);
+            super(10, context, persistedConfig, properties, outputType, description);
         }
 
         @Override
@@ -338,11 +338,11 @@ public class ExecNodeMetadataUtilTest {
         @JsonCreator
         protected DummyNodeBothAnnotations(
                 ExecNodeContext context,
-                ReadableConfig config,
+                ReadableConfig persistedConfig,
                 List<InputProperty> properties,
                 LogicalType outputType,
                 String description) {
-            super(10, context, config, properties, outputType, description);
+            super(10, context, persistedConfig, properties, outputType, description);
         }
 
         @Override
