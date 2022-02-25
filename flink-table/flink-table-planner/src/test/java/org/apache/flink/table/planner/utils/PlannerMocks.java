@@ -50,7 +50,7 @@ public class PlannerMocks {
     private final TableConfig tableConfig;
     private final PlannerContext plannerContext;
 
-    private PlannerMocks(boolean batchMode, TableConfig tableConfig) {
+    private PlannerMocks(boolean isBatchMode, TableConfig tableConfig) {
         this.catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
         this.tableConfig = tableConfig;
 
@@ -60,13 +60,13 @@ public class PlannerMocks {
 
         this.plannerContext =
                 new PlannerContext(
-                        batchMode,
+                        isBatchMode,
                         tableConfig.getConfiguration(),
                         tableConfig,
                         moduleManager,
                         functionCatalog,
                         catalogManager,
-                        asRootSchema(new CatalogManagerCalciteSchema(catalogManager, !batchMode)),
+                        asRootSchema(new CatalogManagerCalciteSchema(catalogManager, !isBatchMode)),
                         Collections.emptyList());
 
         this.planner =
