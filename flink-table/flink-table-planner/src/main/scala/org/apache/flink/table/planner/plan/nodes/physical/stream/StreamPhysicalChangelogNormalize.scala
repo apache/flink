@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecChangelogNormalize
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.ChangelogPlanUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -67,6 +68,7 @@ class StreamPhysicalChangelogNormalize(
   override def translateToExecNode(): ExecNode[_] = {
     val generateUpdateBefore = ChangelogPlanUtils.generateUpdateBefore(this)
     new StreamExecChangelogNormalize(
+      unwrapTableConfig(this),
       uniqueKeys,
       generateUpdateBefore,
       InputProperty.DEFAULT,

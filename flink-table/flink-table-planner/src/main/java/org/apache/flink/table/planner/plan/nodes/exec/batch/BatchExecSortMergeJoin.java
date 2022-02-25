@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
@@ -65,6 +66,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
     private final boolean leftIsSmaller;
 
     public BatchExecSortMergeJoin(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             int[] leftKeys,
             int[] rightKeys,
@@ -78,6 +80,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecSortMergeJoin.class),
+                ExecNodeContext.newPersistedConfig(BatchExecSortMergeJoin.class, tableConfig),
                 Arrays.asList(leftInputProperty, rightInputProperty),
                 outputType,
                 description);

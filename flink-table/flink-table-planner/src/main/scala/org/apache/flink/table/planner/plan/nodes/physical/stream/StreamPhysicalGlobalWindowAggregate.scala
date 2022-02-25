@@ -129,6 +129,7 @@ class StreamPhysicalGlobalWindowAggregate(
   override def translateToExecNode(): ExecNode[_] = {
     checkEmitConfiguration(unwrapTableConfig(this))
     new StreamExecGlobalWindowAggregate(
+      unwrapTableConfig(this),
       grouping,
       aggCalls.toArray,
       windowing,
@@ -136,7 +137,6 @@ class StreamPhysicalGlobalWindowAggregate(
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(inputRowTypeOfLocalAgg),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

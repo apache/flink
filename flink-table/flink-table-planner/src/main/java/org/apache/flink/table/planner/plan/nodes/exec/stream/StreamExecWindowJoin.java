@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
@@ -84,6 +85,7 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
     private final WindowingStrategy rightWindowing;
 
     public StreamExecWindowJoin(
+            ReadableConfig tableConfig,
             JoinSpec joinSpec,
             WindowingStrategy leftWindowing,
             WindowingStrategy rightWindowing,
@@ -94,6 +96,7 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecWindowJoin.class),
+                ExecNodeContext.newPersistedConfig(StreamExecWindowJoin.class, tableConfig),
                 joinSpec,
                 leftWindowing,
                 rightWindowing,
@@ -106,13 +109,14 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
     public StreamExecWindowJoin(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
             @JsonProperty(FIELD_NAME_LEFT_WINDOWING) WindowingStrategy leftWindowing,
             @JsonProperty(FIELD_NAME_RIGHT_WINDOWING) WindowingStrategy rightWindowing,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 2);
         this.joinSpec = checkNotNull(joinSpec);
         validate(leftWindowing);

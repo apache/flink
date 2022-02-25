@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -38,6 +39,7 @@ import java.util.Map;
 /** {@link BatchExecNode} for temporal table join that implemented by lookup. */
 public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchExecNode<RowData> {
     public BatchExecLookupJoin(
+            ReadableConfig tableConfig,
             FlinkJoinType joinType,
             @Nullable RexNode joinCondition,
             TemporalTableSourceSpec temporalTableSourceSpec,
@@ -50,6 +52,7 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecLookupJoin.class),
+                ExecNodeContext.newPersistedConfig(BatchExecLookupJoin.class, tableConfig),
                 joinType,
                 joinCondition,
                 temporalTableSourceSpec,

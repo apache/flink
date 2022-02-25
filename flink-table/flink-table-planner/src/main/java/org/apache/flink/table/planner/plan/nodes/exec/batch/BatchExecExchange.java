@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.PartitionTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.BroadcastPartitioner;
@@ -66,10 +67,15 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
     // if it's None, use value from configuration
     @Nullable private StreamExchangeMode requiredExchangeMode;
 
-    public BatchExecExchange(InputProperty inputProperty, RowType outputType, String description) {
+    public BatchExecExchange(
+            ReadableConfig tableConfig,
+            InputProperty inputProperty,
+            RowType outputType,
+            String description) {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecExchange.class),
+                ExecNodeContext.newPersistedConfig(BatchExecExchange.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

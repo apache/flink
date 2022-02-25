@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
@@ -71,6 +72,7 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
     private final SortSpec sortSpec;
 
     public StreamExecTemporalSort(
+            ReadableConfig tableConfig,
             SortSpec sortSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -78,6 +80,7 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecTemporalSort.class),
+                ExecNodeContext.newPersistedConfig(StreamExecTemporalSort.class, tableConfig),
                 sortSpec,
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -88,11 +91,12 @@ public class StreamExecTemporalSort extends ExecNodeBase<RowData>
     public StreamExecTemporalSort(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_SORT_SPEC) SortSpec sortSpec,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.sortSpec = checkNotNull(sortSpec);
     }

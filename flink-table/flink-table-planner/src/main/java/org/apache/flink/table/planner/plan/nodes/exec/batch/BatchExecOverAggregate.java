@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
@@ -75,6 +76,7 @@ import java.util.List;
 public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
 
     public BatchExecOverAggregate(
+            ReadableConfig tableConfig,
             OverSpec overSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -82,6 +84,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecOverAggregate.class),
+                ExecNodeContext.newPersistedConfig(BatchExecOverAggregate.class, tableConfig),
                 overSpec,
                 inputProperty,
                 outputType,

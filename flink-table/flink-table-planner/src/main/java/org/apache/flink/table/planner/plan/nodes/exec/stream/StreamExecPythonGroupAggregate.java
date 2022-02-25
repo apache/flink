@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -78,6 +79,7 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
     private final boolean needRetraction;
 
     public StreamExecPythonGroupAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             boolean[] aggCallNeedRetractions,
@@ -89,6 +91,8 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecPythonGroupAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecPythonGroupAggregate.class, tableConfig),
                 grouping,
                 aggCalls,
                 aggCallNeedRetractions,
@@ -103,6 +107,7 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
     public StreamExecPythonGroupAggregate(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             boolean[] aggCallNeedRetractions,
@@ -111,7 +116,7 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
         this.aggCallNeedRetractions = checkNotNull(aggCallNeedRetractions);

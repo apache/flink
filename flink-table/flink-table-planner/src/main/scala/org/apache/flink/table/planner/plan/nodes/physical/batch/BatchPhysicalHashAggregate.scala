@@ -149,6 +149,7 @@ class BatchPhysicalHashAggregate(
       InputProperty.hashDistribution(grouping)
     }
     new BatchExecHashAggregate(
+      unwrapTableConfig(this),
       grouping,
       auxGrouping,
       getAggCallList.toArray,
@@ -160,7 +161,6 @@ class BatchPhysicalHashAggregate(
         .damBehavior(InputProperty.DamBehavior.END_INPUT)
         .build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

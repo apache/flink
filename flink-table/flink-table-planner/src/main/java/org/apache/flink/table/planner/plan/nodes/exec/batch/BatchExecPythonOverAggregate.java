@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -69,6 +70,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
     private final List<Integer> aggWindowIndex;
 
     public BatchExecPythonOverAggregate(
+            ReadableConfig tableConfig,
             OverSpec overSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -76,6 +78,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecPythonOverAggregate.class),
+                ExecNodeContext.newPersistedConfig(BatchExecPythonOverAggregate.class, tableConfig),
                 overSpec,
                 inputProperty,
                 outputType,

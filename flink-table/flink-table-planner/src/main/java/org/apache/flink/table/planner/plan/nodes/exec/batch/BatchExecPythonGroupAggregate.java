@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -63,6 +64,7 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
     private final AggregateCall[] aggCalls;
 
     public BatchExecPythonGroupAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             int[] auxGrouping,
             AggregateCall[] aggCalls,
@@ -72,6 +74,8 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecPythonGroupAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        BatchExecPythonGroupAggregate.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

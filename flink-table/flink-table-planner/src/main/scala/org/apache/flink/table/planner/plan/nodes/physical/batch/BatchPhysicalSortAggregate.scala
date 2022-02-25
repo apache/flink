@@ -156,6 +156,7 @@ class BatchPhysicalSortAggregate(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecSortAggregate(
+      unwrapTableConfig(this),
       grouping,
       auxGrouping,
       getAggCallList.toArray,
@@ -164,8 +165,7 @@ class BatchPhysicalSortAggregate(
       true, // isFinal is always true
       getInputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 
   private def getInputProperty: InputProperty = {

@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrateg
 import org.apache.flink.table.planner.plan.nodes.common.CommonPhysicalWindowTableFunction
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecWindowTableFunction
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -58,11 +59,11 @@ class BatchPhysicalWindowTableFunction(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecWindowTableFunction(
+      unwrapTableConfig(this),
       windowing,
       // TODO set semantic window (such as session window) require other Dam Behavior
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

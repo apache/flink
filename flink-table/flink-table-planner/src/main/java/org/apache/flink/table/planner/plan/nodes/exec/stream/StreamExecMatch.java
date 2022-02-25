@@ -110,6 +110,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     private final MatchSpec matchSpec;
 
     public StreamExecMatch(
+            ReadableConfig tableConfig,
             MatchSpec matchSpec,
             InputProperty inputProperty,
             RowType outputType,
@@ -117,6 +118,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecMatch.class),
+                ExecNodeContext.newPersistedConfig(StreamExecMatch.class, tableConfig),
                 matchSpec,
                 Collections.singletonList(inputProperty),
                 outputType,
@@ -127,11 +129,12 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     public StreamExecMatch(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_MATCH_SPEC) MatchSpec matchSpec,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.matchSpec = checkNotNull(matchSpec);
     }

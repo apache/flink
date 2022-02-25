@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -85,6 +86,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
     private final List<int[]> rightUniqueKeys;
 
     public StreamExecJoin(
+            ReadableConfig tableConfig,
             JoinSpec joinSpec,
             List<int[]> leftUniqueKeys,
             List<int[]> rightUniqueKeys,
@@ -95,6 +97,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecJoin.class),
+                ExecNodeContext.newPersistedConfig(StreamExecJoin.class, tableConfig),
                 joinSpec,
                 leftUniqueKeys,
                 rightUniqueKeys,
@@ -107,13 +110,14 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
     public StreamExecJoin(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_JOIN_SPEC) JoinSpec joinSpec,
             @JsonProperty(FIELD_NAME_LEFT_UNIQUE_KEYS) List<int[]> leftUniqueKeys,
             @JsonProperty(FIELD_NAME_RIGHT_UNIQUE_KEYS) List<int[]> rightUniqueKeys,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 2);
         this.joinSpec = checkNotNull(joinSpec);
         this.leftUniqueKeys = leftUniqueKeys;

@@ -111,6 +111,7 @@ public class InputPriorityConflictResolverTest {
 
         BatchExecExchange exchange =
                 new BatchExecExchange(
+                        new Configuration(),
                         InputProperty.builder()
                                 .requiredDistribution(InputProperty.ANY_DISTRIBUTION)
                                 .build(),

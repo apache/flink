@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecBoundedStreamScan
 import org.apache.flink.table.planner.plan.schema.DataStreamTable
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
@@ -71,6 +72,7 @@ class BatchPhysicalBoundedStreamScan(
 
   override def translateToExecNode(): ExecNode[_] = {
     new BatchExecBoundedStreamScan(
+      unwrapTableConfig(this),
       boundedStreamTable.dataStream,
       boundedStreamTable.dataType,
       boundedStreamTable.fieldIndexes,

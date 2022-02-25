@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDataStreamScan
 import org.apache.flink.table.planner.plan.schema.DataStreamTable
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.`type`.RelDataType
@@ -73,6 +74,7 @@ class StreamPhysicalDataStreamScan(
 
   override def translateToExecNode(): ExecNode[_] = {
     new StreamExecDataStreamScan(
+      unwrapTableConfig(this),
       dataStreamTable.dataStream,
       dataStreamTable.dataType,
       dataStreamTable.fieldIndexes,

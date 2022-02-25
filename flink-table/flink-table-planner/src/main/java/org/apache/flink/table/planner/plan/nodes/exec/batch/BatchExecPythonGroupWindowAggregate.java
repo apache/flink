@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -75,6 +76,7 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
     private final NamedWindowProperty[] namedWindowProperties;
 
     public BatchExecPythonGroupWindowAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             int[] auxGrouping,
             AggregateCall[] aggCalls,
@@ -87,6 +89,8 @@ public class BatchExecPythonGroupWindowAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(BatchExecPythonGroupWindowAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        BatchExecPythonGroupWindowAggregate.class, tableConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

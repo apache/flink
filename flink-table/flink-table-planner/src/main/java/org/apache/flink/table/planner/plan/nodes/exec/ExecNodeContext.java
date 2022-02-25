@@ -20,6 +20,8 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -33,6 +35,7 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -81,10 +84,11 @@ public final class ExecNodeContext {
      * @param id The unique id of the {@link ExecNode}. See {@link ExecNode#getId()}. It can be null
      *     initially and then later set by using {@link #withId(int)} which creates a new instance
      *     of {@link ExecNodeContext} since it's immutable. This way we can satisfy both the {@link
-     *     ExecNodeBase#ExecNodeBase(int, ExecNodeContext, List, LogicalType, String)} ctor, which
-     *     is used for the {@link JsonCreator} ctors, where the {@code id} and the {@code context}
-     *     are read separately, and the {@link ExecNodeBase#getContextFromAnnotation()} which
-     *     creates a new context with a new id provided by: {@link #newNodeId()}.
+     *     ExecNodeBase#ExecNodeBase(int, ExecNodeContext, ReadableConfig, List, LogicalType,
+     *     String)} ctor, which is used for the {@link JsonCreator} ctors, where the {@code id} and
+     *     the {@code context} are read separately, and the {@link
+     *     ExecNodeBase#getContextFromAnnotation()} which creates a new context with a new id
+     *     provided by: {@link #newNodeId()}.
      * @param name The name of the {@link ExecNode}. See {@link ExecNodeMetadata#name()}.
      * @param version The version of the {@link ExecNode}. See {@link ExecNodeMetadata#version()}.
      */
@@ -175,5 +179,23 @@ public final class ExecNodeContext {
                             ExecNodeMetadata.class.getSimpleName()));
         }
         return new ExecNodeContext(metadata.name(), metadata.version());
+    }
+
+    /**
+     * Create a configuration for the {@link ExecNode}, ready to be persisted to a JSON plan.
+     *
+     * @param execNodeClass The {@link ExecNode} class.
+     * @param tableConfig The planner configuration (include the {@link TableConfig}).
+     * @return The {@link ExecNode} configuration, which contains the consumed options for the node,
+     *     defined by {@link ExecNodeMetadata#consumedOptions()}, along with their values.
+     */
+    public static <T extends ExecNode<?>> ReadableConfig newPersistedConfig(
+            Class<T> execNodeClass, ReadableConfig tableConfig) {
+        return ExecNodeMetadataUtil.newPersistedConfig(
+                execNodeClass,
+                tableConfig,
+                Stream.concat(
+                        ExecNodeMetadataUtil.TABLE_CONFIG_OPTIONS.stream(),
+                        ExecNodeMetadataUtil.EXECUTION_CONFIG_OPTIONS.stream()));
     }
 }

@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecNestedLoopJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
 
 import org.apache.calcite.plan._
@@ -114,6 +115,7 @@ class BatchPhysicalNestedLoopJoin(
   override def translateToExecNode(): ExecNode[_] = {
     val (leftInputProperty, rightInputProperty) = getInputProperties
     new BatchExecNestedLoopJoin(
+      unwrapTableConfig(this),
       JoinTypeUtil.getFlinkJoinType(joinType),
       condition,
       leftIsBuild,
@@ -121,8 +123,7 @@ class BatchPhysicalNestedLoopJoin(
       leftInputProperty,
       rightInputProperty,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 
   def getInputProperties: (InputProperty, InputProperty) = {

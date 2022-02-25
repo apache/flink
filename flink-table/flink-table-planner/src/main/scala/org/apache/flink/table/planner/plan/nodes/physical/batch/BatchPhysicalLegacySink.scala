@@ -22,6 +22,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.UpdatingPlanChecker
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.sinks.{TableSink, UpsertStreamTableSink}
 
@@ -57,13 +58,13 @@ class BatchPhysicalLegacySink[T](
       case _ => Option.empty[Array[String]]
     }
     new BatchExecLegacySink[T](
+      unwrapTableConfig(this),
       sink,
       upsertKeys.orNull,
       // the input records will not trigger any output of a sink because it has no output,
       // so it's dam behavior is BLOCKING
       InputProperty.builder().damBehavior(InputProperty.DamBehavior.BLOCKING).build(),
       fromDataTypeToLogicalType(sink.getConsumedDataType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

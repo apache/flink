@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
@@ -49,10 +50,14 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
         implements StreamExecNode<RowData> {
 
     public StreamExecTableSourceScan(
-            DynamicTableSourceSpec tableSourceSpec, RowType outputType, String description) {
+            ReadableConfig tableConfig,
+            DynamicTableSourceSpec tableSourceSpec,
+            RowType outputType,
+            String description) {
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecTableSourceScan.class),
+                ExecNodeContext.newPersistedConfig(StreamExecTableSourceScan.class, tableConfig),
                 tableSourceSpec,
                 outputType,
                 description);
@@ -62,10 +67,11 @@ public class StreamExecTableSourceScan extends CommonExecTableSourceScan
     public StreamExecTableSourceScan(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_SCAN_TABLE_SOURCE) DynamicTableSourceSpec tableSourceSpec,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, tableSourceSpec, outputType, description);
+        super(id, context, persistedConfig, tableSourceSpec, outputType, description);
     }
 
     @Override

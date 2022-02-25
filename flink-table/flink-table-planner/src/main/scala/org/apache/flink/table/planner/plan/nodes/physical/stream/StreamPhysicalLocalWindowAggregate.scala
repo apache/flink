@@ -126,12 +126,12 @@ class StreamPhysicalLocalWindowAggregate(
   override def translateToExecNode(): ExecNode[_] = {
     checkEmitConfiguration(unwrapTableConfig(this))
     new StreamExecLocalWindowAggregate(
+      unwrapTableConfig(this),
       grouping,
       aggCalls.toArray,
       windowing,
       InputProperty.DEFAULT,
       FlinkTypeFactory.toLogicalRowType(getRowType),
-      getRelDetailedDescription
-    )
+      getRelDetailedDescription)
   }
 }

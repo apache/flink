@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.table.data.RowData;
@@ -94,6 +95,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
     private final WindowingStrategy windowing;
 
     public StreamExecLocalWindowAggregate(
+            ReadableConfig tableConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             WindowingStrategy windowing,
@@ -103,6 +105,8 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecLocalWindowAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecLocalWindowAggregate.class, tableConfig),
                 grouping,
                 aggCalls,
                 windowing,
@@ -115,13 +119,14 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
     public StreamExecLocalWindowAggregate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
             @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
             @JsonProperty(FIELD_NAME_WINDOWING) WindowingStrategy windowing,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
         this.windowing = checkNotNull(windowing);
