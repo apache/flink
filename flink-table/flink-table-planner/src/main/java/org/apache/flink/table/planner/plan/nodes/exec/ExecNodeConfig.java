@@ -33,8 +33,8 @@ import java.util.Optional;
 
 /**
  * Configuration view which is used combine the {@link PlannerConfig} with the {@link
- * ExecNodeBase#getNodeConfig()} configuration. The persisted configuration of the {@link ExecNode}
- * which is deserialized from the JSON plan has precedence over the {@link PlannerConfig}.
+ * ExecNodeBase#getPersistedConfig()} configuration. The persisted configuration of the {@link
+ * ExecNode} which is deserialized from the JSON plan has precedence over the {@link PlannerConfig}.
  */
 @Internal
 public final class ExecNodeConfig implements ReadableConfig {
@@ -51,20 +51,20 @@ public final class ExecNodeConfig implements ReadableConfig {
     private final ReadableConfig nodeConfig;
 
     ExecNodeConfig(
-            ReadableConfig plannerConfig, TableConfig tableConfig, ReadableConfig nodeConfig) {
+            ReadableConfig plannerConfig, TableConfig tableConfig, ReadableConfig persistedConfig) {
         this.plannerConfig = plannerConfig;
-        this.nodeConfig = nodeConfig;
+        this.nodeConfig = persistedConfig;
         this.originalTableConfig = tableConfig;
         this.tableConfig = TableConfig.getDefault();
         this.tableConfig.setNullCheck(tableConfig.getNullCheck());
         this.tableConfig.setDecimalContext(tableConfig.getDecimalContext());
         this.tableConfig.addConfiguration(tableConfig.getConfiguration());
-        this.tableConfig.addConfiguration((Configuration) nodeConfig);
+        this.tableConfig.addConfiguration((Configuration) persistedConfig);
     }
 
     /**
      * Return the merged {@link TableConfig} from {@link PlannerBase#getTableConfig()} and {@link
-     * ExecNodeBase#getNodeConfig()}.
+     * ExecNodeBase#getPersistedConfig()}.
      *
      * @return the {@link TableConfig}.
      * @deprecated This method is used only for {@link CodeGeneratorContext} and related methods,

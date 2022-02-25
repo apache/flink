@@ -20,6 +20,10 @@ package org.apache.flink.table.planner.plan.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigUtils;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleExecNodeMetadata;
@@ -72,6 +76,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowDed
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowRank;
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowTableFunction;
+
+import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -158,6 +164,18 @@ public final class ExecNodeMetadataUtil {
                     add(StreamExecMultipleInput.class);
                 }
             };
+
+    public static final Set<ConfigOption<?>> TABLE_CONFIG_OPTIONS;
+
+    static {
+        TABLE_CONFIG_OPTIONS = ConfigUtils.getAllConfigOptions(TableConfigOptions.class);
+    }
+
+    public static final Set<ConfigOption<?>> EXECUTION_CONFIG_OPTIONS;
+
+    static {
+        EXECUTION_CONFIG_OPTIONS = ConfigUtils.getAllConfigOptions(ExecutionConfigOptions.class);
+    }
 
     public static Set<Class<? extends ExecNode<?>>> execNodes() {
         return EXEC_NODES;
@@ -252,6 +270,15 @@ public final class ExecNodeMetadataUtil {
         }
         sortedAnnotations.sort(Comparator.comparingInt(ExecNodeMetadata::version));
         return sortedAnnotations.get(sortedAnnotations.size() - 1);
+    }
+
+    @Nullable
+    public static <T extends ExecNode<?>> String[] consumedOptions(Class<T> execNodeClass) {
+        ExecNodeMetadata metadata = latestAnnotation(execNodeClass);
+        if (metadata == null) {
+            return null;
+        }
+        return metadata.consumedOptions();
     }
 
     /** Helper Pojo used as a tuple for the {@link #LOOKUP_MAP}. */

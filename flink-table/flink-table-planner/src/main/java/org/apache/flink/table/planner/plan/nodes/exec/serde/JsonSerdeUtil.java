@@ -140,6 +140,7 @@ public class JsonSerdeUtil {
     private static void registerSerializers(SimpleModule module) {
         module.addSerializer(new ExecNodeGraphJsonSerializer());
         module.addSerializer(new FlinkVersionJsonSerializer());
+        module.addSerializer(new ConfigurationJsonSerializer());
         module.addSerializer(new ObjectIdentifierJsonSerializer());
         module.addSerializer(new LogicalTypeJsonSerializer());
         module.addSerializer(new DataTypeJsonSerializer());

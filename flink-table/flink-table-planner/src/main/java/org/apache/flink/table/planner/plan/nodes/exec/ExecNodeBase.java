@@ -70,6 +70,18 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return ExecNodeContext.newContext(this.getClass()).withId(getId());
     }
 
+    @JsonProperty(
+            value = FIELD_NAME_CONFIGURATION,
+            access = JsonProperty.Access.READ_ONLY,
+            index = 2)
+    // Custom filter to exclude node configuration if no consumed options are used
+    @JsonInclude(
+            value = JsonInclude.Include.CUSTOM,
+            valueFilter = ConfigurationJsonSerializerFilter.class)
+    public ReadableConfig getPersistedConfig() {
+        return persistedConfig;
+    }
+
     protected ExecNodeBase(
             int id,
             ExecNodeContext context,
