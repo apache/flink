@@ -97,13 +97,14 @@ If only the value of Kafka ```ConsumerRecord``` is needed, you can use
 ```DeserializationSchema``` defines how to deserialize binaries of Kafka message value.
 
 You can also use a <a href="https://kafka.apache.org/24/javadoc/org/apache/kafka/common/serialization/Deserializer.html">```Kafka Deserializer```</a>
-for deserializing Kafka message value. For example using ```StringDeserializer``` for deserializing
+for deserializing Kafka message value. For example using ```
+eserializer``` for deserializing
 Kafka message value as string:
 ```java
 import org.apache.kafka.common.serialization.StringDeserializer;
 
 KafkaSource.<String>builder()
-        .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringSerializer.class));
+        .setDeserializer(KafkaRecordDeserializationSchema.valueOnly(StringDeserializer.class));
 ```
 
 ### Starting Offset
