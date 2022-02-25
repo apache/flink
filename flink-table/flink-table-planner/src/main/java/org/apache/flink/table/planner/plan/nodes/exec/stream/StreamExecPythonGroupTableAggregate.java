@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -73,6 +74,7 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
     private final boolean needRetraction;
 
     public StreamExecPythonGroupTableAggregate(
+            ReadableConfig plannerConfig,
             int[] grouping,
             AggregateCall[] aggCalls,
             boolean[] aggCallNeedRetractions,
@@ -84,6 +86,8 @@ public class StreamExecPythonGroupTableAggregate extends ExecNodeBase<RowData>
         super(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecPythonGroupTableAggregate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecPythonGroupTableAggregate.class, plannerConfig),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

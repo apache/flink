@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -82,6 +83,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     private final boolean upsertMaterialize;
 
     public StreamExecSink(
+            ReadableConfig plannerConfig,
             DynamicTableSinkSpec tableSinkSpec,
             ChangelogMode inputChangelogMode,
             InputProperty inputProperty,
@@ -91,6 +93,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecSink.class),
+                ExecNodeContext.newPersistedConfig(StreamExecSink.class, plannerConfig),
                 tableSinkSpec,
                 inputChangelogMode,
                 Collections.singletonList(inputProperty),
@@ -103,6 +106,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     public StreamExecSink(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_DYNAMIC_TABLE_SINK) DynamicTableSinkSpec tableSinkSpec,
             @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE) ChangelogMode inputChangelogMode,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
@@ -112,6 +116,7 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         super(
                 id,
                 context,
+                persistedConfig,
                 tableSinkSpec,
                 inputChangelogMode,
                 false, // isBounded

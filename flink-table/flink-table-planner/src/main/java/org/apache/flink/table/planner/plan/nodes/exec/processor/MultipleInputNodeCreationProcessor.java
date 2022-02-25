@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.processor;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple3;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.SourceTransformation;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
@@ -92,7 +93,8 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
         optimizeMultipleInputGroups(orderedWrappers, context);
 
         // create the real multiple input nodes
-        List<ExecNode<?>> newRootNodes = createMultipleInputNodes(rootWrappers);
+        List<ExecNode<?>> newRootNodes =
+                createMultipleInputNodes(context.getPlanner().getConfiguration(), rootWrappers);
         return new ExecNodeGraph(newRootNodes);
     }
 
@@ -451,23 +453,27 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
     // Multiple Input Nodes Creating
     // --------------------------------------------------------------------------------
 
-    private List<ExecNode<?>> createMultipleInputNodes(List<ExecNodeWrapper> rootWrappers) {
+    private List<ExecNode<?>> createMultipleInputNodes(
+            ReadableConfig plannerConfig, List<ExecNodeWrapper> rootWrappers) {
         List<ExecNode<?>> result = new ArrayList<>();
         Map<ExecNodeWrapper, ExecNode<?>> visitedMap = new HashMap<>();
         for (ExecNodeWrapper rootWrapper : rootWrappers) {
-            result.add(getMultipleInputNode(rootWrapper, visitedMap));
+            result.add(getMultipleInputNode(plannerConfig, rootWrapper, visitedMap));
         }
         return result;
     }
 
     private ExecNode<?> getMultipleInputNode(
-            ExecNodeWrapper wrapper, Map<ExecNodeWrapper, ExecNode<?>> visitedMap) {
+            ReadableConfig plannerConfig,
+            ExecNodeWrapper wrapper,
+            Map<ExecNodeWrapper, ExecNode<?>> visitedMap) {
         if (visitedMap.containsKey(wrapper)) {
             return visitedMap.get(wrapper);
         }
 
         for (int i = 0; i < wrapper.inputs.size(); i++) {
-            ExecNode<?> multipleInputNode = getMultipleInputNode(wrapper.inputs.get(i), visitedMap);
+            ExecNode<?> multipleInputNode =
+                    getMultipleInputNode(plannerConfig, wrapper.inputs.get(i), visitedMap);
             ExecEdge execEdge =
                     ExecEdge.builder().source(multipleInputNode).target(wrapper.execNode).build();
             wrapper.execNode.replaceInputEdge(i, execEdge);
@@ -475,7 +481,7 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
 
         ExecNode<?> ret;
         if (wrapper.group != null && wrapper == wrapper.group.root) {
-            ret = createMultipleInputNode(wrapper.group, visitedMap);
+            ret = createMultipleInputNode(plannerConfig, wrapper.group, visitedMap);
         } else {
             ret = wrapper.execNode;
         }
@@ -484,7 +490,9 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
     }
 
     private ExecNode<?> createMultipleInputNode(
-            MultipleInputGroup group, Map<ExecNodeWrapper, ExecNode<?>> visitedMap) {
+            ReadableConfig plannerConfig,
+            MultipleInputGroup group,
+            Map<ExecNodeWrapper, ExecNode<?>> visitedMap) {
         // calculate the inputs of the multiple input node
         List<Tuple3<ExecNode<?>, InputProperty, ExecEdge>> inputs = new ArrayList<>();
         for (ExecNodeWrapper member : group.members) {
@@ -505,14 +513,16 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
         }
 
         if (isStreaming) {
-            return createStreamMultipleInputNode(group, inputs);
+            return createStreamMultipleInputNode(plannerConfig, group, inputs);
         } else {
-            return createBatchMultipleInputNode(group, inputs);
+            return createBatchMultipleInputNode(plannerConfig, group, inputs);
         }
     }
 
     private StreamExecMultipleInput createStreamMultipleInputNode(
-            MultipleInputGroup group, List<Tuple3<ExecNode<?>, InputProperty, ExecEdge>> inputs) {
+            ReadableConfig plannerConfig,
+            MultipleInputGroup group,
+            List<Tuple3<ExecNode<?>, InputProperty, ExecEdge>> inputs) {
         ExecNode<?> rootNode = group.root.execNode;
         List<ExecNode<?>> inputNodes = new ArrayList<>();
         for (Tuple3<ExecNode<?>, InputProperty, ExecEdge> tuple3 : inputs) {
@@ -523,6 +533,7 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
                 ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, new ArrayList<>());
         StreamExecMultipleInput multipleInput =
                 new StreamExecMultipleInput(
+                        plannerConfig,
                         inputNodes.stream()
                                 .map(i -> InputProperty.DEFAULT)
                                 .collect(Collectors.toList()),
@@ -538,7 +549,9 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
     }
 
     private BatchExecMultipleInput createBatchMultipleInputNode(
-            MultipleInputGroup group, List<Tuple3<ExecNode<?>, InputProperty, ExecEdge>> inputs) {
+            ReadableConfig plannerConfig,
+            MultipleInputGroup group,
+            List<Tuple3<ExecNode<?>, InputProperty, ExecEdge>> inputs) {
         // first calculate the input orders using InputPriorityConflictResolver
         Set<ExecNode<?>> inputSet = new HashSet<>();
         for (Tuple3<ExecNode<?>, InputProperty, ExecEdge> tuple3 : inputs) {
@@ -571,7 +584,8 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
         String description =
                 ExecNodeUtil.getMultipleInputDescription(rootNode, inputNodes, inputProperties);
         BatchExecMultipleInput multipleInput =
-                new BatchExecMultipleInput(inputProperties, rootNode, originalEdges, description);
+                new BatchExecMultipleInput(
+                        plannerConfig, inputProperties, rootNode, originalEdges, description);
 
         List<ExecEdge> inputEdges = new ArrayList<>(inputNodes.size());
         for (ExecNode<?> inputNode : inputNodes) {

@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
 import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
@@ -89,6 +90,7 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
     private final WindowingStrategy windowing;
 
     public StreamExecWindowDeduplicate(
+            ReadableConfig plannerConfig,
             int[] partitionKeys,
             int orderKey,
             boolean keepLastRow,
@@ -99,6 +101,8 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
         this(
                 ExecNodeContext.newNodeId(),
                 ExecNodeContext.newContext(StreamExecWindowDeduplicate.class),
+                ExecNodeContext.newPersistedConfig(
+                        StreamExecWindowDeduplicate.class, plannerConfig),
                 partitionKeys,
                 orderKey,
                 keepLastRow,
@@ -112,6 +116,7 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
     public StreamExecWindowDeduplicate(
             @JsonProperty(FIELD_NAME_ID) int id,
             @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_CONFIGURATION) ReadableConfig persistedConfig,
             @JsonProperty(FIELD_NAME_PARTITION_KEYS) int[] partitionKeys,
             @JsonProperty(FIELD_NAME_ORDER_KEY) int orderKey,
             @JsonProperty(FIELD_NAME_KEEP_LAST_ROW) boolean keepLastRow,
@@ -119,7 +124,7 @@ public class StreamExecWindowDeduplicate extends ExecNodeBase<RowData>
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, context, inputProperties, outputType, description);
+        super(id, context, persistedConfig, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.partitionKeys = checkNotNull(partitionKeys);
         this.orderKey = orderKey;

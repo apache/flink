@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
@@ -72,10 +73,11 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     protected CommonExecTableSourceScan(
             int id,
             ExecNodeContext context,
+            ReadableConfig persistedConfig,
             DynamicTableSourceSpec tableSourceSpec,
             LogicalType outputType,
             String description) {
-        super(id, context, Collections.emptyList(), outputType, description);
+        super(id, context, persistedConfig, Collections.emptyList(), outputType, description);
         this.tableSourceSpec = tableSourceSpec;
     }
 

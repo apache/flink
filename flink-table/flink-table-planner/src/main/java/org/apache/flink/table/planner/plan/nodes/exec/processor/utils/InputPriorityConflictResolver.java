@@ -43,7 +43,7 @@ import static org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBa
 public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
 
     private final StreamExchangeMode exchangeMode;
-    private final ReadableConfig configuration;
+    private final ReadableConfig plannerConfig;
 
     /**
      * Create a {@link InputPriorityConflictResolver} for the given {@link ExecNode} graph.
@@ -58,10 +58,10 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
             List<ExecNode<?>> roots,
             InputProperty.DamBehavior safeDamBehavior,
             StreamExchangeMode exchangeMode,
-            ReadableConfig configuration) {
+            ReadableConfig plannerConfig) {
         super(roots, Collections.emptySet(), safeDamBehavior);
         this.exchangeMode = exchangeMode;
-        this.configuration = configuration;
+        this.plannerConfig = plannerConfig;
     }
 
     public void detectAndResolve() {
@@ -87,7 +87,10 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
                 // we should split it into two nodes
                 BatchExecExchange newExchange =
                         new BatchExecExchange(
-                                inputProperty, (RowType) exchange.getOutputType(), "Exchange");
+                                plannerConfig,
+                                inputProperty,
+                                (RowType) exchange.getOutputType(),
+                                "Exchange");
                 newExchange.setRequiredExchangeMode(exchangeMode);
                 newExchange.setInputEdges(exchange.getInputEdges());
                 newNode = newExchange;
@@ -95,6 +98,7 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
                 // create new BatchExecExchange with new inputProperty
                 BatchExecExchange newExchange =
                         new BatchExecExchange(
+                                plannerConfig,
                                 inputProperty,
                                 (RowType) exchange.getOutputType(),
                                 exchange.getDescription());
@@ -138,7 +142,10 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
                         .build();
         BatchExecExchange exchange =
                 new BatchExecExchange(
-                        newInputProperty, (RowType) inputNode.getOutputType(), "Exchange");
+                        plannerConfig,
+                        newInputProperty,
+                        (RowType) inputNode.getOutputType(),
+                        "Exchange");
         exchange.setRequiredExchangeMode(exchangeMode);
         ExecEdge execEdge = ExecEdge.builder().source(inputNode).target(exchange).build();
         exchange.setInputEdges(Collections.singletonList(execEdge));
@@ -170,7 +177,7 @@ public class InputPriorityConflictResolver extends InputPriorityGraphGenerator {
     }
 
     private InputProperty.DamBehavior getDamBehavior() {
-        if (getBatchStreamExchangeMode(configuration, exchangeMode) == StreamExchangeMode.BATCH) {
+        if (getBatchStreamExchangeMode(plannerConfig, exchangeMode) == StreamExchangeMode.BATCH) {
             return InputProperty.DamBehavior.BLOCKING;
         } else {
             return InputProperty.DamBehavior.PIPELINED;
