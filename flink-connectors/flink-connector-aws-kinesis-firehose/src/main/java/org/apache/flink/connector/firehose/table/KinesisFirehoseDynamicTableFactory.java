@@ -45,8 +45,8 @@ public class KinesisFirehoseDynamicTableFactory extends AsyncDynamicTableSinkFac
 
         AsyncDynamicSinkContext factoryContext = new AsyncDynamicSinkContext(this, context);
 
-        KinesisFirehoseDynamicSink.KinesisDataFirehoseDynamicSinkBuilder builder =
-                new KinesisFirehoseDynamicSink.KinesisDataFirehoseDynamicSinkBuilder();
+        KinesisFirehoseDynamicSink.KinesisFirehoseDynamicSinkBuilder builder =
+                new KinesisFirehoseDynamicSink.KinesisFirehoseDynamicSinkBuilder();
 
         KinesisFirehoseConnectorOptionUtils optionsUtils =
                 new KinesisFirehoseConnectorOptionUtils(

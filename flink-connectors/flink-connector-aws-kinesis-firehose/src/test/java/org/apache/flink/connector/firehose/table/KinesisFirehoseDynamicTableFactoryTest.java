@@ -57,7 +57,7 @@ public class KinesisFirehoseDynamicTableFactoryTest extends TestLogger {
 
         // Construct expected DynamicTableSink using factory under test
         KinesisFirehoseDynamicSink expectedSink =
-                new KinesisFirehoseDynamicSink.KinesisDataFirehoseDynamicSinkBuilder()
+                new KinesisFirehoseDynamicSink.KinesisFirehoseDynamicSinkBuilder()
                         .setConsumedDataType(sinkSchema.toPhysicalRowDataType())
                         .setDeliveryStream(DELIVERY_STREAM_NAME)
                         .setFirehoseClientProperties(defaultSinkProperties())
@@ -134,9 +134,8 @@ public class KinesisFirehoseDynamicTableFactoryTest extends TestLogger {
                 .withFormatOption(TestFormatFactory.FAIL_ON_MISSING, "true");
     }
 
-    private KinesisFirehoseDynamicSink.KinesisDataFirehoseDynamicSinkBuilder
-            getDefaultSinkBuilder() {
-        return new KinesisFirehoseDynamicSink.KinesisDataFirehoseDynamicSinkBuilder()
+    private KinesisFirehoseDynamicSink.KinesisFirehoseDynamicSinkBuilder getDefaultSinkBuilder() {
+        return new KinesisFirehoseDynamicSink.KinesisFirehoseDynamicSinkBuilder()
                 .setFailOnError(true)
                 .setMaxBatchSize(100)
                 .setMaxInFlightRequests(100)
