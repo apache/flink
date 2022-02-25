@@ -133,50 +133,37 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
     @Test
     public void testClaimRestoreModeParsing() throws Exception {
-        // test configure savepoint with claim mode
-        String[] parameters = {
-            "-s", "expectedSavepointPath", "-n", "-restoreMode", "claim", getTestJarPath()
-        };
-
-        CommandLine commandLine =
-                CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
-        ProgramOptions programOptions = ProgramOptions.create(commandLine);
-        ExecutionConfigAccessor executionOptions =
-                ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
-
-        SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
-        assertTrue(savepointSettings.restoreSavepoint());
-        assertEquals(RestoreMode.CLAIM, savepointSettings.getRestoreMode());
-        assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
-        assertTrue(savepointSettings.allowNonRestoredState());
+        testRestoreMode("-rm", "claim", RestoreMode.CLAIM);
     }
 
     @Test
     public void testLegacyRestoreModeParsing() throws Exception {
-        // test configure savepoint with claim mode
-        String[] parameters = {
-            "-s", "expectedSavepointPath", "-n", "-restoreMode", "legacy", getTestJarPath()
-        };
-
-        CommandLine commandLine =
-                CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
-        ProgramOptions programOptions = ProgramOptions.create(commandLine);
-        ExecutionConfigAccessor executionOptions =
-                ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
-
-        SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
-        assertTrue(savepointSettings.restoreSavepoint());
-        assertEquals(RestoreMode.LEGACY, savepointSettings.getRestoreMode());
-        assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
-        assertTrue(savepointSettings.allowNonRestoredState());
+        testRestoreMode("-rm", "legacy", RestoreMode.LEGACY);
     }
 
     @Test
     public void testNoClaimRestoreModeParsing() throws Exception {
-        // test configure savepoint with claim mode
-        String[] parameters = {
-            "-s", "expectedSavepointPath", "-n", "-restoreMode", "no_claim", getTestJarPath()
-        };
+        testRestoreMode("-rm", "no_claim", RestoreMode.NO_CLAIM);
+    }
+
+    @Test
+    public void testClaimRestoreModeParsingLongOption() throws Exception {
+        testRestoreMode("--restoreMode", "claim", RestoreMode.CLAIM);
+    }
+
+    @Test
+    public void testLegacyRestoreModeParsingLongOption() throws Exception {
+        testRestoreMode("--restoreMode", "legacy", RestoreMode.LEGACY);
+    }
+
+    @Test
+    public void testNoClaimRestoreModeParsingLongOption() throws Exception {
+        testRestoreMode("--restoreMode", "no_claim", RestoreMode.NO_CLAIM);
+    }
+
+    private void testRestoreMode(String flag, String arg, RestoreMode expectedMode)
+            throws Exception {
+        String[] parameters = {"-s", "expectedSavepointPath", "-n", flag, arg, getTestJarPath()};
 
         CommandLine commandLine =
                 CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
@@ -186,7 +173,7 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
 
         SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
         assertTrue(savepointSettings.restoreSavepoint());
-        assertEquals(RestoreMode.NO_CLAIM, savepointSettings.getRestoreMode());
+        assertEquals(expectedMode, savepointSettings.getRestoreMode());
         assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
         assertTrue(savepointSettings.allowNonRestoredState());
     }
