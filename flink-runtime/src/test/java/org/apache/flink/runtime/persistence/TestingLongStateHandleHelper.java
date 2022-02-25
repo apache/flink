@@ -53,7 +53,7 @@ public class TestingLongStateHandleHelper
     }
 
     public static int getDiscardCallCountForStateHandleByIndex(int index) {
-        return STATE_STORAGE.get(index).getNumberOfDiscardCalls();
+        return STATE_STORAGE.get(index).getNumberOfSuccessfulDiscardCalls();
     }
 
     public static int getGlobalStorageSize() {
@@ -65,7 +65,9 @@ public class TestingLongStateHandleHelper
     }
 
     public static int getGlobalDiscardCount() {
-        return STATE_STORAGE.stream().mapToInt(LongStateHandle::getNumberOfDiscardCalls).sum();
+        return STATE_STORAGE.stream()
+                .mapToInt(LongStateHandle::getNumberOfSuccessfulDiscardCalls)
+                .sum();
     }
 
     /**
@@ -74,7 +76,8 @@ public class TestingLongStateHandleHelper
      */
     @FunctionalInterface
     public interface PreDiscardCallback extends Serializable {
-        void run(Long value);
+
+        void run(int discardIdx) throws Exception;
     }
 
     /**
@@ -90,9 +93,14 @@ public class TestingLongStateHandleHelper
         private final PreDiscardCallback preDiscardCallback;
 
         private int numberOfDiscardCalls = 0;
+        private int numberOfSuccessfulDiscardCalls = 0;
 
         public LongStateHandle(long value) {
-            this(value, ignored -> {});
+            this(
+                    value,
+                    ignored -> {
+                        // No-op.
+                    });
         }
 
         public LongStateHandle(long value, PreDiscardCallback preDiscardCallback) {
@@ -106,17 +114,26 @@ public class TestingLongStateHandleHelper
 
         @Override
         public void discardState() {
-            preDiscardCallback.run(value);
-
-            numberOfDiscardCalls++;
+            try {
+                preDiscardCallback.run(numberOfDiscardCalls);
+                numberOfSuccessfulDiscardCalls++;
+            } catch (Exception e) {
+                throw new IllegalStateException("Unable to discard.", e);
+            } finally {
+                numberOfDiscardCalls++;
+            }
         }
 
         public int getNumberOfDiscardCalls() {
             return numberOfDiscardCalls;
         }
 
+        public int getNumberOfSuccessfulDiscardCalls() {
+            return numberOfSuccessfulDiscardCalls;
+        }
+
         public boolean isDiscarded() {
-            return numberOfDiscardCalls > 0;
+            return numberOfSuccessfulDiscardCalls > 0;
         }
 
         @Override
