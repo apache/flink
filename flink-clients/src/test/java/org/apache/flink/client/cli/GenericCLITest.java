@@ -25,52 +25,49 @@ import org.apache.flink.configuration.DeploymentOptions;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Unit tests for the {@link GenericCLI}. */
-public class GenericCLITest {
+class GenericCLITest {
 
-    @Rule public TemporaryFolder tmp = new TemporaryFolder();
+    @TempDir java.nio.file.Path tmp;
 
     private Options testOptions;
 
-    @Before
-    public void initOptions() {
+    @BeforeEach
+    void initOptions() {
         testOptions = new Options();
 
         final GenericCLI cliUnderTest =
-                new GenericCLI(new Configuration(), tmp.getRoot().getAbsolutePath());
+                new GenericCLI(new Configuration(), tmp.toAbsolutePath().toString());
         cliUnderTest.addGeneralOptions(testOptions);
     }
 
     @Test
-    public void isActiveWhenTargetOnlyInConfig() throws CliArgsException {
+    void isActiveWhenTargetOnlyInConfig() throws CliArgsException {
         final String expectedExecutorName = "test-executor";
         final Configuration loadedConfig = new Configuration();
         loadedConfig.set(DeploymentOptions.TARGET, expectedExecutorName);
 
         final GenericCLI cliUnderTest =
-                new GenericCLI(loadedConfig, tmp.getRoot().getAbsolutePath());
+                new GenericCLI(loadedConfig, tmp.toAbsolutePath().toString());
         final CommandLine emptyCommandLine =
                 CliFrontendParser.parse(testOptions, new String[0], true);
 
-        assertTrue(cliUnderTest.isActive(emptyCommandLine));
+        assertThat(cliUnderTest.isActive(emptyCommandLine)).isTrue();
     }
 
     @Test
-    public void testWithPreexistingConfigurationInConstructor() throws CliArgsException {
+    void testWithPreexistingConfigurationInConstructor() throws CliArgsException {
         final Configuration loadedConfig = new Configuration();
         loadedConfig.setInteger(CoreOptions.DEFAULT_PARALLELISM, 2);
         loadedConfig.setBoolean(DeploymentOptions.ATTACHED, false);
@@ -90,24 +87,24 @@ public class GenericCLITest {
         };
 
         final GenericCLI cliUnderTest =
-                new GenericCLI(loadedConfig, tmp.getRoot().getAbsolutePath());
+                new GenericCLI(loadedConfig, tmp.toAbsolutePath().toString());
         final CommandLine commandLine = CliFrontendParser.parse(testOptions, args, true);
 
         final Configuration configuration = cliUnderTest.toConfiguration(commandLine);
 
-        assertEquals("test-executor", configuration.getString(DeploymentOptions.TARGET));
-        assertEquals(5, configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM));
-        assertFalse(configuration.getBoolean(DeploymentOptions.ATTACHED));
-        assertEquals(listValue, configuration.get(listOption));
+        assertThat(configuration.getString(DeploymentOptions.TARGET)).isEqualTo("test-executor");
+        assertThat(configuration.getInteger(CoreOptions.DEFAULT_PARALLELISM)).isEqualTo(5);
+        assertThat(configuration.getBoolean(DeploymentOptions.ATTACHED)).isFalse();
+        assertThat(configuration.get(listOption)).isEqualTo(listValue);
     }
 
     @Test
-    public void testIsActiveLong() throws CliArgsException {
+    void testIsActiveLong() throws CliArgsException {
         testIsActiveHelper("--executor");
     }
 
     @Test
-    public void testIsActiveShort() throws CliArgsException {
+    void testIsActiveShort() throws CliArgsException {
         testIsActiveHelper("-e");
     }
 
@@ -117,7 +114,7 @@ public class GenericCLITest {
         final int expectedValue = 42;
 
         final GenericCLI cliUnderTest =
-                new GenericCLI(new Configuration(), tmp.getRoot().getAbsolutePath());
+                new GenericCLI(new Configuration(), tmp.toAbsolutePath().toString());
 
         final String[] args = {
             executorOption, expectedExecutorName, "-D" + configOption.key() + "=" + expectedValue
@@ -125,7 +122,7 @@ public class GenericCLITest {
         final CommandLine commandLine = CliFrontendParser.parse(testOptions, args, true);
 
         final Configuration configuration = cliUnderTest.toConfiguration(commandLine);
-        assertEquals(expectedExecutorName, configuration.get(DeploymentOptions.TARGET));
-        assertEquals(expectedValue, configuration.getInteger(configOption));
+        assertThat(configuration.get(DeploymentOptions.TARGET)).isEqualTo(expectedExecutorName);
+        assertThat(configuration.getInteger(configOption)).isEqualTo(expectedValue);
     }
 }

@@ -57,10 +57,8 @@ import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.executor.TestExecutorExtension;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
@@ -73,8 +71,7 @@ import java.util.function.Supplier;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Integration tests related to {@link ApplicationDispatcherBootstrap}. */
-@ExtendWith(TestLoggerExtension.class)
-public class ApplicationDispatcherBootstrapITCase {
+class ApplicationDispatcherBootstrapITCase {
 
     @RegisterExtension
     static final TestExecutorExtension<ScheduledExecutorService> EXECUTOR_EXTENSION =
@@ -99,7 +96,7 @@ public class ApplicationDispatcherBootstrapITCase {
     }
 
     @Test
-    public void testDispatcherRecoversAfterLosingAndRegainingLeadership() throws Exception {
+    void testDispatcherRecoversAfterLosingAndRegainingLeadership() throws Exception {
         final String blockId = UUID.randomUUID().toString();
         final Configuration configuration = new Configuration();
         final JobID jobId = new JobID();
@@ -159,7 +156,7 @@ public class ApplicationDispatcherBootstrapITCase {
     }
 
     @Test
-    public void testDirtyJobResultRecoveryInApplicationMode() throws Exception {
+    void testDirtyJobResultRecoveryInApplicationMode() throws Exception {
         final Configuration configuration = new Configuration();
         final JobID jobId = new JobID();
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
@@ -210,7 +207,7 @@ public class ApplicationDispatcherBootstrapITCase {
     }
 
     @Test
-    public void testSubmitFailedJobOnApplicationError() throws Exception {
+    void testSubmitFailedJobOnApplicationError() throws Exception {
         final JobID jobId = new JobID();
         final Configuration configuration = new Configuration();
         configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());

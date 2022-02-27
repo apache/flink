@@ -23,8 +23,9 @@ import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.junit.rules.ExternalResource;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.extension.AfterEachCallback;
+import org.junit.jupiter.api.extension.BeforeEachCallback;
+import org.junit.jupiter.api.extension.ExtensionContext;
 
 import javax.annotation.Nullable;
 
@@ -43,9 +44,10 @@ import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 /**
- * {@code ClasspathProvider} offers utility methods for creating a classpath based on actual jars.
+ * {@code ClasspathProviderExtension} offers utility methods for creating a classpath based on
+ * actual jars.
  */
-public class ClasspathProvider extends ExternalResource {
+public class ClasspathProviderExtension implements BeforeEachCallback, AfterEachCallback {
 
     private static final String CLASSPATH_PROPERTY_NAME = "java.class.path";
 
@@ -56,7 +58,7 @@ public class ClasspathProvider extends ExternalResource {
     private static final Path JOB_LIB_JAR_PATH =
             Paths.get("target", "maven-test-user-classloader-job-lib-jar.jar");
 
-    private final TemporaryFolder temporaryFolder = new TemporaryFolder();
+    protected File temporaryFolder = org.assertj.core.util.Files.newTemporaryFolder();
 
     private final String directoryNameSuffix;
     private final ThrowingConsumer<File, IOException> directoryContentCreator;
@@ -67,8 +69,8 @@ public class ClasspathProvider extends ExternalResource {
 
     private final String originalSystemClasspath;
 
-    public static ClasspathProvider createWithNoEntryClass() {
-        return new ClasspathProvider(
+    public static ClasspathProviderExtension createWithNoEntryClass() {
+        return new ClasspathProviderExtension(
                 "_user_dir_with_no_entry_class",
                 directory -> {
                     copyJar(JOB_LIB_JAR_PATH, directory);
@@ -76,8 +78,8 @@ public class ClasspathProvider extends ExternalResource {
                 });
     }
 
-    public static ClasspathProvider createWithSingleEntryClass() {
-        return new ClasspathProvider(
+    public static ClasspathProviderExtension createWithSingleEntryClass() {
+        return new ClasspathProviderExtension(
                 "_user_dir_with_single_entry_class",
                 directory -> {
                     copyJar(JOB_LIB_JAR_PATH, directory);
@@ -87,8 +89,8 @@ public class ClasspathProvider extends ExternalResource {
                 JOB_JAR_PATH.toFile());
     }
 
-    public static ClasspathProvider createWithMultipleEntryClasses() {
-        return new ClasspathProvider(
+    public static ClasspathProviderExtension createWithMultipleEntryClasses() {
+        return new ClasspathProviderExtension(
                 "_user_dir_with_multiple_entry_classes",
                 directory -> {
                     copyJar(JOB_LIB_JAR_PATH, directory);
@@ -101,8 +103,8 @@ public class ClasspathProvider extends ExternalResource {
                 TEST_JOB_JAR_PATH.toFile());
     }
 
-    public static ClasspathProvider createWithTestJobOnly() {
-        return new ClasspathProvider(
+    public static ClasspathProviderExtension createWithTestJobOnly() {
+        return new ClasspathProviderExtension(
                 "_user_dir_with_testjob_entry_class_only",
                 directory -> copyJar(TEST_JOB_JAR_PATH, directory),
                 TEST_JOB_JAR_PATH.toFile());
@@ -112,9 +114,9 @@ public class ClasspathProvider extends ExternalResource {
         return new String[] {"--arg", strValue};
     }
 
-    public static ClasspathProvider createWithTextFileOnly() {
-        return new ClasspathProvider(
-                "_user_dir_with_text_file_only", ClasspathProvider::createTestFile);
+    public static ClasspathProviderExtension createWithTextFileOnly() {
+        return new ClasspathProviderExtension(
+                "_user_dir_with_text_file_only", ClasspathProviderExtension::createTestFile);
     }
 
     private static void copyJar(Path sourcePath, File targetDir) throws IOException {
@@ -125,13 +127,13 @@ public class ClasspathProvider extends ExternalResource {
         Files.createFile(targetDir.toPath().resolve("test.txt"));
     }
 
-    private ClasspathProvider(
+    private ClasspathProviderExtension(
             String directoryNameSuffix,
             ThrowingConsumer<File, IOException> directoryContentCreator) {
         this(directoryNameSuffix, directoryContentCreator, null, null);
     }
 
-    private ClasspathProvider(
+    private ClasspathProviderExtension(
             String directoryNameSuffix,
             ThrowingConsumer<File, IOException> directoryContentCreator,
             File jarFile) {
@@ -142,7 +144,7 @@ public class ClasspathProvider extends ExternalResource {
                 extractEntryClassNameFromJar(jarFile));
     }
 
-    private ClasspathProvider(
+    private ClasspathProviderExtension(
             String directoryNameSuffix,
             ThrowingConsumer<File, IOException> directoryContentCreator,
             @Nullable File jarFile,
@@ -156,20 +158,6 @@ public class ClasspathProvider extends ExternalResource {
         this.jobClassName = jobClassName;
 
         this.originalSystemClasspath = System.getProperty(CLASSPATH_PROPERTY_NAME);
-    }
-
-    @Override
-    public void before() throws IOException {
-        temporaryFolder.create();
-
-        directory = temporaryFolder.newFolder(directoryNameSuffix);
-        directoryContentCreator.accept(directory);
-    }
-
-    @Override
-    protected void after() {
-        temporaryFolder.delete();
-        resetSystemClasspath();
     }
 
     @Nullable
@@ -233,5 +221,18 @@ public class ClasspathProvider extends ExternalResource {
 
     private static List<File> getFileUserClasspath(File parentFolder) {
         return Arrays.asList(Objects.requireNonNull(parentFolder.listFiles()));
+    }
+
+    @Override
+    public void beforeEach(ExtensionContext extensionContext) throws Exception {
+        directory = new File(temporaryFolder, directoryNameSuffix);
+        directory.mkdir();
+        directoryContentCreator.accept(directory);
+    }
+
+    @Override
+    public void afterEach(ExtensionContext extensionContext) throws Exception {
+        temporaryFolder.deleteOnExit();
+        resetSystemClasspath();
     }
 }
