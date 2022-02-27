@@ -28,7 +28,7 @@ import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test utilities. */
 public class CliFrontendTestUtils {
@@ -92,8 +92,8 @@ public class CliFrontendTestUtils {
         String jobManagerAddress = config.getString(JobManagerOptions.ADDRESS);
         int jobManagerPort = config.getInteger(JobManagerOptions.PORT, -1);
 
-        assertEquals(expectedAddress, jobManagerAddress);
-        assertEquals(expectedPort, jobManagerPort);
+        assertThat(jobManagerAddress).isEqualTo(expectedAddress);
+        assertThat(jobManagerPort).isEqualTo(expectedPort);
     }
 
     // --------------------------------------------------------------------------------------------

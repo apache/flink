@@ -25,51 +25,48 @@ import org.apache.flink.util.ChildFirstClassLoader;
 import org.apache.flink.util.FlinkUserCodeClassLoaders.ParentFirstClassLoader;
 
 import org.apache.commons.cli.Options;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
 import static org.apache.flink.client.cli.CliFrontendTestUtils.getTestJarPath;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the RUN command with Dynamic Properties. */
-public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
+class CliFrontendDynamicPropertiesTest {
 
     private GenericCLI cliUnderTest;
     private Configuration configuration;
 
-    @Rule public TemporaryFolder tmp = new TemporaryFolder();
-
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() {
         CliFrontendTestUtils.pipeSystemOutToNull();
     }
 
-    @AfterClass
-    public static void shutdown() {
+    @AfterAll
+    static void shutdown() {
         CliFrontendTestUtils.restoreSystemOut();
     }
 
-    @Before
-    public void setup() {
+    @BeforeEach
+    void setup(@TempDir java.nio.file.Path tmp) {
         Options testOptions = new Options();
         configuration = new Configuration();
         configuration.set(CoreOptions.CHECK_LEAKED_CLASSLOADER, false);
 
-        cliUnderTest = new GenericCLI(configuration, tmp.getRoot().getAbsolutePath());
+        cliUnderTest = new GenericCLI(configuration, tmp.toAbsolutePath().toString());
 
         cliUnderTest.addGeneralOptions(testOptions);
     }
 
     @Test
-    public void testDynamicPropertiesWithParentFirstClassloader() throws Exception {
+    void testDynamicPropertiesWithParentFirstClassloader() throws Exception {
 
         String[] args = {
             "-e",
@@ -92,15 +89,13 @@ public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
                 args,
                 cliUnderTest,
                 expectedConfigValues,
-                (configuration, program) -> {
-                    assertEquals(
-                            ParentFirstClassLoader.class.getName(),
-                            program.getUserCodeClassLoader().getClass().getName());
-                });
+                (configuration, program) ->
+                        assertThat(ParentFirstClassLoader.class.getName())
+                                .isEqualTo(program.getUserCodeClassLoader().getClass().getName()));
     }
 
     @Test
-    public void testDynamicPropertiesWithDefaultChildFirstClassloader() throws Exception {
+    void testDynamicPropertiesWithDefaultChildFirstClassloader() throws Exception {
 
         String[] args = {
             "-e",
@@ -121,15 +116,13 @@ public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
                 args,
                 cliUnderTest,
                 expectedConfigValues,
-                (configuration, program) -> {
-                    assertEquals(
-                            ChildFirstClassLoader.class.getName(),
-                            program.getUserCodeClassLoader().getClass().getName());
-                });
+                (configuration, program) ->
+                        assertThat(ChildFirstClassLoader.class.getName())
+                                .isEqualTo(program.getUserCodeClassLoader().getClass().getName()));
     }
 
     @Test
-    public void testDynamicPropertiesWithChildFirstClassloader() throws Exception {
+    void testDynamicPropertiesWithChildFirstClassloader() throws Exception {
 
         String[] args = {
             "-e",
@@ -152,11 +145,9 @@ public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
                 args,
                 cliUnderTest,
                 expectedConfigValues,
-                (configuration, program) -> {
-                    assertEquals(
-                            ChildFirstClassLoader.class.getName(),
-                            program.getUserCodeClassLoader().getClass().getName());
-                });
+                (configuration, program) ->
+                        assertThat(ChildFirstClassLoader.class.getName())
+                                .isEqualTo(program.getUserCodeClassLoader().getClass().getName()));
     }
 
     @Test
@@ -224,9 +215,7 @@ public class CliFrontendDynamicPropertiesTest extends CliFrontendTestBase {
         @Override
         protected void executeProgram(Configuration configuration, PackagedProgram program) {
             expectedConfigValues.forEach(
-                    (key, value) -> {
-                        assertEquals(configuration.toMap().get(key), value);
-                    });
+                    (key, value) -> assertThat(configuration.toMap()).containsEntry(key, value));
             if (tester != null) {
                 tester.test(configuration, program);
             }

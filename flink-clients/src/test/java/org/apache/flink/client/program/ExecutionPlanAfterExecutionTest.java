@@ -25,13 +25,12 @@ import org.apache.flink.api.java.LocalEnvironment;
 import org.apache.flink.api.java.aggregation.Aggregations;
 import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.Serializable;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /**
  * Tests that verify subsequent calls to {@link ExecutionEnvironment#getExecutionPlan()} and {@link
@@ -39,10 +38,10 @@ import static org.junit.Assert.fail;
  * exceptions.
  */
 @SuppressWarnings("serial")
-public class ExecutionPlanAfterExecutionTest extends TestLogger implements Serializable {
+class ExecutionPlanAfterExecutionTest implements Serializable {
 
     @Test
-    public void testExecuteAfterGetExecutionPlan() {
+    void testExecuteAfterGetExecutionPlan() {
         ExecutionEnvironment env = new LocalEnvironment();
 
         DataSet<Integer> baseSet = env.fromElements(1, 2);
@@ -67,19 +66,12 @@ public class ExecutionPlanAfterExecutionTest extends TestLogger implements Seria
     }
 
     @Test
-    public void testCreatePlanAfterGetExecutionPlan() {
+    void testCreatePlanAfterGetExecutionPlan() {
         ExecutionEnvironment env = new LocalEnvironment();
 
         DataSet<Integer> baseSet = env.fromElements(1, 2);
 
-        DataSet<Integer> result =
-                baseSet.map(
-                        new MapFunction<Integer, Integer>() {
-                            @Override
-                            public Integer map(Integer value) throws Exception {
-                                return value * 2;
-                            }
-                        });
+        DataSet<Integer> result = baseSet.map((MapFunction<Integer, Integer>) value -> value * 2);
         result.output(new DiscardingOutputFormat<Integer>());
 
         try {
@@ -92,7 +84,7 @@ public class ExecutionPlanAfterExecutionTest extends TestLogger implements Seria
     }
 
     @Test
-    public void testGetExecutionPlanOfRangePartition() {
+    void testGetExecutionPlanOfRangePartition() {
         ExecutionEnvironment env = new LocalEnvironment();
 
         DataSet<Integer> baseSet = env.fromElements(1, 2);
@@ -103,7 +95,7 @@ public class ExecutionPlanAfterExecutionTest extends TestLogger implements Seria
                                     @Override
                                     public Tuple2<Integer, Integer> map(Integer value)
                                             throws Exception {
-                                        return new Tuple2(value, value * 2);
+                                        return new Tuple2<>(value, value * 2);
                                     }
                                 })
                         .partitionByRange(0)
