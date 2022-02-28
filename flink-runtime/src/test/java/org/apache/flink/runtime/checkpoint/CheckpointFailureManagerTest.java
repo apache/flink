@@ -17,6 +17,7 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.TestLogger;
@@ -29,6 +30,11 @@ import static org.apache.flink.runtime.checkpoint.CheckpointFailureReason.CHECKP
 import static org.apache.flink.runtime.checkpoint.CheckpointProperties.forCheckpoint;
 import static org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 /** Tests for the checkpoint failure manager. */
 public class CheckpointFailureManagerTest extends TestLogger {
@@ -151,6 +157,26 @@ public class CheckpointFailureManagerTest extends TestLogger {
                 new CheckpointException(CheckpointFailureReason.CHECKPOINT_DECLINED),
                 2);
         assertEquals(0, callback.getInvokeCounter());
+    }
+
+    /** Tests that the stats callbacks happen if the callback is registered. */
+    @Test
+    public void testPendingCheckpointStatsCallbacks() throws Exception {
+        CheckpointProperties checkpointProperties = forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION);
+        CheckpointFailureManager failureManager =
+                new CheckpointFailureManager(2, new TestFailJobCallback());
+
+        PendingCheckpoint pendingCheckpoint = mock(PendingCheckpoint.class);
+        PendingCheckpointStats callback = mock(PendingCheckpointStats.class);
+
+        failureManager.handleCheckpointException(
+                pendingCheckpoint,
+                checkpointProperties,
+                new CheckpointException(CheckpointFailureReason.CHECKPOINT_SUBSUMED, null),
+                null,
+                new JobID(),
+                callback);
+        verify(callback, times(1)).reportFailedCheckpoint(anyLong(), any(Exception.class));
     }
 
     /** A failure handler callback for testing. */
