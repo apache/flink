@@ -23,6 +23,9 @@ import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.api.JsonOnNull;
 import org.apache.flink.table.api.JsonType;
 import org.apache.flink.table.api.JsonValueOnEmptyOrError;
+import org.apache.flink.table.data.GenericRowData;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.types.Row;
@@ -608,6 +611,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 ROW(ARRAY(ROW(INT(), INT()))))
                         .withFunction(CreateMultiset.class)
                         .withFunction(CreateStructuredType.class)
+                        .withFunction(CreateInternalRow.class)
                         .testResult(
                                 jsonObject(
                                         JsonOnNull.NULL,
@@ -647,7 +651,9 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                                 "A",
                                                 jsonObject(JsonOnNull.NULL, "K", "V")),
                                         "Q",
-                                        call("CreateStructuredType", $("f0"), $("f2"), $("f9"))),
+                                        call("CreateStructuredType", $("f0"), $("f2"), $("f9")),
+                                        "R",
+                                        call("CreateInternalRow", $("f0"), nullOf(INT()))),
                                 "JSON_OBJECT("
                                         + "'A' VALUE f0, "
                                         + "'B' VALUE f1, "
@@ -665,7 +671,8 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "'N' VALUE f13, "
                                         + "'O' VALUE JSON_OBJECT(KEY 'A' VALUE 'B'), "
                                         + "'P' VALUE JSON_ARRAY('A', JSON_OBJECT('K' VALUE 'V')), "
-                                        + "'Q' VALUE CreateStructuredType(f0, f2, f9)"
+                                        + "'Q' VALUE CreateStructuredType(f0, f2, f9), "
+                                        + "'R' VALUE CreateInternalRow(f0, NULL)"
                                         + ")",
                                 "{"
                                         + "\"A\":\"V\","
@@ -684,7 +691,8 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                         + "\"N\":{\"f0\":[{\"f0\":1,\"f1\":2}]},"
                                         + "\"O\":{\"A\":\"B\"},"
                                         + "\"P\":[\"A\",{\"K\":\"V\"}],"
-                                        + "\"Q\":{\"age\":1,\"name\":\"V\",\"payload\":{\"M1\":\"V1\",\"M2\":\"V2\"}}"
+                                        + "\"Q\":{\"age\":1,\"name\":\"V\",\"payload\":{\"M1\":\"V1\",\"M2\":\"V2\"}},"
+                                        + "\"R\":{\"f0\":\"V\",\"f1\":null}"
                                         + "}",
                                 STRING().notNull(),
                                 STRING().notNull()));
@@ -835,6 +843,14 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
     public static class CreateStructuredType extends ScalarFunction {
         public MyPojo eval(String name, Integer age, Map<String, String> payload) {
             return new MyPojo(name, age, payload);
+        }
+    }
+
+    /** For testing interplay with internal data structures. */
+    public static class CreateInternalRow extends ScalarFunction {
+        @DataTypeHint("ROW<f0 STRING, f1 INT>")
+        public RowData eval(String name, Integer age) {
+            return GenericRowData.of(StringData.fromString(name), age);
         }
     }
 
