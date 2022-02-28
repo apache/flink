@@ -661,13 +661,6 @@ public class PendingCheckpointTest {
     }
 
     private void abort(PendingCheckpoint checkpoint, CheckpointFailureReason reason) {
-        abort(checkpoint, reason, null);
-    }
-
-    private void abort(
-            PendingCheckpoint checkpoint,
-            CheckpointFailureReason reason,
-            PendingCheckpointStats statsCallback) {
         checkpoint.abort(
                 reason, null, new CheckpointsCleaner(), () -> {}, Executors.directExecutor(), null);
     }
