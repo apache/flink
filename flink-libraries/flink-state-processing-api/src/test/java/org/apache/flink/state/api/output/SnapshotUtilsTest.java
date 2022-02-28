@@ -19,10 +19,10 @@
 package org.apache.flink.state.api.output;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
@@ -63,7 +63,7 @@ public class SnapshotUtilsTest {
     }
 
     @Test
-    public void testSnapshotUtilsLifecycleWithFullCheckpoint() throws Exception {
+    public void testSnapshotUtilsLifecycleWithNativeSavepoint() throws Exception {
         ACTUAL_ORDER_TRACKING.clear();
         StreamOperator<Void> operator = new LifecycleOperator();
         Path path = new Path(folder.newFolder().getAbsolutePath());
@@ -76,7 +76,7 @@ public class SnapshotUtilsTest {
                 false,
                 new Configuration(),
                 path,
-                CheckpointType.FULL_CHECKPOINT);
+                SavepointFormatType.NATIVE);
 
         Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);
     }

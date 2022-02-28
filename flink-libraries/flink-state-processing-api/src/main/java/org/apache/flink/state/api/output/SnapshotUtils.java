@@ -23,10 +23,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.SavepointType;
-import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
@@ -34,7 +32,6 @@ import org.apache.flink.streaming.api.operators.OperatorSnapshotFinalizer;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.MathUtils;
-import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 
@@ -56,16 +53,12 @@ public final class SnapshotUtils {
             boolean isUnalignedCheckpoint,
             Configuration configuration,
             Path savepointPath,
-            SnapshotType snapshotType)
+            SavepointFormatType savepointFormatType)
             throws Exception {
-
-        Preconditions.checkArgument(
-                snapshotType.isSavepoint() || CheckpointType.FULL_CHECKPOINT.equals(snapshotType),
-                "the snapshot type require savepoint type or full checkpoint type.");
 
         CheckpointOptions options =
                 CheckpointOptions.forConfig(
-                        snapshotType,
+                        SavepointType.savepoint(savepointFormatType),
                         AbstractFsCheckpointStorageAccess.encodePathAsReference(savepointPath),
                         isExactlyOnceMode,
                         isUnalignedCheckpoint,
@@ -103,7 +96,7 @@ public final class SnapshotUtils {
                 isUnalignedCheckpoint,
                 configuration,
                 savepointPath,
-                SavepointType.savepoint(SavepointFormatType.CANONICAL));
+                SavepointFormatType.DEFAULT);
     }
 
     private static CheckpointStreamFactory createStreamFactory(
