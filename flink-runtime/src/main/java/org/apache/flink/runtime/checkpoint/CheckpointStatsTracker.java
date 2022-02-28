@@ -255,6 +255,21 @@ public class CheckpointStatsTracker {
         }
     }
 
+    /**
+     * Callback when a checkpoint failure without in progress checkpoint. For example, it should be
+     * callback when triggering checkpoint failure before creating PendingCheckpoint.
+     */
+    public void reportFailedCheckpointsWithoutInProgress() {
+        statsReadWriteLock.lock();
+        try {
+            counts.incrementFailedCheckpointsWithoutInProgress();
+
+            dirty = true;
+        } finally {
+            statsReadWriteLock.unlock();
+        }
+    }
+
     public PendingCheckpointStats getPendingCheckpointStats(long checkpointId) {
         statsReadWriteLock.lock();
         try {
