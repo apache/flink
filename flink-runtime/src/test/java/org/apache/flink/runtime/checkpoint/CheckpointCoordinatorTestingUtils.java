@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.eventtime.WatermarkStrategyTest;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.Path;
@@ -724,6 +725,12 @@ public class CheckpointCoordinatorTestingUtils {
 
         private boolean allowCheckpointsAfterTasksFinished;
 
+        private CheckpointStatsTracker checkpointStatsTracker =
+                new CheckpointStatsTracker(
+                        1,
+                        CheckpointCoordinatorConfiguration.builder().build(),
+                        new WatermarkStrategyTest.DummyMetricGroup());
+
         public CheckpointCoordinatorBuilder setCheckpointCoordinatorConfiguration(
                 CheckpointCoordinatorConfiguration checkpointCoordinatorConfiguration) {
             this.checkpointCoordinatorConfiguration = checkpointCoordinatorConfiguration;
@@ -798,6 +805,12 @@ public class CheckpointCoordinatorTestingUtils {
             return this;
         }
 
+        public CheckpointCoordinatorBuilder setCheckpointStatsTracker(
+                CheckpointStatsTracker checkpointStatsTracker) {
+            this.checkpointStatsTracker = checkpointStatsTracker;
+            return this;
+        }
+
         public CheckpointCoordinator build() throws Exception {
             if (executionGraph == null) {
                 executionGraph =
@@ -813,20 +826,24 @@ public class CheckpointCoordinatorTestingUtils {
                             executionGraph.getVerticesTopologically(),
                             allowCheckpointsAfterTasksFinished);
 
-            return new CheckpointCoordinator(
-                    executionGraph.getJobID(),
-                    checkpointCoordinatorConfiguration,
-                    coordinatorsToCheckpoint,
-                    checkpointIDCounter,
-                    completedCheckpointStore,
-                    checkpointStorage,
-                    ioExecutor,
-                    checkpointsCleaner,
-                    timer,
-                    sharedStateRegistryFactory,
-                    failureManager,
-                    checkpointPlanCalculator,
-                    new ExecutionAttemptMappingProvider(executionGraph.getAllExecutionVertices()));
+            CheckpointCoordinator checkpointCoordinator =
+                    new CheckpointCoordinator(
+                            executionGraph.getJobID(),
+                            checkpointCoordinatorConfiguration,
+                            coordinatorsToCheckpoint,
+                            checkpointIDCounter,
+                            completedCheckpointStore,
+                            checkpointStorage,
+                            ioExecutor,
+                            checkpointsCleaner,
+                            timer,
+                            sharedStateRegistryFactory,
+                            failureManager,
+                            checkpointPlanCalculator,
+                            new ExecutionAttemptMappingProvider(
+                                    executionGraph.getAllExecutionVertices()));
+            checkpointCoordinator.setCheckpointStatsTracker(checkpointStatsTracker);
+            return checkpointCoordinator;
         }
     }
 
