@@ -23,6 +23,8 @@ import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.streaming.api.operators.OperatorSnapshotFutures;
@@ -31,6 +33,7 @@ import org.apache.flink.streaming.api.operators.StreamTaskStateInitializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -46,25 +49,37 @@ public class SnapshotUtilsTest {
     private static final List<String> EXPECTED_CALL_OPERATOR_SNAPSHOT =
             Arrays.asList("prepareSnapshotPreBarrier", "snapshotState", "notifyCheckpointComplete");
 
+    private static final List<SnapshotType> EXPECTED_SNAPSHOT_TYPE = new ArrayList<>();
+
     @Rule public TemporaryFolder folder = new TemporaryFolder();
 
     private static final List<String> ACTUAL_ORDER_TRACKING =
             Collections.synchronizedList(new ArrayList<>(EXPECTED_CALL_OPERATOR_SNAPSHOT.size()));
 
+    private static final List<SnapshotType> ACTUAL_SNAPSHOT_TYPE = new ArrayList<>();
+
+    @Before
+    public void initializeVariable() {
+        ACTUAL_ORDER_TRACKING.clear();
+        EXPECTED_SNAPSHOT_TYPE.clear();
+        ACTUAL_SNAPSHOT_TYPE.clear();
+    }
+
     @Test
     public void testSnapshotUtilsLifecycle() throws Exception {
-        ACTUAL_ORDER_TRACKING.clear();
+        EXPECTED_SNAPSHOT_TYPE.add(SavepointType.savepoint(SavepointFormatType.DEFAULT));
         StreamOperator<Void> operator = new LifecycleOperator();
         Path path = new Path(folder.newFolder().getAbsolutePath());
 
         SnapshotUtils.snapshot(operator, 0, 0L, true, false, new Configuration(), path);
 
+        Assert.assertEquals(EXPECTED_SNAPSHOT_TYPE, ACTUAL_SNAPSHOT_TYPE);
         Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);
     }
 
     @Test
     public void testSnapshotUtilsLifecycleWithNativeSavepoint() throws Exception {
-        ACTUAL_ORDER_TRACKING.clear();
+        EXPECTED_SNAPSHOT_TYPE.add(SavepointType.savepoint(SavepointFormatType.NATIVE));
         StreamOperator<Void> operator = new LifecycleOperator();
         Path path = new Path(folder.newFolder().getAbsolutePath());
 
@@ -78,6 +93,7 @@ public class SnapshotUtilsTest {
                 path,
                 SavepointFormatType.NATIVE);
 
+        Assert.assertEquals(EXPECTED_SNAPSHOT_TYPE, ACTUAL_SNAPSHOT_TYPE);
         Assert.assertEquals(EXPECTED_CALL_OPERATOR_SNAPSHOT, ACTUAL_ORDER_TRACKING);
     }
 
@@ -112,6 +128,7 @@ public class SnapshotUtilsTest {
                 CheckpointStreamFactory storageLocation)
                 throws Exception {
             ACTUAL_ORDER_TRACKING.add("snapshotState");
+            ACTUAL_SNAPSHOT_TYPE.add(checkpointOptions.getCheckpointType());
             return new OperatorSnapshotFutures();
         }
 
