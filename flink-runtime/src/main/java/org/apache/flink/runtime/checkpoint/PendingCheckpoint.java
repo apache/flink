@@ -542,12 +542,10 @@ public class PendingCheckpoint implements Checkpoint {
             @Nullable Throwable cause,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup,
-            Executor executor,
-            PendingCheckpointStats statsCallback) {
+            Executor executor) {
         try {
             failureCause = new CheckpointException(reason, cause);
             onCompletionPromise.completeExceptionally(failureCause);
-            reportFailedCheckpoint(failureCause, statsCallback);
             assertAbortSubsumedForced(reason);
         } finally {
             dispose(true, checkpointsCleaner, postCleanup, executor);
@@ -624,19 +622,6 @@ public class PendingCheckpoint implements Checkpoint {
         } catch (Exception e) {
             // this code should not throw exceptions
             LOG.warn("Error while cancelling checkpoint timeout task", e);
-        }
-    }
-
-    /**
-     * Reports a failed checkpoint with the given optional cause.
-     *
-     * @param cause The failure cause or <code>null</code>.
-     */
-    private void reportFailedCheckpoint(Exception cause, PendingCheckpointStats statsCallback) {
-        // to prevent null-pointers from concurrent modification, copy reference onto stack
-        if (statsCallback != null) {
-            long failureTimestamp = System.currentTimeMillis();
-            statsCallback.reportFailedCheckpoint(failureTimestamp, cause);
         }
     }
 
