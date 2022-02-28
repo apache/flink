@@ -132,6 +132,8 @@ public class CheckpointFailureManager {
             long failureTimestamp = System.currentTimeMillis();
             statsTracker.reportFailedCheckpoint(
                     pendingCheckpointStats.toFailedCheckpoint(failureTimestamp, exception));
+        } else {
+            statsTracker.reportFailedCheckpointsWithoutInProgress();
         }
     }
 
