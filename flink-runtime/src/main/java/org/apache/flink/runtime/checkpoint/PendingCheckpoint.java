@@ -105,11 +105,11 @@ public class PendingCheckpoint implements Checkpoint {
     /** The checkpoint properties. */
     private final CheckpointProperties props;
 
-    /** Target storage location to persist the checkpoint metadata to. */
-    private final CheckpointStorageLocation targetLocation;
-
     /** The promise to fulfill once the checkpoint has been completed. */
     private final CompletableFuture<CompletedCheckpoint> onCompletionPromise;
+
+    /** Target storage location to persist the checkpoint metadata to. */
+    @Nullable private CheckpointStorageLocation targetLocation;
 
     private int numAcknowledgedTasks;
 
@@ -131,7 +131,6 @@ public class PendingCheckpoint implements Checkpoint {
             Collection<OperatorID> operatorCoordinatorsToConfirm,
             Collection<String> masterStateIdentifiers,
             CheckpointProperties props,
-            CheckpointStorageLocation targetLocation,
             CompletableFuture<CompletedCheckpoint> onCompletionPromise) {
 
         checkArgument(
@@ -149,7 +148,6 @@ public class PendingCheckpoint implements Checkpoint {
         }
 
         this.props = checkNotNull(props);
-        this.targetLocation = checkNotNull(targetLocation);
 
         this.operatorStates = new HashMap<>();
         this.masterStates = new ArrayList<>(masterStateIdentifiers.size());
@@ -184,6 +182,10 @@ public class PendingCheckpoint implements Checkpoint {
     @Override
     public long getCheckpointID() {
         return checkpointId;
+    }
+
+    public void setCheckpointTargetLocation(CheckpointStorageLocation targetLocation) {
+        this.targetLocation = targetLocation;
     }
 
     public CheckpointStorageLocation getCheckpointStorageLocation() {
@@ -599,7 +601,9 @@ public class PendingCheckpoint implements Checkpoint {
         // unregistered shared states are still considered private at this point.
         try {
             StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
-            targetLocation.disposeOnFailure();
+            if (targetLocation != null) {
+                targetLocation.disposeOnFailure();
+            }
         } catch (Throwable t) {
             LOG.warn(
                     "Could not properly dispose the private states in the pending checkpoint {} of job {}.",
