@@ -727,11 +727,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
     /** Tests that do not trigger checkpoint when IOException occurred. */
     @Test
-    public void testTriggerCheckpointAfterIOException() throws Exception {
-        // given: Checkpoint coordinator which fails on initializeLocationForCheckpoint.
+    public void testTriggerCheckpointAfterCheckpointStorageIOException() throws Exception {
+        // given: Checkpoint coordinator which fails on initializeCheckpointLocation.
         TestFailJobCallback failureCallback = new TestFailJobCallback();
+        CheckpointStatsTracker statsTracker =
+                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
+                        .setCheckpointStatsTracker(statsTracker)
                         .setFailureManager(new CheckpointFailureManager(0, failureCallback))
                         .setCheckpointStorage(new IOExceptionCheckpointStorage())
                         .setTimer(manuallyTriggeredScheduledExecutor)
@@ -741,6 +744,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         // then: Failure manager should fail the job.
         assertEquals(1, failureCallback.getInvokeCounter());
+
+        // then: Should created PendingCheckpoint
+        assertNotNull(statsTracker.getPendingCheckpointStats(1));
     }
 
     @Test

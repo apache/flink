@@ -634,17 +634,19 @@ public class PendingCheckpointTest {
                         1024,
                         4096);
 
-        return new PendingCheckpoint(
-                new JobID(),
-                0,
-                1,
-                checkpointPlan,
-                operatorCoordinators,
-                masterStateIdentifiers,
-                props,
-                location,
-                new CompletableFuture<>(),
-                null);
+        PendingCheckpoint pendingCheckpoint =
+                new PendingCheckpoint(
+                        new JobID(),
+                        0,
+                        1,
+                        checkpointPlan,
+                        operatorCoordinators,
+                        masterStateIdentifiers,
+                        props,
+                        new CompletableFuture<>(),
+                        null);
+        pendingCheckpoint.setCheckpointTargetLocation(location);
+        return pendingCheckpoint;
     }
 
     @SuppressWarnings("unchecked")
