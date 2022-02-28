@@ -167,7 +167,8 @@ public class CheckpointFailureManagerTest extends TestLogger {
                 new CheckpointFailureManager(2, new TestFailJobCallback());
 
         PendingCheckpoint pendingCheckpoint = mock(PendingCheckpoint.class);
-        PendingCheckpointStats callback = mock(PendingCheckpointStats.class);
+        PendingCheckpointStats pendingCheckpointCallback = mock(PendingCheckpointStats.class);
+        CheckpointStatsTracker statsTracker = mock(CheckpointStatsTracker.class);
 
         failureManager.handleCheckpointException(
                 pendingCheckpoint,
@@ -175,8 +176,23 @@ public class CheckpointFailureManagerTest extends TestLogger {
                 new CheckpointException(CheckpointFailureReason.CHECKPOINT_SUBSUMED, null),
                 null,
                 new JobID(),
-                callback);
-        verify(callback, times(1)).reportFailedCheckpoint(anyLong(), any(Exception.class));
+                pendingCheckpointCallback,
+                statsTracker);
+        verify(pendingCheckpointCallback, times(1))
+                .reportFailedCheckpoint(anyLong(), any(Exception.class));
+        verify(statsTracker, times(0)).reportFailedCheckpointsWithoutInProgress();
+
+        failureManager.handleCheckpointException(
+                null,
+                checkpointProperties,
+                new CheckpointException(CheckpointFailureReason.CHECKPOINT_SUBSUMED, null),
+                null,
+                new JobID(),
+                null,
+                statsTracker);
+        verify(pendingCheckpointCallback, times(1))
+                .reportFailedCheckpoint(anyLong(), any(Exception.class));
+        verify(statsTracker, times(1)).reportFailedCheckpointsWithoutInProgress();
     }
 
     /** A failure handler callback for testing. */

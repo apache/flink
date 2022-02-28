@@ -911,7 +911,7 @@ public class CheckpointCoordinator {
                 }
             } else {
                 failureManager.handleCheckpointException(
-                        checkpoint, checkpointProperties, cause, null, job, null);
+                        checkpoint, checkpointProperties, cause, null, job, null, statsTracker);
             }
         } finally {
             isTriggering = false;
@@ -1942,7 +1942,8 @@ public class CheckpointCoordinator {
                         exception,
                         executionAttemptID,
                         job,
-                        getStatsCallback(pendingCheckpoint));
+                        getStatsCallback(pendingCheckpoint),
+                        statsTracker);
             } finally {
                 sendAbortedMessages(
                         pendingCheckpoint.getCheckpointPlan().getTasksToCommitTo(),

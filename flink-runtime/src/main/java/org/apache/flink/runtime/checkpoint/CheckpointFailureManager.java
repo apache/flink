@@ -88,6 +88,7 @@ public class CheckpointFailureManager {
      * @param executionAttemptID the execution attempt id, as a safe guard.
      * @param job the JobID.
      * @param pendingCheckpointStats the pending checkpoint statistics.
+     * @param statsTracker the tracker for checkpoint statistics.
      */
     public void handleCheckpointException(
             @Nullable PendingCheckpoint pendingCheckpoint,
@@ -95,12 +96,13 @@ public class CheckpointFailureManager {
             CheckpointException exception,
             @Nullable ExecutionAttemptID executionAttemptID,
             JobID job,
-            @Nullable PendingCheckpointStats pendingCheckpointStats) {
+            @Nullable PendingCheckpointStats pendingCheckpointStats,
+            CheckpointStatsTracker statsTracker) {
         long checkpointId =
                 pendingCheckpoint == null
                         ? UNKNOWN_CHECKPOINT_ID
                         : pendingCheckpoint.getCheckpointID();
-        updateStatsAfterCheckpointFailed(pendingCheckpointStats, exception);
+        updateStatsAfterCheckpointFailed(pendingCheckpointStats, statsTracker, exception);
 
         LOG.warn(
                 "Failed to trigger checkpoint {} for job {}. ({} consecutive failed attempts so far)",
@@ -124,10 +126,13 @@ public class CheckpointFailureManager {
      */
     private void updateStatsAfterCheckpointFailed(
             @Nullable PendingCheckpointStats pendingCheckpointStats,
+            CheckpointStatsTracker statsTracker,
             CheckpointException exception) {
         if (pendingCheckpointStats != null) {
             long failureTimestamp = System.currentTimeMillis();
             pendingCheckpointStats.reportFailedCheckpoint(failureTimestamp, exception);
+        } else {
+            statsTracker.reportFailedCheckpointsWithoutInProgress();
         }
     }
 
