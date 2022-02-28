@@ -405,7 +405,7 @@ Schema schema = ...;
 DataStream<GenericRecord> input = ...;
 
 final FileSink<GenericRecord> sink = FileSink
-	.forBulkFormat(outputBasePath, ParquetAvroWriters.forGenericRecord(schema))
+	.forBulkFormat(outputBasePath, AvroParquetWriters.forGenericRecord(schema))
 	.build();
 
 input.sinkTo(sink);
