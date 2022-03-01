@@ -44,6 +44,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 /** Tests for classloading and class loader utilities. */
 public class FlinkUserCodeClassLoadersTest extends TestLogger {
@@ -282,6 +283,26 @@ public class FlinkUserCodeClassLoadersTest extends TestLogger {
         // after closing, no loaded class should be reachable anymore
         expectedException.expect(isA(IllegalStateException.class));
         childClassLoader.loadClass(className);
+    }
+
+    @Test
+    public void testParallelCapable() {
+        // It will be true only if all the super classes (except class Object) of the caller are
+        // registered as parallel capable.
+        assertTrue(TestParentFirstClassLoader.isParallelCapable);
+    }
+
+    private static class TestParentFirstClassLoader
+            extends FlinkUserCodeClassLoaders.ParentFirstClassLoader {
+        public static boolean isParallelCapable;
+
+        static {
+            isParallelCapable = ClassLoader.registerAsParallelCapable();
+        }
+
+        TestParentFirstClassLoader() {
+            super(null, null, null);
+        }
     }
 
     private static class ClassToLoad {}
