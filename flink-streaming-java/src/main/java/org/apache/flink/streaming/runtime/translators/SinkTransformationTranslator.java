@@ -140,8 +140,7 @@ public class SinkTransformationTranslator<Input, Output>
                                 input.transform(
                                         WRITER_NAME,
                                         CommittableMessageTypeInfo.noOutput(),
-                                        new SinkWriterOperatorFactory<>(
-                                                sink, isBatchMode, isCheckpointingEnabled)));
+                                        new SinkWriterOperatorFactory<>(sink)));
             }
 
             final List<Transformation<?>> sinkTransformations =
@@ -172,8 +171,7 @@ public class SinkTransformationTranslator<Input, Output>
                                     input.transform(
                                             WRITER_NAME,
                                             typeInformation,
-                                            new SinkWriterOperatorFactory<>(
-                                                    sink, isBatchMode, isCheckpointingEnabled)));
+                                            new SinkWriterOperatorFactory<>(sink)));
 
             DataStream<CommittableMessage<CommT>> precommitted = addFailOverRegion(written);
 
@@ -193,7 +191,8 @@ public class SinkTransformationTranslator<Input, Output>
                                             typeInformation,
                                             new CommitterOperatorFactory<>(
                                                     committingSink,
-                                                    isBatchMode || isCheckpointingEnabled)));
+                                                    isBatchMode,
+                                                    isCheckpointingEnabled)));
 
             if (sink instanceof WithPostCommitTopology) {
                 DataStream<CommittableMessage<CommT>> postcommitted = addFailOverRegion(committed);
