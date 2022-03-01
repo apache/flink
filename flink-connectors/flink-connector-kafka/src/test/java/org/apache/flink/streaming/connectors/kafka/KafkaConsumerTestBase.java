@@ -1470,13 +1470,10 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
         createTestTopic(topic, parallelism, 1);
 
+        StreamExecutionEnvironment sourceEnv = StreamExecutionEnvironment.getExecutionEnvironment();
+        sourceEnv.enableCheckpointing(100);
         DataGenerators.generateRandomizedIntegerSequence(
-                StreamExecutionEnvironment.getExecutionEnvironment(),
-                kafkaServer,
-                topic,
-                parallelism,
-                numElementsPerPartition,
-                true);
+                sourceEnv, kafkaServer, topic, parallelism, numElementsPerPartition, true);
 
         // find leader to shut down
         int leaderId = kafkaServer.getLeaderToShutDown(topic);
