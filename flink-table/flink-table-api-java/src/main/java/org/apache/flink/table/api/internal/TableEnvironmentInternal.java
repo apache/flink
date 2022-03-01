@@ -25,6 +25,7 @@ import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -123,8 +124,8 @@ public interface TableEnvironmentInternal extends TableEnvironment {
     CompiledPlan compilePlan(List<ModifyOperation> operations);
 
     @Experimental
-    TableResultInternal executePlan(CompiledPlanInternal plan);
+    TableResultInternal executePlan(InternalPlan plan);
 
     @Experimental
-    String explainPlan(CompiledPlanInternal compiledPlan, ExplainDetail... extraDetails);
+    String explainPlan(InternalPlan compiledPlan, ExplainDetail... extraDetails);
 }

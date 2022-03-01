@@ -27,7 +27,7 @@ import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
-import org.apache.flink.table.planner.plan.ExecNodeGraphCompiledPlan;
+import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.StringUtils;
@@ -82,7 +82,7 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
         List<Transformation<?>> transformations =
                 ((PlannerBase) ((TableEnvironmentImpl) tableEnv).getPlanner())
                         .translateToPlan(
-                                ((ExecNodeGraphCompiledPlan) compiledPlan).getExecNodeGraph());
+                                ((ExecNodeGraphInternalPlan) compiledPlan).getExecNodeGraph());
 
         transformations.stream()
                 .flatMap(t -> t.getTransitivePredecessors().stream())
