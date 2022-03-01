@@ -639,7 +639,8 @@ public class HiveParserRexNodeConverter {
                                     HiveParserTypeConverter.convert(
                                             commonType, cluster.getTypeFactory())),
                             Collections.singletonList(commonType),
-                            null);
+                            funcConverter,
+                            true);
             // create RexNode for LHS
             RexNode lhsRex = convert(lhsDesc);
 

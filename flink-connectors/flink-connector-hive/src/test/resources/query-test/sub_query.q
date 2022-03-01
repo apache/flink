@@ -15,3 +15,15 @@ select * from src x join src y on x.key = y.key where exists (select * from src 
 select * from (select x.key from src x);
 
 [+I[1], +I[2], +I[3]]
+
+SELECT * FROM bar WHERE i IN (SELECT x FROM t_sub_query);
+
+[+I[2, b]]
+
+SELECT i, count(s) FROM bar group by i having i NOT IN (SELECT x FROM t_sub_query);
+
+[+I[1, 2]]
+
+select * from foo where x IN (select count(*) from foo pp where pp.x = foo.x);
+
+[+I[1, 1]]
