@@ -96,7 +96,7 @@ env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2)
 env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
 // 使用 externalized checkpoints，这样 checkpoint 在作业取消后仍就会被保留
-env.getCheckpointConfig().enableExternalizedCheckpoints(
+env.getCheckpointConfig().setExternalizedCheckpointCleanup(
         ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
 // 开启实验性的 unaligned checkpoints
@@ -128,7 +128,7 @@ env.getCheckpointConfig().setTolerableCheckpointFailureNumber(2)
 env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 // 使用 externalized checkpoints，这样 checkpoint 在作业取消后仍就会被保留
-env.getCheckpointConfig().enableExternalizedCheckpoints(
+env.getCheckpointConfig().setExternalizedCheckpointCleanup(
   ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
 // 开启实验性的 unaligned checkpoints
