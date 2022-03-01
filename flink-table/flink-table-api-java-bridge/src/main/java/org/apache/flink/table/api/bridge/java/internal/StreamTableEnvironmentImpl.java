@@ -116,17 +116,11 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
         final FunctionCatalog functionCatalog =
                 new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
-        final Executor executor =
-                lookupExecutor(classLoader, settings.getExecutor(), executionEnvironment);
+        final Executor executor = lookupExecutor(classLoader, executionEnvironment);
 
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
-                        settings.getPlanner(),
-                        executor,
-                        tableConfig,
-                        moduleManager,
-                        catalogManager,
-                        functionCatalog);
+                        executor, tableConfig, moduleManager, catalogManager, functionCatalog);
 
         return new StreamTableEnvironmentImpl(
                 catalogManager,

@@ -106,7 +106,7 @@ public class ExecutionContext {
 
         StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();
 
-        final Executor executor = lookupExecutor(settings.getExecutor(), streamExecEnv);
+        final Executor executor = lookupExecutor(streamExecEnv);
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,
@@ -130,12 +130,7 @@ public class ExecutionContext {
 
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
-                        settings.getPlanner(),
-                        executor,
-                        tableConfig,
-                        moduleManager,
-                        catalogManager,
-                        functionCatalog);
+                        executor, tableConfig, moduleManager, catalogManager, functionCatalog);
 
         return new StreamTableEnvironmentImpl(
                 catalogManager,
@@ -149,12 +144,11 @@ public class ExecutionContext {
                 userClassLoader);
     }
 
-    private Executor lookupExecutor(
-            String executorIdentifier, StreamExecutionEnvironment executionEnvironment) {
+    private Executor lookupExecutor(StreamExecutionEnvironment executionEnvironment) {
         try {
             final ExecutorFactory executorFactory =
                     FactoryUtil.discoverFactory(
-                            classLoader, ExecutorFactory.class, executorIdentifier);
+                            classLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
             final Method createMethod =
                     executorFactory
                             .getClass()

@@ -25,6 +25,7 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
@@ -75,8 +76,6 @@ import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
-import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -89,6 +88,11 @@ import static org.junit.Assert.fail;
 
 /** Test Hive syntax when Hive dialect is used. */
 public class HiveDialectITCase {
+
+    private static final String DEFAULT_BUILTIN_CATALOG =
+            TableConfigOptions.TABLE_CATALOG_NAME.defaultValue();
+    private static final String DEFAULT_BUILTIN_DATABASE =
+            TableConfigOptions.TABLE_DATABASE_NAME.defaultValue();
 
     private TableEnvironment tableEnv;
     private HiveCatalog hiveCatalog;

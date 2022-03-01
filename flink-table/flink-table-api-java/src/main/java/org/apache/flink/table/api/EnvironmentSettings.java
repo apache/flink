@@ -18,17 +18,10 @@
 
 package org.apache.flink.table.api;
 
-import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.delegation.ExecutorFactory;
-import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.delegation.PlannerFactory;
 import org.apache.flink.table.functions.UserDefinedFunction;
-
-import javax.annotation.Nullable;
 
 import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.api.common.RuntimeExecutionMode.STREAMING;
@@ -63,12 +56,6 @@ public class EnvironmentSettings {
     public static final String DEFAULT_BUILTIN_CATALOG = "default_catalog";
     public static final String DEFAULT_BUILTIN_DATABASE = "default_database";
 
-    /** Factory identifier of the {@link Planner} to use. */
-    private final String planner;
-
-    /** Factory identifier of the {@link Executor} to use. */
-    private final String executor;
-
     /**
      * Specifies the name of the initial catalog to be created when instantiating {@link
      * TableEnvironment}.
@@ -88,13 +75,7 @@ public class EnvironmentSettings {
     private final boolean isStreamingMode;
 
     private EnvironmentSettings(
-            String planner,
-            @Nullable String executor,
-            String builtInCatalogName,
-            String builtInDatabaseName,
-            boolean isStreamingMode) {
-        this.planner = planner;
-        this.executor = executor;
+            String builtInCatalogName, String builtInDatabaseName, boolean isStreamingMode) {
         this.builtInCatalogName = builtInCatalogName;
         this.builtInDatabaseName = builtInDatabaseName;
         this.isStreamingMode = isStreamingMode;
@@ -180,23 +161,9 @@ public class EnvironmentSettings {
         return isStreamingMode;
     }
 
-    /** Returns the identifier of the {@link Planner} to be used. */
-    @Internal
-    public String getPlanner() {
-        return planner;
-    }
-
-    /** Returns the {@link Executor} that should submit and execute table programs. */
-    @Internal
-    public String getExecutor() {
-        return executor;
-    }
-
     /** A builder for {@link EnvironmentSettings}. */
     @PublicEvolving
     public static class Builder {
-        private final String planner = PlannerFactory.DEFAULT_IDENTIFIER;
-        private final String executor = ExecutorFactory.DEFAULT_IDENTIFIER;
 
         private String builtInCatalogName = DEFAULT_BUILTIN_CATALOG;
         private String builtInDatabaseName = DEFAULT_BUILTIN_DATABASE;
@@ -255,7 +222,7 @@ public class EnvironmentSettings {
         /** Returns an immutable instance of {@link EnvironmentSettings}. */
         public EnvironmentSettings build() {
             return new EnvironmentSettings(
-                    planner, executor, builtInCatalogName, builtInDatabaseName, isStreamingMode);
+                    builtInCatalogName, builtInDatabaseName, isStreamingMode);
         }
     }
 }
