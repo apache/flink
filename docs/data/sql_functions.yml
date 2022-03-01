@@ -380,8 +380,7 @@ temporal:
       An interval range might be DAY, MINUTE, DAY TO HOUR, or DAY TO SECOND for intervals of milliseconds; YEAR or YEAR TO MONTH for intervals of months.
 
       E.g., INTERVAL '10 00:00:00.004' DAY TO SECOND, INTERVAL '10' DAY, or INTERVAL '2-10' YEAR TO MONTH return intervals.
-  - sql: YEAR(date)
-    table: |
+  - table: |
       NUMERIC.year
       NUMERIC.years
     description: Creates an interval of months for NUMERIC years.
