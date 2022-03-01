@@ -18,12 +18,6 @@
 
 package org.apache.flink.table.planner.delegation.hive.copy;
 
-import org.apache.calcite.rel.logical.LogicalFilter;
-import org.apache.calcite.rel.logical.LogicalJoin;
-import org.apache.calcite.rex.RexCorrelVariable;
-import org.apache.calcite.rex.RexFieldAccess;
-import org.apache.calcite.rex.RexSubQuery;
-
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.planner.delegation.hive.HiveParserRexNodeConverter;
@@ -46,12 +40,17 @@ import org.antlr.runtime.tree.TreeVisitorAction;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.CorrelationId;
+import org.apache.calcite.rel.logical.LogicalFilter;
+import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexCall;
+import org.apache.calcite.rex.RexCorrelVariable;
+import org.apache.calcite.rex.RexFieldAccess;
 import org.apache.calcite.rex.RexFieldCollation;
 import org.apache.calcite.rex.RexLiteral;
 import org.apache.calcite.rex.RexNode;
+import org.apache.calcite.rex.RexSubQuery;
 import org.apache.calcite.rex.RexWindowBound;
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlKind;
@@ -1879,22 +1878,26 @@ public class HiveParserBaseSemanticAnalyzer {
                 return correlationVariables;
             }
             RelNode input = rexSubQuery.rel.getInput(0);
-            while (input != null && !(input instanceof LogicalFilter) && input.getInputs().size() >= 1) {
+            while (input != null
+                    && !(input instanceof LogicalFilter)
+                    && input.getInputs().size() >= 1) {
                 // we don't expect corr vars within UNION for now
                 if (input.getInputs().size() > 1) {
                     if (input instanceof LogicalJoin) {
-                        correlationVariables.addAll(findCorrelatedVar(((LogicalJoin) input).getCondition()));
+                        correlationVariables.addAll(
+                                findCorrelatedVar(((LogicalJoin) input).getCondition()));
                     }
                     return correlationVariables;
                 }
                 input = input.getInput(0);
             }
             if (input instanceof LogicalFilter) {
-                correlationVariables.addAll(findCorrelatedVar(((LogicalFilter) input).getCondition()));
+                correlationVariables.addAll(
+                        findCorrelatedVar(((LogicalFilter) input).getCondition()));
             }
             return correlationVariables;
         }
-        //AND, NOT etc
+        // AND, NOT etc
         if (rexNode instanceof RexCall) {
             int numOperands = ((RexCall) rexNode).getOperands().size();
             for (int i = 0; i < numOperands; i++) {
@@ -1907,8 +1910,8 @@ public class HiveParserBaseSemanticAnalyzer {
 
     private static Set<CorrelationId> findCorrelatedVar(RexNode node) {
         Set<CorrelationId> allVars = new HashSet<>();
-        if(node instanceof RexCall) {
-            RexCall nd = (RexCall)node;
+        if (node instanceof RexCall) {
+            RexCall nd = (RexCall) node;
             for (RexNode rn : nd.getOperands()) {
                 if (rn instanceof RexFieldAccess) {
                     final RexNode ref = ((RexFieldAccess) rn).getReferenceExpr();

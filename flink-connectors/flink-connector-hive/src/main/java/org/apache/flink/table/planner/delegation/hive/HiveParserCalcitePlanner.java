@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.planner.delegation.hive;
 
-import com.google.common.collect.ImmutableSet;
-
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
@@ -77,7 +75,6 @@ import org.apache.calcite.rel.core.SetOp;
 import org.apache.calcite.rel.core.Sort;
 import org.apache.calcite.rel.logical.LogicalAggregate;
 import org.apache.calcite.rel.logical.LogicalCorrelate;
-import org.apache.calcite.rel.logical.LogicalFilter;
 import org.apache.calcite.rel.logical.LogicalIntersect;
 import org.apache.calcite.rel.logical.LogicalJoin;
 import org.apache.calcite.rel.logical.LogicalMinus;
@@ -912,9 +909,11 @@ public class HiveParserCalcitePlanner {
         RexNode factoredFilterExpr =
                 RexUtil.pullFactors(cluster.getRexBuilder(), convertedFilterExpr)
                         .accept(funcConverter);
-        ImmutableSet<CorrelationId> variablesSet =
-                ImmutableSet.copyOf(HiveParserBaseSemanticAnalyzer.getVariablesSet(factoredFilterExpr));
-        RelNode filterRel = LogicalFilter.create(srcRel, factoredFilterExpr, variablesSet);
+        RelNode filterRel =
+                HiveParserUtils.genFilterRelNode(
+                        srcRel,
+                        factoredFilterExpr,
+                        HiveParserBaseSemanticAnalyzer.getVariablesSet(factoredFilterExpr));
         relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));
         relToHiveColNameCalcitePosMap.put(filterRel, hiveColNameToCalcitePos);
 
@@ -1074,9 +1073,11 @@ public class HiveParserCalcitePlanner {
                             .convert(subQueryExpr)
                             .accept(funcConverter);
 
-            ImmutableSet<CorrelationId> variablesSet =
-                    ImmutableSet.copyOf(HiveParserBaseSemanticAnalyzer.getVariablesSet(convertedFilterLHS));
-            RelNode filterRel = LogicalFilter.create(srcRel, convertedFilterLHS, variablesSet);
+            RelNode filterRel =
+                    HiveParserUtils.genFilterRelNode(
+                            srcRel,
+                            convertedFilterLHS,
+                            HiveParserBaseSemanticAnalyzer.getVariablesSet(convertedFilterLHS));
 
             relToHiveColNameCalcitePosMap.put(filterRel, relToHiveColNameCalcitePosMap.get(srcRel));
             relToRowResolver.put(filterRel, relToRowResolver.get(srcRel));
