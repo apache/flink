@@ -166,10 +166,10 @@ esSinkBuilder.setBulkFlushMaxActions(1);
 // 为内部创建的 REST 客户端提供一个自定义配置信息的 RestClientFactory
 esSinkBuilder.setRestClientFactory(
   restClientBuilder -> {
-    restClientBuilder.setDefaultHeaders(...)
-    restClientBuilder.setMaxRetryTimeoutMillis(...)
-    restClientBuilder.setPathPrefix(...)
-    restClientBuilder.setHttpClientConfigCallback(...)
+    restClientBuilder.setDefaultHeaders(...);
+    restClientBuilder.setMaxRetryTimeoutMillis(...);
+    restClientBuilder.setPathPrefix(...);
+    restClientBuilder.setHttpClientConfigCallback(...);
   }
 );
 
