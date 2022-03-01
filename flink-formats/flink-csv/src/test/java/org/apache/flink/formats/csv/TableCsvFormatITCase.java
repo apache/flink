@@ -45,7 +45,7 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
         createSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath = createSinkTable("MySink", "a bigint", "c varchar");
 
-        tableEnv.compilePlanSql("insert into MySink select a, c from MyTable").execute().await();
+        tableEnv.executeSql("insert into MySink select a, c from MyTable").await();
 
         assertResult(Arrays.asList("1,hi", "2,hello", "3,hello world"), sinkPath);
     }
@@ -64,7 +64,7 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
 
         File sinkPath = createSinkTable("MySink", "a bigint", "m varchar");
 
-        tableEnv.compilePlanSql("insert into MySink select a, m from MyTable").execute().await();
+        tableEnv.executeSql("insert into MySink select a, m from MyTable").await();
 
         assertResult(Arrays.asList("1,Hi", "2,Hello", "3,Hello world"), sinkPath);
     }
@@ -75,9 +75,7 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
         createSourceTable("MyTable", data, "a bigint", "b int not null", "c varchar");
         File sinkPath = createSinkTable("MySink", "a bigint", "b int", "c varchar");
 
-        tableEnv.compilePlanSql("insert into MySink select * from MyTable where a > 1")
-                .execute()
-                .await();
+        tableEnv.executeSql("insert into MySink select * from MyTable where a > 1").await();
 
         assertResult(Arrays.asList("2,1,hello", "3,2,hello world"), sinkPath);
     }
@@ -96,9 +94,7 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
                 });
         File sinkPath = createSinkTable("MySink", "a int", "p bigint", "c varchar");
 
-        tableEnv.compilePlanSql("insert into MySink select * from MyTable where p = 2")
-                .execute()
-                .await();
+        tableEnv.executeSql("insert into MySink select * from MyTable where p = 2").await();
 
         assertResult(Arrays.asList("2,2,Hello", "3,2,Hello world"), sinkPath);
     }
@@ -123,9 +119,7 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
 
         File sinkPath = createSinkTable("MySink", "a int", "b bigint", "ts timestamp(3)");
 
-        tableEnv.compilePlanSql("insert into MySink select a, b, ts from MyTable where b = 3")
-                .execute()
-                .await();
+        tableEnv.executeSql("insert into MySink select a, b, ts from MyTable where b = 3").await();
 
         assertResult(
                 Arrays.asList(
@@ -159,9 +153,7 @@ public class TableCsvFormatITCase extends JsonPlanTestBase {
 
         File sinkPath = createSinkTable("MySink", "a int", "ts timestamp(3)");
 
-        tableEnv.compilePlanSql(
-                        "insert into MySink select a, ts from MyTable where b = 3 and a > 4")
-                .execute()
+        tableEnv.executeSql("insert into MySink select a, ts from MyTable where b = 3 and a > 4")
                 .await();
 
         assertResult(

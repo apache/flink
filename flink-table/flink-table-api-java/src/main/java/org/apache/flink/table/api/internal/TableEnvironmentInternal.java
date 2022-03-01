@@ -22,7 +22,6 @@ import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
-import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -120,44 +119,12 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      */
     void registerTableSinkInternal(String name, TableSink<?> configuredSink);
 
-    /**
-     * Compile a plan staring from a list of operations.
-     *
-     * <p><b>Note:</b> This API is <b>experimental</b> and subject to change in future releases.
-     */
     @Experimental
     CompiledPlan compilePlan(List<ModifyOperation> operations);
 
-    /**
-     * Executes the provided {@link CompiledPlan}.
-     *
-     * <p>Compiled plans can be persisted and reloaded across Flink versions. They describe static
-     * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
-     * {@link CompiledPlan} and the website documentation for more information.
-     *
-     * <p>If a job is resumed from a savepoint, it will eventually resume the execution.
-     *
-     * <p>Note: The compiled plan feature is not supported in batch mode.
-     *
-     * @see #compilePlanSql(String)
-     * @see #loadPlan(PlanReference)
-     */
     @Experimental
     TableResultInternal executePlan(CompiledPlanInternal plan);
 
-    /**
-     * Returns the AST of the specified statement and the execution plan to compute the result of
-     * the given statement.
-     *
-     * <p>Compiled plans can be persisted and reloaded across Flink versions. They describe static
-     * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
-     * {@link CompiledPlan} and the website documentation for more information.
-     *
-     * <p>Note: The compiled plan feature is not supported in batch mode.
-     *
-     * @see #compilePlanSql(String)
-     * @see #loadPlan(PlanReference)
-     */
     @Experimental
     String explainPlan(CompiledPlanInternal compiledPlan, ExplainDetail... extraDetails);
 }

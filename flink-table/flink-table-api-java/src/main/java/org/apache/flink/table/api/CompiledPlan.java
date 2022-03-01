@@ -27,8 +27,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Represents an executable entity that has been compiled from a Table & SQL API pipeline
- * definition. It encodes operators, expressions, functions, data types, and table connectors.
+ * Represents an immutable, fully optimized and executable entity that has been compiled from a
+ * Table & SQL API pipeline definition. It encodes operators, expressions, functions, data types,
+ * and table connectors.
  *
  * <p>Every new Flink version might introduce improved optimizer rules, more efficient operators,
  * and other changes that impact the behavior of previously defined pipelines. In order to ensure

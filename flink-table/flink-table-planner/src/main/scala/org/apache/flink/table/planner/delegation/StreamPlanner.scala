@@ -158,7 +158,7 @@ class StreamPlanner(
   }
 
   override def compilePlan(
-                            modifyOperations: util.List[ModifyOperation]): CompiledPlanInternalFactory = {
+     modifyOperations: util.List[ModifyOperation]): CompiledPlanInternalFactory = {
     validateAndOverrideConfiguration()
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
@@ -214,7 +214,7 @@ class StreamPlanner(
   }
 
   def createCompiledPlanInternalFactory(
-                                         ctx: SerdeContext, execGraph: ExecNodeGraph): CompiledPlanInternalFactory = {
+     ctx: SerdeContext, execGraph: ExecNodeGraph): CompiledPlanInternalFactory = {
     (tEnv: TableEnvironmentInternal) =>
       new ExecNodeGraphCompiledPlan(
         tEnv,

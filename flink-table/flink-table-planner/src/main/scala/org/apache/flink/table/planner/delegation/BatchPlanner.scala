@@ -141,7 +141,7 @@ class BatchPlanner(
   }
 
   override def compilePlan(
-                            modifyOperations: util.List[ModifyOperation]): CompiledPlanInternalFactory =
+     modifyOperations: util.List[ModifyOperation]): CompiledPlanInternalFactory =
     throw new UnsupportedOperationException(
       "The compiled plan feature is not supported in batch mode.")
 
