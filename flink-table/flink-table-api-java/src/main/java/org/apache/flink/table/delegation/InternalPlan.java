@@ -40,7 +40,8 @@ public interface InternalPlan {
     /**
      * Note that {@code ignoreIfExists} has precedence over {@code failIfExists}.
      *
-     * @see CompiledPlan#writeToFile(File, boolean) */
+     * @see CompiledPlan#writeToFile(File, boolean)
+     */
     void writeToFile(File file, boolean ignoreIfExists, boolean failIfExists);
 
     /** @see CompiledPlan#getFlinkVersion() */
