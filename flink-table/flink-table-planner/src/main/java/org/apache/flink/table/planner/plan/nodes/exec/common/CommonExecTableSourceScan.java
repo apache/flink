@@ -133,8 +133,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         } else if (provider instanceof DataStreamScanProvider) {
             Transformation<RowData> transformation =
                     ((DataStreamScanProvider) provider)
-                            .produceDataStream(
-                                    createProviderContext(planner.getConfiguration()), env)
+                            .produceDataStream(createProviderContext(config), env)
                             .getTransformation();
             meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
@@ -142,8 +141,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         } else if (provider instanceof TransformationScanProvider) {
             final Transformation<RowData> transformation =
                     ((TransformationScanProvider) provider)
-                            .createTransformation(
-                                    createProviderContext(planner.getConfiguration()));
+                            .createTransformation(createProviderContext(config));
             meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
             return transformation;
