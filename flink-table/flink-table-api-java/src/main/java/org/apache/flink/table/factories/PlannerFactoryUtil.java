@@ -35,7 +35,6 @@ public class PlannerFactoryUtil {
 
     /** Discovers a planner factory and creates a planner instance. */
     public static Planner createPlanner(
-            String plannerIdentifier,
             Executor executor,
             TableConfig tableConfig,
             ModuleManager moduleManager,
@@ -45,7 +44,7 @@ public class PlannerFactoryUtil {
                 FactoryUtil.discoverFactory(
                         Thread.currentThread().getContextClassLoader(),
                         PlannerFactory.class,
-                        plannerIdentifier);
+                        PlannerFactory.DEFAULT_IDENTIFIER);
 
         final Context context =
                 new DefaultPlannerContext(

@@ -27,6 +27,7 @@ import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -85,6 +86,11 @@ import static org.assertj.core.api.Assertions.assertThat;
  * setup
  */
 public class HiveCatalogITCase {
+
+    private static final String DEFAULT_BUILTIN_CATALOG =
+            TableConfigOptions.TABLE_CATALOG_NAME.defaultValue();
+    private static final String DEFAULT_BUILTIN_DATABASE =
+            TableConfigOptions.TABLE_DATABASE_NAME.defaultValue();
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -472,15 +478,14 @@ public class HiveCatalogITCase {
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql("create table generic_table (x int) with ('connector'='COLLECTION')");
-        tableEnv.useCatalog(EnvironmentSettings.DEFAULT_BUILTIN_CATALOG);
+        tableEnv.useCatalog(DEFAULT_BUILTIN_CATALOG);
         tableEnv.executeSql(
                 String.format(
                         "create table copy like `%s`.`default`.generic_table",
                         hiveCatalog.getName()));
-        Catalog builtInCat = tableEnv.getCatalog(EnvironmentSettings.DEFAULT_BUILTIN_CATALOG).get();
+        Catalog builtInCat = tableEnv.getCatalog(DEFAULT_BUILTIN_CATALOG).get();
         CatalogBaseTable catalogTable =
-                builtInCat.getTable(
-                        new ObjectPath(EnvironmentSettings.DEFAULT_BUILTIN_DATABASE, "copy"));
+                builtInCat.getTable(new ObjectPath(DEFAULT_BUILTIN_DATABASE, "copy"));
         assertThat(catalogTable.getOptions()).hasSize(1);
         assertThat(catalogTable.getOptions())
                 .containsEntry(FactoryUtil.CONNECTOR.key(), "COLLECTION");
