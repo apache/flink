@@ -108,7 +108,8 @@ public class ConsumerRegionGroupExecutionViewMaintainerTest extends TestLogger {
         consumerRegionGroupExecutionView.add(consumerRegion);
 
         consumerRegionGroupExecutionViewMaintainer =
-                new ConsumerRegionGroupExecutionViewMaintainer(
-                        Collections.singletonList(consumerRegionGroupExecutionView));
+                new ConsumerRegionGroupExecutionViewMaintainer();
+        consumerRegionGroupExecutionViewMaintainer.notifyNewRegionGroupExecutionViews(
+                Collections.singletonList(consumerRegionGroupExecutionView));
     }
 }

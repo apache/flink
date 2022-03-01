@@ -19,9 +19,10 @@
 package org.apache.flink.runtime.jobmaster.slotpool;
 
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
-import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -30,15 +31,15 @@ import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 /**
  * Tests for {@link PhysicalSlotProviderImpl} using {@link
  * EvenlySpreadOutLocationPreferenceSlotSelectionStrategy}.
  */
-public class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
+public class PhysicalSlotProviderImplWithSpreadOutStrategyTest extends TestLogger {
 
     @Rule
     public PhysicalSlotProviderResource physicalSlotProviderResource =
@@ -83,7 +84,7 @@ public class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
         PhysicalSlotRequest request1 =
                 new PhysicalSlotRequest(
                         new SlotRequestId(),
-                        SlotProfile.preferredLocality(
+                        SlotProfileTestingUtils.preferredLocality(
                                 ResourceProfile.ANY,
                                 Collections.singleton(preferredTaskManagerLocation)),
                         false);
@@ -109,8 +110,9 @@ public class PhysicalSlotProviderImplWithSpreadOutStrategyTest {
     @Test
     public void testIndividualBatchSlotRequestTimeoutCheckIsDisabledOnAllocatingNewSlots()
             throws Exception {
-        TestingSlotPoolImpl slotPool =
-                new SlotPoolBuilder(physicalSlotProviderResource.getMainThreadExecutor()).build();
+        DeclarativeSlotPoolBridge slotPool =
+                new DeclarativeSlotPoolBridgeBuilder()
+                        .buildAndStart(physicalSlotProviderResource.getMainThreadExecutor());
         assertThat(slotPool.isBatchSlotRequestTimeoutCheckEnabled(), is(true));
 
         new PhysicalSlotProviderImpl(

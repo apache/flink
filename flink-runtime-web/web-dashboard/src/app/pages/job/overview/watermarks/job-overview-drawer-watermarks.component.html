@@ -21,9 +21,10 @@
   [nzSize]="'small'"
   [nzLoading]="isLoading"
   [nzData]="listOfWaterMark"
-  [nzScroll]="{y:'calc( 100% - 35px )'}"
+  [nzScroll]="{ y: 'calc( 100% - 35px )' }"
   [nzFrontPagination]="false"
-  [nzShowPagination]="false">
+  [nzShowPagination]="false"
+>
   <thead>
     <tr>
       <th nzWidth="50%">SubTask</th>
@@ -31,7 +32,7 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let watermark of listOfWaterMark; trackBy:trackWatermarkBy;">
+    <tr *ngFor="let watermark of listOfWaterMark; trackBy: trackBySubtaskIndex">
       <td>{{ watermark.subTaskIndex }}</td>
       <td>{{ watermark.watermark | humanizeWatermark }}</td>
     </tr>

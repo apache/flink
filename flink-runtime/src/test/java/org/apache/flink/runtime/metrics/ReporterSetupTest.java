@@ -40,6 +40,7 @@ import java.util.Optional;
 import java.util.Properties;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.collection.IsMapContaining.hasEntry;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.hamcrest.core.IsInstanceOf.instanceOf;
 import static org.junit.Assert.assertEquals;
@@ -430,6 +431,39 @@ public class ReporterSetupTest extends TestLogger {
                 (InstantiationTypeTrackingTestReporter) reporterSetup.getReporter();
 
         assertTrue(metricReporter.createdByFactory);
+    }
+
+    @Test
+    public void testAdditionalVariablesParsing() {
+        final String tag1 = "foo";
+        final String tagValue1 = "bar";
+        final String tag2 = "fizz";
+        final String tagValue2 = "buzz";
+        final Configuration config = new Configuration();
+        config.setString(
+                ConfigConstants.METRICS_REPORTER_PREFIX
+                        + "test."
+                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                TestReporterFactory.class.getName());
+        config.setString(
+                ConfigConstants.METRICS_REPORTER_PREFIX
+                        + "test."
+                        + ConfigConstants.METRICS_REPORTER_ADDITIONAL_VARIABLES,
+                String.join(",", tag1 + ":" + tagValue1, tag2 + ":" + tagValue2));
+
+        final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
+
+        assertEquals(1, reporterSetups.size());
+
+        final ReporterSetup reporterSetup = reporterSetups.get(0);
+
+        assertThat(
+                reporterSetup.getAdditionalVariables(),
+                hasEntry(ScopeFormat.asVariable(tag1), tagValue1));
+
+        assertThat(
+                reporterSetup.getAdditionalVariables(),
+                hasEntry(ScopeFormat.asVariable(tag2), tagValue2));
     }
 
     /** Factory that exposed the last provided metric config. */

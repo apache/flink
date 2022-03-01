@@ -49,7 +49,7 @@ public class JdbcDmlOptions extends JdbcTypedQueryOptions {
             String[] keyFields) {
         super(fieldTypes);
         this.tableName = Preconditions.checkNotNull(tableName, "table is empty");
-        this.dialect = Preconditions.checkNotNull(dialect, "dialect name is empty");
+        this.dialect = Preconditions.checkNotNull(dialect, "dialect is empty");
         this.fieldNames = Preconditions.checkNotNull(fieldNames, "field names is empty");
         this.keyFields = keyFields;
     }
@@ -82,12 +82,12 @@ public class JdbcDmlOptions extends JdbcTypedQueryOptions {
         return Arrays.equals(fieldNames, that.fieldNames)
                 && Arrays.equals(keyFields, that.keyFields)
                 && Objects.equals(tableName, that.tableName)
-                && Objects.equals(dialect, that.dialect);
+                && Objects.equals(dialect.dialectName(), that.dialect.dialectName());
     }
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(tableName, dialect);
+        int result = Objects.hash(tableName, dialect.dialectName());
         result = 31 * result + Arrays.hashCode(fieldNames);
         result = 31 * result + Arrays.hashCode(keyFields);
         return result;

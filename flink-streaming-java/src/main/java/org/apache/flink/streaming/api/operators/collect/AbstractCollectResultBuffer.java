@@ -128,6 +128,9 @@ public abstract class AbstractCollectResultBuffer<T> {
         if (!results.isEmpty()) {
             // response contains some data, add them to buffer
             int addStart = (int) (offset - responseOffset);
+            if (addStart > results.size()) {
+                return;
+            }
             List<T> addedResults = results.subList(addStart, results.size());
             buffer.addAll(addedResults);
             offset += addedResults.size();

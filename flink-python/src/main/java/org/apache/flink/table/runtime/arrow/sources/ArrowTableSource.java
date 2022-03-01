@@ -21,18 +21,41 @@ package org.apache.flink.table.runtime.arrow.sources;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.sources.StreamTableSource;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.DataTypeUtils;
 
-/** An Arrow TableSource which takes {@link RowData} as the type of the produced records. */
+/** A {@link StreamTableSource} for serialized arrow record batch data. */
 @Internal
-public class ArrowTableSource extends AbstractArrowTableSource<RowData> {
+public class ArrowTableSource implements StreamTableSource<RowData> {
+
+    final DataType dataType;
+    final byte[][] arrowData;
+
     public ArrowTableSource(DataType dataType, byte[][] arrowData) {
-        super(dataType, arrowData);
+        this.dataType = dataType;
+        this.arrowData = arrowData;
+    }
+
+    @Override
+    public boolean isBounded() {
+        return true;
     }
 
     @Override
     public DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
         return execEnv.addSource(new ArrowSourceFunction(dataType, arrowData));
+    }
+
+    @Override
+    public TableSchema getTableSchema() {
+        return TableSchema.fromResolvedSchema(DataTypeUtils.expandCompositeTypeToSchema(dataType));
+    }
+
+    @Override
+    public DataType getProducedDataType() {
+        return dataType;
     }
 }

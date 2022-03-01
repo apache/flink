@@ -29,6 +29,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobCancellationException;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -61,6 +62,9 @@ import java.util.concurrent.TimeUnit;
 import scala.concurrent.duration.Deadline;
 import scala.concurrent.duration.FiniteDuration;
 
+import static org.apache.flink.changelog.fs.FsStateChangelogOptions.BASE_PATH;
+import static org.apache.flink.changelog.fs.FsStateChangelogStorageFactory.IDENTIFIER;
+import static org.apache.flink.configuration.StateChangelogOptions.STATE_CHANGE_LOG_STORAGE;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -117,6 +121,13 @@ public class ClassLoaderITCase extends TestLogger {
 
         // required as we otherwise run out of memory
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("80m"));
+
+        // If changelog backend is enabled then this test might run too slow with in-memory
+        // implementation - use fs-based instead.
+        // The randomization currently happens on the job level (environment); while this factory
+        // can only be set on the cluster level; so we do it unconditionally here.
+        config.setString(STATE_CHANGE_LOG_STORAGE, IDENTIFIER);
+        config.setString(BASE_PATH, FOLDER.newFolder().getAbsolutePath());
 
         miniClusterResource =
                 new MiniClusterResource(
@@ -404,7 +415,7 @@ public class ClassLoaderITCase extends TestLogger {
             try {
                 savepointPath =
                         clusterClient
-                                .triggerSavepoint(jobId, null)
+                                .triggerSavepoint(jobId, null, SavepointFormatType.CANONICAL)
                                 .get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
             } catch (Exception cause) {
                 LOG.info("Failed to trigger savepoint. Retrying...", cause);

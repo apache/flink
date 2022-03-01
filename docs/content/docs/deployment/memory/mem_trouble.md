@@ -72,7 +72,7 @@ is not big enough. You can try to increase the *network memory* by adjusting the
 
 ## Container Memory Exceeded
 
-If a Flink container tries to allocate memory beyond its requested size (Yarn, Mesos or Kubernetes),
+If a Flink container tries to allocate memory beyond its requested size (Yarn or Kubernetes),
 this usually indicates that Flink has not reserved enough native memory. You can observe this either by using an external
 monitoring system or from the error messages when a container gets killed by the deployment environment.
 
@@ -80,8 +80,10 @@ If you encounter this problem in the *JobManager* process, you can also enable t
 [`jobmanager.memory.enable-jvm-direct-memory-limit`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-enable-jvm-direct-memory-limit) option
 to exclude possible *JVM Direct Memory* leak.
 
-If [RocksDBStateBackend]({{< ref "docs/ops/state/state_backends" >}}#the-rocksdbstatebackend) is used, and the memory controlling is disabled,
-you can try to increase the TaskManager's [managed memory]({{< ref "docs/deployment/memory/mem_setup" >}}#managed-memory).
+If [RocksDBStateBackend]({{< ref "docs/ops/state/state_backends" >}}#the-rocksdbstatebackend) is used：
+* and memory controlling is disabled: You can try to increase the TaskManager's [managed memory]({{< ref "docs/deployment/memory/mem_setup" >}}#managed-memory).
+* and memory controlling is enabled and non-heap memory increases during savepoint or full checkpoints: This may happen due to the `glibc` memory allocator (see [glibc bug](https://sourceware.org/bugzilla/show_bug.cgi?id=15321)).
+You can try to add the [environment variable]({{< ref "docs/deployment/config" >}}#forwarding-environment-variables) `MALLOC_ARENA_MAX=1` for TaskManagers.
 
 Alternatively, you can increase the [JVM Overhead]({{< ref "docs/deployment/memory/mem_setup" >}}#capped-fractionated-components).
 

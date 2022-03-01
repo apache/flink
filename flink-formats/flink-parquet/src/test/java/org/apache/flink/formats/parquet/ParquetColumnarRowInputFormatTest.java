@@ -21,11 +21,12 @@ package org.apache.flink.formats.parquet;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
+import org.apache.flink.connector.file.table.PartitionFieldExtractor;
+import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.PartitionFieldExtractor;
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DateType;
@@ -39,6 +40,7 @@ import org.apache.flink.table.types.logical.SmallIntType;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -236,6 +238,7 @@ public class ParquetColumnarRowInputFormatTest {
                 new ParquetColumnarRowInputFormat(
                         new Configuration(),
                         RowType.of(fieldTypes, new String[] {"f7", "f2", "f4"}),
+                        null,
                         500,
                         false,
                         true);
@@ -243,12 +246,56 @@ public class ParquetColumnarRowInputFormatTest {
         AtomicInteger cnt = new AtomicInteger(0);
         forEachRemaining(
                 format.createReader(
-                        EMPTY_CONF, new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE)),
+                        EMPTY_CONF,
+                        new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE, 0, Long.MAX_VALUE)),
                 row -> {
                     int i = cnt.get();
                     assertEquals(i, row.getDouble(0), 0);
                     assertEquals((byte) i, row.getByte(1));
                     assertEquals(i, row.getInt(2));
+                    cnt.incrementAndGet();
+                });
+    }
+
+    @Test
+    public void testProjectionReadUnknownField() throws IOException {
+        int number = 1000;
+        List<Row> records = new ArrayList<>(number);
+        for (int i = 0; i < number; i++) {
+            Integer v = i;
+            records.add(newRow(v));
+        }
+
+        Path testPath =
+                createTempParquetFile(
+                        TEMPORARY_FOLDER.newFolder(), PARQUET_SCHEMA, records, rowGroupSize);
+
+        // test reader
+        LogicalType[] fieldTypes =
+                new LogicalType[] {
+                    new DoubleType(), new TinyIntType(), new IntType(), new VarCharType()
+                };
+        ParquetColumnarRowInputFormat<FileSourceSplit> format =
+                new ParquetColumnarRowInputFormat<>(
+                        new Configuration(),
+                        // f99 not exist in parquet file.
+                        RowType.of(fieldTypes, new String[] {"f7", "f2", "f4", "f99"}),
+                        null,
+                        500,
+                        false,
+                        true);
+
+        AtomicInteger cnt = new AtomicInteger(0);
+        forEachRemaining(
+                format.createReader(
+                        EMPTY_CONF,
+                        new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE, 0, Long.MAX_VALUE)),
+                row -> {
+                    int i = cnt.get();
+                    assertEquals(i, row.getDouble(0), 0);
+                    assertEquals((byte) i, row.getByte(1));
+                    assertEquals(i, row.getInt(2));
+                    assertTrue(row.isNullAt(3));
                     cnt.incrementAndGet();
                 });
     }
@@ -371,6 +418,7 @@ public class ParquetColumnarRowInputFormatTest {
                                     "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9",
                                     "f10", "f11", "f12", "f13", "f14"
                                 }),
+                        null,
                         500,
                         false,
                         true);
@@ -382,6 +430,8 @@ public class ParquetColumnarRowInputFormatTest {
             throw new IOException(e);
         }
 
+        FileStatus fileStatus = path.getFileSystem().getFileStatus(path);
+
         BulkFormat.Reader<RowData> reader =
                 format.restoreReader(
                         EMPTY_CONF,
@@ -390,6 +440,8 @@ public class ParquetColumnarRowInputFormatTest {
                                 path,
                                 splitStart,
                                 splitLength,
+                                fileStatus.getModificationTime(),
+                                fileStatus.getLen(),
                                 new String[0],
                                 new CheckpointedPosition(
                                         CheckpointedPosition.NO_OFFSET, seekToRow)));
@@ -530,16 +582,26 @@ public class ParquetColumnarRowInputFormatTest {
                 ParquetColumnarRowInputFormat.createPartitionedFormat(
                         new Configuration(),
                         producedType,
+                        InternalTypeInfo.of(producedType),
                         partitionKeys,
                         PartitionFieldExtractor.forFileSystem("my_default_value"),
                         500,
                         false,
                         true);
 
+        FileStatus fileStatus = testPath.getFileSystem().getFileStatus(testPath);
+
         AtomicInteger cnt = new AtomicInteger(0);
         forEachRemaining(
                 format.createReader(
-                        EMPTY_CONF, new FileSourceSplit("id", testPath, 0, Long.MAX_VALUE)),
+                        EMPTY_CONF,
+                        new FileSourceSplit(
+                                "id",
+                                testPath,
+                                0,
+                                Long.MAX_VALUE,
+                                fileStatus.getModificationTime(),
+                                fileStatus.getLen())),
                 row -> {
                     int i = cnt.get();
                     // common values
@@ -561,7 +623,7 @@ public class ParquetColumnarRowInputFormatTest {
                         assertEquals(13, row.getFloat(8), 0);
                         assertEquals(6.6, row.getDouble(9), 0);
                         assertEquals(
-                                SqlDateTimeUtils.dateToInternal(Date.valueOf("2020-11-23")),
+                                DateTimeUtils.toInternal(Date.valueOf("2020-11-23")),
                                 row.getInt(10));
                         assertEquals(
                                 LocalDateTime.of(1999, 1, 1, 1, 1),

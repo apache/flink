@@ -20,15 +20,13 @@ package org.apache.flink.runtime.resourcemanager.active;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.io.network.partition.ResourceManagerPartitionTrackerFactory;
@@ -43,6 +41,8 @@ import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import javax.annotation.Nullable;
 
@@ -128,7 +128,9 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
                 clusterInformation,
                 fatalErrorHandler,
                 resourceManagerMetricGroup,
-                AkkaUtils.getTimeoutAsTime(Preconditions.checkNotNull(flinkConfig)),
+                Time.fromDuration(
+                        Preconditions.checkNotNull(flinkConfig)
+                                .get(AkkaOptions.ASK_TIMEOUT_DURATION)),
                 ioExecutor);
 
         this.flinkConfig = flinkConfig;
@@ -218,6 +220,8 @@ public class ActiveResourceManager<WorkerType extends ResourceIDRetrievable>
         super.registerMetrics();
         resourceManagerMetricGroup.meter(
                 MetricNames.START_WORKER_FAILURE_RATE, startWorkerFailureRater);
+        resourceManagerMetricGroup.gauge(
+                MetricNames.NUM_PENDING_TASK_MANAGERS, pendingWorkerCounter::getTotalNum);
     }
 
     // ------------------------------------------------------------------------

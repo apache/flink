@@ -331,7 +331,7 @@ keyHasBeenSeen.clear()
 
 相比于下面这种预先定义的转换：
 
-{{< img src="/fig/transformation" alt="simple transformation" class="offset" width="45%" >}}
+{{< img src="/fig/transformation.svg" alt="simple transformation" class="offset" width="45%" >}}
 
 有时你想要更灵活地调整转换的某些功能，比如数据流的阈值、规则或者其他参数。Flink 支持这种需求的模式称为 _connected streams_ ，一个单独的算子有两个输入流。
 

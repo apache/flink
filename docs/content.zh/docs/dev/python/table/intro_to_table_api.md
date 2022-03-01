@@ -91,11 +91,11 @@ table_env.execute_sql("INSERT INTO print SELECT * FROM datagen").wait()
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# create a blink streaming TableEnvironment
+# create a streaming TableEnvironment
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 
-# or create a blink batch TableEnvironment
+# or create a batch TableEnvironment
 env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 ```
@@ -111,10 +111,6 @@ table_env = TableEnvironment.create(env_settings)
 * 配置作业，更多细节可查阅 [Python 配置]({{< ref "docs/dev/python/python_config" >}})
 * 管理 Python 依赖，更多细节可查阅 [依赖管理]({{< ref "docs/dev/python/dependency_management" >}})
 * 提交作业执行
-
-目前有2个可用的执行器 : flink 执行器 和 blink 执行器。
-
-你应该在当前程序中显式地设置使用哪个执行器，建议尽可能使用 blink 执行器。
 
 {{< top >}}
 
@@ -132,7 +128,7 @@ table_env = TableEnvironment.create(env_settings)
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# 创建 blink 批 TableEnvironment
+# 创建 批 TableEnvironment
 env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 
@@ -196,7 +192,7 @@ print('Now the type of the "id" column is %s.' % type)
 ```python
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
-# 创建 blink 流 TableEnvironment
+# 创建 流 TableEnvironment
 env_settings = EnvironmentSettings.in_streaming_mode()
 table_env = TableEnvironment.create(env_settings)
 

@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** A {@link RecoverableFsDataOutputStream} for the {@link LocalFileSystem}. */
 @Internal
-class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
+public class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 
     private final File targetFile;
 
@@ -50,7 +50,7 @@ class LocalRecoverableFsDataOutputStream extends RecoverableFsDataOutputStream {
 
     private final OutputStream fos;
 
-    LocalRecoverableFsDataOutputStream(File targetFile, File tempFile) throws IOException {
+    public LocalRecoverableFsDataOutputStream(File targetFile, File tempFile) throws IOException {
         this.targetFile = checkNotNull(targetFile);
         this.tempFile = checkNotNull(tempFile);
 

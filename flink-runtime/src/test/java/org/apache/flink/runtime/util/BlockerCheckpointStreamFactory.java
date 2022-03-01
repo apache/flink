@@ -21,12 +21,15 @@ package org.apache.flink.runtime.util;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.CheckpointedStateScope;
+import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 
 import java.io.IOException;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 /** {@link CheckpointStreamFactory} for tests that allows for testing cancellation in async IO. */
@@ -84,5 +87,16 @@ public class BlockerCheckpointStreamFactory implements CheckpointStreamFactory {
         allCreatedStreams.add(blockingStream);
 
         return blockingStream;
+    }
+
+    @Override
+    public boolean canFastDuplicate(StreamStateHandle stateHandle, CheckpointedStateScope scope) {
+        return false;
+    }
+
+    @Override
+    public List<StreamStateHandle> duplicate(
+            List<StreamStateHandle> stateHandles, CheckpointedStateScope scope) throws IOException {
+        throw new UnsupportedOperationException();
     }
 }

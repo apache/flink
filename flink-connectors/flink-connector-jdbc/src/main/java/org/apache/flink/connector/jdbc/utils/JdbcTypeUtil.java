@@ -24,10 +24,9 @@ import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.SqlTimeTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
-import org.apache.flink.table.api.TableSchema;
-import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.TypeTransformations;
-import org.apache.flink.table.types.utils.DataTypeUtils;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableMap;
 
 import java.sql.Types;
 import java.util.Collections;
@@ -44,12 +43,29 @@ import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.LONG_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.SHORT_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.STRING_TYPE_INFO;
 import static org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.ARRAY;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BIGINT;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BINARY;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.BOOLEAN;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.CHAR;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.DATE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.DECIMAL;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.DOUBLE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.FLOAT;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.SMALLINT;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITH_TIME_ZONE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.TINYINT;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARBINARY;
+import static org.apache.flink.table.types.logical.LogicalTypeRoot.VARCHAR;
 
 /** Utils for jdbc type. */
 @Internal
 public class JdbcTypeUtil {
+
     private static final Map<TypeInformation<?>, Integer> TYPE_MAPPING;
-    private static final Map<Integer, String> SQL_TYPE_NAMES;
 
     static {
         HashMap<TypeInformation<?>, Integer> m = new HashMap<>();
@@ -70,29 +86,34 @@ public class JdbcTypeUtil {
         m.put(BIG_DEC_TYPE_INFO, Types.DECIMAL);
         m.put(BYTE_PRIMITIVE_ARRAY_TYPE_INFO, Types.BINARY);
         TYPE_MAPPING = Collections.unmodifiableMap(m);
-
-        HashMap<Integer, String> names = new HashMap<>();
-        names.put(Types.VARCHAR, "VARCHAR");
-        names.put(Types.BOOLEAN, "BOOLEAN");
-        names.put(Types.TINYINT, "TINYINT");
-        names.put(Types.SMALLINT, "SMALLINT");
-        names.put(Types.INTEGER, "INTEGER");
-        names.put(Types.BIGINT, "BIGINT");
-        names.put(Types.FLOAT, "FLOAT");
-        names.put(Types.DOUBLE, "DOUBLE");
-        names.put(Types.CHAR, "CHAR");
-        names.put(Types.DATE, "DATE");
-        names.put(Types.TIME, "TIME");
-        names.put(Types.TIMESTAMP, "TIMESTAMP");
-        names.put(Types.DECIMAL, "DECIMAL");
-        names.put(Types.BINARY, "BINARY");
-        SQL_TYPE_NAMES = Collections.unmodifiableMap(names);
     }
+
+    private static final Map<LogicalTypeRoot, Integer> LOGICAL_TYPE_MAPPING =
+            ImmutableMap.<LogicalTypeRoot, Integer>builder()
+                    .put(VARCHAR, Types.VARCHAR)
+                    .put(CHAR, Types.CHAR)
+                    .put(VARBINARY, Types.VARBINARY)
+                    .put(BOOLEAN, Types.BOOLEAN)
+                    .put(BINARY, Types.BINARY)
+                    .put(TINYINT, Types.TINYINT)
+                    .put(SMALLINT, Types.SMALLINT)
+                    .put(INTEGER, Types.INTEGER)
+                    .put(BIGINT, Types.BIGINT)
+                    .put(FLOAT, Types.REAL)
+                    .put(DOUBLE, Types.DOUBLE)
+                    .put(DATE, Types.DATE)
+                    .put(TIMESTAMP_WITHOUT_TIME_ZONE, Types.TIMESTAMP)
+                    .put(TIMESTAMP_WITH_TIME_ZONE, Types.TIMESTAMP_WITH_TIMEZONE)
+                    .put(TIME_WITHOUT_TIME_ZONE, Types.TIME)
+                    .put(DECIMAL, Types.DECIMAL)
+                    .put(ARRAY, Types.ARRAY)
+                    .build();
 
     private JdbcTypeUtil() {}
 
+    /** Drop this method once Python is not using JdbcOutputFormat. */
+    @Deprecated
     public static int typeInformationToSqlType(TypeInformation<?> type) {
-
         if (TYPE_MAPPING.containsKey(type)) {
             return TYPE_MAPPING.get(type);
         } else if (type instanceof ObjectArrayTypeInfo || type instanceof PrimitiveArrayTypeInfo) {
@@ -102,32 +123,11 @@ public class JdbcTypeUtil {
         }
     }
 
-    public static String getTypeName(int type) {
-        return SQL_TYPE_NAMES.get(type);
-    }
-
-    public static String getTypeName(TypeInformation<?> type) {
-        return SQL_TYPE_NAMES.get(typeInformationToSqlType(type));
-    }
-
-    /**
-     * The original table schema may contain generated columns which shouldn't be produced/consumed
-     * by TableSource/TableSink. And the original TIMESTAMP/DATE/TIME types uses
-     * LocalDateTime/LocalDate/LocalTime as the conversion classes, however, JDBC connector uses
-     * Timestamp/Date/Time classes. So that we bridge them to the expected conversion classes.
-     */
-    public static TableSchema normalizeTableSchema(TableSchema schema) {
-        TableSchema.Builder physicalSchemaBuilder = TableSchema.builder();
-        schema.getTableColumns()
-                .forEach(
-                        c -> {
-                            if (c.isPhysical()) {
-                                final DataType type =
-                                        DataTypeUtils.transform(
-                                                c.getType(), TypeTransformations.timeToSqlTypes());
-                                physicalSchemaBuilder.field(c.getName(), type);
-                            }
-                        });
-        return physicalSchemaBuilder.build();
+    public static int logicalTypeToSqlType(LogicalTypeRoot typeRoot) {
+        if (LOGICAL_TYPE_MAPPING.containsKey(typeRoot)) {
+            return LOGICAL_TYPE_MAPPING.get(typeRoot);
+        } else {
+            throw new IllegalArgumentException("Unsupported typeRoot: " + typeRoot);
+        }
     }
 }

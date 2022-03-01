@@ -14,12 +14,16 @@
  *   limitations under the License.
  */
 
-import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnInit, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { TaskManagerDetailInterface } from 'interfaces';
+import { Subject } from 'rxjs';
+import { first, takeUntil } from 'rxjs/operators';
+
+import { EditorOptions } from 'ng-zorro-antd/code-editor/typings';
+import { flinkEditorOptions } from 'share/common/editor/editor-config';
+
+import { TaskManagerDetail } from 'interfaces';
 import { TaskManagerService } from 'services';
-import { first } from 'rxjs/operators';
-import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.component';
 
 @Component({
   selector: 'flink-task-manager-log-detail',
@@ -30,54 +34,62 @@ import { MonacoEditorComponent } from 'share/common/monaco-editor/monaco-editor.
   },
   styleUrls: ['./task-manager-log-detail.component.less']
 })
-export class TaskManagerLogDetailComponent implements OnInit {
-  logs = '';
-  logName = '';
-  downloadUrl = '';
-  isLoading = false;
-  taskManagerDetail: TaskManagerDetailInterface;
-  isFullScreen = false;
-  @ViewChild(MonacoEditorComponent) monacoEditorComponent: MonacoEditorComponent;
+export class TaskManagerLogDetailComponent implements OnInit, OnDestroy {
+  public readonly editorOptions: EditorOptions = flinkEditorOptions;
+
+  public logs = '';
+  public logName = '';
+  public downloadUrl = '';
+  public isLoading = false;
+  public taskManagerDetail?: TaskManagerDetail;
+  public isFullScreen = false;
+
+  private readonly destroy$ = new Subject<void>();
 
   constructor(
-    private taskManagerService: TaskManagerService,
-    private cdr: ChangeDetectorRef,
-    private activatedRoute: ActivatedRoute
+    private readonly taskManagerService: TaskManagerService,
+    private readonly cdr: ChangeDetectorRef,
+    private readonly activatedRoute: ActivatedRoute
   ) {}
 
-  reloadLog() {
-    this.isLoading = true;
-    this.cdr.markForCheck();
-    this.taskManagerService.loadLog(this.taskManagerDetail.id, this.logName).subscribe(
-      data => {
-        this.logs = data.data;
-        this.downloadUrl = data.url;
-        this.isLoading = false;
-        this.layoutEditor();
-        this.cdr.markForCheck();
-      },
-      () => {
-        this.isLoading = false;
-        this.layoutEditor();
-        this.cdr.markForCheck();
-      }
-    );
-  }
-
-  toggleFullScreen(fullScreen: boolean) {
-    this.isFullScreen = fullScreen;
-    this.layoutEditor();
-  }
-
-  layoutEditor(): void {
-    setTimeout(() => this.monacoEditorComponent.layout());
-  }
-
-  ngOnInit() {
-    this.taskManagerService.taskManagerDetail$.pipe(first()).subscribe(data => {
+  public ngOnInit(): void {
+    this.taskManagerService.taskManagerDetail$.pipe(first(), takeUntil(this.destroy$)).subscribe(data => {
       this.taskManagerDetail = data;
       this.logName = this.activatedRoute.snapshot.params.logName;
       this.reloadLog();
     });
+  }
+
+  public ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
+  public reloadLog(): void {
+    if (!this.taskManagerDetail) {
+      return;
+    }
+
+    this.isLoading = true;
+    this.cdr.markForCheck();
+    this.taskManagerService
+      .loadLog(this.taskManagerDetail.id, this.logName)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe(
+        data => {
+          this.logs = data.data;
+          this.downloadUrl = data.url;
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        },
+        () => {
+          this.isLoading = false;
+          this.cdr.markForCheck();
+        }
+      );
+  }
+
+  public toggleFullScreen(fullScreen: boolean): void {
+    this.isFullScreen = fullScreen;
   }
 }

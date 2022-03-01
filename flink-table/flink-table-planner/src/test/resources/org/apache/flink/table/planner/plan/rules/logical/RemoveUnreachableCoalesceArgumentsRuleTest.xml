@@ -1,0 +1,130 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testAllNullable">
+    <Resource name="sql">
+      <![CDATA[SELECT COALESCE(f0, f2) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COALESCE($0, $2)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[COALESCE(f0, f2) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDropCoalesce">
+    <Resource name="sql">
+      <![CDATA[SELECT COALESCE(f1, '-') FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COALESCE($1, _UTF-16LE'-')])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f1 AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOnlyLastNonNull">
+    <Resource name="sql">
+      <![CDATA[SELECT COALESCE(f0, f1) FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COALESCE($0, $1)])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[COALESCE(f0, f1) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testDropLastConstant">
+    <Resource name="sql">
+      <![CDATA[SELECT COALESCE(f0, f1, '-') FROM T]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(EXPR$0=[COALESCE($0, $1, _UTF-16LE'-')])
++- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[COALESCE(f0, f1) AS EXPR$0])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testJoinCoalesce">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T t1 LEFT JOIN T t2 ON COALESCE(t1.f0, '-', t1.f2) = t2.f0]]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1], f2=[$2], f00=[$4], f10=[$5], f20=[$6])
++- LogicalJoin(condition=[=($3, $4)], joinType=[left])
+   :- LogicalProject(f0=[$0], f1=[$1], f2=[$2], $f3=[COALESCE($0, _UTF-16LE'-', $2)])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f0, f1, f2, f00, f10, f20])
++- Join(joinType=[LeftOuterJoin], where=[=($f3, f00)], select=[f0, f1, f2, $f3, f00, f10, f20], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
+   :- Exchange(distribution=[hash[$f3]])
+   :  +- Calc(select=[f0, f1, f2, COALESCE(f0, '-') AS $f3])
+   :     +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+   +- Exchange(distribution=[hash[f0]])
+      +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testFilterCoalesce">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM T WHERE COALESCE(f0, f1, '-') = 'abc']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(f0=[$0], f1=[$1], f2=[$2])
++- LogicalFilter(condition=[=(COALESCE($0, $1, _UTF-16LE'-'), _UTF-16LE'abc')])
+   +- LogicalTableScan(table=[[default_catalog, default_database, T]])
+]]>
+    </Resource>
+    <Resource name="optimized rel plan">
+      <![CDATA[
+Calc(select=[f0, f1, f2], where=[=(COALESCE(f0, f1), 'abc')])
++- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
+]]>
+    </Resource>
+  </TestCase>
+</Root>

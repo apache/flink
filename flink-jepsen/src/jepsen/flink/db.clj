@@ -24,7 +24,6 @@
              [util :refer [meh]]]
             [jepsen.control.util :as cu]
             [jepsen.flink.hadoop :as hadoop]
-            [jepsen.flink.mesos :as mesos]
             [jepsen.flink.utils :as fu]
             [jepsen.flink.zookeeper :refer :all]))
 
@@ -109,7 +108,12 @@
     (teardown! [_ test node]
       (c/su
         (try
-          (doseq [db (reverse dbs)] (db/teardown! db test node))
+          (doseq [db (reverse dbs)]
+            (try
+              (db/teardown! db test node)
+              ;; jepsen also calls teardown at the start of the test
+              ;; neither our dbs nor jepsen-zookeeper handle the db not existing gracefully
+              (catch Exception e (error str "Exception while tearing down" (.getMessage e)))))
           (finally (fu/stop-all-supervised-services!)))))
     db/LogFiles
     (log-files [_ test node]
@@ -290,52 +294,3 @@
                 (when (= node (first-node test))
                   (start-yarn-job! test)))
               (teardown! [_ _ _]))))
-
-;;; Mesos
-
-(defn- mesos-appmaster-cmd
-  "Returns the command used by Marathon to start Flink's Mesos application master."
-  [test]
-  (fu/join-space
-    (hadoop-env-vars)
-    (str install-dir "/bin/mesos-appmaster.sh")
-    (str "-Dmesos.master=" (zookeeper-uri test mesos/zk-namespace))
-    "-Djobmanager.rpc.address=$(hostname -f)"
-    "-Djobmanager.rpc.port=6123"
-    "-Dmesos.resourcemanager.tasks.cpus=1"
-    "-Dcontainerized.taskmanager.env.HADOOP_CLASSPATH=$(/opt/hadoop/bin/hadoop classpath)"
-    "-Dtaskmanager.memory.process.size=2048m"
-    "-Drest.bind-address=$(hostname -f)"))
-
-(defn- start-mesos-session!
-  [test]
-  (c/su
-    (let [log-submission-failure! (fn [exception _]
-                                    (info "Submitting Flink Application via Marathon failed due to"
-                                          (.getMessage exception)
-                                          "Retrying..."))
-          submit-flink! (fn []
-                          (http/post
-                            (str (mesos/marathon-base-url test) "/v2/apps")
-                            {:form-params  {:id                    "flink"
-                                            :cmd                   (mesos-appmaster-cmd test)
-                                            :cpus                  1.0
-                                            :mem                   2048
-                                            :maxLaunchDelaySeconds 3}
-                             :content-type :json}))
-          marathon-response (fu/retry submit-flink!
-                                      :on-retry log-submission-failure!
-                                      :delay 4000)]
-      (info "Submitted Flink Application via Marathon" marathon-response))))
-
-(defn flink-mesos-app-master
-  []
-  (flink-db
-    (reify
-      db/DB
-      (setup! [_ test node]
-        (when (= (first-node test) node)
-          (start-mesos-session! test)
-          (submit-job-with-retry! test)))
-
-      (teardown! [_ _ _]))))

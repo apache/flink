@@ -64,9 +64,10 @@ config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CAN
 
 其中 **SHARED** 目录保存了可能被多个 checkpoint 引用的文件，**TASKOWNED** 保存了不会被 JobManager 删除的文件，**EXCLUSIVE** 则保存那些仅被单个 checkpoint 引用的文件。
 
-<div class="alert alert-warning">
-  <strong>注意:</strong> Checkpoint 目录不是公共 API 的一部分，因此可能在未来的 Release 中进行改变。
-</div>
+{{< hint warning >}}
+**注意:** Checkpoint 目录不是公共 API 的一部分，因此可能在未来的 Release 中进行改变。
+{{< /hint >}}
+
 #### 通过配置文件全局配置
 
 ```yaml
@@ -87,7 +88,7 @@ Checkpoint 与 [savepoints]({{< ref "docs/ops/state/savepoints" >}}) 有一些�
 
 ### 从保留的 checkpoint 中恢复状态
 
-与 savepoint 一样，作业可以从 checkpoint 的元数据文件恢复运行（[savepoint恢复指南]({{< ref "docs/deployment/cli" >}}#restore-a-savepoint)）。注意，如果元数据文件中信息不充分，那么 jobmanager 就需要使用相关的数据文件来恢复作业(参考[目录结构](#directory-structure))。
+与 savepoint 一样，作业可以从 checkpoint 的元数据文件恢复运行（[savepoint恢复指南]({{< ref "docs/ops/state/savepoints" >}}#resuming-from-savepoints)）。注意，如果元数据文件中信息不充分，那么 jobmanager 就需要使用相关的数据文件来恢复作业(参考[目录结构](#directory-structure))。
 
 ```shell
 $ bin/flink run -s :checkpointMetaDataPath [:runArgs]

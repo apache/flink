@@ -28,7 +28,6 @@ import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
@@ -64,6 +63,7 @@ import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -89,8 +89,6 @@ import static org.mockito.Mockito.mock;
 /** Tests for submission logic of the {@link TaskExecutor}. */
 public class TaskExecutorSubmissionTest extends TestLogger {
 
-    private static final long TEST_TIMEOUT = 20000L;
-
     @Rule public final TestName testName = new TestName();
 
     private static final Time timeout = Time.milliseconds(10000L);
@@ -100,7 +98,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     /**
      * Tests that we can submit a task to the TaskManager given that we've allocated a slot there.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testTaskSubmission() throws Exception {
         final ExecutionAttemptID eid = new ExecutionAttemptID();
 
@@ -130,7 +128,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * Tests that the TaskManager sends a proper exception back to the sender if the submit task
      * message fails.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testSubmitTaskFailure() throws Exception {
         final ExecutionAttemptID eid = new ExecutionAttemptID();
 
@@ -155,7 +153,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     }
 
     /** Tests that we can cancel the task of the TaskManager given that we've submitted it. */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testTaskSubmissionAndCancelling() throws Exception {
         final ExecutionAttemptID eid1 = new ExecutionAttemptID();
         final ExecutionAttemptID eid2 = new ExecutionAttemptID();
@@ -205,7 +203,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * Tests that submitted tasks will fail when attempting to send/receive data if no
      * ResultPartitions/InputGates are set up.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testGateChannelEdgeMismatch() throws Exception {
         final ExecutionAttemptID eid1 = new ExecutionAttemptID();
         final ExecutionAttemptID eid2 = new ExecutionAttemptID();
@@ -253,7 +251,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
         }
     }
 
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testRunJobWithForwardChannel() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor sdd =
@@ -318,7 +316,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * This tests creates two tasks. The sender sends data but fails to send the state update back
      * to the job manager. the second one blocks to be canceled
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testCancellingDependentAndStateUpdateFails() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor sdd =
@@ -396,44 +394,48 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     /**
      * Tests that repeated remote {@link PartitionNotFoundException}s ultimately fail the receiver.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testRemotePartitionNotFound() throws Exception {
-        final int dataPort = NetUtils.getAvailablePort();
-        Configuration config = new Configuration();
-        config.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
-        config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            final int dataPort = port.getPort();
 
-        // Remote location (on the same TM though) for the partition
-        NettyShuffleDescriptor sdd =
-                NettyShuffleDescriptorBuilder.newBuilder().setDataPort(dataPort).buildRemote();
-        TaskDeploymentDescriptor tdd = createReceiver(sdd);
-        ExecutionAttemptID eid = tdd.getExecutionAttemptId();
+            Configuration config = new Configuration();
+            config.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, dataPort);
+            config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_INITIAL, 100);
+            config.setInteger(NettyShuffleEnvironmentOptions.NETWORK_REQUEST_BACKOFF_MAX, 200);
 
-        final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
-        final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
+            // Remote location (on the same TM though) for the partition
+            NettyShuffleDescriptor sdd =
+                    NettyShuffleDescriptorBuilder.newBuilder().setDataPort(dataPort).buildRemote();
+            TaskDeploymentDescriptor tdd = createReceiver(sdd);
+            ExecutionAttemptID eid = tdd.getExecutionAttemptId();
 
-        try (TaskSubmissionTestEnvironment env =
-                new TaskSubmissionTestEnvironment.Builder(jobId)
-                        .setSlotSize(2)
-                        .addTaskManagerActionListener(
-                                eid, ExecutionState.RUNNING, taskRunningFuture)
-                        .addTaskManagerActionListener(eid, ExecutionState.FAILED, taskFailedFuture)
-                        .setConfiguration(config)
-                        .setLocalCommunication(false)
-                        .useRealNonMockShuffleEnvironment()
-                        .build()) {
-            TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
-            TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
+            final CompletableFuture<Void> taskRunningFuture = new CompletableFuture<>();
+            final CompletableFuture<Void> taskFailedFuture = new CompletableFuture<>();
 
-            taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
-            tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
-            taskRunningFuture.get();
+            try (TaskSubmissionTestEnvironment env =
+                    new TaskSubmissionTestEnvironment.Builder(jobId)
+                            .setSlotSize(2)
+                            .addTaskManagerActionListener(
+                                    eid, ExecutionState.RUNNING, taskRunningFuture)
+                            .addTaskManagerActionListener(
+                                    eid, ExecutionState.FAILED, taskFailedFuture)
+                            .setConfiguration(config)
+                            .setLocalCommunication(false)
+                            .useRealNonMockShuffleEnvironment()
+                            .build()) {
+                TaskExecutorGateway tmGateway = env.getTaskExecutorGateway();
+                TaskSlotTable<Task> taskSlotTable = env.getTaskSlotTable();
 
-            taskFailedFuture.get();
-            assertThat(
-                    taskSlotTable.getTask(eid).getFailureCause(),
-                    instanceOf(PartitionNotFoundException.class));
+                taskSlotTable.allocateSlot(0, jobId, tdd.getAllocationId(), Time.seconds(60));
+                tmGateway.submitTask(tdd, env.getJobMasterId(), timeout).get();
+                taskRunningFuture.get();
+
+                taskFailedFuture.get();
+                assertThat(
+                        taskSlotTable.getTask(eid).getFailureCause(),
+                        instanceOf(PartitionNotFoundException.class));
+            }
         }
     }
 
@@ -490,7 +492,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
     /**
      * Tests that repeated local {@link PartitionNotFoundException}s ultimately fail the receiver.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testLocalPartitionNotFound() throws Exception {
         ResourceID producerLocation = ResourceID.generate();
         NettyShuffleDescriptor shuffleDescriptor =
@@ -543,7 +545,7 @@ public class TaskExecutorSubmissionTest extends TestLogger {
      * the memory segment, we'll block the invokable and wait for the task failure due to the failed
      * notifyPartitionDataAvailable call.
      */
-    @Test(timeout = TEST_TIMEOUT)
+    @Test
     public void testFailingNotifyPartitionDataAvailable() throws Exception {
         final Configuration configuration = new Configuration();
 

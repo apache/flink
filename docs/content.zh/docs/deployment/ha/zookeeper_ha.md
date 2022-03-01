@@ -98,6 +98,19 @@ zookeeper.sasl.login-context-name: Client
 
 {{< top >}}
 
+## Advanced Configuration
+
+### Tolerating Suspended ZooKeeper Connections
+
+Per default, Flink's ZooKeeper client treats suspended ZooKeeper connections as an error.
+This means that Flink will invalidate all leaderships of its components and thereby triggering a failover if a connection is suspended.
+
+This behaviour might be too disruptive in some cases (e.g., unstable network environment).
+If you are willing to take a more aggressive approach, then you can tolerate suspended ZooKeeper connections and only treat lost connections as an error via [high-availability.zookeeper.client.tolerate-suspended-connections]({{< ref "docs/deployment/config" >}}#high-availability-zookeeper-client-tolerate-suspended-connection).
+Enabling this feature will make Flink more resilient against temporary connection problems but also increase the risk of running into ZooKeeper timing problems.
+
+For more information take a look at [Curator's error handling](https://curator.apache.org/errors.html).
+
 ## ZooKeeper 版本
 
 Flink 附带了 3.4 和 3.5 的单独的 ZooKeeper 客户端，其中 3.4 位于发行版的 `lib` 目录中，为默认使用版本，而 3.5 位于 opt 目录中。

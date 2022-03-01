@@ -18,12 +18,15 @@
 
 package org.apache.flink.metrics;
 
+import org.apache.flink.annotation.Public;
+
 /**
  * Histogram interface to be used with Flink's metrics system.
  *
  * <p>The histogram allows to record values, get the current count of recorded values and create
  * histogram statistics for the currently seen elements.
  */
+@Public
 public interface Histogram extends Metric {
 
     /**

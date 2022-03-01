@@ -17,13 +17,14 @@
  */
 
 import { Component, ChangeDetectionStrategy, ElementRef, Input, ViewChild } from '@angular/core';
-import { JobFlameGraphNodeInterface } from 'interfaces';
-import { select } from 'd3-selection';
-import { format } from 'd3-format';
-import { flamegraph, offCpuColorMapper } from 'd3-flame-graph';
 
 import * as _d3 from 'd3';
+import { flamegraph, offCpuColorMapper } from 'd3-flame-graph';
+import { format } from 'd3-format';
+import { select } from 'd3-selection';
 import _d3Tip from 'd3-tip';
+
+import { JobFlameGraphNode } from 'interfaces';
 
 @Component({
   selector: 'flink-flame-graph',
@@ -32,24 +33,24 @@ import _d3Tip from 'd3-tip';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class FlameGraphComponent {
-  @ViewChild('flameGraphContainer') flameGraphContainer: ElementRef<Element>;
-  @Input() data: JobFlameGraphNodeInterface;
-  @Input() graphType: String;
+  @ViewChild('flameGraphContainer', { static: true }) flameGraphContainer: ElementRef<Element>;
+  @Input() data: JobFlameGraphNode;
+  @Input() graphType: string;
 
-  draw() {
+  draw(): void {
     if (this.data) {
       const element = this.flameGraphContainer.nativeElement;
       const chart = flamegraph().width(element.clientWidth);
 
       const d3 = { ..._d3, tip: _d3Tip };
 
-      var tip = d3
+      const tip = d3
         .tip()
         .direction('s')
         .offset([8, 0])
         .attr('class', 'd3-flame-graph-tip')
-        .html(function(d: { data: { name: string; value: string }; x1: number; x0: number }) {
-          return d.data.name + ' (' + format('.3f')(100 * (d.x1 - d.x0)) + '%, ' + d.data.value + ' samples)';
+        .html(function (d: { data: { name: string; value: string }; x1: number; x0: number }) {
+          return `${d.data.name} (${format('.3f')(100 * (d.x1 - d.x0))}%, ${d.data.value} samples)`;
         });
 
       chart.tooltip(tip);
@@ -58,12 +59,8 @@ export class FlameGraphComponent {
         chart.setColorMapper(offCpuColorMapper);
       }
 
-      select(element)
-        .selectAll('*')
-        .remove();
-      select(element)
-        .datum(this.data)
-        .call(chart);
+      select(element).selectAll('*').remove();
+      select(element).datum(this.data).call(chart);
     }
   }
 }

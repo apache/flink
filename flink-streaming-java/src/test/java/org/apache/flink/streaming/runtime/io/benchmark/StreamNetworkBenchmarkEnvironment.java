@@ -29,7 +29,6 @@ import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.netty.NettyConfig;
-import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionBuilder;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
@@ -40,12 +39,15 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBui
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFactory;
 import org.apache.flink.runtime.io.network.partition.consumer.UnionInputGate;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.InputGateWithMetrics;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -234,7 +236,8 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
     }
 
     private InputGateDeploymentDescriptor createInputGateDeploymentDescriptor(
-            TaskManagerLocation senderLocation, int gateIndex, ResourceID localLocation) {
+            TaskManagerLocation senderLocation, int gateIndex, ResourceID localLocation)
+            throws IOException {
 
         final ShuffleDescriptor[] channelDescriptors = new ShuffleDescriptor[channels];
         for (int channelIndex = 0; channelIndex < channels; ++channelIndex) {
@@ -261,13 +264,17 @@ public class StreamNetworkBenchmarkEnvironment<T extends IOReadableWritable> {
             InputGateDeploymentDescriptor gateDescriptor,
             int gateIndex) {
 
+        final TaskMetricGroup taskMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
         final SingleInputGate singleGate =
                 gateFactory.create(
-                        "receiving task[" + gateIndex + "]",
+                        receiverEnv.createShuffleIOOwnerContext(
+                                "receiving task[" + gateIndex + "]",
+                                taskMetricGroup.executionId(),
+                                taskMetricGroup),
                         gateIndex,
                         gateDescriptor,
-                        SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
-                        InputChannelTestUtils.newUnregisteredInputChannelMetrics());
+                        SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER);
 
         return new InputGateWithMetrics(singleGate, new SimpleCounter());
     }

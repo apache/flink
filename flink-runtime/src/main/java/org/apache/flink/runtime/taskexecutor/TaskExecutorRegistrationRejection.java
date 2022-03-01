@@ -37,6 +37,6 @@ public class TaskExecutorRegistrationRejection extends RegistrationResponse.Reje
 
     @Override
     public String toString() {
-        return "Rejected TaskExecutor registration at the ResourceManger because: " + reason;
+        return "Rejected TaskExecutor registration at the ResourceManager because: " + reason;
     }
 }

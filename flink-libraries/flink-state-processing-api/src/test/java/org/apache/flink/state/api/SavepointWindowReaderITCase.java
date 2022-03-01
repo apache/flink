@@ -24,10 +24,10 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.WindowReaderFunction;
 import org.apache.flink.state.api.utils.AggregateSum;
+import org.apache.flink.state.api.utils.JobResultRetriever;
 import org.apache.flink.state.api.utils.ReduceSum;
 import org.apache.flink.state.api.utils.SavepointTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -80,14 +80,13 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
         List<Integer> results =
-                savepoint
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-                        .reduce(uid, new ReduceSum(), Types.INT, Types.INT)
-                        .collect();
+                JobResultRetriever.collect(
+                        savepoint
+                                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                                .reduce(uid, new ReduceSum(), Types.INT, Types.INT));
 
         Assert.assertThat(
                 "Unexpected results from keyed state",
@@ -97,7 +96,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testReduceEvictorWindowStateReader() throws Exception {
-
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStateBackend(getStateBackend());
         env.setParallelism(4);
@@ -116,15 +114,14 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
         List<Integer> results =
-                savepoint
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-                        .evictor()
-                        .reduce(uid, new ReduceSum(), Types.INT, Types.INT)
-                        .collect();
+                JobResultRetriever.collect(
+                        savepoint
+                                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                                .evictor()
+                                .reduce(uid, new ReduceSum(), Types.INT, Types.INT));
 
         Assert.assertThat(
                 "Unexpected results from keyed state",
@@ -134,7 +131,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testAggregateWindowStateReader() throws Exception {
-
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStateBackend(getStateBackend());
         env.setParallelism(4);
@@ -152,14 +148,14 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
         List<Integer> results =
-                savepoint
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-                        .aggregate(uid, new AggregateSum(), Types.INT, Types.INT, Types.INT)
-                        .collect();
+                JobResultRetriever.collect(
+                        savepoint
+                                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                                .aggregate(
+                                        uid, new AggregateSum(), Types.INT, Types.INT, Types.INT));
 
         Assert.assertThat(
                 "Unexpected results from keyed state",
@@ -169,7 +165,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testAggregateEvictorWindowStateReader() throws Exception {
-
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStateBackend(getStateBackend());
         env.setParallelism(4);
@@ -188,15 +183,15 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
         List<Integer> results =
-                savepoint
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-                        .evictor()
-                        .aggregate(uid, new AggregateSum(), Types.INT, Types.INT, Types.INT)
-                        .collect();
+                JobResultRetriever.collect(
+                        savepoint
+                                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                                .evictor()
+                                .aggregate(
+                                        uid, new AggregateSum(), Types.INT, Types.INT, Types.INT));
 
         Assert.assertThat(
                 "Unexpected results from keyed state",
@@ -206,7 +201,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testProcessWindowStateReader() throws Exception {
-
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStateBackend(getStateBackend());
         env.setParallelism(4);
@@ -224,14 +218,18 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
         List<Integer> results =
-                savepoint
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-                        .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
-                        .collect();
+                JobResultRetriever.collect(
+                        savepoint
+                                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                                .process(
+                                        uid,
+                                        new BasicReaderFunction(),
+                                        Types.INT,
+                                        Types.INT,
+                                        Types.INT));
 
         Assert.assertThat(
                 "Unexpected results from keyed state",
@@ -241,7 +239,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testProcessEvictorWindowStateReader() throws Exception {
-
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStateBackend(getStateBackend());
         env.setParallelism(4);
@@ -260,15 +257,19 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
         List<Integer> results =
-                savepoint
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-                        .evictor()
-                        .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
-                        .collect();
+                JobResultRetriever.collect(
+                        savepoint
+                                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                                .evictor()
+                                .process(
+                                        uid,
+                                        new BasicReaderFunction(),
+                                        Types.INT,
+                                        Types.INT,
+                                        Types.INT));
 
         Assert.assertThat(
                 "Unexpected results from keyed state",
@@ -278,7 +279,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testApplyWindowStateReader() throws Exception {
-
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStateBackend(getStateBackend());
         env.setParallelism(4);
@@ -296,14 +296,18 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
         List<Integer> results =
-                savepoint
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
-                        .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
-                        .collect();
+                JobResultRetriever.collect(
+                        savepoint
+                                .window(TumblingEventTimeWindows.of(Time.milliseconds(10)))
+                                .process(
+                                        uid,
+                                        new BasicReaderFunction(),
+                                        Types.INT,
+                                        Types.INT,
+                                        Types.INT));
 
         Assert.assertThat(
                 "Unexpected results from keyed state",
@@ -313,7 +317,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testApplyEvictorWindowStateReader() throws Exception {
-
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStateBackend(getStateBackend());
         env.setParallelism(4);
@@ -332,15 +335,19 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
         List<Integer> results =
-                savepoint
-                        .window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
-                        .evictor()
-                        .process(uid, new BasicReaderFunction(), Types.INT, Types.INT, Types.INT)
-                        .collect();
+                JobResultRetriever.collect(
+                        savepoint
+                                .window(TumblingEventTimeWindows.of(Time.milliseconds(1)))
+                                .evictor()
+                                .process(
+                                        uid,
+                                        new BasicReaderFunction(),
+                                        Types.INT,
+                                        Types.INT,
+                                        Types.INT));
 
         Assert.assertThat(
                 "Unexpected results from keyed state",
@@ -350,7 +357,6 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
     @Test
     public void testWindowTriggerStateReader() throws Exception {
-
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setStateBackend(getStateBackend());
         env.setParallelism(4);
@@ -366,20 +372,19 @@ public abstract class SavepointWindowReaderITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
         List<Long> results =
-                savepoint
-                        .window(new GlobalWindow.Serializer())
-                        .reduce(
-                                uid,
-                                new ReduceSum(),
-                                new TriggerReaderFunction(),
-                                Types.INT,
-                                Types.INT,
-                                Types.LONG)
-                        .collect();
+                JobResultRetriever.collect(
+                        savepoint
+                                .window(new GlobalWindow.Serializer())
+                                .reduce(
+                                        uid,
+                                        new ReduceSum(),
+                                        new TriggerReaderFunction(),
+                                        Types.INT,
+                                        Types.INT,
+                                        Types.LONG));
 
         Assert.assertThat(
                 "Unexpected results from trigger state", results, Matchers.contains(1L, 1L, 1L));

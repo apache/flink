@@ -18,9 +18,12 @@
 
 package org.apache.flink.connector.base.source.reader.fetcher;
 
+import org.apache.flink.annotation.Internal;
+
 import java.io.IOException;
 
 /** An interface similar to {@link Runnable} but allows throwing exceptions and wakeup. */
+@Internal
 public interface SplitFetcherTask {
 
     /**

@@ -18,37 +18,57 @@
 
 package org.apache.flink.table.operations;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import org.apache.flink.annotation.Internal;
 
+import java.util.Collections;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import static org.apache.flink.table.utils.EncodingUtils.escapeIdentifier;
+import static org.apache.flink.table.utils.EncodingUtils.escapeSingleQuotes;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Operation to describe a LOAD MODULE statement. */
+@Internal
 public class LoadModuleOperation implements Operation {
+
     private final String moduleName;
+    private final Map<String, String> options;
 
-    private final Map<String, String> properties;
-
-    public LoadModuleOperation(String moduleName, Map<String, String> properties) {
+    public LoadModuleOperation(String moduleName, Map<String, String> options) {
         this.moduleName = checkNotNull(moduleName);
-        this.properties = checkNotNull(properties);
+        this.options = checkNotNull(options);
     }
 
     public String getModuleName() {
         return moduleName;
     }
 
-    public Map<String, String> getProperties() {
-        return Collections.unmodifiableMap(properties);
+    public Map<String, String> getOptions() {
+        return Collections.unmodifiableMap(options);
     }
 
     @Override
     public String asSummaryString() {
-        Map<String, Object> params = new LinkedHashMap<>();
-        params.put("moduleName", moduleName);
-        params.put("properties", properties);
-        return OperationUtils.formatWithChildren(
-                "LOAD MODULE", params, Collections.emptyList(), Operation::asSummaryString);
+        final StringBuilder sb = new StringBuilder();
+        sb.append("LOAD MODULE ");
+        sb.append(escapeIdentifier(moduleName));
+        if (!options.isEmpty()) {
+            sb.append(" WITH (");
+
+            sb.append(
+                    options.entrySet().stream()
+                            .map(
+                                    entry ->
+                                            String.format(
+                                                    "'%s' = '%s'",
+                                                    escapeSingleQuotes(entry.getKey()),
+                                                    escapeSingleQuotes(entry.getValue())))
+                            .collect(Collectors.joining(", ")));
+
+            sb.append(")");
+        }
+
+        return sb.toString();
     }
 }

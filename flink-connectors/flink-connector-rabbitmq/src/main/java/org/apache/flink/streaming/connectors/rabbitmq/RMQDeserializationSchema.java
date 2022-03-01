@@ -93,7 +93,7 @@ public interface RMQDeserializationSchema<T> extends Serializable, ResultTypeQue
          * <p>If not set explicitly, the {@link AMQP.BasicProperties#getCorrelationId()} and {@link
          * Envelope#getDeliveryTag()} will be used.
          *
-         * <p><b>NOTE:</b>Can be called once for a single invokation of a {@link
+         * <p><b>NOTE:</b>Can be called once for a single invocation of a {@link
          * RMQDeserializationSchema#deserialize(Envelope, AMQP.BasicProperties, byte[],
          * RMQCollector)} method.
          *

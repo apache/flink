@@ -16,6 +16,25 @@
  * limitations under the License.
  */
 
-.pressure-badge {
-  margin-top: -4px;
+@import "theme";
+
+:host {
+  nz-table {
+    ::ng-deep {
+      td,
+      th {
+        font-size: 12px;
+      }
+    }
+
+    th,
+    .title {
+      border-bottom: 1px solid @border-color-split;
+    }
+  }
+
+  flink-backpressure-badge {
+    display: inline-block;
+    margin-left: 4px;
+  }
 }

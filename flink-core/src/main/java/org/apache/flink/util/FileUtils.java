@@ -667,7 +667,7 @@ public final class FileUtils {
      */
     public static boolean isJarFile(java.nio.file.Path file) {
         return JAR_FILE_EXTENSION.equals(
-                org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(
+                org.apache.flink.shaded.guava30.com.google.common.io.Files.getFileExtension(
                         file.toString()));
     }
 
@@ -679,7 +679,7 @@ public final class FileUtils {
      */
     public static String stripFileExtension(String fileName) {
         final String extension =
-                org.apache.flink.shaded.guava18.com.google.common.io.Files.getFileExtension(
+                org.apache.flink.shaded.guava30.com.google.common.io.Files.getFileExtension(
                         fileName);
         if (!extension.isEmpty()) {
             return fileName.substring(0, fileName.lastIndexOf(extension) - 1);

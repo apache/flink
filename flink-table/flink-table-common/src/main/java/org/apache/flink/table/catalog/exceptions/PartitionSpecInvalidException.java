@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog.exceptions;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectPath;
 
@@ -29,6 +30,7 @@ import java.util.List;
  * when the size of PartitionSpec is 'n' but its keys don't match the first 'n' keys in partition
  * key list.
  */
+@PublicEvolving
 public class PartitionSpecInvalidException extends Exception {
     private static final String MSG =
             "PartitionSpec %s does not match partition keys %s of table %s in catalog %s.";

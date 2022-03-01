@@ -53,7 +53,7 @@ Flink 程序可以分布式运行在多机器集群上。有两种方式可以�
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-clients{{< scala_version >}}</artifactId>
+  <artifactId>flink-clients</artifactId>
   <version>{{< version >}}</version>
 </dependency>
 ```

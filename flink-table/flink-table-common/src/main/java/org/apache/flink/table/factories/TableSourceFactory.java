@@ -32,7 +32,10 @@ import java.util.Map;
  * string-based properties. See also {@link TableFactory} for more information.
  *
  * @param <T> type of records that the factory produces
+ * @deprecated This interface has been replaced by {@link DynamicTableSourceFactory}. The new
+ *     interface produces internal data structures. See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public interface TableSourceFactory<T> extends TableFactory {
 
@@ -75,6 +78,7 @@ public interface TableSourceFactory<T> extends TableFactory {
     }
 
     /** Context of table source creation. Contains table information and environment information. */
+    @PublicEvolving
     interface Context {
 
         /** @return full identifier of the given {@link CatalogTable}. */

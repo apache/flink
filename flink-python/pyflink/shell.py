@@ -86,18 +86,19 @@ NOTE: Use the prebound Table Environment to implement batch or streaming Table p
     *         shutil.rmtree(sink_path)
     * s_env.set_parallelism(1)
     * t = st_env.from_elements([(1, 'hi', 'hello'), (2, 'hi', 'hello')], ['a', 'b', 'c'])
-    * st_env.connect(FileSystem().path(sink_path)) \\
-    *     .with_format(OldCsv()
-    *                  .field_delimiter(',')
-    *                  .field("a", DataTypes.BIGINT())
-    *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING())) \\
-    *     .with_schema(Schema()
-    *                  .field("a", DataTypes.BIGINT())
-    *                  .field("b", DataTypes.STRING())
-    *                  .field("c", DataTypes.STRING())) \\
-    *     .create_temporary_table("stream_sink")
-    * 
+    *
+    * st_env.create_temporary_table("stream_sink", TableDescriptor.for_connector("filesystem")
+    *                               .schema(Schema.new_builder()
+    *                                       .column("a", DataTypes.BIGINT())
+    *                                       .column("b", DataTypes.STRING())
+    *                                       .column("c", DataTypes.STRING())
+    *                                       .build())
+    *                               .option("path", sink_path)
+    *                               .format(FormatDescriptor.for_format("csv")
+    *                                       .option("field-delimiter", ",")
+    *                                       .build())
+    *                               .build())
+    *
     * t.select("a + 1, b, c").insert_into("stream_sink")
     *
     * st_env.execute("stream_job")

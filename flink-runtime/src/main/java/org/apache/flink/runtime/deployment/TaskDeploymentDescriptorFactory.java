@@ -20,6 +20,7 @@ package org.apache.flink.runtime.deployment;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.blob.PermanentBlobKey;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -42,6 +43,7 @@ import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
 import org.apache.flink.types.Either;
+import org.apache.flink.util.CompressedSerializedValue;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
@@ -51,6 +53,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Factory of {@link TaskDeploymentDescriptor} to deploy {@link
@@ -64,7 +69,10 @@ public class TaskDeploymentDescriptorFactory {
     private final JobID jobID;
     private final PartitionLocationConstraint partitionDeploymentConstraint;
     private final int subtaskIndex;
-    private final List<List<IntermediateResultPartition>> consumedPartitions;
+    private final List<ConsumedPartitionGroup> consumedPartitionGroups;
+    private final Function<IntermediateResultPartitionID, IntermediateResultPartition>
+            resultPartitionRetriever;
+    private final BlobWriter blobWriter;
 
     private TaskDeploymentDescriptorFactory(
             ExecutionAttemptID executionId,
@@ -74,7 +82,10 @@ public class TaskDeploymentDescriptorFactory {
             JobID jobID,
             PartitionLocationConstraint partitionDeploymentConstraint,
             int subtaskIndex,
-            List<List<IntermediateResultPartition>> consumedPartitions) {
+            List<ConsumedPartitionGroup> consumedPartitionGroups,
+            Function<IntermediateResultPartitionID, IntermediateResultPartition>
+                    resultPartitionRetriever,
+            BlobWriter blobWriter) {
         this.executionId = executionId;
         this.attemptNumber = attemptNumber;
         this.serializedJobInformation = serializedJobInformation;
@@ -82,13 +93,16 @@ public class TaskDeploymentDescriptorFactory {
         this.jobID = jobID;
         this.partitionDeploymentConstraint = partitionDeploymentConstraint;
         this.subtaskIndex = subtaskIndex;
-        this.consumedPartitions = consumedPartitions;
+        this.consumedPartitionGroups = consumedPartitionGroups;
+        this.resultPartitionRetriever = resultPartitionRetriever;
+        this.blobWriter = blobWriter;
     }
 
     public TaskDeploymentDescriptor createDeploymentDescriptor(
             AllocationID allocationID,
             @Nullable JobManagerTaskRestore taskRestore,
-            Collection<ResultPartitionDeploymentDescriptor> producedPartitions) {
+            Collection<ResultPartitionDeploymentDescriptor> producedPartitions)
+            throws IOException {
         return new TaskDeploymentDescriptor(
                 jobID,
                 serializedJobInformation,
@@ -102,19 +116,22 @@ public class TaskDeploymentDescriptorFactory {
                 createInputGateDeploymentDescriptors());
     }
 
-    private List<InputGateDeploymentDescriptor> createInputGateDeploymentDescriptors() {
-        List<InputGateDeploymentDescriptor> inputGates = new ArrayList<>(consumedPartitions.size());
+    private List<InputGateDeploymentDescriptor> createInputGateDeploymentDescriptors()
+            throws IOException {
+        List<InputGateDeploymentDescriptor> inputGates =
+                new ArrayList<>(consumedPartitionGroups.size());
 
-        for (List<IntermediateResultPartition> partitions : consumedPartitions) {
+        for (ConsumedPartitionGroup consumedPartitionGroup : consumedPartitionGroups) {
             // If the produced partition has multiple consumers registered, we
             // need to request the one matching our sub task index.
             // TODO Refactor after removing the consumers from the intermediate result partitions
-            IntermediateResultPartition resultPartition = partitions.get(0);
+            IntermediateResultPartition resultPartition =
+                    resultPartitionRetriever.apply(consumedPartitionGroup.getFirst());
 
-            int numConsumers = resultPartition.getConsumerVertexGroups().get(0).size();
-
-            int queueToRequest = subtaskIndex % numConsumers;
             IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();
+            SubpartitionIndexRange consumedSubpartitionRange =
+                    computeConsumedSubpartitionRange(resultPartition, subtaskIndex);
+
             IntermediateDataSetID resultId = consumedIntermediateResult.getId();
             ResultPartitionType partitionType = consumedIntermediateResult.getResultType();
 
@@ -122,42 +139,108 @@ public class TaskDeploymentDescriptorFactory {
                     new InputGateDeploymentDescriptor(
                             resultId,
                             partitionType,
-                            queueToRequest,
-                            getConsumedPartitionShuffleDescriptors(partitions)));
+                            consumedSubpartitionRange,
+                            getConsumedPartitionShuffleDescriptors(
+                                    consumedIntermediateResult, consumedPartitionGroup)));
         }
 
         return inputGates;
     }
 
-    private ShuffleDescriptor[] getConsumedPartitionShuffleDescriptors(
-            List<IntermediateResultPartition> partitions) {
+    public static SubpartitionIndexRange computeConsumedSubpartitionRange(
+            IntermediateResultPartition resultPartition, int consumerSubtaskIndex) {
+        int numConsumers = resultPartition.getConsumerVertexGroup().size();
+        int consumerIndex = consumerSubtaskIndex % numConsumers;
+        IntermediateResult consumedIntermediateResult = resultPartition.getIntermediateResult();
+        int numSubpartitions = resultPartition.getNumberOfSubpartitions();
+        return computeConsumedSubpartitionRange(
+                consumerIndex,
+                numConsumers,
+                numSubpartitions,
+                consumedIntermediateResult.getProducer().getGraph().isDynamic(),
+                consumedIntermediateResult.isBroadcast());
+    }
 
-        ShuffleDescriptor[] shuffleDescriptors = new ShuffleDescriptor[partitions.size()];
-        // Each edge is connected to a different result partition
-        for (int i = 0; i < partitions.size(); i++) {
-            shuffleDescriptors[i] =
-                    getConsumedPartitionShuffleDescriptor(
-                            partitions.get(i), partitionDeploymentConstraint);
+    @VisibleForTesting
+    static SubpartitionIndexRange computeConsumedSubpartitionRange(
+            int consumerIndex,
+            int numConsumers,
+            int numSubpartitions,
+            boolean isDynamicGraph,
+            boolean isBroadcast) {
+
+        if (!isDynamicGraph) {
+            checkArgument(numConsumers == numSubpartitions);
+            return new SubpartitionIndexRange(consumerIndex, consumerIndex);
+        } else {
+            if (isBroadcast) {
+                // broadcast result should have only one subpartition, and be consumed multiple
+                // times.
+                checkArgument(numSubpartitions == 1);
+                return new SubpartitionIndexRange(0, 0);
+            } else {
+                checkArgument(consumerIndex < numConsumers);
+                checkArgument(numConsumers <= numSubpartitions);
+
+                int start = consumerIndex * numSubpartitions / numConsumers;
+                int nextStart = (consumerIndex + 1) * numSubpartitions / numConsumers;
+
+                return new SubpartitionIndexRange(start, nextStart - 1);
+            }
         }
-        return shuffleDescriptors;
+    }
+
+    private MaybeOffloaded<ShuffleDescriptor[]> getConsumedPartitionShuffleDescriptors(
+            IntermediateResult intermediateResult, ConsumedPartitionGroup consumedPartitionGroup)
+            throws IOException {
+        MaybeOffloaded<ShuffleDescriptor[]> serializedShuffleDescriptors =
+                intermediateResult.getCachedShuffleDescriptors(consumedPartitionGroup);
+        if (serializedShuffleDescriptors == null) {
+            serializedShuffleDescriptors =
+                    computeConsumedPartitionShuffleDescriptors(consumedPartitionGroup);
+            intermediateResult.cacheShuffleDescriptors(
+                    consumedPartitionGroup, serializedShuffleDescriptors);
+        }
+        return serializedShuffleDescriptors;
+    }
+
+    private MaybeOffloaded<ShuffleDescriptor[]> computeConsumedPartitionShuffleDescriptors(
+            ConsumedPartitionGroup consumedPartitionGroup) throws IOException {
+
+        ShuffleDescriptor[] shuffleDescriptors =
+                new ShuffleDescriptor[consumedPartitionGroup.size()];
+        // Each edge is connected to a different result partition
+        int i = 0;
+        for (IntermediateResultPartitionID partitionId : consumedPartitionGroup) {
+            shuffleDescriptors[i++] =
+                    getConsumedPartitionShuffleDescriptor(
+                            resultPartitionRetriever.apply(partitionId),
+                            partitionDeploymentConstraint);
+        }
+        return serializeAndTryOffloadShuffleDescriptors(shuffleDescriptors);
+    }
+
+    private MaybeOffloaded<ShuffleDescriptor[]> serializeAndTryOffloadShuffleDescriptors(
+            ShuffleDescriptor[] shuffleDescriptors) throws IOException {
+
+        final CompressedSerializedValue<ShuffleDescriptor[]> compressedSerializedValue =
+                CompressedSerializedValue.fromObject(shuffleDescriptors);
+
+        final Either<SerializedValue<ShuffleDescriptor[]>, PermanentBlobKey>
+                serializedValueOrBlobKey =
+                        BlobWriter.tryOffload(compressedSerializedValue, jobID, blobWriter);
+
+        if (serializedValueOrBlobKey.isLeft()) {
+            return new TaskDeploymentDescriptor.NonOffloaded<>(serializedValueOrBlobKey.left());
+        } else {
+            return new TaskDeploymentDescriptor.Offloaded<>(serializedValueOrBlobKey.right());
+        }
     }
 
     public static TaskDeploymentDescriptorFactory fromExecutionVertex(
             ExecutionVertex executionVertex, int attemptNumber) throws IOException {
         InternalExecutionGraphAccessor internalExecutionGraphAccessor =
                 executionVertex.getExecutionGraphAccessor();
-
-        final List<List<IntermediateResultPartition>> consumedPartitions = new ArrayList<>();
-
-        for (ConsumedPartitionGroup partitionGroup :
-                executionVertex.getAllConsumedPartitionGroups()) {
-            List<IntermediateResultPartition> partitions = new ArrayList<>();
-            for (IntermediateResultPartitionID partitionId : partitionGroup) {
-                partitions.add(
-                        internalExecutionGraphAccessor.getResultPartitionOrThrow(partitionId));
-            }
-            consumedPartitions.add(partitions);
-        }
 
         return new TaskDeploymentDescriptorFactory(
                 executionVertex.getCurrentExecutionAttempt().getAttemptId(),
@@ -168,7 +251,9 @@ public class TaskDeploymentDescriptorFactory {
                 internalExecutionGraphAccessor.getJobID(),
                 internalExecutionGraphAccessor.getPartitionLocationConstraint(),
                 executionVertex.getParallelSubtaskIndex(),
-                consumedPartitions);
+                executionVertex.getAllConsumedPartitionGroups(),
+                internalExecutionGraphAccessor::getResultPartitionOrThrow,
+                internalExecutionGraphAccessor.getBlobWriter());
     }
 
     private static MaybeOffloaded<JobInformation> getSerializedJobInformation(
@@ -226,6 +311,12 @@ public class TaskDeploymentDescriptorFactory {
             return consumedPartitionDescriptor.getShuffleDescriptor();
         } else if (partitionDeploymentConstraint == PartitionLocationConstraint.CAN_BE_UNKNOWN) {
             // The producing task might not have registered the partition yet
+            //
+            // Currently, UnknownShuffleDescriptor will be created only if there is an intra-region
+            // blocking edge in the graph. This means that when its consumer restarts, the
+            // producer of the UnknownShuffleDescriptors will also restart. Therefore, it's safe to
+            // cache UnknownShuffleDescriptors and there's no need to update the cache when the
+            // corresponding partition becomes consumable.
             return new UnknownShuffleDescriptor(consumedPartitionId);
         } else {
             // throw respective exceptions

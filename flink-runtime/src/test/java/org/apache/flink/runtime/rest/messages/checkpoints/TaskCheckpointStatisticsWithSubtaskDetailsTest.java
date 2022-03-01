@@ -38,17 +38,18 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest
             throws Exception {
         final TaskCheckpointStatisticsWithSubtaskDetails.Summary summary =
                 new TaskCheckpointStatisticsWithSubtaskDetails.Summary(
-                        new MinMaxAvgStatistics(1L, 2L, 3L),
-                        new MinMaxAvgStatistics(1L, 2L, 3L),
+                        new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                        new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
                         new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointDuration(
-                                new MinMaxAvgStatistics(1L, 2L, 3L),
-                                new MinMaxAvgStatistics(1L, 2L, 3L)),
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0)),
                         new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment(
-                                new MinMaxAvgStatistics(1L, 2L, 3L),
-                                new MinMaxAvgStatistics(1L, 2L, 3L),
-                                new MinMaxAvgStatistics(1L, 2L, 3L),
-                                new MinMaxAvgStatistics(1L, 2L, 3L)),
-                        new MinMaxAvgStatistics(1L, 2L, 3L));
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0),
+                                new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0)),
+                        new StatsSummaryDto(1L, 2L, 3L, 0, 0, 0, 0, 0));
 
         List<SubtaskCheckpointStatistics> subtaskCheckpointStatistics = new ArrayList<>(2);
 
@@ -59,6 +60,7 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest
                         1,
                         4L,
                         13L,
+                        1337L,
                         1337L,
                         new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics
                                 .CheckpointDuration(1L, 2L),
@@ -72,6 +74,7 @@ public class TaskCheckpointStatisticsWithSubtaskDetailsTest
                 4L,
                 CheckpointStatsStatus.COMPLETED,
                 4L,
+                1337L,
                 1337L,
                 1L,
                 2L,

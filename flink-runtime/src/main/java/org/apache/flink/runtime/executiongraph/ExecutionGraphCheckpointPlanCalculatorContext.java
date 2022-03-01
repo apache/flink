@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.executiongraph;
 
 import org.apache.flink.runtime.checkpoint.CheckpointPlanCalculatorContext;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 

@@ -18,9 +18,11 @@
 
 package org.apache.flink.table.catalog.exceptions;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.catalog.ObjectPath;
 
 /** Exception for trying to operate partition on a non-partitioned table. */
+@PublicEvolving
 public class TableNotPartitionedException extends Exception {
 
     private static final String MSG = "Table %s in catalog %s is not partitioned.";

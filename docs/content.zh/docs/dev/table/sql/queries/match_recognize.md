@@ -60,8 +60,9 @@ FROM MyTable
 
 本页将更详细地解释每个关键字，并演示说明更复杂的示例。
 
-{% info 注意 %}  Flink 的 `MATCH_RECOGNIZE` 子句实现是一个完整标准子集。仅支持以下部分中记录的功能。基于社区反馈，可能会支持其他功能，请查看[已知的局限](#known-limitations)。
-
+{{< hint info >}}
+Flink 的 `MATCH_RECOGNIZE` 子句实现是一个完整标准子集。仅支持以下部分中记录的功能。基于社区反馈，可能会支持其他功能，请查看[已知的局限](#known-limitations)。
+{{< /hint >}}
 
 
 <a name="introduction-and-examples"></a>
@@ -78,8 +79,8 @@ FROM MyTable
 ```xml
 <dependency>
   <groupId>org.apache.flink</groupId>
-  <artifactId>flink-cep{{ site.scala_version_suffix }}</artifactId>
-  <version>{{ site.version }}</version>
+  <artifactId>flink-cep</artifactId>
+  <version>{{< version >}}</version>
 </dependency>
 ```
 
@@ -218,7 +219,7 @@ Define & Measures
 
 ### Aggregations
 
-Aggregations 可以在 `DEFINE` 和 `MEASURES` 子句中使用。支持[内置函数]({{< ref "docs/dev/table/functions/systemFunctions" >}})和[用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})。
+Aggregations 可以在 `DEFINE` 和 `MEASURES` 子句中使用。支持[内置函数]({{< ref "docs/dev/table/functions/systemfunctions" >}})和[用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})。
 
 对相应匹配项的行子集可以使用 Aggregate functions。请查看[事件流导航](#pattern-navigation)部分以了解如何计算这些子集。
 
@@ -631,9 +632,7 @@ _Logical offsets_ 在映射到指定模式变量的事件启用导航。这可�
   <tbody>
   <tr>
     <td>
-```text
-LAST(variable.field, n)
-```
+      <code>LAST(variable.field, n)</code>
     </td>
     <td>
       <p>返回映射到变量最后 n 个元素的事件中的字段值。计数从映射的最后一个元素开始。</p>
@@ -641,9 +640,7 @@ LAST(variable.field, n)
   </tr>
   <tr>
     <td>
-```text
-FIRST(variable.field, n)
-```
+      <code>FIRST(variable.field, n)</code>
     </td>
     <td>
       <p>返回映射到变量的第 <i>n</i> 个元素的事件中的字段值。计数从映射的第一个元素开始。</p>
@@ -929,11 +926,12 @@ FROM Ticker
   <tbody>
     <tr>
       <td>
-        <code>MATCH_ROWTIME()</code><br/>
+        <code>MATCH_ROWTIME([rowtime_field])</code><br/>
       </td>
       <td>
         <p>返回映射到给定模式的最后一行的时间戳。</p>
-        <p>结果属性是<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">行时间属性</a>，可用于后续基于时间的操作，例如 <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
+        <p>函数可以没有入参，这种情况下函数返回结果是 TIMESTAMP 类型且具有事件时间属性；也可以有一个入参，这个参数值必须是 TIMESTAMP 类型或者 TIMESTAMP_LTZ 类型，且必须有事件时间属性，这种情况下函数返回结果的数据类型和输入参数的一致，且必须有事件时间属性。</p>
+        <p>结果属性是<a href="{{< ref "docs/dev/table/concepts/time_attributes" >}}">事件时间属性</a>，可用于后续基于时间的操作，例如 <a href="{{< ref "docs/dev/table/sql/queries/joins" >}}#interval-joins">interval joins</a> 和 <a href="#aggregations">group window or over window aggregations</a>。</p>
       </td>
     </tr>
     <tr>

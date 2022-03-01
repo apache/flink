@@ -1,6 +1,6 @@
 ---
 title: Cassandra
-weight: 3
+weight: 4
 type: docs
 aliases:
   - /dev/connectors/cassandra.html
@@ -37,7 +37,7 @@ To use this connector, add the following dependency to your project:
 
 {{< artifact flink-connector-cassandra withScalaVersion >}}
 
-Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 ## Installing Apache Cassandra
 There are multiple ways to bring up a Cassandra instance on local machine:
@@ -59,7 +59,7 @@ The following configuration methods can be used:
     * The query is internally treated as CQL statement.
     * __DO__ set the upsert query for processing __Tuple__ data type.
     * __DO NOT__ set the query for processing __POJO__ data types.
-2. _setClusterBuilder()_
+2. _setClusterBuilder(ClusterBuilder clusterBuilder)_
     * Sets the cluster builder that is used to configure the connection to cassandra with more sophisticated settings such as consistency level, retry policy and etc.
 3. _setHost(String host[, int port])_
     * Simple version of setClusterBuilder() with host/port information to connect to Cassandra instances
@@ -75,7 +75,11 @@ The following configuration methods can be used:
 7. _setFailureHandler([CassandraFailureHandler failureHandler])_
     * An __optional__ setting
     * Sets the custom failure handler.
-8. _build()_
+8. _setDefaultKeyspace(String keyspace)_
+    * Sets the default keyspace to be used.
+9. _enableIgnoreNullFields()_
+    * Enables ignoring null values, treats null values as unset and avoids writing null fields and creating tombstones.
+10. _build()_
     * Finalizes the configuration and constructs the CassandraSink instance.
 
 ### Write-ahead Log

@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
@@ -29,6 +31,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * order, and they need to be re-arranged to the correct order by comparing with a list of strictly
  * ordered partition keys.
  */
+@PublicEvolving
 public class CatalogPartitionSpec {
 
     // An unmodifiable map as <partition key, value>

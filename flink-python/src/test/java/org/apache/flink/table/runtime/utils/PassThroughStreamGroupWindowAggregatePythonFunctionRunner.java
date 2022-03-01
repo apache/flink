@@ -20,11 +20,11 @@ package org.apache.flink.table.runtime.utils;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.table.runtime.operators.python.aggregate.PassThroughPythonStreamGroupWindowAggregateOperator;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatefulPythonFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -32,18 +32,20 @@ import org.apache.beam.vendor.grpc.v1p26p0.com.google.protobuf.Struct;
 
 import java.util.Map;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
+
 /**
  * A {@link PassThroughStreamGroupWindowAggregatePythonFunctionRunner} runner that help to test the
  * Python stream group window aggregate operators.
  */
 public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
-        extends BeamTableStatefulPythonFunctionRunner {
+        extends BeamTablePythonFunctionRunner {
 
     private final PassThroughPythonStreamGroupWindowAggregateOperator operator;
 
     public PassThroughStreamGroupWindowAggregatePythonFunctionRunner(
             String taskName,
-            PythonEnvironmentManager environmentManager,
+            ProcessPythonEnvironmentManager environmentManager,
             RowType inputType,
             RowType outputType,
             String functionUrn,
@@ -56,8 +58,6 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
         super(
                 taskName,
                 environmentManager,
-                inputType,
-                outputType,
                 functionUrn,
                 userDefinedFunctions,
                 jobOptions,
@@ -67,9 +67,10 @@ public class PassThroughStreamGroupWindowAggregatePythonFunctionRunner
                 null,
                 null,
                 0.0,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE);
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        inputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false),
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        outputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, false));
         this.operator = operator;
     }
 

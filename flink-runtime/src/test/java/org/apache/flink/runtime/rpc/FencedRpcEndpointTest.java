@@ -382,7 +382,7 @@ public class FencedRpcEndpointTest extends TestLogger {
 
                                 return value;
                             },
-                            getRpcService().getExecutor())
+                            getRpcService().getScheduledExecutor())
                     .thenApplyAsync((String v) -> Acknowledge.get(), getMainThreadExecutor());
         }
 

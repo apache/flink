@@ -26,7 +26,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-connectors</artifactId>
-		<version>1.14-SNAPSHOT</version>
+		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -140,21 +140,21 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-api-java-bridge_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-api-java-bridge</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-runtime-blink_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-runtime</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
 		</dependency>
@@ -169,7 +169,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-hadoop-bulk_${scala.binary.version}</artifactId>
+			<artifactId>flink-hadoop-bulk</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -183,7 +183,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-orc_${scala.binary.version}</artifactId>
+			<artifactId>flink-orc</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>
@@ -195,7 +195,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-orc-nohive_${scala.binary.version}</artifactId>
+			<artifactId>flink-orc-nohive</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>
@@ -207,7 +207,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-parquet_${scala.binary.version}</artifactId>
+			<artifactId>flink-parquet</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 
@@ -514,6 +514,12 @@ under the License.
 		<!-- Tests -->
 
 		<dependency>
+			<groupId>org.assertj</groupId>
+			<artifactId>assertj-core</artifactId>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
@@ -531,7 +537,13 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner-blink_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-api-scala-bridge_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>
@@ -546,7 +558,7 @@ under the License.
 		</dependency>
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-clients_${scala.binary.version}</artifactId>
+			<artifactId>flink-clients</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -841,7 +853,7 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-test-utils_${scala.binary.version}</artifactId>
+			<artifactId>flink-test-utils</artifactId>
 			<version>${project.version}</version>
 			<scope>test</scope>
 		</dependency>
@@ -864,10 +876,35 @@ under the License.
 			<version>${hive.avro.version}</version>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-enforcer-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>forbid-direct-table-planner-dependencies</id>
+						<goals>
+							<goal>enforce</goal>
+						</goals>
+						<configuration>
+							<!-- We need to depend on table planner because we rely on its internals -->
+							<skip>true</skip>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
 			<plugin>
 				<groupId>org.antlr</groupId>
 				<artifactId>antlr3-maven-plugin</artifactId>
@@ -925,15 +962,14 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<artifactSet>
 								<includes combine.children="append">
 									<include>org.apache.flink:flink-hadoop-fs</include>
-									<include>org.apache.flink:flink-orc_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-orc-nohive_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-orc</include>
+									<include>org.apache.flink:flink-orc-nohive</include>
 									<include>org.apache.flink:flink-hadoop-compatibility_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-parquet_${scala.binary.version}</include>
-									<include>org.apache.flink:flink-hadoop-bulk_${scala.binary.version}</include>
+									<include>org.apache.flink:flink-parquet</include>
+									<include>org.apache.flink:flink-hadoop-bulk</include>
 									<include>org.apache.parquet:parquet-hadoop</include>
 									<include>org.apache.parquet:parquet-format</include>
 									<include>org.apache.parquet:parquet-column</include>
@@ -967,14 +1003,14 @@ under the License.
 							</relocations>
 							<filters>
 								<filter>
-									<artifact>org.apache.flink:flink-orc_${scala.binary.version}</artifact>
+									<artifact>org.apache.flink:flink-orc</artifact>
 									<excludes>
 										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
 										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
 									</excludes>
 								</filter>
 								<filter>
-									<artifact>org.apache.flink:flink-parquet_${scala.binary.version}</artifact>
+									<artifact>org.apache.flink:flink-parquet</artifact>
 									<excludes>
 										<exclude>META-INF/services/org.apache.flink.table.factories.Factory</exclude>
 										<exclude>META-INF/services/org.apache.flink.table.factories.TableFactory</exclude>
@@ -1178,7 +1214,7 @@ under the License.
 		<profile>
 			<id>java11</id>
 			<activation>
-				<jdk>11</jdk>
+				<jdk>[11,)</jdk>
 			</activation>
 
 			<build>

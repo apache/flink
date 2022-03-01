@@ -230,6 +230,20 @@ public final class IOUtils {
      * @throws Exception collected exceptions that occurred during closing
      */
     public static void closeAll(Iterable<? extends AutoCloseable> closeables) throws Exception {
+        closeAll(closeables, Exception.class);
+    }
+
+    /**
+     * Closes all {@link AutoCloseable} objects in the parameter, suppressing exceptions. Exception
+     * will be emitted after calling close() on every object.
+     *
+     * @param closeables iterable with closeables to close.
+     * @param suppressedException class of exceptions which should be suppressed during the closing.
+     * @throws Exception collected exceptions that occurred during closing
+     */
+    public static <T extends Throwable> void closeAll(
+            Iterable<? extends AutoCloseable> closeables, Class<T> suppressedException)
+            throws Exception {
         if (null != closeables) {
 
             Exception collectedExceptions = null;
@@ -239,8 +253,13 @@ public final class IOUtils {
                     if (null != closeable) {
                         closeable.close();
                     }
-                } catch (Exception e) {
-                    collectedExceptions = ExceptionUtils.firstOrSuppressed(e, collectedExceptions);
+                } catch (Throwable e) {
+                    if (!suppressedException.isAssignableFrom(e.getClass())) {
+                        throw e;
+                    }
+
+                    Exception ex = e instanceof Exception ? (Exception) e : new Exception(e);
+                    collectedExceptions = ExceptionUtils.firstOrSuppressed(ex, collectedExceptions);
                 }
             }
 

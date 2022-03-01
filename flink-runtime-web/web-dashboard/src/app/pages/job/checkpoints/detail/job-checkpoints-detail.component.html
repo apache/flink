@@ -18,14 +18,18 @@
 <div class="extra">
   <strong>Checkpoint Detail:</strong>
   <div class="more-detail">
-    <strong>Path:</strong> {{checkPointDetail?.external_path || '-'}}
+    <strong>Path:</strong>
+    {{ checkPointDetail?.external_path || '-' }}
     <nz-divider nzType="vertical"></nz-divider>
-    <strong>Discarded:</strong> {{checkPointDetail?.discarded || '-'}}
+    <strong>Discarded:</strong>
+    {{ checkPointDetail?.discarded || '-' }}
     <nz-divider nzType="vertical"></nz-divider>
-    <strong>Checkpoint Type:</strong> {{checkPointType}}
+    <strong>Checkpoint Type:</strong>
+    {{ checkPointType }}
     <ng-container *ngIf="checkPointDetail?.failure_message">
       <nz-divider nzType="vertical"></nz-divider>
-      <strong>Failure Message:</strong> {{checkPointDetail?.failure_message || '-' }}
+      <strong>Failure Message:</strong>
+      {{ checkPointDetail?.failure_message || '-' }}
     </ng-container>
   </div>
 </div>
@@ -37,40 +41,66 @@
     [nzLoading]="isLoading"
     [nzData]="listOfVertex"
     [nzFrontPagination]="false"
-    [nzShowPagination]="false">
+    [nzShowPagination]="false"
+  >
     <thead>
       <tr>
-        <th nzShowExpand></th>
+        <th nzWidth="70px"></th>
         <th><strong>Name</strong></th>
         <th><strong>Acknowledged</strong></th>
         <th><strong>Latest Acknowledgment</strong></th>
         <th><strong>End to End Duration</strong></th>
         <th><strong>Checkpointed Data Size</strong></th>
+        <th><strong>Full Checkpoint Data Size</strong></th>
         <th><strong>Processed (persisted) in-flight data</strong></th>
       </tr>
     </thead>
     <tbody *ngIf="checkPointDetail">
-      <ng-container *ngFor="let vertex of listOfVertex; trackBy:trackVertexBy;">
+      <ng-container *ngFor="let vertex of listOfVertex; trackBy: trackById">
         <tr>
           <td nzShowExpand [(nzExpand)]="vertex.expand"></td>
           <td>
             <div class="name">{{ vertex.name }}</div>
           </td>
-          <td>{{ checkPointDetail['tasks'][vertex.id]['num_acknowledged_subtasks'] }}/{{ checkPointDetail['tasks'][vertex.id]['num_subtasks'] }} ({{ (checkPointDetail['tasks'][vertex.id]['num_acknowledged_subtasks'] / checkPointDetail['tasks'][vertex.id]['num_subtasks']) | percent }})</td>
-          <td *ngIf="checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp'] >= 0">{{ checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp'] | date:'yyyy-MM-dd HH:mm:ss' }}</td>
-          <td *ngIf="checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp'] <0">n/a</td>
-          <td *ngIf="checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] >= 0">{{ checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] | humanizeDuration}}</td>
-          <td *ngIf="checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] <0">n/a</td>
+          <td>
+            {{ checkPointDetail['tasks'][vertex.id]['num_acknowledged_subtasks'] }}/{{
+              checkPointDetail['tasks'][vertex.id]['num_subtasks']
+            }}
+            ({{
+              checkPointDetail['tasks'][vertex.id]['num_acknowledged_subtasks'] /
+                checkPointDetail['tasks'][vertex.id]['num_subtasks'] | percent
+            }})
+          </td>
+          <td *ngIf="checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp'] >= 0">
+            {{
+              checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp']
+                | date: 'yyyy-MM-dd HH:mm:ss'
+            }}
+          </td>
+          <td *ngIf="checkPointDetail['tasks'][vertex.id]['latest_ack_timestamp'] < 0">n/a</td>
+          <td *ngIf="checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] >= 0">
+            {{ checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] | humanizeDuration }}
+          </td>
+          <td *ngIf="checkPointDetail['tasks'][vertex.id]['end_to_end_duration'] < 0">n/a</td>
+          <td>
+            {{ checkPointDetail['tasks'][vertex.id]['checkpointed_size'] | humanizeBytes }}
+          </td>
           <td>{{ checkPointDetail['tasks'][vertex.id]['state_size'] | humanizeBytes }}</td>
-          <td>{{ checkPointDetail['tasks'][vertex.id]['processed_data'] | humanizeBytes }} ({{ checkPointDetail['tasks'][vertex.id]['persisted_data'] | humanizeBytes }})</td>
+          <td>
+            {{ checkPointDetail['tasks'][vertex.id]['processed_data'] | humanizeBytes }} ({{
+              checkPointDetail['tasks'][vertex.id]['persisted_data'] | humanizeBytes
+            }})
+          </td>
         </tr>
         <tr [nzExpand]="vertex.expand">
-          <td colspan="7" *ngIf="vertex.expand" class="collapse-td">
-            <flink-job-checkpoints-subtask [checkPointId]="checkPoint.id" [vertex]="vertex"></flink-job-checkpoints-subtask>
+          <td colspan="8" *ngIf="vertex.expand" class="collapse-td">
+            <flink-job-checkpoints-subtask
+              [checkPointId]="checkPoint.id"
+              [vertex]="vertex"
+            ></flink-job-checkpoints-subtask>
           </td>
         </tr>
       </ng-container>
     </tbody>
   </nz-table>
 </div>
-

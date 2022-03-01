@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.util;
 
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
@@ -27,8 +28,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.TestInputChannel;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
-import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.io.checkpointing.CheckpointedInputGate;
 import org.apache.flink.streaming.runtime.io.checkpointing.TestBarrierHandlerFactory;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxProcessor;

@@ -37,16 +37,19 @@ trigger:
 resources:
   containers:
   # Container with Maven 3.2.5, SSL to have the same environment everywhere.
+  # see https://github.com/flink-ci/flink-ci-docker
   - container: flink-build-container
-    image: rmetzger/flink-ci:ubuntu-amd64-7ac4e28
+    image: chesnay/flink-ci:java_8_11_17
 
 variables:
   MAVEN_CACHE_FOLDER: $(Pipeline.Workspace)/.m2/repository
   E2E_CACHE_FOLDER: $(Pipeline.Workspace)/e2e_cache
   E2E_TARBALL_CACHE: $(Pipeline.Workspace)/e2e_artifact_cache
-  MAVEN_OPTS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
+  MAVEN_ARGS: '-Dmaven.repo.local=$(MAVEN_CACHE_FOLDER)'
   CACHE_KEY: maven | $(Agent.OS) | **/pom.xml, !**/target/**
   CACHE_FALLBACK_KEY: maven | $(Agent.OS)
+  DOCKER_IMAGES_CACHE_KEY: docker-images-cache | $(Agent.OS) | **/cache_docker_images.sh | flink-test-utils-parent/**/DockerImageVersions.java
+  DOCKER_IMAGES_CACHE_FOLDER: $(Pipeline.Workspace)/.docker-cache
   FLINK_ARTIFACT_DIR: $(Pipeline.Workspace)/flink_artifact
   SECRET_S3_BUCKET: $[variables.IT_CASE_S3_BUCKET]
   SECRET_S3_ACCESS_KEY: $[variables.IT_CASE_S3_ACCESS_KEY]
@@ -67,7 +70,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
           run_end_to_end: false
           container: flink-build-container
           jdk: 8
@@ -107,18 +110,7 @@ stages:
             vmImage: 'ubuntu-20.04'
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: 8
-      - template: jobs-template.yml
-        parameters:
-          stage_name: cron_hadoop241
-          test_pool_definition:
-            name: Default
-          e2e_pool_definition:
-            vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.4.1 -Pskip-hive-tests"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
           run_end_to_end: true
           container: flink-build-container
           jdk: 8
@@ -135,23 +127,12 @@ stages:
           jdk: 8
       - template: jobs-template.yml
         parameters:
-          stage_name: cron_scala212
-          test_pool_definition:
-            name: Default
-          e2e_pool_definition:
-            vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: 8
-      - template: jobs-template.yml
-        parameters:
           stage_name: cron_jdk11
           test_pool_definition:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12 -Djdk11 -Pjava11-target"
           run_end_to_end: true
           container: flink-build-container
           jdk: 11
@@ -162,7 +143,7 @@ stages:
             name: Default
           e2e_pool_definition:
             vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Penable-adaptive-scheduler"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12 -Penable-adaptive-scheduler"
           run_end_to_end: true
           container: flink-build-container
           jdk: 8
@@ -174,5 +155,5 @@ stages:
       - template: build-python-wheels.yml
         parameters:
           stage_name: cron_python_wheels
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
+          environment: PROFILE="-Dhadoop.version=2.8.5 -Dinclude_hadoop_aws -Dscala-2.12"
           container: flink-build-container

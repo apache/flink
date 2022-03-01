@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.arrow;
 
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.table.data.RowData;
 import org.apache.flink.testutils.CustomEqualityMatcher;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 import org.apache.flink.util.Preconditions;
@@ -67,10 +68,10 @@ public abstract class ArrowReaderWriterTestBase<T> {
             arrowWriter.finish();
             arrowStreamWriter.writeBatch();
 
-            ArrowReader<T> arrowReader =
+            ArrowReader arrowReader =
                     createArrowReader(new ByteArrayInputStream(baos.toByteArray()));
             for (int i = 0; i < testData.length; i++) {
-                T deserialized = arrowReader.read(i);
+                RowData deserialized = arrowReader.read(i);
                 assertThat(
                         "Deserialized value is wrong.",
                         deserialized,
@@ -83,7 +84,7 @@ public abstract class ArrowReaderWriterTestBase<T> {
         }
     }
 
-    public abstract ArrowReader<T> createArrowReader(InputStream inputStream) throws IOException;
+    public abstract ArrowReader createArrowReader(InputStream inputStream) throws IOException;
 
     public abstract Tuple2<ArrowWriter<T>, ArrowStreamWriter> createArrowWriter(
             OutputStream outputStream) throws IOException;

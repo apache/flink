@@ -21,11 +21,17 @@ package org.apache.flink.table.runtime.operators.python.scalar;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
+import org.apache.flink.streaming.api.utils.ProtoUtils;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.data.binary.BinaryRowData;
+import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.python.PythonEnv;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
+import org.apache.flink.table.runtime.generated.Projection;
 import org.apache.flink.table.runtime.operators.python.AbstractStatelessFunctionOperator;
+import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -44,14 +50,10 @@ import org.apache.flink.util.Preconditions;
  * <p>The outputs will be as the following format: {{{
  * +------------------+-------------------------+ | forwarded fields | scalar function results |
  * +------------------+-------------------------+ }}}.
- *
- * @param <IN> Type of the input elements.
- * @param <OUT> Type of the output elements.
- * @param <UDFIN> Type of the UDF input type.
  */
 @Internal
-public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
-        extends AbstractStatelessFunctionOperator<IN, OUT, UDFIN> {
+public abstract class AbstractPythonScalarFunctionOperator
+        extends AbstractStatelessFunctionOperator<RowData, RowData, RowData> {
 
     private static final long serialVersionUID = 1L;
 
@@ -60,38 +62,49 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
     /** The Python {@link ScalarFunction}s to be executed. */
     protected final PythonFunctionInfo[] scalarFunctions;
 
-    /** The offset of the fields which should be forwarded. */
-    protected final int[] forwardedFields;
+    private final GeneratedProjection udfInputGeneratedProjection;
+    private final GeneratedProjection forwardedFieldGeneratedProjection;
 
-    AbstractPythonScalarFunctionOperator(
+    /** The collector used to collect records. */
+    protected transient StreamRecordRowDataWrappingCollector rowDataWrapper;
+
+    /** The Projection which projects the forwarded fields from the input row. */
+    private transient Projection<RowData, BinaryRowData> forwardedFieldProjection;
+
+    /** The Projection which projects the udf input fields from the input row. */
+    private transient Projection<RowData, BinaryRowData> udfInputProjection;
+
+    /** The JoinedRowData reused holding the execution result. */
+    protected transient JoinedRowData reuseJoinedRow;
+
+    public AbstractPythonScalarFunctionOperator(
             Configuration config,
             PythonFunctionInfo[] scalarFunctions,
             RowType inputType,
-            RowType outputType,
-            int[] udfInputOffsets,
-            int[] forwardedFields,
-            FlinkFnApi.CoderParam.DataType inputDataType,
-            FlinkFnApi.CoderParam.DataType outputDataType) {
-        super(
-                config,
-                inputType,
-                outputType,
-                udfInputOffsets,
-                inputDataType,
-                outputDataType,
-                FlinkFnApi.CoderParam.OutputMode.SINGLE);
+            RowType udfInputType,
+            RowType udfOutputType,
+            GeneratedProjection udfInputGeneratedProjection,
+            GeneratedProjection forwardedFieldGeneratedProjection) {
+        super(config, inputType, udfInputType, udfOutputType);
         this.scalarFunctions = Preconditions.checkNotNull(scalarFunctions);
-        this.forwardedFields = Preconditions.checkNotNull(forwardedFields);
+        this.udfInputGeneratedProjection = Preconditions.checkNotNull(udfInputGeneratedProjection);
+        this.forwardedFieldGeneratedProjection =
+                Preconditions.checkNotNull(forwardedFieldGeneratedProjection);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(forwardedFields.length, outputType.getFieldCount()));
         super.open();
+        rowDataWrapper = new StreamRecordRowDataWrappingCollector(output);
+        reuseJoinedRow = new JoinedRowData();
+
+        udfInputProjection =
+                udfInputGeneratedProjection.newInstance(
+                        Thread.currentThread().getContextClassLoader());
+        forwardedFieldProjection =
+                forwardedFieldGeneratedProjection.newInstance(
+                        Thread.currentThread().getContextClassLoader());
     }
 
     @Override
@@ -106,14 +119,29 @@ public abstract class AbstractPythonScalarFunctionOperator<IN, OUT, UDFIN>
                 FlinkFnApi.UserDefinedFunctions.newBuilder();
         // add udf proto
         for (PythonFunctionInfo pythonFunctionInfo : scalarFunctions) {
-            builder.addUdfs(PythonOperatorUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
+            builder.addUdfs(ProtoUtils.getUserDefinedFunctionProto(pythonFunctionInfo));
         }
-        builder.setMetricEnabled(getPythonConfig().isMetricEnabled());
+        builder.setMetricEnabled(pythonConfig.isMetricEnabled());
+        builder.setProfileEnabled(pythonConfig.isProfileEnabled());
         return builder.build();
     }
 
     @Override
     public String getFunctionUrn() {
         return SCALAR_FUNCTION_URN;
+    }
+
+    @Override
+    public void bufferInput(RowData input) {
+        // always copy the projection result as the generated Projection reuses the projection
+        // result
+        RowData forwardedFields = forwardedFieldProjection.apply(input).copy();
+        forwardedFields.setRowKind(input.getRowKind());
+        forwardedInputQueue.add(forwardedFields);
+    }
+
+    @Override
+    public RowData getFunctionInput(RowData element) {
+        return udfInputProjection.apply(element);
     }
 }

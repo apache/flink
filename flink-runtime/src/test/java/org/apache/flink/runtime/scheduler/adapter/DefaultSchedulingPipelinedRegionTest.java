@@ -31,7 +31,7 @@ import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import org.junit.Test;
 
@@ -41,11 +41,11 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.sameInstance;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Unit tests for {@link DefaultSchedulingPipelinedRegion}. */
@@ -73,7 +73,11 @@ public class DefaultSchedulingPipelinedRegionTest extends TestLogger {
                 new DefaultExecutionVertex(
                         new ExecutionVertexID(new JobVertexID(), 0),
                         Collections.emptyList(),
-                        () -> ExecutionState.CREATED);
+                        () -> ExecutionState.CREATED,
+                        Collections.emptyList(),
+                        partitionID -> {
+                            throw new UnsupportedOperationException();
+                        });
 
         final Set<DefaultExecutionVertex> vertices = Collections.singleton(vertex);
         final Map<IntermediateResultPartitionID, DefaultResultPartition> resultPartitionById =

@@ -17,8 +17,20 @@
  */
 @import "theme";
 
+nz-progress {
+  display: block;
+  width: 90%;
+
+  ::ng-deep {
+    .ant-progress-inner {
+      border-radius: 0 !important;
+    }
+  }
+}
+
 :host {
   display: block;
+  flex: 1;
   margin-bottom: 16px;
 }
 
@@ -36,38 +48,35 @@ nz-card:first-child {
     table {
       border-collapse: collapse;
     }
+
     .ant-table-small {
       border: none;
+
       .ant-table-body {
-        margin: 0;
         overflow: hidden !important;
+        margin: 0;
       }
-      tr {
-        &:hover {
-          td, th {
-            background: transparent;
-          }
-        }
-      }
-      td, th {
-        border-collapse: collapse;
+
+      td,
+      th {
         border: 1px solid @border-color-split !important;
+        border-collapse: collapse;
+
         &.table-header {
           background: @table-header-bg !important;
           color: @table-header-color;
           font-weight: 500;
         }
       }
-    }
-  }
-}
 
-nz-progress {
-  display: block;
-  width: 90%;
-  ::ng-deep {
-    .ant-progress-inner {
-      border-radius: 0 !important;
+      tr {
+        &:hover {
+          td,
+          th {
+            background: transparent;
+          }
+        }
+      }
     }
   }
 }

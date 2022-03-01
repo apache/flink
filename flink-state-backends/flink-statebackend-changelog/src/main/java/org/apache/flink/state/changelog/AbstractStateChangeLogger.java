@@ -18,46 +18,64 @@
 package org.apache.flink.state.changelog;
 
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.state.RegisteredKeyValueStateBackendMetaInfo;
+import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
+import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot;
 import org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters;
 import org.apache.flink.util.function.ThrowingConsumer;
+
+import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
 import javax.annotation.Nullable;
 
 import java.io.ByteArrayOutputStream;
+import java.io.Closeable;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
+import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType.KEY_VALUE;
+import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshot.BackendStateType.PRIORITY_QUEUE;
 import static org.apache.flink.runtime.state.metainfo.StateMetaInfoSnapshotReadersWriters.CURRENT_STATE_META_INFO_SNAPSHOT_VERSION;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.ADD;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.ADD_ELEMENT;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.ADD_OR_UPDATE_ELEMENT;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.CLEAR;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.METADATA;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.REMOVE_ELEMENT;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.SET;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.SET_INTERNAL;
+import static org.apache.flink.state.changelog.StateChangeOperation.ADD;
+import static org.apache.flink.state.changelog.StateChangeOperation.ADD_ELEMENT;
+import static org.apache.flink.state.changelog.StateChangeOperation.ADD_OR_UPDATE_ELEMENT;
+import static org.apache.flink.state.changelog.StateChangeOperation.CLEAR;
+import static org.apache.flink.state.changelog.StateChangeOperation.METADATA;
+import static org.apache.flink.state.changelog.StateChangeOperation.REMOVE_ELEMENT;
+import static org.apache.flink.state.changelog.StateChangeOperation.SET;
+import static org.apache.flink.state.changelog.StateChangeOperation.SET_INTERNAL;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeLogger<Value, Ns> {
+abstract class AbstractStateChangeLogger<Key, Value, Ns>
+        implements StateChangeLogger<Value, Ns>, Closeable {
     static final int COMMON_KEY_GROUP = -1;
     protected final StateChangelogWriter<?> stateChangelogWriter;
     protected final InternalKeyContext<Key> keyContext;
     protected final RegisteredStateMetaInfoBase metaInfo;
+    private final StateMetaInfoSnapshot.BackendStateType stateType;
+    private final ByteArrayOutputStream out = new ByteArrayOutputStream();
+    private final DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(out);
     private boolean metaDataWritten = false;
+    private final short stateShortId;
 
     public AbstractStateChangeLogger(
             StateChangelogWriter<?> stateChangelogWriter,
             InternalKeyContext<Key> keyContext,
-            RegisteredStateMetaInfoBase metaInfo) {
+            RegisteredStateMetaInfoBase metaInfo,
+            short stateId) {
         this.stateChangelogWriter = checkNotNull(stateChangelogWriter);
         this.keyContext = checkNotNull(keyContext);
         this.metaInfo = checkNotNull(metaInfo);
+        if (metaInfo instanceof RegisteredKeyValueStateBackendMetaInfo) {
+            this.stateType = KEY_VALUE;
+        } else if (metaInfo instanceof RegisteredPriorityQueueStateBackendMetaInfo) {
+            this.stateType = PRIORITY_QUEUE;
+        } else {
+            throw new IllegalArgumentException("Unsupported state type: " + metaInfo);
+        }
+        this.stateShortId = stateId;
     }
 
     @Override
@@ -112,6 +130,11 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
         log(REMOVE_ELEMENT, dataSerializer, ns);
     }
 
+    @Override
+    public void resetWritingMetaFlag() {
+        metaDataWritten = false;
+    }
+
     protected void log(StateChangeOperation op, Ns ns) throws IOException {
         logMetaIfNeeded();
         stateChangelogWriter.append(keyContext.getCurrentKeyGroupIndex(), serialize(op, ns, null));
@@ -135,14 +158,19 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
                     COMMON_KEY_GROUP,
                     serializeRaw(
                             out -> {
-                                out.writeByte(METADATA.code);
+                                out.writeByte(METADATA.getCode());
                                 out.writeInt(CURRENT_STATE_META_INFO_SNAPSHOT_VERSION);
                                 StateMetaInfoSnapshotReadersWriters.getWriter()
                                         .writeStateMetaInfoSnapshot(metaInfo.snapshot(), out);
+                                writeDefaultValueAndTtl(out);
+                                out.writeShort(stateShortId);
+                                out.writeByte(stateType.getCode());
                             }));
             metaDataWritten = true;
         }
     }
+
+    protected void writeDefaultValueAndTtl(DataOutputViewStreamWrapper out) throws IOException {}
 
     private byte[] serialize(
             StateChangeOperation op,
@@ -151,10 +179,8 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
             throws IOException {
         return serializeRaw(
                 wrapper -> {
-                    wrapper.writeByte(op.code);
-                    // todo: optimize in FLINK-22944 by either writing short code or grouping and
-                    // writing once (same for key, ns)
-                    wrapper.writeUTF(metaInfo.getName());
+                    wrapper.writeByte(op.getCode());
+                    wrapper.writeShort(stateShortId);
                     serializeScope(ns, wrapper);
                     if (dataWriter != null) {
                         dataWriter.accept(wrapper);
@@ -168,50 +194,18 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns> implements StateChangeL
     private byte[] serializeRaw(
             ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataWriter)
             throws IOException {
-        try (ByteArrayOutputStream out = new ByteArrayOutputStream();
-                DataOutputViewStreamWrapper wrapper = new DataOutputViewStreamWrapper(out)) {
-            dataWriter.accept(wrapper);
-            return out.toByteArray();
-        }
+        dataWriter.accept(wrapper);
+        wrapper.flush();
+        byte[] bytes = out.toByteArray();
+        out.reset();
+        return bytes;
     }
 
-    enum StateChangeOperation {
-        /** Scope: key + namespace. */
-        CLEAR((byte) 0),
-        /** Scope: key + namespace. */
-        SET((byte) 1),
-        /** Scope: key + namespace. */
-        SET_INTERNAL((byte) 2),
-        /** Scope: key + namespace. */
-        ADD((byte) 3),
-        /** Scope: key + namespace, also affecting other (source) namespaces. */
-        MERGE_NS((byte) 4),
-        /** Scope: key + namespace + element (e.g. user list append). */
-        ADD_ELEMENT((byte) 5),
-        /** Scope: key + namespace + element (e.g. user map key put). */
-        ADD_OR_UPDATE_ELEMENT((byte) 6),
-        /** Scope: key + namespace + element (e.g. user map remove or iterator remove). */
-        REMOVE_ELEMENT((byte) 7),
-        /** Scope: key + namespace, first element (e.g. priority queue poll). */
-        REMOVE_FIRST_ELEMENT((byte) 8),
-        /** State metadata (name, serializers, etc.). */
-        METADATA((byte) 9);
-        private final byte code;
-
-        StateChangeOperation(byte code) {
-            this.code = code;
-        }
-
-        private static final Map<Byte, KvStateChangeLoggerImpl.StateChangeOperation> BY_CODES =
-                Arrays.stream(AbstractStateChangeLogger.StateChangeOperation.values())
-                        .collect(Collectors.toMap(o -> o.code, Function.identity()));
-
-        public static StateChangeOperation byCode(byte opCode) {
-            return checkNotNull(BY_CODES.get(opCode), Byte.toString(opCode));
-        }
-
-        public byte getCode() {
-            return code;
+    @Override
+    public void close() throws IOException {
+        try (Closer closer = Closer.create()) {
+            closer.register(wrapper);
+            closer.register(out);
         }
     }
 }

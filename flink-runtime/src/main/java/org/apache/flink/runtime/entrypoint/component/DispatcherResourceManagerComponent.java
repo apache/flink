@@ -19,17 +19,19 @@
 package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.Dispatcher;
+import org.apache.flink.runtime.dispatcher.DispatcherOperationCaches;
 import org.apache.flink.runtime.dispatcher.runner.DispatcherRunner;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.resourcemanager.ResourceManager;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerService;
+import org.apache.flink.runtime.rest.RestService;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.WebMonitorEndpoint;
 import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +62,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 
     @Nonnull private final LeaderRetrievalService resourceManagerRetrievalService;
 
-    @Nonnull private final AutoCloseableAsync webMonitorEndpoint;
+    @Nonnull private final RestService webMonitorEndpoint;
 
     private final CompletableFuture<Void> terminationFuture;
 
@@ -70,13 +72,16 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
 
     private final FatalErrorHandler fatalErrorHandler;
 
+    private final DispatcherOperationCaches dispatcherOperationCaches;
+
     DispatcherResourceManagerComponent(
             @Nonnull DispatcherRunner dispatcherRunner,
             @Nonnull ResourceManagerService resourceManagerService,
             @Nonnull LeaderRetrievalService dispatcherLeaderRetrievalService,
             @Nonnull LeaderRetrievalService resourceManagerRetrievalService,
-            @Nonnull AutoCloseableAsync webMonitorEndpoint,
-            @Nonnull FatalErrorHandler fatalErrorHandler) {
+            @Nonnull RestService webMonitorEndpoint,
+            @Nonnull FatalErrorHandler fatalErrorHandler,
+            @Nonnull DispatcherOperationCaches dispatcherOperationCaches) {
         this.dispatcherRunner = dispatcherRunner;
         this.resourceManagerService = resourceManagerService;
         this.dispatcherLeaderRetrievalService = dispatcherLeaderRetrievalService;
@@ -85,6 +90,7 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
         this.fatalErrorHandler = fatalErrorHandler;
         this.terminationFuture = new CompletableFuture<>();
         this.shutDownFuture = new CompletableFuture<>();
+        this.dispatcherOperationCaches = dispatcherOperationCaches;
 
         registerShutDownFuture();
         handleUnexpectedResourceManagerTermination();
@@ -139,9 +145,14 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
     private CompletableFuture<Void> internalShutdown(
             final Supplier<CompletableFuture<?>> additionalShutdownAction) {
         if (isRunning.compareAndSet(true, false)) {
+            final CompletableFuture<Void> operationsConsumedFuture =
+                    dispatcherOperationCaches.shutdownCaches();
+            final CompletableFuture<Void> webMonitorShutdownFuture =
+                    FutureUtils.composeAfterwards(
+                            operationsConsumedFuture, webMonitorEndpoint::closeAsync);
             final CompletableFuture<Void> closeWebMonitorAndAdditionalShutdownActionFuture =
                     FutureUtils.composeAfterwards(
-                            webMonitorEndpoint.closeAsync(), additionalShutdownAction);
+                            webMonitorShutdownFuture, additionalShutdownAction);
 
             return FutureUtils.composeAfterwards(
                     closeWebMonitorAndAdditionalShutdownActionFuture, this::closeAsyncInternal);
@@ -196,5 +207,9 @@ public class DispatcherResourceManagerComponent implements AutoCloseableAsync {
     public CompletableFuture<Void> closeAsync() {
         return stopApplication(
                 ApplicationStatus.CANCELED, "DispatcherResourceManagerComponent has been closed.");
+    }
+
+    public int getRestPort() {
+        return webMonitorEndpoint.getRestPort();
     }
 }

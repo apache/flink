@@ -19,9 +19,9 @@
 package org.apache.flink.connectors.hive.write;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.table.OutputFormatFactory;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
-import org.apache.flink.table.filesystem.OutputFormatFactory;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator.RecordWriter;

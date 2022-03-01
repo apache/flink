@@ -33,7 +33,6 @@ import java.util.Optional;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getPrecision;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getScale;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLogicalToDataType;
 
 /** Type strategy that returns the result of a rounding operation. */
@@ -51,7 +50,7 @@ class RoundTypeStrategy implements TypeStrategy {
             return Optional.of(argumentDataType);
         }
 
-        if (!hasRoot(argumentType, LogicalTypeRoot.DECIMAL)) {
+        if (!argumentType.is(LogicalTypeRoot.DECIMAL)) {
             return Optional.of(argumentDataType);
         }
 

@@ -69,7 +69,6 @@ final class CombinedWatermarkStatus {
         // if we don't have any outputs minimumOverAllOutputs is not valid, it's still
         // at its initial Long.MAX_VALUE state and we must not emit that
         if (partialWatermarks.isEmpty()) {
-            this.idle = combinedWatermark > Long.MIN_VALUE;
             return false;
         }
 

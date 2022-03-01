@@ -17,9 +17,10 @@
  */
 
 import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
-import { JobManagerService, StatusService } from 'services';
 import { Subject } from 'rxjs';
 import { map, takeUntil } from 'rxjs/operators';
+
+import { JobManagerService, StatusService } from 'services';
 
 @Component({
   selector: 'flink-job-manager-metrics',
@@ -28,18 +29,20 @@ import { map, takeUntil } from 'rxjs/operators';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobManagerMetricsComponent implements OnInit, OnDestroy {
-  private destroy$ = new Subject();
-  metrics: { [id: string]: number } = {};
-  config: { [id: string]: string } = {};
-  listOfGCName: string[] = [];
-  listOfGCMetric: Array<{ name: string; count: number | null; time: number | null }> = [];
+  public metrics: { [id: string]: number } = {};
+  public config: { [id: string]: string } = {};
+  public listOfGCName: string[] = [];
+  public listOfGCMetric: Array<{ name: string; count: number | null; time: number | null }> = [];
+
+  private readonly destroy$ = new Subject<void>();
+
   constructor(
-    private jobManagerService: JobManagerService,
-    private statusService: StatusService,
-    private cdr: ChangeDetectorRef
+    private readonly jobManagerService: JobManagerService,
+    private readonly statusService: StatusService,
+    private readonly cdr: ChangeDetectorRef
   ) {}
 
-  ngOnInit() {
+  public ngOnInit(): void {
     this.jobManagerService.loadConfig().subscribe(data => {
       for (const item of data) {
         this.config[item.key] = item.value;
@@ -79,10 +82,7 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
           this.listOfGCMetric = Array.from(
             new Set(
               this.listOfGCName.map(item =>
-                item
-                  .replace('Status.JVM.GarbageCollector.', '')
-                  .replace('.Count', '')
-                  .replace('.Time', '')
+                item.replace('Status.JVM.GarbageCollector.', '').replace('.Count', '').replace('.Time', '')
               )
             )
           ).map(name => {
@@ -96,7 +96,8 @@ export class JobManagerMetricsComponent implements OnInit, OnDestroy {
         });
     });
   }
-  ngOnDestroy() {
+
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.partition;
 
+import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
@@ -34,6 +35,8 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
 import org.apache.flink.runtime.io.network.util.TestBufferFactory;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.throughput.ThroughputCalculator;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.function.SupplierWithException;
 
 import org.junit.Test;
@@ -116,7 +119,7 @@ public class InputGateFairnessTest {
             int max = 0;
 
             for (PipelinedSubpartition source : sources) {
-                int size = source.getCurrentNumberOfBuffers();
+                int size = source.getNumberOfQueuedBuffers();
                 min = Math.min(min, size);
                 max = Math.max(max, size);
             }
@@ -181,7 +184,7 @@ public class InputGateFairnessTest {
                 int max = 0;
 
                 for (PipelinedSubpartition source : sources) {
-                    int size = source.getCurrentNumberOfBuffers();
+                    int size = source.getNumberOfQueuedBuffers();
                     min = Math.min(min, size);
                     max = Math.max(max, size);
                 }
@@ -302,7 +305,10 @@ public class InputGateFairnessTest {
 
     private SingleInputGate createFairnessVerifyingInputGate(int numberOfChannels) {
         return new FairnessVerifyingInputGate(
-                "Test Task Name", new IntermediateDataSetID(), 0, numberOfChannels);
+                "Test Task Name",
+                new IntermediateDataSetID(),
+                new SubpartitionIndexRange(0, 0),
+                numberOfChannels);
     }
 
     private void fillRandom(
@@ -360,7 +366,7 @@ public class InputGateFairnessTest {
         public FairnessVerifyingInputGate(
                 String owningTaskName,
                 IntermediateDataSetID consumedResultId,
-                int consumedSubpartitionIndex,
+                SubpartitionIndexRange subpartitionIndexRange,
                 int numberOfInputChannels) {
 
             super(
@@ -368,13 +374,15 @@ public class InputGateFairnessTest {
                     0,
                     consumedResultId,
                     ResultPartitionType.PIPELINED,
-                    consumedSubpartitionIndex,
+                    subpartitionIndexRange,
                     numberOfInputChannels,
                     SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER,
                     STUB_BUFFER_POOL_FACTORY,
                     null,
                     new UnpooledMemorySegmentProvider(BUFFER_SIZE),
-                    BUFFER_SIZE);
+                    BUFFER_SIZE,
+                    new ThroughputCalculator(SystemClock.getInstance()),
+                    null);
 
             channelsWithData = getInputChannelsWithData();
 

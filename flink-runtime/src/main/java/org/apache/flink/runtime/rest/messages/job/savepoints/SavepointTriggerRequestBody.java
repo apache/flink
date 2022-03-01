@@ -18,12 +18,17 @@
 
 package org.apache.flink.runtime.rest.messages.job.savepoints;
 
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.rest.messages.RequestBody;
+import org.apache.flink.runtime.rest.messages.TriggerId;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import javax.annotation.Nullable;
+
+import java.util.Optional;
 
 /** {@link RequestBody} to trigger savepoints. */
 public class SavepointTriggerRequestBody implements RequestBody {
@@ -32,6 +37,9 @@ public class SavepointTriggerRequestBody implements RequestBody {
 
     private static final String FIELD_NAME_CANCEL_JOB = "cancel-job";
 
+    private static final String FIELD_NAME_TRIGGER_ID = "triggerId";
+    private static final String FIELD_NAME_FORMAT_TYPE = "formatType";
+
     @JsonProperty(FIELD_NAME_TARGET_DIRECTORY)
     @Nullable
     private final String targetDirectory;
@@ -39,20 +47,42 @@ public class SavepointTriggerRequestBody implements RequestBody {
     @JsonProperty(FIELD_NAME_CANCEL_JOB)
     private final boolean cancelJob;
 
+    @JsonProperty(FIELD_NAME_TRIGGER_ID)
+    @Nullable
+    private final TriggerId triggerId;
+
+    @JsonProperty(FIELD_NAME_FORMAT_TYPE)
+    @Nullable
+    private final SavepointFormatType formatType;
+
     @JsonCreator
     public SavepointTriggerRequestBody(
             @Nullable @JsonProperty(FIELD_NAME_TARGET_DIRECTORY) final String targetDirectory,
-            @Nullable @JsonProperty(FIELD_NAME_CANCEL_JOB) final Boolean cancelJob) {
+            @Nullable @JsonProperty(FIELD_NAME_CANCEL_JOB) final Boolean cancelJob,
+            @Nullable @JsonProperty(FIELD_NAME_FORMAT_TYPE) final SavepointFormatType formatType,
+            @Nullable @JsonProperty(FIELD_NAME_TRIGGER_ID) TriggerId triggerId) {
         this.targetDirectory = targetDirectory;
         this.cancelJob = cancelJob != null ? cancelJob : false;
+        this.triggerId = triggerId;
+        this.formatType = formatType != null ? formatType : SavepointFormatType.DEFAULT;
     }
 
-    @Nullable
-    public String getTargetDirectory() {
-        return targetDirectory;
+    @JsonIgnore
+    public Optional<String> getTargetDirectory() {
+        return Optional.ofNullable(targetDirectory);
+    }
+
+    @JsonIgnore
+    public Optional<TriggerId> getTriggerId() {
+        return Optional.ofNullable(triggerId);
     }
 
     public boolean isCancelJob() {
         return cancelJob;
+    }
+
+    @JsonIgnore
+    public SavepointFormatType getFormatType() {
+        return formatType;
     }
 }

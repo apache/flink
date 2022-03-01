@@ -375,7 +375,7 @@ if [ -n "${HBASE_CONF_DIR}" ]; then
     INTERNAL_HADOOP_CLASSPATHS="${INTERNAL_HADOOP_CLASSPATHS}:${HBASE_CONF_DIR}"
 fi
 
-# Auxilliary function which extracts the name of host from a line which
+# Auxiliary function which extracts the name of host from a line which
 # also potentially includes topology information and the taskManager type
 extractHostName() {
     # handle comments: extract first part of string (before first # character)
@@ -502,7 +502,7 @@ extractExecutionResults() {
 
     execution_results=$(echo "${output}" | grep ${EXECUTION_PREFIX})
     num_lines=$(echo "${execution_results}" | wc -l)
-    # explicit check for empty result, becuase if execution_results is empty, then wc returns 1
+    # explicit check for empty result, because if execution_results is empty, then wc returns 1
     if [[ -z ${execution_results} ]]; then
         echo "[ERROR] The execution result is empty." 1>&2
         exit 1
@@ -526,7 +526,7 @@ extractLoggingOutputs() {
 
 parseResourceParamsAndExportLogs() {
   local cmd=$1
-  java_utils_output=$(runBashJavaUtilsCmd ${cmd} "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "$@")
+  java_utils_output=$(runBashJavaUtilsCmd ${cmd} "${FLINK_CONF_DIR}" "${FLINK_BIN_DIR}/bash-java-utils.jar:$(findFlinkDistJar)" "${@:2}")
   logging_output=$(extractLoggingOutputs "${java_utils_output}")
   params_output=$(extractExecutionResults "${java_utils_output}" 2)
 
@@ -552,9 +552,9 @@ logs: $logging_output
 }
 
 parseJmArgsAndExportLogs() {
-  parseResourceParamsAndExportLogs GET_JM_RESOURCE_PARAMS
+  parseResourceParamsAndExportLogs GET_JM_RESOURCE_PARAMS "$@"
 }
 
 parseTmArgsAndExportLogs() {
-  parseResourceParamsAndExportLogs GET_TM_RESOURCE_PARAMS
+  parseResourceParamsAndExportLogs GET_TM_RESOURCE_PARAMS "$@"
 }

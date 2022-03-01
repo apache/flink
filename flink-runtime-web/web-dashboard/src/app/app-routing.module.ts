@@ -20,16 +20,28 @@ import { NgModule } from '@angular/core';
 import { PreloadAllModules, RouterModule, Routes } from '@angular/router';
 
 const routes: Routes = [
-  { path: 'overview', loadChildren: './pages/overview/overview.module#OverviewModule' },
-  { path: 'submit', loadChildren: './pages/submit/submit.module#SubmitModule' },
-  { path: 'job-manager', loadChildren: './pages/job-manager/job-manager.module#JobManagerModule' },
-  { path: 'task-manager', loadChildren: './pages/task-manager/task-manager.module#TaskManagerModule' },
-  { path: 'job', loadChildren: './pages/job/job.module#JobModule' },
+  { path: 'overview', loadChildren: () => import('./pages/overview/overview.module').then(m => m.OverviewModule) },
+  { path: 'submit', loadChildren: () => import('./pages/submit/submit.module').then(m => m.SubmitModule) },
+  {
+    path: 'job-manager',
+    loadChildren: () => import('./pages/job-manager/job-manager.module').then(m => m.JobManagerModule)
+  },
+  {
+    path: 'task-manager',
+    loadChildren: () => import('./pages/task-manager/task-manager.module').then(m => m.TaskManagerModule)
+  },
+  { path: 'job', loadChildren: () => import('./pages/job/job.module').then(m => m.JobModule) },
   { path: '**', redirectTo: 'overview', pathMatch: 'full' }
 ];
 
 @NgModule({
   exports: [RouterModule],
-  imports: [RouterModule.forRoot(routes, { useHash: true, preloadingStrategy: PreloadAllModules })]
+  imports: [
+    RouterModule.forRoot(routes, {
+      useHash: true,
+      preloadingStrategy: PreloadAllModules,
+      relativeLinkResolution: 'legacy'
+    })
+  ]
 })
 export class AppRoutingModule {}

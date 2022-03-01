@@ -51,13 +51,14 @@ public class JobExecutionITCase extends TestLogger {
         final JobGraph jobGraph = createJobGraph(parallelism);
 
         final TestingMiniClusterConfiguration miniClusterConfiguration =
-                new TestingMiniClusterConfiguration.Builder()
+                TestingMiniClusterConfiguration.newBuilder()
                         .setNumSlotsPerTaskManager(numSlotsPerTaskExecutor)
                         .setNumTaskManagers(numTaskExecutors)
                         .setLocalCommunication(true)
                         .build();
 
-        try (TestingMiniCluster miniCluster = new TestingMiniCluster(miniClusterConfiguration)) {
+        try (TestingMiniCluster miniCluster =
+                TestingMiniCluster.newBuilder(miniClusterConfiguration).build()) {
             miniCluster.start();
 
             miniCluster.submitJob(jobGraph).get();

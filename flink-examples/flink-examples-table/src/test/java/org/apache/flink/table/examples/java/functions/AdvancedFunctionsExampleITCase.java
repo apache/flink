@@ -41,41 +41,41 @@ public class AdvancedFunctionsExampleITCase extends ExampleOutputTestBase {
         assertThat(
                 consoleOutput,
                 containsString(
-                        "|                Guillermo Smith |              +I[5, 2020-12-05] |"));
+                        "|                Guillermo Smith |                 (5,2020-12-05) |"));
         assertThat(
                 consoleOutput,
                 containsString(
-                        "|                    John Turner |             +I[12, 2020-10-02] |"));
+                        "|                    John Turner |                (12,2020-10-02) |"));
         assertThat(
                 consoleOutput,
                 containsString(
-                        "|                 Brandy Sanders |              +I[1, 2020-10-14] |"));
+                        "|                 Brandy Sanders |                 (1,2020-10-14) |"));
         assertThat(
                 consoleOutput,
                 containsString(
-                        "|                Valeria Mendoza |             +I[10, 2020-06-02] |"));
+                        "|                Valeria Mendoza |                (10,2020-06-02) |"));
         assertThat(
                 consoleOutput,
                 containsString(
-                        "|                   Ellen Ortega |            +I[100, 2020-06-18] |"));
+                        "|                   Ellen Ortega |               (100,2020-06-18) |"));
         assertThat(
                 consoleOutput,
                 containsString(
-                        "|                 Leann Holloway |              +I[9, 2020-05-26] |"));
+                        "|                 Leann Holloway |                 (9,2020-05-26) |"));
     }
 
     private void testExecuteInternalRowMergerFunction(String consoleOutput) {
         assertThat(
                 consoleOutput,
                 containsString(
-                        "|                Guillermo Smith | +I[1992-12-12, New Jersey, ... |"));
+                        "|                Guillermo Smith | (1992-12-12,New Jersey,816-... |"));
         assertThat(
                 consoleOutput,
                 containsString(
-                        "|                Valeria Mendoza | +I[1970-03-28, Los Angeles,... |"));
+                        "|                Valeria Mendoza | (1970-03-28,Los Angeles,928... |"));
         assertThat(
                 consoleOutput,
                 containsString(
-                        "|                 Leann Holloway | +I[1989-05-21, Eugene, 614-... |"));
+                        "|                 Leann Holloway | (1989-05-21,Eugene,614-889-... |"));
     }
 }

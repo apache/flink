@@ -17,18 +17,18 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.AlgorithmOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.operators.sort.ExternalSorter;
@@ -37,12 +37,13 @@ import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.InputSelectable;
 import org.apache.flink.streaming.api.operators.InputSelection;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.PushingAsyncDataInput;
 import org.apache.flink.streaming.runtime.io.StreamInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamTaskInput;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.MutableObjectIterator;
 
@@ -73,8 +74,8 @@ import java.util.stream.IntStream;
  * ordering. For the comparison it uses either {@link FixedLengthByteKeyComparator} if the length of
  * the serialized key is constant, or {@link VariableLengthByteKeyComparator} otherwise.
  *
- * <p>Watermarks, stream statuses, nor latency markers are propagated downstream as they do not make
- * sense with buffered records. The input emits the largest watermark seen after all records.
+ * <p>Watermarks, watermark statuses, nor latency markers are propagated downstream as they do not
+ * make sense with buffered records. The input emits the largest watermark seen after all records.
  */
 public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<IN> {
     private final int idx;
@@ -139,7 +140,7 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
     }
 
     public static <K> SelectableSortingInputs wrapInputs(
-            AbstractInvokable containingTask,
+            TaskInvokable containingTask,
             StreamTaskInput<Object>[] sortingInputs,
             KeySelector<Object, K>[] keySelectors,
             TypeSerializer<Object>[] inputSerializers,
@@ -149,7 +150,8 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
             IOManager ioManager,
             boolean objectReuse,
             double managedMemoryFraction,
-            Configuration jobConfiguration) {
+            Configuration jobConfiguration,
+            ExecutionConfig executionConfig) {
         int keyLength = keySerializer.getLength();
         final TypeComparator<Tuple2<byte[], StreamRecord<Object>>> comparator;
         DataOutputSerializer dataOutputSerializer;
@@ -187,7 +189,8 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
                                                                 memoryManager,
                                                                 containingTask,
                                                                 keyAndValueSerializer,
-                                                                comparator)
+                                                                comparator,
+                                                                executionConfig)
                                                         .memoryFraction(
                                                                 managedMemoryFraction
                                                                         / numberOfInputs)
@@ -255,13 +258,17 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
     }
 
     @Override
-    public InputStatus emitNext(DataOutput<IN> output) throws Exception {
+    public DataInputStatus emitNext(DataOutput<IN> output) throws Exception {
+
         if (sortedInput != null) {
+            if (commonContext.isFinishedEmitting(idx)) {
+                return wrappedInput.emitNext(sortingPhaseDataOutput);
+            }
             return emitNextAfterSorting(output);
         }
 
-        InputStatus inputStatus = wrappedInput.emitNext(sortingPhaseDataOutput);
-        if (inputStatus == InputStatus.END_OF_INPUT) {
+        DataInputStatus inputStatus = wrappedInput.emitNext(sortingPhaseDataOutput);
+        if (inputStatus == DataInputStatus.END_OF_DATA) {
             endSorting();
             return addNextToQueue(new HeadElement(idx), output);
         }
@@ -271,20 +278,18 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
 
     @Nonnull
     @SuppressWarnings({"unchecked"})
-    private InputStatus emitNextAfterSorting(DataOutput<IN> output) throws Exception {
-        if (commonContext.isFinishedEmitting(idx)) {
-            return InputStatus.END_OF_INPUT;
-        } else if (commonContext.allSorted()) {
+    private DataInputStatus emitNextAfterSorting(DataOutput<IN> output) throws Exception {
+        if (commonContext.allSorted()) {
             HeadElement head = commonContext.getQueueOfHeads().peek();
             if (head != null && head.inputIndex == idx) {
                 HeadElement headElement = commonContext.getQueueOfHeads().poll();
                 output.emitRecord((StreamRecord<IN>) headElement.streamElement.f1);
                 return addNextToQueue(headElement, output);
             } else {
-                return InputStatus.NOTHING_AVAILABLE;
+                return DataInputStatus.NOTHING_AVAILABLE;
             }
         } else {
-            return InputStatus.NOTHING_AVAILABLE;
+            return DataInputStatus.NOTHING_AVAILABLE;
         }
     }
 
@@ -298,7 +303,8 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
     }
 
     @Nonnull
-    private InputStatus addNextToQueue(HeadElement reuse, DataOutput<IN> output) throws Exception {
+    private DataInputStatus addNextToQueue(HeadElement reuse, DataOutput<IN> output)
+            throws Exception {
         Tuple2<byte[], StreamRecord<IN>> next = sortedInput.next();
         if (next != null) {
             reuse.streamElement = getAsObject(next);
@@ -308,19 +314,19 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
             if (seenWatermark > Long.MIN_VALUE) {
                 output.emitWatermark(new Watermark(seenWatermark));
             }
-            return InputStatus.END_OF_INPUT;
+            return DataInputStatus.END_OF_DATA;
         }
 
         if (commonContext.allSorted()) {
             HeadElement headElement = commonContext.getQueueOfHeads().peek();
             if (headElement != null) {
                 if (headElement.inputIndex == idx) {
-                    return InputStatus.MORE_AVAILABLE;
+                    return DataInputStatus.MORE_AVAILABLE;
                 }
             }
         }
 
-        return InputStatus.NOTHING_AVAILABLE;
+        return DataInputStatus.NOTHING_AVAILABLE;
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -376,6 +382,10 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
                         .build(numInputs);
             }
 
+            if (commonContext.allEndOfPartition()) {
+                return InputSelection.ALL;
+            }
+
             if (commonContext.allSorted()) {
                 HeadElement headElement = commonContext.getQueueOfHeads().peek();
                 if (headElement != null) {
@@ -411,7 +421,7 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) {}
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
 
         @Override
         public void emitLatencyMarker(LatencyMarker latencyMarker) {}
@@ -463,12 +473,13 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
         private final AvailabilityProvider.AvailabilityHelper allFinished =
                 new AvailabilityProvider.AvailabilityHelper();
         private long notFinishedSortingMask = 0;
-        private long finishedEmitting = 0;
+        private long notFinishedEmitting = 0;
 
         public CommonContext(StreamTaskInput<Object>[] sortingInputs) {
             for (StreamTaskInput<Object> sortingInput : sortingInputs) {
                 notFinishedSortingMask =
                         setBitMask(notFinishedSortingMask, sortingInput.getInputIndex());
+                notFinishedEmitting = setBitMask(notFinishedEmitting, sortingInput.getInputIndex());
             }
         }
 
@@ -476,16 +487,20 @@ public final class MultiInputSortingDataInput<IN, K> implements StreamTaskInput<
             return notFinishedSortingMask == 0;
         }
 
+        public boolean allEndOfPartition() {
+            return notFinishedEmitting == 0;
+        }
+
         public void setFinishedSorting(int inputIndex) {
             this.notFinishedSortingMask = unsetBitMask(this.notFinishedSortingMask, inputIndex);
         }
 
         public void setFinishedEmitting(int inputIndex) {
-            this.finishedEmitting = setBitMask(this.finishedEmitting, inputIndex);
+            this.notFinishedEmitting = unsetBitMask(this.notFinishedEmitting, inputIndex);
         }
 
         public boolean isFinishedEmitting(int inputIndex) {
-            return checkBitMask(this.finishedEmitting, inputIndex);
+            return !checkBitMask(this.notFinishedEmitting, inputIndex);
         }
 
         public PriorityQueue<HeadElement> getQueueOfHeads() {

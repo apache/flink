@@ -70,7 +70,7 @@ $ kubectl delete deployment/my-first-flink-cluster
 ```
 
 {{< hint info >}}
-When using [Minikube](https://minikube.sigs.k8s.io/docs/), you need to call `minikube tunnel` in order to [expose Flink's LoadBalancer service on Minikube](https://minikube.sigs.k8s.io/docs/handbook/accessing/#using-minikube-tunnel).
+In default, Flink’s Web UI and REST endpoint are exposed as `ClusterIP` service. To access the service, please refer to [Accessing Flink’s Web UI](#accessing-flinks-web-ui) for instructions.
 {{< /hint >}}
 
 Congratulations! You have successfully run a Flink application by deploying Flink on Kubernetes.
@@ -169,8 +169,7 @@ The Kubernetes-specific configuration options are listed on the [configuration p
 Flink uses [Fabric8 Kubernetes client](https://github.com/fabric8io/kubernetes-client) to communicate with Kubernetes APIServer to create/delete Kubernetes resources(e.g. Deployment, Pod, ConfigMap, Service, etc.), as well as watch the Pods and ConfigMaps.
 Except for the above Flink config options, some [expert options](https://github.com/fabric8io/kubernetes-client#configuring-the-client) of Fabric8 Kubernetes client could be configured via system properties or environment variables.
 
-For example, users could use the following Flink config options to set the concurrent max requests, which allows running more jobs in a session cluster when [Kubernetes HA Services]({{< ref "docs/deployment/ha/kubernetes_ha" >}}) are used.
-Please note that, each Flink job will consume `3` concurrent requests.
+For example, users could use the following Flink config options to set the concurrent max requests.
 
 ```yaml
 containerized.master.env.KUBERNETES_MAX_CONCURRENT_REQUESTS: 200
@@ -192,8 +191,6 @@ $ kubectl port-forward service/<ServiceName> 8081
 
 - **NodePort**: Exposes the service on each Node’s IP at a static port (the `NodePort`).
   `<NodeIP>:<NodePort>` can be used to contact the JobManager service.
-  `NodeIP` can also be replaced with the Kubernetes ApiServer address. 
-  You can find its address in your kube config file.
 
 - **LoadBalancer**: Exposes the service externally using a cloud provider’s load balancer.
   Since the cloud provider and Kubernetes needs some time to prepare the load balancer, you may get a `NodePort` JobManager Web Interface in the client log.
@@ -536,7 +533,7 @@ metadata:
 spec:
   initContainers:
     - name: artifacts-fetcher
-      image: artifacts-fetcher:latest
+      image: busybox:latest
       # Use wget or other tools to get user jars from remote storage
       command: [ 'wget', 'https://path/of/StateMachineExample.jar', '-O', '/flink-artifact/myjob.jar' ]
       volumeMounts:
@@ -574,5 +571,13 @@ spec:
     - name: flink-logs
       emptyDir: { }
 ```
+
+### User jars & Classpath
+
+When deploying Flink natively on Kubernetes, the following jars will be recognized as user-jars and included into user classpath:
+- Session Mode: The JAR file specified in startup command.
+- Application Mode: The JAR file specified in startup command and all JAR files in Flink's `usrlib` folder.
+
+Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/debugging_classloading" >}}#overview-of-classloading-in-flink) for details.
 
 {{< top >}}

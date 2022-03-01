@@ -26,6 +26,7 @@ import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
+import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.util.TestLogger;
 
@@ -94,7 +95,8 @@ public abstract class FileSinkITBase extends TestLogger {
                 .build();
     }
 
-    private static class PartSizeAndCheckpointRollingPolicy
+    /** The testing {@link RollingPolicy} based on maximum file size. */
+    protected static class PartSizeAndCheckpointRollingPolicy
             extends CheckpointRollingPolicy<Integer, String> {
 
         private final long maxPartSize;

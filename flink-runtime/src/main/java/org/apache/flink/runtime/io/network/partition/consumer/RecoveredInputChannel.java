@@ -76,6 +76,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
+            int consumedSubpartitionIndex,
             int initialBackoff,
             int maxBackoff,
             Counter numBytesIn,
@@ -85,6 +86,7 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
                 inputGate,
                 channelIndex,
                 partitionId,
+                consumedSubpartitionIndex,
                 initialBackoff,
                 maxBackoff,
                 numBytesIn,
@@ -201,12 +203,29 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     }
 
     @Override
+    int getBuffersInUseCount() {
+        synchronized (receivedBuffers) {
+            return receivedBuffers.size();
+        }
+    }
+
+    @Override
     public void resumeConsumption() {
         throw new UnsupportedOperationException("RecoveredInputChannel should never be blocked.");
     }
 
     @Override
-    final void requestSubpartition(int subpartitionIndex) {
+    public void acknowledgeAllRecordsProcessed() throws IOException {
+        // We should not receive the EndOfUserRecordsEvent since it would
+        // turn into real channel before requesting partition. Besides,
+        // the event would not be persist in the unaligned checkpoint
+        // case, thus this also cannot happen during restoring state.
+        throw new UnsupportedOperationException(
+                "RecoveredInputChannel should not need acknowledge all records processed.");
+    }
+
+    @Override
+    final void requestSubpartition() {
         throw new UnsupportedOperationException(
                 "RecoveredInputChannel should never request partition.");
     }
@@ -261,5 +280,10 @@ public abstract class RecoveredInputChannel extends InputChannel implements Chan
     @Override
     public void checkpointStarted(CheckpointBarrier barrier) throws CheckpointException {
         throw new CheckpointException(CHECKPOINT_DECLINED_TASK_NOT_READY);
+    }
+
+    @Override
+    void announceBufferSize(int newBufferSize) {
+        // Not supported.
     }
 }

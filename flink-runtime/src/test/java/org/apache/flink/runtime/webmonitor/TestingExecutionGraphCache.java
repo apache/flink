@@ -19,9 +19,9 @@
 package org.apache.flink.runtime.webmonitor;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.handler.legacy.ExecutionGraphCache;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.BiFunction;

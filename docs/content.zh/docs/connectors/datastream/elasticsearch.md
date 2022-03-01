@@ -27,445 +27,354 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Elasticsearch Connector
+# Elasticsearch 连接器
 
-This connector provides sinks that can request document actions to an
-[Elasticsearch](https://elastic.co/) Index. To use this connector, add one
-of the following dependencies to your project, depending on the version
-of the Elasticsearch installation:
+此连接器提供可以向 [Elasticsearch](https://elastic.co/) 索引请求文档操作的 sinks。
+要使用此连接器，请根据 Elasticsearch 的安装版本将以下依赖之一添加到你的项目中：
 
 <table class="table table-bordered">
   <thead>
     <tr>
-      <th class="text-left">Elasticsearch version</th>
-      <th class="text-left">Maven Dependency</th>
+      <th class="text-left">Elasticsearch 版本</th>
+      <th class="text-left">Maven 依赖</th>
     </tr>
   </thead>
   <tbody>
     <tr>
-        <td>5.x</td>
-        <td>{{< artifact flink-connector-elasticsearch5 withScalaVersion >}}</td>
-    </tr>
-    <tr>
         <td>6.x</td>
-        <td>{{< artifact flink-connector-elasticsearch6 withScalaVersion >}}</td>
+        <td>{{< artifact flink-connector-elasticsearch6 >}}</td>
     </tr>
     <tr>
-        <td>7 and later versions</td>
-        <td>{{< artifact flink-connector-elasticsearch7 withScalaVersion >}}</td>
+        <td>7.x</td>
+        <td>{{< artifact flink-connector-elasticsearch7 >}}</td>
     </tr>
   </tbody>
 </table>
 
-Note that the streaming connectors are currently not part of the binary
-distribution. See [here]({{< ref "docs/dev/datastream/project-configuration" >}}) for information
-about how to package the program with the libraries for cluster execution.
+请注意，流连接器目前不是二进制发行版的一部分。
+有关如何将程序和用于集群执行的库一起打包，参考[此文档]({{< ref "docs/dev/datastream/project-configuration" >}})
 
-## Installing Elasticsearch
+## 安装 Elasticsearch
 
-Instructions for setting up an Elasticsearch cluster can be found
-[here](https://www.elastic.co/guide/en/elasticsearch/reference/current/setup.html).
-Make sure to set and remember a cluster name. This must be set when
-creating an `ElasticsearchSink` for requesting document actions against your cluster.
+Elasticsearch 集群的设置可以参考[此文档](https://www.elastic.co/guide/en/elasticsearch/reference/current/setup.html)。
 
 ## Elasticsearch Sink
 
-The `ElasticsearchSink` uses a `TransportClient` (before 6.x) or `RestHighLevelClient` (starting with 6.x) to communicate with an
-Elasticsearch cluster.
-
-The example below shows how to configure and create a sink:
+下面的示例展示了如何配置并创建一个 sink：
 
 {{< tabs "51732edd-4218-470e-adad-b1ebb4021ae4" >}}
-{{< tab "java, 5.x" >}}
+{{< tab "Java" >}}
+Elasticsearch 6:
 ```java
-import org.apache.flink.api.common.functions.RuntimeContext;
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.connector.elasticsearch.sink.Elasticsearch6SinkBuilder;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
-import org.apache.flink.streaming.connectors.elasticsearch5.ElasticsearchSink;
-
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.Requests;
-
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-DataStream<String> input = ...;
-
-Map<String, String> config = new HashMap<>();
-config.put("cluster.name", "my-cluster-name");
-// This instructs the sink to emit after every element, otherwise they would be buffered
-config.put("bulk.flush.max.actions", "1");
-
-List<InetSocketAddress> transportAddresses = new ArrayList<>();
-transportAddresses.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300));
-transportAddresses.add(new InetSocketAddress(InetAddress.getByName("10.2.3.1"), 9300));
-
-input.addSink(new ElasticsearchSink<>(config, transportAddresses, new ElasticsearchSinkFunction<String>() {
-    public IndexRequest createIndexRequest(String element) {
-        Map<String, String> json = new HashMap<>();
-        json.put("data", element);
-    
-        return Requests.indexRequest()
-                .index("my-index")
-                .type("my-type")
-                .source(json);
-    }
-    
-    @Override
-    public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
-        indexer.add(createIndexRequest(element));
-    }
-}));```
-{{< /tab >}}
-{{< tab "java, Elasticsearch 6.x and above" >}}
-```java
-import org.apache.flink.api.common.functions.RuntimeContext;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction;
-import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
-import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink;
 
 import org.apache.http.HttpHost;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.Requests;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 DataStream<String> input = ...;
 
-List<HttpHost> httpHosts = new ArrayList<>();
-httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"));
-httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"));
+input.sinkTo(
+    new Elasticsearch6SinkBuilder<String>()
+        // 下面的设置使 sink 在接收每个元素之后立即提交，否则这些元素将被缓存起来
+        .setBulkFlushMaxActions(1)
+        .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+        .setEmitter(
+        (element, context, indexer) ->
+        indexer.add(createIndexRequest(element)))
+        .build());
 
-// use a ElasticsearchSink.Builder to create an ElasticsearchSink
-ElasticsearchSink.Builder<String> esSinkBuilder = new ElasticsearchSink.Builder<>(
-    httpHosts,
-    new ElasticsearchSinkFunction<String>() {
-        public IndexRequest createIndexRequest(String element) {
-            Map<String, String> json = new HashMap<>();
-            json.put("data", element);
-        
-            return Requests.indexRequest()
-                    .index("my-index")
-                    .type("my-type")
-                    .source(json);
-        }
-        
-        @Override
-        public void process(String element, RuntimeContext ctx, RequestIndexer indexer) {
-            indexer.add(createIndexRequest(element));
-        }
-    }
-);
+private static IndexRequest createIndexRequest(String element) {
+    Map<String, Object> json = new HashMap<>();
+    json.put("data", element);
 
-// configuration for the bulk requests; this instructs the sink to emit after every element, otherwise they would be buffered
-esSinkBuilder.setBulkFlushMaxActions(1);
-
-// provide a RestClientFactory for custom configuration on the internally created REST client
-esSinkBuilder.setRestClientFactory(
-  restClientBuilder -> {
-    restClientBuilder.setDefaultHeaders(...)
-    restClientBuilder.setMaxRetryTimeoutMillis(...)
-    restClientBuilder.setPathPrefix(...)
-    restClientBuilder.setHttpClientConfigCallback(...)
-  }
-);
-
-// finally, build and add the sink to the job's pipeline
-input.addSink(esSinkBuilder.build());
-```
-{{< /tab >}}
-{{< tab "scala, 5.x" >}}
-```scala
-import org.apache.flink.api.common.functions.RuntimeContext
-import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction
-import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer
-import org.apache.flink.streaming.connectors.elasticsearch5.ElasticsearchSink
-
-import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.client.Requests
-
-import java.net.InetAddress
-import java.net.InetSocketAddress
-import java.util.ArrayList
-import java.util.HashMap
-import java.util.List
-import java.util.Map
-
-val input: DataStream[String] = ...
-
-val config = new java.util.HashMap[String, String]
-config.put("cluster.name", "my-cluster-name")
-// This instructs the sink to emit after every element, otherwise they would be buffered
-config.put("bulk.flush.max.actions", "1")
-
-val transportAddresses = new java.util.ArrayList[InetSocketAddress]
-transportAddresses.add(new InetSocketAddress(InetAddress.getByName("127.0.0.1"), 9300))
-transportAddresses.add(new InetSocketAddress(InetAddress.getByName("10.2.3.1"), 9300))
-
-input.addSink(new ElasticsearchSink(config, transportAddresses, new ElasticsearchSinkFunction[String] {
-  def createIndexRequest(element: String): IndexRequest = {
-    val json = new java.util.HashMap[String, String]
-    json.put("data", element)
-    
     return Requests.indexRequest()
-            .index("my-index")
-            .type("my-type")
-            .source(json)
-  }
-}))
+        .index("my-index")
+        .type("my-type")
+        .id(element)
+        .source(json);
+}
+```
+
+Elasticsearch 7:
+```java
+import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.connector.elasticsearch.sink.Elasticsearch7SinkBuilder;
+import org.apache.flink.streaming.api.datastream.DataStream;
+
+import org.apache.http.HttpHost;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.Requests;
+
+import java.util.HashMap;
+import java.util.Map;
+
+DataStream<String> input = ...;
+
+input.sinkTo(
+    new Elasticsearch7SinkBuilder<String>()
+        // 下面的设置使 sink 在接收每个元素之后立即提交，否则这些元素将被缓存起来
+        .setBulkFlushMaxActions(1)
+        .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+        .setEmitter(
+        (element, context, indexer) ->
+        indexer.add(createIndexRequest(element)))
+        .build());
+
+private static IndexRequest createIndexRequest(String element) {
+    Map<String, Object> json = new HashMap<>();
+    json.put("data", element);
+
+    return Requests.indexRequest()
+        .index("my-index")
+        .type("my-type")
+        .id(element)
+        .source(json);
+}
 ```
 {{< /tab >}}
-{{< tab "scala, Elasticsearch 6.x and above" >}}
+{{< tab "Scala" >}}
+Elasticsearch 6:
 ```scala
-import org.apache.flink.api.common.functions.RuntimeContext
+import org.apache.flink.api.connector.sink.SinkWriter
+import org.apache.flink.connector.elasticsearch.sink.{Elasticsearch6SinkBuilder, RequestIndexer}
 import org.apache.flink.streaming.api.datastream.DataStream
-import org.apache.flink.streaming.connectors.elasticsearch.ElasticsearchSinkFunction
-import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer
-import org.apache.flink.streaming.connectors.elasticsearch6.ElasticsearchSink
-
 import org.apache.http.HttpHost
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.client.Requests
 
-import java.util.ArrayList
-import java.util.List
+val input: DataStream[String] = ...
+
+input.sinkTo(
+  new Elasticsearch6SinkBuilder[String]
+    // 下面的设置使 sink 在接收每个元素之后立即提交，否则这些元素将被缓存起来
+    .setBulkFlushMaxActions(1)
+    .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+    .setEmitter((element: String, context: SinkWriter.Context, indexer: RequestIndexer) => 
+    indexer.add(createIndexRequest(element)))
+    .build())
+
+def createIndexRequest(element: (String)): IndexRequest = {
+
+  val json = Map(
+    "data" -> element.asInstanceOf[AnyRef]
+  )
+
+  Requests.indexRequest.index("my-index").`type`("my-type").source(mapAsJavaMap(json))
+}
+```
+
+Elasticsearch 7:
+```scala
+import org.apache.flink.api.connector.sink.SinkWriter
+import org.apache.flink.connector.elasticsearch.sink.{Elasticsearch7SinkBuilder, RequestIndexer}
+import org.apache.flink.streaming.api.datastream.DataStream
+import org.apache.http.HttpHost
+import org.elasticsearch.action.index.IndexRequest
+import org.elasticsearch.client.Requests
 
 val input: DataStream[String] = ...
 
-val httpHosts = new java.util.ArrayList[HttpHost]
-httpHosts.add(new HttpHost("127.0.0.1", 9200, "http"))
-httpHosts.add(new HttpHost("10.2.3.1", 9200, "http"))
+input.sinkTo(
+  new Elasticsearch7SinkBuilder[String]
+    // 下面的设置使 sink 在接收每个元素之后立即提交，否则这些元素将被缓存起来
+    .setBulkFlushMaxActions(1)
+    .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+    .setEmitter((element: String, context: SinkWriter.Context, indexer: RequestIndexer) => 
+    indexer.add(createIndexRequest(element)))
+    .build())
 
-val esSinkBuilder = new ElasticsearchSink.Builder[String](
-  httpHosts,
-  new ElasticsearchSinkFunction[String] {
-     def process(element: String, ctx: RuntimeContext, indexer: RequestIndexer) {
-          val json = new java.util.HashMap[String, String]
-          json.put("data", element)
+def createIndexRequest(element: (String)): IndexRequest = {
 
-          val rqst: IndexRequest = Requests.indexRequest
-            .index("my-index")
-            .`type`("my-type")
-            .source(json)
+  val json = Map(
+    "data" -> element.asInstanceOf[AnyRef]
+  )
 
-          indexer.add(rqst)
-     } 
-  }
-)
-
-// configuration for the bulk requests; this instructs the sink to emit after every element, otherwise they would be buffered
-esSinkBuilder.setBulkFlushMaxActions(1)
-
-// provide a RestClientFactory for custom configuration on the internally created REST client
-esSinkBuilder.setRestClientFactory(new RestClientFactory {
-  override def configureRestClientBuilder(restClientBuilder: RestClientBuilder): Unit = {
-       restClientBuilder.setDefaultHeaders(...)
-       restClientBuilder.setMaxRetryTimeoutMillis(...)
-       restClientBuilder.setPathPrefix(...)
-       restClientBuilder.setHttpClientConfigCallback(...)
-  }
-})
-
-// finally, build and add the sink to the job's pipeline
-input.addSink(esSinkBuilder.build)
+  Requests.indexRequest.index("my-index").`type`("my-type").source(mapAsJavaMap(json))
+}
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-For Elasticsearch versions that still uses the now deprecated `TransportClient` to communicate
-with the Elasticsearch cluster (i.e., versions equal or below 5.x), note how a `Map` of `String`s
-is used to configure the `ElasticsearchSink`. This config map will be directly
-forwarded when creating the internally used `TransportClient`.
-The configuration keys are documented in the Elasticsearch documentation
-[here](https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html).
-Especially important is the `cluster.name` parameter that must correspond to
-the name of your cluster.
+需要注意的是，该示例仅演示了对每个传入的元素执行单个索引请求。
+通常，`ElasticsearchSinkFunction` 可用于执行多个不同类型的请求（例如 `DeleteRequest`、 `UpdateRequest` 等）。
 
-For Elasticsearch 6.x and above, internally, the `RestHighLevelClient` is used for cluster communication.
-By default, the connector uses the default configurations for the REST client. To have custom
-configuration for the REST client, users can provide a `RestClientFactory` implementation when 
-setting up the `ElasticsearchClient.Builder` that builds the sink.
+在内部，Flink Elasticsearch Sink 的每个并行实例使用一个 `BulkProcessor` 向集群发送操作请求。
+这会在元素批量发送到集群之前进行缓存。
+`BulkProcessor` 一次执行一个批量请求，即不会存在两个并行刷新缓存的操作。
 
-Also note that the example only demonstrates performing a single index
-request for each incoming element. Generally, the `ElasticsearchSinkFunction`
-can be used to perform multiple requests of different types (ex.,
-`DeleteRequest`, `UpdateRequest`, etc.). 
+### Elasticsearch Sinks 和容错
 
-Internally, each parallel instance of the Flink Elasticsearch Sink uses
-a `BulkProcessor` to send action requests to the cluster.
-This will buffer elements before sending them in bulk to the cluster. The `BulkProcessor`
-executes bulk requests one at a time, i.e. there will be no two concurrent
-flushes of the buffered actions in progress.
+默认情况下，Flink Elasticsearch Sink 不会提供任何传递健壮性的保障。
+用户可以选择启用 Elasticsearch sink 的 at-least-once 语义。
 
-### Elasticsearch Sinks and Fault Tolerance
+通过启用 Flink checkpoint，Flink Elasticsearch Sink 可以保证至少一次将操作请求发送到 Elasticsearch 集群。
+这是通过在进行 checkpoint 时等待 `BulkProcessor` 中所有挂起的操作请求来实现。
+这有效地保证了在触发 checkpoint 之前所有的请求被 Elasticsearch 成功确认，然后继续处理发送到 sink 的记录。
 
-With Flink’s checkpointing enabled, the Flink Elasticsearch Sink guarantees
-at-least-once delivery of action requests to Elasticsearch clusters. It does
-so by waiting for all pending action requests in the `BulkProcessor` at the
-time of checkpoints. This effectively assures that all requests before the
-checkpoint was triggered have been successfully acknowledged by Elasticsearch, before
-proceeding to process more records sent to the sink.
+关于 checkpoint 和容错的更多详细信息，请参见[容错文档]({{< ref "docs/learn-flink/fault_tolerance" >}})。
 
-More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{< ref "docs/learn-flink/fault_tolerance" >}}).
-
-To use fault tolerant Elasticsearch Sinks, checkpointing of the topology needs to be enabled at the execution environment:
+要使用具有容错特性的 Elasticsearch Sinks，需要配置启用 at-least-once 分发并且在执行环境中启用作业拓扑的 checkpoint：
 
 {{< tabs "d00d1e93-4844-40d7-b0ec-9ec37e73145e" >}}
 {{< tab "Java" >}}
+Elasticsearch 6:
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.enableCheckpointing(5000); // checkpoint every 5000 msecs
+env.enableCheckpointing(5000); // 每 5000 毫秒执行一次 checkpoint
+
+Elasticsearch6SinkBuilder sinkBuilder = new Elasticsearch6SinkBuilder<String>()
+    .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+    .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+    .setEmitter(
+    (element, context, indexer) -> 
+    indexer.add(createIndexRequest(element)));
+```
+
+Elasticsearch 7:
+```java
+final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+env.enableCheckpointing(5000); // 每 5000 毫秒执行一次 checkpoint
+
+Elasticsearch7SinkBuilder sinkBuilder = new Elasticsearch7SinkBuilder<String>()
+    .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+    .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+    .setEmitter(
+    (element, context, indexer) -> 
+    indexer.add(createIndexRequest(element)));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+Elasticsearch 6:
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.enableCheckpointing(5000) // checkpoint every 5000 msecs
+env.enableCheckpointing(5000) // 每 5000 毫秒执行一次 checkpoint
+
+val sinkBuilder = new Elasticsearch6SinkBuilder[String]
+  .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+  .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+  .setEmitter((element: String, context: SinkWriter.Context, indexer: RequestIndexer) =>
+  indexer.add(createIndexRequest(element)))
+```
+
+Elasticsearch 7:
+```scala
+val env = StreamExecutionEnvironment.getExecutionEnvironment()
+env.enableCheckpointing(5000) // 每 5000 毫秒执行一次 checkpoint
+
+val sinkBuilder = new Elasticsearch7SinkBuilder[String]
+  .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
+  .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+  .setEmitter((element: String, context: SinkWriter.Context, indexer: RequestIndexer) =>
+  indexer.add(createIndexRequest(element)))
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-<p style="border-radius: 5px; padding: 5px" class="bg-danger">
-<b>NOTE</b>: Users can disable flushing if they wish to do so, by calling
-<b>disableFlushOnCheckpoint()</b> on the created <b>ElasticsearchSink</b>. Be aware
-that this essentially means the sink will not provide any strong
-delivery guarantees anymore, even with checkpoint for the topology enabled.
-</p>
+### 处理失败的 Elasticsearch 请求
 
-### Handling Failing Elasticsearch Requests
+Elasticsearch 操作请求可能由于多种原因而失败，包括节点队列容量暂时已满或者要被索引的文档格式错误。
+Flink Elasticsearch Sink 允许用户通过通过指定一个退避策略来重试请求。
 
-Elasticsearch action requests may fail due to a variety of reasons, including
-temporarily saturated node queue capacity or malformed documents to be indexed.
-The Flink Elasticsearch Sink allows the user to specify how request
-failures are handled, by simply implementing an `ActionRequestFailureHandler` and
-providing it to the constructor.
-
-Below is an example:
+下面是一个例子：
 
 {{< tabs "ddb958b3-5dd5-476e-b946-ace3335628b2" >}}
 {{< tab "Java" >}}
+Elasticsearch 6:
 ```java
 DataStream<String> input = ...;
 
-input.addSink(new ElasticsearchSink<>(
-    config, transportAddresses,
-    new ElasticsearchSinkFunction<String>() {...},
-    new ActionRequestFailureHandler() {
-        @Override
-        void onFailure(ActionRequest action,
-                Throwable failure,
-                int restStatusCode,
-                RequestIndexer indexer) throw Throwable {
+input.sinkTo(
+    new Elasticsearch6SinkBuilder<String>()
+        .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+        .setEmitter(
+        (element, context, indexer) ->
+        indexer.add(createIndexRequest(element)))
+        // 这里启用了一个指数退避重试策略，初始延迟为 1000 毫秒且最大重试次数为 5
+        .setBulkFlushBackoffStrategy(FlushBackoffType.EXPONENTIAL, 5, 1000)
+        .build());
+```
 
-            if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
-                // full queue; re-add document for indexing
-                indexer.add(action);
-            } else if (ExceptionUtils.findThrowable(failure, ElasticsearchParseException.class).isPresent()) {
-                // malformed document; simply drop request without failing sink
-            } else {
-                // for all other failures, fail the sink
-                // here the failure is simply rethrown, but users can also choose to throw custom exceptions
-                throw failure;
-            }
-        }
-}));
+Elasticsearch 7:
+```java
+DataStream<String> input = ...;
+
+input.sinkTo(
+    new Elasticsearch7SinkBuilder<String>()
+        .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+        .setEmitter(
+        (element, context, indexer) ->
+        indexer.add(createIndexRequest(element)))
+        // 这里启用了一个指数退避重试策略，初始延迟为 1000 毫秒且最大重试次数为 5
+        .setBulkFlushBackoffStrategy(FlushBackoffType.EXPONENTIAL, 5, 1000)
+        .build());
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
+Elasticsearch 6:
 ```scala
 val input: DataStream[String] = ...
 
-input.addSink(new ElasticsearchSink(
-    config, transportAddresses,
-    new ElasticsearchSinkFunction[String] {...},
-    new ActionRequestFailureHandler {
-        @throws(classOf[Throwable])
-        override def onFailure(ActionRequest action,
-                Throwable failure,
-                int restStatusCode,
-                RequestIndexer indexer) {
+input.sinkTo(
+  new Elasticsearch6SinkBuilder[String]
+    .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+    .setEmitter((element: String, context: SinkWriter.Context, indexer: RequestIndexer) => 
+    indexer.add(createIndexRequest(element)))
+    // 这里启用了一个指数退避重试策略，初始延迟为 1000 毫秒且最大重试次数为 5
+    .setBulkFlushBackoffStrategy(FlushBackoffType.EXPONENTIAL, 5, 1000)
+    .build())
+```
 
-            if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
-                // full queue; re-add document for indexing
-                indexer.add(action)
-            } else if (ExceptionUtils.findThrowable(failure, ElasticsearchParseException.class).isPresent()) {
-                // malformed document; simply drop request without failing sink
-            } else {
-                // for all other failures, fail the sink
-                // here the failure is simply rethrown, but users can also choose to throw custom exceptions
-                throw failure
-            }
-        }
-}))
+Elasticsearch 7:
+```scala
+val input: DataStream[String] = ...
+
+input.sinkTo(
+  new Elasticsearch7SinkBuilder[String]
+    .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+    .setEmitter((element: String, context: SinkWriter.Context, indexer: RequestIndexer) => 
+    indexer.add(createIndexRequest(element)))
+    // 这里启用了一个指数退避重试策略，初始延迟为 1000 毫秒且最大重试次数为 5
+    .setBulkFlushBackoffStrategy(FlushBackoffType.EXPONENTIAL, 5, 1000)
+    .build())
 ```
 {{< /tab >}}
 {{< /tabs >}}
 
-The above example will let the sink re-add requests that failed due to
-queue capacity saturation and drop requests with malformed documents, without
-failing the sink. For all other failures, the sink will fail. If a `ActionRequestFailureHandler`
-is not provided to the constructor, the sink will fail for any kind of error.
-
-Note that `onFailure` is called for failures that still occur only after the
-`BulkProcessor` internally finishes all backoff retry attempts.
-By default, the `BulkProcessor` retries to a maximum of 8 attempts with
-an exponential backoff. For more information on the behaviour of the
-internal `BulkProcessor` and how to configure it, please see the following section.
-
-By default, if a failure handler is not provided, the sink uses a
-`NoOpFailureHandler` that simply fails for all kinds of exceptions. The
-connector also provides a `RetryRejectedExecutionFailureHandler` implementation
-that always re-add requests that have failed due to queue capacity saturation.
+上面的示例 sink 重新添加由于资源受限（例如：队列容量已满）而失败的请求。对于其它类型的故障，例如文档格式错误，sink 将会失败。
+如若未设置 BulkFlushBackoffStrategy (或者 `FlushBackoffType.NONE`)，那么任何类型的错误都会导致 sink 失败。
 
 <p style="border-radius: 5px; padding: 5px" class="bg-danger">
-<b>IMPORTANT</b>: Re-adding requests back to the internal <b>BulkProcessor</b>
-on failures will lead to longer checkpoints, as the sink will also
-need to wait for the re-added requests to be flushed when checkpointing.
-For example, when using <b>RetryRejectedExecutionFailureHandler</b>, checkpoints
-will need to wait until Elasticsearch node queues have enough capacity for
-all the pending requests. This also means that if re-added requests never
-succeed, the checkpoint will never finish.
+<b>重要提示</b>：在失败时将请求重新添加回内部 <b>BulkProcessor</b> 会导致更长的 checkpoint，因为在进行 checkpoint 时，sink 还需要等待重新添加的请求被刷新。
+例如，当使用 <b>FlushBackoffType.EXPONENTIAL</b> 时，
+checkpoint 会进行等待，直到 Elasticsearch 节点队列有足够的容量来处理所有挂起的请求，或者达到最大重试次数。
 </p>
 
-### Configuring the Internal Bulk Processor
+### 配置内部批量处理器
 
-The internal `BulkProcessor` can be further configured for its behaviour
-on how buffered action requests are flushed, by setting the following values in
-the provided `Map<String, String>`:
+通过使用以下在 Elasticsearch6SinkBuilder 中提供的方法，可以进一步配置内部的 `BulkProcessor` 关于其如何刷新缓存操作请求的行为：
 
- * **bulk.flush.max.actions**: Maximum amount of actions to buffer before flushing.
- * **bulk.flush.max.size.mb**: Maximum size of data (in megabytes) to buffer before flushing.
- * **bulk.flush.interval.ms**: Interval at which to flush regardless of the amount or size of buffered actions.
- 
-For versions 2.x and above, configuring how temporary request errors are
-retried is also supported:
- 
- * **bulk.flush.backoff.enable**: Whether or not to perform retries with backoff delay for a flush
- if one or more of its actions failed due to a temporary `EsRejectedExecutionException`.
- * **bulk.flush.backoff.type**: The type of backoff delay, either `CONSTANT` or `EXPONENTIAL`
- * **bulk.flush.backoff.delay**: The amount of delay for backoff. For constant backoff, this
- is simply the delay between each retry. For exponential backoff, this is the initial base delay.
- * **bulk.flush.backoff.retries**: The amount of backoff retries to attempt.
+ * **setBulkFlushMaxActions(int numMaxActions)**：刷新前最大缓存的操作数。
+ * **setBulkFlushMaxSizeMb(int maxSizeMb)**：刷新前最大缓存的数据量（以兆字节为单位）。
+ * **setBulkFlushInterval(long intervalMillis)**：刷新的时间间隔（不论缓存操作的数量或大小如何）。
 
-More information about Elasticsearch can be found [here](https://elastic.co).
+还支持配置如何对暂时性请求错误进行重试：
 
-## Packaging the Elasticsearch Connector into an Uber-Jar
+ * **setBulkFlushBackoffStrategy(FlushBackoffType flushBackoffType, int maxRetries, long delayMillis)**：退避延迟的类型，`CONSTANT` 或者 `EXPONENTIAL`，退避重试次数，退避重试的时间间隔。
+   对于常量延迟来说，此值是每次重试间的间隔。对于指数延迟来说，此值是延迟的初始值。
 
-For the execution of your Flink program, it is recommended to build a
-so-called uber-jar (executable jar) containing all your dependencies
-(see [here]({{< ref "docs/dev/datastream/project-configuration" >}}) for further information).
+可以在[此文档](https://elastic.co)找到 Elasticsearch 的更多信息。
 
-Alternatively, you can put the connector's jar file into Flink's `lib/` folder to make it available
-system-wide, i.e. for all job being run.
+## 将 Elasticsearch 连接器打包到 Uber-Jar 中
+
+建议构建一个包含所有依赖的 uber-jar (可执行的 jar)，以便更好地执行你的 Flink 程序。
+(更多信息参见[此文档]({{< ref "docs/dev/datastream/project-configuration" >}}))。
+
+或者，你可以将连接器的 jar 文件放入 Flink 的 `lib/` 目录下，使其在全局范围内可用，即可用于所有的作业。
 
 {{< top >}}

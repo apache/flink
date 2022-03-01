@@ -21,8 +21,6 @@ package org.apache.flink.docs.configuration;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.description.Formatter;
-import org.apache.flink.configuration.description.HtmlFormatter;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -50,6 +48,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.DEFAULT_PATH_PREFIX;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.LOCATIONS;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.extractConfigOptions;
+import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.getDescription;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.processConfigOptions;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.stringifyDefault;
 import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.typeToHtml;
@@ -61,8 +60,6 @@ import static org.apache.flink.docs.configuration.ConfigOptionsDocGenerator.type
  * does not refer to non-existent options.
  */
 public class ConfigOptionsDocsCompletenessITCase {
-
-    private static final Formatter htmlFormatter = new HtmlFormatter();
 
     @Test
     public void testCompleteness() throws IOException, ClassNotFoundException {
@@ -257,7 +254,7 @@ public class ConfigOptionsDocsCompletenessITCase {
                             // Use split to exclude document key tag.
                             String key = tableRow.child(0).text().split(" ")[0];
                             String defaultValue = tableRow.child(1).text();
-                            String typeValue = tableRow.child(2).text();
+                            String typeValue = tableRow.child(2).html();
                             String description =
                                     tableRow.child(3).childNodes().stream()
                                             .map(Object::toString)
@@ -304,7 +301,7 @@ public class ConfigOptionsDocsCompletenessITCase {
         String key = optionWithMetaInfo.option.key();
         String defaultValue = stringifyDefault(optionWithMetaInfo);
         String typeValue = typeToHtml(optionWithMetaInfo);
-        String description = htmlFormatter.format(optionWithMetaInfo.option.description());
+        String description = getDescription(optionWithMetaInfo);
         boolean isSuffixOption = isSuffixOption(optionWithMetaInfo.field);
         return new ExistingOption(
                 key, defaultValue, typeValue, description, optionsClass, isSuffixOption);

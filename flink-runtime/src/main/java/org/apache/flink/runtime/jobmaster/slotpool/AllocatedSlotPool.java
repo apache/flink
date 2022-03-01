@@ -50,9 +50,9 @@ public interface AllocatedSlotPool {
      * Removes all slots belonging to the owning TaskExecutor identified by owner.
      *
      * @param owner owner identifies the TaskExecutor whose slots shall be removed
-     * @return the collection of removed slots
+     * @return the collection of removed slots and for each slot whether it was currently free
      */
-    Collection<AllocatedSlot> removeSlots(ResourceID owner);
+    AllocatedSlotsAndReservationStatus removeSlots(ResourceID owner);
 
     /**
      * Checks whether the slot pool contains at least one slot belonging to the specified owner.
@@ -130,5 +130,12 @@ public interface AllocatedSlotPool {
         default AllocationID getAllocationId() {
             return asSlotInfo().getAllocationId();
         }
+    }
+
+    /** A collection of {@link AllocatedSlot AllocatedSlots} and their reservation status. */
+    interface AllocatedSlotsAndReservationStatus {
+        boolean wasFree(AllocationID allocatedSlot);
+
+        Collection<AllocatedSlot> getAllocatedSlots();
     }
 }

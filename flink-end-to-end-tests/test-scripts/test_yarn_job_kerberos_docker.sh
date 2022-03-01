@@ -22,17 +22,14 @@ source "$(dirname "$0")"/common_yarn_docker.sh
 
 # Configure Flink dir before making tarball.
 INPUT_TYPE=${1:-default-input}
-EXPECTED_RESULT_LOG_CONTAINS=()
 case $INPUT_TYPE in
     (default-input)
         INPUT_ARGS=""
-        EXPECTED_RESULT_LOG_CONTAINS=("consummation,1" "of,14" "calamity,1")
     ;;
     (dummy-fs)
         source "$(dirname "$0")"/common_dummy_fs.sh
         dummy_fs_setup
         INPUT_ARGS="--input dummy://localhost/words --input anotherDummy://localhost/words"
-        EXPECTED_RESULT_LOG_CONTAINS=("my,2" "dear,4" "world,4")
     ;;
     (*)
         echo "Unknown input type $INPUT_TYPE"
@@ -59,13 +56,6 @@ else
     echo "Running the job failed."
     exit 1
 fi
-
-for expected_result in ${EXPECTED_RESULT_LOG_CONTAINS[@]}; do
-    if [[ ! "$OUTPUT" =~ $expected_result ]]; then
-        echo "Output does not contain '$expected_result' as required"
-        exit 1
-    fi
-done
 
 echo "Running Job without configured keytab, the exception you see below is expected"
 docker exec master bash -c "echo \"\" > /home/hadoop-user/$FLINK_DIRNAME/conf/flink-conf.yaml"

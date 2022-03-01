@@ -29,6 +29,7 @@ import org.apache.flink.connector.jdbc.JdbcITCase;
 import org.apache.flink.connector.jdbc.JdbcSink;
 import org.apache.flink.connector.jdbc.JdbcTestBase;
 import org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
+import org.apache.flink.connector.jdbc.dialect.oracle.OracleContainer;
 import org.apache.flink.runtime.state.CheckpointListener;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
@@ -41,15 +42,20 @@ import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunctio
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.LogLevelRule;
 import org.apache.flink.util.function.SerializableSupplier;
 
 import com.mysql.cj.jdbc.MysqlXADataSource;
+import oracle.jdbc.xa.client.OracleXADataSource;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.postgresql.xa.PGXADataSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.JdbcDatabaseContainer;
 import org.testcontainers.containers.MySQLContainer;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -58,8 +64,10 @@ import javax.sql.XADataSource;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -79,13 +87,29 @@ import static org.apache.flink.configuration.TaskManagerOptions.TASK_CANCELLATIO
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INPUT_TABLE;
 import static org.apache.flink.connector.jdbc.JdbcTestFixture.INSERT_TEMPLATE;
 import static org.apache.flink.connector.jdbc.xa.JdbcXaFacadeTestHelper.getInsertedIds;
+import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.CHECKPOINTING_TIMEOUT;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 import static org.junit.Assert.assertTrue;
+import static org.slf4j.event.Level.TRACE;
 
 /** A simple end-to-end test for {@link JdbcXaSinkFunction}. */
 @RunWith(Parameterized.class)
 public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
+    private static final Random RANDOM = new Random(System.currentTimeMillis());
+
+    private static final Logger LOG = LoggerFactory.getLogger(JdbcExactlyOnceSinkE2eTest.class);
+
+    private static final long CHECKPOINT_TIMEOUT_MS = 20_000L;
+    private static final long TASK_CANCELLATION_TIMEOUT_MS = 20_000L;
+
+    // todo: remove after fixing FLINK-22889
+    @ClassRule
+    public static final LogLevelRule TEST_LOG_LEVEL_RULE =
+            new LogLevelRule()
+                    .set(JdbcExactlyOnceSinkE2eTest.class, TRACE)
+                    .set(XaFacadeImpl.class, TRACE)
+                    .set(MySqlJdbcExactlyOnceSinkTestEnv.InnoDbStatusLogger.class, TRACE);
 
     private interface JdbcExactlyOnceSinkTestEnv {
         void start();
@@ -119,13 +143,13 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 // PGSQL: check for issues with suspending connections (requires pooling) and
                 // honoring limits (properly closing connections).
                 new PgSqlJdbcExactlyOnceSinkTestEnv(4),
-                //            ,
                 // MYSQL: check for issues with errors on closing connections.
-                new MySqlJdbcExactlyOnceSinkTestEnv(4)
+                new MySqlJdbcExactlyOnceSinkTestEnv(4),
+                // ORACLE - default tests.
+                new OracleJdbcExactlyOnceSinkTestEnv(4)
                 // MSSQL - not testing: XA transactions need to be enabled via GUI (plus EULA).
                 // DB2 - not testing: requires auth configuration (plus EULA).
                 // MARIADB - not testing: XA rollback doesn't recognize recovered transactions.
-                // ORACLE - not testing: an image needs to be built.
                 );
     }
 
@@ -136,7 +160,8 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         // restart all tasks if at least one fails
         configuration.set(EXECUTION_FAILOVER_STRATEGY, "full");
         // cancel tasks eagerly to reduce the risk of running out of memory with many restarts
-        configuration.set(TASK_CANCELLATION_TIMEOUT, 1000L);
+        configuration.set(TASK_CANCELLATION_TIMEOUT, TASK_CANCELLATION_TIMEOUT_MS);
+        configuration.set(CHECKPOINTING_TIMEOUT, Duration.ofMillis(CHECKPOINT_TIMEOUT_MS));
         cluster =
                 new MiniClusterWithClientResource(
                         new MiniClusterResourceConfiguration.Builder()
@@ -160,10 +185,14 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
             cluster = null;
         }
         dbEnv.stop();
+        activeSources.clear();
+        inactiveMappers.clear();
     }
 
     @Test
     public void testInsert() throws Exception {
+        long started = System.currentTimeMillis();
+        LOG.info("Test insert for {}", dbEnv);
         int elementsPerSource = 50;
         int numElementsPerCheckpoint = 7;
         int minElementsPerFailure = numElementsPerCheckpoint / 3;
@@ -185,8 +214,10 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                         JdbcSink.exactlyOnceSink(
                                 String.format(INSERT_TEMPLATE, INPUT_TABLE),
                                 JdbcITCase.TEST_ENTRY_JDBC_STATEMENT_BUILDER,
-                                JdbcExecutionOptions.builder().build(),
-                                JdbcExactlyOnceOptions.defaults(),
+                                JdbcExecutionOptions.builder().withMaxRetries(0).build(),
+                                JdbcExactlyOnceOptions.builder()
+                                        .withTransactionPerConnection(true)
+                                        .build(),
                                 this.dbEnv.getDataSourceSupplier()));
 
         env.execute();
@@ -204,6 +235,10 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         assertTrue(
                 insertedIds.toString(),
                 insertedIds.size() == expectedIds.size() && expectedIds.containsAll(insertedIds));
+        LOG.info(
+                "Test insert for {} finished in {} ms.",
+                dbEnv,
+                System.currentTimeMillis() - started);
     }
 
     @Override
@@ -249,8 +284,6 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         private transient volatile ListState<SourceRange> ranges;
 
-        private volatile boolean allDataEmitted = false;
-        private volatile boolean snapshotTaken = false;
         private volatile long lastCheckpointId = -1L;
         private volatile boolean lastSnapshotConfirmed = false;
         private volatile boolean running = true;
@@ -267,10 +300,6 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 for (SourceRange range : ranges.get()) {
                     emitRange(range, ctx);
                 }
-                allDataEmitted = true;
-                if (snapshotTaken) {
-                    sleep(() -> !lastSnapshotConfirmed);
-                }
             } finally {
                 activeSources.get(getRuntimeContext().getAttemptNumber()).countDown();
             }
@@ -284,28 +313,38 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
             inactiveMappers.get(getRuntimeContext().getAttemptNumber()).await();
         }
 
-        private void emitRange(SourceRange range, SourceContext<TestEntry> ctx)
-                throws InterruptedException {
+        private void emitRange(SourceRange range, SourceContext<TestEntry> ctx) {
             for (int i = range.from; i < range.to && running; ) {
                 int count = Math.min(range.to - i, numElementsPerCheckpoint);
                 emit(i, count, range, ctx);
                 i += count;
-                sleep(() -> !snapshotTaken);
             }
         }
 
-        private void emit(int start, int count, SourceRange toAdvance, SourceContext<TestEntry> ctx)
-                throws InterruptedException {
+        private void emit(
+                int start, int count, SourceRange toAdvance, SourceContext<TestEntry> ctx) {
             synchronized (ctx.getCheckpointLock()) {
-                snapshotTaken = false;
+                lastCheckpointId = -1L;
+                lastSnapshotConfirmed = false;
                 for (int j = start; j < start + count && running; j++) {
-                    ctx.collect(
-                            new TestEntry(
-                                    j, Integer.toString(j), Integer.toString(j), (double) (j), j));
+                    try {
+                        ctx.collect(
+                                new TestEntry(
+                                        j,
+                                        Integer.toString(j),
+                                        Integer.toString(j),
+                                        (double) (j),
+                                        j));
+                    } catch (Exception e) {
+                        if (!ExceptionUtils.findThrowable(e, TestException.class).isPresent()) {
+                            LOG.warn("Exception during record emission", e);
+                        }
+                        throw e;
+                    }
                     toAdvance.advance();
-                    Thread.sleep(10);
                 }
             }
+            sleep(() -> !lastSnapshotConfirmed);
         }
 
         @Override
@@ -339,21 +378,25 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                                 SourceRange.forSubtask(
                                         getRuntimeContext().getIndexOfThisSubtask(), numElements)));
             }
+            LOG.debug("Source initialized with ranges: {}", ranges.get());
         }
 
         @Override
         public void snapshotState(FunctionSnapshotContext context) {
-            snapshotTaken = true;
-            if (allDataEmitted) {
-                lastCheckpointId = context.getCheckpointId();
-            }
+            lastCheckpointId = context.getCheckpointId();
         }
 
         private void sleep(Supplier<Boolean> condition) {
+            long start = System.currentTimeMillis();
             while (condition.get()
                     && running
                     && !Thread.currentThread().isInterrupted()
                     && haveActiveSources()) {
+                if (System.currentTimeMillis() - start > 10_000) {
+                    // debugging FLINK-22889 (TODO: remove after resolved)
+                    LOG.debug("Slept more than 10s", new Exception());
+                    start = Long.MAX_VALUE;
+                }
                 try {
                     Thread.sleep(10);
                 } catch (InterruptedException e) {
@@ -364,7 +407,13 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         }
 
         private void waitOtherSources() throws InterruptedException {
+            long start = System.currentTimeMillis();
             while (running && haveActiveSources()) {
+                if (System.currentTimeMillis() - start > 10_000) {
+                    // debugging FLINK-22889 (TODO: remove after resolved)
+                    LOG.debug("Slept more than 10s", new Exception());
+                    start = Long.MAX_VALUE;
+                }
                 activeSources
                         .get(getRuntimeContext().getAttemptNumber())
                         .await(100, TimeUnit.MILLISECONDS);
@@ -393,6 +442,11 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 checkState(from < to);
                 from++;
             }
+
+            @Override
+            public String toString() {
+                return String.format("%d..%d", from, to);
+            }
         }
     }
 
@@ -408,7 +462,7 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         @Override
         public void open(Configuration parameters) throws Exception {
-            remaining = minElementsPerFailure + new Random().nextInt(maxElementsPerFailure);
+            remaining = minElementsPerFailure + RANDOM.nextInt(maxElementsPerFailure);
             inactiveMappers
                     .computeIfAbsent(
                             getRuntimeContext().getAttemptNumber(),
@@ -416,11 +470,13 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                                     new CountDownLatch(
                                             getRuntimeContext().getNumberOfParallelSubtasks()))
                     .countDown();
+            LOG.debug("Mapper will fail after {} records", remaining);
         }
 
         @Override
         public TestEntry map(TestEntry value) throws Exception {
             if (--remaining <= 0) {
+                LOG.debug("Mapper failing intentionally");
                 throw new TestException();
             }
             return value;
@@ -429,7 +485,9 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
     private static final class TestException extends Exception {
         public TestException() {
-            super("expected", null, true, false);
+            // use this string to prevent error parsing scripts from failing the build
+            // and still have exception type
+            super("java.lang.Exception: Artificial failure", null, true, false);
         }
     }
 
@@ -470,6 +528,7 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
 
         private static final class MySqlXaDb extends MySQLContainer<MySqlXaDb> {
             private static final String IMAGE_NAME = "mysql:8.0.23"; // version 5 had issues with XA
+            private volatile InnoDbStatusLogger innoDbStatusLogger;
 
             @Override
             public String toString() {
@@ -483,20 +542,42 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
             @Override
             public void start() {
                 super.start();
+                long lockWaitTimeout = (CHECKPOINT_TIMEOUT_MS + TASK_CANCELLATION_TIMEOUT_MS) * 2;
                 // prevent XAER_RMERR: Fatal error occurred in the transaction  branch - check your
                 // data for consistency works for mysql v8+
                 try (Connection connection =
                         DriverManager.getConnection(getJdbcUrl(), "root", getPassword())) {
-                    grantRecover(connection);
+                    prepareDb(connection, lockWaitTimeout);
                 } catch (SQLException e) {
                     ExceptionUtils.rethrow(e);
                 }
+                this.innoDbStatusLogger =
+                        new InnoDbStatusLogger(
+                                getJdbcUrl(), "root", getPassword(), lockWaitTimeout / 2);
+                innoDbStatusLogger.start();
             }
 
-            private void grantRecover(Connection connection) throws SQLException {
+            @Override
+            public void stop() {
+                try {
+                    innoDbStatusLogger.stop();
+                } catch (Exception e) {
+                    ExceptionUtils.rethrow(e);
+                } finally {
+                    super.stop();
+                }
+            }
+
+            private void prepareDb(Connection connection, long lockWaitTimeout)
+                    throws SQLException {
                 try (Statement st = connection.createStatement()) {
                     st.execute("GRANT XA_RECOVER_ADMIN ON *.* TO '" + getUsername() + "'@'%'");
                     st.execute("FLUSH PRIVILEGES");
+                    // if the reason of task cancellation failure is waiting for a lock
+                    // then failing transactions with a relevant message would ease debugging
+                    st.execute("SET GLOBAL innodb_lock_wait_timeout = " + lockWaitTimeout);
+                    // st.execute("SET GLOBAL innodb_status_output = ON");
+                    // st.execute("SET GLOBAL innodb_status_output_locks = ON");
                 }
             }
         }
@@ -526,6 +607,109 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
         @Override
         public String toString() {
             return db + ", parallelism=" + parallelism;
+        }
+
+        private static class InnoDbStatusLogger {
+            private static final Logger LOG = LoggerFactory.getLogger(InnoDbStatusLogger.class);
+            private final Thread thread;
+            private volatile boolean running;
+
+            private InnoDbStatusLogger(String url, String user, String password, long intervalMs) {
+                running = true;
+                thread =
+                        new Thread(
+                                () -> {
+                                    LOG.info("Logging InnoDB status every {}ms", intervalMs);
+                                    try (Connection connection =
+                                            DriverManager.getConnection(url, user, password)) {
+                                        while (running) {
+                                            Thread.sleep(intervalMs);
+                                            queryAndLog(connection);
+                                        }
+                                    } catch (Exception e) {
+                                        LOG.warn("failed", e);
+                                    } finally {
+                                        LOG.info("Logging InnoDB status stopped");
+                                    }
+                                });
+            }
+
+            public void start() {
+                thread.start();
+            }
+
+            public void stop() throws InterruptedException {
+                running = false;
+                thread.join();
+            }
+
+            private void queryAndLog(Connection connection) throws SQLException {
+                try (Statement st = connection.createStatement()) {
+                    showBlockedTrx(st);
+                    showAllTrx(st);
+                    showEngineStatus(st);
+                    showRecoveredTrx(st);
+                    // additional query: show full processlist \G; -- only shows live
+                }
+            }
+
+            private void showRecoveredTrx(Statement st) throws SQLException {
+                try (ResultSet rs = st.executeQuery("xa recover convert xid ")) {
+                    while (rs.next()) {
+                        LOG.debug(
+                                "recovered trx: {} {} {} {}",
+                                rs.getString(1),
+                                rs.getString(2),
+                                rs.getString(3),
+                                rs.getString(4));
+                    }
+                }
+            }
+
+            private void showEngineStatus(Statement st) throws SQLException {
+                LOG.debug("Engine status");
+                try (ResultSet rs = st.executeQuery("show engine innodb status")) {
+                    while (rs.next()) {
+                        LOG.debug(rs.getString(3));
+                    }
+                }
+            }
+
+            private void showAllTrx(Statement st) throws SQLException {
+                LOG.debug("All TRX");
+                try (ResultSet rs =
+                        st.executeQuery("select * from information_schema.innodb_trx")) {
+                    while (rs.next()) {
+                        LOG.debug(
+                                "trx_id: {}, trx_state: {}, trx_started: {}, trx_requested_lock_id: {}, trx_wait_started: {}, trx_mysql_thread_id: {},",
+                                rs.getString("trx_id"),
+                                rs.getString("trx_state"),
+                                rs.getString("trx_started"),
+                                rs.getString("trx_requested_lock_id"),
+                                rs.getString("trx_wait_started"),
+                                rs.getString("trx_mysql_thread_id") /* 0 for recovered*/);
+                    }
+                }
+            }
+
+            private void showBlockedTrx(Statement st) throws SQLException {
+                LOG.debug("Blocked TRX");
+                try (ResultSet rs =
+                        st.executeQuery(
+                                " SELECT waiting_trx_id, waiting_pid, waiting_query, blocking_trx_id, blocking_pid, blocking_query "
+                                        + "FROM sys.innodb_lock_waits; ")) {
+                    while (rs.next()) {
+                        LOG.debug(
+                                "waiting_trx_id: {}, waiting_pid: {}, waiting_query: {}, blocking_trx_id: {}, blocking_pid: {}, blocking_query: {}",
+                                rs.getString(1),
+                                rs.getString(2),
+                                rs.getString(3),
+                                rs.getString(4),
+                                rs.getString(5),
+                                rs.getString(6));
+                    }
+                }
+            }
         }
     }
 
@@ -614,6 +798,73 @@ public class JdbcExactlyOnceSinkE2eTest extends JdbcTestBase {
                 xaDataSource.setUser(username);
                 xaDataSource.setPassword(password);
                 return xaDataSource;
+            }
+        }
+    }
+
+    private static class OracleJdbcExactlyOnceSinkTestEnv implements JdbcExactlyOnceSinkTestEnv {
+        private final int parallelism;
+        private final OracleContainer db;
+
+        private OracleJdbcExactlyOnceSinkTestEnv(int parallelism) {
+            this.parallelism = parallelism;
+            this.db = new OracleContainer();
+        }
+
+        @Override
+        public void start() {
+            db.start();
+        }
+
+        @Override
+        public void stop() {
+            db.close();
+        }
+
+        @Override
+        public JdbcDatabaseContainer<?> getContainer() {
+            return db;
+        }
+
+        @Override
+        public SerializableSupplier<XADataSource> getDataSourceSupplier() {
+            return new OracleXaDataSourceFactory(
+                    db.getJdbcUrl(), db.getUsername(), db.getPassword());
+        }
+
+        @Override
+        public int getParallelism() {
+            return parallelism;
+        }
+
+        @Override
+        public String toString() {
+            return db + ", parallelism=" + parallelism;
+        }
+
+        private static class OracleXaDataSourceFactory
+                implements SerializableSupplier<XADataSource> {
+            private final String jdbcUrl;
+            private final String username;
+            private final String password;
+
+            public OracleXaDataSourceFactory(String jdbcUrl, String username, String password) {
+                this.jdbcUrl = jdbcUrl;
+                this.username = username;
+                this.password = password;
+            }
+
+            @Override
+            public XADataSource get() {
+                try {
+                    OracleXADataSource xaDataSource = new OracleXADataSource();
+                    xaDataSource.setURL(jdbcUrl);
+                    xaDataSource.setUser(username);
+                    xaDataSource.setPassword(password);
+                    return xaDataSource;
+                } catch (SQLException ex) {
+                    throw new RuntimeException(ex);
+                }
             }
         }
     }

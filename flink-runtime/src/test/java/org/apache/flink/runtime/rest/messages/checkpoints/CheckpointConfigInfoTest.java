@@ -44,6 +44,7 @@ public class CheckpointConfigInfoTest
                 "checkpointStorageName",
                 true,
                 3,
-                4);
+                4,
+                true);
     }
 }

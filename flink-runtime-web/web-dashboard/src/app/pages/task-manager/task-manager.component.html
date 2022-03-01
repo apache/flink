@@ -19,7 +19,7 @@
 <flink-task-manager-status [isLoading]="isLoading"></flink-task-manager-status>
 <div class="content">
   <nz-skeleton [nzActive]="true" *ngIf="isLoading"></nz-skeleton>
-  <div class="router" [style.display]="isLoading?'none':'block'">
+  <div class="router" [class.hide]="isLoading">
     <router-outlet></router-outlet>
   </div>
 </div>

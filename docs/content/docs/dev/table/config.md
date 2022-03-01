@@ -31,9 +31,7 @@ performance.
 
 Depending on the requirements of a table program, it might be necessary to adjust
 certain parameters for optimization. For example, unbounded streaming programs may need to ensure
-that the required state size is capped (see [streaming concepts](./streaming/query_configuration.html)).
-
-
+that the required state size is capped (see [streaming concepts]({{< ref "docs/dev/table/concepts/overview" >}})).
 
 ### Overview
 
@@ -56,11 +54,11 @@ table environment.
 TableEnvironment tEnv = ...
 
 // access flink configuration
-Configuration configuration = tEnv.getConfig().getConfiguration();
+TableConfig configuration = tEnv.getConfig();
 // set low-level key-value options
-configuration.setString("table.exec.mini-batch.enabled", "true");
-configuration.setString("table.exec.mini-batch.allow-latency", "5 s");
-configuration.setString("table.exec.mini-batch.size", "5000");
+configuration.set("table.exec.mini-batch.enabled", "true");
+configuration.set("table.exec.mini-batch.allow-latency", "5 s");
+configuration.set("table.exec.mini-batch.size", "5000");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -69,11 +67,11 @@ configuration.setString("table.exec.mini-batch.size", "5000");
 val tEnv: TableEnvironment = ...
 
 // access flink configuration
-val configuration = tEnv.getConfig().getConfiguration()
+val configuration = tEnv.getConfig()
 // set low-level key-value options
-configuration.setString("table.exec.mini-batch.enabled", "true")
-configuration.setString("table.exec.mini-batch.allow-latency", "5 s")
-configuration.setString("table.exec.mini-batch.size", "5000")
+configuration.set("table.exec.mini-batch.enabled", "true")
+configuration.set("table.exec.mini-batch.allow-latency", "5 s")
+configuration.set("table.exec.mini-batch.size", "5000")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -82,11 +80,11 @@ configuration.setString("table.exec.mini-batch.size", "5000")
 t_env = ...
 
 # access flink configuration
-configuration = t_env.get_config().get_configuration()
+configuration = t_env.get_config()
 # set low-level key-value options
-configuration.set_string("table.exec.mini-batch.enabled", "true")
-configuration.set_string("table.exec.mini-batch.allow-latency", "5 s")
-configuration.set_string("table.exec.mini-batch.size", "5000")
+configuration.set("table.exec.mini-batch.enabled", "true")
+configuration.set("table.exec.mini-batch.allow-latency", "5 s")
+configuration.set("table.exec.mini-batch.size", "5000")
 ```
 {{< /tab >}}
 {{< tab "SQL CLI" >}}

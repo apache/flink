@@ -55,6 +55,7 @@ public interface SpecializedFunction extends FunctionDefinition {
     UserDefinedFunction specialize(SpecializedContext context);
 
     /** Provides call and session information for the specialized function. */
+    @PublicEvolving
     interface SpecializedContext {
 
         /** Returns the context of the current call. */

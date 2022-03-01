@@ -230,7 +230,7 @@ public class SqlCreateTable extends SqlCreate implements ExtendedSqlNode {
      * </pre>
      *
      * <p>is equivalent with query "col1, col2, to_timestamp(col2) as col3", caution that the
-     * "computed column" operandshave been reversed.
+     * "computed column" operands have been reversed.
      */
     public String getColumnSqlString() {
         SqlPrettyWriter writer =

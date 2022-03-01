@@ -235,7 +235,7 @@ def iterable_func(x):
 
 A user-defined aggregate function (_UDAGG_) maps scalar values of multiple rows to a new scalar value.
 
-**NOTE:** Currently the general user-defined aggregate function is only supported in the GroupBy aggregation and Group Window Aggregation of the blink planner in streaming mode. For batch mode, it's currently not supported and it is recommended to use the [Vectorized Aggregate Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
+**NOTE:** Currently the general user-defined aggregate function is only supported in the GroupBy aggregation and Group Window Aggregation in streaming mode. For batch mode, it's currently not supported and it is recommended to use the [Vectorized Aggregate Functions]({{< ref "docs/dev/python/table/udfs/vectorized_python_udfs" >}}#vectorized-aggregate-functions).
 
 The behavior of an aggregate function is centered around the concept of an accumulator. The _accumulator_
 is an intermediate data structure that stores the aggregated values until a final aggregation result
@@ -416,8 +416,7 @@ A user-defined table aggregate function (_UDTAGG_) maps scalar values of multipl
 The returned record may consist of one or more fields. If an output record consists of only a single field,
 the structured record can be omitted, and a scalar value can be emitted that will be implicitly wrapped into a row by the runtime.
 
-**NOTE:** Currently the general user-defined table aggregate function is only supported in the GroupBy aggregation
-of the blink planner in streaming mode.
+**NOTE:** Currently the general user-defined table aggregate function is only supported in the GroupBy aggregation in streaming mode.
 
 Similar to an [aggregate function](#aggregate-functions), the behavior of a table aggregate is centered around the concept of an accumulator.
 The accumulator is an intermediate data structure that stores the aggregated values until a final aggregation result is computed.

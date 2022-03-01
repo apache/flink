@@ -286,11 +286,8 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
                 statusOverride == null || !statusOverride.isGloballyTerminalState(),
                 "Status override is only allowed for non-globally-terminal states.");
 
-        final int numberVertices = executionGraph.getTotalNumberOfVertices();
-
-        Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = new HashMap<>(numberVertices);
-        List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder =
-                new ArrayList<>(numberVertices);
+        Map<JobVertexID, ArchivedExecutionJobVertex> archivedTasks = new HashMap<>();
+        List<ArchivedExecutionJobVertex> archivedVerticesInCreationOrder = new ArrayList<>();
 
         for (ExecutionJobVertex task : executionGraph.getVerticesTopologically()) {
             ArchivedExecutionJobVertex archivedTask = task.archive();
@@ -334,10 +331,10 @@ public class ArchivedExecutionGraph implements AccessExecutionGraph, Serializabl
     }
 
     /**
-     * Create a sparse ArchivedExecutionGraph for a job while it is still initializing. Most fields
-     * will be empty, only job status and error-related fields are set.
+     * Create a sparse ArchivedExecutionGraph for a job. Most fields will be empty, only job status
+     * and error-related fields are set.
      */
-    public static ArchivedExecutionGraph createFromInitializingJob(
+    public static ArchivedExecutionGraph createSparseArchivedExecutionGraph(
             JobID jobId,
             String jobName,
             JobStatus jobStatus,

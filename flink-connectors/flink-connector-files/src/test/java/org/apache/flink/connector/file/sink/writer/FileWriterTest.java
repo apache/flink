@@ -18,15 +18,21 @@
 
 package org.apache.flink.connector.file.sink.writer;
 
+import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
-import org.apache.flink.api.connector.sink.Sink;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
 import org.apache.flink.connector.file.sink.utils.FileSinkTestUtils;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
+import org.apache.flink.metrics.Counter;
+import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
+import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
+import org.apache.flink.metrics.testutils.MetricListener;
+import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.OutputFileConfig;
 import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
@@ -37,20 +43,24 @@ import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.
 import org.apache.flink.util.ExceptionUtils;
 
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Queue;
+import java.util.concurrent.ScheduledFuture;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -61,6 +71,13 @@ import static org.junit.Assert.assertTrue;
 public class FileWriterTest {
 
     @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
+
+    private MetricListener metricListener;
+
+    @Before
+    public void setUp() {
+        metricListener = new MetricListener();
+    }
 
     @Test
     public void testPreCommit() throws Exception {
@@ -77,7 +94,7 @@ public class FileWriterTest {
         fileWriter.write("test2", new ContextImpl());
         fileWriter.write("test3", new ContextImpl());
 
-        List<FileSinkCommittable> committables = fileWriter.prepareCommit(false);
+        Collection<FileSinkCommittable> committables = fileWriter.prepareCommit();
         assertEquals(3, committables.size());
     }
 
@@ -97,8 +114,8 @@ public class FileWriterTest {
         fileWriter.write("test3", new ContextImpl());
         assertEquals(3, fileWriter.getActiveBuckets().size());
 
-        fileWriter.prepareCommit(false);
-        List<FileWriterBucketState> states = fileWriter.snapshotState();
+        fileWriter.prepareCommit();
+        List<FileWriterBucketState> states = fileWriter.snapshotState(1L);
         assertEquals(3, states.size());
 
         fileWriter =
@@ -130,8 +147,8 @@ public class FileWriterTest {
         firstFileWriter.write("test2", new ContextImpl());
         firstFileWriter.write("test3", new ContextImpl());
 
-        firstFileWriter.prepareCommit(false);
-        List<FileWriterBucketState> firstState = firstFileWriter.snapshotState();
+        firstFileWriter.prepareCommit();
+        List<FileWriterBucketState> firstState = firstFileWriter.snapshotState(1L);
 
         FileWriter<String> secondFileWriter =
                 createWriter(
@@ -142,8 +159,8 @@ public class FileWriterTest {
         secondFileWriter.write("test1", new ContextImpl());
         secondFileWriter.write("test2", new ContextImpl());
 
-        secondFileWriter.prepareCommit(false);
-        List<FileWriterBucketState> secondState = secondFileWriter.snapshotState();
+        secondFileWriter.prepareCommit();
+        List<FileWriterBucketState> secondState = secondFileWriter.snapshotState(1L);
 
         List<FileWriterBucketState> mergedState = new ArrayList<>();
         mergedState.addAll(firstState);
@@ -182,17 +199,17 @@ public class FileWriterTest {
                         path, OnCheckpointRollingPolicy.build(), new OutputFileConfig("part-", ""));
 
         fileWriter.write("test", new ContextImpl());
-        fileWriter.prepareCommit(false);
-        fileWriter.snapshotState();
+        fileWriter.prepareCommit();
+        fileWriter.snapshotState(1L);
 
         // No more records and another call to prepareCommit will makes it inactive
-        fileWriter.prepareCommit(false);
+        fileWriter.prepareCommit();
 
         assertTrue(fileWriter.getActiveBuckets().isEmpty());
     }
 
     @Test
-    public void testOnProcessingTime() throws IOException {
+    public void testOnProcessingTime() throws Exception {
         File outDir = TEMP_FOLDER.newFolder();
         Path path = new Path(outDir.toURI());
 
@@ -205,7 +222,9 @@ public class FileWriterTest {
                 createWriter(
                         path,
                         new FileSinkTestUtils.StringIdentityBucketAssigner(),
-                        DefaultRollingPolicy.builder().withRolloverInterval(10).build(),
+                        DefaultRollingPolicy.builder()
+                                .withRolloverInterval(Duration.ofMillis(10))
+                                .build(),
                         new OutputFileConfig("part-", ""),
                         processingTimeService,
                         5);
@@ -230,7 +249,7 @@ public class FileWriterTest {
 
         // Close, pre-commit & clear all the pending records.
         processingTimeService.advanceTo(30);
-        fileWriter.prepareCommit(false);
+        fileWriter.prepareCommit();
 
         // Test timer re-registration.
         fileWriter.write("test1", new ContextImpl());
@@ -260,6 +279,29 @@ public class FileWriterTest {
         testCorrectTimestampPassingInContext(null, 4L, 5L);
     }
 
+    @Test
+    public void testNumberRecordsOutCounter() throws IOException, InterruptedException {
+        final OperatorIOMetricGroup operatorIOMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
+        File outDir = TEMP_FOLDER.newFolder();
+        Path path = new Path(outDir.toURI());
+        Counter recordsCounter = operatorIOMetricGroup.getNumRecordsOutCounter();
+        SinkWriter.Context context = new ContextImpl();
+        FileWriter<String> fileWriter =
+                createWriter(
+                        path,
+                        DefaultRollingPolicy.builder().build(),
+                        new OutputFileConfig("part-", ""),
+                        operatorIOMetricGroup);
+
+        assertEquals(0, recordsCounter.getCount());
+        fileWriter.write("1", context);
+        assertEquals(1, recordsCounter.getCount());
+        fileWriter.write("2", context);
+        fileWriter.write("3", context);
+        assertEquals(3, recordsCounter.getCount());
+    }
+
     private void testCorrectTimestampPassingInContext(
             Long timestamp, long watermark, long processingTime) throws Exception {
         final File outDir = TEMP_FOLDER.newFolder();
@@ -274,7 +316,9 @@ public class FileWriterTest {
                 createWriter(
                         path,
                         new VerifyingBucketAssigner(timestamp, watermark, processingTime),
-                        DefaultRollingPolicy.builder().withRolloverInterval(10).build(),
+                        DefaultRollingPolicy.builder()
+                                .withRolloverInterval(Duration.ofMillis(10))
+                                .build(),
                         new OutputFileConfig("part-", ""),
                         processingTimeService,
                         5);
@@ -308,8 +352,7 @@ public class FileWriterTest {
         }
     }
 
-    private static class ManuallyTriggeredProcessingTimeService
-            implements Sink.ProcessingTimeService {
+    private static class ManuallyTriggeredProcessingTimeService implements ProcessingTimeService {
 
         private long now;
 
@@ -322,20 +365,21 @@ public class FileWriterTest {
         }
 
         @Override
-        public void registerProcessingTimer(
+        public ScheduledFuture<?> registerTimer(
                 long time, ProcessingTimeCallback processingTimeCallback) {
             if (time <= now) {
                 try {
                     processingTimeCallback.onProcessingTime(now);
-                } catch (IOException e) {
+                } catch (Exception e) {
                     ExceptionUtils.rethrow(e);
                 }
             } else {
                 timers.add(new Tuple2<>(time, processingTimeCallback));
             }
+            return null;
         }
 
-        public void advanceTo(long time) throws IOException {
+        public void advanceTo(long time) throws Exception {
             if (time > now) {
                 now = time;
 
@@ -384,13 +428,20 @@ public class FileWriterTest {
 
     // ------------------------------- Utility Methods --------------------------------
 
-    private static FileWriter<String> createWriter(
+    private FileWriter<String> createWriter(
             Path basePath,
             RollingPolicy<String, String> rollingPolicy,
-            OutputFileConfig outputFileConfig)
+            OutputFileConfig outputFileConfig,
+            OperatorIOMetricGroup operatorIOMetricGroup)
             throws IOException {
+        final SinkWriterMetricGroup sinkWriterMetricGroup =
+                operatorIOMetricGroup == null
+                        ? InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup())
+                        : InternalSinkWriterMetricGroup.mock(
+                                metricListener.getMetricGroup(), operatorIOMetricGroup);
         return new FileWriter<>(
                 basePath,
+                sinkWriterMetricGroup,
                 new FileSinkTestUtils.StringIdentityBucketAssigner(),
                 new DefaultFileWriterBucketFactory<>(),
                 new RowWiseBucketWriter<>(
@@ -402,16 +453,25 @@ public class FileWriterTest {
                 10);
     }
 
-    private static FileWriter<String> createWriter(
+    private FileWriter<String> createWriter(
+            Path basePath,
+            RollingPolicy<String, String> rollingPolicy,
+            OutputFileConfig outputFileConfig)
+            throws IOException {
+        return createWriter(basePath, rollingPolicy, outputFileConfig, null);
+    }
+
+    private FileWriter<String> createWriter(
             Path basePath,
             BucketAssigner<String, String> bucketAssigner,
             RollingPolicy<String, String> rollingPolicy,
             OutputFileConfig outputFileConfig,
-            Sink.ProcessingTimeService processingTimeService,
+            ProcessingTimeService processingTimeService,
             long bucketCheckInterval)
             throws IOException {
         return new FileWriter<>(
                 basePath,
+                InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup()),
                 bucketAssigner,
                 new DefaultFileWriterBucketFactory<>(),
                 new RowWiseBucketWriter<>(
@@ -423,7 +483,7 @@ public class FileWriterTest {
                 bucketCheckInterval);
     }
 
-    private static FileWriter<String> restoreWriter(
+    private FileWriter<String> restoreWriter(
             List<FileWriterBucketState> states,
             Path basePath,
             RollingPolicy<String, String> rollingPolicy,

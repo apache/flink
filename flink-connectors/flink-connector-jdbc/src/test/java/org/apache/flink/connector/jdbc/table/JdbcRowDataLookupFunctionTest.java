@@ -18,15 +18,18 @@
 
 package org.apache.flink.connector.jdbc.table;
 
+import org.apache.flink.connector.jdbc.internal.options.JdbcConnectorOptions;
 import org.apache.flink.connector.jdbc.internal.options.JdbcLookupOptions;
-import org.apache.flink.connector.jdbc.internal.options.JdbcOptions;
 import org.apache.flink.table.api.DataTypes;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Collector;
+
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 
 import org.junit.Test;
 
@@ -53,7 +56,8 @@ public class JdbcRowDataLookupFunctionTest extends JdbcLookupTestBase {
     @Test
     public void testEval() throws Exception {
 
-        JdbcRowDataLookupFunction lookupFunction = buildRowDataLookupFunction();
+        JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder().build();
+        JdbcRowDataLookupFunction lookupFunction = buildRowDataLookupFunction(lookupOptions);
 
         ListOutputCollector collector = new ListOutputCollector();
         lookupFunction.setCollector(collector);
@@ -80,15 +84,92 @@ public class JdbcRowDataLookupFunctionTest extends JdbcLookupTestBase {
         assertEquals(expected, result);
     }
 
-    private JdbcRowDataLookupFunction buildRowDataLookupFunction() {
-        JdbcOptions jdbcOptions =
-                JdbcOptions.builder()
+    @Test
+    public void testEvalWithCacheMissingKeyPositive() throws Exception {
+
+        JdbcLookupOptions lookupOptions =
+                JdbcLookupOptions.builder()
+                        .setCacheMissingKey(true)
+                        .setCacheExpireMs(60000)
+                        .setCacheMaxSize(10)
+                        .build();
+
+        JdbcRowDataLookupFunction lookupFunction = buildRowDataLookupFunction(lookupOptions);
+
+        ListOutputCollector collector = new ListOutputCollector();
+        lookupFunction.setCollector(collector);
+
+        lookupFunction.open(null);
+
+        lookupFunction.eval(4, StringData.fromString("9"));
+        RowData keyRow = GenericRowData.of(4, StringData.fromString("9"));
+
+        Cache<RowData, List<RowData>> cache = lookupFunction.getCache();
+
+        // empty data should cache
+        assertEquals(cache.getIfPresent(keyRow), Collections.<RowData>emptyList());
+
+        // put db entry for keyRow
+        // final cache output should also be empty till TTL expires
+        insert(
+                "INSERT INTO "
+                        + LOOKUP_TABLE
+                        + " (id1, id2, comment1, comment2) VALUES (4, '9', '49-c1', '49-c2')");
+
+        lookupFunction.eval(4, StringData.fromString("9"));
+        assertEquals(cache.getIfPresent(keyRow), Collections.<RowData>emptyList());
+    }
+
+    @Test
+    public void testEvalWithCacheMissingKeyNegative() throws Exception {
+
+        JdbcLookupOptions lookupOptions =
+                JdbcLookupOptions.builder()
+                        .setCacheMissingKey(false)
+                        .setCacheExpireMs(60000)
+                        .setCacheMaxSize(10)
+                        .build();
+
+        JdbcRowDataLookupFunction lookupFunction = buildRowDataLookupFunction(lookupOptions);
+
+        ListOutputCollector collector = new ListOutputCollector();
+        lookupFunction.setCollector(collector);
+
+        lookupFunction.open(null);
+
+        lookupFunction.eval(5, StringData.fromString("1"));
+        RowData keyRow = GenericRowData.of(5, StringData.fromString("1"));
+
+        Cache<RowData, List<RowData>> cache = lookupFunction.getCache();
+
+        // empty data should not get cached
+        assert cache.getIfPresent(keyRow) == null;
+
+        // put db entry for keyRow
+        // final cache output should contain data
+        insert(
+                "INSERT INTO "
+                        + LOOKUP_TABLE
+                        + " (id1, id2, comment1, comment2) VALUES (5, '1', '51-c1', '51-c2')");
+
+        lookupFunction.eval(5, StringData.fromString("1"));
+        List<RowData> expectedOutput = new ArrayList<>();
+        expectedOutput.add(
+                GenericRowData.of(
+                        5,
+                        StringData.fromString("1"),
+                        StringData.fromString("51-c1"),
+                        StringData.fromString("51-c2")));
+        assertEquals(cache.getIfPresent(keyRow), expectedOutput);
+    }
+
+    private JdbcRowDataLookupFunction buildRowDataLookupFunction(JdbcLookupOptions lookupOptions) {
+        JdbcConnectorOptions jdbcOptions =
+                JdbcConnectorOptions.builder()
                         .setDriverName(DERBY_EBOOKSHOP_DB.getDriverClass())
                         .setDBUrl(DB_URL)
                         .setTableName(LOOKUP_TABLE)
                         .build();
-
-        JdbcLookupOptions lookupOptions = JdbcLookupOptions.builder().build();
 
         RowType rowType =
                 RowType.of(

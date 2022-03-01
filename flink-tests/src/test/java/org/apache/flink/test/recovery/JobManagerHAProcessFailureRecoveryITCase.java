@@ -31,28 +31,30 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
 import org.apache.flink.runtime.leaderelection.TestingListener;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
+import org.apache.flink.runtime.rest.util.NoOpFatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.rpc.RpcUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorResourceUtils;
 import org.apache.flink.runtime.taskexecutor.TaskManagerRunner;
 import org.apache.flink.runtime.testutils.DispatcherProcess;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperTestEnvironment;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.AfterClass;
@@ -266,13 +268,14 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 16);
         config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);
         TaskExecutorResourceUtils.adjustForLocalExecution(config);
 
         final RpcService rpcService =
-                AkkaRpcServiceUtils.remoteServiceBuilder(config, "localhost", 0).createAndStart();
+                RpcSystem.load().remoteServiceBuilder(config, "localhost", "0").createAndStart();
 
         try {
             final Deadline deadline = Deadline.fromNow(TEST_TIMEOUT);
@@ -286,7 +289,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
 
             highAvailabilityServices =
                     HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-                            config, TestingUtils.defaultExecutor());
+                            config, TestingUtils.defaultExecutor(), NoOpFatalErrorHandler.INSTANCE);
 
             final PluginManager pluginManager =
                     PluginUtils.createPluginManagerFromRootFolder(config);

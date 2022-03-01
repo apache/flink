@@ -157,7 +157,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             throws Exception {
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -274,7 +274,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             throws Exception {
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -422,7 +422,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             MapStateDescriptor<Integer, TestType> newAccessDescriptorAfterRestore)
             throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -530,7 +530,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
     public void testPriorityQueueStateCreationFailsIfNewSerializerIsNotCompatible()
             throws Exception {
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -613,7 +613,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             throws Exception {
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         AbstractKeyedStateBackend<TestType> backend = createKeyedBackend(initialKeySerializer);
 
@@ -718,7 +718,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
             throws Exception {
 
         CheckpointStreamFactory streamFactory = createStreamFactory();
-        SharedStateRegistry sharedStateRegistry = new SharedStateRegistry();
+        SharedStateRegistry sharedStateRegistry = new SharedStateRegistryImpl();
 
         AbstractKeyedStateBackend<Integer> backend = createKeyedBackend(IntSerializer.INSTANCE);
 
@@ -1258,7 +1258,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
         if (checkpointStorageLocation == null) {
             CheckpointStorageAccess checkpointStorageAccess =
                     getCheckpointStorage().createCheckpointStorage(new JobID());
-            checkpointStorageAccess.initializeBaseLocations();
+            checkpointStorageAccess.initializeBaseLocationsForCheckpoint();
             checkpointStorageLocation = checkpointStorageAccess.initializeLocationForCheckpoint(1L);
         }
         return checkpointStorageLocation;
@@ -1349,7 +1349,7 @@ public abstract class StateBackendMigrationTestBase<B extends AbstractStateBacke
         SnapshotResult<KeyedStateHandle> snapshotResult = snapshotRunnableFuture.get();
         KeyedStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
         if (jobManagerOwnedSnapshot != null) {
-            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry);
+            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry, 0L);
         }
         return jobManagerOwnedSnapshot;
     }

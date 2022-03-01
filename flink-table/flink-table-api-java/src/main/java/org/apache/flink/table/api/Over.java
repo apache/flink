@@ -19,8 +19,8 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionParser;
 
 import java.util.Arrays;
 
@@ -53,7 +53,8 @@ public final class Over {
      * @return an over window with defined partitioning
      */
     public static OverWindowPartitioned partitionBy(String partitionBy) {
-        return new OverWindowPartitioned(ExpressionParser.parseExpressionList(partitionBy));
+        return new OverWindowPartitioned(
+                ExpressionParser.INSTANCE.parseExpressionList(partitionBy));
     }
 
     /**

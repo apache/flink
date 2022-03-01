@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
 
-    private final AtomicLong checkpointIdCounter = new AtomicLong(1);
+    private final AtomicLong checkpointIdCounter = new AtomicLong(INITIAL_CHECKPOINT_ID);
 
     @Override
     public void start() throws Exception {}

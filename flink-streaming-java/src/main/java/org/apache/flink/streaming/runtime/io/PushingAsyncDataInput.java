@@ -18,13 +18,12 @@
 package org.apache.flink.streaming.runtime.io;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
 /**
  * The variant of {@link PullingAsyncDataInput} that is defined for handling both network input and
@@ -40,7 +39,7 @@ public interface PushingAsyncDataInput<T> extends AvailabilityProvider {
      *
      * <p>This method should be non blocking.
      */
-    InputStatus emitNext(DataOutput<T> output) throws Exception;
+    DataInputStatus emitNext(DataOutput<T> output) throws Exception;
 
     /**
      * Basic data output interface used in emitting the next element from data input.
@@ -53,7 +52,7 @@ public interface PushingAsyncDataInput<T> extends AvailabilityProvider {
 
         void emitWatermark(Watermark watermark) throws Exception;
 
-        void emitStreamStatus(StreamStatus streamStatus) throws Exception;
+        void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception;
 
         void emitLatencyMarker(LatencyMarker latencyMarker) throws Exception;
     }

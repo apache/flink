@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -33,6 +34,7 @@ import java.util.Map;
  * A special {@link MetricGroup} that does not register any metrics at the metrics registry and any
  * reporters.
  */
+@Internal
 public class UnregisteredMetricsGroup implements MetricGroup {
 
     @Override
@@ -88,5 +90,92 @@ public class UnregisteredMetricsGroup implements MetricGroup {
     @Override
     public String getMetricIdentifier(String metricName, CharacterFilter filter) {
         return metricName;
+    }
+
+    public static OperatorMetricGroup createOperatorMetricGroup() {
+        return new UnregisteredOperatorMetricGroup();
+    }
+
+    public static OperatorIOMetricGroup createOperatorIOMetricGroup() {
+        return new UnregisteredOperatorIOMetricGroup();
+    }
+
+    public static SourceReaderMetricGroup createSourceReaderMetricGroup() {
+        return new UnregisteredSourceReaderMetricGroup();
+    }
+
+    public static SplitEnumeratorMetricGroup createSplitEnumeratorMetricGroup() {
+        return new UnregisteredSplitEnumeratorMetricGroup();
+    }
+
+    private static class UnregisteredOperatorMetricGroup extends UnregisteredMetricsGroup
+            implements OperatorMetricGroup {
+        @Override
+        public OperatorIOMetricGroup getIOMetricGroup() {
+            return new UnregisteredOperatorIOMetricGroup();
+        }
+    }
+
+    private static class UnregisteredOperatorIOMetricGroup extends UnregisteredMetricsGroup
+            implements OperatorIOMetricGroup {
+        @Override
+        public Counter getNumRecordsInCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumRecordsOutCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumBytesInCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public Counter getNumBytesOutCounter() {
+            return new SimpleCounter();
+        }
+    }
+
+    private static class UnregisteredSourceReaderMetricGroup extends UnregisteredMetricsGroup
+            implements SourceReaderMetricGroup {
+        @Override
+        public OperatorIOMetricGroup getIOMetricGroup() {
+            return new UnregisteredOperatorIOMetricGroup();
+        }
+
+        @Override
+        public Counter getNumRecordsInErrorsCounter() {
+            return new SimpleCounter();
+        }
+
+        @Override
+        public void setPendingBytesGauge(Gauge<Long> pendingBytesGauge) {}
+
+        @Override
+        public void setPendingRecordsGauge(Gauge<Long> pendingRecordsGauge) {}
+    }
+
+    private static class DummyGauge<T> implements Gauge<T> {
+        private final T value;
+
+        public DummyGauge(T value) {
+            this.value = value;
+        }
+
+        @Override
+        public T getValue() {
+            return value;
+        }
+    }
+
+    private static class UnregisteredSplitEnumeratorMetricGroup extends UnregisteredMetricsGroup
+            implements SplitEnumeratorMetricGroup {
+        @Override
+        public <G extends Gauge<Long>> G setUnassignedSplitsGauge(G unassignedSplitsGauge) {
+            return null;
+        }
     }
 }

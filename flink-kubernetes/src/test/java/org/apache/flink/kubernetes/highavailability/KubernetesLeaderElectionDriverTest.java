@@ -20,9 +20,7 @@ package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClient;
-import org.apache.flink.kubernetes.kubeclient.TestingFlinkKubeClient;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
-import org.apache.flink.kubernetes.kubeclient.resources.KubernetesTooOldResourceVersionException;
 import org.apache.flink.runtime.leaderelection.LeaderInformation;
 
 import org.junit.Test;
@@ -30,17 +28,15 @@ import org.junit.Test;
 import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY;
 import static org.apache.flink.kubernetes.utils.Constants.LABEL_CONFIGMAP_TYPE_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_ADDRESS_KEY;
 import static org.apache.flink.kubernetes.utils.Constants.LEADER_SESSION_ID_KEY;
-import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link KubernetesLeaderElectionDriver}. */
 public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabilityTestBase {
@@ -55,8 +51,10 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             leaderCallbackGrantLeadership();
                             assertThat(electionEventHandler.isLeader(), is(true));
                             assertThat(
-                                    electionEventHandler.getConfirmedLeaderInformation(),
-                                    is(LEADER_INFORMATION));
+                                    electionEventHandler
+                                            .getConfirmedLeaderInformation()
+                                            .getLeaderAddress(),
+                                    is(LEADER_ADDRESS));
                         });
             }
         };
@@ -117,7 +115,7 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             leaderCallbackGrantLeadership();
 
                             final LeaderInformation leader =
-                                    LeaderInformation.known(UUID.randomUUID(), LEADER_URL);
+                                    LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS);
                             leaderElectionDriver.writeLeaderInformation(leader);
 
                             assertThat(
@@ -137,7 +135,8 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
             {
                 runTest(
                         () -> {
-                            leaderElectionDriver.writeLeaderInformation(LEADER_INFORMATION);
+                            leaderElectionDriver.writeLeaderInformation(
+                                    LeaderInformation.known(UUID.randomUUID(), LEADER_ADDRESS));
                             electionEventHandler.waitForError(TIMEOUT);
 
                             final String errorMsg =
@@ -165,6 +164,9 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                                     callbackHandler = getLeaderElectionConfigMapCallback();
                             // Update ConfigMap with wrong data
                             final KubernetesConfigMap updatedConfigMap = getLeaderConfigMap();
+                            final UUID leaderSessionId =
+                                    UUID.fromString(
+                                            updatedConfigMap.getData().get(LEADER_SESSION_ID_KEY));
                             final LeaderInformation faultyLeader =
                                     LeaderInformation.known(
                                             UUID.randomUUID(), "faultyLeaderAddress");
@@ -181,10 +183,10 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             // The leader should be corrected
                             assertThat(
                                     getLeaderConfigMap().getData().get(LEADER_ADDRESS_KEY),
-                                    is(LEADER_INFORMATION.getLeaderAddress()));
+                                    is(LEADER_ADDRESS));
                             assertThat(
                                     getLeaderConfigMap().getData().get(LEADER_SESSION_ID_KEY),
-                                    is(LEADER_INFORMATION.getLeaderSessionID().toString()));
+                                    is(leaderSessionId.toString()));
                         });
             }
         };
@@ -254,36 +256,6 @@ public class KubernetesLeaderElectionDriverTest extends KubernetesHighAvailabili
                             assertThat(
                                     leaderLabels.get(LABEL_CONFIGMAP_TYPE_KEY),
                                     is(LABEL_CONFIGMAP_TYPE_HIGH_AVAILABILITY));
-                        });
-            }
-        };
-    }
-
-    @Test
-    public void testNewWatchCreationWhenKubernetesTooOldResourceVersionException()
-            throws Exception {
-        new Context() {
-            {
-                runTest(
-                        () -> {
-                            leaderCallbackGrantLeadership();
-
-                            final FlinkKubeClient.WatchCallbackHandler<KubernetesConfigMap>
-                                    callbackHandler = getLeaderElectionConfigMapCallback();
-                            callbackHandler.handleError(
-                                    new KubernetesTooOldResourceVersionException(
-                                            new Exception("too old resource version")));
-                            // Verify the old watch is closed and a new one is created
-                            assertThat(configMapWatches.size(), is(3));
-                            // The three watches are [old-leader-election-watch,
-                            // leader-retrieval-watch, new-leader-election-watch]
-                            assertThat(
-                                    configMapWatches.stream()
-                                            .map(
-                                                    TestingFlinkKubeClient.MockKubernetesWatch
-                                                            ::isClosed)
-                                            .collect(Collectors.toList()),
-                                    contains(true, false, false));
                         });
             }
         };

@@ -20,6 +20,7 @@ package org.apache.flink.configuration;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
 
 import javax.annotation.Nonnull;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.configuration.MetricOptions.SYSTEM_RESOURCE_METRICS;
@@ -71,6 +73,27 @@ public class ConfigurationUtils {
     @Nonnull
     public static String[] parseTempDirectories(Configuration configuration) {
         return splitPaths(configuration.getString(CoreOptions.TMP_DIRS));
+    }
+
+    /**
+     * Picks a temporary directory randomly from the given configuration.
+     *
+     * @param configuration to extract the temp directory from
+     * @return a randomly picked temporary directory
+     */
+    @Nonnull
+    public static File getRandomTempDirectory(Configuration configuration) {
+        final String[] tmpDirectories = parseTempDirectories(configuration);
+
+        Preconditions.checkState(
+                tmpDirectories.length > 0,
+                String.format(
+                        "No temporary directory has been specified for %s",
+                        CoreOptions.TMP_DIRS.key()));
+
+        final int randomIndex = ThreadLocalRandom.current().nextInt(tmpDirectories.length);
+
+        return new File(tmpDirectories[randomIndex]);
     }
 
     /**
@@ -494,9 +517,30 @@ public class ConfigurationUtils {
     //  Prefix map handling
     // --------------------------------------------------------------------------------------------
 
-    static boolean canBePrefixMap(ConfigOption<?> configOption) {
-        // maps might span multiple entries by using a prefix key like "key.prop1", "key.prop2"
+    /**
+     * Maps can be represented in two ways.
+     *
+     * <p>With constant key space:
+     *
+     * <pre>
+     *     avro-confluent.properties = schema: 1, other-prop: 2
+     * </pre>
+     *
+     * <p>Or with variable key space (i.e. prefix notation):
+     *
+     * <pre>
+     *     avro-confluent.properties.schema = 1
+     *     avro-confluent.properties.other-prop = 2
+     * </pre>
+     */
+    public static boolean canBePrefixMap(ConfigOption<?> configOption) {
         return configOption.getClazz() == Map.class && !configOption.isList();
+    }
+
+    /** Filter condition for prefix map keys. */
+    public static boolean filterPrefixMapKey(String key, String candidate) {
+        final String prefixKey = key + ".";
+        return candidate.startsWith(prefixKey);
     }
 
     static Map<String, String> convertToPropertiesPrefixed(
@@ -511,15 +555,13 @@ public class ConfigurationUtils {
     }
 
     static boolean containsPrefixMap(Map<String, Object> confData, String key) {
-        final String prefixKey = key + ".";
-        return confData.keySet().stream().anyMatch(k -> k.startsWith(prefixKey));
+        return confData.keySet().stream().anyMatch(candidate -> filterPrefixMapKey(key, candidate));
     }
 
     static boolean removePrefixMap(Map<String, Object> confData, String key) {
-        final String prefixKey = key + ".";
         final List<String> prefixKeys =
                 confData.keySet().stream()
-                        .filter(k -> k.startsWith(prefixKey))
+                        .filter(candidate -> filterPrefixMapKey(key, candidate))
                         .collect(Collectors.toList());
         prefixKeys.forEach(confData::remove);
         return !prefixKeys.isEmpty();

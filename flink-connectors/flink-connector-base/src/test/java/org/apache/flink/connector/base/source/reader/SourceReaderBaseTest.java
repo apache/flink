@@ -38,9 +38,7 @@ import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderOutput;
 import org.apache.flink.core.io.InputStatus;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,75 +48,81 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** A unit test class for {@link SourceReaderBase}. */
 public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> {
 
-    @Rule public ExpectedException expectedException = ExpectedException.none();
-
     @Test
-    public void testExceptionInSplitReader() throws Exception {
-        expectedException.expect(RuntimeException.class);
-        expectedException.expectMessage("One or more fetchers have encountered exception");
-        final String errMsg = "Testing Exception";
+    void testExceptionInSplitReader() {
+        assertThatThrownBy(
+                        () -> {
+                            final String errMsg = "Testing Exception";
 
-        FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
-                new FutureCompletingBlockingQueue<>();
-        // We have to handle split changes first, otherwise fetch will not be called.
-        try (MockSourceReader reader =
-                new MockSourceReader(
-                        elementsQueue,
-                        () ->
-                                new SplitReader<int[], MockSourceSplit>() {
-                                    @Override
-                                    public RecordsWithSplitIds<int[]> fetch() {
-                                        throw new RuntimeException(errMsg);
-                                    }
+                            FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>>
+                                    elementsQueue = new FutureCompletingBlockingQueue<>();
+                            // We have to handle split changes first, otherwise fetch will not be
+                            // called.
+                            try (MockSourceReader reader =
+                                    new MockSourceReader(
+                                            elementsQueue,
+                                            () ->
+                                                    new SplitReader<int[], MockSourceSplit>() {
+                                                        @Override
+                                                        public RecordsWithSplitIds<int[]> fetch() {
+                                                            throw new RuntimeException(errMsg);
+                                                        }
 
-                                    @Override
-                                    public void handleSplitsChanges(
-                                            SplitsChange<MockSourceSplit> splitsChanges) {}
+                                                        @Override
+                                                        public void handleSplitsChanges(
+                                                                SplitsChange<MockSourceSplit>
+                                                                        splitsChanges) {}
 
-                                    @Override
-                                    public void wakeUp() {}
+                                                        @Override
+                                                        public void wakeUp() {}
 
-                                    @Override
-                                    public void close() {}
-                                },
-                        getConfig(),
-                        null)) {
-            ValidatingSourceOutput output = new ValidatingSourceOutput();
-            reader.addSplits(
-                    Collections.singletonList(
-                            getSplit(0, NUM_RECORDS_PER_SPLIT, Boundedness.CONTINUOUS_UNBOUNDED)));
-            reader.notifyNoMoreSplits();
-            // This is not a real infinite loop, it is supposed to throw exception after two polls.
-            while (true) {
-                InputStatus inputStatus = reader.pollNext(output);
-                assertNotEquals(InputStatus.END_OF_INPUT, inputStatus);
-                // Add a sleep to avoid tight loop.
-                Thread.sleep(1);
-            }
-        }
+                                                        @Override
+                                                        public void close() {}
+                                                    },
+                                            getConfig(),
+                                            new TestingReaderContext())) {
+                                ValidatingSourceOutput output = new ValidatingSourceOutput();
+                                reader.addSplits(
+                                        Collections.singletonList(
+                                                getSplit(
+                                                        0,
+                                                        NUM_RECORDS_PER_SPLIT,
+                                                        Boundedness.CONTINUOUS_UNBOUNDED)));
+                                reader.notifyNoMoreSplits();
+                                // This is not a real infinite loop, it is supposed to throw
+                                // exception after
+                                // two polls.
+                                while (true) {
+                                    InputStatus inputStatus = reader.pollNext(output);
+                                    assertThat(inputStatus).isNotEqualTo(InputStatus.END_OF_INPUT);
+                                    // Add a sleep to avoid tight loop.
+                                    Thread.sleep(1);
+                                }
+                            }
+                        })
+                .isInstanceOf(RuntimeException.class)
+                .hasMessage("One or more fetchers have encountered exception");
     }
 
     @Test
-    public void testRecordsWithSplitsNotRecycledWhenRecordsLeft() throws Exception {
+    void testRecordsWithSplitsNotRecycledWhenRecordsLeft() throws Exception {
         final TestingRecordsWithSplitIds<String> records =
                 new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
         final SourceReader<?, ?> reader = createReaderAndAwaitAvailable("test-split", records);
 
         reader.pollNext(new TestingReaderOutput<>());
 
-        assertFalse(records.isRecycled());
+        assertThat(records.isRecycled()).isFalse();
     }
 
     @Test
-    public void testRecordsWithSplitsRecycledWhenEmpty() throws Exception {
+    void testRecordsWithSplitsRecycledWhenEmpty() throws Exception {
         final TestingRecordsWithSplitIds<String> records =
                 new TestingRecordsWithSplitIds<>("test-split", "value1", "value2");
         final SourceReader<?, ?> reader = createReaderAndAwaitAvailable("test-split", records);
@@ -129,11 +133,11 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
         reader.pollNext(new TestingReaderOutput<>());
         reader.pollNext(new TestingReaderOutput<>());
 
-        assertTrue(records.isRecycled());
+        assertThat(records.isRecycled()).isTrue();
     }
 
     @Test
-    public void testMultipleSplitsWithDifferentFinishingMoments() throws Exception {
+    void testMultipleSplitsWithDifferentFinishingMoments() throws Exception {
         FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
         MockSplitReader mockSplitReader =
@@ -143,7 +147,11 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
                         .setBlockingFetch(false)
                         .build();
         MockSourceReader reader =
-                new MockSourceReader(elementsQueue, () -> mockSplitReader, getConfig(), null);
+                new MockSourceReader(
+                        elementsQueue,
+                        () -> mockSplitReader,
+                        getConfig(),
+                        new TestingReaderContext());
 
         reader.start();
 
@@ -165,7 +173,7 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
     }
 
     @Test
-    public void testMultipleSplitsWithSeparatedFinishedRecord() throws Exception {
+    void testMultipleSplitsWithSeparatedFinishedRecord() throws Exception {
         FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
         MockSplitReader mockSplitReader =
@@ -175,7 +183,11 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
                         .setBlockingFetch(false)
                         .build();
         MockSourceReader reader =
-                new MockSourceReader(elementsQueue, () -> mockSplitReader, getConfig(), null);
+                new MockSourceReader(
+                        elementsQueue,
+                        () -> mockSplitReader,
+                        getConfig(),
+                        new TestingReaderContext());
 
         reader.start();
 
@@ -197,16 +209,24 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
     }
 
     @Test
-    public void testPollNextReturnMoreAvailableWhenAllSplitFetcherCloseWithLeftoverElementInQueue()
+    void testPollNextReturnMoreAvailableWhenAllSplitFetcherCloseWithLeftoverElementInQueue()
             throws Exception {
 
         FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
-        MockSplitReader mockSplitReader = new MockSplitReader(1, true);
+        MockSplitReader mockSplitReader =
+                MockSplitReader.newBuilder()
+                        .setNumRecordsPerSplitPerFetch(1)
+                        .setBlockingFetch(true)
+                        .build();
         BlockingShutdownSplitFetcherManager<int[], MockSourceSplit> splitFetcherManager =
                 new BlockingShutdownSplitFetcherManager<>(elementsQueue, () -> mockSplitReader);
         final MockSourceReader sourceReader =
-                new MockSourceReader(elementsQueue, splitFetcherManager, getConfig(), null);
+                new MockSourceReader(
+                        elementsQueue,
+                        splitFetcherManager,
+                        getConfig(),
+                        new TestingReaderContext());
 
         // Create and add a split that only contains one record
         final MockSourceSplit split = new MockSourceSplit(0, 0, 1);
@@ -215,8 +235,8 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
 
         // Add the last record to the split when the splitFetcherManager shutting down SplitFetchers
         splitFetcherManager.getInShutdownSplitFetcherFuture().thenRun(() -> split.addRecord(1));
-        assertEquals(
-                InputStatus.MORE_AVAILABLE, sourceReader.pollNext(new TestingReaderOutput<>()));
+        assertThat(sourceReader.pollNext(new TestingReaderOutput<>()))
+                .isEqualTo(InputStatus.MORE_AVAILABLE);
     }
 
     // ---------------- helper methods -----------------
@@ -225,8 +245,13 @@ public class SourceReaderBaseTest extends SourceReaderTestBase<MockSourceSplit> 
     protected MockSourceReader createReader() {
         FutureCompletingBlockingQueue<RecordsWithSplitIds<int[]>> elementsQueue =
                 new FutureCompletingBlockingQueue<>();
-        MockSplitReader mockSplitReader = new MockSplitReader(2, true);
-        return new MockSourceReader(elementsQueue, () -> mockSplitReader, getConfig(), null);
+        MockSplitReader mockSplitReader =
+                MockSplitReader.newBuilder()
+                        .setNumRecordsPerSplitPerFetch(2)
+                        .setBlockingFetch(true)
+                        .build();
+        return new MockSourceReader(
+                elementsQueue, () -> mockSplitReader, getConfig(), new TestingReaderContext());
     }
 
     @Override

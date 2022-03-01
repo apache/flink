@@ -18,15 +18,13 @@
 
 package org.apache.flink.connector.jdbc.utils;
 
-import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
-import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
 import org.junit.Test;
 
 import java.sql.Types;
 
-import static org.apache.flink.connector.jdbc.utils.JdbcTypeUtil.typeInformationToSqlType;
+import static org.apache.flink.connector.jdbc.utils.JdbcTypeUtil.logicalTypeToSqlType;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 
@@ -35,15 +33,14 @@ public class JdbcTypeUtilTest {
 
     @Test
     public void testTypeConversions() {
-        assertEquals(Types.INTEGER, typeInformationToSqlType(BasicTypeInfo.INT_TYPE_INFO));
-        testUnsupportedType(BasicTypeInfo.VOID_TYPE_INFO);
-        testUnsupportedType(
-                new MapTypeInfo<>(BasicTypeInfo.STRING_TYPE_INFO, BasicTypeInfo.STRING_TYPE_INFO));
+        assertEquals(Types.INTEGER, logicalTypeToSqlType(LogicalTypeRoot.INTEGER));
+        testUnsupportedType(LogicalTypeRoot.RAW);
+        testUnsupportedType(LogicalTypeRoot.MAP);
     }
 
-    private static void testUnsupportedType(TypeInformation<?> type) {
+    private static void testUnsupportedType(LogicalTypeRoot logicalTypeRoot) {
         try {
-            typeInformationToSqlType(type);
+            logicalTypeToSqlType(logicalTypeRoot);
             fail();
         } catch (IllegalArgumentException ignored) {
         }

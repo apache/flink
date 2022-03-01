@@ -25,12 +25,9 @@ import org.apache.flink.core.fs.FileSystem.WriteMode
 import org.apache.flink.streaming.api.TimeCharacteristic
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.examples.iteration.util.IterateExampleData
-import org.apache.flink.streaming.examples.twitter.util.TwitterExampleData
-import org.apache.flink.streaming.examples.windowing.util.SessionWindowingData
 import org.apache.flink.streaming.scala.examples.iteration.IterateExample
 import org.apache.flink.streaming.scala.examples.join.WindowJoin
 import org.apache.flink.streaming.scala.examples.join.WindowJoin.{Grade, Salary}
-import org.apache.flink.streaming.scala.examples.twitter.TwitterExample
 import org.apache.flink.streaming.scala.examples.windowing.{SessionWindowing, WindowWordCount}
 import org.apache.flink.streaming.scala.examples.wordcount.WordCount
 import org.apache.flink.streaming.test.examples.join.WindowJoinData
@@ -94,25 +91,15 @@ class StreamingExamplesITCase extends AbstractTestBase {
   }
 
   @Test
-  def testTwitterExample(): Unit = {
-    val resultPath = getTempDirPath("result")
-    TwitterExample.main(Array("--output", resultPath))
-    TestBaseUtils.compareResultsByLinesInMemory(
-      TwitterExampleData.STREAMING_COUNTS_AS_TUPLES,
-      resultPath)
-  }
-
-  @Test
   def testSessionWindowing(): Unit = {
     val resultPath = getTempDirPath("result")
     SessionWindowing.main(Array("--output", resultPath))
-    TestBaseUtils.compareResultsByLinesInMemory(SessionWindowingData.EXPECTED, resultPath)
   }
 
   @Test
   def testWindowWordCount(): Unit = {
-    val windowSize = "250"
-    val slideSize = "150"
+    val windowSize = "25"
+    val slideSize = "15"
     val textPath = createTempFile("text.txt", WordCountData.TEXT)
     val resultPath = getTempDirPath("result")
 
@@ -120,7 +107,8 @@ class StreamingExamplesITCase extends AbstractTestBase {
       "--input", textPath,
       "--output", resultPath,
       "--window", windowSize,
-      "--slide", slideSize
+      "--slide", slideSize,
+      "--execution-mode", "AUTOMATIC"
     ))
 
     // since the parallel tokenizers might have different speed
@@ -136,11 +124,12 @@ class StreamingExamplesITCase extends AbstractTestBase {
 
     WordCount.main(Array(
       "--input", textPath,
-      "--output", resultPath
+      "--output", resultPath,
+      "--execution-mode", "automatic"
     ))
 
     TestBaseUtils.compareResultsByLinesInMemory(
-      WordCountData.STREAMING_COUNTS_AS_TUPLES,
+      WordCountData.COUNTS_AS_TUPLES,
       resultPath)
   }
 }

@@ -29,7 +29,10 @@ import java.util.List;
  * @see DeserializationSchemaFactory
  * @see SerializationSchemaFactory
  * @param <T> record type that the format produces or consumes.
+ * @deprecated This interface has been replaced by {@link EncodingFormatFactory} and {@link
+ *     DecodingFormatFactory}, used in the new sink/source stack. See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public interface TableFormatFactory<T> extends TableFactory {
 

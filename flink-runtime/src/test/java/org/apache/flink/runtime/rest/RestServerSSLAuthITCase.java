@@ -104,11 +104,6 @@ public class RestServerSSLAuthITCase extends TestLogger {
         RestServerEndpoint serverEndpoint = null;
 
         try {
-            RestServerEndpointConfiguration restServerConfig =
-                    RestServerEndpointConfiguration.fromConfiguration(serverConfig);
-            RestClientConfiguration restClientConfig =
-                    RestClientConfiguration.fromConfiguration(clientConfig);
-
             RestfulGateway restfulGateway = new TestingRestfulGateway.Builder().build();
             RestServerEndpointITCase.TestVersionHandler testVersionHandler =
                     new RestServerEndpointITCase.TestVersionHandler(
@@ -116,10 +111,10 @@ public class RestServerSSLAuthITCase extends TestLogger {
                             RpcUtils.INF_TIMEOUT);
 
             serverEndpoint =
-                    TestRestServerEndpoint.builder(restServerConfig)
+                    TestRestServerEndpoint.builder(serverConfig)
                             .withHandler(testVersionHandler.getMessageHeaders(), testVersionHandler)
                             .buildAndStart();
-            restClient = new RestServerEndpointITCase.TestRestClient(restClientConfig);
+            restClient = new RestServerEndpointITCase.TestRestClient(clientConfig);
 
             CompletableFuture<EmptyResponseBody> response =
                     restClient.sendRequest(

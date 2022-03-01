@@ -17,6 +17,7 @@
 
 package org.apache.flink.connector.jdbc.xa;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.jdbc.DbMetadata;
@@ -26,7 +27,6 @@ import org.apache.flink.connector.jdbc.JdbcTestFixture.TestEntry;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
-import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.After;
@@ -67,16 +67,15 @@ public class JdbcXaSinkMigrationTest extends JdbcTestBase {
     }
 
     @Parameterized.Parameters
-    public static Collection<MigrationVersion> getReadVersions() {
-        //		return Collections.singleton(MigrationVersion.v1_10);
+    public static Collection<FlinkVersion> getReadVersions() {
         return Collections.emptyList();
     }
 
-    public JdbcXaSinkMigrationTest(MigrationVersion readVersion) {
+    public JdbcXaSinkMigrationTest(FlinkVersion readVersion) {
         this.readVersion = readVersion;
     }
 
-    private final MigrationVersion readVersion;
+    private final FlinkVersion readVersion;
 
     @Test
     public void testCommitFromSnapshot() throws Exception {
@@ -144,7 +143,7 @@ public class JdbcXaSinkMigrationTest extends JdbcTestBase {
         };
     }
 
-    private static String getSnapshotPath(MigrationVersion version) {
+    private static String getSnapshotPath(FlinkVersion version) {
         return String.format(
                 "src/test/resources/jdbc-exactly-once-sink-migration-%s-snapshot", version);
     }
@@ -157,14 +156,14 @@ public class JdbcXaSinkMigrationTest extends JdbcTestBase {
         return harness;
     }
 
-    private static MigrationVersion parseVersionArg(String[] args) {
+    private static FlinkVersion parseVersionArg(String[] args) {
         return (args == null || args.length == 0 ? Optional.<String>empty() : of(args[0]))
-                .flatMap(MigrationVersion::byCode)
+                .flatMap(FlinkVersion::byCode)
                 .orElseThrow(
                         () ->
                                 new IllegalArgumentException(
                                         "Please specify a version as a 1st parameter. Valid values are: "
-                                                + Arrays.toString(MigrationVersion.values())));
+                                                + Arrays.toString(FlinkVersion.values())));
     }
 
     private static JdbcXaSinkFunction<TestEntry> buildSink() {
@@ -187,7 +186,7 @@ public class JdbcXaSinkMigrationTest extends JdbcTestBase {
         }
     }
 
-    private static void writeSnapshot(MigrationVersion v) throws Exception {
+    private static void writeSnapshot(FlinkVersion v) throws Exception {
         String path = getSnapshotPath(v);
         Preconditions.checkArgument(
                 !Files.exists(Paths.get(path)),

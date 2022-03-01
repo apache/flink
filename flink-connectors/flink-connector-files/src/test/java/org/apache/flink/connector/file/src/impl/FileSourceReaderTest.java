@@ -20,7 +20,7 @@ package org.apache.flink.connector.file.src.impl;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.file.src.FileSourceSplit;
-import org.apache.flink.connector.file.src.reader.TextLineFormat;
+import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.connector.testutils.source.reader.TestingReaderContext;
 import org.apache.flink.core.fs.Path;
 
@@ -64,10 +64,11 @@ public class FileSourceReaderTest {
     private static FileSourceReader<String, FileSourceSplit> createReader(
             TestingReaderContext context) {
         return new FileSourceReader<>(
-                context, new StreamFormatAdapter<>(new TextLineFormat()), new Configuration());
+                context, new StreamFormatAdapter<>(new TextLineInputFormat()), new Configuration());
     }
 
     private static FileSourceSplit createTestFileSplit() throws IOException {
-        return new FileSourceSplit("test-id", Path.fromLocalFile(TMP_DIR.newFile()), 0L, 0L);
+        return new FileSourceSplit(
+                "test-id", Path.fromLocalFile(TMP_DIR.newFile()), 0L, 0L, 0L, 0L);
     }
 }

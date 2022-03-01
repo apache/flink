@@ -151,9 +151,9 @@ public class HiveGenericUDAF
     }
 
     /**
-     * This is invoked without calling open() in Blink, so we need to call init() for
+     * This is invoked without calling open(), so we need to call init() for
      * getNewAggregationBuffer(). TODO: re-evaluate how this will fit into Flink's new type
-     * inference and udf systemß
+     * inference and udf system
      */
     @Override
     public GenericUDAFEvaluator.AggregationBuffer createAccumulator() {

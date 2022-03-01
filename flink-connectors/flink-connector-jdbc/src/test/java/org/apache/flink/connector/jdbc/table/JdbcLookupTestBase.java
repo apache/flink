@@ -96,6 +96,13 @@ public class JdbcLookupTestBase extends AbstractTestBase {
         }
     }
 
+    public void insert(String insertQuery) throws SQLException {
+        try (Connection conn = DriverManager.getConnection(DB_URL + ";create=true");
+                Statement stat = conn.createStatement()) {
+            stat.execute(insertQuery);
+        }
+    }
+
     @After
     public void clearOutputTable() throws Exception {
         Class.forName(DERBY_EBOOKSHOP_DB.getDriverClass());

@@ -39,7 +39,7 @@ import java.util.concurrent.TimeUnit;
 
 /**
  * A standalone implementation of the resource manager. Used when the system is started in
- * standalone mode (via scripts), rather than via a resource framework like YARN or Mesos.
+ * standalone mode (via scripts), rather than via a resource framework like YARN.
  *
  * <p>This ResourceManager doesn't acquire new resources.
  */

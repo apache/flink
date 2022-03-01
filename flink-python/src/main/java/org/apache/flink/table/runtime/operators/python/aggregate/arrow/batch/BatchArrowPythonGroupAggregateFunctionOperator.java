@@ -21,11 +21,11 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.types.logical.RowType;
 
 /** The Batch Arrow Python {@link AggregateFunction} Operator for Group Aggregation. */
@@ -39,30 +39,20 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType outputType,
-            int[] groupKey,
-            int[] groupingSet,
-            int[] udafInputOffsets) {
+            RowType udfInputType,
+            RowType udfOutputType,
+            GeneratedProjection inputGeneratedProjection,
+            GeneratedProjection groupKeyGeneratedProjection,
+            GeneratedProjection groupSetGeneratedProjection) {
         super(
                 config,
                 pandasAggFunctions,
                 inputType,
-                outputType,
-                groupKey,
-                groupingSet,
-                udafInputOffsets,
-                FlinkFnApi.CoderParam.DataType.ARROW,
-                FlinkFnApi.CoderParam.DataType.ARROW);
-    }
-
-    @Override
-    public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(groupingSet.length, outputType.getFieldCount()));
-        super.open();
+                udfInputType,
+                udfOutputType,
+                inputGeneratedProjection,
+                groupKeyGeneratedProjection,
+                groupSetGeneratedProjection);
     }
 
     @Override

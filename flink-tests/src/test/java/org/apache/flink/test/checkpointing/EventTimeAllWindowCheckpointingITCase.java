@@ -43,6 +43,8 @@ import org.apache.flink.util.TestLogger;
 import org.junit.ClassRule;
 import org.junit.Test;
 
+import java.time.Duration;
+
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -69,8 +71,8 @@ public class EventTimeAllWindowCheckpointingITCase extends TestLogger {
     private static Configuration getConfiguration() {
         Configuration config = new Configuration();
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("48m"));
-        config.setString(AkkaOptions.LOOKUP_TIMEOUT, "60 s");
-        config.setString(AkkaOptions.ASK_TIMEOUT, "60 s");
+        config.set(AkkaOptions.LOOKUP_TIMEOUT_DURATION, Duration.ofMinutes(1));
+        config.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofMinutes(1));
         return config;
     }
 

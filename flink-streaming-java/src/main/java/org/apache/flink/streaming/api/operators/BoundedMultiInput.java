@@ -19,13 +19,25 @@ package org.apache.flink.streaming.api.operators;
 
 import org.apache.flink.annotation.PublicEvolving;
 
-/** Interface for the multi-input operators that can process EndOfInput event. */
+/**
+ * Interface for multi-input operators that need to be notified about the logical/semantical end of
+ * input.
+ *
+ * <p><b>NOTE:</b> Classes should not implement both {@link BoundedOneInput} and {@link
+ * BoundedMultiInput} at the same time!
+ *
+ * @see BoundedOneInput
+ */
 @PublicEvolving
 public interface BoundedMultiInput {
 
     /**
-     * It is notified that no more data will arrive on the input identified by the {@code inputId}.
-     * The {@code inputId} is numbered starting from 1, and `1` indicates the first input.
+     * It is notified that no more data will arrive from the input identified by the {@code
+     * inputId}. The {@code inputId} is numbered starting from 1, and `1` indicates the first input.
+     *
+     * <p><b>WARNING:</b> It is not safe to use this method to commit any transactions or other side
+     * effects! You can use this method to e.g. flush data buffered for the given input or implement
+     * an ordered reading from multiple inputs via {@link InputSelectable}.
      */
     void endInput(int inputId) throws Exception;
 }

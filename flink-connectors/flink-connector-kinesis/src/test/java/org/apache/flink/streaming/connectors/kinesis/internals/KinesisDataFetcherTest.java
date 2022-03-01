@@ -72,6 +72,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonList;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.SHARD_DISCOVERY_INTERVAL_MILLIS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -101,6 +102,53 @@ public class KinesisDataFetcherTest extends TestLogger {
         fetcher.awaitTermination();
 
         assertFalse(fetcher.isRunning());
+    }
+
+    @Test
+    public void testCancelDuringDiscovery() throws Exception {
+        final String stream = "fakeStream";
+        final int numShards = 3;
+
+        Properties standardProperties = TestUtils.getStandardProperties();
+        standardProperties.setProperty(SHARD_DISCOVERY_INTERVAL_MILLIS, "10000000");
+        final LinkedList<KinesisStreamShardState> testShardStates = new LinkedList<>();
+        final TestSourceContext<String> sourceContext = new TestSourceContext<>();
+        TestableKinesisDataFetcher<String> fetcher =
+                new TestableKinesisDataFetcher<String>(
+                        singletonList(stream),
+                        sourceContext,
+                        standardProperties,
+                        new KinesisDeserializationSchemaWrapper<>(new SimpleStringSchema()),
+                        1,
+                        0,
+                        new AtomicReference<>(),
+                        testShardStates,
+                        new HashMap<>(),
+                        FakeKinesisBehavioursFactory.nonReshardedStreamsBehaviour(
+                                Collections.singletonMap(stream, numShards)));
+
+        // FlinkKinesisConsumer is responsible for setting up the fetcher before it can be run;
+        // run the consumer until it reaches the point where the fetcher starts to run
+        final DummyFlinkKinesisConsumer<String> consumer =
+                new DummyFlinkKinesisConsumer<>(TestUtils.getStandardProperties(), fetcher, 1, 0);
+
+        CheckedThread consumerThread =
+                new CheckedThread() {
+                    @Override
+                    public void go() throws Exception {
+                        consumer.run(new TestSourceContext<>());
+                    }
+                };
+        consumerThread.start();
+
+        // wait for the second discovery to be triggered, that has a high probability to be inside
+        // discovery sleep (10k s)
+        fetcher.waitUntilDiscovery(2);
+
+        Thread.sleep(1000);
+
+        consumer.cancel();
+        consumerThread.sync();
     }
 
     @Test(expected = RuntimeException.class)

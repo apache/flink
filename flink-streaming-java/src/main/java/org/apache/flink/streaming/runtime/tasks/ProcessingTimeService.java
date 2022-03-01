@@ -17,6 +17,8 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
@@ -28,26 +30,12 @@ import java.util.concurrent.TimeUnit;
  * <p>The access to the time via {@link #getCurrentProcessingTime()} is always available, regardless
  * of whether the timer service has been shut down.
  */
-public interface ProcessingTimeService {
-
-    /** Returns the current processing time. */
-    long getCurrentProcessingTime();
-
-    /**
-     * Registers a task to be executed when (processing) time is {@code timestamp}.
-     *
-     * @param timestamp Time when the task is to be executed (in processing time)
-     * @param target The task to be executed
-     * @return The future that represents the scheduled task. This always returns some future, even
-     *     if the timer was shut down
-     */
-    ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target);
-
+public interface ProcessingTimeService
+        extends org.apache.flink.api.common.operators.ProcessingTimeService {
     /**
      * Registers a task to be executed repeatedly at a fixed rate.
      *
-     * <p>This call behaves similar to {@link
-     * org.apache.flink.runtime.concurrent.ScheduledExecutor#scheduleAtFixedRate(Runnable, long,
+     * <p>This call behaves similar to {@link ScheduledExecutor#scheduleAtFixedRate(Runnable, long,
      * long, TimeUnit)}.
      *
      * @param callback to be executed after the initial delay and then after each period
@@ -61,9 +49,8 @@ public interface ProcessingTimeService {
     /**
      * Registers a task to be executed repeatedly with a fixed delay.
      *
-     * <p>This call behaves similar to {@link
-     * org.apache.flink.runtime.concurrent.ScheduledExecutor#scheduleWithFixedDelay(Runnable, long,
-     * long, TimeUnit)}.
+     * <p>This call behaves similar to {@link ScheduledExecutor#scheduleWithFixedDelay(Runnable,
+     * long, long, TimeUnit)}.
      *
      * @param callback to be executed after the initial delay and then after each period
      * @param initialDelay initial delay to start executing callback

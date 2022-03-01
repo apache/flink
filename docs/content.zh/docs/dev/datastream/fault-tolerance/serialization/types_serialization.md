@@ -111,7 +111,7 @@ Java and Scala classes are treated by Flink as a special POJO data type if they 
 POJOs are generally represented with a `PojoTypeInfo` and serialized with the `PojoSerializer` (using [Kryo](https://github.com/EsotericSoftware/kryo) as configurable fallback).
 The exception is when the POJOs are actually Avro types (Avro Specific Records) or produced as "Avro Reflect Types". 
 In that case the POJO's are represented by an `AvroTypeInfo` and serialized with the `AvroSerializer`.
-You can also register your own custom serializer if required; see [Serialization](https://ci.apache.org/projects/flink/flink-docs-stable/dev/types_serialization.html#serialization-of-pojo-types) for further information.
+You can also register your own custom serializer if required; see [Serialization](https://nightlies.apache.org/flink/flink-docs-stable/dev/types_serialization.html#serialization-of-pojo-types) for further information.
 
 Flink analyzes the structure of POJO types, i.e., it learns about the fields of a POJO. As a result POJO types are easier to use than general types. Moreover, Flink can process POJOs more efficiently than general types.
 

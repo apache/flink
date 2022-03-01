@@ -462,12 +462,13 @@ public class StreamConfig implements Serializable {
         return getCheckpointMode() == CheckpointingMode.EXACTLY_ONCE;
     }
 
-    public Duration getAlignmentTimeout() {
-        return config.get(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT);
+    public Duration getAlignedCheckpointTimeout() {
+        return config.get(ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT);
     }
 
-    public void setAlignmentTimeout(Duration alignmentTimeout) {
-        config.set(ExecutionCheckpointingOptions.ALIGNMENT_TIMEOUT, alignmentTimeout);
+    public void setAlignedCheckpointTimeout(Duration alignedCheckpointTimeout) {
+        config.set(
+                ExecutionCheckpointingOptions.ALIGNED_CHECKPOINT_TIMEOUT, alignedCheckpointTimeout);
     }
 
     public void setOutEdgesInOrder(List<StreamEdge> outEdgeList) {

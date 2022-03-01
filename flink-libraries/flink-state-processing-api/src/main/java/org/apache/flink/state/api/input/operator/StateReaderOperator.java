@@ -48,7 +48,7 @@ import java.io.Serializable;
  */
 @Internal
 public abstract class StateReaderOperator<F extends Function, KEY, N, OUT>
-        implements KeyContext, Serializable {
+        implements KeyContext, AutoCloseable, Serializable {
 
     private static final long serialVersionUID = 1L;
 
@@ -117,7 +117,9 @@ public abstract class StateReaderOperator<F extends Function, KEY, N, OUT>
             exception = e;
         }
 
-        keyedStateBackend.dispose();
+        if (keyedStateBackend != null) {
+            keyedStateBackend.dispose();
+        }
 
         if (exception != null) {
             throw exception;

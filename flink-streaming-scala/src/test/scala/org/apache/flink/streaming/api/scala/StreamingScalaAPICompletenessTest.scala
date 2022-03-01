@@ -64,8 +64,11 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getCheckpointInterval",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.addOperator",
       "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getCheckpointingMode",
-      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment." +
-        "isForceCheckpointing",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.isForceCheckpointing",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.generateStreamGraph",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment.getTransformations",
+      "org.apache.flink.streaming.api.environment.StreamExecutionEnvironment" +
+        ".areExplicitEnvironmentsAllowed",
 
 
       // TypeHints are only needed for Java API, Scala API doesn't need them
@@ -112,8 +115,8 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 
     checkMethods(
       "ConnectedStreams", "ConnectedStreams",
-      classOf[org.apache.flink.streaming.api.datastream.ConnectedStreams[_,_]],
-      classOf[ConnectedStreams[_,_]])
+      classOf[org.apache.flink.streaming.api.datastream.ConnectedStreams[_, _]],
+      classOf[ConnectedStreams[_, _]])
 
     checkMethods(
       "WindowedStream", "WindowedStream",
@@ -132,12 +135,12 @@ class StreamingScalaAPICompletenessTest extends ScalaAPICompletenessTestBase {
 
     checkMethods(
       "JoinedStreams.WithWindow", "JoinedStreams.WithWindow",
-      classOf[org.apache.flink.streaming.api.datastream.JoinedStreams.WithWindow[_,_,_,_]],
-      classOf[JoinedStreams[_,_]#Where[_]#EqualTo#WithWindow[_]])
+      classOf[org.apache.flink.streaming.api.datastream.JoinedStreams.WithWindow[_, _, _, _]],
+      classOf[JoinedStreams[_, _]#Where[_]#EqualTo#WithWindow[_]])
 
     checkMethods(
       "CoGroupedStreams.WithWindow", "CoGroupedStreams.WithWindow",
-      classOf[org.apache.flink.streaming.api.datastream.CoGroupedStreams.WithWindow[_,_,_,_]],
+      classOf[org.apache.flink.streaming.api.datastream.CoGroupedStreams.WithWindow[_, _, _, _]],
       classOf[CoGroupedStreams[_, _]#Where[_]#EqualTo#WithWindow[_]])
   }
 }

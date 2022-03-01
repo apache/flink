@@ -48,6 +48,15 @@ public class AsynchronousJobOperationKey extends OperationKey {
         return new AsynchronousJobOperationKey(triggerId, jobId);
     }
 
+    /**
+     * Get the job id for the given operation key.
+     *
+     * @return job id
+     */
+    public JobID getJobId() {
+        return jobId;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {
@@ -69,5 +78,16 @@ public class AsynchronousJobOperationKey extends OperationKey {
     @Override
     public int hashCode() {
         return Objects.hash(super.hashCode(), jobId);
+    }
+
+    @Override
+    public String toString() {
+        return getClass().getSimpleName()
+                + "{"
+                + "triggerId="
+                + getTriggerId()
+                + ", jobId="
+                + jobId
+                + '}';
     }
 }

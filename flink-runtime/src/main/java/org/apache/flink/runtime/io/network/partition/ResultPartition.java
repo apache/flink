@@ -22,6 +22,8 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferCompressor;
@@ -110,6 +112,14 @@ public abstract class ResultPartition implements ResultPartitionWriter {
 
     protected Counter numBuffersOut = new SimpleCounter();
 
+    /**
+     * The difference with {@link #numBytesOut} : numBytesProduced represents the number of bytes
+     * actually produced, and numBytesOut represents the number of bytes sent to downstream tasks.
+     * In unicast scenarios, these two values should be equal. In broadcast scenarios, numBytesOut
+     * should be (N * numBytesProduced), where N refers to the number of subpartitions.
+     */
+    protected Counter numBytesProduced = new SimpleCounter();
+
     public ResultPartition(
             String owningTaskName,
             int partitionIndex,
@@ -176,6 +186,9 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     /** Returns the total number of queued buffers of all subpartitions. */
     public abstract int getNumberOfQueuedBuffers();
 
+    /** Returns the total size in bytes of queued buffers of all subpartitions. */
+    public abstract long getSizeOfQueuedBuffersUnsafe();
+
     /** Returns the number of queued buffers of the given target subpartition. */
     public abstract int getNumberOfQueuedBuffers(int targetSubpartition);
 
@@ -189,6 +202,25 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     }
 
     // ------------------------------------------------------------------------
+
+    @Override
+    public void notifyEndOfData(StopMode mode) throws IOException {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public CompletableFuture<Void> getAllDataProcessedFuture() {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * The subpartition notifies that the corresponding downstream task have processed all the user
+     * records.
+     *
+     * @see EndOfData
+     * @param subpartition The index of the subpartition sending the notification.
+     */
+    public void onSubpartitionAllDataProcessed(int subpartition) {}
 
     /**
      * Finishes the result partition.
@@ -230,15 +262,21 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     /** Releases all produced data including both those stored in memory and persisted on disk. */
     protected abstract void releaseInternal();
 
-    @Override
-    public void close() {
+    private void closeBufferPool() {
         if (bufferPool != null) {
             bufferPool.lazyDestroy();
         }
     }
 
     @Override
+    public void close() {
+        closeBufferPool();
+    }
+
+    @Override
     public void fail(@Nullable Throwable throwable) {
+        // the task canceler thread will call this method to early release the output buffer pool
+        closeBufferPool();
         partitionManager.releasePartition(partitionId, throwable);
     }
 
@@ -255,6 +293,8 @@ public abstract class ResultPartition implements ResultPartitionWriter {
     public void setMetricGroup(TaskIOMetricGroup metrics) {
         numBytesOut = metrics.getNumBytesOutCounter();
         numBuffersOut = metrics.getNumBuffersOutCounter();
+        metrics.registerNumBytesProducedCounterForPartition(
+                partitionId.getPartitionId(), numBytesProduced);
     }
 
     /**

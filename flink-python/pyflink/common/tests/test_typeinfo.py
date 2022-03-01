@@ -124,6 +124,10 @@ class TypeInfoTests(PyFlinkTestCase):
         self.assertEqual(primitive_int_array_type_info,
                          _from_java_type(primitive_int_array_type_info.get_java_type_info()))
 
+        object_array_type_info = Types.OBJECT_ARRAY(Types.SQL_DATE())
+        self.assertEqual(object_array_type_info,
+                         _from_java_type(object_array_type_info.get_java_type_info()))
+
         pickled_byte_array_type_info = Types.PICKLED_BYTE_ARRAY()
         self.assertEqual(pickled_byte_array_type_info,
                          _from_java_type(pickled_byte_array_type_info.get_java_type_info()))

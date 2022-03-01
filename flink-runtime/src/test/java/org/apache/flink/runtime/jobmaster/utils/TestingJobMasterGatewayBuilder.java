@@ -22,12 +22,12 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.api.java.tuple.Tuple6;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -37,6 +37,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JMTMRegistrationSuccess;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.SerializedInputSplit;
+import org.apache.flink.runtime.jobmaster.TaskManagerRegistrationInformation;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.checkpoint.DeclineCheckpoint;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
@@ -53,8 +54,8 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.SerializedValue;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.TriConsumer;
 import org.apache.flink.util.function.TriFunction;
 
@@ -101,34 +102,40 @@ public class TestingJobMasterGatewayBuilder {
                             CompletableFuture.completedFuture(Collections.emptyList());
     private TriConsumer<ResourceID, AllocationID, Throwable> failSlotConsumer =
             (ignoredA, ignoredB, ignoredC) -> {};
-    private TriFunction<
-                    String,
-                    UnresolvedTaskManagerLocation,
+    private BiFunction<
                     JobID,
+                    TaskManagerRegistrationInformation,
                     CompletableFuture<RegistrationResponse>>
             registerTaskManagerFunction =
-                    (ignoredA, ignoredB, ignoredC) ->
+                    (ignoredA, ignoredB) ->
                             CompletableFuture.completedFuture(
                                     new JMTMRegistrationSuccess(RESOURCE_MANAGER_ID));
-    private BiConsumer<ResourceID, TaskExecutorToJobManagerHeartbeatPayload>
-            taskManagerHeartbeatConsumer = (ignoredA, ignoredB) -> {};
-    private Consumer<ResourceID> resourceManagerHeartbeatConsumer = ignored -> {};
+    private BiFunction<
+                    ResourceID, TaskExecutorToJobManagerHeartbeatPayload, CompletableFuture<Void>>
+            taskManagerHeartbeatFunction =
+                    (ignoredA, ignoredB) -> FutureUtils.completedVoidFuture();
+    private Function<ResourceID, CompletableFuture<Void>> resourceManagerHeartbeatFunction =
+            ignored -> FutureUtils.completedVoidFuture();
     private Supplier<CompletableFuture<JobDetails>> requestJobDetailsSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
     private Supplier<CompletableFuture<ExecutionGraphInfo>> requestJobSupplier =
             () -> FutureUtils.completedExceptionally(new UnsupportedOperationException());
-    private BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction =
-            (targetDirectory, ignoredB) ->
-                    CompletableFuture.completedFuture(
-                            targetDirectory != null
-                                    ? targetDirectory
-                                    : UUID.randomUUID().toString());
-    private BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction =
-            (targetDirectory, ignoredB) ->
-                    CompletableFuture.completedFuture(
-                            targetDirectory != null
-                                    ? targetDirectory
-                                    : UUID.randomUUID().toString());
+    private TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
+            triggerSavepointFunction =
+                    (targetDirectory, ignoredB, formatType) ->
+                            CompletableFuture.completedFuture(
+                                    targetDirectory != null
+                                            ? targetDirectory
+                                            : UUID.randomUUID().toString());
+    private Supplier<CompletableFuture<String>> triggerCheckpointFunction =
+            () -> CompletableFuture.completedFuture(UUID.randomUUID().toString());
+    private TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
+            stopWithSavepointFunction =
+                    (targetDirectory, ignoredB, formatType) ->
+                            CompletableFuture.completedFuture(
+                                    targetDirectory != null
+                                            ? targetDirectory
+                                            : UUID.randomUUID().toString());
     private BiConsumer<AllocationID, Throwable> notifyAllocationFailureConsumer =
             (ignoredA, ignoredB) -> {};
     private Consumer<Tuple5<JobID, ExecutionAttemptID, Long, CheckpointMetrics, TaskStateSnapshot>>
@@ -238,26 +245,28 @@ public class TestingJobMasterGatewayBuilder {
     }
 
     public TestingJobMasterGatewayBuilder setRegisterTaskManagerFunction(
-            TriFunction<
-                            String,
-                            UnresolvedTaskManagerLocation,
+            BiFunction<
                             JobID,
+                            TaskManagerRegistrationInformation,
                             CompletableFuture<RegistrationResponse>>
                     registerTaskManagerFunction) {
         this.registerTaskManagerFunction = registerTaskManagerFunction;
         return this;
     }
 
-    public TestingJobMasterGatewayBuilder setTaskManagerHeartbeatConsumer(
-            BiConsumer<ResourceID, TaskExecutorToJobManagerHeartbeatPayload>
-                    taskManagerHeartbeatConsumer) {
-        this.taskManagerHeartbeatConsumer = taskManagerHeartbeatConsumer;
+    public TestingJobMasterGatewayBuilder setTaskManagerHeartbeatFunction(
+            BiFunction<
+                            ResourceID,
+                            TaskExecutorToJobManagerHeartbeatPayload,
+                            CompletableFuture<Void>>
+                    taskManagerHeartbeatFunction) {
+        this.taskManagerHeartbeatFunction = taskManagerHeartbeatFunction;
         return this;
     }
 
-    public TestingJobMasterGatewayBuilder setResourceManagerHeartbeatConsumer(
-            Consumer<ResourceID> resourceManagerHeartbeatConsumer) {
-        this.resourceManagerHeartbeatConsumer = resourceManagerHeartbeatConsumer;
+    public TestingJobMasterGatewayBuilder setResourceManagerHeartbeatFunction(
+            Function<ResourceID, CompletableFuture<Void>> resourceManagerHeartbeatFunction) {
+        this.resourceManagerHeartbeatFunction = resourceManagerHeartbeatFunction;
         return this;
     }
 
@@ -274,13 +283,21 @@ public class TestingJobMasterGatewayBuilder {
     }
 
     public TestingJobMasterGatewayBuilder setTriggerSavepointFunction(
-            BiFunction<String, Boolean, CompletableFuture<String>> triggerSavepointFunction) {
+            TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
+                    triggerSavepointFunction) {
         this.triggerSavepointFunction = triggerSavepointFunction;
         return this;
     }
 
+    public TestingJobMasterGatewayBuilder setTriggerCheckpointFunction(
+            Supplier<CompletableFuture<String>> triggerCheckpointFunction) {
+        this.triggerCheckpointFunction = triggerCheckpointFunction;
+        return this;
+    }
+
     public TestingJobMasterGatewayBuilder setStopWithSavepointSupplier(
-            BiFunction<String, Boolean, CompletableFuture<String>> stopWithSavepointFunction) {
+            TriFunction<String, Boolean, SavepointFormatType, CompletableFuture<String>>
+                    stopWithSavepointFunction) {
         this.stopWithSavepointFunction = stopWithSavepointFunction;
         return this;
     }
@@ -389,11 +406,12 @@ public class TestingJobMasterGatewayBuilder {
                 offerSlotsFunction,
                 failSlotConsumer,
                 registerTaskManagerFunction,
-                taskManagerHeartbeatConsumer,
-                resourceManagerHeartbeatConsumer,
+                taskManagerHeartbeatFunction,
+                resourceManagerHeartbeatFunction,
                 requestJobDetailsSupplier,
                 requestJobSupplier,
                 triggerSavepointFunction,
+                triggerCheckpointFunction,
                 stopWithSavepointFunction,
                 notifyAllocationFailureConsumer,
                 acknowledgeCheckpointConsumer,

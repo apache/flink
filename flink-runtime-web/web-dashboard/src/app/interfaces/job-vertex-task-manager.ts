@@ -16,14 +16,14 @@
  * limitations under the License.
  */
 
-export interface JobVertexTaskManagerInterface {
+export interface JobVertexTaskManager {
   id: string;
   name: string;
   now: number;
-  taskmanagers: VertexTaskManagerDetailInterface[];
+  taskmanagers: VertexTaskManagerDetail[];
 }
 
-export interface VertexTaskManagerDetailInterface {
+export interface VertexTaskManagerDetail {
   host: string;
   status: string;
   'start-time': number;

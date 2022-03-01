@@ -74,12 +74,14 @@ public interface FlinkKubeClient extends AutoCloseable {
     void stopAndCleanupCluster(String clusterId);
 
     /**
-     * Get the kubernetes rest service of the given flink clusterId.
+     * Get the kubernetes service of the given flink clusterId.
      *
+     * @param serviceType Internal/Rest
      * @param clusterId cluster id
      * @return Return the optional rest service of the specified cluster id.
      */
-    Optional<KubernetesService> getRestService(String clusterId);
+    Optional<KubernetesService> getService(
+            KubernetesService.ServiceType serviceType, String clusterId);
 
     /**
      * Get the rest endpoint for access outside cluster.
@@ -106,7 +108,8 @@ public interface FlinkKubeClient extends AutoCloseable {
      * @return Return a watch for pods. It needs to be closed after use.
      */
     KubernetesWatch watchPodsAndDoCallback(
-            Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler);
+            Map<String, String> labels, WatchCallbackHandler<KubernetesPod> podCallbackHandler)
+            throws Exception;
 
     /**
      * Create a leader elector service based on Kubernetes api.
@@ -164,16 +167,6 @@ public interface FlinkKubeClient extends AutoCloseable {
             Function<KubernetesConfigMap, Optional<KubernetesConfigMap>> updateFunction);
 
     /**
-     * Watch the ConfigMaps with specified name and do the {@link WatchCallbackHandler}.
-     *
-     * @param name name to filter the ConfigMaps to watch
-     * @param callbackHandler callbackHandler which reacts to ConfigMap events
-     * @return Return a watch for ConfigMaps. It needs to be closed after use.
-     */
-    KubernetesWatch watchConfigMaps(
-            String name, WatchCallbackHandler<KubernetesConfigMap> callbackHandler);
-
-    /**
      * Delete the Kubernetes ConfigMaps by labels. This will be used by {@link
      * org.apache.flink.kubernetes.highavailability.KubernetesHaServices} to clean up all data.
      *
@@ -190,6 +183,15 @@ public interface FlinkKubeClient extends AutoCloseable {
      */
     CompletableFuture<Void> deleteConfigMap(String configMapName);
 
+    /**
+     * Create a shared watcher for ConfigMaps with specified labels.
+     *
+     * @param labels labels to filter ConfigMaps. If the labels is null or empty, all ConfigMaps
+     *     will be taken in account, or it will be rejected if the implementation does not allow it.
+     * @return Return a shared watcher.
+     */
+    KubernetesConfigMapSharedWatcher createConfigMapSharedWatcher(Map<String, String> labels);
+
     /** Close the Kubernetes client with no exception. */
     void close();
 
@@ -200,6 +202,20 @@ public interface FlinkKubeClient extends AutoCloseable {
      * @return Return a Kubernetes pod loaded from the template.
      */
     KubernetesPod loadPodFromTemplateFile(File podTemplateFile);
+
+    /**
+     * Update the target ports of the given Kubernetes service.
+     *
+     * @param serviceType The service type which needs to be updated
+     * @param portName The port name which needs to be updated
+     * @param targetPort The updated target port
+     * @return Return the update service target port future
+     */
+    CompletableFuture<Void> updateServiceTargetPort(
+            KubernetesService.ServiceType serviceType,
+            String clusterId,
+            String portName,
+            int targetPort);
 
     /** Callback handler for kubernetes resources. */
     interface WatchCallbackHandler<T> {

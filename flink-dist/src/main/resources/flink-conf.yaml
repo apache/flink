@@ -26,7 +26,7 @@
 # is only used in Standalone mode and may be overwritten on the JobManager side
 # by specifying the --host <hostname> parameter of the bin/jobmanager.sh executable.
 # In high availability mode, if you use the bin/start-cluster.sh script and setup
-# the conf/masters file, this will be taken care of automatically. Yarn/Mesos
+# the conf/masters file, this will be taken care of automatically. Yarn
 # automatically configure the host name based on the hostname of the node where the
 # JobManager runs.
 
@@ -36,6 +36,14 @@ jobmanager.rpc.address: localhost
 
 jobmanager.rpc.port: 6123
 
+# The host interface the JobManager will bind to. My default, this is localhost, and will prevent
+# the JobManager from communicating outside the machine/container it is running on.
+#
+# To enable this, set the bind-host address to one that has access to an outside facing network
+# interface, such as 0.0.0.0.
+
+jobmanager.bind-host: localhost
+
 
 # The total process memory size for the JobManager.
 #
@@ -43,6 +51,13 @@ jobmanager.rpc.port: 6123
 
 jobmanager.memory.process.size: 1600m
 
+# The host interface the TaskManager will bind to. My default, this is localhost, and will prevent
+# the TaskManager from communicating outside the machine/container it is running on.
+#
+# To enable this, set the bind-host address to one that has access to an outside facing network
+# interface, such as 0.0.0.0.
+
+taskmanager.bind-host: localhost
 
 # The total process memory size for the TaskManager.
 #
@@ -120,10 +135,10 @@ parallelism.default: 1
 # execution.checkpointing.tolerable-failed-checkpoints: 0
 # execution.checkpointing.unaligned: false
 #
-# Supported backends are 'jobmanager', 'filesystem', 'rocksdb', or the
+# Supported backends are 'hashmap', 'rocksdb', or the
 # <class-name-of-factory>.
 #
-# state.backend: filesystem
+# state.backend: hashmap
 
 # Directory for checkpoints filesystem, when using any of the default bundled
 # state backends.
@@ -156,15 +171,20 @@ jobmanager.execution.failover-strategy: region
 
 # The address to which the REST client will connect to
 #
-#rest.address: 0.0.0.0
+rest.address: localhost
 
 # Port range for the REST and web server to bind to.
 #
 #rest.bind-port: 8080-8090
 
 # The address that the REST & web server binds to
+# By default, this is localhost, which prevents the REST & web server from
+# being able to communicate outside of the machine/container it is running on.
 #
-#rest.bind-address: 0.0.0.0
+# To enable this, set the bind address to one that has access to outside-facing
+# network interface, such as 0.0.0.0.
+#
+rest.bind-address: localhost
 
 # Flag to specify whether job submission is enabled from the web-based
 # runtime monitor. Uncomment to disable.
@@ -183,7 +203,7 @@ jobmanager.execution.failover-strategy: region
 # Override the directories for temporary files. If not specified, the
 # system-specific Java temporary directory (java.io.tmpdir property) is taken.
 #
-# For framework setups on Yarn or Mesos, Flink will automatically pick up the
+# For framework setups on Yarn, Flink will automatically pick up the
 # containers' temp directories without any need for configuration.
 #
 # Add a delimited list for multiple directories, using the system directory

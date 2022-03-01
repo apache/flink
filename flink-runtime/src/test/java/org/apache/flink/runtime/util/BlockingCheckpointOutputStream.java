@@ -20,7 +20,7 @@ package org.apache.flink.runtime.util;
 
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.IOUtils;
 
@@ -35,8 +35,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * until the stream is closed. This is typically used to test that a blocking read can be
  * interrupted / closed.
  */
-public class BlockingCheckpointOutputStream
-        extends CheckpointStreamFactory.CheckpointStateOutputStream {
+public class BlockingCheckpointOutputStream extends CheckpointStateOutputStream {
 
     /** Optional delegate stream to which all ops are forwarded. */
     private final FSDataOutputStream delegate;
@@ -192,10 +191,9 @@ public class BlockingCheckpointOutputStream
             throw new IOException("Stream was already closed!");
         }
 
-        if (delegate instanceof CheckpointStreamFactory.CheckpointStateOutputStream) {
+        if (delegate instanceof CheckpointStateOutputStream) {
             StreamStateHandle streamStateHandle =
-                    ((CheckpointStreamFactory.CheckpointStateOutputStream) delegate)
-                            .closeAndGetHandle();
+                    ((CheckpointStateOutputStream) delegate).closeAndGetHandle();
             unblockAll();
             return streamStateHandle;
         } else {

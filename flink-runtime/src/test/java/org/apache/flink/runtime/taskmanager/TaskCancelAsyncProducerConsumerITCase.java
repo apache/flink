@@ -25,7 +25,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.execution.CancelTaskException;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriterBuilder;
@@ -39,14 +39,17 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.test.junit5.InjectMiniCluster;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.types.LongValue;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
+import org.apache.flink.util.concurrent.FutureUtils;
 
-import org.junit.ClassRule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -57,7 +60,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
+@ExtendWith({TestLoggerExtension.class})
+public class TaskCancelAsyncProducerConsumerITCase {
 
     // The Exceptions thrown by the producer/consumer Threads
     private static volatile Exception ASYNC_PRODUCER_EXCEPTION;
@@ -67,9 +71,9 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
     private static volatile Thread ASYNC_PRODUCER_THREAD;
     private static volatile Thread ASYNC_CONSUMER_THREAD;
 
-    @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_RESOURCE =
-            new MiniClusterResource(
+    @RegisterExtension
+    private static final InternalMiniClusterExtension MINI_CLUSTER_RESOURCE =
+            new InternalMiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(getFlinkConfiguration())
                             .build());
@@ -90,7 +94,8 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
      * the main task Thread.
      */
     @Test
-    public void testCancelAsyncProducerAndConsumer() throws Exception {
+    public void testCancelAsyncProducerAndConsumer(@InjectMiniCluster MiniCluster flink)
+            throws Exception {
         Deadline deadline = Deadline.now().plus(Duration.ofMinutes(2));
 
         // Job with async producer and consumer
@@ -109,8 +114,6 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
         consumer.setSlotSharingGroup(slot);
 
         JobGraph jobGraph = JobGraphTestUtils.streamingJobGraph(producer, consumer);
-
-        final MiniCluster flink = MINI_CLUSTER_RESOURCE.getMiniCluster();
 
         // Submit job and wait until running
         flink.runDetached(jobGraph);
@@ -179,7 +182,7 @@ public class TaskCancelAsyncProducerConsumerITCase extends TestLogger {
 
         // Verify the expected Exceptions
         assertNotNull(ASYNC_PRODUCER_EXCEPTION);
-        assertEquals(IllegalStateException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
+        assertEquals(CancelTaskException.class, ASYNC_PRODUCER_EXCEPTION.getClass());
 
         assertNotNull(ASYNC_CONSUMER_EXCEPTION);
         assertEquals(IllegalStateException.class, ASYNC_CONSUMER_EXCEPTION.getClass());

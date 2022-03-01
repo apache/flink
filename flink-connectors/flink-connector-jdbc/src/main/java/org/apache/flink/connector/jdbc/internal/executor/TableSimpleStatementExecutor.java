@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.jdbc.internal.executor;
 
-import org.apache.flink.connector.jdbc.internal.converter.JdbcRowConverter;
+import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.connector.jdbc.statement.StatementFactory;
 import org.apache.flink.table.data.RowData;

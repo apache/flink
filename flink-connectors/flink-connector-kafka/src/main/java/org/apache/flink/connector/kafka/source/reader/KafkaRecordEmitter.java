@@ -18,22 +18,64 @@
 
 package org.apache.flink.connector.kafka.source.reader;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceOutput;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.connector.base.source.reader.RecordEmitter;
+import org.apache.flink.connector.kafka.source.reader.deserializer.KafkaRecordDeserializationSchema;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitState;
+import org.apache.flink.util.Collector;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+
+import java.io.IOException;
 
 /** The {@link RecordEmitter} implementation for {@link KafkaSourceReader}. */
+@Internal
 public class KafkaRecordEmitter<T>
-        implements RecordEmitter<Tuple3<T, Long, Long>, T, KafkaPartitionSplitState> {
+        implements RecordEmitter<ConsumerRecord<byte[], byte[]>, T, KafkaPartitionSplitState> {
+
+    private final KafkaRecordDeserializationSchema<T> deserializationSchema;
+    private final SourceOutputWrapper<T> sourceOutputWrapper = new SourceOutputWrapper<>();
+
+    public KafkaRecordEmitter(KafkaRecordDeserializationSchema<T> deserializationSchema) {
+        this.deserializationSchema = deserializationSchema;
+    }
 
     @Override
     public void emitRecord(
-            Tuple3<T, Long, Long> element,
+            ConsumerRecord<byte[], byte[]> consumerRecord,
             SourceOutput<T> output,
             KafkaPartitionSplitState splitState)
             throws Exception {
-        output.collect(element.f0, element.f2);
-        splitState.setCurrentOffset(element.f1 + 1);
+        try {
+            sourceOutputWrapper.setSourceOutput(output);
+            sourceOutputWrapper.setTimestamp(consumerRecord.timestamp());
+            deserializationSchema.deserialize(consumerRecord, sourceOutputWrapper);
+            splitState.setCurrentOffset(consumerRecord.offset() + 1);
+        } catch (Exception e) {
+            throw new IOException("Failed to deserialize consumer record due to", e);
+        }
+    }
+
+    private static class SourceOutputWrapper<T> implements Collector<T> {
+
+        private SourceOutput<T> sourceOutput;
+        private long timestamp;
+
+        @Override
+        public void collect(T record) {
+            sourceOutput.collect(record, timestamp);
+        }
+
+        @Override
+        public void close() {}
+
+        private void setSourceOutput(SourceOutput<T> sourceOutput) {
+            this.sourceOutput = sourceOutput;
+        }
+
+        private void setTimestamp(long timestamp) {
+            this.timestamp = timestamp;
+        }
     }
 }

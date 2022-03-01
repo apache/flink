@@ -36,7 +36,6 @@ import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 import org.apache.flink.table.types.logical.utils.LogicalTypeUtils;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
@@ -310,7 +309,7 @@ public class JsonToRowDataConverters implements Serializable {
 
     private JsonToRowDataConverter createMapConverter(
             String typeSummary, LogicalType keyType, LogicalType valueType) {
-        if (!LogicalTypeChecks.hasFamily(keyType, LogicalTypeFamily.CHARACTER_STRING)) {
+        if (!keyType.is(LogicalTypeFamily.CHARACTER_STRING)) {
             throw new UnsupportedOperationException(
                     "JSON format doesn't support non-string as key type of map. "
                             + "The type is: "

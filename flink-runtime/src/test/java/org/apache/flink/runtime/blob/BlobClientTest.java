@@ -65,7 +65,7 @@ public class BlobClientTest extends TestLogger {
     private static final int TEST_BUFFER_SIZE = 17 * 1000;
 
     /** The instance of the (non-ssl) BLOB server used during the tests. */
-    static TestBlobServer blobServer;
+    static BlobServer blobServer;
 
     /** The blob service (non-ssl) client configuration. */
     static Configuration clientConfig;
@@ -76,10 +76,7 @@ public class BlobClientTest extends TestLogger {
     @BeforeClass
     public static void startServer() throws IOException {
         Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-
-        blobServer = new TestBlobServer(config, new VoidBlobStore());
+        blobServer = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
         blobServer.start();
 
         clientConfig = new Configuration();
@@ -315,7 +312,7 @@ public class BlobClientTest extends TestLogger {
         return clientConfig;
     }
 
-    protected TestBlobServer getBlobServer() {
+    protected BlobServer getBlobServer() {
         return blobServer;
     }
 
@@ -505,16 +502,18 @@ public class BlobClientTest extends TestLogger {
 
     /** Tests the socket operation timeout. */
     @Test
-    public void testSocketTimeout() {
+    public void testSocketTimeout() throws IOException {
         Configuration clientConfig = getBlobClientConfig();
         int oldSoTimeout = clientConfig.getInteger(BlobServerOptions.SO_TIMEOUT);
 
         clientConfig.setInteger(BlobServerOptions.SO_TIMEOUT, 50);
-        getBlobServer().setBlockingMillis(10_000);
 
-        try {
+        try (final TestBlobServer testBlobServer =
+                new TestBlobServer(
+                        clientConfig, temporaryFolder.newFolder(), new VoidBlobStore(), 10_000L)) {
+            testBlobServer.start();
             InetSocketAddress serverAddress =
-                    new InetSocketAddress("localhost", getBlobServer().getPort());
+                    new InetSocketAddress("localhost", testBlobServer.getPort());
 
             try (BlobClient client = new BlobClient(serverAddress, clientConfig)) {
                 client.getInternal(new JobID(), BlobKey.createKey(TRANSIENT_BLOB));
@@ -528,7 +527,6 @@ public class BlobClientTest extends TestLogger {
             }
         } finally {
             clientConfig.setInteger(BlobServerOptions.SO_TIMEOUT, oldSoTimeout);
-            getBlobServer().setBlockingMillis(0);
         }
     }
 
@@ -544,15 +542,20 @@ public class BlobClientTest extends TestLogger {
 
     static class TestBlobServer extends BlobServer {
 
-        private volatile long blockingMillis = 0;
+        private final long blockingMillis;
 
-        TestBlobServer(Configuration config, BlobStore blobStore) throws IOException {
-            super(config, blobStore);
+        TestBlobServer(
+                Configuration config,
+                File storageDirectory,
+                BlobStore blobStore,
+                long blockingMillis)
+                throws IOException {
+            super(config, storageDirectory, blobStore);
+            this.blockingMillis = blockingMillis;
         }
 
         @Override
-        void getFileInternal(@Nullable JobID jobId, BlobKey blobKey, File localFile)
-                throws IOException {
+        File getFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
             if (blockingMillis > 0) {
                 try {
                     Thread.sleep(blockingMillis);
@@ -561,11 +564,7 @@ public class BlobClientTest extends TestLogger {
                 }
             }
 
-            super.getFileInternal(jobId, blobKey, localFile);
-        }
-
-        void setBlockingMillis(long millis) {
-            this.blockingMillis = millis;
+            return super.getFileInternal(jobId, blobKey);
         }
     }
 }

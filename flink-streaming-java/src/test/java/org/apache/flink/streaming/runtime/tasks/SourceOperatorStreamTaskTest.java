@@ -18,9 +18,12 @@
 
 package org.apache.flink.streaming.runtime.tasks;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.api.common.typeutils.base.IntSerializer;
+import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.ExternallyInducedSourceReader;
 import org.apache.flink.api.connector.source.ReaderOutput;
@@ -30,25 +33,37 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.InputStatus;
-import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
+import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
+import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
+import org.apache.flink.runtime.taskmanager.CheckpointResponder;
+import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
 import org.apache.flink.streaming.api.operators.SourceOperator;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElement;
+import org.apache.flink.streaming.runtime.streamrecord.StreamElementSerializer;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.util.SerializedValue;
 
 import org.junit.Test;
 
+import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
@@ -61,10 +76,11 @@ import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.util.TestHarnessUtil.assertOutputEquals;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.lessThanOrEqualTo;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -108,12 +124,13 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
             final CheckpointOptions checkpointOptions =
                     new CheckpointOptions(
-                            CheckpointType.SAVEPOINT_TERMINATE,
+                            SavepointType.terminate(SavepointFormatType.CANONICAL),
                             CheckpointStorageLocationReference.getDefault());
             triggerCheckpointWaitForFinish(testHarness, checkpointId, checkpointOptions);
 
             Queue<Object> expectedOutput = new LinkedList<>();
             expectedOutput.add(Watermark.MAX_WATERMARK);
+            expectedOutput.add(new EndOfData(StopMode.DRAIN));
             expectedOutput.add(
                     new CheckpointBarrier(checkpointId, checkpointId, checkpointOptions));
 
@@ -127,7 +144,9 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             testHarness.processAll();
             testHarness.finishProcessing();
 
-            List<Object> expectedOutput = Collections.singletonList(Watermark.MAX_WATERMARK);
+            Queue<Object> expectedOutput = new LinkedList<>();
+            expectedOutput.add(Watermark.MAX_WATERMARK);
+            expectedOutput.add(new EndOfData(StopMode.DRAIN));
             assertThat(testHarness.getOutput().toArray(), equalTo(expectedOutput.toArray()));
         }
     }
@@ -163,6 +182,98 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
                     TestingExternallyInducedSourceReader.CHECKPOINT_ID,
                     runtimeTestingReader.checkpointedId);
             assertEquals(numEventsBeforeCheckpoint, runtimeTestingReader.checkpointedAt);
+        }
+    }
+
+    @Test
+    public void testSkipExecutionIfFinishedOnRestore() throws Exception {
+        TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED_ON_RESTORE;
+
+        LifeCycleMonitorSource testingSource =
+                new LifeCycleMonitorSource(Boundedness.CONTINUOUS_UNBOUNDED, 10);
+        SourceOperatorFactory<Integer> sourceOperatorFactory =
+                new SourceOperatorFactory<>(testingSource, WatermarkStrategy.noWatermarks());
+
+        List<Object> output = new ArrayList<>();
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                SourceOperatorStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .setTaskStateSnapshot(1, taskStateSnapshot)
+                        .addAdditionalOutput(
+                                new RecordOrEventCollectingResultPartitionWriter<StreamElement>(
+                                        output,
+                                        new StreamElementSerializer<>(IntSerializer.INSTANCE)) {
+                                    @Override
+                                    public void notifyEndOfData(StopMode mode) throws IOException {
+                                        broadcastEvent(new EndOfData(mode), false);
+                                    }
+                                })
+                        .setupOperatorChain(sourceOperatorFactory)
+                        .chain(new TestFinishedOnRestoreStreamOperator(), StringSerializer.INSTANCE)
+                        .finish()
+                        .build()) {
+
+            testHarness.getStreamTask().invoke();
+            testHarness.processAll();
+            assertThat(output, contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN)));
+
+            LifeCycleMonitorSourceReader sourceReader =
+                    (LifeCycleMonitorSourceReader)
+                            ((SourceOperator<?, ?>) testHarness.getStreamTask().getMainOperator())
+                                    .getSourceReader();
+            sourceReader.getLifeCycleMonitor().assertCallTimes(0, LifeCyclePhase.values());
+        }
+    }
+
+    @Test
+    public void testTriggeringStopWithSavepointWithDrain() throws Exception {
+        SourceOperatorFactory<Integer> sourceOperatorFactory =
+                new SourceOperatorFactory<>(
+                        new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 2),
+                        WatermarkStrategy.noWatermarks());
+
+        CompletableFuture<Boolean> checkpointCompleted = new CompletableFuture<>();
+        CheckpointResponder checkpointResponder =
+                new TestCheckpointResponder() {
+                    @Override
+                    public void acknowledgeCheckpoint(
+                            JobID jobID,
+                            ExecutionAttemptID executionAttemptID,
+                            long checkpointId,
+                            CheckpointMetrics checkpointMetrics,
+                            TaskStateSnapshot subtaskState) {
+                        super.acknowledgeCheckpoint(
+                                jobID,
+                                executionAttemptID,
+                                checkpointId,
+                                checkpointMetrics,
+                                subtaskState);
+                        checkpointCompleted.complete(null);
+                    }
+                };
+
+        try (StreamTaskMailboxTestHarness<Integer> testHarness =
+                new StreamTaskMailboxTestHarnessBuilder<>(
+                                SourceOperatorStreamTask::new, BasicTypeInfo.INT_TYPE_INFO)
+                        .setupOutputForSingletonOperatorChain(sourceOperatorFactory)
+                        .setCheckpointResponder(checkpointResponder)
+                        .build()) {
+
+            CompletableFuture<Boolean> triggerResult =
+                    testHarness.streamTask.triggerCheckpointAsync(
+                            new CheckpointMetaData(2, 2),
+                            CheckpointOptions.alignedNoTimeout(
+                                    SavepointType.terminate(SavepointFormatType.CANONICAL),
+                                    CheckpointStorageLocationReference.getDefault()));
+            checkpointCompleted.whenComplete(
+                    (ignored, exception) ->
+                            testHarness.streamTask.notifyCheckpointCompleteAsync(2));
+            testHarness.waitForTaskCompletion();
+            testHarness.finishProcessing();
+
+            assertTrue(triggerResult.isDone());
+            assertTrue(triggerResult.get());
+            assertTrue(checkpointCompleted.isDone());
         }
     }
 
@@ -206,8 +317,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             CheckpointOptions checkpointOptions)
             throws Exception {
         // Trigger a checkpoint.
-        OneShotLatch waitForAcknowledgeLatch = new OneShotLatch();
-        testHarness.taskStateManager.setWaitForReportLatch(waitForAcknowledgeLatch);
+        testHarness.taskStateManager.getWaitForReportLatch().reset();
         CheckpointMetaData checkpointMetaData = new CheckpointMetaData(checkpointId, checkpointId);
         Future<Boolean> checkpointFuture =
                 testHarness
@@ -223,7 +333,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
         Future<Void> checkpointNotified =
                 testHarness.getStreamTask().notifyCheckpointCompleteAsync(checkpointId);
         processUntil(testHarness, checkpointNotified::isDone);
-        waitForAcknowledgeLatch.await();
+        testHarness.taskStateManager.getWaitForReportLatch().await();
     }
 
     private void processUntil(StreamTaskMailboxTestHarness testHarness, Supplier<Boolean> condition)
@@ -256,7 +366,8 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             // Set initial snapshot if needed.
             builder.setTaskStateSnapshot(checkpointId, snapshot);
         }
-        return builder.setupOutputForSingletonOperatorChain(sourceOperatorFactory, OPERATOR_ID)
+        return builder.setCollectNetworkEvents()
+                .setupOutputForSingletonOperatorChain(sourceOperatorFactory, OPERATOR_ID)
                 .build();
     }
 
@@ -349,10 +460,11 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
         @Override
         public InputStatus pollNext(ReaderOutput<Integer> output) throws Exception {
-            numEmittedEvents++;
-            if (numEmittedEvents == numEventsBeforeCheckpoint) {
+            if (numEmittedEvents == numEventsBeforeCheckpoint - 1) {
+                numEmittedEvents++;
                 return InputStatus.NOTHING_AVAILABLE;
             } else if (numEmittedEvents < totalNumEvents) {
+                numEmittedEvents++;
                 return InputStatus.MORE_AVAILABLE;
             } else {
                 return InputStatus.END_OF_INPUT;
@@ -380,5 +492,44 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
         @Override
         public void close() throws Exception {}
+    }
+
+    static class LifeCycleMonitorSource extends MockSource {
+
+        public LifeCycleMonitorSource(Boundedness boundedness, int numSplits) {
+            super(boundedness, numSplits);
+        }
+
+        @Override
+        public SourceReader<Integer, MockSourceSplit> createReader(
+                SourceReaderContext readerContext) {
+            return new LifeCycleMonitorSourceReader();
+        }
+    }
+
+    static class LifeCycleMonitorSourceReader extends MockSourceReader {
+        private final LifeCycleMonitor lifeCycleMonitor = new LifeCycleMonitor();
+
+        @Override
+        public void start() {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.OPEN);
+            super.start();
+        }
+
+        @Override
+        public InputStatus pollNext(ReaderOutput<Integer> sourceOutput) throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.PROCESS_ELEMENT);
+            return super.pollNext(sourceOutput);
+        }
+
+        @Override
+        public void close() throws Exception {
+            lifeCycleMonitor.incrementCallTime(LifeCyclePhase.CLOSE);
+            super.close();
+        }
+
+        public LifeCycleMonitor getLifeCycleMonitor() {
+            return lifeCycleMonitor;
+        }
     }
 }

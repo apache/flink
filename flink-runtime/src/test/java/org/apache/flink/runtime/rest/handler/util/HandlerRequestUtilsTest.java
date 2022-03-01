@@ -43,11 +43,12 @@ public class HandlerRequestUtilsTest extends TestLogger {
     public void testGetQueryParameter() throws Exception {
         final Boolean queryParameter =
                 HandlerRequestUtils.getQueryParameter(
-                        new HandlerRequest<>(
+                        HandlerRequest.resolveParametersAndCreate(
                                 EmptyRequestBody.getInstance(),
                                 new TestMessageParameters(),
                                 Collections.emptyMap(),
-                                Collections.singletonMap("key", Collections.singletonList("true"))),
+                                Collections.singletonMap("key", Collections.singletonList("true")),
+                                Collections.emptyList()),
                         TestBooleanQueryParameter.class);
         assertThat(queryParameter, equalTo(true));
     }
@@ -56,11 +57,12 @@ public class HandlerRequestUtilsTest extends TestLogger {
     public void testGetQueryParameterRepeated() throws Exception {
         try {
             HandlerRequestUtils.getQueryParameter(
-                    new HandlerRequest<>(
+                    HandlerRequest.resolveParametersAndCreate(
                             EmptyRequestBody.getInstance(),
                             new TestMessageParameters(),
                             Collections.emptyMap(),
-                            Collections.singletonMap("key", Arrays.asList("true", "false"))),
+                            Collections.singletonMap("key", Arrays.asList("true", "false")),
+                            Collections.emptyList()),
                     TestBooleanQueryParameter.class);
         } catch (final RestHandlerException e) {
             assertThat(e.getMessage(), containsString("Expected only one value"));
@@ -71,11 +73,12 @@ public class HandlerRequestUtilsTest extends TestLogger {
     public void testGetQueryParameterDefaultValue() throws Exception {
         final Boolean allowNonRestoredState =
                 HandlerRequestUtils.getQueryParameter(
-                        new HandlerRequest<>(
+                        HandlerRequest.resolveParametersAndCreate(
                                 EmptyRequestBody.getInstance(),
                                 new TestMessageParameters(),
                                 Collections.emptyMap(),
-                                Collections.singletonMap("key", Collections.emptyList())),
+                                Collections.singletonMap("key", Collections.emptyList()),
+                                Collections.emptyList()),
                         TestBooleanQueryParameter.class,
                         true);
         assertThat(allowNonRestoredState, equalTo(true));
@@ -83,7 +86,8 @@ public class HandlerRequestUtilsTest extends TestLogger {
 
     private static class TestMessageParameters extends MessageParameters {
 
-        private TestBooleanQueryParameter testBooleanQueryParameter;
+        private final TestBooleanQueryParameter testBooleanQueryParameter =
+                new TestBooleanQueryParameter();
 
         @Override
         public Collection<MessagePathParameter<?>> getPathParameters() {
@@ -92,7 +96,6 @@ public class HandlerRequestUtilsTest extends TestLogger {
 
         @Override
         public Collection<MessageQueryParameter<?>> getQueryParameters() {
-            testBooleanQueryParameter = new TestBooleanQueryParameter();
             return Collections.singletonList(testBooleanQueryParameter);
         }
     }

@@ -104,7 +104,7 @@ public final class ClassDataTypeConverter {
         }
 
         if (TableSymbol.class.isAssignableFrom(clazz)) {
-            return Optional.of(new AtomicDataType(new SymbolType(clazz)));
+            return Optional.of(new AtomicDataType(new SymbolType<>(), clazz));
         }
 
         return Optional.ofNullable(defaultDataTypes.get(clazz.getName()));

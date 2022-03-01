@@ -43,8 +43,8 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunction
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeCheckCtx;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserUnparseTranslator;
-import org.apache.flink.table.planner.delegation.hive.desc.HiveParserCreateViewDesc;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
+import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
@@ -1263,7 +1263,7 @@ public class HiveParserUtils {
 
     public static void saveViewDefinition(
             List<FieldSchema> resultSchema,
-            HiveParserCreateViewDesc desc,
+            HiveParserCreateViewInfo createViewInfo,
             TokenRewriteStream tokenRewriteStream,
             HiveParserUnparseTranslator unparseTranslator,
             HiveConf conf)
@@ -1273,23 +1273,24 @@ public class HiveParserUtils {
         List<FieldSchema> derivedSchema = new ArrayList<>(resultSchema);
         ParseUtils.validateColumnNameUniqueness(derivedSchema);
 
-        List<FieldSchema> imposedSchema = desc.getSchema();
+        List<FieldSchema> imposedSchema = createViewInfo.getSchema();
         if (imposedSchema != null) {
             int explicitColCount = imposedSchema.size();
             int derivedColCount = derivedSchema.size();
             if (explicitColCount != derivedColCount) {
                 throw new SemanticException(
-                        generateErrorMessage(desc.getQuery(), ErrorMsg.VIEW_COL_MISMATCH.getMsg()));
+                        generateErrorMessage(
+                                createViewInfo.getQuery(), ErrorMsg.VIEW_COL_MISMATCH.getMsg()));
             }
         }
 
         // Preserve the original view definition as specified by the user.
-        if (desc.getOriginalText() == null) {
+        if (createViewInfo.getOriginalText() == null) {
             String originalText =
                     tokenRewriteStream.toString(
-                            desc.getQuery().getTokenStartIndex(),
-                            desc.getQuery().getTokenStopIndex());
-            desc.setOriginalText(originalText);
+                            createViewInfo.getQuery().getTokenStartIndex(),
+                            createViewInfo.getQuery().getTokenStopIndex());
+            createViewInfo.setOriginalText(originalText);
         }
 
         // Now expand the view definition with extras such as explicit column
@@ -1298,7 +1299,8 @@ public class HiveParserUtils {
         unparseTranslator.applyTranslations(tokenRewriteStream);
         String expandedText =
                 tokenRewriteStream.toString(
-                        desc.getQuery().getTokenStartIndex(), desc.getQuery().getTokenStopIndex());
+                        createViewInfo.getQuery().getTokenStartIndex(),
+                        createViewInfo.getQuery().getTokenStopIndex());
 
         if (imposedSchema != null) {
             // Merge the names from the imposed schema into the types
@@ -1332,15 +1334,15 @@ public class HiveParserUtils {
             sb.append(" FROM (");
             sb.append(expandedText);
             sb.append(") ");
-            sb.append(HiveUtils.unparseIdentifier(desc.getCompoundName(), conf));
+            sb.append(HiveUtils.unparseIdentifier(createViewInfo.getCompoundName(), conf));
             expandedText = sb.toString();
         }
 
-        desc.setSchema(derivedSchema);
-        if (!desc.isMaterialized()) {
+        createViewInfo.setSchema(derivedSchema);
+        if (!createViewInfo.isMaterialized()) {
             // materialized views don't store the expanded text as they won't be rewritten at query
             // time.
-            desc.setExpandedText(expandedText);
+            createViewInfo.setExpandedText(expandedText);
         }
     }
 

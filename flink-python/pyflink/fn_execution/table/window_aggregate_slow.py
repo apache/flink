@@ -21,15 +21,14 @@ from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, List, Dict
 
 import pytz
-from apache_beam.coders import PickleCoder, Coder
 
 from pyflink.common import Row, RowKind
-from pyflink.datastream.timerservice import InternalTimer
-from pyflink.fn_execution.timerservice_impl import InternalTimerServiceImpl
+from pyflink.fn_execution.datastream.timerservice import InternalTimer
+from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
+from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.aggregate_slow import DistinctViewDescriptor, RowKeySelector
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
     MergingWindowAssigner
 from pyflink.fn_execution.table.window_context import WindowContext, TriggerContext, K, W
@@ -173,13 +172,13 @@ class SimpleNamespaceAggsHandleFunction(NamespaceAggsHandleFunction[N]):
                     data_views[data_view_spec.field_index] = \
                         state_data_view_store.get_state_list_view(
                             data_view_spec.state_id,
-                            PickleCoder())
+                            data_view_spec.element_coder)
                 elif isinstance(data_view_spec, MapViewSpec):
                     data_views[data_view_spec.field_index] = \
                         state_data_view_store.get_state_map_view(
                             data_view_spec.state_id,
-                            PickleCoder(),
-                            PickleCoder())
+                            data_view_spec.key_coder,
+                            data_view_spec.value_coder)
             self._udf_data_views.append(data_views)
         for key in self._distinct_view_descriptors.keys():
             self._distinct_data_views[key] = state_data_view_store.get_state_map_view(
@@ -289,8 +288,8 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
     def __init__(self,
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_backend,
+                 state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunctionBase[W],
                  trigger: Trigger[W],
@@ -305,14 +304,14 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
         self._rowtime_index = rowtime_index
         self._shift_timezone = shift_timezone
         self._window_function = None  # type: InternalWindowProcessFunction[K, W]
-        self._internal_timer_service = None  # type: InternalTimerServiceImpl
+        self._internal_timer_service = None  # type: LegacyInternalTimerServiceImpl
         self._window_context = None  # type: WindowContext
         self._trigger = trigger
         self._trigger_context = None  # type: TriggerContext
         self._window_state = self._state_backend.get_value_state("window_state", state_value_coder)
 
     def open(self, function_context: FunctionContext):
-        self._internal_timer_service = InternalTimerServiceImpl(self._state_backend)
+        self._internal_timer_service = LegacyInternalTimerServiceImpl(self._state_backend)
         self._window_aggregator.open(
             PerWindowStateDataViewStore(function_context, self._state_backend))
 
@@ -456,8 +455,8 @@ class GroupWindowAggFunction(GroupWindowAggFunctionBase[K, W]):
     def __init__(self,
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
-                 state_value_coder: Coder,
+                 state_backend,
+                 state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunction[W],
                  trigger: Trigger[W],

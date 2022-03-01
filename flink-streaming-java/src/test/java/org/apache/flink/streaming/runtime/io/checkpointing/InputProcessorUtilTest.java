@@ -20,6 +20,7 @@ package org.apache.flink.streaming.runtime.io.checkpointing;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.MockChannelStateWriter;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
@@ -27,12 +28,12 @@ import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.InputChannelBuilder;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.runtime.operators.testutils.MockEnvironmentBuilder;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.graph.StreamConfig;
-import org.apache.flink.streaming.api.operators.SyncMailboxExecutor;
 import org.apache.flink.streaming.runtime.tasks.TestProcessingTimeService;
 import org.apache.flink.streaming.runtime.tasks.TestSubtaskCheckpointCoordinator;
 import org.apache.flink.streaming.util.MockStreamTask;
@@ -105,8 +106,10 @@ public class InputProcessorUtilTest {
                                     1,
                                     42,
                                     CheckpointOptions.unaligned(
+                                            CheckpointType.CHECKPOINT,
                                             CheckpointStorageLocationReference.getDefault())),
-                            new InputChannelInfo(inputGate.getGateIndex(), channelId));
+                            new InputChannelInfo(inputGate.getGateIndex(), channelId),
+                            false);
                 }
             }
             assertTrue(barrierHandler.getAllBarriersReceivedFuture(1).isDone());

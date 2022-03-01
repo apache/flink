@@ -25,7 +25,8 @@ from apache_beam.coders.coder_impl cimport InputStream as BInputStream
 from apache_beam.coders.coder_impl cimport OutputStream as BOutputStream
 from apache_beam.coders.coder_impl cimport StreamCoderImpl
 
-from pyflink.fn_execution.beam.beam_stream cimport BeamInputStream
+from pyflink.fn_execution.beam.beam_stream_fast cimport BeamInputStream
+from pyflink.fn_execution.beam.beam_stream_fast cimport BeamTimeBasedOutputStream
 from pyflink.fn_execution.stream_fast cimport InputStream
 
 cdef class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
@@ -41,7 +42,10 @@ cdef class PassThroughLengthPrefixCoderImpl(StreamCoderImpl):
     cpdef get_estimated_size_and_observables(self, value, bint nested=False):
         return 0, []
 
-cdef class PassThroughPrefixCoderImpl(StreamCoderImpl):
+cdef class FlinkFieldCoderBeamWrapper(StreamCoderImpl):
+    """
+    Bridge between Beam coder and Flink coder for the low-level FieldCoder.
+    """
     def __cinit__(self, value_coder):
         self._value_coder = value_coder
         self._data_out_stream = OutputStream()
@@ -59,9 +63,11 @@ cdef class PassThroughPrefixCoderImpl(StreamCoderImpl):
         # create InputStream
         data_input_stream = InputStream()
         data_input_stream._input_data = <char*?>in_stream.allc
-        in_stream.pos = size
+        data_input_stream._input_pos = in_stream.pos
 
-        return self._value_coder.decode_from_stream(data_input_stream, size)
+        result = self._value_coder.decode_from_stream(data_input_stream, size)
+        in_stream.pos = data_input_stream._input_pos
+        return result
 
     cdef void _write_data_output_stream(self, BOutputStream out_stream):
         cdef OutputStream data_out_stream
@@ -82,21 +88,18 @@ cdef class PassThroughPrefixCoderImpl(StreamCoderImpl):
         self._data_out_stream.pos = 0
 
 
-
-cdef class BeamCoderImpl(StreamCoderImpl):
+cdef class FlinkLengthPrefixCoderBeamWrapper(StreamCoderImpl):
+    """
+    Bridge between Beam coder and Flink coder for the top-level LengthPrefixCoder.
+    """
     def __cinit__(self, value_coder):
         self._value_coder = value_coder
+        self._output_stream = BeamTimeBasedOutputStream()
 
     cpdef encode_to_stream(self, value, BOutputStream out_stream, bint nested):
-        self._value_coder.encode_to_stream(value, out_stream)
+        self._output_stream.reset_output_stream(out_stream)
+        self._value_coder.encode_to_stream(value, self._output_stream)
 
     cpdef decode_from_stream(self, BInputStream in_stream, bint nested):
         cdef BeamInputStream input_stream = BeamInputStream(in_stream, in_stream.size())
-        cdef InputStreamWrapper input_stream_wrapper = InputStreamWrapper(self._value_coder,
-                                                                          input_stream)
-        return input_stream_wrapper
-
-cdef class InputStreamWrapper:
-    def __cinit__(self, value_coder, input_stream):
-        self._value_coder = value_coder
-        self._input_stream = input_stream
+        return self._value_coder.decode_from_stream(input_stream)

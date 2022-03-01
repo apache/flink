@@ -60,16 +60,16 @@ public abstract class SubpartitionTestBase extends TestLogger {
 
         try {
             subpartition.finish();
-            assertEquals(1, subpartition.getTotalNumberOfBuffers());
-            assertEquals(0, subpartition.getBuffersInBacklog());
+            assertEquals(1, subpartition.getTotalNumberOfBuffersUnsafe());
+            assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
 
             BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(4096);
 
-            assertFalse(subpartition.add(bufferConsumer));
+            assertEquals(-1, subpartition.add(bufferConsumer));
             assertTrue(bufferConsumer.isRecycled());
 
-            assertEquals(1, subpartition.getTotalNumberOfBuffers());
-            assertEquals(0, subpartition.getBuffersInBacklog());
+            assertEquals(1, subpartition.getTotalNumberOfBuffersUnsafe());
+            assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
         } finally {
             if (subpartition != null) {
                 subpartition.release();
@@ -86,7 +86,7 @@ public abstract class SubpartitionTestBase extends TestLogger {
 
             BufferConsumer bufferConsumer = createFilledFinishedBufferConsumer(4096);
 
-            assertFalse(subpartition.add(bufferConsumer));
+            assertEquals(-1, subpartition.add(bufferConsumer));
             assertTrue(bufferConsumer.isRecycled());
 
         } finally {

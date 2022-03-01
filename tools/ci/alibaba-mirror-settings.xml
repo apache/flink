@@ -21,8 +21,14 @@ under the License.
     <mirror>
       <id>alicloud-mvn-mirror</id>
       <name>Alibaba Maven mirror</name>
-      <url>http://mavenmirror.alicloud.dak8s.net:8888/repository/maven-central/</url>
+      <url>http://172.17.0.1:8888/repository/maven-central/</url>
       <mirrorOf>central</mirrorOf>
+    </mirror>
+    <mirror>
+      <id>alicloud-mvn-confluent-mirror</id>
+      <name>Alibaba Confluent Maven mirror</name>
+      <url>http://172.17.0.1:8888/repository/confluent/</url>
+      <mirrorOf>confluent</mirrorOf>
     </mirror>
   </mirrors>
 </settings>

@@ -43,25 +43,29 @@ public class JobEdge implements java.io.Serializable {
     /** The channel rescaler that should be used for this job edge on upstream side. */
     private SubtaskStateMapper upstreamSubtaskStateMapper = SubtaskStateMapper.ROUND_ROBIN;
 
-    /** The data set at the source of the edge, may be null if the edge is not yet connected */
+    /** The data set at the source of the edge, may be null if the edge is not yet connected. */
     private IntermediateDataSet source;
 
-    /** The id of the source intermediate data set */
+    /** The id of the source intermediate data set. */
     private IntermediateDataSetID sourceId;
 
     /**
      * Optional name for the data shipping strategy (forward, partition hash, rebalance, ...), to be
-     * displayed in the JSON plan
+     * displayed in the JSON plan.
      */
     private String shipStrategyName;
 
+    private boolean isBroadcast;
+
+    private boolean isForward;
+
     /**
      * Optional name for the pre-processing operation (sort, combining sort, ...), to be displayed
-     * in the JSON plan
+     * in the JSON plan.
      */
     private String preProcessingOperationName;
 
-    /** Optional description of the caching inside an operator, to be displayed in the JSON plan */
+    /** Optional description of the caching inside an operator, to be displayed in the JSON plan. */
     private String operatorLevelCachingDescription;
 
     /**
@@ -145,23 +149,6 @@ public class JobEdge implements java.io.Serializable {
 
     // --------------------------------------------------------------------------------------------
 
-    public void connectDataSet(IntermediateDataSet dataSet) {
-        if (dataSet == null) {
-            throw new NullPointerException();
-        }
-        if (this.source != null) {
-            throw new IllegalStateException("The edge is already connected.");
-        }
-        if (!dataSet.getId().equals(sourceId)) {
-            throw new IllegalArgumentException(
-                    "The data set to connect does not match the sourceId.");
-        }
-
-        this.source = dataSet;
-    }
-
-    // --------------------------------------------------------------------------------------------
-
     /**
      * Gets the name of the ship strategy for the represented input, like "forward", "partition
      * hash", "rebalance", "broadcast", ...
@@ -179,6 +166,26 @@ public class JobEdge implements java.io.Serializable {
      */
     public void setShipStrategyName(String shipStrategyName) {
         this.shipStrategyName = shipStrategyName;
+    }
+
+    /** Gets whether the edge is broadcast edge. */
+    public boolean isBroadcast() {
+        return isBroadcast;
+    }
+
+    /** Sets whether the edge is broadcast edge. */
+    public void setBroadcast(boolean broadcast) {
+        isBroadcast = broadcast;
+    }
+
+    /** Gets whether the edge is forward edge. */
+    public boolean isForward() {
+        return isForward;
+    }
+
+    /** Sets whether the edge is forward edge. */
+    public void setForward(boolean forward) {
+        isForward = forward;
     }
 
     /**

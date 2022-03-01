@@ -27,6 +27,7 @@ import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
+import org.apache.flink.streaming.api.operators.Input;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.sort.SortingDataInput;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -41,10 +42,10 @@ import org.apache.flink.streaming.runtime.io.checkpointing.InputProcessorUtil;
 import org.apache.flink.streaming.runtime.metrics.WatermarkGauge;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StatusWatermarkValve;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.StatusWatermarkValve;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
-import org.apache.flink.shaded.curator4.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.curator5.com.google.common.collect.Iterables;
 
 import javax.annotation.Nullable;
 
@@ -143,9 +144,12 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
                 getEnvironment().getIOManager(),
                 getExecutionConfig().isObjectReuseEnabled(),
                 configuration.getManagedMemoryFractionOperatorUseCaseOfSlot(
-                        ManagedMemoryUseCase.OPERATOR, getTaskConfiguration(), userCodeClassLoader),
+                        ManagedMemoryUseCase.OPERATOR,
+                        getEnvironment().getTaskConfiguration(),
+                        userCodeClassLoader),
                 getJobConfiguration(),
-                this);
+                this,
+                getExecutionConfig());
     }
 
     @SuppressWarnings("unchecked")
@@ -175,7 +179,10 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
     }
 
     private DataOutput<IN> createDataOutput(Counter numRecordsIn) {
-        return new StreamTaskNetworkOutput<>(mainOperator, inputWatermarkGauge, numRecordsIn);
+        return new StreamTaskNetworkOutput<>(
+                operatorChain.getFinishedOnRestoreInputOrDefault(mainOperator),
+                inputWatermarkGauge,
+                numRecordsIn);
     }
 
     private StreamTaskInput<IN> createTaskInput(CheckpointedInputGate inputGate) {
@@ -206,15 +213,13 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
      */
     private static class StreamTaskNetworkOutput<IN> implements DataOutput<IN> {
 
-        private final OneInputStreamOperator<IN, ?> operator;
+        private final Input<IN> operator;
 
         private final WatermarkGauge watermarkGauge;
         private final Counter numRecordsIn;
 
         private StreamTaskNetworkOutput(
-                OneInputStreamOperator<IN, ?> operator,
-                WatermarkGauge watermarkGauge,
-                Counter numRecordsIn) {
+                Input<IN> operator, WatermarkGauge watermarkGauge, Counter numRecordsIn) {
 
             this.operator = checkNotNull(operator);
             this.watermarkGauge = checkNotNull(watermarkGauge);
@@ -224,7 +229,7 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         @Override
         public void emitRecord(StreamRecord<IN> record) throws Exception {
             numRecordsIn.inc();
-            operator.setKeyContextElement1(record);
+            operator.setKeyContextElement(record);
             operator.processElement(record);
         }
 
@@ -235,8 +240,8 @@ public class OneInputStreamTask<IN, OUT> extends StreamTask<OUT, OneInputStreamO
         }
 
         @Override
-        public void emitStreamStatus(StreamStatus streamStatus) throws Exception {
-            operator.processStreamStatus(streamStatus);
+        public void emitWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {
+            operator.processWatermarkStatus(watermarkStatus);
         }
 
         @Override

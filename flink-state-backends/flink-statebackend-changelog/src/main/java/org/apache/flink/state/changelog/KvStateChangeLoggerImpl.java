@@ -17,18 +17,21 @@
 
 package org.apache.flink.state.changelog;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.RegisteredStateMetaInfoBase;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.IOException;
+import java.io.ObjectOutputStream;
 import java.util.Collection;
 
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.MERGE_NS;
+import static org.apache.flink.state.changelog.StateChangeOperation.MERGE_NS;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 @NotThreadSafe
@@ -38,6 +41,8 @@ class KvStateChangeLoggerImpl<Key, Value, Ns> extends AbstractStateChangeLogger<
     private final TypeSerializer<Ns> namespaceSerializer;
     protected final TypeSerializer<Key> keySerializer;
     private final TypeSerializer<Value> valueSerializer;
+    private final StateTtlConfig ttlConfig;
+    @Nullable private final Value defaultValue;
 
     KvStateChangeLoggerImpl(
             TypeSerializer<Key> keySerializer,
@@ -45,11 +50,16 @@ class KvStateChangeLoggerImpl<Key, Value, Ns> extends AbstractStateChangeLogger<
             TypeSerializer<Value> valueSerializer,
             InternalKeyContext<Key> keyContext,
             StateChangelogWriter<?> stateChangelogWriter,
-            RegisteredStateMetaInfoBase metaInfo) {
-        super(stateChangelogWriter, keyContext, metaInfo);
+            RegisteredStateMetaInfoBase metaInfo,
+            StateTtlConfig ttlConfig,
+            @Nullable Value defaultValue,
+            short stateId) {
+        super(stateChangelogWriter, keyContext, metaInfo, stateId);
         this.keySerializer = checkNotNull(keySerializer);
         this.valueSerializer = checkNotNull(valueSerializer);
         this.namespaceSerializer = checkNotNull(namespaceSerializer);
+        this.ttlConfig = checkNotNull(ttlConfig);
+        this.defaultValue = defaultValue;
     }
 
     @Override
@@ -75,5 +85,18 @@ class KvStateChangeLoggerImpl<Key, Value, Ns> extends AbstractStateChangeLogger<
     protected void serializeScope(Ns ns, DataOutputViewStreamWrapper out) throws IOException {
         keySerializer.serialize(keyContext.getCurrentKey(), out);
         namespaceSerializer.serialize(ns, out);
+    }
+
+    protected void writeDefaultValueAndTtl(DataOutputViewStreamWrapper out) throws IOException {
+        out.writeBoolean(ttlConfig.isEnabled());
+        if (ttlConfig.isEnabled()) {
+            try (ObjectOutputStream o = new ObjectOutputStream(out)) {
+                o.writeObject(ttlConfig);
+            }
+        }
+        out.writeBoolean(defaultValue != null);
+        if (defaultValue != null) {
+            serializeValue(defaultValue, out);
+        }
     }
 }

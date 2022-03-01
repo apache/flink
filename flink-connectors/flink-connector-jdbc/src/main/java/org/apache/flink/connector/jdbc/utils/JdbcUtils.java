@@ -24,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 /** Utils for jdbc connectors. */
@@ -159,91 +158,6 @@ public class JdbcUtils {
                 enrichedException.setStackTrace(e.getStackTrace());
                 throw enrichedException;
             }
-        }
-    }
-
-    public static Object getFieldFromResultSet(int index, int type, ResultSet set)
-            throws SQLException {
-        Object ret;
-        switch (type) {
-            case java.sql.Types.NULL:
-                ret = null;
-                break;
-            case java.sql.Types.BOOLEAN:
-            case java.sql.Types.BIT:
-                ret = set.getBoolean(index + 1);
-                break;
-            case java.sql.Types.CHAR:
-            case java.sql.Types.NCHAR:
-            case java.sql.Types.VARCHAR:
-            case java.sql.Types.LONGVARCHAR:
-            case java.sql.Types.LONGNVARCHAR:
-                ret = set.getString(index + 1);
-                break;
-            case java.sql.Types.TINYINT:
-                ret = set.getByte(index + 1);
-                break;
-            case java.sql.Types.SMALLINT:
-                ret = set.getShort(index + 1);
-                break;
-            case java.sql.Types.INTEGER:
-                ret = set.getInt(index + 1);
-                break;
-            case java.sql.Types.BIGINT:
-                ret = set.getLong(index + 1);
-                break;
-            case java.sql.Types.REAL:
-                ret = set.getFloat(index + 1);
-                break;
-            case java.sql.Types.FLOAT:
-            case java.sql.Types.DOUBLE:
-                ret = set.getDouble(index + 1);
-                break;
-            case java.sql.Types.DECIMAL:
-            case java.sql.Types.NUMERIC:
-                ret = set.getBigDecimal(index + 1);
-                break;
-            case java.sql.Types.DATE:
-                ret = set.getDate(index + 1);
-                break;
-            case java.sql.Types.TIME:
-                ret = set.getTime(index + 1);
-                break;
-            case java.sql.Types.TIMESTAMP:
-                ret = set.getTimestamp(index + 1);
-                break;
-            case java.sql.Types.BINARY:
-            case java.sql.Types.VARBINARY:
-            case java.sql.Types.LONGVARBINARY:
-                ret = set.getBytes(index + 1);
-                break;
-            default:
-                ret = set.getObject(index + 1);
-                LOG.warn(
-                        "Unmanaged sql type ({}) for column {}. Best effort approach to get its value: {}.",
-                        type,
-                        index + 1,
-                        ret);
-                break;
-
-                // case java.sql.Types.SQLXML
-                // case java.sql.Types.ARRAY:
-                // case java.sql.Types.JAVA_OBJECT:
-                // case java.sql.Types.BLOB:
-                // case java.sql.Types.CLOB:
-                // case java.sql.Types.NCLOB:
-                // case java.sql.Types.DATALINK:
-                // case java.sql.Types.DISTINCT:
-                // case java.sql.Types.OTHER:
-                // case java.sql.Types.REF:
-                // case java.sql.Types.ROWID:
-                // case java.sql.Types.STRUC
-        }
-
-        if (set.wasNull()) {
-            return null;
-        } else {
-            return ret;
         }
     }
 

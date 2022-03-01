@@ -29,6 +29,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.Assert.assertEquals;
 
@@ -60,6 +61,16 @@ public class CatalogTableImpTest {
         assertEquals(tableFromProperties.getOptions(), table.getOptions());
         assertEquals(tableFromProperties.getPartitionKeys(), table.getPartitionKeys());
         assertEquals(tableFromProperties.getSchema(), table.getSchema());
+    }
+
+    @Test
+    public void testNullComment() {
+        TableSchema schema = createTableSchema();
+        Map<String, String> prop = createProperties();
+        CatalogTable table = new CatalogTableImpl(schema, createPartitionKeys(), prop, null);
+
+        assertEquals("", table.getComment());
+        assertEquals(Optional.of(""), table.getDescription());
     }
 
     private static Map<String, String> createProperties() {

@@ -54,6 +54,8 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
     /** Current checkpoint state size over all collected subtasks. */
     private volatile long currentStateSize;
 
+    private volatile long currentCheckpointedSize;
+
     private volatile long currentProcessedData;
 
     private volatile long currentPersistedData;
@@ -117,6 +119,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
                 0,
                 0,
                 0,
+                0,
                 null);
     }
 
@@ -128,6 +131,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
             int acknowledgedSubtaskCount,
             Map<JobVertexID, TaskStateStats> taskStats,
             CheckpointStatsTracker.PendingCheckpointStatsCallback trackerCallback,
+            long currentCheckpointedSize,
             long currentStateSize,
             long processedData,
             long persistedData,
@@ -135,6 +139,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
 
         super(checkpointId, triggerTimestamp, props, totalSubtaskCount, taskStats);
         this.trackerCallback = checkNotNull(trackerCallback);
+        this.currentCheckpointedSize = currentCheckpointedSize;
         this.currentStateSize = currentStateSize;
         this.currentProcessedData = processedData;
         this.currentPersistedData = persistedData;
@@ -155,6 +160,11 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
     @Override
     public long getStateSize() {
         return currentStateSize;
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        return currentCheckpointedSize;
     }
 
     @Override
@@ -192,6 +202,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
                 latestAcknowledgedSubtask = subtask;
             }
 
+            currentCheckpointedSize += subtask.getCheckpointedSize();
             currentStateSize += subtask.getStateSize();
 
             long processedData = subtask.getProcessedData();
@@ -224,6 +235,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
                         numberOfSubtasks,
                         new HashMap<>(taskStats),
                         currentNumAcknowledgedSubtasks,
+                        currentCheckpointedSize,
                         currentStateSize,
                         currentProcessedData,
                         currentPersistedData,
@@ -250,6 +262,7 @@ public class PendingCheckpointStats extends AbstractCheckpointStats {
                         numberOfSubtasks,
                         new HashMap<>(taskStats),
                         currentNumAcknowledgedSubtasks,
+                        currentCheckpointedSize,
                         currentStateSize,
                         currentProcessedData,
                         currentPersistedData,

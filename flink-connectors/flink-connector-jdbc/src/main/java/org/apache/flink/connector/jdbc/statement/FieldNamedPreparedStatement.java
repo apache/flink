@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.jdbc.statement;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.Date;
@@ -53,6 +55,7 @@ import java.sql.Timestamp;
  *   ResultSet rs = st.executeQuery();
  * </pre>
  */
+@PublicEvolving
 public interface FieldNamedPreparedStatement extends AutoCloseable {
 
     /**

@@ -1,0 +1,42 @@
+<table class="configuration table table-bordered">
+    <thead>
+        <tr>
+            <th class="text-left" style="width: 20%">Key</th>
+            <th class="text-left" style="width: 15%">Default</th>
+            <th class="text-left" style="width: 10%">Type</th>
+            <th class="text-left" style="width: 55%">Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><h5>pulsar.admin.adminUrl</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>The Pulsar service HTTP URL for the admin endpoint. For example, <code class="highlighter-rouge">http://my-broker.example.com:8080</code>, or <code class="highlighter-rouge">https://my-broker.example.com:8443</code> for TLS.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.admin.autoCertRefreshTime</h5></td>
+            <td style="word-wrap: break-word;">300000</td>
+            <td>Integer</td>
+            <td>The auto cert refresh time (in ms) if Pulsar admin supports TLS authentication.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.admin.connectTimeout</h5></td>
+            <td style="word-wrap: break-word;">60000</td>
+            <td>Integer</td>
+            <td>The connection time out (in ms) for the PulsarAdmin client.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.admin.readTimeout</h5></td>
+            <td style="word-wrap: break-word;">60000</td>
+            <td>Integer</td>
+            <td>The server response read timeout (in ms) for the PulsarAdmin client for any request.</td>
+        </tr>
+        <tr>
+            <td><h5>pulsar.admin.requestTimeout</h5></td>
+            <td style="word-wrap: break-word;">300000</td>
+            <td>Integer</td>
+            <td>The server request timeout (in ms) for the PulsarAdmin client for any request.</td>
+        </tr>
+    </tbody>
+</table>

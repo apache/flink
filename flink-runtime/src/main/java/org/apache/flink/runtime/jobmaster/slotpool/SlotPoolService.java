@@ -60,7 +60,7 @@ public interface SlotPoolService extends AutoCloseable {
      * @param jobMasterId jobMasterId to start the service with
      * @param address address of the owner
      * @param mainThreadExecutor mainThreadExecutor to run actions in the main thread
-     * @throws Exception if the the service cannot be started
+     * @throws Exception if the service cannot be started
      */
     void start(
             JobMasterId jobMasterId, String address, ComponentMainThreadExecutor mainThreadExecutor)

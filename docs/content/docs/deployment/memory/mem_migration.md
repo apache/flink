@@ -30,7 +30,7 @@ under the License.
 The memory setup has changed a lot with the *1.10* release for [TaskManagers]({{< ref "docs/deployment/memory/mem_setup_tm" >}}) and with the *1.11*
 release for [JobManagers]({{< ref "docs/deployment/memory/mem_setup_jobmanager" >}}). Many configuration options were removed or their semantics changed.
 This guide will help you to migrate the TaskManager memory configuration from Flink
-[<= *1.9*](https://ci.apache.org/projects/flink/flink-docs-release-1.9/ops/mem_setup.html) to >= *1.10* and
+[<= *1.9*](https://nightlies.apache.org/flink/flink-docs-release-1.9/ops/mem_setup.html) to >= *1.10* and
 the JobManager memory configuration from Flink <= *1.10* to >= *1.11*.
 
 {{< hint warning >}}
@@ -147,12 +147,10 @@ have no effect anymore for TaskManagers. See also [how to migrate container cut-
 The previous options which were responsible for the total memory used by Flink are `taskmanager.heap.size` or `taskmanager.heap.mb`.
 Despite their naming, they included not only JVM Heap but also other off-heap memory components. The options have been deprecated.
 
-The Mesos integration also had a separate option with the same semantics: `mesos.resourcemanager.tasks.mem` which has also been removed.
-
 If you use the mentioned legacy options without specifying the corresponding new options,
 they will be directly translated into the following new options:
 * Total Flink memory ([`taskmanager.memory.flink.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-flink-size)) for standalone deployments
-* Total process memory ([`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size)) for containerized deployments (Yarn or Mesos)
+* Total process memory ([`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size)) for containerized deployments (Yarn)
 
 It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
 
@@ -190,8 +188,7 @@ It is recommended to use the new option because the legacy one can be removed in
 #### Fraction
 
 If not set explicitly, the managed memory could be previously specified as a fraction (`taskmanager.memory.fraction`)
-of the total memory minus network memory and container cut-off (only for [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) and
-[Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}}) deployments). This option has been completely removed and will have no effect if still used.
+of the total memory minus network memory and container cut-off (only for [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) deployments). This option has been completely removed and will have no effect if still used.
 Please, use the new option [`taskmanager.memory.managed.fraction`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-managed-fraction) instead.
 This new option will set the [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) to the specified fraction of the
 [total Flink memory]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory) if its size is not set explicitly by
@@ -202,7 +199,7 @@ This new option will set the [managed memory]({{< ref "docs/deployment/memory/me
 If the [RocksDBStateBackend]({{< ref "docs/ops/state/state_backends" >}}#the-rocksdbstatebackend) is chosen for a streaming job,
 its native memory consumption should now be accounted for in [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory).
 The RocksDB memory allocation is limited by the [managed memory]({{< ref "docs/deployment/memory/mem_setup_tm" >}}#managed-memory) size.
-This should prevent the killing of containers on [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) and [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}}).
+This should prevent the killing of containers on [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}).
 You can disable the RocksDB memory control by setting [state.backend.rocksdb.memory.managed]({{< ref "docs/deployment/config" >}}#state-backend-rocksdb-memory-managed)
 to `false`. See also [how to migrate container cut-off](#container-cut-off-memory).
 
@@ -224,13 +221,9 @@ For the containerized deployments ([Kubernetes]({{< ref "docs/deployment/resourc
 they also included other off-heap memory consumption. The size of *JVM Heap* was additionally reduced by the container
 cut-off which has been completely removed after *1.11*.
 
-The [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}}) integration did not take into account the mentioned legacy memory options.
-The scripts provided in Flink to start the Mesos JobManager process did not set any memory JVM arguments. After the *1.11* release,
-they are set the same way as it is done by the [standalone deployment]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) scripts.
-
 The mentioned legacy options have been deprecated. If they are used without specifying the corresponding new options,
 they will be directly translated into the following new options:
-* JVM Heap ([`jobmanager.memory.heap.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-heap-size)) for [standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) and [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}}) deployments
+* JVM Heap ([`jobmanager.memory.heap.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-heap-size)) for [standalone]({{< ref "docs/deployment/resource-providers/standalone/overview" >}}) deployments
 * Total process memory ([`jobmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size)) for containerized deployments ([Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}) and [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}))
 
 It is also recommended using these new options instead of the legacy ones as they might be completely removed in the following releases.
@@ -293,6 +286,6 @@ in the default `flink-conf.yaml`. The value increased from 1024Mb to 1600Mb.
 
 See also [how to configure total memory now]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory).
 
-<div class="alert alert-warning">
-  <strong>Warning:</strong> If you use the new default `flink-conf.yaml` it can result in different sizes of memory components and can lead to performance changes.
-</div>
+{{< hint warning >}}
+**Warning:** If you use the new default `flink-conf.yaml` it can result in different sizes of memory components and can lead to performance changes.
+{{< /hint >}}

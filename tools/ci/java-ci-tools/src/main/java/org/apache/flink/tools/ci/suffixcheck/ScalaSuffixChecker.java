@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -51,6 +52,16 @@ public class ScalaSuffixChecker {
 
     // [INFO] +- org.scala-lang:scala-reflect:jar:2.11.12:test
     private static final Pattern scalaSuffixPattern = Pattern.compile("_2.1[0-9]");
+
+    private static final Set<String> EXCLUDED_MODULES =
+            new HashSet<>(
+                    Arrays.asList(
+                            // we ignore flink-rpc-akka because it is loaded through a separate
+                            // class loader
+                            "flink-rpc-akka",
+                            // we ignore flink-table-planner-loader because it loads the planner
+                            // through a different classpath
+                            "flink-table-planner-loader"));
 
     public static void main(String[] args) throws IOException {
         if (args.length < 2) {
@@ -93,6 +104,9 @@ public class ScalaSuffixChecker {
                 final Matcher matcher = moduleNamePattern.matcher(line);
                 if (matcher.matches()) {
                     final String moduleName = stripScalaSuffix(matcher.group(1));
+                    if (isExcluded(moduleName)) {
+                        continue;
+                    }
                     LOG.trace("Parsing module '{}'.", moduleName);
 
                     // skip: [INFO] org.apache.flink:flink-annotations:jar:1.14-SNAPSHOT
@@ -103,10 +117,14 @@ public class ScalaSuffixChecker {
                     while (blockPattern.matcher(line).matches()) {
                         final boolean dependsOnScala = dependsOnScala(line);
                         final boolean isTestDependency = line.endsWith(":test");
+                        // we ignored flink-rpc-akka because it is loaded through a separate class
+                        // loader
+                        final boolean isExcluded = isExcluded(line);
                         LOG.trace("\tline:{}", line);
                         LOG.trace("\t\tdepends-on-scala:{}", dependsOnScala);
                         LOG.trace("\t\tis-test-dependency:{}", isTestDependency);
-                        if (dependsOnScala && !isTestDependency) {
+                        LOG.trace("\t\tis-excluded:{}", isExcluded);
+                        if (dependsOnScala && !isTestDependency && !isExcluded) {
                             LOG.trace("\t\tOutbreak detected at {}!", moduleName);
                             infected = true;
                         }
@@ -146,8 +164,6 @@ public class ScalaSuffixChecker {
         final Collection<String> excludedModules = new ArrayList<>();
         excludedModules.add("flink-docs");
         excludedModules.addAll(getEndToEndTestModules(flinkRootPath));
-        // temporary; see FLINK-23001
-        excludedModules.add("flink-avro-glue-schema-registry");
 
         for (String excludedModule : excludedModules) {
             parseResult.getCleanModules().remove(excludedModule);
@@ -231,6 +247,10 @@ public class ScalaSuffixChecker {
             }
         }
         return violations;
+    }
+
+    private static boolean isExcluded(String line) {
+        return EXCLUDED_MODULES.stream().anyMatch(line::contains);
     }
 
     private static class ParseResult {

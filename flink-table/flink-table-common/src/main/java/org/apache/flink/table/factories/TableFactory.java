@@ -33,8 +33,9 @@ import java.util.Map;
  * "META_INF/services/org.apache.flink.table.factories.TableFactory" file of a JAR file in the
  * current classpath to be found.
  *
- * @see TableFormatFactory
+ * @deprecated This interface has been replaced by {@link Factory}.
  */
+@Deprecated
 @PublicEvolving
 public interface TableFactory {
 

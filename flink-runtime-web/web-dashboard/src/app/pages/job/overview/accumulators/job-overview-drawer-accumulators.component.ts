@@ -16,10 +16,11 @@
  * limitations under the License.
  */
 
-import { Component, OnDestroy, OnInit, ChangeDetectionStrategy, ChangeDetectorRef } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
-import { flatMap, takeUntil } from 'rxjs/operators';
-import { SubTaskAccumulatorsInterface, UserAccumulatorsInterface } from 'interfaces';
+import { mergeMap, takeUntil } from 'rxjs/operators';
+
+import { SubTaskAccumulators, UserAccumulators } from 'interfaces';
 import { JobService } from 'services';
 
 @Component({
@@ -29,31 +30,27 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy {
-  destroy$ = new Subject();
-  listOfAccumulator: UserAccumulatorsInterface[] = [];
-  listOfSubTaskAccumulator: SubTaskAccumulatorsInterface[] = [];
-  isLoading = true;
+  public readonly trackByName = (_: number, node: SubTaskAccumulators): string => node.name;
 
-  trackAccumulatorBy(_: number, node: SubTaskAccumulatorsInterface) {
-    return node.name;
-  }
-  trackSubtaskBy(_: number, node: SubTaskAccumulatorsInterface) {
-    return node.subtask;
-  }
+  public listOfAccumulator: UserAccumulators[] = [];
+  public listOfSubTaskAccumulator: SubTaskAccumulators[] = [];
+  public isLoading = true;
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
+  private readonly destroy$ = new Subject<void>();
 
-  ngOnInit() {
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
+
+  public ngOnInit(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
-        flatMap(data => this.jobService.loadAccumulators(data.job.jid, data.vertex!.id))
+        mergeMap(data => this.jobService.loadAccumulators(data.job.jid, data.vertex!.id))
       )
       .subscribe(
         data => {
           this.isLoading = false;
           this.listOfAccumulator = data.main;
-          this.listOfSubTaskAccumulator = data.subtasks || [];
+          this.listOfSubTaskAccumulator = this.transformToSubTaskAccumulator(data.subtasks) || [];
           this.cdr.markForCheck();
         },
         () => {
@@ -63,8 +60,24 @@ export class JobOverviewDrawerAccumulatorsComponent implements OnInit, OnDestroy
       );
   }
 
-  ngOnDestroy() {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  public transformToSubTaskAccumulator(list: SubTaskAccumulators[]): SubTaskAccumulators[] {
+    const transformed: SubTaskAccumulators[] = [];
+    list.forEach(accumulator => {
+      // @ts-ignore
+      accumulator['user-accumulators'].forEach(userAccumulator => {
+        transformed.push({
+          ...accumulator,
+          name: userAccumulator.name,
+          type: userAccumulator.type,
+          value: userAccumulator.value
+        });
+      });
+    });
+    return transformed;
   }
 }

@@ -159,13 +159,13 @@ public class PythonDependencyUtilsTest {
                 "python_archive_4cc74e4003de886434723f351771df2a84f72531c52085acc0915e19d70df2ba",
                 "hdfs:///tmp_dir/file1.zip");
         expectedCachedFiles.put(
-                "python_archive_b9ceeb8434d3335ec0ba298bbd52768bf5e4d136df3e157500fe4f413a1f416c",
+                "python_archive_f8a1c874251230f21094880d9dd878ffb5714454b69184d8ad268a6563269f0c",
                 "tmp_dir/py37.zip");
         expectedCachedFiles.put(
                 "python_archive_5f3fca2a4165c7d9c94b00bfab956c15f14c41e9e03f6037c83eb61157fce09c",
                 "tmp_dir/py37.zip");
         expectedCachedFiles.put(
-                "python_archive_44532e54ce38086fcc235a2af12479a7305820f7f39767f0215c454df54024dd",
+                "python_archive_c7d970ce1c5794367974ce8ef536c2343bed8fcfe7c2422c51548e58007eee6a",
                 "tmp_dir/py37.zip");
         verifyCachedFiles(expectedCachedFiles);
 
@@ -184,13 +184,13 @@ public class PythonDependencyUtilsTest {
         expectedConfiguration
                 .get(PYTHON_ARCHIVES)
                 .put(
-                        "python_archive_b9ceeb8434d3335ec0ba298bbd52768bf5e4d136df3e157500fe4f413a1f416c",
-                        "venv");
+                        "python_archive_f8a1c874251230f21094880d9dd878ffb5714454b69184d8ad268a6563269f0c",
+                        "py37.zip#venv2");
         expectedConfiguration
                 .get(PYTHON_ARCHIVES)
                 .put(
-                        "python_archive_44532e54ce38086fcc235a2af12479a7305820f7f39767f0215c454df54024dd",
-                        "venv2");
+                        "python_archive_c7d970ce1c5794367974ce8ef536c2343bed8fcfe7c2422c51548e58007eee6a",
+                        "py37.zip#venv");
         verifyConfiguration(expectedConfiguration, actual);
     }
 

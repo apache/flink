@@ -41,6 +41,8 @@ public class FileSourceSplitSerializerTest {
                         new Path("hdfs://namenode:14565/some/path/to/a/file"),
                         100_000_000,
                         64_000_000,
+                        System.currentTimeMillis(),
+                        200_000_000,
                         "host1",
                         "host2",
                         "host3");
@@ -53,7 +55,13 @@ public class FileSourceSplitSerializerTest {
     @Test
     public void serializeSplitWithoutHosts() throws Exception {
         final FileSourceSplit split =
-                new FileSourceSplit("some-id", new Path("file:/some/path/to/a/file"), 0, 0);
+                new FileSourceSplit(
+                        "some-id",
+                        new Path("file:/some/path/to/a/file"),
+                        0,
+                        0,
+                        System.currentTimeMillis(),
+                        200_000_000);
 
         final FileSourceSplit deSerialized = serializeAndDeserialize(split);
 
@@ -68,6 +76,8 @@ public class FileSourceSplitSerializerTest {
                         new Path("hdfs://namenode:14565/some/path/to/a/file"),
                         100_000_000,
                         64_000_000,
+                        System.currentTimeMillis(),
+                        200_000_000,
                         new String[] {"host1", "host2", "host3"},
                         new CheckpointedPosition(7665391L, 100L));
 
@@ -80,7 +90,12 @@ public class FileSourceSplitSerializerTest {
     public void repeatedSerialization() throws Exception {
         final FileSourceSplit split =
                 new FileSourceSplit(
-                        "an-id", new Path("s3://some-bucket/key/to/the/object"), 0, 1234567);
+                        "an-id",
+                        new Path("s3://some-bucket/key/to/the/object"),
+                        0,
+                        1234567,
+                        System.currentTimeMillis(),
+                        200_000_000);
 
         serializeAndDeserialize(split);
         serializeAndDeserialize(split);
@@ -97,6 +112,8 @@ public class FileSourceSplitSerializerTest {
                         new Path("hdfs://namenode:14565/some/path/to/a/file"),
                         100_000_000,
                         64_000_000,
+                        System.currentTimeMillis(),
+                        200_000_000,
                         "host1",
                         "host2",
                         "host3");

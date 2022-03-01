@@ -49,7 +49,11 @@ import java.io.File;
  * the Task notifyNonEmpty from this queue. Use {@link #waitForInputProcessing()} to wait until all
  * queues are empty. This must be used after entering some elements before checking the desired
  * output.
+ *
+ * @deprecated Please use {@link StreamTaskMailboxTestHarness} and {@link
+ *     StreamTaskMailboxTestHarnessBuilder}. Do not add new code using this test harness.
  */
+@Deprecated
 public class OneInputStreamTaskTestHarness<IN, OUT> extends StreamTaskTestHarness<OUT> {
 
     private TypeInformation<IN> inputType;

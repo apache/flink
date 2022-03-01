@@ -19,7 +19,7 @@ import abc
 from enum import Enum
 from typing import Dict, List, Union
 
-from pyflink.common import typeinfo, Duration
+from pyflink.common import typeinfo, Duration, ConfigOption, ExecutionConfig
 from pyflink.common.serialization import DeserializationSchema, Encoder, SerializationSchema
 from pyflink.common.typeinfo import RowTypeInfo, TypeInformation
 from pyflink.datastream.functions import SourceFunction, SinkFunction, JavaFunctionWrapper
@@ -41,11 +41,20 @@ __all__ = [
     'JdbcExecutionOptions',
     'NumberSequenceSource',
     'OutputFileConfig',
+    'PulsarDeserializationSchema',
+    'PulsarSource',
+    'PulsarSourceBuilder',
+    'RMQConnectionConfig',
+    'RMQSource',
+    'RMQSink',
     'RollingPolicy',
     'Sink',
     'Source',
+    'StartCursor',
+    'StopCursor',
     'StreamFormat',
-    'StreamingFileSink']
+    'StreamingFileSink',
+    'SubscriptionType']
 
 
 class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
@@ -151,12 +160,12 @@ class FlinkKafkaConsumerBase(SourceFunction, abc.ABC):
 class FlinkKafkaConsumer(FlinkKafkaConsumerBase):
     """
     The Flink Kafka Consumer is a streaming data source that pulls a parallel data stream from
-    Apache Kafka 0.10.x. The consumer can run in multiple parallel instances, each of which will
+    Apache Kafka. The consumer can run in multiple parallel instances, each of which will
     pull data from one or more Kafka partitions.
 
     The Flink Kafka Consumer participates in checkpointing and guarantees that no data is lost
-    during a failure, and taht the computation processes elements 'exactly once. (These guarantees
-    naturally assume that Kafka itself does not loose any data.)
+    during a failure, and that the computation processes elements 'exactly once. (These guarantees
+    naturally assume that Kafka itself does not lose any data.)
 
     Please note that Flink snapshots the offsets internally as part of its distributed checkpoints.
     The offsets committed to Kafka / Zookeeper are only to bring the outside view of progress in
@@ -276,8 +285,8 @@ class Semantic(Enum):
 
 class FlinkKafkaProducer(FlinkKafkaProducerBase):
     """
-    Flink Sink to produce data into a Kafka topic. This producer is compatible with Kafka 0.11.x. By
-    default producer will use AT_LEAST_ONCE sematic. Before using EXACTLY_ONCE please refer to
+    Flink Sink to produce data into a Kafka topic. By
+    default producer will use AT_LEAST_ONCE semantic. Before using EXACTLY_ONCE please refer to
     Flink's Kafka connector documentation.
     """
 
@@ -365,7 +374,7 @@ class JdbcSink(SinkFunction):
                              .typeInformationToSqlType(field_type.get_java_type_info()))
         j_sql_type = to_jarray(gateway.jvm.int, sql_types)
         output_format_clz = gateway.jvm.Class\
-            .forName('org.apache.flink.connector.jdbc.internal.JdbcBatchingOutputFormat', False,
+            .forName('org.apache.flink.connector.jdbc.internal.JdbcOutputFormat', False,
                      get_gateway().jvm.Thread.currentThread().getContextClassLoader())
         j_int_array_type = to_jarray(gateway.jvm.int, []).getClass()
         j_builder_method = output_format_clz.getDeclaredMethod('createRowJdbcStatementBuilder',
@@ -757,7 +766,7 @@ class StreamFormat(object):
         :param charset_name: The charset to decode the byte stream.
         """
         j_stream_format = get_gateway().jvm.org.apache.flink.connector.file.src.reader. \
-            TextLineFormat(charset_name)
+            TextLineInputFormat(charset_name)
         return StreamFormat(j_stream_format)
 
 
@@ -1074,3 +1083,543 @@ class FileSink(Sink):
 
         return FileSink.RowFormatBuilder(
             JFileSink.forRowFormat(JPath(base_path), encoder._j_encoder))
+
+
+class PulsarDeserializationSchema(object):
+    """
+    A schema bridge for deserializing the pulsar's Message into a flink managed instance. We
+    support both the pulsar's self managed schema and flink managed schema.
+    """
+
+    def __init__(self, _j_pulsar_deserialization_schema):
+        self._j_pulsar_deserialization_schema = _j_pulsar_deserialization_schema
+
+    @staticmethod
+    def flink_schema(deserialization_schema: DeserializationSchema) \
+            -> 'PulsarDeserializationSchema':
+        """
+        Create a PulsarDeserializationSchema by using the flink's DeserializationSchema. It would
+        consume the pulsar message as byte array and decode the message by using flink's logic.
+        """
+        JPulsarDeserializationSchema = get_gateway().jvm.org.apache.flink \
+            .connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema
+        _j_pulsar_deserialization_schema = JPulsarDeserializationSchema.flinkSchema(
+            deserialization_schema._j_deserialization_schema)
+        return PulsarDeserializationSchema(_j_pulsar_deserialization_schema)
+
+    @staticmethod
+    def flink_type_info(type_information: TypeInformation, execution_config: ExecutionConfig) \
+            -> 'PulsarDeserializationSchema':
+        """
+        Create a PulsarDeserializationSchema by using the given TypeInformation. This method is
+        only used for treating message that was written into pulsar by TypeInformation.
+        """
+        JPulsarDeserializationSchema = get_gateway().jvm.org.apache.flink \
+            .connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema
+        _j_execution_config = execution_config._j_execution_config \
+            if execution_config is not None else None
+        _j_pulsar_deserialization_schema = JPulsarDeserializationSchema.flinkTypeInfo(
+            type_information.get_java_type_info(), _j_execution_config)
+        return PulsarDeserializationSchema(_j_pulsar_deserialization_schema)
+
+
+class SubscriptionType(Enum):
+    """
+    Types of subscription supported by Pulsar.
+
+    :data: `Exclusive`:
+
+    There can be only 1 consumer on the same topic with the same subscription name.
+
+    :data: `Shared`:
+
+    Multiple consumer will be able to use the same subscription name and the messages will be
+    dispatched according to a round-robin rotation between the connected consumers. In this mode,
+    the consumption order is not guaranteed.
+
+    :data: `Failover`:
+
+    Multiple consumer will be able to use the same subscription name but only 1 consumer will
+    receive the messages. If that consumer disconnects, one of the other connected consumers will
+    start receiving messages. In failover mode, the consumption ordering is guaranteed. In case of
+    partitioned topics, the ordering is guaranteed on a per-partition basis. The partitions
+    assignments will be split across the available consumers. On each partition, at most one
+    consumer will be active at a given point in time.
+
+    :data: `Key_Shared`:
+
+    Multiple consumer will be able to use the same subscription and all messages with the same key
+    will be dispatched to only one consumer. Use ordering_key to overwrite the message key for
+    message ordering.
+    """
+
+    Exclusive = 0,
+    Shared = 1,
+    Failover = 2,
+    Key_Shared = 3
+
+    def _to_j_subscription_type(self):
+        JSubscriptionType = get_gateway().jvm.org.apache.pulsar.client.api.SubscriptionType
+        return getattr(JSubscriptionType, self.name)
+
+
+class StartCursor(object):
+    """
+    A factory class for users to specify the start position of a pulsar subscription.
+    Since it would be serialized into split.
+    The implementation for this interface should be well considered.
+    I don't recommend adding extra internal state for this implementation.
+
+    This class would be used only for SubscriptionType.Exclusive and SubscriptionType.Failover.
+    """
+
+    def __init__(self, _j_start_cursor):
+        self._j_start_cursor = _j_start_cursor
+
+    @staticmethod
+    def default_start_cursor() -> 'StartCursor':
+        return StartCursor.earliest()
+
+    @staticmethod
+    def earliest() -> 'StartCursor':
+        JStartCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor
+        return StartCursor(JStartCursor.earliest())
+
+    @staticmethod
+    def latest() -> 'StartCursor':
+        JStartCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor
+        return StartCursor(JStartCursor.latest())
+
+    @staticmethod
+    def from_message_time(timestamp: int) -> 'StartCursor':
+        JStartCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StartCursor
+        return StartCursor(JStartCursor.fromMessageTime(timestamp))
+
+
+class StopCursor(object):
+    """
+    A factory class for users to specify the stop position of a pulsar subscription. Since it would
+    be serialized into split. The implementation for this interface should be well considered. I
+    don't recommend adding extra internal state for this implementation.
+    """
+
+    def __init__(self, _j_stop_cursor):
+        self._j_stop_cursor = _j_stop_cursor
+
+    @staticmethod
+    def default_stop_cursor() -> 'StopCursor':
+        return StopCursor.never()
+
+    @staticmethod
+    def never() -> 'StopCursor':
+        JStopCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
+        return StopCursor(JStopCursor.never())
+
+    @staticmethod
+    def latest() -> 'StopCursor':
+        JStopCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
+        return StopCursor(JStopCursor.latest())
+
+    @staticmethod
+    def at_event_time(timestamp: int) -> 'StopCursor':
+        JStopCursor = get_gateway().jvm \
+            .org.apache.flink.connector.pulsar.source.enumerator.cursor.StopCursor
+        return StopCursor(JStopCursor.atEventTime(timestamp))
+
+
+class PulsarSource(Source):
+    """
+    The Source implementation of Pulsar. Please use a PulsarSourceBuilder to construct a
+    PulsarSource. The following example shows how to create a PulsarSource emitting records of
+    String type.
+
+    Example:
+    ::
+
+        >>> source = PulsarSource() \\
+        ...     .builder() \\
+        ...     .set_topics(TOPIC1, TOPIC2) \\
+        ...     .set_service_url(get_service_url()) \\
+        ...     .set_admin_url(get_admin_url()) \\
+        ...     .set_subscription_name("test") \\
+        ...     .set_deserialization_schema(
+        ...         PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_bounded_stop_cursor(StopCursor.default_stop_cursor()) \\
+        ...     .build()
+
+    See PulsarSourceBuilder for more details.
+    """
+
+    def __init__(self, j_pulsar_source):
+        super(PulsarSource, self).__init__(source=j_pulsar_source)
+
+    @staticmethod
+    def builder() -> 'PulsarSourceBuilder':
+        """
+        Get a PulsarSourceBuilder to builder a PulsarSource.
+        """
+        return PulsarSourceBuilder()
+
+
+class PulsarSourceBuilder(object):
+    """
+    The builder class for PulsarSource to make it easier for the users to construct a PulsarSource.
+
+    The following example shows the minimum setup to create a PulsarSource that reads the String
+    values from a Pulsar topic.
+
+    Example:
+    ::
+
+        >>> source = PulsarSource() \\
+        ...     .builder() \\
+        ...     .set_service_url(PULSAR_BROKER_URL) \\
+        ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
+        ...     .set_subscription_name("flink-source-1") \\
+        ...     .set_topics([TOPIC1, TOPIC2]) \\
+        ...     .set_deserialization_schema(
+        ...         PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .build()
+
+    The service url, admin url, subscription name, topics to consume, and the record deserializer
+    are required fields that must be set.
+
+    To specify the starting position of PulsarSource, one can call set_start_cursor(StartCursor).
+
+    By default the PulsarSource runs in an Boundedness.CONTINUOUS_UNBOUNDED mode and never stop
+    until the Flink job is canceled or fails. To let the PulsarSource run in
+    Boundedness.CONTINUOUS_UNBOUNDED but stops at some given offsets, one can call
+    set_unbounded_stop_cursor(StopCursor).
+
+    For example the following PulsarSource stops after it consumes up to a event time when the
+    Flink started.
+
+    Example:
+    ::
+
+        >>> source = PulsarSource() \\
+        ...     .builder() \\
+        ...     .set_service_url(PULSAR_BROKER_URL) \\
+        ...     .set_admin_url(PULSAR_BROKER_HTTP_URL) \\
+        ...     .set_subscription_name("flink-source-1") \\
+        ...     .set_topics([TOPIC1, TOPIC2]) \\
+        ...     .set_deserialization_schema(
+        ...         PulsarDeserializationSchema.flink_schema(SimpleStringSchema())) \\
+        ...     .set_bounded_stop_cursor(StopCursor.at_event_time(int(time.time() * 1000)))
+        ...     .build()
+    """
+
+    def __init__(self):
+        JPulsarSource = \
+            get_gateway().jvm.org.apache.flink.connector.pulsar.source.PulsarSource
+        self._j_pulsar_source_builder = JPulsarSource.builder()
+
+    def set_admin_url(self, admin_url: str) -> 'PulsarSourceBuilder':
+        """
+        Sets the admin endpoint for the PulsarAdmin of the PulsarSource.
+        """
+        self._j_pulsar_source_builder.setAdminUrl(admin_url)
+        return self
+
+    def set_service_url(self, service_url: str) -> 'PulsarSourceBuilder':
+        """
+        Sets the server's link for the PulsarConsumer of the PulsarSource.
+        """
+        self._j_pulsar_source_builder.setServiceUrl(service_url)
+        return self
+
+    def set_subscription_name(self, subscription_name: str) -> 'PulsarSourceBuilder':
+        """
+        Sets the name for this pulsar subscription.
+        """
+        self._j_pulsar_source_builder.setSubscriptionName(subscription_name)
+        return self
+
+    def set_subscription_type(self, subscription_type: SubscriptionType) -> 'PulsarSourceBuilder':
+        """
+        SubscriptionType is the consuming behavior for pulsar, we would generator different split
+        by the given subscription type. Please take some time to consider which subscription type
+        matches your application best. Default is SubscriptionType.Shared.
+        """
+        self._j_pulsar_source_builder.setSubscriptionType(
+            subscription_type._to_j_subscription_type())
+        return self
+
+    def set_topics(self, topics: Union[str, List[str]]) -> 'PulsarSourceBuilder':
+        """
+        Set a pulsar topic list for flink source. Some topic may not exist currently, consuming this
+        non-existed topic wouldn't throw any exception. But the best solution is just consuming by
+        using a topic regex. You can set topics once either with setTopics or setTopicPattern in
+        this builder.
+        """
+        if not isinstance(topics, list):
+            topics = [topics]
+        self._j_pulsar_source_builder.setTopics(topics)
+        return self
+
+    def set_topics_pattern(self, topics_pattern: str) -> 'PulsarSourceBuilder':
+        """
+        Set a topic pattern to consume from the java regex str. You can set topics once either with
+        setTopics or setTopicPattern in this builder.
+        """
+        self._j_pulsar_source_builder.setTopicPattern(topics_pattern)
+        return self
+
+    def set_start_cursor(self, start_cursor: StartCursor) -> 'PulsarSourceBuilder':
+        """
+        Specify from which offsets the PulsarSource should start consume from by providing an
+        StartCursor.
+        """
+        self._j_pulsar_source_builder.setStartCursor(start_cursor._j_start_cursor)
+        return self
+
+    def set_unbounded_stop_cursor(self, stop_cursor: StopCursor) -> 'PulsarSourceBuilder':
+        """
+        By default the PulsarSource is set to run in Boundedness.CONTINUOUS_UNBOUNDED manner and
+        thus never stops until the Flink job fails or is canceled. To let the PulsarSource run as a
+        streaming source but still stops at some point, one can set an StopCursor to specify the
+        stopping offsets for each partition. When all the partitions have reached their stopping
+        offsets, the PulsarSource will then exit.
+
+        This method is different from set_bounded_stop_cursor(StopCursor) that after setting the
+        stopping offsets with this method, PulsarSource.getBoundedness() will still return
+        Boundedness.CONTINUOUS_UNBOUNDED even though it will stop at the stopping offsets specified
+        by the stopping offsets StopCursor.
+        """
+        self._j_pulsar_source_builder.setUnboundedStopCursor(stop_cursor._j_stop_cursor)
+        return self
+
+    def set_bounded_stop_cursor(self, stop_cursor: StopCursor) -> 'PulsarSourceBuilder':
+        """
+        By default the PulsarSource is set to run in Boundedness.CONTINUOUS_UNBOUNDED manner and
+        thus never stops until the Flink job fails or is canceled. To let the PulsarSource run in
+        Boundedness.BOUNDED manner and stops at some point, one can set an StopCursor to specify
+        the stopping offsets for each partition. When all the partitions have reached their stopping
+        offsets, the PulsarSource will then exit.
+
+        This method is different from set_unbounded_stop_cursor(StopCursor) that after setting the
+        stopping offsets with this method, PulsarSource.getBoundedness() will return
+        Boundedness.BOUNDED instead of Boundedness.CONTINUOUS_UNBOUNDED.
+        """
+        self._j_pulsar_source_builder.setBoundedStopCursor(stop_cursor._j_stop_cursor)
+        return self
+
+    def set_deserialization_schema(self,
+                                   pulsar_deserialization_schema: PulsarDeserializationSchema) \
+            -> 'PulsarSourceBuilder':
+        """
+        DeserializationSchema is required for getting the Schema for deserialize message from
+        pulsar and getting the TypeInformation for message serialization in flink.
+
+        We have defined a set of implementations, using PulsarDeserializationSchema#flink_type_info
+        or PulsarDeserializationSchema#flink_schema for creating the desired schema.
+        """
+        self._j_pulsar_source_builder.setDeserializationSchema(
+            pulsar_deserialization_schema._j_pulsar_deserialization_schema)
+        return self
+
+    def set_config(self, key: ConfigOption, value) -> 'PulsarSourceBuilder':
+        """
+        Set arbitrary properties for the PulsarSource and PulsarConsumer. The valid keys can be
+        found in PulsarSourceOptions and PulsarOptions.
+
+        Make sure the option could be set only once or with same value.
+        """
+        self._j_pulsar_source_builder.setConfig(key._j_config_option, value)
+        return self
+
+    def set_config_with_dict(self, config: Dict) -> 'PulsarSourceBuilder':
+        """
+        Set arbitrary properties for the PulsarSource and PulsarConsumer. The valid keys can be
+        found in PulsarSourceOptions and PulsarOptions.
+        """
+        JConfiguration = get_gateway().jvm.org.apache.flink.configuration.Configuration
+        self._j_pulsar_source_builder.setConfig(JConfiguration.fromMap(config))
+        return self
+
+    def build(self) -> 'PulsarSource':
+        """
+        Build the PulsarSource.
+        """
+        return PulsarSource(self._j_pulsar_source_builder.build())
+
+
+class RMQConnectionConfig(object):
+    """
+    Connection Configuration for RMQ.
+    """
+
+    def __init__(self, j_rmq_connection_config):
+        self._j_rmq_connection_config = j_rmq_connection_config
+
+    def get_host(self) -> str:
+        return self._j_rmq_connection_config.getHost()
+
+    def get_port(self) -> int:
+        return self._j_rmq_connection_config.getPort()
+
+    def get_virtual_host(self) -> str:
+        return self._j_rmq_connection_config.getVirtualHost()
+
+    def get_user_name(self) -> str:
+        return self._j_rmq_connection_config.getUsername()
+
+    def get_password(self) -> str:
+        return self._j_rmq_connection_config.getPassword()
+
+    def get_uri(self) -> str:
+        return self._j_rmq_connection_config.getUri()
+
+    def get_network_recovery_interval(self) -> int:
+        return self._j_rmq_connection_config.getNetworkRecoveryInterval()
+
+    def is_automatic_recovery(self) -> bool:
+        return self._j_rmq_connection_config.isAutomaticRecovery()
+
+    def is_topology_recovery(self) -> bool:
+        return self._j_rmq_connection_config.isTopologyRecovery()
+
+    def get_connection_timeout(self) -> int:
+        return self._j_rmq_connection_config.getConnectionTimeout()
+
+    def get_requested_channel_max(self) -> int:
+        return self._j_rmq_connection_config.getRequestedChannelMax()
+
+    def get_requested_frame_max(self) -> int:
+        return self._j_rmq_connection_config.getRequestedFrameMax()
+
+    def get_requested_heartbeat(self) -> int:
+        return self._j_rmq_connection_config.getRequestedHeartbeat()
+
+    class Builder(object):
+        """
+        Builder for RMQConnectionConfig.
+        """
+
+        def __init__(self):
+            self._j_options_builder = get_gateway().jvm.org.apache.flink.streaming.connectors\
+                .rabbitmq.common.RMQConnectionConfig.Builder()
+
+        def set_port(self, port: int) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setPort(port)
+            return self
+
+        def set_host(self, host: str) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setHost(host)
+            return self
+
+        def set_virtual_host(self, vhost: str) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setVirtualHost(vhost)
+            return self
+
+        def set_user_name(self, user_name: str) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setUserName(user_name)
+            return self
+
+        def set_password(self, password: str) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setPassword(password)
+            return self
+
+        def set_uri(self, uri: str) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setUri(uri)
+            return self
+
+        def set_topology_recovery_enabled(
+                self, topology_recovery_enabled: bool) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setTopologyRecoveryEnabled(topology_recovery_enabled)
+            return self
+
+        def set_requested_heartbeat(
+                self, requested_heartbeat: int) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setRequestedHeartbeat(requested_heartbeat)
+            return self
+
+        def set_requested_frame_max(
+                self, requested_frame_max: int) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setRequestedFrameMax(requested_frame_max)
+            return self
+
+        def set_requested_channel_max(
+                self, requested_channel_max: int) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setRequestedChannelMax(requested_channel_max)
+            return self
+
+        def set_network_recovery_interval(
+                self, network_recovery_interval: int) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setNetworkRecoveryInterval(network_recovery_interval)
+            return self
+
+        def set_connection_timeout(self, connection_timeout: int) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setConnectionTimeout(connection_timeout)
+            return self
+
+        def set_automatic_recovery(self, automatic_recovery: bool) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setAutomaticRecovery(automatic_recovery)
+            return self
+
+        def set_prefetch_count(self, prefetch_count: int) -> 'RMQConnectionConfig.Builder':
+            self._j_options_builder.setPrefetchCount(prefetch_count)
+            return self
+
+        def build(self) -> 'RMQConnectionConfig':
+            return RMQConnectionConfig(self._j_options_builder.build())
+
+
+class RMQSource(SourceFunction):
+    def __init__(self,
+                 connection_config: 'RMQConnectionConfig',
+                 queue_name: str,
+                 use_correlation_id: bool,
+                 deserialization_schema: DeserializationSchema
+                 ):
+        """
+        Creates a new RabbitMQ source.
+
+        For exactly-once, you must set the correlation ids of messages at the producer.
+        The correlation id must be unique. Otherwise the behavior of the source is undefined.
+
+        If in doubt, set use_correlation_id to False.
+
+        When correlation ids are not used, this source has at-least-once processing semantics
+        when checkpointing is enabled.
+
+        :param connection_config: The RabbiMQ connection configuration.
+        :param queue_name: The queue to receive messages from.
+        :param use_correlation_id: Whether the messages received are supplied with a unique id
+                                   to deduplicate messages (in case of failed acknowledgments).
+                                   Only used when checkpointing is enabled.
+        :param deserialization_schema: A deserializer used to convert between RabbitMQ's
+                                       messages and Flink's objects.
+        """
+        JRMQSource = get_gateway().jvm.org.apache.flink.streaming.connectors.rabbitmq.RMQSource
+        j_rmq_source = JRMQSource(
+            connection_config._j_rmq_connection_config,
+            queue_name,
+            use_correlation_id,
+            deserialization_schema._j_deserialization_schema
+        )
+        super(RMQSource, self).__init__(source_func=j_rmq_source)
+
+
+class RMQSink(SinkFunction):
+    def __init__(self, connection_config: 'RMQConnectionConfig',
+                 queue_name: str, serialization_schema: SerializationSchema):
+        """
+        Creates a new RabbitMQ sink.
+
+        :param connection_config: The RabbiMQ connection configuration.
+        :param queue_name: The queue to publish messages to.
+        :param serialization_schema: A serializer used to convert Flink objects to bytes.
+        """
+        JRMQSink = get_gateway().jvm.org.apache.flink.streaming.connectors.rabbitmq.RMQSink
+        j_rmq_sink = JRMQSink(
+            connection_config._j_rmq_connection_config,
+            queue_name,
+            serialization_schema._j_serialization_schema,
+        )
+        super(RMQSink, self).__init__(sink_func=j_rmq_sink)

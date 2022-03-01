@@ -21,7 +21,7 @@ STAGE_COMPILE="compile"
 STAGE_CORE="core"
 STAGE_PYTHON="python"
 STAGE_LIBRARIES="libraries"
-STAGE_BLINK_PLANNER="blink_planner"
+STAGE_TABLE="table"
 STAGE_CONNECTORS="connectors"
 STAGE_KAFKA_GELLY="kafka/gelly"
 STAGE_TESTS="tests"
@@ -37,6 +37,9 @@ flink-clients,\
 flink-core,\
 flink-java,\
 flink-optimizer,\
+flink-rpc,\
+flink-rpc/flink-rpc-core,\
+flink-rpc/flink-rpc-akka,\
 flink-runtime,\
 flink-runtime-web,\
 flink-scala,\
@@ -50,26 +53,29 @@ flink-external-resources/flink-external-resource-gpu"
 MODULES_LIBRARIES="\
 flink-libraries/flink-cep,\
 flink-libraries/flink-cep-scala,\
-flink-libraries/flink-state-processing-api,\
+flink-libraries/flink-state-processing-api"
+
+MODULES_TABLE="\
 flink-table/flink-sql-parser,\
 flink-table/flink-sql-parser-hive,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\
+flink-table/flink-table-api-bridge-base,\
 flink-table/flink-table-api-java-bridge,\
 flink-table/flink-table-api-scala-bridge,\
-flink-table/flink-sql-client"
-
-MODULES_BLINK_PLANNER="\
-flink-table/flink-table-planner-blink,\
-flink-table/flink-table-runtime-blink"
+flink-table/flink-sql-client,\
+flink-table/flink-table-planner,\
+flink-table/flink-table-planner-loader,\
+flink-table/flink-table-runtime,\
+flink-table/flink-table-code-splitter,\
+flink-table/flink-table-test-utils"
 
 MODULES_CONNECTORS="\
 flink-contrib/flink-connector-wikiedits,\
 flink-filesystems,\
 flink-filesystems/flink-fs-hadoop-shaded,\
 flink-filesystems/flink-hadoop-fs,\
-flink-filesystems/flink-mapr-fs,\
 flink-filesystems/flink-oss-fs-hadoop,\
 flink-filesystems/flink-s3-fs-base,\
 flink-filesystems/flink-s3-fs-hadoop,\
@@ -90,9 +96,9 @@ flink-connectors/flink-connector-hbase-2.2,\
 flink-connectors/flink-hcatalog,\
 flink-connectors/flink-hadoop-compatibility,\
 flink-connectors,\
+flink-connectors/flink-connector-files,\
 flink-connectors/flink-connector-jdbc,\
 flink-connectors/flink-connector-cassandra,\
-flink-connectors/flink-connector-elasticsearch5,\
 flink-connectors/flink-connector-elasticsearch6,\
 flink-connectors/flink-connector-elasticsearch7,\
 flink-connectors/flink-sql-connector-elasticsearch6,\
@@ -100,8 +106,9 @@ flink-connectors/flink-sql-connector-elasticsearch7,\
 flink-connectors/flink-connector-elasticsearch-base,\
 flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
-flink-connectors/flink-connector-twitter,\
 flink-connectors/flink-connector-kinesis,\
+flink-connectors/flink-connector-aws-kinesis-data-streams,\
+flink-connectors/flink-connector-aws-kinesis-firehose,\
 flink-metrics/flink-metrics-dropwizard,\
 flink-metrics/flink-metrics-graphite,\
 flink-metrics/flink-metrics-jmx,\
@@ -121,16 +128,10 @@ flink-connectors/flink-connector-kafka,\
 flink-connectors/flink-sql-connector-kafka,"
 
 MODULES_TESTS="\
-flink-tests"
-
-MODULES_LEGACY_SLOT_MANAGEMENT=${MODULES_CORE},${MODULES_TESTS}
+flink-tests,\
+flink-architecture-tests"
 
 MODULES_FINEGRAINED_RESOURCE_MANAGEMENT=${MODULES_CORE},${MODULES_TESTS}
-
-# we can only build the Scala Shell when building for Scala 2.11
-if [[ $PROFILE == *"scala-2.11"* ]]; then
-    MODULES_CORE="$MODULES_CORE,flink-scala-shell"
-fi
 
 function get_compile_modules_for_stage() {
     local stage=$1
@@ -142,8 +143,8 @@ function get_compile_modules_for_stage() {
         (${STAGE_LIBRARIES})
             echo "-pl $MODULES_LIBRARIES -am"
         ;;
-        (${STAGE_BLINK_PLANNER})
-            echo "-pl $MODULES_BLINK_PLANNER -am"
+        (${STAGE_TABLE})
+            echo "-pl $MODULES_TABLE -am"
         ;;
         (${STAGE_CONNECTORS})
             echo "-pl $MODULES_CONNECTORS -am"
@@ -174,16 +175,17 @@ function get_test_modules_for_stage() {
 
     local modules_core=$MODULES_CORE
     local modules_libraries=$MODULES_LIBRARIES
-    local modules_blink_planner=$MODULES_BLINK_PLANNER
+    local modules_table=$MODULES_TABLE
+    local modules_kafka_gelly=$MODULES_KAFKA_GELLY
     local modules_connectors=$MODULES_CONNECTORS
     local modules_tests=$MODULES_TESTS
     local negated_core=\!${MODULES_CORE//,/,\!}
     local negated_libraries=\!${MODULES_LIBRARIES//,/,\!}
-    local negated_blink_planner=\!${MODULES_BLINK_PLANNER//,/,\!}
+    local negated_table=\!${MODULES_TABLE//,/,\!}
     local negated_kafka_gelly=\!${MODULES_KAFKA_GELLY//,/,\!}
     local negated_connectors=\!${MODULES_CONNECTORS//,/,\!}
     local negated_tests=\!${MODULES_TESTS//,/,\!}
-    local modules_misc="$negated_core,$negated_libraries,$negated_blink_planner,$negated_connectors,$negated_kafka_gelly,$negated_tests"
+    local modules_misc="$negated_core,$negated_libraries,$negated_table,$negated_connectors,$negated_kafka_gelly,$negated_tests"
     local modules_finegrained_resource_management=$MODULES_FINEGRAINED_RESOURCE_MANAGEMENT
 
     case ${stage} in
@@ -193,14 +195,14 @@ function get_test_modules_for_stage() {
         (${STAGE_LIBRARIES})
             echo "-pl $modules_libraries"
         ;;
-        (${STAGE_BLINK_PLANNER})
-            echo "-pl $modules_blink_planner"
+        (${STAGE_TABLE})
+            echo "-pl $modules_table"
         ;;
         (${STAGE_CONNECTORS})
             echo "-pl $modules_connectors"
         ;;
         (${STAGE_KAFKA_GELLY})
-            echo "-pl $MODULES_KAFKA_GELLY"
+            echo "-pl $modules_kafka_gelly"
         ;;
         (${STAGE_TESTS})
             echo "-pl $modules_tests"

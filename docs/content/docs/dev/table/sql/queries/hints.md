@@ -50,10 +50,6 @@ these options can be specified flexibly in per-table scope within each query.
 Thus it is very suitable to use for the ad-hoc queries in interactive terminal, for example, in the SQL-CLI,
 you can specify to ignore the parse error for a CSV source just by adding a dynamic option `/*+ OPTIONS('csv.ignore-parse-errors'='true') */`.
 
-<b>Note:</b> Dynamic table options default is forbidden to use because it may change the semantics of the query.
-You need to set the config option `table.dynamic-table-options.enabled` to be `true` explicitly (default is false),
-See the <a href="{{< ref "docs/dev/table/config" >}}">Configuration</a> for details on how to set up the config options.
-
 ### Syntax
 In order to not break the SQL compatibility, we use the Oracle style SQL hint syntax:
 ```sql

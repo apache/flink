@@ -4,152 +4,125 @@ Copyright 2014-2021 The Apache Software Foundation
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
 
-@angular/animations 7.2.10 : MIT License
-@angular/cdk 7.3.6 : MIT License
-@angular/common 7.2.10 : MIT License
-@angular/compiler 7.2.10 : MIT License
-@angular/core 7.2.10 : MIT License
-@angular/forms 7.2.10 : MIT License
-@angular/platform-browser 7.2.10 : MIT License
-@angular/platform-browser-dynamic 7.2.10 : MIT License
-@angular/router 7.2.10 : MIT License
-@ant-design/icons-angular 2.0.2 : MIT License
-@antv/adjust 0.1.1 : MIT License
-@antv/attr 0.1.2 : MIT License
-@antv/component 0.3.1 : MIT License
-@antv/coord 0.1.0 : MIT License
-@antv/g 3.3.6 : MIT License
-@antv/g2 3.4.10 : MIT License
-@antv/gl-matrix 2.7.1 : MIT License
-@antv/scale 0.1.2 : MIT License
-@antv/util 1.3.1 : ISC License
-align-text 0.1.4 : MIT License
-amdefine 1.0.1 : MIT License
-ansi-regex 2.1.1 : MIT License
-ant-design-palettes 1.1.3 : MIT License
-balanced-match 1.0.0 : MIT License
+@angular/animations 13.1.3 : MIT License
+@angular/cdk 13.1.3 : MIT License
+@angular/common 13.1.3 : MIT License
+@angular/compiler 13.1.3 : MIT License
+@angular/core 13.1.3 : MIT License
+@angular/forms 13.1.3 : MIT License
+@angular/platform-browser 13.1.3 : MIT License
+@angular/platform-browser-dynamic 13.1.3 : MIT License
+@angular/router 13.1.3 : MIT License
+@ant-design/icons-angular 13.0.2 : MIT License
+@antv/adjust 0.2.3 : MIT License
+@antv/attr 0.3.2 : MIT License
+@antv/component 0.8.20 : MIT License
+@antv/coord 0.3.1 : MIT License
+@antv/g2 4.1.34 : MIT License
+@antv/scale 0.3.14 : MIT License
+@antv/util 2.0.17 : ISC License
+ansi-regex 5.0.1 : MIT License
+balanced-match 1.0.2 : MIT License
 brace-expansion 1.1.11 : MIT License
-camelcase 1.2.1 : MIT License
-center-align 0.1.3 : MIT License
-Chalk 1.1.3 : MIT License
-cliui 2.1.0 : ISC License
-Commander.js 2.19.0 : MIT License
-contour_plot 0.0.1 : MIT License
-core-js v2.6.5 : MIT License
-cpettitt/graphlib 2.1.7 : MIT License
-d3-array 1.2.4 : BSD 3-clause "New" or "Revised" License
-d3-axis 1.0.12 : BSD 3-clause "New" or "Revised" License
-d3-brush 1.0.6 : BSD 3-clause "New" or "Revised" License
-d3-chord 1.0.6 : BSD 3-clause "New" or "Revised" License
+camelcase 5.3.1 : MIT License
+Chalk 2.4.2 : MIT License
+cliui 7.0.4 : ISC License
+Commander.js 7.2.0 : MIT License
+core-js v3.19.1 : MIT License
+cpettitt/graphlib 2.1.8 : MIT License
+d3-array 3.1.1 : BSD 3-clause "New" or "Revised" License
+d3-axis 3.0.0 : BSD 3-clause "New" or "Revised" License
+d3-brush 3.0.0 : BSD 3-clause "New" or "Revised" License
+d3-chord 3.0.1 : BSD 3-clause "New" or "Revised" License
 d3-collection 1.0.7 : BSD 3-clause "New" or "Revised" License
-d3-color 1.2.3 : BSD 3-clause "New" or "Revised" License
-d3-contour 1.3.2 : BSD 3-clause "New" or "Revised" License
-d3-dispatch 1.0.5 : BSD 3-clause "New" or "Revised" License
-d3-drag 1.2.3 : BSD 3-clause "New" or "Revised" License
-d3-dsv 1.1.1 : BSD 3-clause "New" or "Revised" License
-d3-ease 1.0.5 : BSD 3-clause "New" or "Revised" License
-d3-fetch 1.1.2 : BSD 3-clause "New" or "Revised" License
-d3-force 1.2.1 : BSD 3-clause "New" or "Revised" License
-d3-format 1.3.2 : BSD 3-clause "New" or "Revised" License
-d3-geo 1.11.3 : BSD 3-clause "New" or "Revised" License
-d3-hierarchy 1.1.8 : BSD 3-clause "New" or "Revised" License
-d3-interpolate v1.1.6 : BSD 3-clause "New" or "Revised" License
-d3-path 1.0.7 : BSD 3-clause "New" or "Revised" License
-d3-polygon v1.0.5 : BSD 3-clause "New" or "Revised" License
-d3-quadtree 1.0.6 : BSD 3-clause "New" or "Revised" License
-d3-random 1.1.2 : BSD 3-clause "New" or "Revised" License
-d3-scale 2.2.2 : BSD 3-clause "New" or "Revised" License
-d3-scale-chromatic 1.3.3 : BSD 3-clause "New" or "Revised" License
-d3-selection v1.4.0 : BSD 3-clause "New" or "Revised" License
-d3-shape v1.3.5 : BSD 3-clause "New" or "Revised" License
-d3-time 1.0.11 : BSD 3-clause "New" or "Revised" License
-d3-time-format 2.1.3 : BSD 3-clause "New" or "Revised" License
-d3-timer v1.0.9 : BSD 3-clause "New" or "Revised" License
-d3-transition v1.2.0 : BSD 3-clause "New" or "Revised" License
-d3-voronoi v1.1.4 : (BSD 3-clause "New" or "Revised" License AND MIT License)
-d3-zoom 1.7.3 : BSD 3-clause "New" or "Revised" License
-D3.js 5.9.2 : BSD 3-clause "New" or "Revised" License
-dagre 0.8.4 : MIT License
+d3-color 3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-contour 3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-delaunay 6.0.2 : BSD 3-clause "New" or "Revised" License
+d3-dispatch 3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-drag 3.0.0 : BSD 3-clause "New" or "Revised" License
+d3-dsv 3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-ease 1.0.7 : BSD 3-clause "New" or "Revised" License
+d3-fetch 3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-force 3.0.0 : BSD 3-clause "New" or "Revised" License
+d3-format 3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-geo 3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-hierarchy 3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-interpolate v1.4.0 : BSD 3-clause "New" or "Revised" License
+d3-path 3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-polygon v3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-quadtree 3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-random 3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-scale 4.0.2 : BSD 3-clause "New" or "Revised" License
+d3-scale-chromatic 3.0.0 : BSD 3-clause "New" or "Revised" License
+d3-selection v3.0.0 : BSD 3-clause "New" or "Revised" License
+d3-shape v3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-time 3.0.0 : BSD 3-clause "New" or "Revised" License
+d3-time-format 4.0.0 : BSD 3-clause "New" or "Revised" License
+d3-timer v1.0.10 : BSD 3-clause "New" or "Revised" License
+d3-transition v3.0.1 : BSD 3-clause "New" or "Revised" License
+d3-zoom 3.0.0 : BSD 3-clause "New" or "Revised" License
+D3.js 7.1.1 : BSD 3-clause "New" or "Revised" License
+dagre 0.8.5 : MIT License
 Decamelize 1.2.0 : MIT License
 define-properties v1.1.3 : MIT License
-defined 1.0.0 : MIT License
-es-abstract 1.13.0 : MIT License
-es-to-primitive 1.2.0 : MIT License
+es-abstract 1.19.1 : MIT License
+es-to-primitive 1.2.1 : MIT License
 escape-string-regexp 1.0.5 : MIT License
-fecha 2.3.3 : MIT License
-fmin 0.0.2 : BSD 3-clause "New" or "Revised" License
+fecha 4.2.1 : MIT License
 fs.realpath 1.0.0 : ISC License
 function-bind 1.1.1 : MIT License
 has 1.0.3 : MIT License
 has-ansi 2.0.0 : MIT License
-has-symbols 1.0.0 : MIT License
-iconv-lite v0.4.24 : MIT License
+has-symbols 1.0.2 : MIT License
+iconv-lite v0.6.3 : MIT License
 inflight 1.0.6 : ISC License
-inherits 2.0.3 : ISC License
+inherits 2.0.4 : ISC License
 is-buffer 1.1.6 : MIT License
-is-callable 1.1.4 : MIT License
-is-date-object 1.0.1 : MIT License
-is-regex 1.0.4 : MIT License
-is-symbol 1.0.2 : MIT License
+is-callable 1.2.4 : MIT License
+is-date-object 1.0.5 : MIT License
+is-regex 1.1.4 : MIT License
+is-symbol 1.0.4 : MIT License
 isaacs/once 1.4.0 : ISC License
-json2module 0.0.3 : BSD 3-clause "New" or "Revised" License
-kind-of 3.2.2 : MIT License
-kossnocorp/date-fns 1.30.1 : MIT License
-lazy-cache 1.0.4 : MIT License
-Lo-Dash 4.17.11 : MIT License
-longest 1.0.1 : MIT License
+kind-of 6.0.3 : MIT License
+kossnocorp/date-fns 2.25.0 : MIT License
+Lo-Dash 4.17.21 : MIT License
 minimatch 3.0.4 : ISC License
-minimist 1.2.0 : MIT License
-monaco-editor 0.16.2 : MIT License
-ng-zorro-antd 7.2.0 : MIT License
-node-concat-map 0.0.1 : MIT License
-node-deep-equal 1.0.1 : MIT License
-node-glob v7.1.3 : ISC License
-node-source-map-support 0.3.3 : MIT License
-node-tape v4.10.1 : MIT License
-object-inspect 1.6.0 : MIT License
-object-keys 1.1.0 : MIT License
-parse5 5.1.0 : MIT License
+minimist 1.2.5 : MIT License
+monaco-editor 0.31.1 : MIT License
+ng-zorro-antd 13.0.1 : MIT License
+object-inspect 1.11.0 : MIT License
+object-keys 1.1.1 : MIT License
+parse5 6.0.1 : MIT License
 path-is-absolute 1.0.1 : MIT License
-path-parse 1.0.6 : MIT License
-Raynos/for-each 0.3.3 : MIT License
+path-parse 1.0.7 : MIT License
 repeat-string 1.6.1 : MIT License
-RESOLVE v1.10.0 : MIT License
-resumer 0.0.0 : MIT License
-right-align 0.1.3 : MIT License
-rollup 0.25.8 : MIT License
+RESOLVE v1.20.0 : MIT License
 rw 1.3.3 : BSD 3-clause "New" or "Revised" License
-RxJS 6.3.3 : Apache License 2.0
+RxJS 6.6.7 : Apache License 2.0
 	 Copyright (c) 2015-2018 Google, Inc., Netflix, Inc., Microsoft Corp. and contributors
 
 	No NOTICE file was provided by RxJS
 safer-buffer 2.1.2 : MIT License
-sindresorhus/ansi-styles 2.2.1 : MIT License
-sindresorhus/supports-color 2.0.0 : MIT License
-source-map 0.1.32 : BSD 3-clause "New" or "Revised" License
-source-map 0.5.7 : BSD 3-clause "New" or "Revised" License
-string.prototype.trim 1.1.2 : MIT License
-Strip ANSI 3.0.1 : MIT License
+sindresorhus/ansi-styles 3.2.1 : MIT License
+sindresorhus/supports-color 5.5.0 : MIT License
+source-map 0.7.3 : BSD 3-clause "New" or "Revised" License
+string.prototype.trimend 1.0.4 : MIT License
+string.prototype.trimstart 1.0.4 : MIT License
+Strip ANSI 6.0.0 : MIT License
 through 2.3.8 : MIT License
-TinyColor 1.4.1 : MIT License
-tslib 1.9.3 : Apache License 2.0
+TinyColor 3.4.0 : MIT License
+tslib 2.3.1 : Apache License 2.0
 	Copyright (c) Microsoft Corporation. All rights reserved.
 
 	No NOTICE file was provided.
-uglify-to-browserify 1.0.2 : MIT License
-UglifyJS 2.8.29 : BSD 2-clause "Simplified" License
-venn.js 0.2.20 : MIT License
-window-size 0.1.0 : MIT License
-wolfy87-eventemitter 5.1.0 : The Unlicense
-wordwrap 0.0.2 : MIT License
 wrappy 1.0.2 : ISC License
-yargs 3.10.0 : MIT License
-Zone.js v0.8.29 : MIT License
+yargs 17.2.1 : MIT License
+Zone.js v0.11.4 : MIT License
 
 Licenses:
 
 Apache License 2.0
-(RxJS 6.3.3, tslib 1.9.3)
+(RxJS 6.6.7, tslib 2.3.0)
 
 Apache License
 Version 2.0, January 2004
@@ -335,43 +308,8 @@ third-party archives.
 
 ---
 
-BSD 2-clause "Simplified" License
-(UglifyJS 2.8.29)
-
-UglifyJS is released under the BSD license:
-
-Copyright 2012-2013 (c) Mihai Bazon <mihai.bazon@gmail.com>
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions
-are met:
-
-    * Redistributions of source code must retain the above
-      copyright notice, this list of conditions and the following
-      disclaimer.
-
-    * Redistributions in binary form must reproduce the above
-      copyright notice, this list of conditions and the following
-      disclaimer in the documentation and/or other materials
-      provided with the distribution.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER “AS IS” AND ANY
-EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
-IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
-PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE
-LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY,
-OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR
-TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
-THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
-SUCH DAMAGE
-
----
-
 BSD 3-clause "New" or "Revised" License
-(d3-array 1.2.4, d3-axis 1.0.12, d3-brush 1.0.6, d3-chord 1.0.6, d3-collection 1.0.7, d3-color 1.2.3, d3-contour 1.3.2, d3-dispatch 1.0.5, d3-drag 1.2.3, d3-dsv 1.1.1, d3-ease 1.0.5, d3-fetch 1.1.2, d3-force 1.2.1, d3-format 1.3.2, d3-geo 1.11.3, d3-hierarchy 1.1.8, d3-interpolate v1.1.6, d3-path 1.0.7, d3-polygon v1.0.5, d3-quadtree 1.0.6, d3-random 1.1.2, d3-scale 2.2.2, d3-scale-chromatic 1.3.3, d3-selection v1.4.0, d3-shape v1.3.5, d3-time 1.0.11, d3-time-format 2.1.3, d3-timer v1.0.9, d3-transition v1.2.0, d3-voronoi v1.1.4, d3-zoom 1.7.3, D3.js 5.9.2, fmin 0.0.2, json2module 0.0.3, source-map 0.1.32)
+(d3-array 3.1.1, d3-axis 3.0.0, d3-brush 3.0.0, d3-chord 3.0.1, d3-collection 1.0.7, d3-color 3.0.1, d3-contour 3.0.1, d3-delaunay 6.0.2, d3-dispatch 3.0.1, d3-drag 3.0.0, d3-dsv 3.0.1, d3-ease 1.0.7, d3-fetch 3.0.1, d3-force 3.0.0, d3-format 3.0.1, d3-geo 3.0.1, d3-hierarchy 3.0.1, d3-interpolate v1.4.0, d3-path 3.0.1, d3-polygon v3.0.1, d3-quadtree 3.0.1, d3-random 3.0.1, d3-scale 4.0.2, d3-scale-chromatic 3.0.0, d3-selection v3.0.0, d3-shape v3.0.1, d3-time 3.0.0, d3-time-format 4.0.0, d3-timer v1.0.10, d3-transition v3.0.1, d3-zoom 3.0.0, D3.js 7.1.1)
 
 Copyright (c) <YEAR>, <OWNER>
 All rights reserved.
@@ -405,7 +343,7 @@ IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ---
 
 BSD 3-clause "New" or "Revised" License
-(source-map 0.5.7)
+(source-map 0.7.3)
 
 License: BSD-3-clause
 
@@ -484,7 +422,7 @@ Redistribution and use in source and binary forms, with or without
 ---
 
 ISC License
-(cliui 2.1.0)
+(cliui 7.0.4)
 
 Copyright (c) 2015, Contributors
 
@@ -504,7 +442,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE
 ---
 
 ISC License
-(@antv/util 1.3.1)
+(@antv/util 2.0.17)
 
 ISC License (ISCL)
 ==================
@@ -547,7 +485,7 @@ IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE
 ---
 
 ISC License
-(inherits 2.0.3)
+(inherits 2.0.4)
 
 The ISC License
 
@@ -568,7 +506,7 @@ PERFORMANCE OF THIS SOFTWARE
 ---
 
 ISC License
-(fs.realpath 1.0.0, isaacs/once 1.4.0, minimatch 3.0.4, node-glob v7.1.3)
+(fs.realpath 1.0.0, isaacs/once 1.4.0, minimatch 3.0.4)
 
 The ISC License
 
@@ -619,7 +557,7 @@ Permission to use, copy, modify, and/or distribute this software for any
 ---
 
 MIT License
-(Commander.js 2.19.0)
+(Commander.js 7.2.0)
 
 (The MIT License)
 
@@ -647,7 +585,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 ---
 
 MIT License
-(Chalk 1.1.3)
+(Chalk 2.4.2)
 
 2016, Mathias Behrle <mbehrle@debian.org>
 License: Expat
@@ -677,7 +615,7 @@ Permission is hereby granted, free of charge, to any person
 ---
 
 MIT License
-(Lo-Dash 4.17.11)
+(Lo-Dash 4.17.21)
 
 ====
 
@@ -703,35 +641,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 ---
 
 MIT License
-(d3-voronoi v1.1.4)
-
-Copyright (C) 2010-2013 Raymond Hill
-https://github.com/gorhill/Javascript-Voronoi
-
-Licensed under The MIT License
-http://en.wikipedia.org/wiki/MIT_License
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of
-this software and associated documentation files (the "Software"), to deal in
-the Software without restriction, including without limitation the rights to
-use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
-the Software, and to permit persons to whom the Software is furnished to do so,
-subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
-COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
-IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-
----
-
-MIT License
-(iconv-lite v0.4.24)
+(iconv-lite v0.6.3)
 
 Copyright (c) 2011 Alexander Shtuchkin
 
@@ -757,45 +667,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 ---
 
 MIT License
-(venn.js 0.2.20)
-
-Copyright (C) 2013 Ben Frederickson
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-
----
-
-MIT License
-(uglify-to-browserify 1.0.2)
-
-Copyright (c) 2013 Forbes Lindesay
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE
-
----
-
-MIT License
-(balanced-match 1.0.0)
+(balanced-match 1.0.2)
 
 Copyright (c) 2013 Julian Gruber &lt;julian@juliangruber.com&gt;
 
@@ -848,7 +720,7 @@ OTHER DEALINGS IN THE SOFTWARE
 ---
 
 MIT License
-(parse5 5.1.0)
+(parse5 6.0.1)
 
 Copyright (c) 2013-2018 Ivan Nikulin (ifaaan@gmail.com, https://github.com/inikulin)
 
@@ -873,35 +745,7 @@ THE SOFTWARE
 ---
 
 MIT License
-(window-size 0.1.0)
-
-Copyright (c) 2014 Jon Schlinkert
-
-Permission is hereby granted, free of charge, to any person
-obtaining a copy of this software and associated documentation
-files (the "Software"), to deal in the Software without
-restriction, including without limitation the rights to use,
-copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the
-Software is furnished to do so, subject to the following
-conditions:
-
-The above copyright notice and this permission notice shall be
-included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-OTHER DEALINGS IN THE SOFTWARE
-
----
-
-MIT License
-(TinyColor 1.4.1)
+(TinyColor 3.4.0)
 
 Copyright (c), Brian Grinstead, http://briangrinstead.com
 
@@ -923,39 +767,6 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-
----
-
-MIT License
-(wordwrap 0.0.2)
-
-Files: *
-Copyright: © 2010, James Halliday <mail@substack.net>
-License: MIT
-
-Files: debian/*
-Copyright: © 2011, David Paleino <dapal@debian.org>
-License: MIT
-
-License: MIT
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
- of this software and associated documentation files (the "Software"), to deal
- in the Software without restriction, including without limitation the rights
- to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- copies of the Software, and to permit persons to whom the Software is
- furnished to do so, subject to the following conditions:
- .
- The above copyright notice and this permission notice shall be included in
- all copies or substantial portions of the Software.
- .
- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- THE SOFTWARE
 
 ---
 
@@ -1016,7 +827,7 @@ SOFTWARE
 ---
 
 MIT License
-(has-symbols 1.0.0)
+(has-symbols 1.0.2)
 
 MIT License
 
@@ -1070,35 +881,7 @@ SOFTWARE
 ---
 
 MIT License
-(amdefine 1.0.1)
-
-MIT License
------------
-
-Copyright (c) 2011-2016, The Dojo Foundation
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE
-
----
-
-MIT License
-(yargs 3.10.0)
+(yargs 17.2.1)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1151,7 +934,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
 ---
 
 MIT License
-(@angular/animations 7.2.10, @angular/cdk 7.3.6, @angular/common 7.2.10, @angular/compiler 7.2.10, @angular/core 7.2.10, @angular/forms 7.2.10, @angular/platform-browser 7.2.10, @angular/platform-browser-dynamic 7.2.10, @angular/router 7.2.10, @ant-design/icons-angular 2.0.2, @antv/adjust 0.1.1, @antv/attr 0.1.2, @antv/component 0.3.1, @antv/coord 0.1.0, @antv/g 3.3.6, @antv/g2 3.4.10, @antv/gl-matrix 2.7.1, @antv/scale 0.1.2, ant-design-palettes 1.1.3, contour_plot 0.0.1, core-js v2.6.5, cpettitt/graphlib 2.1.7, dagre 0.8.4, es-abstract 1.13.0, is-callable 1.1.4, kossnocorp/date-fns 1.30.1, monaco-editor 0.16.2, ng-zorro-antd 7.2.0, node-tape v4.10.1, object-keys 1.1.0, RESOLVE v1.10.0, Zone.js v0.8.29)
+(@angular/animations 13.1.3, @angular/cdk 13.1.3, @angular/common 13.1.3, @angular/compiler 13.1.3, @angular/core 13.1.3, @angular/forms 13.1.3, @angular/platform-browser 13.1.3, @angular/platform-browser-dynamic 13.1.3, @angular/router 13.1.3, @ant-design/icons-angular 13.0.2, @antv/adjust 0.1.1, @antv/attr 0.1.2, @antv/component 0.3.9, @antv/coord 0.1.0, @antv/g 3.4.10, @antv/g2 3.5.17, @antv/gl-matrix 2.7.1, @antv/scale 0.1.5, ant-design-palettes 1.2.13, contour_plot 0.0.1, core-js v2.6.12, cpettitt/graphlib 2.1.8, dagre 0.8.5, es-abstract 1.18.3, is-callable 1.2.3, kossnocorp/date-fns 2.130.1, monaco-editor 0.31.1, ng-zorro-antd 13.0.1, node-tape v4.14.0, object-keys 1.1.1, RESOLVE v1.20.0, Zone.js v0.11.4)
 
 The MIT License
 ===============
@@ -1178,61 +961,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ---
 
 MIT License
-(Raynos/for-each 0.3.3)
-
-The MIT License (MIT)
-
-Copyright (c) 2012 Raynos.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE
-
----
-
-MIT License
-(node-source-map-support 0.3.3)
-
-The MIT License (MIT)
-
-Copyright (c) 2014 Evan Wallace
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE
-
----
-
-MIT License
-(is-regex 1.0.4)
+(is-regex 1.1.4)
 
 The MIT License (MIT)
 
@@ -1254,33 +983,6 @@ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-
----
-
-MIT License
-(longest 1.0.1)
-
-The MIT License (MIT)
-
-Copyright (c) 2014-2015, Jon Schlinkert.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE
 
 ---
 
@@ -1312,7 +1014,7 @@ THE SOFTWARE
 ---
 
 MIT License
-(kind-of 3.2.2)
+(kind-of 6.0.3)
 
 The MIT License (MIT)
 
@@ -1339,34 +1041,7 @@ THE SOFTWARE
 ---
 
 MIT License
-(rollup 0.25.8)
-
-The MIT License (MIT)
-
-Copyright (c) 2015 [these people](https://github.com/rollup/rollup/graphs/contributors)
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE
-
----
-
-MIT License
-(path-parse 1.0.6)
+(path-parse 1.0.7)
 
 The MIT License (MIT)
 
@@ -1420,7 +1095,7 @@ THE SOFTWARE
 ---
 
 MIT License
-(es-to-primitive 1.2.0, is-date-object 1.0.1, is-symbol 1.0.2, string.prototype.trim 1.1.2)
+(es-to-primitive 1.2.1, is-date-object 1.0.5, is-symbol 1.0.4, string.prototype.trimend 1.0.4, string.prototype.trimstart 1.0.4)
 
 The MIT License (MIT)
 
@@ -1447,7 +1122,7 @@ SOFTWARE
 ---
 
 MIT License
-(fecha 2.3.3)
+(fecha 4.2.1)
 
 The MIT License (MIT)
 
@@ -1470,60 +1145,6 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE
-
----
-
-MIT License
-(align-text 0.1.4, center-align 0.1.3, right-align 0.1.3)
-
-The MIT License (MIT)
-
-Copyright (c) 2015, Jon Schlinkert.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE
-
----
-
-MIT License
-(lazy-cache 1.0.4)
-
-The MIT License (MIT)
-
-Copyright (c) 2015-2016, Jon Schlinkert.
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE
 
 ---
 
@@ -1555,7 +1176,7 @@ THE SOFTWARE
 ---
 
 MIT License
-(ansi-regex 2.1.1, camelcase 1.2.1, Decamelize 1.2.0, escape-string-regexp 1.0.5, has-ansi 2.0.0, path-is-absolute 1.0.1, sindresorhus/ansi-styles 2.2.1, sindresorhus/supports-color 2.0.0, Strip ANSI 3.0.1)
+(ansi-regex 5.0.1, camelcase 5.3.1, Decamelize 1.2.0, escape-string-regexp 1.0.5, has-ansi 2.0.0, path-is-absolute 1.0.1, sindresorhus/ansi-styles 3.2.1, sindresorhus/supports-color 5.5.0, Strip ANSI 6.0.0)
 
 The MIT License (MIT)
 
@@ -1582,7 +1203,7 @@ THE SOFTWARE
 ---
 
 MIT License
-(defined 1.0.0, minimist 1.2.0, node-concat-map 0.0.1, node-deep-equal 1.0.1, object-inspect 1.6.0, resumer 0.0.0)
+(minimist 1.2.5, object-inspect 1.11.0)
 
 This software is released under the MIT license:
 
@@ -1602,34 +1223,3 @@ FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
 COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
 IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE
-
----
-
-The Unlicense
-(wolfy87-eventemitter 5.1.0)
-
-The Unlicense
-=============
-
-This is free and unencumbered software released into the public domain.
-
-Anyone is free to copy, modify, publish, use, compile, sell, or distribute this
-software, either in source code form or as a compiled binary, for any purpose,
-commercial or non-commercial, and by any means.
-
-In jurisdictions that recognize copyright laws, the author or authors of this
-software dedicate any and all copyright interest in the software to the public
-domain. We make this dedication for the benefit of the public at large and to the
-detriment of our heirs and successors. We intend this dedication to be an overt
-act of relinquishment in perpetuity of all present and future rights to this
-software under copyright law.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS BE
-LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
-CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
-SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-For more information, please refer to http://unlicense.org/
-

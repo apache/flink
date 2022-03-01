@@ -31,10 +31,16 @@ cdef class LengthPrefixOutputStream:
         pass
     cpdef void flush(self):
         pass
+    cpdef void close(self):
+        pass
 
 cdef class InputStream:
     def __init__(self):
         self._input_pos = 0
+
+    cpdef bytes read(self, size_t size):
+        self._input_pos += size
+        return self._input_data[self._input_pos - size: self._input_pos]
 
     cdef long read_byte(self) except? -1:
         self._input_pos += 1
@@ -93,6 +99,21 @@ cdef class OutputStream:
     def __init__(self):
         self.buffer_size = 1024
         self.pos = 0
+
+    cpdef void write(self, bytes v):
+        cdef size_t length
+        cdef char*b
+        length = len(v)
+        b = <char*> v
+        if self.buffer_size < self.pos + length:
+            self._extend(length)
+        if length < 8:
+            # This is faster than memcpy when the string is short.
+            for i in range(length):
+                self.buffer[self.pos + i] = b[i]
+        else:
+            memcpy(self.buffer + self.pos, b, length)
+        self.pos += length
 
     cdef void write_byte(self, unsigned char v):
         if self.buffer_size < self.pos + 1:

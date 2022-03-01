@@ -22,9 +22,14 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
-/** {@link Input} interface used in {@link MultipleInputStreamOperator}. */
+/**
+ * {@link Input} interface used in {@link MultipleInputStreamOperator}. Most likely you don't want
+ * to implement this interface on your own. Instead you can use {@link AbstractInput} and {@link
+ * AbstractStreamOperatorV2} to implement {@link MultipleInputStreamOperator}, or just {@link
+ * AbstractStreamOperatorV2} to implement {@link OneInputStreamOperator}.
+ */
 @PublicEvolving
 public interface Input<IN> {
     /**
@@ -42,13 +47,13 @@ public interface Input<IN> {
     void processWatermark(Watermark mark) throws Exception;
 
     /**
-     * Processes a {@link StreamStatus} that arrived on this input of the {@link
+     * Processes a {@link WatermarkStatus} that arrived on this input of the {@link
      * MultipleInputStreamOperator}. This method is guaranteed to not be called concurrently with
      * other methods of the operator.
      *
-     * @see StreamStatus
+     * @see WatermarkStatus
      */
-    void processStreamStatus(StreamStatus streamStatus) throws Exception;
+    void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception;
 
     /**
      * Processes a {@link LatencyMarker} that arrived on the first input of this two-input operator.
@@ -58,5 +63,10 @@ public interface Input<IN> {
      */
     void processLatencyMarker(LatencyMarker latencyMarker) throws Exception;
 
+    /**
+     * Set the correct key context before processing the {@code record}. Used for example to extract
+     * key from the {@code record} and pass that key to the state backends. This method is
+     * guaranteed to not be called concurrently with other methods of the operator.
+     */
     void setKeyContextElement(StreamRecord<IN> record) throws Exception;
 }

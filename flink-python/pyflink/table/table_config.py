@@ -36,8 +36,7 @@ class TableConfig(object):
     with detailed inline documentation.
 
     For more advanced configuration, users can directly access the underlying key-value map via
-    :func:`~pyflink.table.TableConfig.get_configuration`. Currently, key-value options are only
-    supported for the Blink planner.
+    :func:`~pyflink.table.TableConfig.get_configuration`.
 
     .. note::
 
@@ -51,6 +50,15 @@ class TableConfig(object):
             self._j_table_config = gateway.jvm.TableConfig()
         else:
             self._j_table_config = j_table_config
+
+    def set(self, key: str, value: str) -> 'TableConfig':
+        """
+        Sets a string-based value for the given string-based key.
+
+        The value will be parsed by the framework on access.
+        """
+        self._j_table_config.set(key, value)
+        return self
 
     def get_local_timezone(self) -> str:
         """

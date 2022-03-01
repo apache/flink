@@ -23,11 +23,10 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
+import org.apache.flink.runtime.blob.TaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
@@ -48,6 +47,7 @@ import org.apache.flink.runtime.rpc.TestingRpcService;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironment;
 import org.apache.flink.runtime.state.TaskExecutorLocalStateStoresManager;
 import org.apache.flink.runtime.taskexecutor.rpc.RpcResultPartitionConsumableNotifier;
+import org.apache.flink.runtime.taskexecutor.slot.DefaultTimerService;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotTable;
 import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskexecutor.slot.TestingTaskSlotTable;
@@ -57,10 +57,13 @@ import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.taskmanager.TaskManagerActions;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestFileUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+import org.apache.flink.util.Reference;
+import org.apache.flink.util.concurrent.Executors;
 
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
@@ -69,6 +72,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
@@ -83,13 +87,13 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
     private final HeartbeatServices heartbeatServices = new HeartbeatServices(1000L, 1000L);
     private final TestingRpcService testingRpcService;
-    private final BlobCacheService blobCacheService =
-            new BlobCacheService(new Configuration(), new VoidBlobStore(), null);
+    private final TaskExecutorBlobService taskExecutorBlobService =
+            NoOpTaskExecutorBlobService.INSTANCE;
     private final Time timeout = Time.milliseconds(10000L);
     private final TestingFatalErrorHandler testingFatalErrorHandler =
             new TestingFatalErrorHandler();
     private final TimerService<AllocationID> timerService =
-            new TimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds());
+            new DefaultTimerService<>(TestingUtils.defaultExecutor(), timeout.toMilliseconds());
 
     private final TestingHighAvailabilityServices haServices;
     private final TemporaryFolder temporaryFolder;
@@ -147,7 +151,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
         TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
                         false,
-                        new File[] {temporaryFolder.newFolder()},
+                        Reference.owned(new File[] {temporaryFolder.newFolder()}),
                         Executors.directExecutor());
 
         final TaskManagerServices taskManagerServices =
@@ -212,7 +216,9 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                             new TestCheckpointResponder(),
                             new TestGlobalAggregateManager(),
                             new RpcResultPartitionConsumableNotifier(
-                                    jobMasterGateway, testingRpcService.getExecutor(), timeout),
+                                    jobMasterGateway,
+                                    testingRpcService.getScheduledExecutor(),
+                                    timeout),
                             TestingPartitionProducerStateChecker.newBuilder()
                                     .setPartitionProducerStateFunction(
                                             (jobID, intermediateDataSetID, resultPartitionID) ->
@@ -246,7 +252,8 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
     private TestingTaskExecutor createTaskExecutor(
             TaskManagerServices taskManagerServices,
             @Nullable String metricQueryServiceAddress,
-            Configuration configuration) {
+            Configuration configuration)
+            throws IOException {
         final Configuration copiedConf = new Configuration(configuration);
 
         return new TestingTaskExecutor(
@@ -255,14 +262,15 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
                         copiedConf,
                         TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
                                 copiedConf),
-                        InetAddress.getLoopbackAddress().getHostAddress()),
+                        InetAddress.getLoopbackAddress().getHostAddress(),
+                        TestFileUtils.createTempDir()),
                 haServices,
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                 heartbeatServices,
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 metricQueryServiceAddress,
-                blobCacheService,
+                taskExecutorBlobService,
                 testingFatalErrorHandler,
                 new TaskExecutorPartitionTrackerImpl(taskManagerServices.getShuffleEnvironment()));
     }
@@ -317,7 +325,7 @@ class TaskSubmissionTestEnvironment implements AutoCloseable {
 
         timerService.stop();
 
-        blobCacheService.close();
+        taskExecutorBlobService.close();
 
         temporaryFolder.delete();
 

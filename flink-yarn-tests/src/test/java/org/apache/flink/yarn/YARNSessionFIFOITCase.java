@@ -38,7 +38,6 @@ import org.apache.hadoop.yarn.server.resourcemanager.scheduler.fifo.FifoSchedule
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -54,9 +53,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasItem;
-import static org.junit.Assert.assertThat;
 
 /**
  * This test starts a MiniYARNCluster with a FIFO scheduler. There are no queues for that scheduler.
@@ -264,89 +260,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
                             RunTypes.YARN_SESSION,
                             0); // we have 666*2 cores.
                     LOG.info("Finished testQueryCluster()");
-                });
-    }
-
-    /**
-     * The test cluster has the following resources: - 2 Nodes with 4096 MB each. -
-     * RM_SCHEDULER_MINIMUM_ALLOCATION_MB is 512
-     *
-     * <p>We allocate: 1 JobManager with 256 MB (will be automatically upgraded to 512 due to min
-     * alloc mb) 5 TaskManagers with 1585 MB
-     *
-     * <p>user sees a total request of: 8181 MB (fits) system sees a total request of: 8437 (doesn't
-     * fit due to min alloc mb)
-     */
-    @Ignore("The test is too resource consuming (8.5 GB of memory)")
-    @Test
-    public void testResourceComputation() throws Exception {
-        runTest(
-                () -> {
-                    LOG.info("Starting testResourceComputation()");
-                    runWithArgs(
-                            new String[] {
-                                "-j",
-                                flinkUberjar.getAbsolutePath(),
-                                "-t",
-                                flinkLibFolder.getAbsolutePath(),
-                                "-jm",
-                                "256m",
-                                "-tm",
-                                "1585m"
-                            },
-                            "Number of connected TaskManagers changed to",
-                            null,
-                            RunTypes.YARN_SESSION,
-                            0);
-                    LOG.info("Finished testResourceComputation()");
-                    assertThat(
-                            yarTestLoggerResource.getMessages(),
-                            hasItem(
-                                    containsString(
-                                            "This YARN session requires 8437MB of memory in the cluster. There are currently only 8192MB available.")));
-                });
-    }
-
-    /**
-     * The test cluster has the following resources: - 2 Nodes with 4096 MB each. -
-     * RM_SCHEDULER_MINIMUM_ALLOCATION_MB is 512
-     *
-     * <p>We allocate: 1 JobManager with 256 MB (will be automatically upgraded to 512 due to min
-     * alloc mb) 2 TaskManagers with 3840 MB
-     *
-     * <p>the user sees a total request of: 7936 MB (fits) the system sees a request of: 8192 MB
-     * (fits) HOWEVER: one machine is going to need 3840 + 512 = 4352 MB, which doesn't fit.
-     *
-     * <p>--> check if the system properly rejects allocating this session.
-     */
-    @Ignore("The test is too resource consuming (8 GB of memory)")
-    @Test
-    public void testfullAlloc() throws Exception {
-        runTest(
-                () -> {
-                    LOG.info("Starting testfullAlloc()");
-                    runWithArgs(
-                            new String[] {
-                                "-j",
-                                flinkUberjar.getAbsolutePath(),
-                                "-t",
-                                flinkLibFolder.getAbsolutePath(),
-                                "-jm",
-                                "256m",
-                                "-tm",
-                                "3840m"
-                            },
-                            "Number of connected TaskManagers changed to",
-                            null,
-                            RunTypes.YARN_SESSION,
-                            0);
-                    LOG.info("Finished testfullAlloc()");
-                    assertThat(
-                            yarTestLoggerResource.getMessages(),
-                            hasItem(
-                                    containsString(
-                                            "There is not enough memory available in the YARN cluster. The TaskManager(s) require 3840MB each. NodeManagers available: [4096, 4096]\n"
-                                                    + "After allocating the JobManager (512MB) and (1/2) TaskManagers, the following NodeManagers are available: [3584, 256]")));
                 });
     }
 }

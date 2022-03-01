@@ -131,7 +131,7 @@ class KeyedStream[T, K](javaStream: KeyedJavaStream[T, K]) extends DataStream[T]
     * Perform a join over a time interval.
     *
     * @tparam IN1 The type parameter of the elements in the first streams
-    * @tparam IN2 The The type parameter of the elements in the second stream
+    * @tparam IN2 The type parameter of the elements in the second stream
     */
   @PublicEvolving
   class IntervalJoin[IN1, IN2, KEY](val streamOne: KeyedStream[IN1, KEY],

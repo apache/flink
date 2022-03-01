@@ -3,6 +3,15 @@ github:
     squash: true
     merge: false
     rebase: true
+  labels:
+    - flink
+    - big-data
+    - java
+    - scala
+    - python
+    - sql
+  collaborators:
+    - flinkbot
 notifications:
   commits:      commits@flink.apache.org
   issues:       issues@flink.apache.org

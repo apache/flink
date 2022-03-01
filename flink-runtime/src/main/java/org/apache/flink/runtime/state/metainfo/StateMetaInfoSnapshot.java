@@ -38,10 +38,28 @@ public class StateMetaInfoSnapshot {
 
     /** Enum that defines the different types of state that live in Flink backends. */
     public enum BackendStateType {
-        KEY_VALUE,
-        OPERATOR,
-        BROADCAST,
-        PRIORITY_QUEUE
+        KEY_VALUE(0),
+        OPERATOR(1),
+        BROADCAST(2),
+        PRIORITY_QUEUE(3);
+        private final byte code;
+
+        BackendStateType(int code) {
+            this.code = (byte) code;
+        }
+
+        public byte getCode() {
+            return code;
+        }
+
+        public static BackendStateType byCode(int code) {
+            for (BackendStateType type : values()) {
+                if (type.code == code) {
+                    return type;
+                }
+            }
+            throw new IllegalArgumentException("Unknown BackendStateType: " + code);
+        }
     }
 
     /** Predefined keys for the most common options in the meta info. */

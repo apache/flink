@@ -18,32 +18,31 @@
 
 package org.apache.flink.streaming.api.environment;
 
+import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.runtime.state.CheckpointStorage;
+import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.assertj.core.api.InstanceOfAssertFactories;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for configuring {@link CheckpointConfig} via {@link
  * CheckpointConfig#configure(ReadableConfig)}.
  */
-@RunWith(Parameterized.class)
 public class CheckpointConfigFromConfigurationTest {
 
-    @Parameterized.Parameters(name = "{0}")
-    public static Collection<TestSpec> specs() {
-        return Arrays.asList(
+    private static Stream<TestSpec<?>> specs() {
+        return Stream.of(
                 TestSpec.testValue(CheckpointingMode.AT_LEAST_ONCE)
                         .whenSetFromFile("execution.checkpointing.mode", "AT_LEAST_ONCE")
                         .viaSetter(CheckpointConfig::setCheckpointingMode)
@@ -69,19 +68,13 @@ public class CheckpointConfigFromConfigurationTest {
                         .viaSetter(CheckpointConfig::setMinPauseBetweenCheckpoints)
                         .getterVia(CheckpointConfig::getMinPauseBetweenCheckpoints)
                         .nonDefaultValue(100L),
-                TestSpec.testValue(true)
-                        .whenSetFromFile(
-                                "execution.checkpointing.prefer-checkpoint-for-recovery", "true")
-                        .viaSetter(CheckpointConfig::setPreferCheckpointForRecovery)
-                        .getterVia(CheckpointConfig::isPreferCheckpointForRecovery)
-                        .nonDefaultValue(true),
                 TestSpec.testValue(
                                 CheckpointConfig.ExternalizedCheckpointCleanup
                                         .RETAIN_ON_CANCELLATION)
                         .whenSetFromFile(
                                 "execution.checkpointing.externalized-checkpoint-retention",
                                 "RETAIN_ON_CANCELLATION")
-                        .viaSetter(CheckpointConfig::enableExternalizedCheckpoints)
+                        .viaSetter(CheckpointConfig::setExternalizedCheckpointCleanup)
                         .getterVia(CheckpointConfig::getExternalizedCheckpointCleanup)
                         .nonDefaultValue(
                                 CheckpointConfig.ExternalizedCheckpointCleanup
@@ -96,13 +89,37 @@ public class CheckpointConfigFromConfigurationTest {
                         .whenSetFromFile("execution.checkpointing.unaligned", "true")
                         .viaSetter(CheckpointConfig::enableUnalignedCheckpoints)
                         .getterVia(CheckpointConfig::isUnalignedCheckpointsEnabled)
-                        .nonDefaultValue(true));
+                        .nonDefaultValue(true),
+                TestSpec.testValue(
+                                (CheckpointStorage)
+                                        new FileSystemCheckpointStorage(
+                                                "file:///path/to/checkpoint/dir"))
+                        .whenSetFromFile(
+                                CheckpointingOptions.CHECKPOINTS_DIRECTORY.key(),
+                                "file:///path/to/checkpoint/dir")
+                        .viaSetter(CheckpointConfig::setCheckpointStorage)
+                        .getterVia(CheckpointConfig::getCheckpointStorage)
+                        .nonDefaultValue(
+                                new FileSystemCheckpointStorage("file:///path/to/checkpoint/dir"))
+                        .customMatcher(
+                                (actualValue, expectedValue) ->
+                                        assertThat(actualValue)
+                                                .hasSameClassAs(expectedValue)
+                                                .asInstanceOf(
+                                                        InstanceOfAssertFactories.type(
+                                                                FileSystemCheckpointStorage.class))
+                                                .extracting(
+                                                        FileSystemCheckpointStorage
+                                                                ::getCheckpointPath)
+                                                .isEqualTo(
+                                                        ((FileSystemCheckpointStorage)
+                                                                        expectedValue)
+                                                                .getCheckpointPath())));
     }
 
-    @Parameterized.Parameter public TestSpec spec;
-
-    @Test
-    public void testLoadingFromConfiguration() {
+    @ParameterizedTest
+    @MethodSource("specs")
+    public void testLoadingFromConfiguration(TestSpec<?> spec) {
         CheckpointConfig configFromSetters = new CheckpointConfig();
         CheckpointConfig configFromFile = new CheckpointConfig();
 
@@ -114,8 +131,9 @@ public class CheckpointConfigFromConfigurationTest {
         spec.assertEqual(configFromFile, configFromSetters);
     }
 
-    @Test
-    public void testNotOverridingIfNotSet() {
+    @ParameterizedTest
+    @MethodSource("specs")
+    public void testNotOverridingIfNotSet(TestSpec<?> spec) {
         CheckpointConfig config = new CheckpointConfig();
 
         spec.setNonDefaultValue(config);
@@ -132,6 +150,9 @@ public class CheckpointConfigFromConfigurationTest {
         private T nonDefaultValue;
         private BiConsumer<CheckpointConfig, T> setter;
         private Function<CheckpointConfig, T> getter;
+
+        private BiConsumer<T, T> customAssertion =
+                (actualValue, expectedValue) -> assertThat(actualValue).isEqualTo(expectedValue);
 
         private TestSpec(T value) {
             this.objectValue = value;
@@ -162,6 +183,11 @@ public class CheckpointConfigFromConfigurationTest {
             return this;
         }
 
+        public TestSpec<T> customMatcher(BiConsumer<T, T> customAssertion) {
+            this.customAssertion = customAssertion;
+            return this;
+        }
+
         public void setValue(CheckpointConfig config) {
             setter.accept(config, objectValue);
         }
@@ -172,11 +198,11 @@ public class CheckpointConfigFromConfigurationTest {
 
         public void assertEqual(
                 CheckpointConfig configFromFile, CheckpointConfig configFromSetters) {
-            assertThat(getter.apply(configFromFile), equalTo(getter.apply(configFromSetters)));
+            customAssertion.accept(getter.apply(configFromFile), getter.apply(configFromSetters));
         }
 
         public void assertEqualNonDefault(CheckpointConfig configFromFile) {
-            assertThat(getter.apply(configFromFile), equalTo(nonDefaultValue));
+            customAssertion.accept(getter.apply(configFromFile), nonDefaultValue);
         }
 
         @Override

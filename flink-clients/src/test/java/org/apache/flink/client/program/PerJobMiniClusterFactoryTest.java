@@ -22,21 +22,19 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
-import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.minicluster.MiniCluster;
-import org.apache.flink.runtime.testutils.CancelableInvokable;
+import org.apache.flink.runtime.testutils.WaitingCancelableInvokable;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
 import org.junit.Test;
 
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.hamcrest.CoreMatchers.is;
@@ -107,12 +105,12 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
         assertThrows(
                 "is not a streaming job.",
                 ExecutionException.class,
-                () -> jobClient.triggerSavepoint(null).get());
+                () -> jobClient.triggerSavepoint(null, SavepointFormatType.DEFAULT).get());
 
         assertThrows(
                 "is not a streaming job.",
                 ExecutionException.class,
-                () -> jobClient.stopWithSavepoint(true, null).get());
+                () -> jobClient.stopWithSavepoint(true, null, SavepointFormatType.DEFAULT).get());
     }
 
     @Test
@@ -171,37 +169,8 @@ public class PerJobMiniClusterFactoryTest extends TestLogger {
 
     private static JobGraph getCancellableJobGraph() {
         JobVertex jobVertex = new JobVertex("jobVertex");
-        jobVertex.setInvokableClass(MyCancellableInvokable.class);
+        jobVertex.setInvokableClass(WaitingCancelableInvokable.class);
         jobVertex.setParallelism(1);
         return JobGraphTestUtils.streamingJobGraph(jobVertex);
-    }
-
-    /** Invokable which waits until it is cancelled. */
-    public static class MyCancellableInvokable extends CancelableInvokable {
-
-        private final Object lock = new Object();
-        private boolean running = true;
-
-        public MyCancellableInvokable(Environment environment) {
-            super(environment);
-        }
-
-        @Override
-        public void doInvoke() throws Exception {
-            synchronized (lock) {
-                while (running) {
-                    lock.wait();
-                }
-            }
-        }
-
-        @Override
-        public Future<Void> cancel() {
-            synchronized (lock) {
-                running = false;
-                lock.notifyAll();
-            }
-            return CompletableFuture.completedFuture(null);
-        }
     }
 }

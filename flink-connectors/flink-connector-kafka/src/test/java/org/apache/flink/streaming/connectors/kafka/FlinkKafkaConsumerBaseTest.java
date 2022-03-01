@@ -84,6 +84,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalLong;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
@@ -260,7 +261,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
     }
 
     /**
-     * Tests that subscribed partitions didn't change when there's no change on the intial topics.
+     * Tests that subscribed partitions didn't change when there's no change on the initial topics.
      * (filterRestoredPartitionsWithDiscovered is active)
      */
     @Test
@@ -299,7 +300,7 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
     }
 
     /**
-     * Tests that subscribed partitions are the same when there's no change on the intial topics.
+     * Tests that subscribed partitions are the same when there's no change on the initial topics.
      * (filterRestoredPartitionsWithDiscovered is disabled)
      */
     @Test
@@ -1517,6 +1518,11 @@ public class FlinkKafkaConsumerBaseTest extends TestLogger {
         @Override
         public boolean isRestored() {
             return isRestored;
+        }
+
+        @Override
+        public OptionalLong getRestoredCheckpointId() {
+            return isRestored ? OptionalLong.of(1L) : OptionalLong.empty();
         }
 
         @Override

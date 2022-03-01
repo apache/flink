@@ -91,7 +91,7 @@ String[] tables = tableEnv.listTables();
 val tableEnv = TableEnvironment.create(...)
 
 // 注册名为 “Orders” 的表
-tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)");
+tableEnv.executeSql("CREATE TABLE Orders (`user` BIGINT, product STRING, amount INT) WITH (...)")
 
 // 字符串数组： ["Orders"]
 val tables = tableEnv.listTables()
@@ -180,7 +180,7 @@ ALTER DATABASE [catalog_name.]db_name SET (key1=val1, key2=val2, ...)
 
 ## ALTER FUNCTION
 
-{% highlight sql%}
+```sql
 ALTER [TEMPORARY|TEMPORARY SYSTEM] FUNCTION
   [IF EXISTS] [catalog_name.][db_name.]function_name
   AS identifier [LANGUAGE JAVA|SCALA|PYTHON]

@@ -161,8 +161,10 @@ public class NettyTestUtil {
         checkArgument(segmentSize > 0);
         checkNotNull(config);
 
-        return new NettyConfig(
-                InetAddress.getLocalHost(), NetUtils.getAvailablePort(), segmentSize, 1, config);
+        try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+            return new NettyConfig(
+                    InetAddress.getLocalHost(), port.getPort(), segmentSize, 1, config);
+        }
     }
 
     // ---------------------------------------------------------------------------------------------

@@ -19,9 +19,9 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionParser;
 
 /**
  * Tumbling window.
@@ -69,6 +69,6 @@ public final class TumbleWithSize {
      */
     @Deprecated
     public TumbleWithSizeOnTime on(String timeField) {
-        return on(ExpressionParser.parseExpression(timeField));
+        return on(ExpressionParser.INSTANCE.parseExpression(timeField));
     }
 }

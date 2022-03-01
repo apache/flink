@@ -179,7 +179,7 @@ If you try to reuse your previous Flink configuration without any adjustments,
 the new memory model can result in differently computed memory parameters for
 the JVM and, thus, performance changes.
 
-Please, check [the user documentation](../deployment/memory/mem_setup.html) for more details.
+Please, check [the user documentation](https://nightlies.apache.org/flink/flink-docs-release-1.10/ops/memory/mem_setup.html) for more details.
 
 ##### Deprecation and breaking changes
 The following options have been removed and have no effect anymore:

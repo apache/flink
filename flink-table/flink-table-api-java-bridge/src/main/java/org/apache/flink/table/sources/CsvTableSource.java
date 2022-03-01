@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.sources;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.CsvInputFormat;
 import org.apache.flink.api.java.io.RowCsvInputFormat;
@@ -52,7 +53,12 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromDataTypeToL
 
 /**
  * A {@link StreamTableSource} for simple CSV files with a (logically) unlimited number of fields.
+ *
+ * @deprecated The legacy CSV connector has been replaced by {@code FileSource}. It is kept only to
+ *     support tests for the legacy connector stack.
  */
+@Internal
+@Deprecated
 public class CsvTableSource
         implements StreamTableSource<Row>, LookupableTableSource<Row>, ProjectableTableSource<Row> {
 

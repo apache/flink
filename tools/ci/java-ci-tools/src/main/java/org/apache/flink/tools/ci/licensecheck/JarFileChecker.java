@@ -210,6 +210,11 @@ public class JarFileChecker {
                     // dual-licensed under GPL 2 and EPL 2.0
                     // contained in sql-avro-confluent-registry
                     .filter(path -> !pathStartsWith(path, "/org/glassfish/jersey/internal"))
+                    // contained in sql-connector-pulsar
+                    .filter(
+                            path ->
+                                    !pathStartsWith(
+                                            path, "/org/apache/pulsar/shade/org/glassfish/jersey/"))
                     .map(
                             path -> {
                                 try {

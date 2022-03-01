@@ -18,13 +18,10 @@
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, Union
 
-from apache_beam.coders import PickleCoder
-
 from pyflink.datastream.state import ListState, MapState
-from pyflink.fn_execution.coders import from_proto
+from pyflink.fn_execution.coders import from_proto, PickleCoder
 from pyflink.fn_execution.internal_state import InternalListState, InternalMapState
-from pyflink.fn_execution.operation_utils import is_built_in_function, load_aggregate_function
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
+from pyflink.fn_execution.utils.operation_utils import is_built_in_function, load_aggregate_function
 from pyflink.table import FunctionContext
 from pyflink.table.data_view import ListView, MapView, DataView
 
@@ -232,7 +229,7 @@ class StateDataViewStore(ABC):
 
     def __init__(self,
                  function_context: FunctionContext,
-                 keyed_state_backend: RemoteKeyedStateBackend):
+                 keyed_state_backend):
         self._function_context = function_context
         self._keyed_state_backend = keyed_state_backend
 
@@ -270,7 +267,7 @@ class PerKeyStateDataViewStore(StateDataViewStore):
 
     def __init__(self,
                  function_context: FunctionContext,
-                 keyed_state_backend: RemoteKeyedStateBackend):
+                 keyed_state_backend):
         super(PerKeyStateDataViewStore, self).__init__(function_context, keyed_state_backend)
 
     def get_state_list_view(self, state_name, element_coder):
@@ -291,7 +288,7 @@ class PerWindowStateDataViewStore(StateDataViewStore):
 
     def __init__(self,
                  function_context: FunctionContext,
-                 keyed_state_backend: RemoteKeyedStateBackend):
+                 keyed_state_backend):
         super(PerWindowStateDataViewStore, self).__init__(function_context, keyed_state_backend)
 
     def get_state_list_view(self, state_name, element_coder):

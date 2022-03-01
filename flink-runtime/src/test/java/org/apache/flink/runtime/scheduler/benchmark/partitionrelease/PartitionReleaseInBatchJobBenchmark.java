@@ -20,10 +20,11 @@ package org.apache.flink.runtime.scheduler.benchmark.partitionrelease;
 
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.RegionPartitionReleaseStrategy;
+import org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease.RegionPartitionGroupReleaseStrategy;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
 import org.apache.flink.runtime.scheduler.benchmark.JobConfiguration;
+import org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkBase;
 
 import java.util.List;
 
@@ -34,17 +35,21 @@ import static org.apache.flink.runtime.scheduler.benchmark.SchedulerBenchmarkUti
 
 /**
  * The benchmark of releasing partitions in a BATCH job. The related method is {@link
- * RegionPartitionReleaseStrategy#vertexFinished}.
+ * RegionPartitionGroupReleaseStrategy#vertexFinished}.
  */
-public class PartitionReleaseInBatchJobBenchmark {
+public class PartitionReleaseInBatchJobBenchmark extends SchedulerBenchmarkBase {
 
     private ExecutionGraph executionGraph;
     private JobVertex sink;
 
     public void setup(JobConfiguration jobConfiguration) throws Exception {
+        super.setup();
+
         final List<JobVertex> jobVertices = createDefaultJobVertices(jobConfiguration);
 
-        executionGraph = createAndInitExecutionGraph(jobVertices, jobConfiguration);
+        executionGraph =
+                createAndInitExecutionGraph(
+                        jobVertices, jobConfiguration, scheduledExecutorService);
 
         final JobVertex source = jobVertices.get(0);
         sink = jobVertices.get(1);

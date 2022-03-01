@@ -72,7 +72,6 @@ import static org.apache.flink.table.types.extraction.ExtractionUtils.toClass;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredClass;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredFieldReadability;
 import static org.apache.flink.table.types.extraction.ExtractionUtils.validateStructuredSelfReference;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasRoot;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.isCompositeType;
 
 /**
@@ -610,13 +609,13 @@ public final class DataTypeExtractor {
 
         // view was annotated
         if (ListView.class.isAssignableFrom(clazz)) {
-            if (!hasRoot(dataType.getLogicalType(), LogicalTypeRoot.ARRAY)) {
+            if (!dataType.getLogicalType().is(LogicalTypeRoot.ARRAY)) {
                 throw extractionError("Annotated list views should have a logical type of ARRAY.");
             }
             final CollectionDataType collectionDataType = (CollectionDataType) dataType;
             return ListView.newListViewDataType(collectionDataType.getElementDataType());
         } else if (MapView.class.isAssignableFrom(clazz)) {
-            if (!hasRoot(dataType.getLogicalType(), LogicalTypeRoot.MAP)) {
+            if (!dataType.getLogicalType().is(LogicalTypeRoot.MAP)) {
                 throw extractionError("Annotated map views should have a logical type of MAP.");
             }
             final KeyValueDataType keyValueDataType = (KeyValueDataType) dataType;

@@ -45,8 +45,8 @@ import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -167,6 +167,28 @@ public class CatalogBaseTableResolutionTest {
             fail();
         } catch (Exception e) {
             assertThat(e, containsMessage("Could not find property key 'schema.4.data-type'."));
+        }
+    }
+
+    @Test
+    public void testInvalidPartitionKeys() {
+        final CatalogTable catalogTable =
+                CatalogTable.of(
+                        TABLE_SCHEMA,
+                        null,
+                        Arrays.asList("region", "countyINVALID"),
+                        Collections.emptyMap());
+
+        try {
+            resolveCatalogBaseTable(ResolvedCatalogTable.class, catalogTable);
+            fail("Invalid partition keys expected.");
+        } catch (Exception e) {
+            assertThat(
+                    e,
+                    containsMessage(
+                            "Invalid partition key 'countyINVALID'. A partition key must "
+                                    + "reference a physical column in the schema. Available "
+                                    + "columns are: [id, region, county]"));
         }
     }
 

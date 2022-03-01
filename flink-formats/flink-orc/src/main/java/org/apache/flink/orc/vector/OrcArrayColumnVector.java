@@ -19,15 +19,15 @@
 package org.apache.flink.orc.vector;
 
 import org.apache.flink.table.data.ArrayData;
-import org.apache.flink.table.data.ColumnarArrayData;
-import org.apache.flink.table.data.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.ColumnarArrayData;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.types.logical.ArrayType;
 
 import org.apache.hadoop.hive.ql.exec.vector.ListColumnVector;
 
 /** This column vector is used to adapt hive's ListColumnVector to Flink's ArrayColumnVector. */
 public class OrcArrayColumnVector extends AbstractOrcColumnVector
-        implements org.apache.flink.table.data.vector.ArrayColumnVector {
+        implements org.apache.flink.table.data.columnar.vector.ArrayColumnVector {
 
     private final ListColumnVector hiveVector;
     private final ColumnVector flinkVector;

@@ -1,6 +1,6 @@
 ---
 title: Orc
-weight: 9
+weight: 10
 type: docs
 aliases:
   - /dev/table/connectors/formats/orc.html
@@ -168,9 +168,20 @@ The following table lists the type mapping from Flink type to Orc type.
       <td>timestamp</td>
       <td>TIMESTAMP</td>
     </tr>
+    <tr>
+      <td>ARRAY</td>
+      <td>-</td>
+      <td>LIST</td>
+    </tr>
+    <tr>
+      <td>MAP</td>
+      <td>-</td>
+      <td>MAP</td>
+    </tr>
+    <tr>
+      <td>ROW</td>
+      <td>-</td>
+      <td>STRUCT</td>
+    </tr>
     </tbody>
 </table>
-
-{{< hint info >}}
-Composite data type: Array, Map and Row are not supported.
-{{< /hint >}}

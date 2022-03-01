@@ -31,13 +31,6 @@
 	<files>
 		<!-- CEP -->
 		<file>
-			<source>../flink-libraries/flink-cep/target/flink-cep_${scala.binary.version}-${project.version}.jar</source>
-			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-cep_${scala.binary.version}-${project.version}.jar</destName>
-			<fileMode>0644</fileMode>
-		</file>
-
-		<file>
 			<source>../flink-libraries/flink-cep-scala/target/flink-cep-scala_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
 			<destName>flink-cep-scala_${scala.binary.version}-${project.version}.jar</destName>
@@ -46,9 +39,9 @@
 
 		<!-- Gelly -->
 		<file>
-			<source>../flink-libraries/flink-gelly/target/flink-gelly_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-libraries/flink-gelly/target/flink-gelly-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-gelly_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-gelly-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
@@ -59,19 +52,25 @@
 			<fileMode>0644</fileMode>
 		</file>
 
-		<!-- SQL Client -->
+		<!-- Table/SQL dependencies -->
 		<file>
-			<source>../flink-table/flink-sql-client/target/flink-sql-client_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-table/flink-table-planner/target/flink-table-planner_${scala.binary.version}-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-sql-client_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-table-planner_${scala.binary.version}-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+		<file>
+			<source>../flink-table/flink-sql-client/target/flink-sql-client-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-sql-client-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
 		<!-- State Processor API -->
 		<file>
-			<source>../flink-libraries/flink-state-processing-api/target/flink-state-processor-api_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-libraries/flink-state-processing-api/target/flink-state-processor-api-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-state-processor-api_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-state-processor-api-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 
@@ -103,11 +102,18 @@
 			<fileMode>0644</fileMode>
 		</file>
 
+		<file>
+			<source>../flink-filesystems/flink-gs-fs-hadoop/target/flink-gs-fs-hadoop-${project.version}.jar</source>
+			<outputDirectory>opt/</outputDirectory>
+			<destName>flink-gs-fs-hadoop-${project.version}.jar</destName>
+			<fileMode>0644</fileMode>
+		</file>
+
 		<!-- Queryable State -->
 		<file>
-			<source>../flink-queryable-state/flink-queryable-state-runtime/target/flink-queryable-state-runtime_${scala.binary.version}-${project.version}.jar</source>
+			<source>../flink-queryable-state/flink-queryable-state-runtime/target/flink-queryable-state-runtime-${project.version}.jar</source>
 			<outputDirectory>opt/</outputDirectory>
-			<destName>flink-queryable-state-runtime_${scala.binary.version}-${project.version}.jar</destName>
+			<destName>flink-queryable-state-runtime-${project.version}.jar</destName>
 			<fileMode>0644</fileMode>
 		</file>
 

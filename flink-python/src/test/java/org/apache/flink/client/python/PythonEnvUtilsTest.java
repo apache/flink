@@ -50,6 +50,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.client.python.PythonEnvUtils.PYFLINK_CLIENT_EXECUTABLE;
 import static org.apache.flink.client.python.PythonEnvUtils.preparePythonEnvironment;
+import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
@@ -179,6 +180,14 @@ public class PythonEnvUtilsTest {
     public void testSetPythonExecutable() throws IOException {
         Configuration config = new Configuration();
 
+        File zipFile = new File(tmpDirPath + File.separator + "venv.zip");
+        try (ZipArchiveOutputStream zipOut =
+                new ZipArchiveOutputStream(new FileOutputStream(zipFile))) {
+            ZipArchiveEntry entry = new ZipArchiveEntry("zipDir" + "/zipfile0");
+            zipOut.putArchiveEntry(entry);
+            zipOut.write(new byte[] {1, 1, 1, 1, 1});
+            zipOut.closeArchiveEntry();
+        }
         PythonEnvUtils.PythonEnvironment env = preparePythonEnvironment(config, null, tmpDirPath);
         if (OperatingSystem.isWindows()) {
             Assert.assertEquals("python.exe", env.pythonExec);
@@ -196,6 +205,24 @@ public class PythonEnvUtilsTest {
             systemEnv.remove(PYFLINK_CLIENT_EXECUTABLE);
             CommonTestUtils.setEnv(systemEnv);
         }
+
+        config.setString(PYTHON_ARCHIVES, zipFile.getPath());
+        systemEnv = new HashMap<>(System.getenv());
+        systemEnv.put(PYFLINK_CLIENT_EXECUTABLE, "venv.zip/venv/bin/python");
+        CommonTestUtils.setEnv(systemEnv);
+        try {
+            env = preparePythonEnvironment(config, null, tmpDirPath);
+            Assert.assertEquals("venv.zip/venv/bin/python", env.pythonExec);
+        } finally {
+            systemEnv.remove(PYFLINK_CLIENT_EXECUTABLE);
+            CommonTestUtils.setEnv(systemEnv);
+        }
+        java.nio.file.Path[] files =
+                FileUtils.listDirectory(new File(env.archivesDirectory).toPath());
+        Assert.assertEquals(files.length, 1);
+        Assert.assertEquals(files[0].getFileName().toString(), zipFile.getName());
+
+        config.removeConfig(PYTHON_ARCHIVES);
 
         config.set(PYTHON_CLIENT_EXECUTABLE, "/usr/bin/python");
         env = preparePythonEnvironment(config, null, tmpDirPath);

@@ -23,10 +23,11 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.strategies.CommonTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.ExplicitTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.FirstTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.ForceNullableTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MappingTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MatchFamilyTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.MissingTypeStrategy;
-import org.apache.flink.table.types.inference.strategies.NullableTypeStrategy;
+import org.apache.flink.table.types.inference.strategies.NullableIfArgsTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.UseArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.strategies.VaryingStringTypeStrategy;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -82,21 +83,43 @@ public final class TypeStrategies {
         return new MappingTypeStrategy(mappings);
     }
 
+    /** Type strategy which forces the given {@param initialStrategy} to be nullable. */
+    public static TypeStrategy forceNullable(TypeStrategy initialStrategy) {
+        return new ForceNullableTypeStrategy(initialStrategy);
+    }
+
     /**
      * A type strategy that can be used to make a result type nullable if any of the selected input
      * arguments is nullable. Otherwise the type will be not null.
      */
-    public static TypeStrategy nullable(
+    public static TypeStrategy nullableIfArgs(
             ConstantArgumentCount includedArgs, TypeStrategy initialStrategy) {
-        return new NullableTypeStrategy(includedArgs, initialStrategy);
+        return new NullableIfArgsTypeStrategy(includedArgs, initialStrategy, false);
     }
 
     /**
      * A type strategy that can be used to make a result type nullable if any of the input arguments
      * is nullable. Otherwise the type will be not null.
      */
-    public static TypeStrategy nullable(TypeStrategy initialStrategy) {
-        return nullable(ConstantArgumentCount.any(), initialStrategy);
+    public static TypeStrategy nullableIfArgs(TypeStrategy initialStrategy) {
+        return nullableIfArgs(ConstantArgumentCount.any(), initialStrategy);
+    }
+
+    /**
+     * A type strategy that can be used to make a result type nullable if all the selected input
+     * arguments are nullable. Otherwise the type will be non-nullable.
+     */
+    public static TypeStrategy nullableIfAllArgs(
+            ConstantArgumentCount includedArgs, TypeStrategy initialStrategy) {
+        return new NullableIfArgsTypeStrategy(includedArgs, initialStrategy, true);
+    }
+
+    /**
+     * A type strategy that can be used to make a result type nullable if all the input arguments is
+     * nullable. Otherwise the type will be not null.
+     */
+    public static TypeStrategy nullableIfAllArgs(TypeStrategy initialStrategy) {
+        return nullableIfAllArgs(ConstantArgumentCount.any(), initialStrategy);
     }
 
     /**

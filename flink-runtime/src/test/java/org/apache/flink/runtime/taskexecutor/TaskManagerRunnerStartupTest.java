@@ -24,9 +24,9 @@ import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -38,10 +38,11 @@ import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.rpc.RpcService;
 import org.apache.flink.runtime.rpc.TestingRpcServiceResource;
+import org.apache.flink.runtime.testutils.WorkingDirectoryResource;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.TestLogger;
 
-import org.apache.flink.shaded.guava18.com.google.common.collect.Sets;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Sets;
 
 import org.apache.commons.io.FileUtils;
 import org.junit.After;
@@ -81,6 +82,10 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 
     @Rule public final TemporaryFolder tempFolder = new TemporaryFolder();
 
+    @ClassRule
+    public static final WorkingDirectoryResource WORKING_DIRECTORY_RESOURCE =
+            new WorkingDirectoryResource();
+
     private final RpcService rpcService = RPC_SERVICE_RESOURCE.getTestingRpcService();
 
     private TestingHighAvailabilityServices highAvailabilityServices;
@@ -115,7 +120,11 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
 
             try {
 
-                startTaskManager(cfg, rpcService, highAvailabilityServices);
+                startTaskManager(
+                        cfg,
+                        rpcService,
+                        highAvailabilityServices,
+                        WORKING_DIRECTORY_RESOURCE.createNewWorkingDirectory());
 
                 fail("Should fail synchronously with an IOException");
             } catch (IOException e) {
@@ -143,7 +152,11 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
         // something invalid
         cfg.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("100m"));
         cfg.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("10m"));
-        startTaskManager(cfg, rpcService, highAvailabilityServices);
+        startTaskManager(
+                cfg,
+                rpcService,
+                highAvailabilityServices,
+                WORKING_DIRECTORY_RESOURCE.createNewWorkingDirectory());
     }
 
     /**
@@ -158,7 +171,11 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
             cfg.setInteger(NettyShuffleEnvironmentOptions.DATA_PORT, blocker.getLocalPort());
             cfg.setString(TaskManagerOptions.BIND_HOST, LOCAL_HOST);
 
-            startTaskManager(cfg, rpcService, highAvailabilityServices);
+            startTaskManager(
+                    cfg,
+                    rpcService,
+                    highAvailabilityServices,
+                    WORKING_DIRECTORY_RESOURCE.createNewWorkingDirectory());
 
             fail("Should throw IOException when the network stack cannot be initialized.");
         } catch (IOException e) {
@@ -178,6 +195,7 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
                 cfg,
                 rpcService,
                 highAvailabilityServices,
+                WORKING_DIRECTORY_RESOURCE.createNewWorkingDirectory(),
                 TestingMetricRegistry.builder()
                         .setRegisterConsumer(
                                 (metric, metricName, group) ->
@@ -244,16 +262,22 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
     private static void startTaskManager(
             Configuration configuration,
             RpcService rpcService,
-            HighAvailabilityServices highAvailabilityServices)
+            HighAvailabilityServices highAvailabilityServices,
+            WorkingDirectory workingDirectory)
             throws Exception {
         startTaskManager(
-                configuration, rpcService, highAvailabilityServices, NoOpMetricRegistry.INSTANCE);
+                configuration,
+                rpcService,
+                highAvailabilityServices,
+                workingDirectory,
+                NoOpMetricRegistry.INSTANCE);
     }
 
     private static void startTaskManager(
             Configuration configuration,
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
+            WorkingDirectory workingDirectory,
             MetricRegistry metricRegistry)
             throws Exception {
 
@@ -264,9 +288,10 @@ public class TaskManagerRunnerStartupTest extends TestLogger {
                 highAvailabilityServices,
                 new TestingHeartbeatServices(),
                 metricRegistry,
-                new BlobCacheService(configuration, new VoidBlobStore(), null),
+                NoOpTaskExecutorBlobService.INSTANCE,
                 false,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                workingDirectory,
                 error -> {});
     }
 }

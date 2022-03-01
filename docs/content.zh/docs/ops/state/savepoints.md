@@ -31,9 +31,10 @@ under the License.
 
 Savepoint 是依据 Flink [checkpointing 机制]({{< ref "docs/learn-flink/fault_tolerance" >}})所创建的流作业执行状态的一致镜像。 你可以使用 Savepoint 进行 Flink 作业的停止与重启、fork 或者更新。 Savepoint 由两部分组成：稳定存储（列入 HDFS，S3，...) 上包含二进制文件的目录（通常很大），和元数据文件（相对较小）。 稳定存储上的文件表示作业执行状态的数据镜像。 Savepoint 的元数据文件以（相对路径）的形式包含（主要）指向作为 Savepoint 一部分的稳定存储上的所有文件的指针。
 
-<div class="alert alert-warning">
-<strong>注意:</strong> 为了允许程序和 Flink 版本之间的升级，请务必查看以下有关<a href="#分配算子-id">分配算子 ID </a>的部分 。
-</div>
+{{< hint warning >}}
+**注意:** 为了允许程序和 Flink 版本之间的升级，请务必查看以下有关<a href="#分配算子-id">分配算子 ID </a>的部分 。
+{{< /hint >}}
+
 从概念上讲， Flink 的 Savepoint 与 Checkpoint 的不同之处类似于传统数据库中的备份与恢复日志之间的差异。 Checkpoint 的主要目的是为意外失败的作业提供恢复机制。 Checkpoint 的生命周期由 Flink 管理，即 Flink 创建，管理和删除 Checkpoint - 无需用户交互。 作为一种恢复和定期触发的方法，Checkpoint 实现有两个设计目标：i）轻量级创建和 ii）尽可能快地恢复。 可能会利用某些特定的属性来达到这个，例如， 工作代码在执行尝试之间不会改变。 在用户终止作业后，通常会删除 Checkpoint（除非明确配置为保留的 Checkpoint）。
 
  与此相反、Savepoint 由用户创建，拥有和删除。 他们的用例是计划的，手动备份和恢复。 例如，升级 Flink 版本，调整用户逻辑，改变并行度，以及进行红蓝部署等。 当然，Savepoint 必须在作业停止后继续存在。 从概念上讲，Savepoint 的生成，恢复成本可能更高一些，Savepoint 更多地关注可移植性和对前面提到的作业更改的支持。
@@ -82,9 +83,9 @@ mapper-id   | State of StatefulMapper
 
 当触发 Savepoint 时，将创建一个新的 Savepoint 目录，其中存储数据和元数据。可以通过[配置默认目标目录](#配置)或使用触发器命令指定自定义目标目录(参见[`:targetDirectory`参数](#触发-savepoint-1)来控制该目录的位置。
 
-<div class="alert alert-warning">
-<strong>注意:</strong>目标目录必须是 JobManager(s) 和 TaskManager(s) 都可以访问的位置，例如分布式文件系统（或者对象存储系统）上的位置。
-</div>
+{{< hint warning >}}
+**注意:** 目标目录必须是 JobManager(s) 和 TaskManager(s) 都可以访问的位置，例如分布式文件系统（或者对象存储系统）上的位置。
+{{< /hint >}}
 
 以 `FsStateBackend`  或 `RocksDBStateBackend` 为例：
 
@@ -103,18 +104,21 @@ mapper-id   | State of StatefulMapper
 ```
 
 从 1.11.0 开始，你可以通过移动（拷贝）savepoint 目录到任意地方，然后再进行恢复。
-<div class="alert alert-warning">
-在如下两种情况中不支持 savepoint 目录的移动：1）如果启用了 *<a href="{{< ref "docs/deployment/filesystems/s3" >}}#entropy-injection-for-s3-file-systems">entropy injection</a>：这种情况下，savepoint 目录不包含所有的数据文件，因为注入的路径会分散在各个路径中。
-由于缺乏一个共同的根目录，因此 savepoint 将包含绝对路径，从而导致无法支持 savepoint 目录的迁移。2）作业包含了 task-owned state（比如 `GenericWriteAhreadLog` sink）。
-</div>
 
-<div class="alert alert-warning">
+{{< hint warning >}}
+在如下两种情况中不支持 savepoint 目录的移动：1）如果启用了 *<a href="{{< ref "docs/deployment/filesystems/s3" >}}#entropy-injection-for-s3-file-systems">entropy injection</a>* ：这种情况下，savepoint 目录不包含所有的数据文件，因为注入的路径会分散在各个路径中。
+由于缺乏一个共同的根目录，因此 savepoint 将包含绝对路径，从而导致无法支持 savepoint 目录的迁移。2）作业包含了 task-owned state（比如 `GenericWriteAhreadLog` sink）。
+{{< /hint >}}
+
+{{< hint warning >}}
 和 savepoint 不同，checkpoint 不支持任意移动文件，因为 checkpoint 可能包含一些文件的绝对路径。
-</div>
+{{< /hint >}}
+
 如果你使用 `MemoryStateBackend` 的话，metadata 和 savepoint 的数据都会保存在 `_metadata` 文件中，因此不要因为没看到目录下没有数据文件而困惑。
-<div class="alert alert-warning">
-  <strong>注意:</strong> 不建议移动或删除正在运行作业的最后一个 Savepoint ，因为这可能会干扰故障恢复。因此，Savepoint 对精确一次的接收器有副作用，为了确保精确一次的语义，如果在最后一个 Savepoint 之后没有 Checkpoint ，那么将使用 Savepoint 进行恢复。
-</div>
+
+{{< hint warning >}}
+**注意:** 不建议移动或删除正在运行作业的最后一个 Savepoint ，因为这可能会干扰故障恢复。因此，Savepoint 对精确一次的接收器有副作用，为了确保精确一次的语义，如果在最后一个 Savepoint 之后没有 Checkpoint ，那么将使用 Savepoint 进行恢复。
+{{< /hint >}}
 
 
 #### 触发 Savepoint
@@ -179,9 +183,9 @@ state.savepoints.dir: hdfs:///flink/savepoints
 
 如果既未配置缺省值也未指定自定义目标目录，则触发 Savepoint 将失败。
 
-<div class="alert alert-warning">
-<strong>注意:</strong>目标目录必须是 JobManager(s) 和 TaskManager(s) 可访问的位置，例如，分布式文件系统上的位置。
-</div>
+{{< hint warning >}}
+**注意:** 目标目录必须是 JobManager(s) 和 TaskManager(s) 可访问的位置，例如，分布式文件系统上的位置。
+{{< /hint >}}
 
 
 ## F.A.Q

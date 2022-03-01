@@ -66,7 +66,7 @@ public class JarDeleteHandler
 
     @Override
     protected CompletableFuture<EmptyResponseBody> handleRequest(
-            @Nonnull final HandlerRequest<EmptyRequestBody, JarDeleteMessageParameters> request,
+            @Nonnull final HandlerRequest<EmptyRequestBody> request,
             @Nonnull final RestfulGateway gateway)
             throws RestHandlerException {
 

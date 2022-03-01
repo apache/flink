@@ -68,8 +68,19 @@ public class JobVertexFlameGraph implements ResponseBody {
         return "OperatorFlameGraph: endTimestamp=" + endTimestamp + "\n" + getRoot().toString();
     }
 
-    public static JobVertexFlameGraph empty() {
+    // Indicates that the task execution has been terminated
+    public static JobVertexFlameGraph terminated() {
         return new JobVertexFlameGraph(-1, null);
+    }
+
+    // Indicates that the flame graph feature has been disabled
+    public static JobVertexFlameGraph disabled() {
+        return new JobVertexFlameGraph(-2, null);
+    }
+
+    // Indicates that it is waiting for the first samples to creating the flame graph
+    public static JobVertexFlameGraph waiting() {
+        return new JobVertexFlameGraph(-3, null);
     }
 
     /** Graph node. */

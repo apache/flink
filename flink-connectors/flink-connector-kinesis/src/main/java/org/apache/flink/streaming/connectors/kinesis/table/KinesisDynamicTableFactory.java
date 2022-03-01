@@ -20,108 +20,55 @@ package org.apache.flink.streaming.connectors.kinesis.table;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
-import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.streaming.connectors.kinesis.util.KinesisConfigUtil;
-import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.catalog.CatalogTable;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.connector.format.DecodingFormat;
-import org.apache.flink.table.connector.format.EncodingFormat;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DeserializationFormatFactory;
-import org.apache.flink.table.factories.DynamicTableSinkFactory;
 import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
-import org.apache.flink.table.factories.SerializationFormatFactory;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.logical.RowType;
 
-import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-/** Factory for creating {@link KinesisDynamicSource} and {@link KinesisDynamicSink} instances. */
+import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER;
+import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.SINK_PARTITIONER_FIELD_DELIMITER;
+import static org.apache.flink.connector.kinesis.table.KinesisConnectorOptions.STREAM;
+import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
+
+/** Factory for creating {@link KinesisDynamicSource}. */
 @Internal
-public class KinesisDynamicTableFactory
-        implements DynamicTableSourceFactory, DynamicTableSinkFactory {
+public class KinesisDynamicTableFactory implements DynamicTableSourceFactory {
     public static final String IDENTIFIER = "kinesis";
-
-    // --------------------------------------------------------------------------------------------
-    // DynamicTableSourceFactory
-    // --------------------------------------------------------------------------------------------
 
     @Override
     public DynamicTableSource createDynamicTableSource(Context context) {
+
         FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
         ReadableConfig tableOptions = helper.getOptions();
         ResolvedCatalogTable catalogTable = context.getCatalogTable();
-        Properties properties = KinesisOptions.getConsumerProperties(catalogTable.getOptions());
+        DataType physicalDataType = catalogTable.getResolvedSchema().toPhysicalRowDataType();
+        KinesisConnectorOptionsUtil optionsUtils =
+                new KinesisConnectorOptionsUtil(catalogTable.getOptions(), tableOptions);
 
         // initialize the table format early in order to register its consumedOptionKeys
         // in the TableFactoryHelper, as those are needed for correct option validation
         DecodingFormat<DeserializationSchema<RowData>> decodingFormat =
-                helper.discoverDecodingFormat(
-                        DeserializationFormatFactory.class, FactoryUtil.FORMAT);
-
-        // Validate option data types
-        helper.validateExcept(KinesisOptions.NON_VALIDATED_PREFIXES);
-        // Validate option values
-        validateConsumerProperties(tableOptions.get(KinesisOptions.STREAM), properties);
-
-        DataType physicalDataType = catalogTable.getResolvedSchema().toPhysicalRowDataType();
-
-        return new KinesisDynamicSource(
-                physicalDataType,
-                tableOptions.get(KinesisOptions.STREAM),
-                properties,
-                decodingFormat);
-    }
-
-    // --------------------------------------------------------------------------------------------
-    // DynamicTableSinkFactory
-    // --------------------------------------------------------------------------------------------
-
-    @Override
-    public DynamicTableSink createDynamicTableSink(Context context) {
-        FactoryUtil.TableFactoryHelper helper = FactoryUtil.createTableFactoryHelper(this, context);
-        ReadableConfig tableOptions = helper.getOptions();
-        ResolvedCatalogTable catalogTable = context.getCatalogTable();
-        Properties properties = KinesisOptions.getProducerProperties(catalogTable.getOptions());
-
-        // initialize the table format early in order to register its consumedOptionKeys
-        // in the TableFactoryHelper, as those are needed for correct option validation
-        EncodingFormat<SerializationSchema<RowData>> encodingFormat =
-                helper.discoverEncodingFormat(SerializationFormatFactory.class, FactoryUtil.FORMAT);
+                helper.discoverDecodingFormat(DeserializationFormatFactory.class, FORMAT);
 
         // validate the data types of the table options
-        helper.validateExcept(KinesisOptions.NON_VALIDATED_PREFIXES);
-        // Validate option values
-        validateKinesisPartitioner(tableOptions, catalogTable);
-        validateProducerProperties(properties);
+        helper.validateExcept(optionsUtils.getNonValidatedPrefixes().toArray(new String[0]));
+        Properties properties = optionsUtils.getValidatedSourceConfigurations();
 
-        DataType physicalDataType = catalogTable.getResolvedSchema().toPhysicalRowDataType();
-
-        return new KinesisDynamicSink(
-                physicalDataType,
-                tableOptions.get(KinesisOptions.STREAM),
-                properties,
-                encodingFormat,
-                KinesisOptions.getKinesisPartitioner(
-                        tableOptions,
-                        (RowType) physicalDataType.getLogicalType(),
-                        catalogTable.getPartitionKeys(),
-                        context.getClassLoader()));
+        return new KinesisDynamicSource(
+                physicalDataType, tableOptions.get(STREAM), properties, decodingFormat);
     }
-
-    // --------------------------------------------------------------------------------------------
-    // Factory
-    // --------------------------------------------------------------------------------------------
 
     @Override
     public String factoryIdentifier() {
@@ -131,45 +78,22 @@ public class KinesisDynamicTableFactory
     @Override
     public Set<ConfigOption<?>> requiredOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(KinesisOptions.STREAM);
-        options.add(FactoryUtil.FORMAT);
+        options.add(STREAM);
+        options.add(FORMAT);
         return options;
     }
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
         final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(KinesisOptions.SINK_PARTITIONER);
-        options.add(KinesisOptions.SINK_PARTITIONER_FIELD_DELIMITER);
+        options.add(SINK_PARTITIONER);
+        options.add(SINK_PARTITIONER_FIELD_DELIMITER);
         return options;
     }
 
-    // --------------------------------------------------------------------------------------------
-    // Validation helpers
-    // --------------------------------------------------------------------------------------------
-
-    private static void validateConsumerProperties(String stream, Properties properties) {
-        List<String> streams = Collections.singletonList(stream);
-        KinesisConfigUtil.validateConsumerConfiguration(properties, streams);
-    }
-
-    private static void validateProducerProperties(Properties properties) {
-        // this assumes no side-effects as it is also called later from FlinkKinesisProducer#open()
-        KinesisConfigUtil.getValidatedProducerConfiguration(properties);
-    }
-
-    public static void validateKinesisPartitioner(
-            ReadableConfig tableOptions, CatalogTable targetTable) {
-        tableOptions
-                .getOptional(KinesisOptions.SINK_PARTITIONER)
-                .ifPresent(
-                        partitioner -> {
-                            if (targetTable.isPartitioned()) {
-                                throw new ValidationException(
-                                        String.format(
-                                                "Cannot set %s option for a table defined with a PARTITIONED BY clause",
-                                                KinesisOptions.SINK_PARTITIONER.key()));
-                            }
-                        });
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(STREAM, SINK_PARTITIONER, SINK_PARTITIONER_FIELD_DELIMITER)
+                .collect(Collectors.toSet());
     }
 }

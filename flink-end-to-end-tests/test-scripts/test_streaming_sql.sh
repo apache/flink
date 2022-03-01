@@ -19,6 +19,12 @@
 
 source "$(dirname "$0")"/common.sh
 
+PLANNER=$1
+if [ "$PLANNER" = "scala-planner" ]; then
+  swap_planner_loader_with_planner_scala
+  on_exit swap_planner_scala_with_planner_loader
+fi
+
 TEST_PROGRAM_JAR=${END_TO_END_DIR}/flink-stream-sql-test/target/StreamSQLTestProgram.jar
 
 start_cluster

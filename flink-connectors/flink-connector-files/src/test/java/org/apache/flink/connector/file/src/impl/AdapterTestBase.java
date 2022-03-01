@@ -158,7 +158,8 @@ public abstract class AdapterTestBase<FormatT> {
         final BulkFormat<Integer, FileSourceSplit> adapter =
                 wrapWithAdapter(createFormatFailingInInstantiation());
         try {
-            adapter.createReader(new Configuration(), new FileSourceSplit("id", testPath, 0, 1024));
+            adapter.createReader(
+                    new Configuration(), new FileSourceSplit("id", testPath, 0, 1024, 0, 1024));
         } catch (IOException ignored) {
         }
 
@@ -185,7 +186,14 @@ public abstract class AdapterTestBase<FormatT> {
                 wrapWithAdapter(createFormatFailingInInstantiation());
         final FileSourceSplit split =
                 new FileSourceSplit(
-                        "id", testPath, 0, 1024, new String[0], new CheckpointedPosition(0L, 5L));
+                        "id",
+                        testPath,
+                        0,
+                        1024,
+                        0,
+                        1024,
+                        new String[0],
+                        new CheckpointedPosition(0L, 5L));
 
         try {
             adapter.restoreReader(new Configuration(), split);
@@ -268,12 +276,19 @@ public abstract class AdapterTestBase<FormatT> {
         final long rangeForSplit = FILE_LEN / numSplits;
 
         for (int i = 0; i < numSplits - 1; i++) {
-            splits.add(new FileSourceSplit("ID-" + i, testPath, i * rangeForSplit, rangeForSplit));
+            splits.add(
+                    new FileSourceSplit(
+                            "ID-" + i, testPath, i * rangeForSplit, rangeForSplit, 0, FILE_LEN));
         }
         final long startOfLast = (numSplits - 1) * rangeForSplit;
         splits.add(
                 new FileSourceSplit(
-                        "ID-" + (numSplits - 1), testPath, startOfLast, FILE_LEN - startOfLast));
+                        "ID-" + (numSplits - 1),
+                        testPath,
+                        startOfLast,
+                        FILE_LEN - startOfLast,
+                        0,
+                        FILE_LEN));
         return splits;
     }
 

@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.factories;
 
-import org.apache.flink.table.api.NoMatchingTableFactoryException;
-
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -29,8 +27,6 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 import static org.apache.flink.table.factories.TestTableSinkFactory.CONNECTOR_TYPE_VALUE_TEST;
 import static org.apache.flink.table.factories.TestTableSinkFactory.FORMAT_PATH;
 import static org.apache.flink.table.factories.TestTableSinkFactory.FORMAT_TYPE_VALUE_TEST;
@@ -94,7 +90,7 @@ public class TableSinkFactoryServiceTest {
                         + "Missing properties:\n"
                         + "format.type=test");
         Map<String, String> props = properties();
-        props.remove(FORMAT_TYPE);
+        props.remove(TableFactoryService.FORMAT_TYPE);
         TableFactoryService.find(TableSinkFactory.class, props);
     }
 
@@ -107,7 +103,7 @@ public class TableSinkFactoryServiceTest {
                         + "Mismatched properties:\n"
                         + "'format.type' expects 'test', but is 'test_new'");
         Map<String, String> props = properties();
-        props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST + "_new");
+        props.put(TableFactoryService.FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST + "_new");
         TableFactoryService.find(TableSinkFactory.class, props);
     }
 
@@ -122,7 +118,7 @@ public class TableSinkFactoryServiceTest {
                         + "Mismatched properties:\n"
                         + "'format.type' expects 'test', but is 'test_new'");
         Map<String, String> props = properties();
-        props.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST + "_new");
+        props.put(TableFactoryService.FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST + "_new");
         props.remove(REQUIRED_TEST);
         TableFactoryService.find(TableSinkFactory.class, props);
     }
@@ -130,10 +126,10 @@ public class TableSinkFactoryServiceTest {
     private Map<String, String> properties() {
         Map<String, String> properties = new HashMap<>();
         properties.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_TEST);
-        properties.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST);
+        properties.put(TableFactoryService.FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST);
         properties.put(REQUIRED_TEST, REQUIRED_TEST_VALUE);
         properties.put(CONNECTOR_PROPERTY_VERSION, "1");
-        properties.put(FORMAT_PROPERTY_VERSION, "1");
+        properties.put(TableFactoryService.FORMAT_PROPERTY_VERSION, "1");
         properties.put(FORMAT_PATH, "/path/to/target");
         properties.put("schema.0.name", "a");
         properties.put("schema.1.name", "b");

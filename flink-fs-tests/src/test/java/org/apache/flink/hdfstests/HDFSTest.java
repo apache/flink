@@ -54,7 +54,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
@@ -78,8 +77,6 @@ public class HDFSTest {
     protected org.apache.hadoop.fs.FileSystem hdfs;
 
     @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
-
-    @Rule public final ExpectedException exception = ExpectedException.none();
 
     @BeforeClass
     public static void verifyOS() {
@@ -267,7 +264,8 @@ public class HDFSTest {
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobServerRecoveryTest.testBlobServerRecovery(config, blobStoreService);
+            BlobServerRecoveryTest.testBlobServerRecovery(
+                    config, blobStoreService, temporaryFolder.newFolder());
         } finally {
             blobStoreService.closeAndCleanupAllData();
         }
@@ -290,7 +288,7 @@ public class HDFSTest {
 
         try {
             BlobServerCorruptionTest.testGetFailsFromCorruptFile(
-                    config, blobStoreService, exception);
+                    config, blobStoreService, temporaryFolder.newFolder());
         } finally {
             blobStoreService.closeAndCleanupAllData();
         }
@@ -312,7 +310,8 @@ public class HDFSTest {
         BlobStoreService blobStoreService = BlobUtils.createBlobStoreFromConfig(config);
 
         try {
-            BlobCacheRecoveryTest.testBlobCacheRecovery(config, blobStoreService);
+            BlobCacheRecoveryTest.testBlobCacheRecovery(
+                    config, blobStoreService, temporaryFolder.newFolder());
         } finally {
             blobStoreService.closeAndCleanupAllData();
         }
@@ -335,7 +334,7 @@ public class HDFSTest {
 
         try {
             BlobCacheCorruptionTest.testGetFailsFromCorruptFile(
-                    new JobID(), config, blobStoreService, exception);
+                    new JobID(), config, blobStoreService, temporaryFolder.newFolder());
         } finally {
             blobStoreService.closeAndCleanupAllData();
         }

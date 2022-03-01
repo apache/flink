@@ -17,13 +17,14 @@
  */
 
 import { Pipe, PipeTransform } from '@angular/core';
+
 import { LONG_MIN_VALUE } from 'config';
 
 @Pipe({
   name: 'humanizeWatermark'
 })
 export class HumanizeWatermarkPipe implements PipeTransform {
-  transform(value: any): any {
+  public transform(value: number): number | string {
     if (isNaN(value) || value <= LONG_MIN_VALUE) {
       return 'No Watermark (Watermarks are only available if EventTime is used)';
     } else {

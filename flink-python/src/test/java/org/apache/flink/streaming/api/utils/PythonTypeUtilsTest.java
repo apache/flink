@@ -46,6 +46,7 @@ import org.apache.flink.table.runtime.typeutils.serializers.python.DateSerialize
 import org.apache.flink.table.runtime.typeutils.serializers.python.StringSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimeSerializer;
 import org.apache.flink.table.runtime.typeutils.serializers.python.TimestampSerializer;
+import org.apache.flink.types.Row;
 
 import org.junit.Test;
 
@@ -119,6 +120,23 @@ public class PythonTypeUtilsTest {
                 convertedBasicFieldType.getCollectionElementType().getTypeName(),
                 FlinkFnApi.TypeInfo.TypeName.INT);
 
+        TypeInformation objectArrayTypeInfo = Types.OBJECT_ARRAY(Types.ROW(Types.INT));
+        FlinkFnApi.TypeInfo convertedTypeInfoProto =
+                PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(objectArrayTypeInfo);
+        assertEquals(
+                convertedTypeInfoProto.getTypeName(), FlinkFnApi.TypeInfo.TypeName.OBJECT_ARRAY);
+        assertEquals(
+                convertedTypeInfoProto.getCollectionElementType().getTypeName(),
+                FlinkFnApi.TypeInfo.TypeName.ROW);
+        assertEquals(
+                convertedTypeInfoProto
+                        .getCollectionElementType()
+                        .getRowTypeInfo()
+                        .getFields(0)
+                        .getFieldType()
+                        .getTypeName(),
+                FlinkFnApi.TypeInfo.TypeName.INT);
+
         TypeInformation rowTypeInfo = Types.ROW(Types.INT);
         convertedFieldType = PythonTypeUtils.TypeInfoToProtoConverter.toTypeInfoProto(rowTypeInfo);
         assertEquals(convertedFieldType.getTypeName(), FlinkFnApi.TypeInfo.TypeName.ROW);
@@ -136,7 +154,7 @@ public class PythonTypeUtilsTest {
     }
 
     @Test
-    public void testTypeInfotoSerializerConverter() {
+    public void testTypeInfoToSerializerConverter() {
         Map<TypeInformation, TypeSerializer> typeInformationTypeSerializerMap = new HashMap<>();
         typeInformationTypeSerializerMap.put(BasicTypeInfo.INT_TYPE_INFO, IntSerializer.INSTANCE);
         typeInformationTypeSerializerMap.put(
@@ -185,6 +203,16 @@ public class PythonTypeUtilsTest {
         assertEquals(
                 convertedTypeSerializer,
                 new GenericArraySerializer(Integer.class, IntSerializer.INSTANCE));
+
+        TypeInformation objectArrayTypeInfo = Types.OBJECT_ARRAY(Types.ROW(Types.INT));
+        convertedTypeSerializer =
+                PythonTypeUtils.TypeInfoToSerializerConverter.typeInfoSerializerConverter(
+                        objectArrayTypeInfo);
+        assertEquals(
+                convertedTypeSerializer,
+                new GenericArraySerializer(
+                        Row.class,
+                        new RowSerializer(new TypeSerializer[] {IntSerializer.INSTANCE}, null)));
 
         TypeInformation rowTypeInfo = Types.ROW(Types.INT);
         convertedTypeSerializer =

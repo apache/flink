@@ -16,8 +16,8 @@
         </tr>
         <tr>
             <td><h5>akka.ask.timeout</h5></td>
-            <td style="word-wrap: break-word;">"10 s"</td>
-            <td>String</td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
             <td>Timeout used for all futures and blocking Akka calls. If Flink fails due to timeouts then you should try to increase this value. Timeouts can be caused by slow machines or a congested network. The timeout value requires a time-unit specifier (ms/s/min/h/d).</td>
         </tr>
         <tr>
@@ -76,8 +76,8 @@
         </tr>
         <tr>
             <td><h5>akka.lookup.timeout</h5></td>
-            <td style="word-wrap: break-word;">"10 s"</td>
-            <td>String</td>
+            <td style="word-wrap: break-word;">10 s</td>
+            <td>Duration</td>
             <td>Timeout used for the lookup of the JobManager. The timeout value has to contain a time-unit specifier (ms/s/min/h/d).</td>
         </tr>
         <tr>

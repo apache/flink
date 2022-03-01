@@ -40,11 +40,11 @@ import org.apache.flink.runtime.scheduler.SchedulerBase;
 import org.apache.flink.runtime.scheduler.SchedulerTestingUtils;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlot;
 import org.apache.flink.runtime.scheduler.TestingPhysicalSlotProvider;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.PartitionDescriptor;
 import org.apache.flink.runtime.shuffle.ProducerDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
@@ -216,7 +216,7 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
                 ResultPartitionType.BLOCKING,
                 partitionTracker,
                 new SimpleAckingTaskManagerGateway(),
-                NettyShuffleMaster.INSTANCE);
+                ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER);
 
         Tuple2<ResourceID, ResultPartitionDeploymentDescriptor> startTrackingCall =
                 partitionStartTrackingFuture.get();
@@ -322,26 +322,47 @@ public class ExecutionPartitionLifecycleTest extends TestLogger {
 
         @Override
         public CompletableFuture<ShuffleDescriptor> registerPartitionWithProducer(
-                PartitionDescriptor partitionDescriptor, ProducerDescriptor producerDescriptor) {
+                JobID jobID,
+                PartitionDescriptor partitionDescriptor,
+                ProducerDescriptor producerDescriptor) {
             return CompletableFuture.completedFuture(
-                    new ShuffleDescriptor() {
-                        @Override
-                        public ResultPartitionID getResultPartitionID() {
-                            return new ResultPartitionID(
-                                    partitionDescriptor.getPartitionId(),
-                                    producerDescriptor.getProducerExecutionId());
-                        }
-
-                        @Override
-                        public Optional<ResourceID> storesLocalResourcesOn() {
-                            return Optional.of(producerDescriptor.getProducerLocation());
-                        }
-                    });
+                    new TestingShuffleDescriptor(
+                            partitionDescriptor.getPartitionId(),
+                            producerDescriptor.getProducerExecutionId(),
+                            producerDescriptor.getProducerLocation()));
         }
 
         @Override
         public void releasePartitionExternally(ShuffleDescriptor shuffleDescriptor) {
             externallyReleasedPartitions.add(shuffleDescriptor);
+        }
+    }
+
+    private static class TestingShuffleDescriptor implements ShuffleDescriptor {
+
+        private static final long serialVersionUID = 1819950291216655728L;
+
+        private final ExecutionAttemptID producerExecutionId;
+        private final IntermediateResultPartitionID producedPartitionId;
+        private final ResourceID producerLocation;
+
+        TestingShuffleDescriptor(
+                IntermediateResultPartitionID producedPartitionId,
+                ExecutionAttemptID producerExecutionId,
+                ResourceID producerLocation) {
+            this.producedPartitionId = producedPartitionId;
+            this.producerExecutionId = producerExecutionId;
+            this.producerLocation = producerLocation;
+        }
+
+        @Override
+        public ResultPartitionID getResultPartitionID() {
+            return new ResultPartitionID(producedPartitionId, producerExecutionId);
+        }
+
+        @Override
+        public Optional<ResourceID> storesLocalResourcesOn() {
+            return Optional.of(producerLocation);
         }
     }
 }

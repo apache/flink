@@ -19,7 +19,7 @@
 package org.apache.flink.connector.jdbc.catalog;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableSchema;
+import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.types.logical.DecimalType;
 
 import com.opentable.db.postgres.junit.EmbeddedPostgresRules;
@@ -166,11 +166,11 @@ public class PostgresCatalogTestBase {
 
     /** Object holding schema and corresponding sql. */
     public static class TestTable {
-        TableSchema schema;
+        Schema schema;
         String pgSchemaSql;
         String values;
 
-        public TestTable(TableSchema schema, String pgSchemaSql, String values) {
+        public TestTable(Schema schema, String pgSchemaSql, String values) {
             this.schema = schema;
             this.pgSchemaSql = pgSchemaSql;
             this.values = values;
@@ -179,7 +179,7 @@ public class PostgresCatalogTestBase {
 
     public static TestTable getSimpleTable() {
         return new TestTable(
-                TableSchema.builder().field("id", DataTypes.INT()).build(), "id integer", "1");
+                Schema.newBuilder().column("id", DataTypes.INT()).build(), "id integer", "1");
     }
 
     // posgres doesn't support to use the same primary key name across different tables,
@@ -189,33 +189,33 @@ public class PostgresCatalogTestBase {
     }
 
     // TODO: add back timestamptz and time types.
-    //  Flink currently doens't support converting time's precision, with the following error
+    //  Flink currently doesn't support converting time's precision, with the following error
     //  TableException: Unsupported conversion from data type 'TIME(6)' (conversion class:
     // java.sql.Time)
     //  to type information. Only data types that originated from type information fully support a
     // reverse conversion.
     public static TestTable getPrimitiveTable(String primaryKeyName) {
         return new TestTable(
-                TableSchema.builder()
-                        .field("int", DataTypes.INT().notNull())
-                        .field("bytea", DataTypes.BYTES())
-                        .field("short", DataTypes.SMALLINT().notNull())
-                        .field("long", DataTypes.BIGINT())
-                        .field("real", DataTypes.FLOAT())
-                        .field("double_precision", DataTypes.DOUBLE())
-                        .field("numeric", DataTypes.DECIMAL(10, 5))
-                        .field("decimal", DataTypes.DECIMAL(10, 1))
-                        .field("boolean", DataTypes.BOOLEAN())
-                        .field("text", DataTypes.STRING())
-                        .field("char", DataTypes.CHAR(1))
-                        .field("character", DataTypes.CHAR(3))
-                        .field("character_varying", DataTypes.VARCHAR(20))
-                        .field("timestamp", DataTypes.TIMESTAMP(5))
+                Schema.newBuilder()
+                        .column("int", DataTypes.INT().notNull())
+                        .column("bytea", DataTypes.BYTES())
+                        .column("short", DataTypes.SMALLINT().notNull())
+                        .column("long", DataTypes.BIGINT())
+                        .column("real", DataTypes.FLOAT())
+                        .column("double_precision", DataTypes.DOUBLE())
+                        .column("numeric", DataTypes.DECIMAL(10, 5))
+                        .column("decimal", DataTypes.DECIMAL(10, 1))
+                        .column("boolean", DataTypes.BOOLEAN())
+                        .column("text", DataTypes.STRING())
+                        .column("char", DataTypes.CHAR(1))
+                        .column("character", DataTypes.CHAR(3))
+                        .column("character_varying", DataTypes.VARCHAR(20))
+                        .column("timestamp", DataTypes.TIMESTAMP(5))
                         //				.field("timestamptz", DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4))
-                        .field("date", DataTypes.DATE())
-                        .field("time", DataTypes.TIME(0))
-                        .field("default_numeric", DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18))
-                        .primaryKey(primaryKeyName, new String[] {"short", "int"})
+                        .column("date", DataTypes.DATE())
+                        .column("time", DataTypes.TIME(0))
+                        .column("default_numeric", DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18))
+                        .primaryKeyNamed(primaryKeyName, "short", "int")
                         .build(),
                 "int integer, "
                         + "bytea bytea, "
@@ -260,33 +260,33 @@ public class PostgresCatalogTestBase {
                         + "500");
     }
 
-    // TODO: add back timestamptz once blink planner supports timestamp with timezone
+    // TODO: add back timestamptz once planner supports timestamp with timezone
     public static TestTable getArrayTable() {
         return new TestTable(
-                TableSchema.builder()
-                        .field("int_arr", DataTypes.ARRAY(DataTypes.INT()))
-                        .field("bytea_arr", DataTypes.ARRAY(DataTypes.BYTES()))
-                        .field("short_arr", DataTypes.ARRAY(DataTypes.SMALLINT()))
-                        .field("long_arr", DataTypes.ARRAY(DataTypes.BIGINT()))
-                        .field("real_arr", DataTypes.ARRAY(DataTypes.FLOAT()))
-                        .field("double_precision_arr", DataTypes.ARRAY(DataTypes.DOUBLE()))
-                        .field("numeric_arr", DataTypes.ARRAY(DataTypes.DECIMAL(10, 5)))
-                        .field(
+                Schema.newBuilder()
+                        .column("int_arr", DataTypes.ARRAY(DataTypes.INT()))
+                        .column("bytea_arr", DataTypes.ARRAY(DataTypes.BYTES()))
+                        .column("short_arr", DataTypes.ARRAY(DataTypes.SMALLINT()))
+                        .column("long_arr", DataTypes.ARRAY(DataTypes.BIGINT()))
+                        .column("real_arr", DataTypes.ARRAY(DataTypes.FLOAT()))
+                        .column("double_precision_arr", DataTypes.ARRAY(DataTypes.DOUBLE()))
+                        .column("numeric_arr", DataTypes.ARRAY(DataTypes.DECIMAL(10, 5)))
+                        .column(
                                 "numeric_arr_default",
                                 DataTypes.ARRAY(DataTypes.DECIMAL(DecimalType.MAX_PRECISION, 18)))
-                        .field("decimal_arr", DataTypes.ARRAY(DataTypes.DECIMAL(10, 2)))
-                        .field("boolean_arr", DataTypes.ARRAY(DataTypes.BOOLEAN()))
-                        .field("text_arr", DataTypes.ARRAY(DataTypes.STRING()))
-                        .field("char_arr", DataTypes.ARRAY(DataTypes.CHAR(1)))
-                        .field("character_arr", DataTypes.ARRAY(DataTypes.CHAR(3)))
-                        .field("character_varying_arr", DataTypes.ARRAY(DataTypes.VARCHAR(20)))
-                        .field("timestamp_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP(5)))
+                        .column("decimal_arr", DataTypes.ARRAY(DataTypes.DECIMAL(10, 2)))
+                        .column("boolean_arr", DataTypes.ARRAY(DataTypes.BOOLEAN()))
+                        .column("text_arr", DataTypes.ARRAY(DataTypes.STRING()))
+                        .column("char_arr", DataTypes.ARRAY(DataTypes.CHAR(1)))
+                        .column("character_arr", DataTypes.ARRAY(DataTypes.CHAR(3)))
+                        .column("character_varying_arr", DataTypes.ARRAY(DataTypes.VARCHAR(20)))
+                        .column("timestamp_arr", DataTypes.ARRAY(DataTypes.TIMESTAMP(5)))
                         //				.field("timestamptz_arr",
                         // DataTypes.ARRAY(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(4)))
-                        .field("date_arr", DataTypes.ARRAY(DataTypes.DATE()))
-                        .field("time_arr", DataTypes.ARRAY(DataTypes.TIME(0)))
-                        .field("null_bytea_arr", DataTypes.ARRAY(DataTypes.BYTES()))
-                        .field("null_text_arr", DataTypes.ARRAY(DataTypes.STRING()))
+                        .column("date_arr", DataTypes.ARRAY(DataTypes.DATE()))
+                        .column("time_arr", DataTypes.ARRAY(DataTypes.TIME(0)))
+                        .column("null_bytea_arr", DataTypes.ARRAY(DataTypes.BYTES()))
+                        .column("null_text_arr", DataTypes.ARRAY(DataTypes.STRING()))
                         .build(),
                 "int_arr integer[], "
                         + "bytea_arr bytea[], "
@@ -335,14 +335,14 @@ public class PostgresCatalogTestBase {
 
     public static TestTable getSerialTable() {
         return new TestTable(
-                TableSchema.builder()
+                Schema.newBuilder()
                         // serial fields are returned as not null by ResultSetMetaData.columnNoNulls
-                        .field("f0", DataTypes.SMALLINT().notNull())
-                        .field("f1", DataTypes.INT().notNull())
-                        .field("f2", DataTypes.SMALLINT().notNull())
-                        .field("f3", DataTypes.INT().notNull())
-                        .field("f4", DataTypes.BIGINT().notNull())
-                        .field("f5", DataTypes.BIGINT().notNull())
+                        .column("f0", DataTypes.SMALLINT().notNull())
+                        .column("f1", DataTypes.INT().notNull())
+                        .column("f2", DataTypes.SMALLINT().notNull())
+                        .column("f3", DataTypes.INT().notNull())
+                        .column("f4", DataTypes.BIGINT().notNull())
+                        .column("f5", DataTypes.BIGINT().notNull())
                         .build(),
                 "f0 smallserial, "
                         + "f1 serial, "

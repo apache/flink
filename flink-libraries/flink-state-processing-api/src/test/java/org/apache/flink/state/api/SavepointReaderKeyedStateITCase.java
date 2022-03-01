@@ -21,10 +21,10 @@ package org.apache.flink.state.api;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.state.api.functions.KeyedStateReaderFunction;
+import org.apache.flink.state.api.utils.JobResultRetriever;
 import org.apache.flink.state.api.utils.SavepointTestBase;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
@@ -70,10 +70,10 @@ public abstract class SavepointReaderKeyedStateITCase<B extends StateBackend>
 
         String savepointPath = takeSavepoint(env);
 
-        ExecutionEnvironment batchEnv = ExecutionEnvironment.getExecutionEnvironment();
-        ExistingSavepoint savepoint = Savepoint.load(batchEnv, savepointPath, getStateBackend());
+        SavepointReader savepoint = SavepointReader.read(env, savepointPath, getStateBackend());
 
-        List<Pojo> results = savepoint.readKeyedState(uid, new Reader()).collect();
+        List<Pojo> results =
+                JobResultRetriever.collect(savepoint.readKeyedState(uid, new Reader()));
 
         Set<Pojo> expected = new HashSet<>(elements);
 

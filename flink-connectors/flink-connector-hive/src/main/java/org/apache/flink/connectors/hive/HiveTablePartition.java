@@ -18,10 +18,23 @@
 
 package org.apache.flink.connectors.hive;
 
+import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
+import org.apache.flink.table.catalog.hive.client.HiveShim;
+import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
+import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
+
+import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.StorageDescriptor;
+import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.thrift.TException;
+
+import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -31,9 +44,9 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A class that describes a partition of a Hive table. And it represents the whole table if table is
- * not partitioned. Please note that the class is serializable because all its member variables are
- * serializable.
+ * not partitioned.
  */
+@PublicEvolving
 public class HiveTablePartition implements Serializable {
 
     private static final long serialVersionUID = 4145470177119940673L;
@@ -47,10 +60,24 @@ public class HiveTablePartition implements Serializable {
     // Table properties that should be used to initialize SerDe
     private final Properties tableProps;
 
+    /**
+     * Creates a HiveTablePartition to describe a hive table.
+     *
+     * @param storageDescriptor SD of the hive table
+     * @param tableProps properties of the hive table
+     */
     public HiveTablePartition(StorageDescriptor storageDescriptor, Properties tableProps) {
         this(storageDescriptor, new LinkedHashMap<>(), tableProps);
     }
 
+    /**
+     * Creates a HiveTablePartition to describe a hive table or partition.
+     *
+     * @param storageDescriptor SD of the hive table or partition
+     * @param partitionSpec the spec for the hive partition, and should be empty if the
+     *     HiveTablePartition is to describe a hive table
+     * @param tableProps properties of the hive table or partition
+     */
     public HiveTablePartition(
             StorageDescriptor storageDescriptor,
             Map<String, String> partitionSpec,
@@ -91,25 +118,91 @@ public class HiveTablePartition implements Serializable {
             return false;
         }
         HiveTablePartition that = (HiveTablePartition) o;
-        return Objects.equals(storageDescriptor, that.storageDescriptor)
+        return Objects.equals(getStorageDescriptor(), that.getStorageDescriptor())
                 && Objects.equals(partitionSpec, that.partitionSpec)
                 && Objects.equals(tableProps, that.tableProps);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(storageDescriptor, partitionSpec, tableProps);
+        return Objects.hash(getStorageDescriptor(), partitionSpec, tableProps);
     }
 
     @Override
     public String toString() {
+        StorageDescriptor sd = getStorageDescriptor();
         return "HiveTablePartition{"
-                + "storageDescriptor="
-                + getStorageDescriptor()
-                + ", partitionSpec="
-                + partitionSpec
-                + ", tableProps="
-                + tableProps
-                + '}';
+                + String.format("PartitionSpec=%s, ", partitionSpec)
+                + String.format("Location=%s, ", sd.getLocation())
+                + String.format("InputFormat=%s", sd.getInputFormat())
+                + "}";
+    }
+
+    /**
+     * Creates a HiveTablePartition to represent a hive table.
+     *
+     * @param hiveConf the HiveConf used to connect to HMS
+     * @param hiveVersion the version of hive in use, if it's null the version will be automatically
+     *     detected
+     * @param dbName name of the database
+     * @param tableName name of the table
+     */
+    public static HiveTablePartition ofTable(
+            HiveConf hiveConf, @Nullable String hiveVersion, String dbName, String tableName) {
+        HiveShim hiveShim = getHiveShim(hiveVersion);
+        try (HiveMetastoreClientWrapper client =
+                new HiveMetastoreClientWrapper(hiveConf, hiveShim)) {
+            Table hiveTable = client.getTable(dbName, tableName);
+            return new HiveTablePartition(
+                    hiveTable.getSd(), HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable));
+        } catch (TException e) {
+            throw new FlinkHiveException(
+                    String.format(
+                            "Failed to create HiveTablePartition for hive table %s.%s",
+                            dbName, tableName),
+                    e);
+        }
+    }
+
+    /**
+     * Creates a HiveTablePartition to represent a hive partition.
+     *
+     * @param hiveConf the HiveConf used to connect to HMS
+     * @param hiveVersion the version of hive in use, if it's null the version will be automatically
+     *     detected
+     * @param dbName name of the database
+     * @param tableName name of the table
+     * @param partitionSpec map from each partition column to its value. The map should contain
+     *     exactly all the partition columns and in the order in which the partition columns are
+     *     defined
+     */
+    public static HiveTablePartition ofPartition(
+            HiveConf hiveConf,
+            @Nullable String hiveVersion,
+            String dbName,
+            String tableName,
+            LinkedHashMap<String, String> partitionSpec) {
+        HiveShim hiveShim = getHiveShim(hiveVersion);
+        try (HiveMetastoreClientWrapper client =
+                new HiveMetastoreClientWrapper(hiveConf, hiveShim)) {
+            Table hiveTable = client.getTable(dbName, tableName);
+            Partition hivePartition =
+                    client.getPartition(dbName, tableName, new ArrayList<>(partitionSpec.values()));
+            return new HiveTablePartition(
+                    hivePartition.getSd(),
+                    partitionSpec,
+                    HiveReflectionUtils.getTableMetadata(hiveShim, hiveTable));
+        } catch (TException e) {
+            throw new FlinkHiveException(
+                    String.format(
+                            "Failed to create HiveTablePartition for partition %s of hive table %s.%s",
+                            partitionSpec, dbName, tableName),
+                    e);
+        }
+    }
+
+    private static HiveShim getHiveShim(String hiveVersion) {
+        hiveVersion = hiveVersion != null ? hiveVersion : HiveShimLoader.getHiveVersion();
+        return HiveShimLoader.loadHiveShim(hiveVersion);
     }
 }

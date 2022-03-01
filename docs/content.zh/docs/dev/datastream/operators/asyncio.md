@@ -42,7 +42,7 @@ under the License.
 
 {{< img src="/fig/async_io.svg" width="50%" >}}
 
-*注意：*仅仅提高 `MapFunction` 的并行度（parallelism）在有些情况下也可以提升吞吐量，但是这样做通常会导致非常高的资源消耗：更多的并行 `MapFunction` 实例意味着更多的 Task、更多的线程、更多的 Flink 内部网络连接、 更多的与数据库的网络连接、更多的缓冲和更多程序内部协调的开销。
+*注意：* 仅仅提高 `MapFunction` 的并行度（parallelism）在有些情况下也可以提升吞吐量，但是这样做通常会导致非常高的资源消耗：更多的并行 `MapFunction` 实例意味着更多的 Task、更多的线程、更多的 Flink 内部网络连接、 更多的与数据库的网络连接、更多的缓冲和更多程序内部协调的开销。
 
 
 ## 先决条件
@@ -174,6 +174,8 @@ val resultStream: DataStream[(String, String)] =
 
 当异步 I/O 请求超时的时候，默认会抛出异常并重启作业。
 如果你想处理超时，可以重写 `AsyncFunction#timeout` 方法。
+重写 `AsyncFunction#timeout` 时别忘了调用 `ResultFuture.complete()` 或者 `ResultFuture.completeExceptionally()`
+以便告诉Flink这条记录的处理已经完成。如果超时发生时你不想发出任何记录，你可以调用 `ResultFuture.complete(Collections.emptyList())` 。
 
 ### 结果的顺序
 
@@ -200,7 +202,6 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
     这意味着存在 watermark 的情况下，*无序模式* 会引入一些与*有序模式* 相同的延迟和管理开销。开销大小取决于 watermark 的频率。
 
   - **有序模式**： 连续两个 watermark 之间的记录顺序也被保留了。开销与使用*处理时间* 相比，没有显著的差别。
-    
 
 请记住，*摄入时间* 是一种特殊的*事件时间*，它基于数据源的处理时间自动生成 watermark。
 
@@ -214,7 +215,7 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
 
 在实现使用 *Executor*（或者 Scala 中的 *ExecutionContext*）和回调的 *Futures* 时，建议使用 `DirectExecutor`，因为通常回调的工作量很小，`DirectExecutor` 避免了额外的线程切换开销。回调通常只是把结果发送给 `ResultFuture`，也就是把它添加进输出缓冲。从这里开始，包括发送记录和与 chenkpoint 交互在内的繁重逻辑都将在专有的线程池中进行处理。
 
-`DirectExecutor` 可以通过 `org.apache.flink.runtime.concurrent.Executors.directExecutor()` 或
+`DirectExecutor` 可以通过 `org.apache.flink.util.concurrent.Executors.directExecutor()` 或
 `com.google.common.util.concurrent.MoreExecutors.directExecutor()` 获得。
 
 
@@ -230,8 +231,6 @@ Flink 提供两种模式控制结果记录以何种顺序发出。
   - 使用同步数据库客户端，它的查询方法调用在返回结果前一直被阻塞。
   - 在 `asyncInvoke(...)` 方法内阻塞等待异步客户端返回的 future 类型对象
 
-**目前，出于一致性的原因，AsyncFunction 的算子（异步等待算子）必须位于算子链的头部**
-
-根据 `FLINK-13063` 给出的原因，目前我们必须断开异步等待算子的算子链以防止潜在的一致性问题。这改变了先前支持的算子链的行为。需要旧有行为并接受可能违反一致性保证的用户可以实例化并手工将异步等待算子添加到作业图中并将链策略设置回通过异步等待算子的 `ChainingStrategy.ALWAYS` 方法进行链接。
+**默认情况下，AsyncFunction 的算子（异步等待算子）可以在作业图的任意处使用，但它不能与`SourceFunction`/`SourceStreamTask`组成算子链**
 
 {{< top >}}

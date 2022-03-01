@@ -23,25 +23,26 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.runtime.blob.BlobKey;
 import org.apache.flink.runtime.blob.BlobStoreService;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.highavailability.RunningJobsRegistry;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
 import org.apache.flink.runtime.leaderelection.TestingContender;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.util.LeaderRetrievalUtils;
+import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
 import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFrameworkFactory;
-import org.apache.flink.shaded.curator4.org.apache.curator.retry.RetryNTimes;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFrameworkFactory;
+import org.apache.flink.shaded.curator5.org.apache.curator.retry.RetryNTimes;
 
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 
 import javax.annotation.Nonnull;
@@ -63,6 +64,10 @@ import static org.junit.Assert.assertThat;
 public class ZooKeeperHaServicesTest extends TestLogger {
 
     @ClassRule public static final ZooKeeperResource ZOO_KEEPER_RESOURCE = new ZooKeeperResource();
+
+    @Rule
+    public final TestingFatalErrorHandlerResource testingFatalErrorHandlerResource =
+            new TestingFatalErrorHandlerResource();
 
     private static CuratorFramework client;
 
@@ -168,7 +173,7 @@ public class ZooKeeperHaServicesTest extends TestLogger {
                 haServices -> {
                     final List<String> childrenBefore = client.getChildren().forPath(path);
 
-                    haServices.cleanupJobData(jobID);
+                    haServices.globalCleanupAsync(jobID, Executors.directExecutor()).join();
 
                     final List<String> childrenAfter = client.getChildren().forPath(path);
 
@@ -211,7 +216,9 @@ public class ZooKeeperHaServicesTest extends TestLogger {
             throws Exception {
         try (ZooKeeperHaServices zooKeeperHaServices =
                 new ZooKeeperHaServices(
-                        ZooKeeperUtils.startCuratorFramework(configuration),
+                        ZooKeeperUtils.startCuratorFramework(
+                                configuration,
+                                testingFatalErrorHandlerResource.getFatalErrorHandler()),
                         Executors.directExecutor(),
                         configuration,
                         blobStoreService)) {
@@ -226,9 +233,6 @@ public class ZooKeeperHaServicesTest extends TestLogger {
                     zooKeeperHaServices.getJobManagerLeaderRetriever(jobId);
             final LeaderElectionService jobManagerLeaderElectionService =
                     zooKeeperHaServices.getJobManagerLeaderElectionService(jobId);
-
-            final RunningJobsRegistry runningJobsRegistry =
-                    zooKeeperHaServices.getRunningJobsRegistry();
 
             final LeaderRetrievalUtils.LeaderConnectionInfoListener resourceManagerLeaderListener =
                     new LeaderRetrievalUtils.LeaderConnectionInfoListener();
@@ -245,8 +249,6 @@ public class ZooKeeperHaServicesTest extends TestLogger {
                             "unused-jobmanager-address", jobManagerLeaderElectionService));
             jobManagerLeaderRetriever.start(jobManagerLeaderListener);
 
-            runningJobsRegistry.setJobRunning(jobId);
-
             // Make sure that the respective zNodes have been properly created
             resourceManagerLeaderListener.getLeaderConnectionInfoFuture().join();
             jobManagerLeaderListener.getLeaderConnectionInfoFuture().join();
@@ -255,7 +257,6 @@ public class ZooKeeperHaServicesTest extends TestLogger {
             resourceManagerLeaderElectionService.stop();
             jobManagerLeaderRetriever.stop();
             jobManagerLeaderElectionService.stop();
-            runningJobsRegistry.clearJob(jobId);
 
             zooKeeperHaServicesConsumer.accept(zooKeeperHaServices);
         }

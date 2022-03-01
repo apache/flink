@@ -33,7 +33,7 @@ export class RefreshDownloadComponent {
   @Output() fullScreen = new EventEmitter<boolean>();
   isFullScreen = false;
 
-  toggleFullScreen() {
+  toggleFullScreen(): void {
     this.isFullScreen = !this.isFullScreen;
     this.fullScreen.emit(this.isFullScreen);
   }

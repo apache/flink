@@ -19,6 +19,7 @@
 import {
   AfterContentInit,
   ChangeDetectionStrategy,
+  ChangeDetectorRef,
   Component,
   ElementRef,
   EventEmitter,
@@ -27,9 +28,12 @@ import {
   Output,
   ViewChild
 } from '@angular/core';
+
 import { select, Selection } from 'd3-selection';
 import { zoom, ZoomBehavior } from 'd3-zoom';
-import * as d3 from 'd3';
+
+/* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+type SafeAny = any;
 
 @Component({
   selector: 'flink-svg-container',
@@ -38,65 +42,55 @@ import * as d3 from 'd3';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class SvgContainerComponent implements OnInit, AfterContentInit {
-  zoom = 1;
-  width: number;
-  height: number;
-  transform = 'translate(0, 0) scale(1)';
-  containerTransform = { x: 0, y: 0, k: 1 };
-  svgSelect: Selection<any, any, any, any>;
-  zoomController: ZoomBehavior<any, any>;
-  @ViewChild('svgContainer') svgContainer: ElementRef<SVGAElement>;
-  @ViewChild('svgInner') svgInner: ElementRef<SVGAElement>;
-  @Input() nzMaxZoom = 5;
-  @Input() nzMinZoom = 0.1;
-  @Output() clickBgEvent: EventEmitter<MouseEvent> = new EventEmitter();
-  @Output() zoomEvent: EventEmitter<number> = new EventEmitter();
-  @Output() transformEvent: EventEmitter<{ x: number; y: number; scale: number }> = new EventEmitter();
+  public zoom = 1;
+  public width: number;
+  public height: number;
+  public transform = 'translate(0, 0) scale(1)';
+  public containerTransform = { x: 0, y: 0, k: 1 };
+  public svgSelect: Selection<SafeAny, SafeAny, SafeAny, SafeAny>;
+  public zoomController: ZoomBehavior<SafeAny, SafeAny>;
 
-  /**
-   * Zoom to spec level
-   * @param zoomLevel
-   */
-  zoomTo(zoomLevel: number) {
-    this.svgSelect
-      .transition()
-      .duration(0)
-      .call(this.zoomController.scaleTo, zoomLevel);
+  @Input() public nzMaxZoom = 5;
+  @Input() public nzMinZoom = 0.1;
+
+  @Output() public readonly clickBgEvent = new EventEmitter<MouseEvent>();
+  @Output() public readonly zoomEvent = new EventEmitter<number>();
+  @Output() public readonly transformEvent = new EventEmitter<{ x: number; y: number; scale: number }>();
+
+  @ViewChild('svgContainer', { static: true }) private readonly svgContainer: ElementRef<SVGAElement>;
+
+  public zoomTo(zoomLevel: number): void {
+    this.svgSelect.transition().duration(0).call(this.zoomController.scaleTo, zoomLevel);
   }
 
-  /**
-   * Set transform position
-   * @param transform
-   * @param animate
-   */
-  setPositionByTransform(transform: { x: number; y: number; k: number }, animate = false) {
+  public setPositionByTransform(transform: { x: number; y: number; k: number }, animate = false): void {
     this.svgSelect
       .transition()
       .duration(animate ? 500 : 0)
       .call(this.zoomController.transform, transform);
   }
 
-  constructor(private el: ElementRef) {}
+  constructor(private readonly el: ElementRef, private cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  public ngOnInit(): void {
     this.svgSelect = select(this.svgContainer.nativeElement);
     this.zoomController = zoom()
       .scaleExtent([this.nzMinZoom, this.nzMaxZoom])
-      .on('zoom', () => {
-        this.containerTransform = d3.event.transform;
-        this.zoom = this.containerTransform.k;
-        if (!isNaN(this.containerTransform.x)) {
-          this.transform = `translate(${this.containerTransform.x} ,${this.containerTransform.y})scale(${
-            this.containerTransform.k
-          })`;
+      .on('zoom', ({ transform }: SafeAny) => {
+        const { x, y, k } = transform;
+        this.zoom = k;
+        this.containerTransform = transform;
+        if (!isNaN(x)) {
+          this.transform = `translate(${x} ,${y})scale(${k})`;
         }
-        this.zoomEvent.emit(this.zoom);
-        this.transformEvent.emit(this.containerTransform as any);
+        this.zoomEvent.emit(k);
+        this.transformEvent.emit(transform);
+        this.cdr.markForCheck();
       });
     this.svgSelect.call(this.zoomController).on('wheel.zoom', null);
   }
 
-  ngAfterContentInit() {
+  public ngAfterContentInit(): void {
     const hostElem = this.el.nativeElement;
     if (hostElem.parentNode !== null) {
       const dims = hostElem.parentNode.getBoundingClientRect();

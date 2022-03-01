@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-export interface OverviewInterface {
+export interface Overview {
   taskmanagers: number;
   'slots-total': number;
   'slots-available': number;

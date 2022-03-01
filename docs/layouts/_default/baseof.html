@@ -23,6 +23,25 @@ under the License.
   {{ hugo.Generator }}
   {{ partial "docs/html-head" . }}
   {{ partial "docs/inject/head" . }}
+    <!-- Matomo -->
+    <script>
+      var _paq = window._paq = window._paq || [];
+      /* tracker methods like "setCustomDimension" should be called before "trackPageView" */
+      /* We explicitly disable cookie tracking to avoid privacy issues */
+      _paq.push(['disableCookies']);
+      /* Measure a visit to flink.apache.org and nightlies.apache.org/flink as the same visit */
+      _paq.push(["setDomains", ["*.flink.apache.org","*.nightlies.apache.org/flink"]]);
+      _paq.push(['trackPageView']);
+      _paq.push(['enableLinkTracking']);
+      (function() {
+        var u="//matomo.privacy.apache.org/";
+        _paq.push(['setTrackerUrl', u+'matomo.php']);
+        _paq.push(['setSiteId', '1']);
+        var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+        g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+      })();
+    </script>
+    <!-- End Matomo Code -->
 </head>
 
 <body dir={{ .Site.Language.LanguageDirection }}>
@@ -65,17 +84,6 @@ under the License.
   </main>
 
   {{ partial "docs/inject/body" . }}
-
-  <!-- Google Analytics -->
-  <script>
-    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
-
-    ga('create', 'UA-52545728-1', 'auto');
-    ga('send', 'pageview');
-  </script>
 </body>
 
 </html>

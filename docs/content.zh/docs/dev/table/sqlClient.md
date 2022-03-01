@@ -171,15 +171,6 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
 
   Syntax: [embedded] [OPTIONS]
   "embedded" mode options:
-         -d,--defaults <environment file>      Deprecated feature: the environment
-                                               properties with which every new
-                                               session is initialized. Properties
-                                               might be overwritten by session
-                                               properties.
-         -e,--environment <environment file>   Deprecated feature: the environment
-                                               properties to be imported into the
-                                               session. It might overwrite default
-                                               environment properties.
          -f,--file <script file>               Script file that should be executed.
                                                In this mode, the client will not
                                                open an interactive terminal.
@@ -210,8 +201,7 @@ Mode "embedded" (default) submits Flink jobs from the local machine.
          -pyarch,--pyArchives <arg>            Add python archive files for job. The
                                                archive files will be extracted to
                                                the working directory of python UDF
-                                               worker. Currently only zip-format is
-                                               supported. For each archive file, a
+                                               worker. For each archive file, a
                                                target directory be specified. If the
                                                target directory name is specified,
                                                the archive file will be extracted to
@@ -374,7 +364,7 @@ When using `-i <init.sql>` option to initialize SQL Client session, the followin
 
 When execute queries or insert statements, please enter the interactive mode or use the -f option to submit the SQL statements.
 
-<span class="label label-danger">Attention</span> If SQL Client meets errors in initialization, SQL Client will exit with error messages.
+<span class="label label-danger">Attention</span> If SQL Client receives errors during initialization, SQL Client will exit with error messages.
 
 ### Dependencies
 
@@ -398,7 +388,7 @@ In both modes, SQL Client supports to parse and execute all types of the Flink s
 
 ### Interactive Command Line
 
-In interactive Command Line, the SQL Client reads user inputs and executes the statement when getting semicolon (`;`).
+In interactive Command Line, the SQL Client reads user inputs and executes the statement terminated by semicolon (`;`).
 
 SQL Client will print success message if the statement is executed successfully. When getting errors, SQL Client will also print error messages.
 By default, the error message only contains the error cause. In order to print the full exception stack for debugging, please set the
@@ -408,7 +398,7 @@ By default, the error message only contains the error cause. In order to print t
 
 SQL Client supports to execute a SQL script file with the `-f` option. SQL Client will execute
 statements one by one in the SQL script file and print execution messages for each executed statements.
-Once a statement is failed, the SQL Client will exist and all the remaining statements will not be executed.
+Once a statement fails, the SQL Client will exit and all the remaining statements will not be executed.
 
 An example of such a file is presented below.
 
@@ -436,8 +426,8 @@ SET 'pipeline.name' = 'SqlJob';
 -- set the queue that the job submit to
 SET 'yarn.application.queue' = 'root';
 
--- set the job parallism
-SET 'parallism.default' = '100';
+-- set the job parallelism
+SET 'parallelism.default' = '100';
 
 -- restore from the specific savepoint path
 SET 'execution.savepoint.path' = '/tmp/flink-savepoints/savepoint-cca7bc-bb1e257f0dab';
@@ -455,7 +445,7 @@ This configuration:
 - set the savepoint path,
 - submit a sql job that load the savepoint from the specified savepoint path.
 
-<span class="label label-danger">Attention</span> Comparing to interactive mode, SQL Client will stop execution and exits when meets errors.
+<span class="label label-danger">Attention</span> Compared to the interactive mode, SQL Client will stop execution and exit when there are errors.
 
 ### Execute a set of SQL statements
 
@@ -469,13 +459,15 @@ of executing multiple queries.
 
 #### Syntax
 ```sql
-BEGIN STATEMENT SET;
+EXECUTE STATEMENT SET 
+BEGIN
   -- one or more INSERT INTO statements
   { INSERT INTO|OVERWRITE <select_statement>; }+
 END;
 ```
 
 <span class="label label-danger">Attention</span> The statements of enclosed in the `STATEMENT SET` must be separated by a semicolon (;).
+The old syntax `BEGIN STATEMENT SET; ... END;` is deprecated, may be removed in the future version.
 
 {{< tabs "statement set" >}}
 
@@ -514,22 +506,20 @@ Flink SQL> CREATE TABLE uniqueview (
 > );
 [INFO] Execute statement succeed.
 
-Flink SQL> BEGIN STATEMENT SET;
-[INFO] Begin a statement set.
-
-Flink SQL> INSERT INTO pageviews
+Flink SQL> EXECUTE STATEMENT SET
+> BEGIN
+>
+> INSERT INTO pageview
 > SELECT page_id, count(1)
 > FROM pageviews
 > GROUP BY page_id;
-[INFO] Add SQL update statement to the statement set.
-
-Flink SQL> INSERT INTO uniqueview
+>
+> INSERT INTO uniqueview
 > SELECT page_id, count(distinct user_id)
 > FROM pageviews
 > GROUP BY page_id;
-[INFO] Add SQL update statement to the statement set.
-
-Flink SQL> END;
+>
+> END;
 [INFO] Submitting SQL update statement to the cluster...
 [INFO] SQL update statement has been successfully submitted to the cluster:
 Job ID: 6b1af540c0c0bb3fcfcad50ac037c862
@@ -568,9 +558,10 @@ CREATE TABLE uniqueview (
   'table-name' = 'uniqueview'
 );
 
-BEGIN STATEMENT SET;
+EXECUTE STATEMENT SET
+BEGIN
 
-INSERT INTO pageviews
+INSERT INTO pageview
 SELECT page_id, count(1)
 FROM pageviews
 GROUP BY page_id;
@@ -603,9 +594,9 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 
 <span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
 
-However, for batch users, it's more common that the next DML statement requires to wait util the
+However, for batch users, it's more common that the next DML statement requires waiting until the
 previous DML statement finishes. In order to execute DML statements synchronously, you can set
-`table.dml-sync` option true in SQL Client.
+`table.dml-sync` option `true` in SQL Client.
 
 ```sql
 Flink SQL> SET 'table.dml-sync' = 'true';
@@ -665,41 +656,11 @@ If the option `pipeline.name` is not specified, SQL Client will generate a defau
 
 {{< top >}}
 
-Compatibility
--------------
-
-To be compatible with before, SQL Client still supports to initialize with environment YAML file and allows to `SET` the key in YAML file.
-When set the key defined in YAML file, the SQL Client will print the warning messages to inform.
-
-```sql
-Flink SQL> SET 'execution.type' = 'batch';
-[WARNING] The specified key 'execution.type' is deprecated. Please use 'execution.runtime-mode' instead.
-[INFO] Session property has been set.
-
--- all the following DML statements will be restored from the specified savepoint path
-Flink SQL> INSERT INTO ...
-```
-
-When using `SET` command to print the properties, the SQL Client will also print all the properties.
-To distinguish the deprecated key, the sql client use the '[DEPRECATED]' as the identifier.
-
-```sql
-Flink SQL>SET;
-execution.runtime-mode=batch
-sql-client.execution.result-mode=table
-[DEPRECATED] execution.result-mode=table
-[DEPRECATED] execution.type=batch
-```
-
-If you want to see more information about environment files, please refer to [previous docs version](https://ci.apache.org/projects/flink/flink-docs-release-1.12/dev/table/sqlClient.html#environment-files)
-
-{{< top >}}
-
 <a name="limitations--future"></a>
 
 局限与未来
 --------------------
 
-当前的 SQL 客户端仅支持嵌入式模式。在将来，社区计划提供基于 REST 的 [SQL 客户端网关（Gateway）](sqlClient.html#limitations--future) 的功能，详见 [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) 和 [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway)。
+当前的 SQL 客户端仅支持嵌入式模式。在将来，社区计划提供基于 REST 的 SQL 客户端网关（Gateway) 的功能，详见 [FLIP-24](https://cwiki.apache.org/confluence/display/FLINK/FLIP-24+-+SQL+Client) 和 [FLIP-91](https://cwiki.apache.org/confluence/display/FLINK/FLIP-91%3A+Support+SQL+Client+Gateway)。
 
 {{< top >}}

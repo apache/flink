@@ -111,7 +111,15 @@ public class NonSplittingRecursiveEnumerator implements FileEnumerator {
 
         final String[] hosts =
                 getHostsFromBlockLocations(fs.getFileBlockLocations(file, 0L, file.getLen()));
-        target.add(new FileSourceSplit(getNextId(), file.getPath(), 0, file.getLen(), hosts));
+        target.add(
+                new FileSourceSplit(
+                        getNextId(),
+                        file.getPath(),
+                        0,
+                        file.getLen(),
+                        file.getModificationTime(),
+                        file.getLen(),
+                        hosts));
     }
 
     protected final String getNextId() {

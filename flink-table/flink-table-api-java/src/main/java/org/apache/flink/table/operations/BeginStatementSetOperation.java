@@ -18,8 +18,11 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
+
 /** Operation to describe a BEGIN STATEMENT SET statement. */
-public class BeginStatementSetOperation implements StatementSetOperation {
+@Internal
+public final class BeginStatementSetOperation implements Operation {
 
     @Override
     public String asSummaryString() {

@@ -105,7 +105,7 @@ ON myTopic.key = hTable.rowkey;
       <td>必选</td>
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
-      <td>连接的 HBase 表名。</td>
+      <td>连接的 HBase 表名。默认该表在 "default" 命名空间下，指定命名空间下的表需要使用 "namespace:table"。</td>
     </tr>
     <tr>
       <td><h5>zookeeper.quorum</h5></td>
@@ -169,14 +169,14 @@ ON myTopic.key = hTable.rowkey;
     <tr>
       <td><h5>lookup.cache.max-rows</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">(无)</td>
-      <td>Integer</td>
+      <td style="word-wrap: break-word;">-1</td>
+      <td>Long</td>
       <td>查找缓存的最大行数，超过这个值，最旧的行将过期。注意："lookup.cache.max-rows" 和 "lookup.cache.ttl" 必须同时被设置。默认情况下，查找缓存是禁用的。 </td>
     </tr>
     <tr>
       <td><h5>lookup.cache.ttl</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">(无)</td>
+      <td style="word-wrap: break-word;">0 s</td>
       <td>Duration</td>
       <td>查找缓存中每一行的最大生存时间，在这段时间内，最老的行将过期。注意："lookup.cache.max-rows" 和 "lookup.cache.ttl" 必须同时被设置。默认情况下，查找缓存是禁用的。</td>
     </tr>

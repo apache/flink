@@ -58,7 +58,7 @@ CREATE TABLE Orders (
 )
 ```
 
-Often, the data generator connector is used in conjuction with the ``LIKE`` clause to mock out physical tables.
+Often, the data generator connector is used in conjunction with the ``LIKE`` clause to mock out physical tables.
 
 ```sql
 CREATE TABLE Orders (
@@ -157,12 +157,18 @@ Types
         <tr>
             <td>TIMESTAMP</td>
             <td>random</td>
-            <td>Always resolves to the current timestamp of the local machine.</td>
+            <td>
+                Resolves a past timestamp relative to the current timestamp of the local machine.
+                The max past can be specified by the 'max-past' option.
+            </td>
         </tr>
         <tr>
             <td>TIMESTAMP_LTZ</td>
             <td>random</td>
-            <td>Always resolves to the current timestamp of the local machine.</td>
+            <td>
+                Resolves a past timestamp relative to the current timestamp of the local machine.
+                The max past can be specified by the 'max-past' option.
+            </td>
         </tr>
         <tr>
             <td>INTERVAL YEAR TO MONTH</td>
@@ -252,6 +258,13 @@ Connector Options
       <td style="word-wrap: break-word;">(Maximum value of type)</td>
       <td>(Type of field)</td>
       <td>Maximum value of random generator, work for numeric types.</td>
+    </tr>
+    <tr>
+      <td><h5>fields.#.max-past</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">0</td>
+      <td>Duration</td>
+      <td>Maximum past of timestamp random generator, only works for timestamp types.</td>
     </tr>
     <tr>
       <td><h5>fields.#.length</h5></td>

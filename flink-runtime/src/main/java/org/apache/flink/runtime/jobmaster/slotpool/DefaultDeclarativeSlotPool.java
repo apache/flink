@@ -51,6 +51,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -65,6 +66,21 @@ import java.util.stream.Collectors;
  *
  * <p>The slot pool will call {@link #newSlotsListener} whenever newly offered slots are accepted or
  * if an allocated slot should become free after it is being {@link #freeReservedSlot freed}.
+ *
+ * <p>This class expects 1 of 2 access patterns for changing requirements, which should not be
+ * mixed:
+ *
+ * <p>1) the legacy approach (used by the DefaultScheduler) tightly couples requirements to reserved
+ * slots. When a slot is requested it increases the requirements, when the slot is freed they are
+ * decreased again. In the general case what happens is that requirements are increased, a free slot
+ * is reserved, (the slot is used for a bit,) the slot is freed, the requirements are reduced. To
+ * this end {@link #freeReservedSlot}, {@link #releaseSlot} and {@link #releaseSlots} return a
+ * {@link ResourceCounter} describing which requirement the slot(s) were fulfilling, with the
+ * expectation that the scheduler will subsequently decrease the requirements by that amount.
+ *
+ * <p>2) The declarative approach (used by the AdaptiveScheduler) in contrast derives requirements
+ * exclusively based on what a given job currently requires. It may repeatedly reserve/free slots
+ * without any modifications to the requirements.
  */
 public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
@@ -166,10 +182,22 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             TaskManagerGateway taskManagerGateway,
             long currentTime) {
 
-        LOG.debug(
-                "Received {} slot offers from TaskExecutor {}.",
-                offers.size(),
-                taskManagerLocation);
+        LOG.debug("Received {} slot offers from TaskExecutor {}.", offers, taskManagerLocation);
+
+        return internalOfferSlots(
+                offers,
+                taskManagerLocation,
+                taskManagerGateway,
+                currentTime,
+                this::matchWithOutstandingRequirement);
+    }
+
+    private Collection<SlotOffer> internalOfferSlots(
+            Collection<? extends SlotOffer> offers,
+            TaskManagerLocation taskManagerLocation,
+            TaskManagerGateway taskManagerGateway,
+            long currentTime,
+            Function<ResourceProfile, Optional<ResourceProfile>> matchingCondition) {
         final Collection<SlotOffer> acceptedSlotOffers = new ArrayList<>();
         final Collection<AllocatedSlot> acceptedSlots = new ArrayList<>();
 
@@ -180,7 +208,7 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             } else {
                 Optional<AllocatedSlot> acceptedSlot =
                         matchOfferWithOutstandingRequirements(
-                                offer, taskManagerLocation, taskManagerGateway);
+                                offer, taskManagerLocation, taskManagerGateway, matchingCondition);
                 if (acceptedSlot.isPresent()) {
                     acceptedSlotOffers.add(offer);
                     acceptedSlots.add(acceptedSlot.get());
@@ -204,16 +232,40 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
         return acceptedSlotOffers;
     }
 
+    @Override
+    public void registerSlots(
+            Collection<? extends SlotOffer> slots,
+            TaskManagerLocation taskManagerLocation,
+            TaskManagerGateway taskManagerGateway,
+            long currentTime) {
+        LOG.debug("Register slots {} from TaskManager {}.", slots, taskManagerLocation);
+        internalOfferSlots(
+                slots,
+                taskManagerLocation,
+                taskManagerGateway,
+                currentTime,
+                this::matchWithOutstandingRequirementOrSelf);
+    }
+
+    private Optional<ResourceProfile> matchWithOutstandingRequirementOrSelf(
+            ResourceProfile resourceProfile) {
+        final Optional<ResourceProfile> match = matchWithOutstandingRequirement(resourceProfile);
+
+        if (match.isPresent()) {
+            return match;
+        } else {
+            return Optional.of(resourceProfile);
+        }
+    }
+
     private Optional<AllocatedSlot> matchOfferWithOutstandingRequirements(
             SlotOffer slotOffer,
             TaskManagerLocation taskManagerLocation,
-            TaskManagerGateway taskManagerGateway) {
+            TaskManagerGateway taskManagerGateway,
+            Function<ResourceProfile, Optional<ResourceProfile>> matchingCondition) {
 
         final Optional<ResourceProfile> match =
-                requirementMatcher.match(
-                        slotOffer.getResourceProfile(),
-                        totalResourceRequirements,
-                        fulfilledResourceRequirements::getResourceCount);
+                matchingCondition.apply(slotOffer.getResourceProfile());
 
         if (match.isPresent()) {
             final ResourceProfile matchedRequirement = match.get();
@@ -235,6 +287,14 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             return Optional.of(allocatedSlot);
         }
         return Optional.empty();
+    }
+
+    private Optional<ResourceProfile> matchWithOutstandingRequirement(
+            ResourceProfile resourceProfile) {
+        return requirementMatcher.match(
+                resourceProfile,
+                totalResourceRequirements,
+                fulfilledResourceRequirements::getResourceCount);
     }
 
     @VisibleForTesting
@@ -354,30 +414,49 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
     @Override
     public ResourceCounter releaseSlots(ResourceID owner, Exception cause) {
-        final Collection<AllocatedSlot> removedSlots = slotPool.removeSlots(owner);
+        final AllocatedSlotPool.AllocatedSlotsAndReservationStatus removedSlots =
+                slotPool.removeSlots(owner);
 
-        ResourceCounter previouslyFulfilledRequirements = getFulfilledRequirements(removedSlots);
+        final Collection<AllocatedSlot> slotsToFree = new ArrayList<>();
+        for (AllocatedSlot removedSlot : removedSlots.getAllocatedSlots()) {
+            if (!removedSlots.wasFree(removedSlot.getAllocationId())) {
+                slotsToFree.add(removedSlot);
+            }
+        }
 
-        releasePayload(removedSlots, cause);
-        releaseSlots(removedSlots, cause);
-
-        return previouslyFulfilledRequirements;
+        return freeAndReleaseSlots(slotsToFree, removedSlots.getAllocatedSlots(), cause);
     }
 
     @Override
     public ResourceCounter releaseSlot(AllocationID allocationId, Exception cause) {
+        final boolean wasSlotFree = slotPool.containsFreeSlot(allocationId);
         final Optional<AllocatedSlot> removedSlot = slotPool.removeSlot(allocationId);
 
-        Optional<ResourceCounter> previouslyFulfilledRequirement =
-                removedSlot.map(Collections::singleton).map(this::getFulfilledRequirements);
+        if (removedSlot.isPresent()) {
+            final AllocatedSlot slot = removedSlot.get();
 
-        removedSlot.ifPresent(
-                allocatedSlot -> {
-                    releasePayload(Collections.singleton(allocatedSlot), cause);
-                    releaseSlots(Collections.singleton(allocatedSlot), cause);
-                });
+            final Collection<AllocatedSlot> slotAsCollection = Collections.singleton(slot);
+            return freeAndReleaseSlots(
+                    wasSlotFree ? Collections.emptySet() : slotAsCollection,
+                    slotAsCollection,
+                    cause);
+        } else {
+            return ResourceCounter.empty();
+        }
+    }
 
-        return previouslyFulfilledRequirement.orElseGet(ResourceCounter::empty);
+    private ResourceCounter freeAndReleaseSlots(
+            Collection<AllocatedSlot> currentlyReservedSlots,
+            Collection<AllocatedSlot> slots,
+            Exception cause) {
+
+        ResourceCounter previouslyFulfilledRequirements =
+                getFulfilledRequirements(currentlyReservedSlots);
+
+        releasePayload(currentlyReservedSlots, cause);
+        releaseSlots(slots, cause);
+
+        return previouslyFulfilledRequirements;
     }
 
     private void releasePayload(Iterable<? extends AllocatedSlot> allocatedSlots, Throwable cause) {

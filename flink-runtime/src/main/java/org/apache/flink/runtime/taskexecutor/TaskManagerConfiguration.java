@@ -25,7 +25,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.configuration.UnmodifiableConfiguration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.taskmanager.TaskManagerRuntimeInfo;
@@ -71,6 +70,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
     private final String taskManagerExternalAddress;
 
+    private final File tmpWorkingDirectory;
+
     private final RetryingRegistrationConfiguration retryingRegistrationConfiguration;
 
     public TaskManagerConfiguration(
@@ -87,6 +88,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
             @Nullable String taskManagerStdoutPath,
             @Nullable String taskManagerLogDir,
             String taskManagerExternalAddress,
+            File tmpWorkingDirectory,
             RetryingRegistrationConfiguration retryingRegistrationConfiguration) {
 
         this.numberSlots = numberSlots;
@@ -103,6 +105,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
         this.taskManagerStdoutPath = taskManagerStdoutPath;
         this.taskManagerLogDir = taskManagerLogDir;
         this.taskManagerExternalAddress = taskManagerExternalAddress;
+        this.tmpWorkingDirectory = tmpWorkingDirectory;
         this.retryingRegistrationConfiguration = retryingRegistrationConfiguration;
     }
 
@@ -166,6 +169,11 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
         return taskManagerExternalAddress;
     }
 
+    @Override
+    public File getTmpWorkingDirectory() {
+        return tmpWorkingDirectory;
+    }
+
     public RetryingRegistrationConfiguration getRetryingRegistrationConfiguration() {
         return retryingRegistrationConfiguration;
     }
@@ -177,7 +185,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
     public static TaskManagerConfiguration fromConfiguration(
             Configuration configuration,
             TaskExecutorResourceSpec taskExecutorResourceSpec,
-            String externalAddress) {
+            String externalAddress,
+            File tmpWorkingDirectory) {
         int numberSlots = configuration.getInteger(TaskManagerOptions.NUM_TASK_SLOTS, 1);
 
         if (numberSlots == -1) {
@@ -186,15 +195,8 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
 
         final String[] tmpDirPaths = ConfigurationUtils.parseTempDirectories(configuration);
 
-        final Time rpcTimeout;
-        try {
-            rpcTimeout = AkkaUtils.getTimeoutAsTime(configuration);
-        } catch (Exception e) {
-            throw new IllegalArgumentException(
-                    "Invalid format for '"
-                            + AkkaOptions.ASK_TIMEOUT.key()
-                            + "'. Use formats like '50 s' or '1 min' to specify the timeout.");
-        }
+        final Time rpcTimeout =
+                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
 
         LOG.debug("Messages have a max timeout of " + rpcTimeout);
 
@@ -255,6 +257,7 @@ public class TaskManagerConfiguration implements TaskManagerRuntimeInfo {
                 taskManagerStdoutPath,
                 taskManagerLogDir,
                 externalAddress,
+                tmpWorkingDirectory,
                 retryingRegistrationConfiguration);
     }
 }

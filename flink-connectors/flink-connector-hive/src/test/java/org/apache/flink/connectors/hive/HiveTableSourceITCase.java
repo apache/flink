@@ -24,6 +24,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.HiveVersionTestUtil;
+import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
@@ -39,6 +40,7 @@ import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotPartitionedException;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
+import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.factories.DynamicTableFactory;
 import org.apache.flink.table.factories.TableSourceFactory;
@@ -224,8 +226,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
     @Test
     public void testPartitionFilter() throws Exception {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         TestPartitionFilterCatalog catalog =
                 new TestPartitionFilterCatalog(
                         hiveCatalog.getName(),
@@ -325,8 +326,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
 
     @Test
     public void testPartitionFilterDateTimestamp() throws Exception {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         TestPartitionFilterCatalog catalog =
                 new TestPartitionFilterCatalog(
                         hiveCatalog.getName(),
@@ -524,7 +524,48 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
                         .get(0);
         Transformation<?> transformation =
                 (execNode.translateToPlan(planner).getInputs().get(0)).getInputs().get(0);
-        Assert.assertEquals(1, transformation.getParallelism());
+        // when there's no infer, should use the default parallelism configured
+        Assert.assertEquals(2, transformation.getParallelism());
+    }
+
+    @Test
+    public void testParallelismWithoutParallelismInfer() throws Exception {
+        final String dbName = "source_db";
+        final String tblName = "test_parallelism_no_infer";
+        TableEnvironment tEnv = TableEnvironment.create(EnvironmentSettings.inBatchMode());
+        tEnv.getConfig().setSqlDialect(SqlDialect.HIVE);
+        tEnv.registerCatalog("hive", hiveCatalog);
+        tEnv.useCatalog("hive");
+        tEnv.getConfig()
+                .getConfiguration()
+                .setBoolean(HiveOptions.TABLE_EXEC_HIVE_INFER_SOURCE_PARALLELISM, false);
+        tEnv.executeSql(
+                "CREATE TABLE source_db.test_parallelism_no_infer "
+                        + "(`year` STRING, `value` INT) partitioned by (pt int)");
+        HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
+                .addRow(new Object[] {"2014", 3})
+                .addRow(new Object[] {"2014", 4})
+                .commit("pt=0");
+        HiveTestUtils.createTextTableInserter(hiveCatalog, dbName, tblName)
+                .addRow(new Object[] {"2015", 2})
+                .addRow(new Object[] {"2015", 5})
+                .commit("pt=1");
+        Table table =
+                tEnv.sqlQuery("select * from hive.source_db.test_parallelism_no_infer limit 1");
+        PlannerBase planner = (PlannerBase) ((TableEnvironmentImpl) tEnv).getPlanner();
+        RelNode relNode = planner.optimize(TableTestUtil.toRelNode(table));
+        ExecNode<?> execNode =
+                planner.translateToExecNodeGraph(toScala(Collections.singletonList(relNode)))
+                        .getRootNodes()
+                        .get(0);
+        Transformation<?> transformation =
+                (execNode.translateToPlan(planner).getInputs().get(0)).getInputs().get(0);
+        // when there's no infer, should use the default parallelism
+        Assert.assertEquals(
+                ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM
+                        .defaultValue()
+                        .intValue(),
+                transformation.getParallelism());
     }
 
     @Test
@@ -552,7 +593,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(100);
         StreamTableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tEnv.registerCatalog(catalogName, hiveCatalog);
         tEnv.useCatalog(catalogName);
         tEnv.executeSql(
@@ -607,7 +648,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(100);
         StreamTableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tEnv.registerCatalog(catalogName, hiveCatalog);
         tEnv.useCatalog(catalogName);
         tEnv.executeSql(
@@ -662,7 +703,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(100);
         StreamTableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tEnv.registerCatalog(catalogName, hiveCatalog);
         tEnv.useCatalog(catalogName);
         tEnv.executeSql(
@@ -731,7 +772,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         final String catalogName = "hive";
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         StreamTableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tEnv.getConfig()
                 .getConfiguration()
                 .setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, useMapredReader);
@@ -796,7 +837,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         HiveCatalog catalogSpy = spy(hiveCatalog);
         doReturn(Optional.of(tableFactorySpy)).when(catalogSpy).getTableFactory();
 
-        TableEnvironment tableEnv = HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode();
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode();
         tableEnv.getConfig()
                 .getConfiguration()
                 .setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, fallbackMR);
@@ -851,7 +892,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.enableCheckpointing(100);
         StreamTableEnvironment tEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerStreamMode(env, SqlDialect.HIVE);
+                HiveTestUtils.createTableEnvInStreamingMode(env, SqlDialect.HIVE);
         tEnv.registerCatalog(catalogName, hiveCatalog);
         tEnv.useCatalog(catalogName);
         tEnv.executeSql(
@@ -898,8 +939,7 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
     }
 
     private static TableEnvironment createTableEnv() {
-        TableEnvironment tableEnv =
-                HiveTestUtils.createTableEnvWithBlinkPlannerBatchMode(SqlDialect.HIVE);
+        TableEnvironment tableEnv = HiveTestUtils.createTableEnvInBatchMode(SqlDialect.HIVE);
         tableEnv.registerCatalog("hive", hiveCatalog);
         tableEnv.useCatalog("hive");
         return tableEnv;
@@ -920,9 +960,10 @@ public class HiveTableSourceITCase extends BatchAbstractTestBase {
         }
 
         @Override
-        public DataStream<RowData> getDataStream(StreamExecutionEnvironment execEnv) {
+        public DataStream<RowData> getDataStream(
+                ProviderContext providerContext, StreamExecutionEnvironment execEnv) {
             DataStreamSource<RowData> dataStream =
-                    (DataStreamSource<RowData>) super.getDataStream(execEnv);
+                    (DataStreamSource<RowData>) super.getDataStream(providerContext, execEnv);
             int parallelism = dataStream.getTransformation().getParallelism();
             assertEquals(inferParallelism ? 1 : 2, parallelism);
             return dataStream;

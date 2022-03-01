@@ -49,6 +49,8 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.InflaterInputStream;
 
 /** Utility class to create instances from class objects and checking failure reasons. */
 @Internal
@@ -211,7 +213,7 @@ public final class InstantiationUtil {
 
     /**
      * An {@link ObjectInputStream} that ignores serialVersionUID mismatches when deserializing
-     * objects of anonymous classes or our Scala serializer classes and also replaces occurences of
+     * objects of anonymous classes or our Scala serializer classes and also replaces occurrences of
      * GenericData.Array (from Avro) by a dummy class so that the KryoSerializer can still be
      * deserialized without Avro being on the classpath.
      *
@@ -618,6 +620,12 @@ public final class InstantiationUtil {
         }
     }
 
+    public static <T> T decompressAndDeserializeObject(byte[] bytes, ClassLoader cl)
+            throws IOException, ClassNotFoundException {
+        return deserializeObject(
+                new InflaterInputStream(new ByteArrayInputStream(bytes)), cl, false);
+    }
+
     public static byte[] serializeObject(Object o) throws IOException {
         try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 ObjectOutputStream oos = new ObjectOutputStream(baos)) {
@@ -633,6 +641,17 @@ public final class InstantiationUtil {
                         ? (ObjectOutputStream) out
                         : new ObjectOutputStream(out);
         oos.writeObject(o);
+    }
+
+    public static byte[] serializeObjectAndCompress(Object o) throws IOException {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DeflaterOutputStream dos = new DeflaterOutputStream(baos);
+                ObjectOutputStream oos = new ObjectOutputStream(dos)) {
+            oos.writeObject(o);
+            oos.flush();
+            dos.close();
+            return baos.toByteArray();
+        }
     }
 
     public static boolean isSerializable(Object o) {

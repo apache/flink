@@ -19,11 +19,9 @@
 package org.apache.flink.formats.compress;
 
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.formats.compress.extractor.DefaultExtractor;
-import org.apache.flink.streaming.api.functions.sink.filesystem.BucketAssigner;
 import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
-import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.UniqueBucketAssigner;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
@@ -144,22 +142,9 @@ public class CompressWriterFactoryTest extends TestLogger {
             throws Exception {
         final File outDir = TEMPORARY_FOLDER.newFolder();
 
-        final BucketAssigner<String, String> assigner =
-                new BucketAssigner<String, String>() {
-                    @Override
-                    public String getBucketId(String element, BucketAssigner.Context context) {
-                        return "bucket";
-                    }
-
-                    @Override
-                    public SimpleVersionedSerializer<String> getSerializer() {
-                        return SimpleVersionedStringSerializer.INSTANCE;
-                    }
-                };
-
         StreamingFileSink<String> sink =
                 StreamingFileSink.forBulkFormat(new Path(outDir.toURI()), writer)
-                        .withBucketAssigner(assigner)
+                        .withBucketAssigner(new UniqueBucketAssigner<>("test"))
                         .build();
 
         try (OneInputStreamOperatorTestHarness<String, Object> testHarness =

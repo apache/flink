@@ -89,6 +89,12 @@ public class Elasticsearch6ApiCallBridge
     }
 
     @Override
+    public void configureBulkProcessorFlushInterval(
+            BulkProcessor.Builder builder, long flushIntervalMillis) {
+        builder.setFlushInterval(TimeValue.timeValueMillis(flushIntervalMillis));
+    }
+
+    @Override
     public void configureBulkProcessorBackoff(
             BulkProcessor.Builder builder,
             @Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {

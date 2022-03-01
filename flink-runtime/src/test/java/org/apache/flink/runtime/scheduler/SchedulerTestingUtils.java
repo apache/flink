@@ -28,12 +28,11 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
@@ -62,15 +61,17 @@ import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.PipelinedRegionSchedulingStrategy;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingStrategyFactory;
-import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.runtime.shuffle.ShuffleTestUtils;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorOperatorEventGateway;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.testutils.TestingUtils;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -160,7 +161,6 @@ public class SchedulerTestingUtils {
                         0,
                         1,
                         CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION,
-                        false,
                         false,
                         false,
                         0,
@@ -387,39 +387,41 @@ public class SchedulerTestingUtils {
 
     /** Builder for {@link DefaultScheduler}. */
     public static class DefaultSchedulerBuilder {
-        private final JobGraph jobGraph;
+        protected final JobGraph jobGraph;
 
-        private final ComponentMainThreadExecutor mainThreadExecutor;
+        protected final ComponentMainThreadExecutor mainThreadExecutor;
 
-        private SchedulingStrategyFactory schedulingStrategyFactory =
+        protected SchedulingStrategyFactory schedulingStrategyFactory =
                 new PipelinedRegionSchedulingStrategy.Factory();
 
-        private Logger log = LOG;
-        private Executor ioExecutor = TestingUtils.defaultExecutor();
-        private Configuration jobMasterConfiguration = new Configuration();
-        private ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
-        private ScheduledExecutor delayExecutor =
+        protected Logger log = LOG;
+        protected Executor ioExecutor = TestingUtils.defaultExecutor();
+        protected Configuration jobMasterConfiguration = new Configuration();
+        protected ScheduledExecutorService futureExecutor = TestingUtils.defaultExecutor();
+        protected ScheduledExecutor delayExecutor =
                 new ScheduledExecutorServiceAdapter(futureExecutor);
-        private ClassLoader userCodeLoader = ClassLoader.getSystemClassLoader();
-        private CheckpointRecoveryFactory checkpointRecoveryFactory =
+        protected ClassLoader userCodeLoader = ClassLoader.getSystemClassLoader();
+        protected CheckpointsCleaner checkpointCleaner = new CheckpointsCleaner();
+        protected CheckpointRecoveryFactory checkpointRecoveryFactory =
                 new StandaloneCheckpointRecoveryFactory();
-        private Time rpcTimeout = DEFAULT_TIMEOUT;
-        private BlobWriter blobWriter = VoidBlobWriter.getInstance();
-        private JobManagerJobMetricGroup jobManagerJobMetricGroup =
+        protected Time rpcTimeout = DEFAULT_TIMEOUT;
+        protected BlobWriter blobWriter = VoidBlobWriter.getInstance();
+        protected JobManagerJobMetricGroup jobManagerJobMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredJobManagerJobMetricGroup();
-        private ShuffleMaster<?> shuffleMaster = NettyShuffleMaster.INSTANCE;
-        private JobMasterPartitionTracker partitionTracker = NoOpJobMasterPartitionTracker.INSTANCE;
-        private FailoverStrategy.Factory failoverStrategyFactory =
+        protected ShuffleMaster<?> shuffleMaster = ShuffleTestUtils.DEFAULT_SHUFFLE_MASTER;
+        protected JobMasterPartitionTracker partitionTracker =
+                NoOpJobMasterPartitionTracker.INSTANCE;
+        protected FailoverStrategy.Factory failoverStrategyFactory =
                 new RestartPipelinedRegionFailoverStrategy.Factory();
-        private RestartBackoffTimeStrategy restartBackoffTimeStrategy =
+        protected RestartBackoffTimeStrategy restartBackoffTimeStrategy =
                 NoRestartBackoffTimeStrategy.INSTANCE;
-        private ExecutionVertexOperations executionVertexOperations =
+        protected ExecutionVertexOperations executionVertexOperations =
                 new DefaultExecutionVertexOperations();
-        private ExecutionVertexVersioner executionVertexVersioner = new ExecutionVertexVersioner();
-        private ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
+        protected ExecutionVertexVersioner executionVertexVersioner =
+                new ExecutionVertexVersioner();
+        protected ExecutionSlotAllocatorFactory executionSlotAllocatorFactory =
                 new TestExecutionSlotAllocatorFactory();
-        private JobStatusListener jobStatusListener =
-                (ignoredA, ignoredB, ignoredC, ignoredD) -> {};
+        protected JobStatusListener jobStatusListener = (ignoredA, ignoredB, ignoredC) -> {};
 
         public DefaultSchedulerBuilder(
                 final JobGraph jobGraph, ComponentMainThreadExecutor mainThreadExecutor) {
@@ -456,6 +458,12 @@ public class SchedulerTestingUtils {
 
         public DefaultSchedulerBuilder setUserCodeLoader(final ClassLoader userCodeLoader) {
             this.userCodeLoader = userCodeLoader;
+            return this;
+        }
+
+        public DefaultSchedulerBuilder setCheckpointCleaner(
+                final CheckpointsCleaner checkpointsCleaner) {
+            this.checkpointCleaner = checkpointsCleaner;
             return this;
         }
 
@@ -555,6 +563,7 @@ public class SchedulerTestingUtils {
                     componentMainThreadExecutor -> {},
                     delayExecutor,
                     userCodeLoader,
+                    checkpointCleaner,
                     checkpointRecoveryFactory,
                     jobManagerJobMetricGroup,
                     schedulingStrategyFactory,
@@ -566,7 +575,9 @@ public class SchedulerTestingUtils {
                     System.currentTimeMillis(),
                     mainThreadExecutor,
                     jobStatusListener,
-                    executionGraphFactory);
+                    executionGraphFactory,
+                    shuffleMaster,
+                    rpcTimeout);
         }
     }
 }

@@ -32,8 +32,13 @@ import org.apache.flink.util.TestLogger;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
@@ -45,14 +50,28 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
 
 /** Tests for the {@link DeclarativeSlotPoolBridge}. */
+@RunWith(Parameterized.class)
 public class DeclarativeSlotPoolBridgeResourceDeclarationTest extends TestLogger {
 
     private static final JobMasterId jobMasterId = JobMasterId.generate();
     private final ComponentMainThreadExecutor mainThreadExecutor =
             ComponentMainThreadExecutorServiceAdapter.forMainThread();
+    private final RequestSlotMatchingStrategy requestSlotMatchingStrategy;
 
     private RequirementListener requirementListener;
     private DeclarativeSlotPoolBridge declarativeSlotPoolBridge;
+
+    @Parameterized.Parameters(name = "RequestSlotMatchingStrategy: {0}")
+    public static Collection<RequestSlotMatchingStrategy> data() throws IOException {
+        return Arrays.asList(
+                SimpleRequestSlotMatchingStrategy.INSTANCE,
+                PreferredAllocationRequestSlotMatchingStrategy.INSTANCE);
+    }
+
+    public DeclarativeSlotPoolBridgeResourceDeclarationTest(
+            RequestSlotMatchingStrategy requestSlotMatchingStrategy) {
+        this.requestSlotMatchingStrategy = requestSlotMatchingStrategy;
+    }
 
     @Before
     public void setup() throws Exception {
@@ -76,7 +95,9 @@ public class DeclarativeSlotPoolBridgeResourceDeclarationTest extends TestLogger
 
         final TestingDeclarativeSlotPoolFactory declarativeSlotPoolFactory =
                 new TestingDeclarativeSlotPoolFactory(slotPoolBuilder);
-        declarativeSlotPoolBridge = createDeclarativeSlotPoolBridge(declarativeSlotPoolFactory);
+        declarativeSlotPoolBridge =
+                createDeclarativeSlotPoolBridge(
+                        declarativeSlotPoolFactory, requestSlotMatchingStrategy);
     }
 
     @After

@@ -25,13 +25,16 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFORegistrationType.EAGER;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_CONSUMER_NAME;
+import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.EFO_REGISTRATION_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RECORD_PUBLISHER_TYPE;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.RecordPublisherType.EFO;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.efoConsumerArn;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyZeroInteractions;
 import static org.mockito.Mockito.when;
 
 /** Tests for {@link StreamConsumerRegistrar}. */
@@ -39,9 +42,7 @@ public class StreamConsumerRegistrarUtilTest {
 
     @Test
     public void testRegisterStreamConsumers() throws Exception {
-        Properties configProps = new Properties();
-        configProps.setProperty(EFO_CONSUMER_NAME, "consumer-name");
-
+        Properties configProps = getDefaultConfiguration();
         StreamConsumerRegistrar registrar = mock(StreamConsumerRegistrar.class);
         when(registrar.registerStreamConsumer("stream-1", "consumer-name"))
                 .thenReturn("stream-1-consumer-arn");
@@ -57,10 +58,8 @@ public class StreamConsumerRegistrarUtilTest {
 
     @Test
     public void testDeregisterStreamConsumersMissingStreamArn() throws Exception {
-        Properties configProps = new Properties();
+        Properties configProps = getDefaultConfiguration();
         configProps.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
-        configProps.setProperty(EFO_CONSUMER_NAME, "consumer-name");
-
         List<String> streams = Arrays.asList("stream-1", "stream-2");
         StreamConsumerRegistrar registrar = mock(StreamConsumerRegistrar.class);
 
@@ -68,5 +67,24 @@ public class StreamConsumerRegistrarUtilTest {
 
         verify(registrar).deregisterStreamConsumer("stream-1");
         verify(registrar).deregisterStreamConsumer("stream-2");
+    }
+
+    @Test
+    public void testDeregisterStreamConsumersOnlyDeregistersEFOLazilyInitializedConsumers() {
+        Properties configProps = getDefaultConfiguration();
+        configProps.setProperty(RECORD_PUBLISHER_TYPE, EFO.name());
+        configProps.put(EFO_REGISTRATION_TYPE, EAGER.name());
+        List<String> streams = Arrays.asList("stream-1");
+        StreamConsumerRegistrar registrar = mock(StreamConsumerRegistrar.class);
+
+        StreamConsumerRegistrarUtil.deregisterStreamConsumers(registrar, configProps, streams);
+
+        verifyZeroInteractions(registrar);
+    }
+
+    private Properties getDefaultConfiguration() {
+        Properties configProps = new Properties();
+        configProps.setProperty(EFO_CONSUMER_NAME, "consumer-name");
+        return configProps;
     }
 }

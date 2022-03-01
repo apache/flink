@@ -3,7 +3,7 @@ title: 自定义序列化器
 weight: 11
 type: docs
 aliases:
-  - /zh/dev/custom_serializers.
+  - /zh/dev/custom_serializers.html
   - /zh/docs/dev/serialization/types_serialization/
 ---
 <!--

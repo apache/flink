@@ -1,0 +1,131 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+parameters:
+  e2e_pool_definion: # defines the hardware pool for end-to-end test execution
+  stage_name: # defines a unique identifier for all jobs in a stage (in case the jobs are added multiple times to a stage)
+  environment: # defines environment variables for downstream scripts
+  run_end_to_end: # if set to 'true', the end to end tests will be executed
+  jdk: # the jdk version to use
+  group: # the group of tests that should run
+
+jobs:
+- job: e2e_${{parameters.group}}_${{parameters.stage_name}}
+  # uncomment below condition to run the e2e tests only on request.
+  #condition: or(eq(variables['MODE'], 'e2e'), eq(${{parameters.run_end_to_end}}, 'true'))
+  # We are running this in a separate pool
+  pool: ${{parameters.e2e_pool_definition}}
+  timeoutInMinutes: 310
+  cancelTimeoutInMinutes: 1
+  workspace:
+    clean: all
+  steps:
+    # Skip e2e test execution if this is a documentation only pull request (master / release builds will still be checked regularly)
+    - bash: |
+        source ./tools/azure-pipelines/build_properties.sh
+        is_docs_only_pullrequest
+        if [[ "$?" == 0 ]] ; then
+          echo "##[debug]This is a documentation-only change. Skipping e2e execution."
+          echo "##vso[task.setvariable variable=skip;]1"
+        else
+          echo "##[debug]This is a regular CI build. Continuing ..."
+          echo "##vso[task.setvariable variable=skip;]0"
+        fi
+      displayName: Check if Docs only PR
+    # the cache task does not create directories on a cache miss, and can later fail when trying to tar the directory if the test haven't created it
+    # this may for example happen if a given directory is only used by a subset of tests, which are run in a different 'group'
+    - bash: |
+        mkdir -p $(MAVEN_CACHE_FOLDER)
+        mkdir -p $(E2E_CACHE_FOLDER)
+        mkdir -p $(E2E_TARBALL_CACHE)
+        mkdir -p $(DOCKER_IMAGES_CACHE_FOLDER)
+      displayName: Create cache directories
+    - task: Cache@2
+      inputs:
+        key: $(CACHE_KEY)
+        restoreKeys: $(CACHE_FALLBACK_KEY)
+        path: $(MAVEN_CACHE_FOLDER)
+      displayName: Cache Maven local repo
+      continueOnError: true
+      condition: not(eq(variables['SKIP'], '1'))
+    - task: Cache@2
+      inputs:
+        key: e2e-cache-${{parameters.group}} | flink-end-to-end-tests/**/*.java, !**/avro/**
+        path: $(E2E_CACHE_FOLDER)
+      displayName: Cache E2E files
+      continueOnError: true
+      condition: not(eq(variables['SKIP'], '1'))
+    - task: Cache@2
+      inputs:
+        key: e2e-artifact-cache-${{parameters.group}} | flink-end-to-end-tests/**/*.sh
+        restoreKeys: e2e-artifact-cache-${{parameters.group}}
+        path: $(E2E_TARBALL_CACHE)
+      displayName: Cache E2E artifacts
+      continueOnError: true
+      condition: not(eq(variables['SKIP'], '1'))
+    - task: Cache@2
+      inputs:
+        key: 'e2e-${{parameters.group}} | $(DOCKER_IMAGES_CACHE_KEY)'
+        path: $(DOCKER_IMAGES_CACHE_FOLDER)
+        cacheHitVar: DOCKER_IMAGES_CACHE_HIT
+      continueOnError: true
+      condition: not(eq(variables['SKIP'], '1'))
+      displayName: Cache docker images
+    - script: ./tools/azure-pipelines/cache_docker_images.sh load
+      displayName: Restore docker images
+      condition: and(not(canceled()), eq(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
+      continueOnError: true
+    - script: |
+        echo "##vso[task.setvariable variable=JAVA_HOME]$JAVA_HOME_${{parameters.jdk}}_X64"
+        echo "##vso[task.setvariable variable=PATH]$JAVA_HOME_${{parameters.jdk}}_X64/bin:$PATH"
+      displayName: "Set JDK"
+    - script: |
+        echo "Setting up Maven"
+        source ./tools/ci/maven-utils.sh
+        setup_maven
+
+        echo "Free up disk space"
+        ./tools/azure-pipelines/free_disk_space.sh
+
+        echo "Installing required software"
+        sudo apt-get install -y bc libapr1
+        # install libssl1.0.0 for netty tcnative
+        wget http://security.ubuntu.com/ubuntu/pool/main/o/openssl1.0/libssl1.0.0_1.0.2n-1ubuntu5.7_amd64.deb
+        sudo apt install ./libssl1.0.0_1.0.2n-1ubuntu5.7_amd64.deb
+      displayName: Prepare E2E run
+      condition: not(eq(variables['SKIP'], '1'))
+    - script: ${{parameters.environment}} PROFILE="$PROFILE -Dfast -Pskip-webui-build" ./tools/ci/compile.sh
+      displayName: Build Flink
+      condition: not(eq(variables['SKIP'], '1'))
+    - script: ${{parameters.environment}} FLINK_DIR=`pwd`/build-target ./tools/azure-pipelines/uploading_watchdog.sh flink-end-to-end-tests/run-nightly-tests.sh ${{parameters.group}}
+      displayName: Run e2e tests
+      env:
+        IT_CASE_S3_BUCKET: $(SECRET_S3_BUCKET)
+        IT_CASE_S3_ACCESS_KEY: $(SECRET_S3_ACCESS_KEY)
+        IT_CASE_S3_SECRET_KEY: $(SECRET_S3_SECRET_KEY)
+        IT_CASE_GLUE_SCHEMA_ACCESS_KEY: $(SECRET_GLUE_SCHEMA_ACCESS_KEY)
+        IT_CASE_GLUE_SCHEMA_SECRET_KEY: $(SECRET_GLUE_SCHEMA_SECRET_KEY)
+      condition: and(succeeded(), not(eq(variables['SKIP'], '1')))
+      # upload debug artifacts
+    - task: PublishPipelineArtifact@1
+      condition: and(not(eq(variables['SKIP'], '1')), not(eq(variables['DEBUG_FILES_OUTPUT_DIR'], '')))
+      displayName: Upload Logs
+      inputs:
+        targetPath: $(DEBUG_FILES_OUTPUT_DIR)
+        artifact: logs-${{parameters.stage_name}}-$(DEBUG_FILES_NAME)
+    - script: ./tools/azure-pipelines/cache_docker_images.sh save
+      displayName: Save docker images
+      condition: and(not(eq(variables['SKIP'], '1')), ne(variables.DOCKER_IMAGES_CACHE_HIT, 'true'))
+      continueOnError: true

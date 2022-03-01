@@ -18,8 +18,10 @@
 
 package org.apache.flink.table.module;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.util.StringUtils;
 
@@ -35,9 +37,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.descriptors.CoreModuleDescriptorValidator.MODULE_TYPE_CORE;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -45,21 +47,22 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * Responsible for loading/unloading modules, managing their life cycles, and resolving module
  * objects.
  */
+@Internal
 public class ModuleManager {
 
     private static final Logger LOG = LoggerFactory.getLogger(ModuleManager.class);
 
     /** To keep {@link #listFullModules()} deterministic. */
-    private LinkedHashMap<String, Module> loadedModules;
+    private final LinkedHashMap<String, Module> loadedModules;
 
     /** Keep tracking used modules with resolution order. */
-    private List<String> usedModules;
+    private final List<String> usedModules;
 
     public ModuleManager() {
         this.loadedModules = new LinkedHashMap<>();
         this.usedModules = new ArrayList<>();
-        loadedModules.put(MODULE_TYPE_CORE, CoreModule.INSTANCE);
-        usedModules.add(MODULE_TYPE_CORE);
+        loadedModules.put(CoreModuleFactory.IDENTIFIER, CoreModule.INSTANCE);
+        usedModules.add(CoreModuleFactory.IDENTIFIER);
     }
 
     /**
@@ -153,13 +156,13 @@ public class ModuleManager {
     }
 
     /**
-     * Get names of all functions from used modules.
+     * Get names of all functions from used modules. It excludes hidden functions.
      *
      * @return a set of function names of used modules
      */
     public Set<String> listFunctions() {
         return usedModules.stream()
-                .map(name -> loadedModules.get(name).listFunctions())
+                .map(name -> loadedModules.get(name).listFunctions(false))
                 .flatMap(Collection::stream)
                 .collect(Collectors.toSet());
     }
@@ -169,12 +172,14 @@ public class ModuleManager {
      * modules in the used order, and the first match will be returned. If no match is found in all
      * modules, return an optional.
      *
+     * <p>It includes hidden functions even though not listed in {@link #listFunctions()}.
+     *
      * @param name name of the function
      * @return an optional of {@link FunctionDefinition}
      */
     public Optional<FunctionDefinition> getFunctionDefinition(String name) {
         for (String moduleName : usedModules) {
-            if (loadedModules.get(moduleName).listFunctions().stream()
+            if (loadedModules.get(moduleName).listFunctions(true).stream()
                     .anyMatch(name::equalsIgnoreCase)) {
                 LOG.debug("Got FunctionDefinition '{}' from '{}' module.", name, moduleName);
                 return loadedModules.get(moduleName).getFunctionDefinition(name);
@@ -182,6 +187,25 @@ public class ModuleManager {
         }
 
         LOG.debug("Cannot find FunctionDefinition '{}' from any loaded modules.", name);
+        return Optional.empty();
+    }
+
+    /**
+     * Returns the first factory found in the loaded modules given a selector.
+     *
+     * <p>Modules are checked in the order in which they have been loaded. The first factory
+     * returned by a module will be used. If no loaded module provides a factory, {@link
+     * Optional#empty()} is returned.
+     */
+    @SuppressWarnings("unchecked")
+    public <T extends Factory> Optional<T> getFactory(Function<Module, Optional<T>> selector) {
+        for (final String moduleName : usedModules) {
+            final Optional<T> factory = selector.apply(loadedModules.get(moduleName));
+            if (factory.isPresent()) {
+                return factory;
+            }
+        }
+
         return Optional.empty();
     }
 

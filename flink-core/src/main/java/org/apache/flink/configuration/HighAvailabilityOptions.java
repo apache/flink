@@ -18,9 +18,9 @@
 
 package org.apache.flink.configuration;
 
-import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 
@@ -39,6 +39,7 @@ public class HighAvailabilityOptions {
     @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY)
     public static final ConfigOption<String> HA_MODE =
             key("high-availability")
+                    .stringType()
                     .defaultValue("NONE")
                     .withDeprecatedKeys("recovery.mode")
                     .withDescription(
@@ -47,23 +48,25 @@ public class HighAvailabilityOptions {
 
     /**
      * The ID of the Flink cluster, used to separate multiple Flink clusters Needs to be set for
-     * standalone clusters, is automatically inferred in YARN and Mesos.
+     * standalone clusters, is automatically inferred in YARN.
      */
     @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY)
     public static final ConfigOption<String> HA_CLUSTER_ID =
             key("high-availability.cluster-id")
+                    .stringType()
                     .defaultValue("/default")
                     .withDeprecatedKeys(
                             "high-availability.zookeeper.path.namespace",
                             "recovery.zookeeper.path.namespace")
                     .withDescription(
                             "The ID of the Flink cluster, used to separate multiple Flink clusters from each other."
-                                    + " Needs to be set for standalone clusters but is automatically inferred in YARN and Mesos.");
+                                    + " Needs to be set for standalone clusters but is automatically inferred in YARN.");
 
     /** File system path (URI) where Flink persists metadata in high-availability setups. */
     @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY)
     public static final ConfigOption<String> HA_STORAGE_PATH =
             key("high-availability.storageDir")
+                    .stringType()
                     .noDefaultValue()
                     .withDeprecatedKeys(
                             "high-availability.zookeeper.storageDir",
@@ -101,6 +104,7 @@ public class HighAvailabilityOptions {
     @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY_ZOOKEEPER)
     public static final ConfigOption<String> HA_ZOOKEEPER_QUORUM =
             key("high-availability.zookeeper.quorum")
+                    .stringType()
                     .noDefaultValue()
                     .withDeprecatedKeys("recovery.zookeeper.quorum")
                     .withDescription(
@@ -110,6 +114,7 @@ public class HighAvailabilityOptions {
     @Documentation.Section(Documentation.Sections.COMMON_HIGH_AVAILABILITY_ZOOKEEPER)
     public static final ConfigOption<String> HA_ZOOKEEPER_ROOT =
             key("high-availability.zookeeper.path.root")
+                    .stringType()
                     .defaultValue("/flink")
                     .withDeprecatedKeys("recovery.zookeeper.path.root")
                     .withDescription(
@@ -119,22 +124,10 @@ public class HighAvailabilityOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<String> HA_ZOOKEEPER_JOBGRAPHS_PATH =
             key("high-availability.zookeeper.path.jobgraphs")
+                    .stringType()
                     .defaultValue("/jobgraphs")
                     .withDeprecatedKeys("recovery.zookeeper.path.jobgraphs")
                     .withDescription("ZooKeeper root path (ZNode) for job graphs");
-
-    /** ZooKeeper root path (ZNode) for Mesos workers. */
-    @PublicEvolving
-    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
-    public static final ConfigOption<String> HA_ZOOKEEPER_MESOS_WORKERS_PATH =
-            key("high-availability.zookeeper.path.mesos-workers")
-                    .defaultValue("/mesos-workers")
-                    .withDeprecatedKeys("recovery.zookeeper.path.mesos-workers")
-                    .withDescription(
-                            Description.builder()
-                                    .text(
-                                            "The ZooKeeper root path for persisting the Mesos worker information.")
-                                    .build());
 
     // ------------------------------------------------------------------------
     //  ZooKeeper Client Settings
@@ -143,6 +136,7 @@ public class HighAvailabilityOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<Integer> ZOOKEEPER_SESSION_TIMEOUT =
             key("high-availability.zookeeper.client.session-timeout")
+                    .intType()
                     .defaultValue(60000)
                     .withDeprecatedKeys("recovery.zookeeper.client.session-timeout")
                     .withDescription(
@@ -151,6 +145,7 @@ public class HighAvailabilityOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<Integer> ZOOKEEPER_CONNECTION_TIMEOUT =
             key("high-availability.zookeeper.client.connection-timeout")
+                    .intType()
                     .defaultValue(15000)
                     .withDeprecatedKeys("recovery.zookeeper.client.connection-timeout")
                     .withDescription("Defines the connection timeout for ZooKeeper in ms.");
@@ -158,6 +153,7 @@ public class HighAvailabilityOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<Integer> ZOOKEEPER_RETRY_WAIT =
             key("high-availability.zookeeper.client.retry-wait")
+                    .intType()
                     .defaultValue(5000)
                     .withDeprecatedKeys("recovery.zookeeper.client.retry-wait")
                     .withDescription("Defines the pause between consecutive retries in ms.");
@@ -165,6 +161,7 @@ public class HighAvailabilityOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<Integer> ZOOKEEPER_MAX_RETRY_ATTEMPTS =
             key("high-availability.zookeeper.client.max-retry-attempts")
+                    .intType()
                     .defaultValue(3)
                     .withDeprecatedKeys("recovery.zookeeper.client.max-retry-attempts")
                     .withDescription(
@@ -173,16 +170,34 @@ public class HighAvailabilityOptions {
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<String> ZOOKEEPER_RUNNING_JOB_REGISTRY_PATH =
             key("high-availability.zookeeper.path.running-registry")
+                    .stringType()
                     .defaultValue("/running_job_registry/");
 
     @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
     public static final ConfigOption<String> ZOOKEEPER_CLIENT_ACL =
             key("high-availability.zookeeper.client.acl")
+                    .stringType()
                     .defaultValue("open")
                     .withDescription(
                             "Defines the ACL (open|creator) to be configured on ZK node. The configuration value can be"
                                     + " set to “creator” if the ZooKeeper server configuration has the “authProvider” property mapped to use"
                                     + " SASLAuthenticationProvider and the cluster is configured to run in secure mode (Kerberos).");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_ZOOKEEPER_HIGH_AVAILABILITY)
+    public static final ConfigOption<Boolean> ZOOKEEPER_TOLERATE_SUSPENDED_CONNECTIONS =
+            key("high-availability.zookeeper.client.tolerate-suspended-connections")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Defines whether a suspended ZooKeeper connection will be treated as an error that causes the leader "
+                                                    + "information to be invalidated or not. In case you set this option to %s, Flink will wait until a "
+                                                    + "ZooKeeper connection is marked as lost before it revokes the leadership of components. This has the "
+                                                    + "effect that Flink is more resilient against temporary connection instabilities at the cost of running "
+                                                    + "more likely into timing issues with ZooKeeper.",
+                                            TextElement.code("true"))
+                                    .build());
 
     // ------------------------------------------------------------------------
     //  Deprecated options
@@ -196,10 +211,30 @@ public class HighAvailabilityOptions {
     @Deprecated
     public static final ConfigOption<String> HA_JOB_DELAY =
             key("high-availability.job.delay")
+                    .stringType()
                     .noDefaultValue()
                     .withDeprecatedKeys("recovery.job.delay")
                     .withDescription(
                             "The time before a JobManager after a fail over recovers the current jobs.");
+
+    /**
+     * Safety hatch to fallback to the old ha services implementations.
+     *
+     * <p>Ideally, we can remove this option together with the old implementations in the next
+     * release.
+     *
+     * @see <a href="https://issues.apache.org/jira/browse/FLINK-25806">FLINK-25806</a>
+     */
+    @Documentation.Section(Documentation.Sections.EXPERT_HIGH_AVAILABILITY)
+    public static final ConfigOption<Boolean> USE_OLD_HA_SERVICES =
+            key("high-availability.use-old-ha-services")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Use this option to disable the new HA service implementations for ZooKeeper and K8s. This is a safety hatch in case that the new ha services are buggy.")
+                                    .build());
 
     // ------------------------------------------------------------------------
 

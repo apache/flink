@@ -43,12 +43,6 @@ import java.util.function.Supplier;
 @Internal
 public interface SubtaskCheckpointCoordinator extends Closeable {
 
-    /**
-     * TODO Whether enables checkpoints after tasks finished. This is a temporary flag and will be
-     * removed in the last PR.
-     */
-    void setEnableCheckpointAfterTasksFinished(boolean enableCheckpointAfterTasksFinished);
-
     /** Initialize new checkpoint. */
     void initInputsCheckpoint(long id, CheckpointOptions checkpointOptions)
             throws CheckpointException;
@@ -67,6 +61,7 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
             CheckpointOptions checkpointOptions,
             CheckpointMetricsBuilder checkpointMetrics,
             OperatorChain<?, ?> operatorChain,
+            boolean isTaskFinished,
             Supplier<Boolean> isRunning)
             throws Exception;
 
@@ -91,4 +86,18 @@ public interface SubtaskCheckpointCoordinator extends Closeable {
     void notifyCheckpointAborted(
             long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning)
             throws Exception;
+
+    /**
+     * Notified on the task side once a distributed checkpoint has been subsumed.
+     *
+     * @param checkpointId The checkpoint id to notify as been subsumed.
+     * @param operatorChain The chain of operators executed by the task.
+     * @param isRunning Whether the task is running.
+     */
+    void notifyCheckpointSubsumed(
+            long checkpointId, OperatorChain<?, ?> operatorChain, Supplier<Boolean> isRunning)
+            throws Exception;
+
+    /** Waits for all the pending checkpoints to finish their asynchronous step. */
+    void waitForPendingCheckpoints() throws Exception;
 }

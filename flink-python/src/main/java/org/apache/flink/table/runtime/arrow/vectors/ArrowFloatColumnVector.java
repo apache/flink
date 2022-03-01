@@ -19,7 +19,7 @@
 package org.apache.flink.table.runtime.arrow.vectors;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.data.vector.FloatColumnVector;
+import org.apache.flink.table.data.columnar.vector.FloatColumnVector;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.arrow.vector.Float4Vector;

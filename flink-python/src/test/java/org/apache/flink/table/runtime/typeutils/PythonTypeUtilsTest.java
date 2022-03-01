@@ -21,7 +21,9 @@ package org.apache.flink.table.runtime.typeutils;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
+import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.types.logical.BigIntType;
+import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.logical.UnresolvedUserDefinedType;
@@ -39,11 +41,11 @@ import static org.junit.Assert.assertTrue;
 public class PythonTypeUtilsTest {
 
     @Test
-    public void testLogicalTypeToBlinkTypeSerializer() {
+    public void testLogicalTypetoInternalSerializer() {
         List<RowType.RowField> rowFields = new ArrayList<>();
         rowFields.add(new RowType.RowField("f1", new BigIntType()));
         RowType rowType = new RowType(rowFields);
-        TypeSerializer baseSerializer = PythonTypeUtils.toBlinkTypeSerializer(rowType);
+        TypeSerializer baseSerializer = PythonTypeUtils.toInternalSerializer(rowType);
         assertTrue(baseSerializer instanceof RowDataSerializer);
 
         assertEquals(1, ((RowDataSerializer) baseSerializer).getArity());
@@ -64,13 +66,24 @@ public class PythonTypeUtilsTest {
     }
 
     @Test
+    public void testLogicalTypeToDataConverter() {
+        PythonTypeUtils.DataConverter converter = PythonTypeUtils.toDataConverter(new IntType());
+
+        GenericRowData data = new GenericRowData(1);
+        data.setField(0, 10);
+        Object externalData = converter.toExternal(data, 0);
+        assertTrue(externalData instanceof Long);
+        assertEquals(externalData, 10L);
+    }
+
+    @Test
     public void testUnsupportedTypeSerializer() {
         LogicalType logicalType =
                 new UnresolvedUserDefinedType(UnresolvedIdentifier.of("cat", "db", "MyType"));
         String expectedTestException =
                 "Python UDF doesn't support logical type `cat`.`db`.`MyType` currently.";
         try {
-            PythonTypeUtils.toBlinkTypeSerializer(logicalType);
+            PythonTypeUtils.toInternalSerializer(logicalType);
         } catch (Exception e) {
             assertTrue(
                     ExceptionUtils.findThrowableWithMessage(e, expectedTestException).isPresent());

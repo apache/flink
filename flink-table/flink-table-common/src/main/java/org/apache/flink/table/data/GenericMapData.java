@@ -89,7 +89,7 @@ public final class GenericMapData implements MapData {
     }
 
     private static <K, V> boolean deepEquals(Map<K, V> m1, Map<?, ?> m2) {
-        // copied from HashMap.equals but with deepEquals comparision
+        // copied from HashMap.equals but with deepEquals comparison
         if (m1.size() != m2.size()) {
             return false;
         }

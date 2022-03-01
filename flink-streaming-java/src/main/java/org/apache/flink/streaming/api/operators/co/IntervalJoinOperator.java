@@ -261,7 +261,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
 
     private boolean isLate(long timestamp) {
         long currentWatermark = internalTimerService.currentWatermark();
-        return currentWatermark != Long.MIN_VALUE && timestamp < currentWatermark;
+        return timestamp < currentWatermark;
     }
 
     private void collect(T1 left, T2 right, long leftTimestamp, long rightTimestamp)

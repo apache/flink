@@ -22,7 +22,6 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.InternalKeyContextImpl;
-import org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation;
 
 import org.junit.Test;
 
@@ -33,7 +32,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.apache.flink.state.changelog.AbstractStateChangeLogger.COMMON_KEY_GROUP;
-import static org.apache.flink.state.changelog.AbstractStateChangeLogger.StateChangeOperation.METADATA;
+import static org.apache.flink.state.changelog.StateChangeOperation.METADATA;
 import static org.junit.Assert.assertEquals;
 
 abstract class StateChangeLoggerTestBase<Namespace> {
@@ -43,19 +42,21 @@ abstract class StateChangeLoggerTestBase<Namespace> {
         TestingStateChangelogWriter writer = new TestingStateChangelogWriter();
         InternalKeyContextImpl<String> keyContext =
                 new InternalKeyContextImpl<>(KeyGroupRange.of(1, 1000), 1000);
-        StateChangeLogger<String, Namespace> logger = getLogger(writer, keyContext);
 
-        List<Tuple2<Integer, StateChangeOperation>> expectedAppends = new ArrayList<>();
-        expectedAppends.add(Tuple2.of(COMMON_KEY_GROUP, METADATA));
+        try (StateChangeLogger<String, Namespace> logger = getLogger(writer, keyContext)) {
+            List<Tuple2<Integer, StateChangeOperation>> expectedAppends = new ArrayList<>();
+            expectedAppends.add(Tuple2.of(COMMON_KEY_GROUP, METADATA));
 
-        // log every applicable operations, several times each
-        int numOpTypes = StateChangeOperation.values().length;
-        for (int i = 0; i < numOpTypes * 7; i++) {
-            String element = Integer.toString(i);
-            StateChangeOperation operation = StateChangeOperation.byCode((byte) (i % numOpTypes));
-            log(operation, element, logger, keyContext).ifPresent(expectedAppends::add);
+            // log every applicable operations, several times each
+            int numOpTypes = StateChangeOperation.values().length;
+            for (int i = 0; i < numOpTypes * 7; i++) {
+                String element = Integer.toString(i);
+                StateChangeOperation operation =
+                        StateChangeOperation.byCode((byte) (i % numOpTypes));
+                log(operation, element, logger, keyContext).ifPresent(expectedAppends::add);
+            }
+            assertEquals(expectedAppends, writer.appends);
         }
-        assertEquals(expectedAppends, writer.appends);
     }
 
     protected abstract StateChangeLogger<String, Namespace> getLogger(
@@ -109,7 +110,12 @@ abstract class StateChangeLoggerTestBase<Namespace> {
         }
 
         @Override
-        public SequenceNumber lastAppendedSequenceNumber() {
+        public SequenceNumber initialSequenceNumber() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public SequenceNumber nextSequenceNumber() {
             throw new UnsupportedOperationException();
         }
 
@@ -129,5 +135,10 @@ abstract class StateChangeLoggerTestBase<Namespace> {
 
         @Override
         public void close() {}
+
+        @Override
+        public SequenceNumber getLowestSequenceNumber() {
+            return initialSequenceNumber();
+        }
     }
 }

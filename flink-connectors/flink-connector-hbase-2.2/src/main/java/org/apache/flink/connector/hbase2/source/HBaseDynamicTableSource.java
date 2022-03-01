@@ -29,6 +29,7 @@ import org.apache.flink.table.connector.source.AsyncTableFunctionProvider;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.connector.source.TableFunctionProvider;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.types.DataType;
 
 import org.apache.hadoop.conf.Configuration;
 
@@ -56,11 +57,9 @@ public class HBaseDynamicTableSource extends AbstractHBaseDynamicTableSource {
                 hbaseSchema.getRowKeyName().isPresent(),
                 "HBase schema must have a row key when used in lookup mode.");
         checkArgument(
-                hbaseSchema
-                        .convertsToTableSchema()
-                        .getTableColumn(context.getKeys()[0][0])
-                        .filter(f -> f.getName().equals(hbaseSchema.getRowKeyName().get()))
-                        .isPresent(),
+                DataType.getFieldNames(hbaseSchema.convertToDataType())
+                        .get(context.getKeys()[0][0])
+                        .equals(hbaseSchema.getRowKeyName().get()),
                 "Currently, HBase table only supports lookup by rowkey field.");
         if (lookupOptions.getLookupAsync()) {
             return AsyncTableFunctionProvider.of(

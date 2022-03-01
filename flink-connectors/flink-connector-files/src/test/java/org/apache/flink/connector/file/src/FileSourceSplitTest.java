@@ -28,6 +28,6 @@ public class FileSourceSplitTest {
     @Test(expected = IllegalArgumentException.class)
     public void noNullHostsAllowed() {
         new FileSourceSplit(
-                "id", new Path("file:/some/random/path"), 0, 10, "host1", null, "host2");
+                "id", new Path("file:/some/random/path"), 0, 10, 0, 10, "host1", null, "host2");
     }
 }

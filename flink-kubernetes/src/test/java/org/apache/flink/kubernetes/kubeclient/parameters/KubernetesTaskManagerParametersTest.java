@@ -34,10 +34,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** General tests for the {@link KubernetesTaskManagerParameters}. */
@@ -45,6 +45,8 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
 
     private static final int TASK_MANAGER_MEMORY = 1024;
     private static final double TASK_MANAGER_CPU = 1.2;
+    private static final double TASK_MANAGER_CPU_LIMIT_FACTOR = 2.0;
+    private static final double TASK_MANAGER_MEMORY_LIMIT_FACTOR = 2.0;
     private static final int RPC_PORT = 13001;
 
     private static final String POD_NAME = "task-manager-pod-1";
@@ -70,6 +72,12 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
                 TaskManagerOptions.TOTAL_PROCESS_MEMORY,
                 MemorySize.parse(TASK_MANAGER_MEMORY + "m"));
         flinkConfig.set(TaskManagerOptions.RPC_PORT, String.valueOf(RPC_PORT));
+        flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_CPU_LIMIT_FACTOR,
+                TASK_MANAGER_CPU_LIMIT_FACTOR);
+        flinkConfig.set(
+                KubernetesConfigOptions.TASK_MANAGER_MEMORY_LIMIT_FACTOR,
+                TASK_MANAGER_MEMORY_LIMIT_FACTOR);
 
         customizedEnvs.forEach(
                 (k, v) ->
@@ -134,9 +142,23 @@ public class KubernetesTaskManagerParametersTest extends KubernetesTestBase {
     @Test
     public void testGetTaskManagerCPU() {
         assertEquals(
-                TASK_MANAGER_CPU,
-                kubernetesTaskManagerParameters.getTaskManagerCPU(),
-                0.000000000001);
+                TASK_MANAGER_CPU, kubernetesTaskManagerParameters.getTaskManagerCPU(), 0.00001);
+    }
+
+    @Test
+    public void testGetTaskManagerCPULimitFactor() {
+        assertEquals(
+                TASK_MANAGER_CPU_LIMIT_FACTOR,
+                kubernetesTaskManagerParameters.getTaskManagerCPULimitFactor(),
+                0.00001);
+    }
+
+    @Test
+    public void testGetTaskManagerMemoryLimitFactor() {
+        assertEquals(
+                TASK_MANAGER_MEMORY_LIMIT_FACTOR,
+                kubernetesTaskManagerParameters.getTaskManagerMemoryLimitFactor(),
+                0.00001);
     }
 
     @Test

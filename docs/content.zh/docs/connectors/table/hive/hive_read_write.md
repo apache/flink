@@ -73,7 +73,7 @@ of new files in the folder and read new files incrementally.
         <td style="word-wrap: break-word;">None</td>
         <td>Duration</td>
         <td>Time interval for consecutively monitoring partition/file.
-            Notes: The default interval for hive streaming reading is '1 m', the default interval for hive streaming temporal join is '60 m', this is because there's one framework limitation that every TM will visit the Hive metaStore in current hive streaming temporal join implementation which may produce pressure to metaStore, this will improve in the future.</td>
+            Notes: The default interval for hive streaming reading is '1 min', the default interval for hive streaming temporal join is '60 min', this is because there's one framework limitation that every TM will visit the Hive metaStore in current hive streaming temporal join implementation which may produce pressure to metaStore, this will improve in the future.</td>
     </tr>
     <tr>
         <td><h5>streaming-source.partition-order</h5></td>
@@ -166,6 +166,10 @@ following parameters in `TableConfig` (note that these parameters affect all sou
   </tbody>
 </table>
 
+### Load Partition Splits
+
+Multi-thread is used to split hive's partitions. You can use `table.exec.hive.load-partition-splits.thread-num` to configure the thread number. The default value is 3 and the configured value should be bigger than 0.
+
 ## Temporal Table Join
 
 You can use a Hive table as a temporal table, and then a stream can correlate the Hive table by temporal join. 
@@ -181,10 +185,10 @@ Flink supports temporal join both partitioned table and Hive non-partitioned tab
 For a partitioned table which is changing over time, we can read it out as an unbounded stream, the partition can be acted as a version of the temporal table if every partition contains complete data of a version,
 the version of temporal table keeps the data of the partition.
  
-Flink support tracking the latest partition(version) of temporal table automatically in processing time temporal join, the latest partition(version) is defined by 'streaming-source.partition-order' option,
+Flink supports tracking the latest partition (version) of temporal table automatically in processing time temporal join, the latest partition (version) is defined by 'streaming-source.partition-order' option,
 This is the most common user cases that use Hive table as dimension table in a Flink stream application job.
 
-**NOTE:** This feature is only support in Flink `STREAMING` Mode.
+**NOTE:** This feature is only supported in Flink `STREAMING` Mode.
 
 The following demo shows a classical business pipeline, the dimension table comes from Hive and it's updated once every day by a batch pipeline job or a Flink job, the kafka stream comes from real time online business data or log and need to join with the dimension table to enrich stream. 
 

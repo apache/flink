@@ -36,6 +36,7 @@ import org.apache.flink.runtime.shuffle.ShuffleMaster;
 
 import org.slf4j.Logger;
 
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Factory for {@link SlotPoolService} and {@link SchedulerNG}. */
@@ -65,10 +66,10 @@ public interface SlotPoolServiceSchedulerFactory {
     SchedulerNG createScheduler(
             Logger log,
             JobGraph jobGraph,
-            ScheduledExecutorService scheduledExecutorService,
+            Executor ioExecutor,
             Configuration configuration,
             SlotPoolService slotPoolService,
-            ScheduledExecutorService executorService,
+            ScheduledExecutorService futureExecutor,
             ClassLoader userCodeLoader,
             CheckpointRecoveryFactory checkpointRecoveryFactory,
             Time rpcTimeout,

@@ -74,7 +74,7 @@ job_id=$(kubectl logs $jm_pod_name | grep -E -o 'Job [a-z0-9]+ is submitted' | a
 kubectl exec $jm_pod_name -- /bin/sh -c "kill 1"
 
 # Check the new JobManager recovering from latest successful checkpoint
-wait_for_logs $jm_pod_name "Restoring job $job_id from Checkpoint"
+wait_for_logs $jm_pod_name "Restoring job $job_id from Checkpoint" 120
 wait_num_checkpoints $jm_pod_name 1
 
 "$FLINK_DIR"/bin/flink cancel -t kubernetes-application -Dkubernetes.cluster-id=${CLUSTER_ID} $job_id

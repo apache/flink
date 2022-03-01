@@ -18,8 +18,17 @@
 
 package org.apache.flink.runtime.io.network;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.testutils.BlockerSync;
+import org.apache.flink.metrics.CharacterFilter;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.Metric;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
+import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
@@ -33,8 +42,18 @@ import org.apache.flink.runtime.io.network.partition.consumer.InputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate;
 import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateBuilder;
+import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.metrics.MetricNames;
+import org.apache.flink.runtime.metrics.NoOpMetricRegistry;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
+import org.apache.flink.runtime.metrics.groups.TaskMetricGroup;
+import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.taskmanager.Task;
+import org.apache.flink.runtime.throughput.BufferDebloatConfiguration;
 import org.apache.flink.runtime.util.EnvironmentInformation;
+import org.apache.flink.runtime.util.NettyShuffleDescriptorBuilder;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.AfterClass;
@@ -44,7 +63,10 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createDummyConnectionManager;
@@ -129,6 +151,61 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
         shuffleEnvironment.releasePartitionsLocally(Collections.singleton(new ResultPartitionID()));
         sync.awaitBlocker();
         sync.releaseBlocker();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testRegisteringDebloatingMetrics() throws IOException {
+        Map<String, Metric> metrics = new ConcurrentHashMap<>();
+        final TaskMetricGroup taskMetricGroup = createTaskMetricGroup(metrics);
+        final Configuration config = new Configuration();
+        config.set(TaskManagerOptions.BUFFER_DEBLOAT_ENABLED, true);
+        final NettyShuffleEnvironment shuffleEnvironment =
+                new NettyShuffleEnvironmentBuilder()
+                        .setDebloatConfig(BufferDebloatConfiguration.fromConfiguration(config))
+                        .build();
+        shuffleEnvironment.createInputGates(
+                shuffleEnvironment.createShuffleIOOwnerContext(
+                        "test", new ExecutionAttemptID(), taskMetricGroup),
+                (dsid, id, consumer) -> {},
+                Arrays.asList(
+                        new InputGateDeploymentDescriptor(
+                                new IntermediateDataSetID(),
+                                ResultPartitionType.PIPELINED,
+                                0,
+                                new ShuffleDescriptor[] {
+                                    new NettyShuffleDescriptorBuilder().buildRemote()
+                                }),
+                        new InputGateDeploymentDescriptor(
+                                new IntermediateDataSetID(),
+                                ResultPartitionType.PIPELINED,
+                                1,
+                                new ShuffleDescriptor[] {
+                                    new NettyShuffleDescriptorBuilder().buildRemote()
+                                })));
+        for (int i = 0; i < 2; i++) {
+            assertEquals(
+                    TaskManagerOptions.MEMORY_SEGMENT_SIZE.defaultValue().getBytes(),
+                    (long)
+                            ((Gauge<Integer>)
+                                            getDebloatingMetric(
+                                                    metrics, i, MetricNames.DEBLOATED_BUFFER_SIZE))
+                                    .getValue());
+            assertEquals(
+                    0L,
+                    (long)
+                            ((Gauge<Long>)
+                                            getDebloatingMetric(
+                                                    metrics,
+                                                    i,
+                                                    MetricNames.ESTIMATED_TIME_TO_CONSUME_BUFFERS))
+                                    .getValue());
+        }
+    }
+
+    private Metric getDebloatingMetric(Map<String, Metric> metrics, int i, String metricName) {
+        final String inputScope = "taskmanager.job.task.Shuffle.Netty.Input";
+        return metrics.get(inputScope + "." + i + "." + metricName);
     }
 
     private void testRegisterTaskWithLimitedBuffers(int bufferPoolSize) throws Exception {
@@ -263,5 +340,29 @@ public class NettyShuffleEnvironmentTest extends TestLogger {
                 .setPartitionId(resultPartition.getPartitionId())
                 .setConnectionManager(connManager)
                 .buildRemoteChannel(inputGate);
+    }
+
+    private static TaskMetricGroup createTaskMetricGroup(Map<String, Metric> metrics) {
+
+        return TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        new TestMetricRegistry(metrics), "localhost", ResourceID.generate())
+                .addJob(new JobID(), "jobName")
+                .addTask(new JobVertexID(0, 0), new ExecutionAttemptID(), "test", 0, 0);
+    }
+
+    /** The metric registry for storing the registered metrics to verify in tests. */
+    private static class TestMetricRegistry extends NoOpMetricRegistry {
+        private final Map<String, Metric> metrics;
+
+        TestMetricRegistry(Map<String, Metric> metrics) {
+            super();
+            this.metrics = metrics;
+        }
+
+        @Override
+        public void register(Metric metric, String metricName, AbstractMetricGroup group) {
+            metrics.put(
+                    group.getLogicalScope(CharacterFilter.NO_OP_FILTER) + "." + metricName, metric);
+        }
     }
 }

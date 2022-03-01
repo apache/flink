@@ -18,54 +18,98 @@
 <nz-layout>
   <nz-sider nzCollapsible [(nzCollapsed)]="collapsed" [nzTrigger]="null" [nzWidth]="256">
     <div class="logo">
-      <a href="#/"><img src="assets/images/flink.svg">
-        <h1>Apache Flink Dashboard</h1></a>
+      <a href="#/">
+        <img src="assets/images/flink.svg" />
+        <h1>Apache Flink Dashboard</h1>
+      </a>
     </div>
     <ul nz-menu [nzTheme]="'dark'" [nzMode]="'inline'" [nzInlineCollapsed]="collapsed" class="menu">
       <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/overview']">
-        <span><i nz-icon type="dashboard"></i><span>Overview</span></span>
+        <span>
+          <i nz-icon nzType="dashboard"></i>
+          <span>Overview</span>
+        </span>
       </li>
       <li nz-submenu [nzOpen]="true">
-          <span title>
-            <i nz-icon type="bars"></i>
-            <span>Jobs</span>
-          </span>
+        <span title>
+          <i nz-icon nzType="bars"></i>
+          <span>Jobs</span>
+        </span>
         <ul>
-          <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job/running']">
-            <span><i nz-icon type="play-circle"></i><span>Running Jobs</span></span>
+          <li
+            nz-menu-item
+            routerLinkActive="ant-menu-item-selected"
+            [routerLink]="['/job/running']"
+          >
+            <span>
+              <i nz-icon nzType="play-circle"></i>
+              <span>Running Jobs</span>
+            </span>
           </li>
-          <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job/completed']">
-            <span><i nz-icon type="check-circle"></i><span>Completed Jobs</span></span>
+          <li
+            nz-menu-item
+            routerLinkActive="ant-menu-item-selected"
+            [routerLink]="['/job/completed']"
+          >
+            <span>
+              <i nz-icon nzType="check-circle"></i>
+              <span>Completed Jobs</span>
+            </span>
           </li>
         </ul>
       </li>
       <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/task-manager']">
-        <span><i nz-icon type="schedule"></i><span>Task Managers</span></span>
+        <span>
+          <i nz-icon nzType="schedule"></i>
+          <span>Task Managers</span>
+        </span>
       </li>
       <li nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/job-manager']">
-        <span><i nz-icon type="build"></i><span>Job Manager</span></span>
+        <span>
+          <i nz-icon nzType="build"></i>
+          <span>Job Manager</span>
+        </span>
       </li>
-      <li *ngIf="webSubmitEnabled" nz-menu-item routerLinkActive="ant-menu-item-selected" [routerLink]="['/submit']">
-        <span><i nz-icon type="upload"></i><span>Submit New Job</span></span>
+      <li
+        *ngIf="webSubmitEnabled"
+        nz-menu-item
+        routerLinkActive="ant-menu-item-selected"
+        [routerLink]="['/submit']"
+      >
+        <span>
+          <i nz-icon nzType="upload"></i>
+          <span>Submit New Job</span>
+        </span>
       </li>
     </ul>
   </nz-sider>
   <nz-layout>
     <nz-header>
-      <i class="trigger" nz-icon [type]="collapsed?'menu-unfold':'menu-fold'" (click)="toggleCollapse()">
-      </i>
+      <i
+        class="trigger"
+        nz-icon
+        [nzType]="collapsed ? 'menu-unfold' : 'menu-fold'"
+        (click)="toggleCollapse()"
+      ></i>
       <div class="right">
         <span>
-          <strong>Version:</strong> {{ statusService.configuration['flink-version'] }}
+          <strong>Version:</strong>
+          {{ statusService.configuration['flink-version'] }}
         </span>
         <nz-divider nzType="vertical"></nz-divider>
         <span>
-          <strong>Commit:</strong> {{ statusService.configuration['flink-revision'] }}
+          <strong>Commit:</strong>
+          {{ statusService.configuration['flink-revision'] }}
         </span>
         <nz-divider nzType="vertical"></nz-divider>
-        <span [hidden]="!(online$ | async)">
-          <strong> Message: </strong>
-          <nz-badge (click)="showMessage()" nzShowZero [class.normal]="statusService.listOfErrorMessage.length===0" [nzCount]="statusService.listOfErrorMessage.length"></nz-badge>
+        <span [hidden]="(online$ | async) === false">
+          <strong>Message:</strong>
+          <nz-badge
+            (click)="showMessage()"
+            nzShowZero
+            [class.normal]="statusService.listOfErrorMessage.length === 0"
+            [nzCount]="statusService.listOfErrorMessage.length"
+          ></nz-badge>
         </span>
         <span [hidden]="online$ | async">
           <strong class="offline">Lost Connection, Reconnecting Now...</strong>
@@ -78,11 +122,20 @@
   </nz-layout>
 </nz-layout>
 
-<nz-drawer [nzVisible]="visible" [nzWidth]="500" nzPlacement="right" nzTitle="Server Response Message List" (nzOnClose)="clearMessage()">
-  <nz-alert *ngFor="let message of statusService.listOfErrorMessage"
-    [nzShowIcon]="true"
-    [nzType]="'info'"
-    [nzMessage]="'Server Response:'"
-    [nzDescription]="message">
-  </nz-alert>
+<nz-drawer
+  [nzVisible]="visible"
+  [nzWidth]="500"
+  nzPlacement="right"
+  nzTitle="Server Response Message List"
+  (nzOnClose)="clearMessage()"
+>
+  <ng-container *nzDrawerContent>
+    <nz-alert
+      *ngFor="let message of statusService.listOfErrorMessage"
+      [nzShowIcon]="true"
+      [nzType]="'info'"
+      [nzMessage]="'Server Response:'"
+      [nzDescription]="message"
+    ></nz-alert>
+  </ng-container>
 </nz-drawer>

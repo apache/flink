@@ -19,8 +19,8 @@
 package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
@@ -51,17 +51,20 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
             internalDeregisterApplicationConsumer;
     private final BiFunction<ResourceManager<?>, CompletableFuture<Void>, CompletableFuture<Void>>
             getTerminationFutureFunction;
+    private final boolean supportMultiLeaderSession;
 
     public TestingResourceManagerFactory(
             Consumer<UUID> initializeConsumer,
             Consumer<UUID> terminateConsumer,
             TriConsumer<UUID, ApplicationStatus, String> internalDeregisterApplicationConsumer,
             BiFunction<ResourceManager<?>, CompletableFuture<Void>, CompletableFuture<Void>>
-                    getTerminationFutureFunction) {
+                    getTerminationFutureFunction,
+            boolean supportMultiLeaderSession) {
         this.initializeConsumer = initializeConsumer;
         this.terminateConsumer = terminateConsumer;
         this.internalDeregisterApplicationConsumer = internalDeregisterApplicationConsumer;
         this.getTerminationFutureFunction = getTerminationFutureFunction;
+        this.supportMultiLeaderSession = supportMultiLeaderSession;
     }
 
     @Override
@@ -89,7 +92,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                 clusterInformation,
                 fatalErrorHandler,
                 resourceManagerMetricGroup,
-                AkkaUtils.getTimeoutAsTime(configuration),
+                Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION)),
                 ioExecutor);
     }
 
@@ -101,6 +104,11 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
                 .createResourceManagerRuntimeServicesConfiguration(configuration);
     }
 
+    @Override
+    public boolean supportMultiLeaderSession() {
+        return supportMultiLeaderSession;
+    }
+
     public static class Builder {
         private Consumer<UUID> initializeConsumer = (ignore) -> {};
         private Consumer<UUID> terminateConsumer = (ignore) -> {};
@@ -109,6 +117,7 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
         private BiFunction<ResourceManager<?>, CompletableFuture<Void>, CompletableFuture<Void>>
                 getTerminationFutureFunction =
                         (rm, superTerminationFuture) -> superTerminationFuture;
+        private boolean supportMultiLeaderSession = true;
 
         public Builder setInitializeConsumer(Consumer<UUID> initializeConsumer) {
             this.initializeConsumer = initializeConsumer;
@@ -134,12 +143,18 @@ public class TestingResourceManagerFactory extends ResourceManagerFactory<Resour
             return this;
         }
 
+        public Builder setSupportMultiLeaderSession(boolean supportMultiLeaderSession) {
+            this.supportMultiLeaderSession = supportMultiLeaderSession;
+            return this;
+        }
+
         public TestingResourceManagerFactory build() {
             return new TestingResourceManagerFactory(
                     initializeConsumer,
                     terminateConsumer,
                     internalDeregisterApplicationConsumer,
-                    getTerminationFutureFunction);
+                    getTerminationFutureFunction,
+                    supportMultiLeaderSession);
         }
     }
 

@@ -18,80 +18,73 @@
 
 import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import {
-  CheckPointConfigInterface,
-  CheckPointDetailInterface,
-  CheckPointInterface,
-  CheckPointSubTaskInterface,
-  JobBackpressureInterface,
-  JobConfigInterface,
-  JobDetailCorrectInterface,
-  JobDetailInterface,
-  JobExceptionInterface,
-  JobFlameGraphInterface,
-  JobOverviewInterface,
-  JobSubTaskInterface,
-  JobSubTaskTimeInterface,
-  JobVertexTaskManagerInterface,
-  NodesItemCorrectInterface,
-  SubTaskAccumulatorsInterface,
-  TaskStatusInterface,
-  UserAccumulatorsInterface,
-  VerticesLinkInterface
-} from 'interfaces';
-import { combineLatest, EMPTY, ReplaySubject } from 'rxjs';
-import { catchError, filter, flatMap, map, tap } from 'rxjs/operators';
+import { combineLatest, EMPTY, Observable, ReplaySubject } from 'rxjs';
+import { catchError, filter, map, mergeMap, tap } from 'rxjs/operators';
+
 import { BASE_URL } from 'config';
+import {
+  Checkpoint,
+  CheckpointConfig,
+  CheckpointDetail,
+  CheckpointSubTask,
+  JobBackpressure,
+  JobConfig,
+  JobDetail,
+  JobDetailCorrect,
+  JobException,
+  JobFlameGraph,
+  JobOverview,
+  JobsItem,
+  JobSubTask,
+  JobSubTaskTime,
+  JobVertexTaskManager,
+  NodesItemCorrect,
+  SubTaskAccumulators,
+  TaskStatus,
+  UserAccumulators,
+  VerticesLink
+} from 'interfaces';
 
 @Injectable({
   providedIn: 'root'
 })
 export class JobService {
-  /**
-   * Current activated job
-   */
-  jobDetail$ = new ReplaySubject<JobDetailCorrectInterface>(1);
-  /**
-   * Current activated vertex
-   */
-  selectedVertex$ = new ReplaySubject<NodesItemCorrectInterface | null>(1);
-  /**
-   * Current activated job with vertex
-   */
-  jobWithVertex$ = combineLatest(this.jobDetail$, this.selectedVertex$).pipe(
+  /** Current activated job. */
+  public readonly jobDetail$ = new ReplaySubject<JobDetailCorrect>(1);
+
+  /** Current activated vertex. */
+  public readonly selectedVertex$ = new ReplaySubject<NodesItemCorrect | null>(1);
+
+  /** Current activated job with vertex. */
+  public readonly jobWithVertex$ = combineLatest([this.jobDetail$, this.selectedVertex$]).pipe(
     map(data => {
       const [job, vertex] = data;
       return { job, vertex };
     }),
     filter(data => !!data.vertex)
   );
-  /**
-   * Selected Metric Cache
-   */
-  metricsCacheMap = new Map();
 
-  constructor(private httpClient: HttpClient) {}
+  /** Selected Metric Cache. */
+  public readonly metricsCacheMap = new Map<string, string[]>();
+
+  constructor(private readonly httpClient: HttpClient) {}
 
   /**
    * Uses the non REST-compliant GET yarn-cancel handler which is available in addition to the
    * proper BASE_URL + "jobs/" + jobid + "?mode=cancel"
-   * @param jobId
    */
-  cancelJob(jobId: string) {
-    return this.httpClient.get(`${BASE_URL}/jobs/${jobId}/yarn-cancel`);
+  public cancelJob(jobId: string): Observable<void> {
+    return this.httpClient.get<void>(`${BASE_URL}/jobs/${jobId}/yarn-cancel`);
   }
 
-  /**
-   * Get job list
-   */
-  loadJobs() {
-    return this.httpClient.get<JobOverviewInterface>(`${BASE_URL}/jobs/overview`).pipe(
+  public loadJobs(): Observable<JobsItem[]> {
+    return this.httpClient.get<JobOverview>(`${BASE_URL}/jobs/overview`).pipe(
       map(data => {
         data.jobs.forEach(job => {
           for (const key in job.tasks) {
-            const upperCaseKey = key.toUpperCase() as (keyof TaskStatusInterface);
-            job.tasks[upperCaseKey] = job.tasks[key as (keyof TaskStatusInterface)];
-            delete job.tasks[key as (keyof TaskStatusInterface)];
+            const upperCaseKey = key.toUpperCase() as keyof TaskStatus;
+            job.tasks[upperCaseKey] = job.tasks[key as keyof TaskStatus];
+            delete job.tasks[key as keyof TaskStatus];
           }
           job.completed = ['FINISHED', 'FAILED', 'CANCELED'].indexOf(job.state) > -1;
         });
@@ -101,20 +94,12 @@ export class JobService {
     );
   }
 
-  /**
-   * Load job config
-   * @param jobId
-   */
-  loadJobConfig(jobId: string) {
-    return this.httpClient.get<JobConfigInterface>(`${BASE_URL}/jobs/${jobId}/config`);
+  public loadJobConfig(jobId: string): Observable<JobConfig> {
+    return this.httpClient.get<JobConfig>(`${BASE_URL}/jobs/${jobId}/config`);
   }
 
-  /**
-   * Load single job detail
-   * @param jobId
-   */
-  loadJob(jobId: string) {
-    return this.httpClient.get<JobDetailInterface>(`${BASE_URL}/jobs/${jobId}`).pipe(
+  public loadJob(jobId: string): Observable<JobDetailCorrect> {
+    return this.httpClient.get<JobDetail>(`${BASE_URL}/jobs/${jobId}`).pipe(
       map(job => this.convertJob(job)),
       tap(job => {
         this.jobDetail$.next(job);
@@ -122,21 +107,17 @@ export class JobService {
     );
   }
 
-  /**
-   * Get vertex & subtask accumulators
-   * @param jobId
-   * @param vertexId
-   */
-  loadAccumulators(jobId: string, vertexId: string) {
+  public loadAccumulators(
+    jobId: string,
+    vertexId: string
+  ): Observable<{ main: UserAccumulators[]; subtasks: SubTaskAccumulators[] }> {
     return this.httpClient
-      .get<{ 'user-accumulators': UserAccumulatorsInterface[] }>(
-        `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/accumulators`
-      )
+      .get<{ 'user-accumulators': UserAccumulators[] }>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/accumulators`)
       .pipe(
-        flatMap(data => {
+        mergeMap(data => {
           const accumulators = data['user-accumulators'];
           return this.httpClient
-            .get<{ subtasks: SubTaskAccumulatorsInterface[] }>(
+            .get<{ subtasks: SubTaskAccumulators[] }>(
               `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasks/accumulators`
             )
             .pipe(
@@ -152,116 +133,59 @@ export class JobService {
       );
   }
 
-  /**
-   * Get job exception
-   * @param jobId
-   * @param maxExceptions
-   */
-  loadExceptions(jobId: string, maxExceptions: number) {
-    return this.httpClient.get<JobExceptionInterface>(
-      `${BASE_URL}/jobs/${jobId}/exceptions?maxExceptions=${maxExceptions}`
-    );
+  public loadExceptions(jobId: string, maxExceptions: number): Observable<JobException> {
+    return this.httpClient.get<JobException>(`${BASE_URL}/jobs/${jobId}/exceptions?maxExceptions=${maxExceptions}`);
   }
 
-  /**
-   * Get vertex back pressure
-   * @param jobId
-   * @param vertexId
-   */
-  loadOperatorBackPressure(jobId: string, vertexId: string) {
-    return this.httpClient.get<JobBackpressureInterface>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/backpressure`);
+  public loadOperatorBackPressure(jobId: string, vertexId: string): Observable<JobBackpressure> {
+    return this.httpClient.get<JobBackpressure>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/backpressure`);
   }
 
-  /**
-   * Get vertex flame graph
-   * @param jobId
-   * @param vertexId
-   * @param type
-   */
-  loadOperatorFlameGraph(jobId: string, vertexId: string, type: string) {
-    return this.httpClient.get<JobFlameGraphInterface>(
-      `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/flamegraph?type=${type}`
-    );
+  public loadOperatorFlameGraph(jobId: string, vertexId: string, type: string): Observable<JobFlameGraph> {
+    return this.httpClient.get<JobFlameGraph>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/flamegraph?type=${type}`);
   }
 
-  /**
-   * Get vertex subtask
-   * @param jobId
-   * @param vertexId
-   */
-  loadSubTasks(jobId: string, vertexId: string) {
+  public loadSubTasks(jobId: string, vertexId: string): Observable<JobSubTask[]> {
     return this.httpClient
-      .get<{ subtasks: JobSubTaskInterface[] }>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}`)
+      .get<{ subtasks: JobSubTask[] }>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}`)
       .pipe(map(data => (data && data.subtasks) || []));
   }
 
-  /**
-   * Get subtask timeline
-   * @param jobId
-   * @param vertexId
-   */
-  loadSubTaskTimes(jobId: string, vertexId: string) {
-    return this.httpClient.get<JobSubTaskTimeInterface>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasktimes`);
+  public loadSubTaskTimes(jobId: string, vertexId: string): Observable<JobSubTaskTime> {
+    return this.httpClient.get<JobSubTaskTime>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/subtasktimes`);
   }
 
-  /**
-   * Get vertex task manager list
-   * @param jobId
-   * @param vertexId
-   */
-  loadTaskManagers(jobId: string, vertexId: string) {
-    return this.httpClient.get<JobVertexTaskManagerInterface>(
-      `${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/taskmanagers`
-    );
+  public loadTaskManagers(jobId: string, vertexId: string): Observable<JobVertexTaskManager> {
+    return this.httpClient.get<JobVertexTaskManager>(`${BASE_URL}/jobs/${jobId}/vertices/${vertexId}/taskmanagers`);
   }
 
-  /**
-   * Get check point status
-   * @param jobId
-   */
-  loadCheckpointStats(jobId: string) {
-    return this.httpClient.get<CheckPointInterface>(`${BASE_URL}/jobs/${jobId}/checkpoints`);
+  public loadCheckpointStats(jobId: string): Observable<Checkpoint> {
+    return this.httpClient.get<Checkpoint>(`${BASE_URL}/jobs/${jobId}/checkpoints`);
   }
 
-  /**
-   * Get check point configuration
-   * @param jobId
-   */
-  loadCheckpointConfig(jobId: string) {
-    return this.httpClient.get<CheckPointConfigInterface>(`${BASE_URL}/jobs/${jobId}/checkpoints/config`);
+  public loadCheckpointConfig(jobId: string): Observable<CheckpointConfig> {
+    return this.httpClient.get<CheckpointConfig>(`${BASE_URL}/jobs/${jobId}/checkpoints/config`);
   }
 
-  /**
-   * get check point detail
-   * @param jobId
-   * @param checkPointId
-   */
-  loadCheckpointDetails(jobId: string, checkPointId: number) {
-    return this.httpClient.get<CheckPointDetailInterface>(
-      `${BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}`
-    );
+  public loadCheckpointDetails(jobId: string, checkPointId: number): Observable<CheckpointDetail> {
+    return this.httpClient.get<CheckpointDetail>(`${BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}`);
   }
 
-  /**
-   * get subtask check point detail
-   * @param jobId
-   * @param checkPointId
-   * @param vertexId
-   */
-  loadCheckpointSubtaskDetails(jobId: string, checkPointId: number, vertexId: string) {
-    return this.httpClient.get<CheckPointSubTaskInterface>(
+  public loadCheckpointSubtaskDetails(
+    jobId: string,
+    checkPointId: number,
+    vertexId: string
+  ): Observable<CheckpointSubTask> {
+    return this.httpClient.get<CheckpointSubTask>(
       `${BASE_URL}/jobs/${jobId}/checkpoints/details/${checkPointId}/subtasks/${vertexId}`
     );
   }
 
-  /**
-   * nodes to nodes links in order to generate graph
-   * @param job
-   */
-  private convertJob(job: JobDetailInterface): JobDetailCorrectInterface {
-    const links: VerticesLinkInterface[] = [];
-    let nodes: NodesItemCorrectInterface[] = [];
-    if (job.plan.nodes.length) {
+  /** nodes to nodes links in order to generate graph */
+  private convertJob(job: JobDetail): JobDetailCorrect {
+    const links: VerticesLink[] = [];
+    let nodes: NodesItemCorrect[] = [];
+    if (job.plan?.nodes.length) {
       nodes = job.plan.nodes.map(node => {
         let detail;
         if (job.vertices && job.vertices.length) {

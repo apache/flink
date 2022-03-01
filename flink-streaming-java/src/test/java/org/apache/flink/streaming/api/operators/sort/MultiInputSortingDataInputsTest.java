@@ -18,16 +18,17 @@
 
 package org.apache.flink.streaming.api.operators.sort;
 
+import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.operators.testutils.DummyInvokable;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.BoundedMultiInput;
 import org.apache.flink.streaming.api.operators.sort.MultiInputSortingDataInput.SelectableSortingInputs;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.runtime.io.DataInputStatus;
 import org.apache.flink.streaming.runtime.io.MultipleInputSelectionHandler;
 import org.apache.flink.streaming.runtime.io.StreamMultipleInputProcessor;
 import org.apache.flink.streaming.runtime.io.StreamOneInputProcessor;
@@ -93,7 +94,8 @@ public class MultiInputSortingDataInputsTest {
                             environment.getIOManager(),
                             true,
                             1.0,
-                            new Configuration());
+                            new Configuration(),
+                            new ExecutionConfig());
 
             StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortedInputs();
             StreamTaskInput<?>[] preferredDataInputs =
@@ -121,10 +123,10 @@ public class MultiInputSortingDataInputsTest {
                 StreamMultipleInputProcessor processor =
                         new StreamMultipleInputProcessor(selectionHandler, inputProcessors);
 
-                InputStatus inputStatus;
+                DataInputStatus inputStatus;
                 do {
                     inputStatus = processor.processInput();
-                } while (inputStatus != InputStatus.END_OF_INPUT);
+                } while (inputStatus != DataInputStatus.END_OF_INPUT);
             }
         }
 
@@ -174,7 +176,8 @@ public class MultiInputSortingDataInputsTest {
                             environment.getIOManager(),
                             true,
                             1.0,
-                            new Configuration());
+                            new Configuration(),
+                            new ExecutionConfig());
 
             StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortedInputs();
             try (StreamTaskInput<Object> input1 = (StreamTaskInput<Object>) sortingDataInputs[0];
@@ -194,10 +197,10 @@ public class MultiInputSortingDataInputsTest {
                                             input2, collectingDataOutput, new DummyOperatorChain())
                                 });
 
-                InputStatus inputStatus;
+                DataInputStatus inputStatus;
                 do {
                     inputStatus = processor.processInput();
-                } while (inputStatus != InputStatus.END_OF_INPUT);
+                } while (inputStatus != DataInputStatus.END_OF_INPUT);
             }
         }
 
@@ -254,7 +257,8 @@ public class MultiInputSortingDataInputsTest {
                             environment.getIOManager(),
                             true,
                             1.0,
-                            new Configuration());
+                            new Configuration(),
+                            new ExecutionConfig());
 
             StreamTaskInput<?>[] sortingDataInputs = selectableSortingInputs.getSortedInputs();
             try (StreamTaskInput<Object> input1 = (StreamTaskInput<Object>) sortingDataInputs[0];
@@ -274,10 +278,10 @@ public class MultiInputSortingDataInputsTest {
                                             input2, collectingDataOutput, new DummyOperatorChain())
                                 });
 
-                InputStatus inputStatus;
+                DataInputStatus inputStatus;
                 do {
                     inputStatus = processor.processInput();
-                } while (inputStatus != InputStatus.END_OF_INPUT);
+                } while (inputStatus != DataInputStatus.END_OF_INPUT);
             }
         }
 

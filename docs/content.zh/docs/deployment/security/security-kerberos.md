@@ -25,105 +25,111 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Kerberos Authentication Setup and Configuration
+<a name="kerberos-authentication-setup-and-configuration"></a>
 
-This document briefly describes how Flink security works in the context of various deployment mechanisms (Standalone, native Kubernetes, YARN, or Mesos),
-filesystems, connectors, and state backends.
+# Kerberos 身份认证设置和配置
 
-## Objective
-The primary goals of the Flink Kerberos security infrastructure are:
+本文简要描述了 Flink 如何在各种部署机制（Standalone, native Kubernetes, YARN）、文件系统、connector 以及 state backend 的上下文中安全工作。
 
-1. to enable secure data access for jobs within a cluster via connectors (e.g. Kafka)
-2. to authenticate to ZooKeeper (if configured to use SASL)
-3. to authenticate to Hadoop components (e.g. HDFS, HBase) 
+<a name="objective"></a>
 
-In a production deployment scenario, streaming jobs are understood to run for long periods of time (days/weeks/months) and be able to authenticate to secure 
-data sources throughout the life of the job.  Kerberos keytabs do not expire in that timeframe, unlike a Hadoop delegation token
-or ticket cache entry.
+## 目标
+Flink Kerberos 安全框架的主要目标如下：
 
-The current implementation supports running Flink clusters (JobManager / TaskManager / jobs) with either a configured keytab credential
-or with Hadoop delegation tokens.   Keep in mind that all jobs share the credential configured for a given cluster.   To use a different keytab
-for a certain job, simply launch a separate Flink cluster with a different configuration.   Numerous Flink clusters may run side-by-side in a Kubernetes, YARN
-or Mesos environment.
+1. 在集群内使用 connector（例如 Kafka）时确保作业安全地访问数据；
+2. 对 zookeeper 进行身份认证（如果配置了 SASL）；
+3. 对 Hadoop 组件进行身份认证（例如 HDFS，HBASE）。
 
-## How Flink Security works
-In concept, a Flink program may use first- or third-party connectors (Kafka, HDFS, Cassandra, Flume, Kinesis etc.) necessitating arbitrary authentication methods (Kerberos, SSL/TLS, username/password, etc.).  While satisfying the security requirements for all connectors is an ongoing effort,
-Flink provides first-class support for Kerberos authentication only.  The following services and connectors are supported for Kerberos authentication:
+生产部署场景中，流式作业通常会运行很长一段时间（天、周、月级别的时间段），并且需要在作业的整个生命周期中对其进行身份认证以保护数据源。与 Hadoop delegation token 和 ticket 缓存项不同，Kerberos keytab 不会在该时间段内过期。
+
+当前的实现支持使用可配置的 keytab credential 或 Hadoop delegation token 来运行 Flink 集群（JobManager / TaskManager / 作业）。
+
+请注意，所有作业都能共享为指定集群配置的凭据。如果想为一个作业使用不同的 keytab，只需单独启动一个具有不同配置的 Flink 集群。多个 Flink 集群可以在 Kubernetes 或 YARN 环境中并行运行。
+
+<a name="how-flink-security-works"></a>
+
+## Flink Security 如何工作
+
+理论上，Flink 程序可以使用自己的或第三方的 connector（Kafka、HDFS、Cassandra、Flume、Kinesis 等），同时需要支持任意的认证方式（Kerberos、SSL/TLS、用户名/密码等）。满足所有 connector 的安全需求还在进行中，不过 Flink 提供了针对 Kerberos 身份认证的一流支持。Kerberos 身份认证支持以下服务和 connector：
 
 - Kafka (0.9+)
 - HDFS
 - HBase
 - ZooKeeper
 
-Note that it is possible to enable the use of Kerberos independently for each service or connector.  For example, the user may enable 
-Hadoop security without necessitating the use of Kerberos for ZooKeeper, or vice versa.    The shared element is the configuration of 
-Kerberos credentials, which is then explicitly used by each component.
+请注意，你可以单独为每个服务或 connector 启用 Kerberos。例如，用户可以启用 Hadoop security，而无需为 ZooKeeper 开启 Kerberos，反之亦然。Kerberos 凭证是组件之间共享的配置，每个组件会显式地使用它。
 
-The internal architecture is based on security modules (implementing `org.apache.flink.runtime.security.modules.SecurityModule`) which
-are installed at startup.  The following sections describes each security module.
+Flink 安全内部架构是建立在安全模块（实现 `org.apache.flink.runtime.security.modules.SecurityModule`）上的，安全模块在 Flink 启动过程中被安装。后面部分描述了每个安全模块。
 
-### Hadoop Security Module
-This module uses the Hadoop `UserGroupInformation` (UGI) class to establish a process-wide *login user* context.   The login user is
-then used for all interactions with Hadoop, including HDFS, HBase, and YARN.
+<a name="hadoop-security-module"></a>
 
-If Hadoop security is enabled (in `core-site.xml`), the login user will have whatever Kerberos credential is configured.  Otherwise,
-the login user conveys only the user identity of the OS account that launched the cluster.
+### Hadoop Security 模块
+该模块使用 Hadoop UserGroupInformation（UGI）类来建立进程范围的 *登录用户* 上下文。然后，登录用户用于与 Hadoop 组件的所有交互，包括 HDFS、HBase 和 YARN。
 
-### JAAS Security Module
-This module provides a dynamic JAAS configuration to the cluster, making available the configured Kerberos credential to ZooKeeper,
-Kafka, and other such components that rely on JAAS.
+如果启用了 Hadoop security（在 `core-site.xml` 中），登录用户将拥有所有配置的 Kerberos 凭据。否则，登录用户仅继承启动集群的操作系统帐户的用户身份。
 
-Note that the user may also provide a static JAAS configuration file using the mechanisms described in the [Java SE Documentation](http://docs.oracle.com/javase/7/docs/technotes/guides/security/jgss/tutorials/LoginConfigFile.html).   Static entries override any
-dynamic entries provided by this module.
+<a name="jaas-security-module"></a>
 
-### ZooKeeper Security Module
-This module configures certain process-wide ZooKeeper security-related settings, namely the ZooKeeper service name (default: `zookeeper`)
-and the JAAS login context name (default: `Client`).
+### JAAS Security 模块
+该模块为集群提供动态 JAAS 配置，使已配置的 Kerberos 凭证对 ZooKeeper、Kafka 和其他依赖 JAAS 的组件可用。
 
-## Deployment Modes
-Here is some information specific to each deployment mode.
+请注意，用户还可以使用 [Java SE 文档](http://docs.oracle.com/javase/7/docs/technotes/guides/security/jgss/tutorials/LoginConfigFile.html)中描述的机制提供静态 JAAS 配置文件。静态配置项会覆盖此模块提供的任何动态配置项。
 
-### Standalone Mode
+<a name="zookeeper-security-module"></a>
 
-Steps to run a secure Flink cluster in standalone/cluster mode:
+### ZooKeeper Security 模块
+该模块配置某些进程范围内 ZooKeeper 安全相关的设置，即 ZooKeeper 服务名称（默认为：`zookeeper`）和 JAAS 登录上下文名称（默认为：`Client`）。
 
-1. Add security-related configuration options to the Flink configuration file (on all cluster nodes) (see [here]({{< ref "docs/deployment/config" >}}#auth-with-external-systems)).
-2. Ensure that the keytab file exists at the path indicated by `security.kerberos.login.keytab` on all cluster nodes.
-3. Deploy Flink cluster as normal.
+<a name=deployment-models></a>
 
-### Native Kubernetes, YARN and Mesos Mode
+## 部署模式
+以下是针对每种部署模式的一些信息。
 
-Steps to run a secure Flink cluster in native Kubernetes, YARN and Mesos mode:
+<a name="standalone-mode"></a>
 
-1. Add security-related configuration options to the Flink configuration file on the client (see [here]({{< ref "docs/deployment/config" >}}#auth-with-external-systems)).
-2. Ensure that the keytab file exists at the path as indicated by `security.kerberos.login.keytab` on the client node.
-3. Deploy Flink cluster as normal.
+### Standalone 模式
 
-In YARN, Mesos and native Kubernetes mode, the keytab is automatically copied from the client to the Flink containers.
+在 standalone 模式或集群模式下运行安全 Flink 集群的步骤如下：
 
-To enable Kerberos authentication, the Kerberos configuration file is also required. This file can be either fetched from the cluster environment or uploaded by Flink. In the latter case, you need to configure the `security.kerberos.krb5-conf.path` to indicate the path of the Kerberos configuration file and Flink will copy this file to its containers/pods.
+1. 将与安全相关的配置选项添加到 Flink 配置文件（在所有集群节点上执行）（详见[此处]({{< ref "docs/deployment/config" >}}#auth-with-external-systems)）。
+2. 确保 keytab 文件存在于每个群集节点通过 `security.kerberos.login.keytab` 指定的路径上。
+3. 正常部署 Flink 集群。
 
-Note that the property `java.security.krb5.conf`, which was available in Mesos mode previously, has been deprecated. Despite it's still taking effect for backward compatibility, please be aware this property can be removed in future releases.
+<a name="native-kubernetes-and-yarn-mode"></a>
 
-For more information, see <a href="https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md">YARN security</a> documentation.
+### 原生 Kubernetes 和 YARN 模式
 
-#### Using `kinit` (YARN only)
+在原生 Kubernetes 或 YARN 模式下运行安全 Flink 集群的步骤如下：
 
-In YARN mode, it is possible to deploy a secure Flink cluster without a keytab, using only the ticket cache (as managed by `kinit`).
-This avoids the complexity of generating a keytab and avoids entrusting the cluster manager with it.  In this scenario, the Flink CLI acquires Hadoop delegation tokens (for HDFS and for HBase).
-The main drawback is that the cluster is necessarily short-lived since the generated delegation tokens will expire (typically within a week).
+1. 在客户端的 Flink 配置文件中添加安全相关的配置选项（详见[此处]({{< ref "docs/deployment/config" >}}#auth-with-external-systems)）。
+2. 确保 keytab 文件存在于客户端通过 `security.kerberos.login.keytab` 指定的路径上。
+3. 正常部署 Flink 集群。
 
-Steps to run a secure Flink cluster using `kinit`:
+在 YARN 和 原生 Kubernetes 模式下，keytab 文件会被自动从客户端拷贝到 Flink 容器中。
 
-1. Add security-related configuration options to the Flink configuration file on the client (see [here]({{< ref "docs/deployment/config" >}}#auth-with-external-systems)).
-2. Login using the `kinit` command.
-3. Deploy Flink cluster as normal.
+要启用 Kerberos 身份认证，还需要 Kerberos 配置文件。该文件可以从集群环境中获取，也可以由 Flink 上传。针对后者，你需要配置 `security.kerberos.krb5-conf.path` 来指定 Kerberos 配置文件的路径，Flink 会将此文件复制到相应容器或 pod。
 
-## Further Details
+请参阅 <a href="https://github.com/apache/hadoop/blob/trunk/hadoop-yarn-project/hadoop-yarn/hadoop-yarn-site/src/site/markdown/YarnApplicationSecurity.md">YARN security</a> 文档获取更多相关信息。
 
-### Ticket Renewal
-Each component that uses Kerberos is independently responsible for renewing the Kerberos ticket-granting-ticket (TGT).
-Hadoop, ZooKeeper, and Kafka all renew the TGT automatically when provided a keytab.  In the delegation token scenario,
-YARN itself renews the token (up to its maximum lifespan).
+<a name="using-kinit-yarn-only"></a>
+
+#### 使用 `kinit` (仅限 YARN)
+
+在 YARN 模式下，可以不需要 keytab 而只使用 ticket 缓存（由 `kinit` 管理）来部署一个安全的 Flink 集群。这避免了生成 keytab 的复杂性，同时避免了将其委托给集群管理器。在这种情况下，使用 Flink CLI 获取 Hadoop delegation token（用于 HDFS 和 HBase）。主要缺点是集群必须是短暂的，因为生成的 delegation token 将会过期（通常在一周内）。
+
+使用 `kinit` 运行安全 Flink 集群的步骤如下：
+
+1. 在客户端的 Flink 配置文件中添加安全相关的配置选项（详见[此处]({{< ref "docs/deployment/config" >}}#auth-with-external-systems)）。
+2. 使用 `kinit` 命令登录。
+3. 正常部署 Flink 集群。
+
+<a name="further-details"></a>
+
+## 更多细节
+
+<a name="ticket-renewal"></a>
+
+### Ticket 更新
+使用 Kerberos 的每个组件都独立负责更新 Kerberos ticket-granting-ticket（TGT）。Hadoop、ZooKeeper 和 Kafka 都在提供 keytab 时自动更新 TGT。在 delegation token 场景中，YARN 本身会更新 token（更新至其最大生命周期）。
 
 {{< top >}}

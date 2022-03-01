@@ -25,8 +25,8 @@ import org.apache.flink.kubernetes.kubeclient.KubernetesTaskManagerTestBase;
 import io.fabric8.kubernetes.api.model.Pod;
 import org.junit.Test;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /** Tests for {@link InitTaskManagerDecorator} decorating service account. */
 public class InitTaskManagerDecoratorAccountTest extends KubernetesTaskManagerTestBase {

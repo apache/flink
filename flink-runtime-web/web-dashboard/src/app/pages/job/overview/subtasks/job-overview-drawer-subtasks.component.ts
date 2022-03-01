@@ -16,12 +16,18 @@
  * limitations under the License.
  */
 
-import { Component, OnInit, ChangeDetectionStrategy, OnDestroy, ChangeDetectorRef } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, OnDestroy, OnInit } from '@angular/core';
 import { Subject } from 'rxjs';
-import { flatMap, takeUntil } from 'rxjs/operators';
-import { deepFind } from 'utils';
-import { JobSubTaskInterface } from 'interfaces';
+import { mergeMap, takeUntil } from 'rxjs/operators';
+
+import { NzTableSortFn } from 'ng-zorro-antd/table/src/table.types';
+
+import { JobSubTask } from 'interfaces';
 import { JobService } from 'services';
+
+function createSortFn(selector: (item: JobSubTask) => number | string): NzTableSortFn<JobSubTask> {
+  return (pre, next) => (selector(pre) > selector(next) ? 1 : -1);
+}
 
 @Component({
   selector: 'flink-job-overview-drawer-subtasks',
@@ -30,49 +36,38 @@ import { JobService } from 'services';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
-  listOfTask: JobSubTaskInterface[] = [];
-  destroy$ = new Subject();
-  sortName: string;
-  sortValue: string;
-  isLoading = true;
+  public readonly trackBySubtask = (_: number, node: JobSubTask): number => node.subtask;
 
-  trackTaskBy(_: number, node: JobSubTaskInterface) {
-    return node.subtask;
-  }
+  public readonly sortReadBytesFn = createSortFn(item => item.metrics?.['read-bytes']);
+  public readonly sortReadRecordsFn = createSortFn(item => item.metrics?.['read-records']);
+  public readonly sortWriteBytesFn = createSortFn(item => item.metrics?.['write-bytes']);
+  public readonly sortWriteRecordsFn = createSortFn(item => item.metrics?.['write-records']);
+  public readonly sortAttemptFn = createSortFn(item => item.attempt);
+  public readonly sortHostFn = createSortFn(item => item.host);
+  public readonly sortStartTimeFn = createSortFn(item => item['start_time']);
+  public readonly sortDurationFn = createSortFn(item => item.duration);
+  public readonly sortEndTimeFn = createSortFn(item => item['end-time']);
+  public readonly sortStatusFn = createSortFn(item => item.status);
 
-  sort(sort: { key: string; value: string }) {
-    this.sortName = sort.key;
-    this.sortValue = sort.value;
-    this.search();
-  }
+  public listOfTask: JobSubTask[] = [];
+  public sortName: string;
+  public sortValue: string;
+  public isLoading = true;
 
-  search() {
-    if (this.sortName) {
-      this.listOfTask = [
-        ...this.listOfTask.sort((pre, next) => {
-          if (this.sortValue === 'ascend') {
-            return deepFind(pre, this.sortName) > deepFind(next, this.sortName) ? 1 : -1;
-          } else {
-            return deepFind(next, this.sortName) > deepFind(pre, this.sortName) ? 1 : -1;
-          }
-        })
-      ];
-    }
-  }
+  private readonly destroy$ = new Subject<void>();
 
-  constructor(private jobService: JobService, private cdr: ChangeDetectorRef) {}
+  constructor(private readonly jobService: JobService, private readonly cdr: ChangeDetectorRef) {}
 
-  ngOnInit() {
+  public ngOnInit(): void {
     this.jobService.jobWithVertex$
       .pipe(
         takeUntil(this.destroy$),
-        flatMap(data => this.jobService.loadSubTasks(data.job.jid, data.vertex!.id))
+        mergeMap(data => this.jobService.loadSubTasks(data.job.jid, data.vertex!.id))
       )
       .subscribe(
         data => {
           this.listOfTask = data;
           this.isLoading = false;
-          this.search();
           this.cdr.markForCheck();
         },
         () => {
@@ -82,7 +77,7 @@ export class JobOverviewDrawerSubtasksComponent implements OnInit, OnDestroy {
       );
   }
 
-  ngOnDestroy() {
+  public ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
   }

@@ -22,13 +22,16 @@ import org.apache.flink.client.deployment.application.UnsuccessfulExecutionExcep
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.python.util.CompressionUtils;
+import org.apache.flink.python.util.PythonDependencyUtils;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FileUtils;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.StringUtils;
 
-import org.apache.flink.shaded.guava18.com.google.common.base.Strings;
+import org.apache.flink.shaded.guava30.com.google.common.base.Strings;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,6 +67,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.python.PythonOptions.PYTHON_ARCHIVES;
 import static org.apache.flink.python.PythonOptions.PYTHON_CLIENT_EXECUTABLE;
 import static org.apache.flink.python.PythonOptions.PYTHON_FILES;
 import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
@@ -71,6 +75,8 @@ import static org.apache.flink.python.util.PythonDependencyUtils.FILE_DELIMITER;
 /** The util class help to prepare Python env and run the python process. */
 final class PythonEnvUtils {
     private static final Logger LOG = LoggerFactory.getLogger(PythonEnvUtils.class);
+
+    private static final String PYTHON_ARCHIVES_DIR = "python-archives";
 
     static final String PYFLINK_CLIENT_EXECUTABLE = "PYFLINK_CLIENT_EXECUTABLE";
 
@@ -85,6 +91,8 @@ final class PythonEnvUtils {
     /** Wraps Python exec environment. */
     static class PythonEnvironment {
         String tempDirectory;
+
+        String archivesDirectory;
 
         String pythonExec = OperatingSystem.isWindows() ? "python.exe" : "python";
 
@@ -137,6 +145,52 @@ final class PythonEnvUtils {
                             .collect(Collectors.toList());
             addToPythonPath(env, pythonFiles);
         }
+
+        // 5. set the archives directory as the working directory, then user could access the
+        // content of the archives via relative path
+        if (config.getOptional(PYTHON_ARCHIVES).isPresent()
+                && (config.getOptional(PYTHON_CLIENT_EXECUTABLE).isPresent()
+                        || !StringUtils.isNullOrWhitespaceOnly(
+                                System.getenv(PYFLINK_CLIENT_EXECUTABLE)))) {
+            env.archivesDirectory = String.join(File.separator, tmpDir, PYTHON_ARCHIVES_DIR);
+
+            // extract archives to archives directory
+            config.getOptional(PYTHON_ARCHIVES)
+                    .ifPresent(
+                            pyArchives -> {
+                                for (String archive : pyArchives.split(FILE_DELIMITER)) {
+                                    final Path archivePath;
+                                    final String targetDirName;
+                                    final String originalFileName;
+                                    if (archive.contains(PythonDependencyUtils.PARAM_DELIMITER)) {
+                                        String[] filePathAndTargetDir =
+                                                archive.split(
+                                                        PythonDependencyUtils.PARAM_DELIMITER, 2);
+                                        archivePath = new Path(filePathAndTargetDir[0]);
+                                        targetDirName = filePathAndTargetDir[1];
+                                        originalFileName = archivePath.getName();
+                                    } else {
+                                        archivePath = new Path(archive);
+                                        targetDirName = archivePath.getName();
+                                        originalFileName = targetDirName;
+                                    }
+                                    try {
+                                        CompressionUtils.extractFile(
+                                                archivePath.getPath(),
+                                                String.join(
+                                                        File.separator,
+                                                        env.archivesDirectory,
+                                                        targetDirName),
+                                                originalFileName);
+                                    } catch (IOException e) {
+                                        throw new RuntimeException(
+                                                "Extract archives to archives directory failed.",
+                                                e);
+                                    }
+                                }
+                            });
+        }
+
         if (entryPointScript != null) {
             addToPythonPath(env, Collections.singletonList(new Path(entryPointScript)));
         }
@@ -184,8 +238,8 @@ final class PythonEnvUtils {
                 };
         try {
             Files.walkFileTree(FileSystems.getDefault().getPath(libDir), finder);
-        } catch (IOException e) {
-            LOG.error("Gets pyflink dependent libs failed.", e);
+        } catch (Throwable t) {
+            // ignore, this may occur when executing `flink run` using the PyFlink Python package.
         }
         return libFiles;
     }
@@ -269,6 +323,9 @@ final class PythonEnvUtils {
                         String.join(File.pathSeparator, pythonEnv.pythonPath, defaultPythonPath));
             }
         }
+        if (pythonEnv.archivesDirectory != null) {
+            pythonProcessBuilder.directory(new File(pythonEnv.archivesDirectory));
+        }
         pythonEnv.systemEnv.forEach(env::put);
         commands.add(0, pythonEnv.pythonExec);
         pythonProcessBuilder.command(commands);
@@ -280,6 +337,13 @@ final class PythonEnvUtils {
             // set the child process the output same as the parent process.
             pythonProcessBuilder.redirectOutput(ProcessBuilder.Redirect.INHERIT);
         }
+
+        LOG.info(
+                "Starting Python process with environment variables: {{}}, command: {}",
+                env.entrySet().stream()
+                        .map(e -> e.getKey() + "=" + e.getValue())
+                        .collect(Collectors.joining(", ")),
+                String.join(" ", commands));
         Process process = pythonProcessBuilder.start();
         if (!process.isAlive()) {
             throw new RuntimeException("Failed to start Python process. ");
@@ -298,8 +362,8 @@ final class PythonEnvUtils {
         Thread thread =
                 new Thread(
                         () -> {
-                            try {
-                                int freePort = NetUtils.getAvailablePort();
+                            try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+                                int freePort = port.getPort();
                                 GatewayServer server =
                                         new GatewayServer.GatewayServerBuilder()
                                                 .gateway(

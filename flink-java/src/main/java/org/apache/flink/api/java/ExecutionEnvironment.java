@@ -1414,8 +1414,7 @@ public class ExecutionEnvironment {
 
     /**
      * Sets a context environment factory, that creates the context environment for running programs
-     * with pre-configured environments. Examples are running programs from the command line, and
-     * running programs in the Scala shell.
+     * with pre-configured environments. Examples are running programs from the command line.
      *
      * <p>When the context environment factory is set, no other environments can be explicitly used.
      *

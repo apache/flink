@@ -16,8 +16,6 @@
  * limitations under the License.
  */
 
-/// <reference path="../../../../../node_modules/@antv/g2/src/index.d.ts" />
-
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -31,10 +29,11 @@ import {
   Output,
   ViewChild
 } from '@angular/core';
-import { Chart } from '@antv/g2';
-import * as G2 from '@antv/g2';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+
+import { Chart } from '@antv/g2';
+import * as G2 from '@antv/g2';
 import { JobChartService } from 'share/customize/job-chart/job-chart.service';
 
 @Component({
@@ -46,7 +45,7 @@ import { JobChartService } from 'share/customize/job-chart/job-chart.service';
 export class JobChartComponent implements AfterViewInit, OnDestroy {
   @Input() title: string;
   @Output() closed = new EventEmitter();
-  @ViewChild('chart') chart: ElementRef;
+  @ViewChild('chart', { static: true }) chart: ElementRef;
   size = 'small';
   displayMode: 'chart' | 'numeric' = 'chart';
   chartInstance: Chart;
@@ -55,11 +54,11 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
   destroy$ = new Subject();
 
   @HostBinding('class.big')
-  get isBig() {
+  get isBig(): boolean {
     return this.size === 'big';
   }
 
-  refresh(res: { timestamp: number; values: { [id: string]: number } }) {
+  refresh(res: { timestamp: number; values: { [id: string]: number } }): void {
     this.latestValue = res.values[this.title];
     if (this.displayMode === 'numeric') {
       this.cdr.detectChanges();
@@ -78,34 +77,34 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  setMode(mode: 'chart' | 'numeric') {
+  setMode(mode: 'chart' | 'numeric'): void {
     this.displayMode = mode;
     this.cdr.detectChanges();
   }
 
-  resize(size: string) {
+  resize(size: string): void {
     this.size = size;
     this.cdr.detectChanges();
     setTimeout(() => this.chartInstance.forceFit());
   }
 
-  close() {
+  close(): void {
     this.closed.emit(this.title);
   }
 
   constructor(private cdr: ChangeDetectorRef, private jobChartService: JobChartService) {}
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     this.cdr.detach();
-    G2.track(false);
     this.chartInstance = new G2.Chart({
       container: this.chart.nativeElement,
       height: 150,
-      forceFit: true,
+      autoFit: true,
       padding: 'auto'
     });
     this.chartInstance.legend(false);
-    this.chartInstance.source(this.data, {
+    this.chartInstance.data(this.data);
+    this.chartInstance.scale({
       time: {
         alias: 'Time',
         type: 'time',
@@ -137,7 +136,7 @@ export class JobChartComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
     if (this.chartInstance) {

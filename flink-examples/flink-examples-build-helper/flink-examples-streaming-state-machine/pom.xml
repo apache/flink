@@ -24,7 +24,7 @@ under the License.
 	<parent>
 		<artifactId>flink-examples-build-helper</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.14-SNAPSHOT</version>
+		<version>1.15-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -62,7 +62,6 @@ under the License.
 							<goal>shade</goal>
 						</goals>
 						<configuration>
-							<shadeTestJar>false</shadeTestJar>
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<createDependencyReducedPom>false</createDependencyReducedPom>
 							<transformers>

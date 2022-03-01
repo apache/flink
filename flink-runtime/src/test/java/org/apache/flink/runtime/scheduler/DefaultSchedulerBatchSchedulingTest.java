@@ -31,11 +31,11 @@ import org.apache.flink.runtime.jobgraph.JobGraphTestUtils;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobmaster.JobMasterId;
 import org.apache.flink.runtime.jobmaster.RpcTaskManagerGateway;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeBuilder;
 import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
 import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolBuilder;
-import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolImpl;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
 import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolUtils;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
@@ -94,7 +94,7 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
         final Time batchSlotTimeout = Time.milliseconds(5L);
         final JobGraph jobGraph = createBatchJobGraph(parallelism);
 
-        try (final SlotPoolImpl slotPool = createSlotPool(mainThreadExecutor, batchSlotTimeout)) {
+        try (final SlotPool slotPool = createSlotPool(mainThreadExecutor, batchSlotTimeout)) {
             final ArrayBlockingQueue<ExecutionAttemptID> submittedTasksQueue =
                     new ArrayBlockingQueue<>(parallelism);
             TestingTaskExecutorGateway testingTaskExecutorGateway =
@@ -105,13 +105,6 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                                         return CompletableFuture.completedFuture(Acknowledge.get());
                                     })
                             .createTestingTaskExecutorGateway();
-
-            // register a single slot at the slot pool
-            SlotPoolUtils.offerSlots(
-                    slotPool,
-                    mainThreadExecutor,
-                    Collections.singletonList(ResourceProfile.ANY),
-                    new RpcTaskManagerGateway(testingTaskExecutorGateway, JobMasterId.generate()));
 
             final PhysicalSlotProvider slotProvider =
                     new PhysicalSlotProviderImpl(
@@ -127,6 +120,13 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                             jobStatusListener);
 
             CompletableFuture.runAsync(scheduler::startScheduling, mainThreadExecutor).join();
+
+            // register a single slot at the slot pool
+            SlotPoolUtils.offerSlots(
+                    slotPool,
+                    mainThreadExecutor,
+                    Collections.singletonList(ResourceProfile.ANY),
+                    new RpcTaskManagerGateway(testingTaskExecutorGateway, JobMasterId.generate()));
 
             // wait until the batch slot timeout has been reached
             Thread.sleep(batchSlotTimeout.toMilliseconds());
@@ -176,12 +176,12 @@ public class DefaultSchedulerBatchSchedulingTest extends TestLogger {
                 .join();
     }
 
-    private SlotPoolImpl createSlotPool(
+    private SlotPool createSlotPool(
             ComponentMainThreadExecutor mainThreadExecutor, Time batchSlotTimeout)
             throws Exception {
-        return new SlotPoolBuilder(mainThreadExecutor)
+        return new DeclarativeSlotPoolBridgeBuilder()
                 .setBatchSlotTimeout(batchSlotTimeout)
-                .build();
+                .buildAndStart(mainThreadExecutor);
     }
 
     private JobGraph createBatchJobGraph(int parallelism) {

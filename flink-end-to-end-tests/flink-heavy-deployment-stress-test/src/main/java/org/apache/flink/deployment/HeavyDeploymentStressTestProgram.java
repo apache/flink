@@ -43,10 +43,13 @@ import static org.apache.flink.streaming.tests.DataStreamAllroundTestJobFactory.
 public class HeavyDeploymentStressTestProgram {
 
     private static final ConfigOption<Integer> NUM_LIST_STATES_PER_OP =
-            ConfigOptions.key("heavy_deployment_test.num_list_states_per_op").defaultValue(100);
+            ConfigOptions.key("heavy_deployment_test.num_list_states_per_op")
+                    .intType()
+                    .defaultValue(100);
 
     private static final ConfigOption<Integer> NUM_PARTITIONS_PER_LIST_STATE =
             ConfigOptions.key("heavy_deployment_test.num_partitions_per_list_state")
+                    .intType()
                     .defaultValue(100);
 
     public static void main(String[] args) throws Exception {

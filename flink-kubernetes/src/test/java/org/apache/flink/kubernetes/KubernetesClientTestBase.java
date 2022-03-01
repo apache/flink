@@ -20,11 +20,18 @@ package org.apache.flink.kubernetes;
 
 import org.apache.flink.kubernetes.configuration.KubernetesConfigOptions;
 import org.apache.flink.kubernetes.kubeclient.decorators.ExternalServiceDecorator;
+import org.apache.flink.kubernetes.kubeclient.services.HeadlessClusterIPService;
 import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.util.Preconditions;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
 import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
+import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.NodeAddressBuilder;
+import io.fabric8.kubernetes.api.model.NodeBuilder;
+import io.fabric8.kubernetes.api.model.NodeListBuilder;
+import io.fabric8.kubernetes.api.model.NodeStatusBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
@@ -39,7 +46,9 @@ import io.fabric8.mockwebserver.dsl.TimesOnceableOrHttpHeaderable;
 
 import javax.annotation.Nullable;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.List;
 import java.util.function.Function;
 
 /**
@@ -50,6 +59,32 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
 
     protected static final int REST_PORT = 9021;
     protected static final int NODE_PORT = 31234;
+
+    protected void mockExpectedNodesFromServerSide(List<String> addresses) {
+        final List<Node> nodes = new ArrayList<>();
+        Collections.shuffle(addresses);
+        for (String address : addresses) {
+            final String[] parts = address.split(":");
+            Preconditions.checkState(
+                    parts.length == 2, "Address should be in format \"<type>:<ip>\".");
+            nodes.add(
+                    new NodeBuilder()
+                            .withStatus(
+                                    new NodeStatusBuilder()
+                                            .withAddresses(
+                                                    new NodeAddressBuilder()
+                                                            .withType(parts[0])
+                                                            .withAddress(parts[1])
+                                                            .build())
+                                            .build())
+                            .build());
+        }
+        server.expect()
+                .get()
+                .withPath("/api/v1/nodes")
+                .andReturn(200, new NodeListBuilder().withItems(nodes).build())
+                .always();
+    }
 
     protected void mockExpectedServiceFromServerSide(Service expectedService) {
         final String serviceName = expectedService.getMetadata().getName();
@@ -103,13 +138,15 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
                         .withLoadBalancer(
                                 new LoadBalancerStatus(
                                         Collections.singletonList(
-                                                new LoadBalancerIngress(hostname, ip))))
+                                                new LoadBalancerIngress(
+                                                        hostname, ip, new ArrayList<>()))))
                         .build();
 
         return buildExternalService(
                 KubernetesConfigOptions.ServiceExposedType.LoadBalancer,
                 servicePort,
-                serviceStatus);
+                serviceStatus,
+                false);
     }
 
     protected Service buildExternalServiceWithNodePort() {
@@ -127,7 +164,10 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
                         .build();
 
         return buildExternalService(
-                KubernetesConfigOptions.ServiceExposedType.NodePort, servicePort, serviceStatus);
+                KubernetesConfigOptions.ServiceExposedType.NodePort,
+                servicePort,
+                serviceStatus,
+                false);
     }
 
     protected Service buildExternalServiceWithClusterIP() {
@@ -139,13 +179,26 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
                         .build();
 
         return buildExternalService(
-                KubernetesConfigOptions.ServiceExposedType.ClusterIP, servicePort, null);
+                KubernetesConfigOptions.ServiceExposedType.ClusterIP, servicePort, null, false);
+    }
+
+    protected Service buildExternalServiceWithHeadlessClusterIP() {
+        final ServicePort servicePort =
+                new ServicePortBuilder()
+                        .withName(Constants.REST_PORT_NAME)
+                        .withPort(REST_PORT)
+                        .withNewTargetPort(REST_PORT)
+                        .build();
+
+        return buildExternalService(
+                KubernetesConfigOptions.ServiceExposedType.ClusterIP, servicePort, null, true);
     }
 
     private Service buildExternalService(
             KubernetesConfigOptions.ServiceExposedType serviceExposedType,
             ServicePort servicePort,
-            @Nullable ServiceStatus serviceStatus) {
+            @Nullable ServiceStatus serviceStatus,
+            boolean isHeadlessSvc) {
         final ServiceBuilder serviceBuilder =
                 new ServiceBuilder()
                         .editOrNewMetadata()
@@ -161,6 +214,12 @@ public class KubernetesClientTestBase extends KubernetesTestBase {
             serviceBuilder.withStatus(serviceStatus);
         }
 
+        if (isHeadlessSvc) {
+            serviceBuilder
+                    .editOrNewSpec()
+                    .withClusterIP(HeadlessClusterIPService.HEADLESS_CLUSTER_IP)
+                    .endSpec();
+        }
         return serviceBuilder.build();
     }
 }

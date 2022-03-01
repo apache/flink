@@ -20,6 +20,7 @@ package org.apache.flink.runtime.entrypoint.component;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.ExecutionGraphInfoStore;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
@@ -35,6 +36,7 @@ public interface DispatcherResourceManagerComponentFactory {
 
     DispatcherResourceManagerComponent create(
             Configuration configuration,
+            ResourceID resourceId,
             Executor ioExecutor,
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,

@@ -27,7 +27,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.streaming.util.KeyedMultiInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.TestHarnessUtil;
@@ -88,10 +88,10 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
             testHarness.processWatermark(0, new Watermark(1L));
             assertThat(testHarness.getOutput(), empty());
 
-            testHarness.processStreamStatus(1, StreamStatus.IDLE);
+            testHarness.processWatermarkStatus(1, WatermarkStatus.IDLE);
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
-            testHarness.processStreamStatus(2, StreamStatus.IDLE);
+            testHarness.processWatermarkStatus(2, WatermarkStatus.IDLE);
             expectedOutput.add(new StreamRecord<>(1L));
             expectedOutput.add(new Watermark(1L));
             TestHarnessUtil.assertOutputEquals(
@@ -103,7 +103,7 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
 
-            testHarness.processStreamStatus(1, StreamStatus.ACTIVE);
+            testHarness.processWatermarkStatus(1, WatermarkStatus.ACTIVE);
             // the other input is active now, we should not emit the watermark
             testHarness.processWatermark(0, new Watermark(4L));
             TestHarnessUtil.assertOutputEquals(
@@ -120,12 +120,12 @@ public class AbstractStreamOperatorV2Test extends AbstractStreamOperatorTest {
             testHarness.setup();
             testHarness.open();
 
-            testHarness.processStreamStatus(0, StreamStatus.IDLE);
-            testHarness.processStreamStatus(1, StreamStatus.IDLE);
+            testHarness.processWatermarkStatus(0, WatermarkStatus.IDLE);
+            testHarness.processWatermarkStatus(1, WatermarkStatus.IDLE);
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
-            testHarness.processStreamStatus(2, StreamStatus.IDLE);
-            expectedOutput.add(StreamStatus.IDLE);
+            testHarness.processWatermarkStatus(2, WatermarkStatus.IDLE);
+            expectedOutput.add(WatermarkStatus.IDLE);
             TestHarnessUtil.assertOutputEquals(
                     "Output was not correct", expectedOutput, testHarness.getOutput());
         }

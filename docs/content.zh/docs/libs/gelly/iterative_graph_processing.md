@@ -756,7 +756,7 @@ final class UpdateDistance extends ApplyFunction[Long, Double, Double] {
 
 Note that `gather` takes a `Neighbor` type as an argument. This is a convenience type which simply wraps a vertex with its neighboring edge.
 
-For more examples of how to implement algorithms with the Gather-Sum-Apply model, check the {{< gh_link file="/flink-libraries/flink-gelly/src/main/java/org/apache/flink/graph/library/GSAPageRank.java" name="GSAPageRank" >}} and {{< gh_link file="/flink-libraries/flink-gelly/src/main/java/org/apache/flink/graph/library/GSAConnectedComponents.java" name="GSAConnectedComponents" >}} library methods of Gelly.
+For more examples of how to implement algorithms with the Gather-Sum-Apply model, check the {{< gh_link file="/flink-libraries/flink-gelly-examples/src/main/java/org/apache/flink/graph/examples/GSAPageRank.java" name="GSAPageRank" >}} and {{< gh_link file="/flink-libraries/flink-gelly/src/main/java/org/apache/flink/graph/library/GSAConnectedComponents.java" name="GSAConnectedComponents" >}} library methods of Gelly.
 
 {{< top >}}
 

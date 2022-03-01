@@ -35,9 +35,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.instanceOf;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link GlueSchemaRegistryOutputStreamSerializer}. */
 public class GlueSchemaRegistryOutputStreamSerializerTest extends TestLogger {
@@ -52,9 +50,9 @@ public class GlueSchemaRegistryOutputStreamSerializerTest extends TestLogger {
             };
     private static Schema userSchema;
     private static User userDefinedPojo;
-    private static Map<String, Object> configs = new HashMap<>();
-    private static Map<String, String> metadata = new HashMap<>();
-    private static AwsCredentialsProvider credentialsProvider =
+    private static final Map<String, Object> configs = new HashMap<>();
+    private static final Map<String, String> metadata = new HashMap<>();
+    private static final AwsCredentialsProvider credentialsProvider =
             DefaultCredentialsProvider.builder().build();
     private static GlueSchemaRegistrySerializationFacade mockSerializationFacade;
 
@@ -87,9 +85,8 @@ public class GlueSchemaRegistryOutputStreamSerializerTest extends TestLogger {
     public void testConstructor_withConfigsAndCredential_succeeds() {
         GlueSchemaRegistryOutputStreamSerializer glueSchemaRegistryOutputStreamSerializer =
                 new GlueSchemaRegistryOutputStreamSerializer(testTopic, configs);
-        assertThat(
-                glueSchemaRegistryOutputStreamSerializer,
-                instanceOf(GlueSchemaRegistryOutputStreamSerializer.class));
+        assertThat(glueSchemaRegistryOutputStreamSerializer)
+                .isInstanceOf(GlueSchemaRegistryOutputStreamSerializer.class);
     }
 
     /** Test whether constructor works with Glue Schema Registry SerializationFacade. */
@@ -98,9 +95,8 @@ public class GlueSchemaRegistryOutputStreamSerializerTest extends TestLogger {
         GlueSchemaRegistryOutputStreamSerializer glueSchemaRegistryOutputStreamSerializer =
                 new GlueSchemaRegistryOutputStreamSerializer(
                         testTopic, configs, mockSerializationFacade);
-        assertThat(
-                glueSchemaRegistryOutputStreamSerializer,
-                instanceOf(GlueSchemaRegistryOutputStreamSerializer.class));
+        assertThat(glueSchemaRegistryOutputStreamSerializer)
+                .isInstanceOf(GlueSchemaRegistryOutputStreamSerializer.class);
     }
 
     /** Test whether registerSchemaAndSerializeStream method works. */
@@ -113,14 +109,19 @@ public class GlueSchemaRegistryOutputStreamSerializerTest extends TestLogger {
         glueSchemaRegistryOutputStreamSerializer.registerSchemaAndSerializeStream(
                 userSchema, outputStream, actualBytes);
 
-        assertThat(outputStream.toByteArray(), equalTo(specificBytes));
+        assertThat(outputStream.toByteArray()).isEqualTo(specificBytes);
     }
 
     private static class MockGlueSchemaRegistrySerializationFacade
             extends GlueSchemaRegistrySerializationFacade {
 
         public MockGlueSchemaRegistrySerializationFacade() {
-            super(credentialsProvider, null, new GlueSchemaRegistryConfiguration(configs));
+            super(
+                    credentialsProvider,
+                    null,
+                    new GlueSchemaRegistryConfiguration(configs),
+                    configs,
+                    null);
         }
 
         @Override

@@ -67,6 +67,27 @@ The scalar functions take zero, one or more values as the input and return a sin
 
 {{< sql_functions "collection" >}}
 
+### JSON Functions
+
+JSON functions make use of JSON path expressions as described in ISO/IEC TR 19075-6 of the SQL
+standard. Their syntax is inspired by and adopts many features of ECMAScript, but is neither a
+subset nor superset thereof.
+
+Path expressions come in two flavors, lax and strict. When omitted, it defaults to the strict mode.
+Strict mode is intended to examine data from a schema perspective and will throw errors whenever
+data does not adhere to the path expression. However, functions like `JSON_VALUE` allow defining
+fallback behavior if an error is encountered. Lax mode, on the other hand, is more forgiving and
+converts errors to empty sequences.
+
+The special character `$` denotes the root node in a JSON path. Paths can access properties (`$.a`),
+array elements (`$.a[0].b`), or branch over all elements in an array (`$.a[*].b`).
+
+Known Limitations:
+* Not all features of Lax mode are currently supported correctly. This is an upstream bug
+  (CALCITE-4717). Non-standard behavior is not guaranteed.
+
+{{< sql_functions "json" >}}
+
 ### Value Construction Functions
 
 {{< sql_functions "valueconstruction" >}}
@@ -85,7 +106,7 @@ The scalar functions take zero, one or more values as the input and return a sin
 
 ### Auxiliary Functions
 
-{{< sql_functions "auxilary" >}}
+{{< sql_functions "auxiliary" >}}
 
 Aggregate Functions
 -------------------
@@ -105,6 +126,7 @@ For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 | :----------------------- | :----------------------------- |
 | `MILLENIUM` _(SQL-only)_ |                                |
 | `CENTURY` _(SQL-only)_   |                                |
+| `DECADE` _(SQL-only)_    |                                |
 | `YEAR`                   | `YEAR`                         |
 | `YEAR TO MONTH`          |                                |
 | `QUARTER`                | `QUARTER`                      |
@@ -124,6 +146,8 @@ For Table API, please use `_` for spaces (e.g., `DAY_TO_HOUR`).
 |                          | `MICROSECOND`                  |
 | `DOY` _(SQL-only)_       |                                |
 | `DOW` _(SQL-only)_       |                                |
+| `ISODOW` _(SQL-only)_    |                                |
+| `ISOYEAR` _(SQL-only)_   |                                |
 |                          | `SQL_TSI_YEAR` _(SQL-only)_    |
 |                          | `SQL_TSI_QUARTER` _(SQL-only)_ |
 |                          | `SQL_TSI_MONTH` _(SQL-only)_   |

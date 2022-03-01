@@ -72,7 +72,7 @@ public class TaskManagerLogListHandler
 
     @Override
     protected CompletableFuture<LogListInfo> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, TaskManagerMessageParameters> request,
+            @Nonnull HandlerRequest<EmptyRequestBody> request,
             @Nonnull ResourceManagerGateway gateway)
             throws RestHandlerException {
         final ResourceID taskManagerId = request.getPathParameter(TaskManagerIdPathParameter.class);

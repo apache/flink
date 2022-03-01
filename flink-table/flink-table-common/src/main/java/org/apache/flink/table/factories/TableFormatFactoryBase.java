@@ -22,7 +22,6 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.descriptors.DescriptorProperties;
-import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.types.DataType;
 
 import java.util.ArrayList;
@@ -41,7 +40,11 @@ import static org.apache.flink.table.descriptors.DescriptorProperties.WATERMARK_
  * Base class for {@link TableFormatFactory}s.
  *
  * @param <T> record type that the format produces or consumes.
+ * @deprecated This base class is not required anymore, implement either {@link
+ *     DynamicTableSourceFactory} or {@link DynamicTableSinkFactory} directly. See FLIP-95 for more
+ *     information.
  */
+@Deprecated
 @PublicEvolving
 public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T> {
 
@@ -83,8 +86,8 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
     @Override
     public final Map<String, String> requiredContext() {
         final Map<String, String> context = new HashMap<>();
-        context.put(FormatDescriptorValidator.FORMAT_TYPE, type);
-        context.put(FormatDescriptorValidator.FORMAT_PROPERTY_VERSION, version);
+        context.put(TableFactoryService.FORMAT_TYPE, type);
+        context.put(TableFactoryService.FORMAT_PROPERTY_VERSION, version);
         context.putAll(requiredFormatContext());
         return context;
     }
@@ -98,7 +101,7 @@ public abstract class TableFormatFactoryBase<T> implements TableFormatFactory<T>
     public final List<String> supportedProperties() {
         final List<String> properties = new ArrayList<>();
         if (supportsSchemaDerivation) {
-            properties.add(FormatDescriptorValidator.FORMAT_DERIVE_SCHEMA);
+            properties.add(TableFactoryService.FORMAT_DERIVE_SCHEMA);
             // schema
             properties.add(SCHEMA + ".#." + SCHEMA_DATA_TYPE);
             properties.add(SCHEMA + ".#." + SCHEMA_TYPE);

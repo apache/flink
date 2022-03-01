@@ -54,10 +54,7 @@ public class DefaultLeaderElectionService
     private volatile UUID issuedLeaderSessionID;
 
     @GuardedBy("lock")
-    private volatile UUID confirmedLeaderSessionID;
-
-    @GuardedBy("lock")
-    private volatile String confirmedLeaderAddress;
+    private volatile LeaderInformation confirmedLeaderInformation;
 
     @GuardedBy("lock")
     private volatile boolean running;
@@ -67,15 +64,15 @@ public class DefaultLeaderElectionService
     public DefaultLeaderElectionService(LeaderElectionDriverFactory leaderElectionDriverFactory) {
         this.leaderElectionDriverFactory = checkNotNull(leaderElectionDriverFactory);
 
-        leaderContender = null;
+        this.leaderContender = null;
 
-        issuedLeaderSessionID = null;
-        confirmedLeaderSessionID = null;
-        confirmedLeaderAddress = null;
+        this.issuedLeaderSessionID = null;
 
         this.leaderElectionDriver = null;
 
-        running = false;
+        this.confirmedLeaderInformation = LeaderInformation.empty();
+
+        this.running = false;
     }
 
     @Override
@@ -84,6 +81,7 @@ public class DefaultLeaderElectionService
         Preconditions.checkState(leaderContender == null, "Contender was already set.");
 
         synchronized (lock) {
+            running = true;
             leaderContender = contender;
             leaderElectionDriver =
                     leaderElectionDriverFactory.createLeaderElectionDriver(
@@ -91,8 +89,6 @@ public class DefaultLeaderElectionService
                             new LeaderElectionFatalErrorHandler(),
                             leaderContender.getDescription());
             LOG.info("Starting DefaultLeaderElectionService with {}.", leaderElectionDriver);
-
-            running = true;
         }
     }
 
@@ -176,29 +172,26 @@ public class DefaultLeaderElectionService
     @VisibleForTesting
     @Nullable
     public UUID getLeaderSessionID() {
-        return confirmedLeaderSessionID;
+        return confirmedLeaderInformation.getLeaderSessionID();
     }
 
     @GuardedBy("lock")
     private void confirmLeaderInformation(UUID leaderSessionID, String leaderAddress) {
-        confirmedLeaderSessionID = leaderSessionID;
-        confirmedLeaderAddress = leaderAddress;
-        leaderElectionDriver.writeLeaderInformation(
-                LeaderInformation.known(confirmedLeaderSessionID, confirmedLeaderAddress));
+        confirmedLeaderInformation = LeaderInformation.known(leaderSessionID, leaderAddress);
+        leaderElectionDriver.writeLeaderInformation(confirmedLeaderInformation);
     }
 
     @GuardedBy("lock")
     private void clearConfirmedLeaderInformation() {
-        confirmedLeaderSessionID = null;
-        confirmedLeaderAddress = null;
+        confirmedLeaderInformation = LeaderInformation.empty();
     }
 
     @Override
     @GuardedBy("lock")
-    public void onGrantLeadership() {
+    public void onGrantLeadership(UUID newLeaderSessionId) {
         synchronized (lock) {
             if (running) {
-                issuedLeaderSessionID = UUID.randomUUID();
+                issuedLeaderSessionID = newLeaderSessionId;
                 clearConfirmedLeaderInformation();
 
                 if (LOG.isDebugEnabled()) {
@@ -229,8 +222,8 @@ public class DefaultLeaderElectionService
                     LOG.debug(
                             "Revoke leadership of {} ({}@{}).",
                             leaderContender.getDescription(),
-                            confirmedLeaderSessionID,
-                            confirmedLeaderAddress);
+                            confirmedLeaderInformation.getLeaderSessionID(),
+                            confirmedLeaderInformation.getLeaderAddress());
                 }
 
                 issuedLeaderSessionID = null;
@@ -263,13 +256,11 @@ public class DefaultLeaderElectionService
                     LOG.trace(
                             "Leader node changed while {} is the leader with session ID {}. New leader information {}.",
                             leaderContender.getDescription(),
-                            confirmedLeaderSessionID,
+                            confirmedLeaderInformation.getLeaderSessionID(),
                             leaderInformation);
                 }
-                if (confirmedLeaderSessionID != null) {
-                    final LeaderInformation confirmedLeaderInfo =
-                            LeaderInformation.known(
-                                    confirmedLeaderSessionID, confirmedLeaderAddress);
+                if (!confirmedLeaderInformation.isEmpty()) {
+                    final LeaderInformation confirmedLeaderInfo = this.confirmedLeaderInformation;
                     if (leaderInformation.isEmpty()) {
                         if (LOG.isDebugEnabled()) {
                             LOG.debug(

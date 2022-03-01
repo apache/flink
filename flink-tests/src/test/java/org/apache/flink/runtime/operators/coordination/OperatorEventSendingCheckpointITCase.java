@@ -20,25 +20,30 @@ package org.apache.flink.runtime.operators.coordination;
 
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.connector.source.ReaderOutput;
+import org.apache.flink.api.connector.source.SourceReader;
+import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.lib.NumberSequenceSource;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceEnumerator;
+import org.apache.flink.api.connector.source.lib.util.IteratorSourceReader;
 import org.apache.flink.api.connector.source.lib.util.IteratorSourceSplit;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
+import org.apache.flink.runtime.rpc.FencedRpcGateway;
+import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
+import org.apache.flink.runtime.rpc.RpcServer;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceUtils;
+import org.apache.flink.runtime.rpc.RpcSystem;
+import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
 import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
@@ -46,27 +51,30 @@ import org.apache.flink.runtime.taskexecutor.TaskExecutorGatewayDecoratorBase;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.util.TestStreamEnvironment;
-import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.function.TriFunction;
 
-import akka.actor.ActorSystem;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 
 import javax.annotation.Nullable;
 
+import java.io.Serializable;
 import java.time.Duration;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -85,7 +93,10 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
 
     @BeforeClass
     public static void setupMiniClusterAndEnv() throws Exception {
-        flinkCluster = new MiniClusterWithRpcIntercepting(PARALLELISM);
+        Configuration config = new Configuration();
+        // uncomment to run test with adaptive scheduler
+        // config.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
+        flinkCluster = new MiniClusterWithRpcIntercepting(PARALLELISM, config);
         flinkCluster.start();
         TestStreamEnvironment.setAsContext(flinkCluster, PARALLELISM);
     }
@@ -126,7 +137,6 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
      * additionally a failure on the reader that triggers recovery.
      */
     @Test
-    @Category(FailsWithAdaptiveScheduler.class) // FLINK-22464
     public void testOperatorEventLostWithReaderFailure() throws Exception {
         final int[] eventsToLose = new int[] {1, 3};
 
@@ -205,6 +215,22 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         env.setParallelism(1);
         env.enableCheckpointing(50);
 
+        // This test depends on checkpoints persisting progress from the source before the
+        // artificial exception gets triggered. Otherwise, the job will run for a long time (or
+        // forever) because the exception will be thrown before any checkpoint successfully
+        // completes.
+        //
+        // Checkpoints are triggered once the checkpoint scheduler gets started + a random initial
+        // delay. For DefaultScheduler, this mechanism is fine, because DS starts the checkpoint
+        // coordinator, then requests the required slots and then deploys the tasks. These
+        // operations take enough time to have a checkpoint triggered by the time the task starts
+        // running. AdaptiveScheduler starts the CheckpointCoordinator right before deploying tasks
+        // (when slots are available already), hence tasks will start running almost immediately,
+        // and the checkpoint gets triggered too late (it won't be able to complete before the
+        // artificial failure from this test)
+        // Therefore, the TestingNumberSequenceSource waits for a checkpoint before emitting all
+        // required messages.
+
         final DataStream<Long> numbers =
                 env.fromSource(
                                 new TestingNumberSequenceSource(1L, numElements, 3),
@@ -257,7 +283,6 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
     private static final class AssignAfterCheckpointEnumerator<
                     SplitT extends IteratorSourceSplit<?, ?>>
             extends IteratorSourceEnumerator<SplitT> {
-
         private final Queue<Integer> pendingRequests = new ArrayDeque<>();
         private final SplitEnumeratorContext<?> context;
 
@@ -283,6 +308,10 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
 
         private void fullFillPendingRequests() {
             for (int subtask : pendingRequests) {
+                // respond only to requests for which we still have registered readers
+                if (!context.registeredReaders().containsKey(subtask)) {
+                    continue;
+                }
                 super.handleSplitRequest(subtask, null);
             }
             pendingRequests.clear();
@@ -293,10 +322,12 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         private static final long serialVersionUID = 1L;
 
         private final int numSplits;
+        private final long numAllowedMessageBeforeCheckpoint;
 
         public TestingNumberSequenceSource(long from, long to, int numSplits) {
             super(from, to);
             this.numSplits = numSplits;
+            this.numAllowedMessageBeforeCheckpoint = (to - from) / numSplits;
         }
 
         @Override
@@ -305,6 +336,42 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
             final List<NumberSequenceSplit> splits =
                     splitNumberRange(getFrom(), getTo(), numSplits);
             return new AssignAfterCheckpointEnumerator<>(enumContext, splits);
+        }
+
+        @Override
+        public SourceReader<Long, NumberSequenceSplit> createReader(
+                SourceReaderContext readerContext) {
+            return new CheckpointListeningIteratorSourceReader<>(
+                    readerContext, numAllowedMessageBeforeCheckpoint);
+        }
+    }
+
+    private static class CheckpointListeningIteratorSourceReader<
+                    E, IterT extends Iterator<E>, SplitT extends IteratorSourceSplit<E, IterT>>
+            extends IteratorSourceReader<E, IterT, SplitT> {
+        private boolean checkpointed = false;
+        private long messagesProduced = 0;
+        private final long numAllowedMessageBeforeCheckpoint;
+
+        public CheckpointListeningIteratorSourceReader(
+                SourceReaderContext context, long waitForCheckpointAfterMessages) {
+            super(context);
+            this.numAllowedMessageBeforeCheckpoint = waitForCheckpointAfterMessages;
+        }
+
+        @Override
+        public InputStatus pollNext(ReaderOutput<E> output) {
+            if (messagesProduced < numAllowedMessageBeforeCheckpoint || checkpointed) {
+                messagesProduced++;
+                return super.pollNext(output);
+            } else {
+                return InputStatus.NOTHING_AVAILABLE;
+            }
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            checkpointed = true;
         }
     }
 
@@ -394,17 +461,80 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
     }
 
-    private static class InterceptingRpcService extends AkkaRpcService {
+    private static class InterceptingRpcService implements RpcService {
 
-        public InterceptingRpcService(
-                ActorSystem actorSystem, AkkaRpcServiceConfiguration configuration) {
-            super(actorSystem, configuration);
+        private final RpcService rpcService;
+
+        public InterceptingRpcService(RpcService rpcService) {
+            this.rpcService = rpcService;
+        }
+
+        @Override
+        public String getAddress() {
+            return rpcService.getAddress();
+        }
+
+        @Override
+        public int getPort() {
+            return rpcService.getPort();
         }
 
         @Override
         public <C extends RpcGateway> CompletableFuture<C> connect(String address, Class<C> clazz) {
-            final CompletableFuture<C> future = super.connect(address, clazz);
+            final CompletableFuture<C> future = rpcService.connect(address, clazz);
             return clazz == TaskExecutorGateway.class ? decorateTmGateway(future) : future;
+        }
+
+        @Override
+        public <F extends Serializable, C extends FencedRpcGateway<F>> CompletableFuture<C> connect(
+                String address, F fencingToken, Class<C> clazz) {
+            return rpcService.connect(address, fencingToken, clazz);
+        }
+
+        @Override
+        public <C extends RpcEndpoint & RpcGateway> RpcServer startServer(C rpcEndpoint) {
+            return rpcService.startServer(rpcEndpoint);
+        }
+
+        @Override
+        public <F extends Serializable> RpcServer fenceRpcServer(
+                RpcServer rpcServer, F fencingToken) {
+            return rpcService.fenceRpcServer(rpcServer, fencingToken);
+        }
+
+        @Override
+        public void stopServer(RpcServer selfGateway) {
+            rpcService.stopServer(selfGateway);
+        }
+
+        @Override
+        public CompletableFuture<Void> stopService() {
+            return rpcService.stopService();
+        }
+
+        @Override
+        public CompletableFuture<Void> getTerminationFuture() {
+            return rpcService.getTerminationFuture();
+        }
+
+        @Override
+        public ScheduledExecutor getScheduledExecutor() {
+            return rpcService.getScheduledExecutor();
+        }
+
+        @Override
+        public ScheduledFuture<?> scheduleRunnable(Runnable runnable, long delay, TimeUnit unit) {
+            return rpcService.scheduleRunnable(runnable, delay, unit);
+        }
+
+        @Override
+        public void execute(Runnable runnable) {
+            rpcService.execute(runnable);
+        }
+
+        @Override
+        public <T> CompletableFuture<T> execute(Callable<T> callable) {
+            return rpcService.execute(callable);
         }
 
         @SuppressWarnings("unchecked")
@@ -421,11 +551,13 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
 
         private boolean localRpcCreated;
 
-        public MiniClusterWithRpcIntercepting(final int numSlots) {
+        public MiniClusterWithRpcIntercepting(
+                final int numSlots, final Configuration configuration) {
             super(
                     new MiniClusterConfiguration.Builder()
                             .setRpcServiceSharing(RpcServiceSharing.SHARED)
                             .setNumTaskManagers(1)
+                            .setConfiguration(configuration)
                             .setNumSlotsPerTaskManager(numSlots)
                             .build());
         }
@@ -441,12 +573,16 @@ public class OperatorEventSendingCheckpointITCase extends TestLogger {
         }
 
         @Override
-        protected RpcService createLocalRpcService(Configuration configuration) throws Exception {
+        protected RpcService createLocalRpcService(Configuration configuration, RpcSystem rpcSystem)
+                throws Exception {
             localRpcCreated = true;
 
-            return AkkaRpcServiceUtils.localServiceBuilder(configuration)
-                    .withCustomConfig(AkkaUtils.testDispatcherConfig())
-                    .createAndStart(InterceptingRpcService::new);
+            return new InterceptingRpcService(
+                    rpcSystem
+                            .localServiceBuilder(configuration)
+                            .withExecutorConfiguration(
+                                    RpcUtils.getTestForkJoinExecutorConfiguration())
+                            .createAndStart());
         }
     }
 }

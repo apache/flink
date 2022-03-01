@@ -62,7 +62,12 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
             int numDataBuffers,
             int numDataAndEventBuffers)
             throws IOException {
-
+        int numEvents = numDataAndEventBuffers - numDataBuffers;
+        checkArgument(
+                numEvents == 1
+                        || numEvents
+                                == 2 /* EndOfData might not be generated e.g. in DataSet API */,
+                "Too many event buffers.");
         this.parent = checkNotNull(parent);
 
         checkNotNull(filePath);
@@ -91,10 +96,14 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
 
         updateStatistics(current);
 
-        // We simply assume all the data are non-events for batch jobs to avoid pre-fetching the
-        // next header
-        Buffer.DataType nextDataType =
-                numDataAndEventBuffers > 0 ? Buffer.DataType.DATA_BUFFER : Buffer.DataType.NONE;
+        // We simply assume all the data except for the last one (EndOfPartitionEvent)
+        // are non-events for batch jobs to avoid pre-fetching the next header
+        Buffer.DataType nextDataType = Buffer.DataType.NONE;
+        if (numDataBuffers > 0) {
+            nextDataType = Buffer.DataType.DATA_BUFFER;
+        } else if (numDataAndEventBuffers > 0) {
+            nextDataType = Buffer.DataType.EVENT_BUFFER;
+        }
         return BufferAndBacklog.fromBufferAndLookahead(
                 current, nextDataType, numDataBuffers, sequenceNumber++);
     }
@@ -107,10 +116,12 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     }
 
     @Override
-    public boolean isAvailable(int numCreditsAvailable) {
+    public AvailabilityWithBacklog getAvailabilityAndBacklog(int numCreditsAvailable) {
         // We simply assume there are no events except EndOfPartitionEvent for bath jobs,
         // then it has no essential effect to ignore the judgement of next event buffer.
-        return numCreditsAvailable > 0 && numDataAndEventBuffers > 0;
+        return new AvailabilityWithBacklog(
+                (numCreditsAvailable > 0 || numDataBuffers == 0) && numDataAndEventBuffers > 0,
+                numDataBuffers);
     }
 
     @Override
@@ -143,6 +154,16 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     }
 
     @Override
+    public int getNumberOfQueuedBuffers() {
+        return parent.getNumberOfQueuedBuffers();
+    }
+
+    @Override
+    public void notifyNewBufferSize(int newBufferSize) {
+        parent.bufferSize(newBufferSize);
+    }
+
+    @Override
     public void notifyDataAvailable() {
         throw new UnsupportedOperationException("Method should never be called.");
     }
@@ -150,6 +171,12 @@ public class BoundedBlockingSubpartitionDirectTransferReader implements ResultSu
     @Override
     public void resumeConsumption() {
         throw new UnsupportedOperationException("Method should never be called.");
+    }
+
+    @Override
+    public void acknowledgeAllDataProcessed() {
+        // in case of bounded partitions there is no upstream to acknowledge, we simply ignore
+        // the ack, as there are no checkpoints
     }
 
     @Override

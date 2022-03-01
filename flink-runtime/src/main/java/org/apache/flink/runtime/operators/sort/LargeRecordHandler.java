@@ -34,7 +34,7 @@ import org.apache.flink.runtime.io.disk.InputViewIterator;
 import org.apache.flink.runtime.io.disk.SeekableFileChannelInputView;
 import org.apache.flink.runtime.io.disk.iomanager.FileIOChannel;
 import org.apache.flink.runtime.io.disk.iomanager.IOManager;
-import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
+import org.apache.flink.runtime.jobgraph.tasks.TaskInvokable;
 import org.apache.flink.runtime.memory.MemoryAllocationException;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.types.NullKeyFieldException;
@@ -90,7 +90,7 @@ public class LargeRecordHandler<T> {
 
     private Sorter<Tuple> keySorter;
 
-    private final AbstractInvokable memoryOwner;
+    private final TaskInvokable memoryOwner;
 
     private long recordCounter;
 
@@ -110,8 +110,9 @@ public class LargeRecordHandler<T> {
             IOManager ioManager,
             MemoryManager memManager,
             List<MemorySegment> memory,
-            AbstractInvokable memoryOwner,
-            int maxFilehandles) {
+            TaskInvokable memoryOwner,
+            int maxFilehandles,
+            ExecutionConfig executionConfig) {
         this.serializer = checkNotNull(serializer);
         this.comparator = checkNotNull(comparator);
         this.ioManager = checkNotNull(ioManager);
@@ -119,8 +120,7 @@ public class LargeRecordHandler<T> {
         this.memory = checkNotNull(memory);
         this.memoryOwner = checkNotNull(memoryOwner);
         this.maxFilehandles = maxFilehandles;
-
-        this.executionConfig = memoryOwner.getExecutionConfig();
+        this.executionConfig = checkNotNull(executionConfig);
 
         checkArgument(maxFilehandles >= 2);
     }
@@ -276,7 +276,12 @@ public class LargeRecordHandler<T> {
 
         try {
             keySorter =
-                    ExternalSorter.newBuilder(memManager, memoryOwner, keySerializer, keyComparator)
+                    ExternalSorter.newBuilder(
+                                    memManager,
+                                    memoryOwner,
+                                    keySerializer,
+                                    keyComparator,
+                                    executionConfig)
                             .maxNumFileHandles(maxFilehandles)
                             .sortBuffers(1)
                             .enableSpilling(ioManager, 1.0f)

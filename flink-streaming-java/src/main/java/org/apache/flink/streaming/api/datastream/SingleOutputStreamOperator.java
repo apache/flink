@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.functions.InvalidTypesException;
 import org.apache.flink.api.common.operators.ResourceSpec;
+import org.apache.flink.api.common.operators.SlotSharingGroup;
 import org.apache.flink.api.common.operators.util.OperatorValidationUtils;
 import org.apache.flink.api.common.typeinfo.TypeHint;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -374,6 +375,24 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
     }
 
     /**
+     * Sets the slot sharing group of this operation. Parallel instances of operations that are in
+     * the same slot sharing group will be co-located in the same TaskManager slot, if possible.
+     *
+     * <p>Operations inherit the slot sharing group of input operations if all input operations are
+     * in the same slot sharing group and no slot sharing group was explicitly specified.
+     *
+     * <p>Initially an operation is in the default slot sharing group. An operation can be put into
+     * the default group explicitly by setting the slot sharing group with name {@code "default"}.
+     *
+     * @param slotSharingGroup Which contains name and its resource spec.
+     */
+    @PublicEvolving
+    public SingleOutputStreamOperator<T> slotSharingGroup(SlotSharingGroup slotSharingGroup) {
+        transformation.setSlotSharingGroup(slotSharingGroup);
+        return this;
+    }
+
+    /**
      * Gets the {@link DataStream} that contains the elements that are emitted from an operation
      * into the side output with the given {@link OutputTag}.
      *
@@ -399,5 +418,23 @@ public class SingleOutputStreamOperator<T> extends DataStream<T> {
         SideOutputTransformation<X> sideOutputTransformation =
                 new SideOutputTransformation<>(this.getTransformation(), sideOutputTag);
         return new DataStream<>(this.getExecutionEnvironment(), sideOutputTransformation);
+    }
+
+    /**
+     * Sets the description for this operation.
+     *
+     * <p>Description is used in json plan and web ui, but not in logging and metrics where only
+     * name is available. Description is expected to provide detailed information about the sink,
+     * while name is expected to be more simple, providing summary information only, so that we can
+     * have more user-friendly logging messages and metric tags without losing useful messages for
+     * debugging.
+     *
+     * @param description The description for this operation.
+     * @return The operation with new description.
+     */
+    @PublicEvolving
+    public SingleOutputStreamOperator<T> setDescription(String description) {
+        transformation.setDescription(description);
+        return this;
     }
 }

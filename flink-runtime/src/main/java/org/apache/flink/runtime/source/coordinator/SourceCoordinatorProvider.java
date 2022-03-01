@@ -19,17 +19,18 @@ limitations under the License.
 package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.RecreateOnResetOperatorCoordinator;
-import org.apache.flink.runtime.util.FatalExitExceptionHandler;
+import org.apache.flink.util.FatalExitExceptionHandler;
+
+import javax.annotation.Nullable;
 
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.BiConsumer;
 
@@ -40,6 +41,7 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
     private final String operatorName;
     private final Source<?, SplitT, ?> source;
     private final int numWorkerThreads;
+    private final WatermarkAlignmentParams alignmentParams;
 
     /**
      * Construct the {@link SourceCoordinatorProvider}.
@@ -56,11 +58,13 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
             String operatorName,
             OperatorID operatorID,
             Source<?, SplitT, ?> source,
-            int numWorkerThreads) {
+            int numWorkerThreads,
+            WatermarkAlignmentParams alignmentParams) {
         super(operatorID);
         this.operatorName = operatorName;
         this.source = source;
         this.numWorkerThreads = numWorkerThreads;
+        this.alignmentParams = alignmentParams;
     }
 
     @Override
@@ -69,29 +73,28 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
         CoordinatorExecutorThreadFactory coordinatorThreadFactory =
                 new CoordinatorExecutorThreadFactory(
                         coordinatorThreadName, context.getUserCodeClassloader());
-        ExecutorService coordinatorExecutor =
-                Executors.newSingleThreadExecutor(coordinatorThreadFactory);
 
         SimpleVersionedSerializer<SplitT> splitSerializer = source.getSplitSerializer();
         SourceCoordinatorContext<SplitT> sourceCoordinatorContext =
                 new SourceCoordinatorContext<>(
-                        coordinatorExecutor,
-                        coordinatorThreadFactory,
-                        numWorkerThreads,
-                        context,
-                        splitSerializer);
+                        coordinatorThreadFactory, numWorkerThreads, context, splitSerializer);
         return new SourceCoordinator<>(
-                operatorName, coordinatorExecutor, source, sourceCoordinatorContext);
+                operatorName,
+                source,
+                sourceCoordinatorContext,
+                context.getCoordinatorStore(),
+                alignmentParams);
     }
 
     /** A thread factory class that provides some helper methods. */
-    public static class CoordinatorExecutorThreadFactory implements ThreadFactory {
+    public static class CoordinatorExecutorThreadFactory
+            implements ThreadFactory, Thread.UncaughtExceptionHandler {
 
         private final String coordinatorThreadName;
         private final ClassLoader cl;
         private final Thread.UncaughtExceptionHandler errorHandler;
 
-        private Thread t;
+        @Nullable private Thread t;
 
         CoordinatorExecutorThreadFactory(
                 final String coordinatorThreadName, final ClassLoader contextClassLoader) {
@@ -110,16 +113,15 @@ public class SourceCoordinatorProvider<SplitT extends SourceSplit>
 
         @Override
         public synchronized Thread newThread(Runnable r) {
-            if (t != null) {
-                throw new Error(
-                        "This indicates that a fatal error has happened and caused the "
-                                + "coordinator executor thread to exit. Check the earlier logs"
-                                + "to see the root cause of the problem.");
-            }
             t = new Thread(r, coordinatorThreadName);
             t.setContextClassLoader(cl);
-            t.setUncaughtExceptionHandler(errorHandler);
+            t.setUncaughtExceptionHandler(this);
             return t;
+        }
+
+        @Override
+        public synchronized void uncaughtException(Thread t, Throwable e) {
+            errorHandler.uncaughtException(t, e);
         }
 
         String getCoordinatorThreadName() {

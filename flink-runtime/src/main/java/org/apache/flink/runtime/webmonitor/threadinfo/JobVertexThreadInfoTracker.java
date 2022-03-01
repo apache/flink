@@ -34,8 +34,7 @@ import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.stats.JobVertexStatsTracker;
 import org.apache.flink.runtime.webmonitor.stats.Statistics;
 
-import org.apache.flink.shaded.guava18.com.google.common.cache.Cache;
-import org.apache.flink.shaded.guava18.com.google.common.cache.CacheBuilder;
+import org.apache.flink.shaded.guava30.com.google.common.cache.Cache;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -113,7 +112,8 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
             Duration statsRefreshInterval,
             Duration delayBetweenSamples,
             int maxStackTraceDepth,
-            Time rpcTimeout) {
+            Time rpcTimeout,
+            Cache<Key, T> vertexStatsCache) {
 
         this.coordinator = checkNotNull(coordinator, "Thread info samples coordinator");
         this.resourceManagerGatewayRetriever =
@@ -138,11 +138,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         checkArgument(maxStackTraceDepth > 0, "Max stack trace depth must be greater than 0");
         this.maxThreadInfoDepth = maxStackTraceDepth;
 
-        this.vertexStatsCache =
-                CacheBuilder.newBuilder()
-                        .concurrencyLevel(1)
-                        .expireAfterAccess(cleanUpInterval.toMillis(), TimeUnit.MILLISECONDS)
-                        .build();
+        this.vertexStatsCache = checkNotNull(vertexStatsCache, "Vertex stats cache");
 
         executor.scheduleWithFixedDelay(
                 this::cleanUpVertexStatsCache,
@@ -268,7 +264,7 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
         return new Key(jobId, vertex.getJobVertexId());
     }
 
-    private static class Key {
+    static class Key {
         private final JobID jobId;
         private final JobVertexID jobVertexId;
 
@@ -315,8 +311,8 @@ public class JobVertexThreadInfoTracker<T extends Statistics> implements JobVert
                         return;
                     }
                     if (threadInfoStats != null) {
-                        resultAvailableFuture.complete(null);
                         vertexStatsCache.put(key, createStatsFn.apply(threadInfoStats));
+                        resultAvailableFuture.complete(null);
                     } else {
                         LOG.debug(
                                 "Failed to gather a thread info sample for {}",

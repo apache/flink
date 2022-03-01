@@ -20,16 +20,15 @@ package org.apache.flink.tests.util.flink;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.queryablestate.FutureUtils;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersHeaders;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagersInfo;
 import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.util.ConfigurationException;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
@@ -86,6 +85,9 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         for (JarOperation jarOperation : setup.getJarOperations()) {
             distribution.performJarOperation(jarOperation);
         }
+        for (JarAddition jarAddition : setup.getJarAdditions()) {
+            distribution.performJarAddition(jarAddition);
+        }
         if (setup.getConfig().isPresent()) {
             distribution.appendConfiguration(setup.getConfig().get());
         }
@@ -133,9 +135,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
         distribution.startFlinkCluster();
 
         try (final RestClient restClient =
-                new RestClient(
-                        RestClientConfiguration.fromConfiguration(new Configuration()),
-                        Executors.directExecutor())) {
+                new RestClient(new Configuration(), Executors.directExecutor())) {
             for (int retryAttempt = 0; retryAttempt < 30; retryAttempt++) {
                 final CompletableFuture<TaskManagersInfo> localhost =
                         restClient.sendRequest(
@@ -213,7 +213,7 @@ public class LocalStandaloneFlinkResource implements FlinkResource {
                 distribution.stopFlinkCluster();
                 return CompletableFuture.completedFuture(null);
             } catch (IOException e) {
-                return FutureUtils.getFailedFuture(e);
+                return FutureUtils.completedExceptionally(e);
             }
         }
     }

@@ -86,7 +86,7 @@ CREATE TABLE user_actions (
   user_name STRING,
   data STRING,
   ts BIGINT,
-  time_ltz AS TO_TIMESTAMP_LTZ(time_ltz, 3),
+  time_ltz AS TO_TIMESTAMP_LTZ(ts, 3),
   -- declare time_ltz as event time attribute and use 5 seconds delayed watermark strategy
   WATERMARK FOR time_ltz AS time_ltz - INTERVAL '5' SECOND
 ) WITH (
@@ -172,7 +172,7 @@ Processing Time
 
 Processing time allows a table program to produce results based on the time of the local machine. It is the simplest notion of time, but it will generate non-deterministic results. Processing time does not require timestamp extraction or watermark generation.
 
-There are three ways to define a processing time attribute.
+There are two ways to define a processing time attribute.
 
 ### Defining in DDL
 

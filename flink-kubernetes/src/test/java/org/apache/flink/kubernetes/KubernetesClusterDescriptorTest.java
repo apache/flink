@@ -48,9 +48,9 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.kubernetes.utils.Constants.ENV_FLINK_POD_IP_ADDRESS;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** Tests for the {@link KubernetesClusterDescriptor}. */

@@ -26,15 +26,11 @@ import org.apache.flink.table.api.WatermarkSpec;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.TableSource;
-import org.apache.flink.table.types.FieldsDataType;
-import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.Optional;
-
-import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Utilities to {@link TableSchema}. */
 @Internal
@@ -67,33 +63,6 @@ public class TableSchemaUtils {
                                 builder.primaryKey(
                                         uniqueConstraint.getName(),
                                         uniqueConstraint.getColumns().toArray(new String[0])));
-        return builder.build();
-    }
-
-    /**
-     * Creates a new {@link TableSchema} with the projected fields from another {@link TableSchema}.
-     * The new {@link TableSchema} doesn't contain any primary key or watermark information.
-     *
-     * <p>When extracting the fields from the origin schema, the fields may get name conflicts in
-     * the new schema. Considering that the path to the fields is unique in schema, use the path as
-     * the new name to resolve the name conflicts in the new schema. If name conflicts still exists,
-     * it will add postfix in the fashion "_$%d" to resolve.
-     *
-     * @see org.apache.flink.table.connector.source.abilities.SupportsProjectionPushDown
-     */
-    public static TableSchema projectSchema(TableSchema tableSchema, int[][] projectedFields) {
-        checkArgument(
-                containsPhysicalColumnsOnly(tableSchema),
-                "Projection is only supported for physical columns.");
-        TableSchema.Builder builder = TableSchema.builder();
-
-        FieldsDataType fields =
-                (FieldsDataType)
-                        DataTypeUtils.projectRow(tableSchema.toRowDataType(), projectedFields);
-        RowType topFields = (RowType) fields.getLogicalType();
-        for (int i = 0; i < topFields.getFieldCount(); i++) {
-            builder.field(topFields.getFieldNames().get(i), fields.getChildren().get(i));
-        }
         return builder.build();
     }
 

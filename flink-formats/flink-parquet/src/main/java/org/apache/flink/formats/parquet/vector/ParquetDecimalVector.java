@@ -18,13 +18,13 @@
 
 package org.apache.flink.formats.parquet.vector;
 
+import org.apache.flink.formats.parquet.utils.ParquetSchemaConverter;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.DecimalDataUtils;
-import org.apache.flink.table.data.vector.BytesColumnVector;
-import org.apache.flink.table.data.vector.ColumnVector;
-import org.apache.flink.table.data.vector.DecimalColumnVector;
-import org.apache.flink.table.data.vector.IntColumnVector;
-import org.apache.flink.table.data.vector.LongColumnVector;
+import org.apache.flink.table.data.columnar.vector.BytesColumnVector;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.vector.DecimalColumnVector;
+import org.apache.flink.table.data.columnar.vector.IntColumnVector;
+import org.apache.flink.table.data.columnar.vector.LongColumnVector;
 
 /**
  * Parquet write decimal as int32 and int64 and binary, this class wrap the real vector to provide
@@ -40,10 +40,10 @@ public class ParquetDecimalVector implements DecimalColumnVector {
 
     @Override
     public DecimalData getDecimal(int i, int precision, int scale) {
-        if (DecimalDataUtils.is32BitDecimal(precision)) {
+        if (ParquetSchemaConverter.is32BitDecimal(precision)) {
             return DecimalData.fromUnscaledLong(
                     ((IntColumnVector) vector).getInt(i), precision, scale);
-        } else if (DecimalDataUtils.is64BitDecimal(precision)) {
+        } else if (ParquetSchemaConverter.is64BitDecimal(precision)) {
             return DecimalData.fromUnscaledLong(
                     ((LongColumnVector) vector).getLong(i), precision, scale);
         } else {

@@ -41,10 +41,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 /** General tests for the {@link InitJobManagerDecorator}. */
@@ -67,6 +67,8 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
                     new Toleration("NoSchedule", "key1", "Equal", null, "value1"),
                     new Toleration("NoExecute", "key2", "Exists", 6000L, null));
 
+    private static final String USER_DEFINED_FLINK_LOG_DIR = "/path/of/flink-log";
+
     private Pod resultPod;
     private Container resultMainContainer;
 
@@ -81,6 +83,7 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
         this.flinkConfig.set(KubernetesConfigOptions.JOB_MANAGER_ANNOTATIONS, ANNOTATIONS);
         this.flinkConfig.setString(
                 KubernetesConfigOptions.JOB_MANAGER_TOLERATIONS.key(), TOLERATION_STRING);
+        this.flinkConfig.set(KubernetesConfigOptions.FLINK_LOG_DIR, USER_DEFINED_FLINK_LOG_DIR);
     }
 
     @Override
@@ -121,8 +124,12 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
         assertEquals(String.valueOf(JOB_MANAGER_MEMORY), requests.get("memory").getAmount());
 
         final Map<String, Quantity> limits = resourceRequirements.getLimits();
-        assertEquals(Double.toString(JOB_MANAGER_CPU), limits.get("cpu").getAmount());
-        assertEquals(String.valueOf(JOB_MANAGER_MEMORY), limits.get("memory").getAmount());
+        assertEquals(
+                Double.toString(JOB_MANAGER_CPU * JOB_MANAGER_CPU_LIMIT_FACTOR),
+                limits.get("cpu").getAmount());
+        assertEquals(
+                Integer.toString((int) (JOB_MANAGER_MEMORY * JOB_MANAGER_MEMORY_LIMIT_FACTOR)),
+                limits.get("memory").getAmount());
     }
 
     @Test
@@ -209,5 +216,18 @@ public class InitJobManagerDecoratorTest extends KubernetesJobManagerTestBase {
         assertThat(
                 this.resultPod.getSpec().getTolerations(),
                 Matchers.containsInAnyOrder(TOLERATION.toArray()));
+    }
+
+    @Test
+    public void testFlinkLogDirEnvShouldBeSetIfConfiguredViaOptions() {
+        final List<EnvVar> envVars = this.resultMainContainer.getEnv();
+        assertThat(
+                envVars.stream()
+                        .anyMatch(
+                                envVar ->
+                                        envVar.getName().equals(Constants.ENV_FLINK_LOG_DIR)
+                                                && envVar.getValue()
+                                                        .equals(USER_DEFINED_FLINK_LOG_DIR)),
+                is(true));
     }
 }

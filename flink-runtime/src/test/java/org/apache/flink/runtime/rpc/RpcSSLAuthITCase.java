@@ -21,16 +21,13 @@ package org.apache.flink.runtime.rpc;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.SecurityOptions;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
 import org.apache.flink.runtime.rpc.exceptions.RpcConnectionException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
-import akka.actor.ActorSystem;
 import org.junit.Test;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -56,6 +53,9 @@ public class RpcSSLAuthITCase extends TestLogger {
     public void testConnectFailure() throws Exception {
         final Configuration baseConfig = new Configuration();
         baseConfig.setString(AkkaOptions.TCP_TIMEOUT, "1 s");
+        // we start the RPC service with a very long timeout to ensure that the test
+        // can only pass if the connection problem is not recognized merely via a timeout
+        baseConfig.set(AkkaOptions.ASK_TIMEOUT_DURATION, Duration.ofSeconds(10000000));
 
         // !!! This config has KEY_STORE_FILE / TRUST_STORE_FILE !!!
         Configuration sslConfig1 = new Configuration(baseConfig);
@@ -79,28 +79,26 @@ public class RpcSSLAuthITCase extends TestLogger {
         sslConfig2.setString(SecurityOptions.SSL_INTERNAL_TRUSTSTORE_PASSWORD, "password");
         sslConfig2.setString(SecurityOptions.SSL_ALGORITHMS, "TLS_RSA_WITH_AES_128_CBC_SHA");
 
-        ActorSystem actorSystem1 = null;
-        ActorSystem actorSystem2 = null;
         RpcService rpcService1 = null;
         RpcService rpcService2 = null;
 
         try {
-            actorSystem1 = AkkaUtils.createActorSystem(sslConfig1, "localhost", 0);
-            actorSystem2 = AkkaUtils.createActorSystem(sslConfig2, "localhost", 0);
-
             // to test whether the test is still good:
             //   - create actorSystem2 with sslConfig1 (same as actorSystem1) and see that both can
             // connect
             //   - set 'require-mutual-authentication = off' in the AkkaUtils ssl config section
-
-            // we start the RPC service with a very long timeout to ensure that the test
-            // can only pass if the connection problem is not recognized merely via a timeout
-            Configuration configuration = new Configuration();
-            configuration.setString(AkkaOptions.ASK_TIMEOUT, "10000000 s");
-            AkkaRpcServiceConfiguration akkaRpcServiceConfig =
-                    AkkaRpcServiceConfiguration.fromConfiguration(configuration);
-            rpcService1 = new AkkaRpcService(actorSystem1, akkaRpcServiceConfig);
-            rpcService2 = new AkkaRpcService(actorSystem2, akkaRpcServiceConfig);
+            rpcService1 =
+                    RpcSystem.load()
+                            .localServiceBuilder(sslConfig1)
+                            .withBindAddress("localhost")
+                            .withBindPort(0)
+                            .createAndStart();
+            rpcService2 =
+                    RpcSystem.load()
+                            .localServiceBuilder(sslConfig2)
+                            .withBindAddress("localhost")
+                            .withBindPort(0)
+                            .createAndStart();
 
             TestEndpoint endpoint = new TestEndpoint(rpcService1);
             endpoint.start();

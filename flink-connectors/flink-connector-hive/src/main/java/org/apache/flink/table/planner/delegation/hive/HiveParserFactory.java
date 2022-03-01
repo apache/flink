@@ -18,49 +18,42 @@
 
 package org.apache.flink.table.planner.delegation.hive;
 
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.SqlDialect;
-import org.apache.flink.table.api.config.TableConfigOptions;
-import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.Parser;
-import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.table.planner.delegation.ParserFactory;
-import org.apache.flink.table.planner.delegation.PlannerContext;
 
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
+import java.util.Set;
 
 /** A Parser factory that creates {@link HiveParser}. */
 public class HiveParserFactory implements ParserFactory {
 
     @Override
-    public Parser create(CatalogManager catalogManager, PlannerContext plannerContext) {
+    public String factoryIdentifier() {
+        return SqlDialect.HIVE.name().toLowerCase();
+    }
+
+    @Override
+    public Set<ConfigOption<?>> requiredOptions() {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public Set<ConfigOption<?>> optionalOptions() {
+        return Collections.emptySet();
+    }
+
+    @Override
+    public Parser create(Context context) {
         return new HiveParser(
-                catalogManager,
+                context.getCatalogManager(),
                 () ->
-                        plannerContext.createFlinkPlanner(
-                                catalogManager.getCurrentCatalog(),
-                                catalogManager.getCurrentDatabase()),
-                plannerContext::createCalciteParser,
-                plannerContext);
-    }
-
-    @Override
-    public Map<String, String> optionalContext() {
-        DescriptorProperties properties = new DescriptorProperties();
-        return properties.asMap();
-    }
-
-    @Override
-    public Map<String, String> requiredContext() {
-        DescriptorProperties properties = new DescriptorProperties();
-        properties.putString(
-                TableConfigOptions.TABLE_SQL_DIALECT.key(), SqlDialect.HIVE.name().toLowerCase());
-        return properties.asMap();
-    }
-
-    @Override
-    public List<String> supportedProperties() {
-        return Collections.singletonList(TableConfigOptions.TABLE_SQL_DIALECT.key());
+                        context.getPlannerContext()
+                                .createFlinkPlanner(
+                                        context.getCatalogManager().getCurrentCatalog(),
+                                        context.getCatalogManager().getCurrentDatabase()),
+                context.getPlannerContext()::createCalciteParser,
+                context.getPlannerContext());
     }
 }

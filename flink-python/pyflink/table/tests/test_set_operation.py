@@ -16,10 +16,10 @@
 # # limitations under the License.
 ################################################################################
 
-from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase
 
 
-class StreamTableSetOperationTests(PyFlinkBlinkBatchTableTestCase):
+class StreamTableSetOperationTests(PyFlinkBatchTableTestCase):
 
     data1 = [(1, "Hi", "Hello")]
     data2 = [(3, "Hello", "Hello")]

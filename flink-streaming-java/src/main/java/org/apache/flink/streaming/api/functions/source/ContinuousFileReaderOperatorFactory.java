@@ -22,7 +22,6 @@ import org.apache.flink.api.common.io.InputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.api.operators.MailboxExecutor;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.streaming.api.operators.StreamOperatorParameters;
@@ -36,7 +35,6 @@ public class ContinuousFileReaderOperatorFactory<OUT, T extends TimestampedInput
     private final InputFormat<OUT, ? super T> inputFormat;
     private TypeInformation<OUT> type;
     private ExecutionConfig executionConfig;
-    private transient MailboxExecutor mailboxExecutor;
 
     public ContinuousFileReaderOperatorFactory(InputFormat<OUT, ? super T> inputFormat) {
         this(inputFormat, null, null);
@@ -53,16 +51,11 @@ public class ContinuousFileReaderOperatorFactory<OUT, T extends TimestampedInput
     }
 
     @Override
-    public void setMailboxExecutor(MailboxExecutor mailboxExecutor) {
-        this.mailboxExecutor = mailboxExecutor;
-    }
-
-    @Override
     public <O extends StreamOperator<OUT>> O createStreamOperator(
             StreamOperatorParameters<OUT> parameters) {
         ContinuousFileReaderOperator<OUT, T> operator =
                 new ContinuousFileReaderOperator<>(
-                        inputFormat, processingTimeService, mailboxExecutor);
+                        inputFormat, processingTimeService, getMailboxExecutor());
         operator.setup(
                 parameters.getContainingTask(),
                 parameters.getStreamConfig(),

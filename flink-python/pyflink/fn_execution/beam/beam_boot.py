@@ -29,12 +29,13 @@ harness of Apache Beam.
 """
 import argparse
 import os
-from subprocess import call
 
 import grpc
 import logging
 import sys
 
+from apache_beam.portability.api.beam_fn_api_pb2_grpc import BeamFnExternalWorkerPoolStub
+from apache_beam.portability.api.beam_fn_api_pb2 import StartWorkerRequest
 from apache_beam.portability.api.beam_provision_api_pb2_grpc import ProvisionServiceStub
 from apache_beam.portability.api.beam_provision_api_pb2 import GetProvisionInfoRequest
 from apache_beam.portability.api.endpoints_pb2 import ApiServiceDescriptor
@@ -72,30 +73,46 @@ if __name__ == "__main__":
     check_not_empty(worker_id, "No id provided.")
     check_not_empty(provision_endpoint, "No provision endpoint provided.")
 
-    logging.info("Initializing python harness: %s" % " ".join(sys.argv))
+    logging.info("Initializing Python harness: %s" % " ".join(sys.argv))
 
-    metadata = [("worker_id", worker_id)]
+    if 'PYFLINK_LOOPBACK_SERVER_ADDRESS' in os.environ:
+        logging.info("Starting up Python harness in loopback mode.")
 
-    # read job information from provision stub
-    with grpc.insecure_channel(provision_endpoint) as channel:
-        client = ProvisionServiceStub(channel=channel)
-        info = client.GetProvisionInfo(GetProvisionInfoRequest(), metadata=metadata).info
-        options = json_format.MessageToJson(info.pipeline_options)
-        logging_endpoint = info.logging_endpoint.url
-        control_endpoint = info.control_endpoint.url
+        params = dict(os.environ)
+        params.update({'SEMI_PERSISTENT_DIRECTORY': semi_persist_dir})
+        with grpc.insecure_channel(os.environ['PYFLINK_LOOPBACK_SERVER_ADDRESS']) as channel:
+            client = BeamFnExternalWorkerPoolStub(channel=channel)
+            request = StartWorkerRequest(
+                worker_id=worker_id,
+                provision_endpoint=ApiServiceDescriptor(url=provision_endpoint),
+                params=params)
+            client.StartWorker(request)
+    else:
+        logging.info("Starting up Python harness in a standalone process.")
+        metadata = [("worker_id", worker_id)]
 
-    os.environ["WORKER_ID"] = worker_id
-    os.environ["PIPELINE_OPTIONS"] = options
-    os.environ["SEMI_PERSISTENT_DIRECTORY"] = semi_persist_dir
-    os.environ["LOGGING_API_SERVICE_DESCRIPTOR"] = text_format.MessageToString(
-        ApiServiceDescriptor(url=logging_endpoint))
-    os.environ["CONTROL_API_SERVICE_DESCRIPTOR"] = text_format.MessageToString(
-        ApiServiceDescriptor(url=control_endpoint))
+        # read job information from provision stub
+        with grpc.insecure_channel(provision_endpoint) as channel:
+            client = ProvisionServiceStub(channel=channel)
+            info = client.GetProvisionInfo(GetProvisionInfoRequest(), metadata=metadata).info
+            options = json_format.MessageToJson(info.pipeline_options)
+            logging_endpoint = info.logging_endpoint.url
+            control_endpoint = info.control_endpoint.url
 
-    env = dict(os.environ)
+        os.environ["WORKER_ID"] = worker_id
+        os.environ["PIPELINE_OPTIONS"] = options
+        os.environ["SEMI_PERSISTENT_DIRECTORY"] = semi_persist_dir
+        os.environ["LOGGING_API_SERVICE_DESCRIPTOR"] = text_format.MessageToString(
+            ApiServiceDescriptor(url=logging_endpoint))
+        os.environ["CONTROL_API_SERVICE_DESCRIPTOR"] = text_format.MessageToString(
+            ApiServiceDescriptor(url=control_endpoint))
 
-    if "FLINK_BOOT_TESTING" in os.environ and os.environ["FLINK_BOOT_TESTING"] == "1":
-        exit(0)
+        env = dict(os.environ)
 
-    call([python_exec, "-m", "pyflink.fn_execution.beam.beam_sdk_worker_main"],
-         stdout=sys.stdout, stderr=sys.stderr, env=env)
+        if "FLINK_BOOT_TESTING" in os.environ and os.environ["FLINK_BOOT_TESTING"] == "1":
+            logging.info("Shut down Python harness due to FLINK_BOOT_TESTING is set.")
+            exit(0)
+
+        from pyflink.fn_execution.beam import beam_sdk_worker_main
+
+        beam_sdk_worker_main.main()

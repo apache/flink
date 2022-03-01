@@ -22,13 +22,12 @@ import org.apache.flink.util.TestLogger;
 
 import com.amazonaws.services.schemaregistry.common.AWSSchemaRegistryClient;
 import com.amazonaws.services.schemaregistry.common.configs.GlueSchemaRegistryConfiguration;
-import com.amazonaws.services.schemaregistry.deserializers.AWSDeserializer;
+import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializationFacade;
 import com.amazonaws.services.schemaregistry.exception.AWSSchemaRegistryException;
 import com.amazonaws.services.schemaregistry.serializers.GlueSchemaRegistrySerializationFacade;
 import com.amazonaws.services.schemaregistry.utils.AWSSchemaRegistryConstants;
 import lombok.NonNull;
 import org.apache.avro.Schema;
-import org.hamcrest.Matchers;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,9 +47,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link GlueSchemaRegistryAvroSchemaCoder}. */
 public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
@@ -102,14 +99,10 @@ public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
     /** Test whether constructor works. */
     @Test
     public void testConstructor_withConfigs_succeeds() {
-        assertThat(new GlueSchemaRegistryAvroSchemaCoder(testTopic, configs), notNullValue());
+        assertThat(new GlueSchemaRegistryAvroSchemaCoder(testTopic, configs)).isNotNull();
     }
 
-    /**
-     * Test whether readSchema method works.
-     *
-     * @throws IOException
-     */
+    /** Test whether readSchema method works. */
     @Test
     public void testReadSchema_withValidParams_succeeds() throws IOException {
         GlueSchemaRegistryAvroSchemaCoder glueSchemaRegistryAvroSchemaCoder =
@@ -117,14 +110,10 @@ public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
         Schema resultSchema =
                 glueSchemaRegistryAvroSchemaCoder.readSchema(buildByteArrayInputStream());
 
-        assertThat(resultSchema, equalTo(userSchema));
+        assertThat(resultSchema).isEqualTo(userSchema);
     }
 
-    /**
-     * Test whether writeSchema method works.
-     *
-     * @throws IOException
-     */
+    /** Test whether writeSchema method works. */
     @Test
     public void testWriteSchema_withValidParams_succeeds() throws IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
@@ -136,12 +125,7 @@ public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
         testForSerializedData(outputStream.toByteArray());
     }
 
-    /**
-     * Test whether writeSchema method throws exception if auto registration un-enabled.
-     *
-     * @throws NoSuchFieldException
-     * @throws IllegalAccessException
-     */
+    /** Test whether writeSchema method throws exception if auto registration un-enabled. */
     @Test
     public void testWriteSchema_withoutAutoRegistration_throwsException() throws IOException {
         configs.put(AWSSchemaRegistryConstants.SCHEMA_AUTO_REGISTRATION_SETTING, false);
@@ -167,12 +151,12 @@ public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
     }
 
     private void testForSerializedData(byte[] serializedData) {
-        assertThat(serializedData, Matchers.notNullValue());
+        assertThat(serializedData).isNotNull();
 
         ByteBuffer buffer = getByteBuffer(serializedData);
         byte headerVersionByte = getByte(buffer);
 
-        assertThat(headerVersionByte, equalTo(AWSSchemaRegistryConstants.HEADER_VERSION_BYTE));
+        assertThat(headerVersionByte).isEqualTo(AWSSchemaRegistryConstants.HEADER_VERSION_BYTE);
     }
 
     private ByteArrayInputStream buildByteArrayInputStream() {
@@ -191,7 +175,7 @@ public class GlueSchemaRegistryAvroSchemaCoderTest extends TestLogger {
             extends GlueSchemaRegistryInputStreamDeserializer {
 
         public MockGlueSchemaRegistryInputStreamDeserializer() {
-            super((AWSDeserializer) null);
+            super((GlueSchemaRegistryDeserializationFacade) null);
         }
 
         @Override

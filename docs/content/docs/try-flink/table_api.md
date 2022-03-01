@@ -57,7 +57,7 @@ A workaround is to switch the shell to **sh** on the first line of **docker-entr
 
 If you want to follow along, you will require a computer with: 
 
-* Java 8 or 11
+* Java 11
 * Maven 
 * Docker
 
@@ -200,7 +200,7 @@ This means the timestamp column needs be be rounded down from millisecond to hou
 Flink supports developing relational applications in pure [SQL]({{< ref "docs/dev/table/sql/overview" >}}) or using the [Table API]({{< ref "docs/dev/table/tableApi" >}}).
 The Table API is a fluent DSL inspired by SQL, that can be written in Python, Java, or Scala and supports strong IDE integration.
 Just like a SQL query, Table programs can select the required fields and group by your keys.
-These features, along with [built-in functions]({{< ref "docs/dev/table/functions/systemFunctions" >}}) like `floor` and `sum`, you can write this report.
+These features, along with [built-in functions]({{< ref "docs/dev/table/functions/systemFunctions" >}}) like `floor` and `sum`, enable you to write this report.
 
 ```java
 public static Table report(Table transactions) {

@@ -54,7 +54,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.runtime.functions.SqlDateTimeUtils.internalToDate;
+import static org.apache.flink.table.utils.DateTimeUtils.toSQLDate;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -359,7 +359,7 @@ public class OrcColumnarRowSplitReaderTest {
                 }
                 Assert.assertTrue(row.getBoolean(5));
                 Assert.assertEquals(
-                        new Date(562423).toString(), internalToDate(row.getInt(6)).toString());
+                        new Date(562423).toString(), toSQLDate(row.getInt(6)).toString());
 
                 Assert.assertEquals(
                         LocalDateTime.of(1999, 1, 1, 1, 1),

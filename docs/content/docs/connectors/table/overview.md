@@ -95,6 +95,8 @@ Flink natively support various connectors. The following tables list all availab
 
 {{< top >}}
 
+Please refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section on how to add connectors as a dependency. 
+
 How to use connectors
 --------
 
@@ -155,13 +157,13 @@ In this situation, the recommended way is transforming these resource files unde
         <!--  other project dependencies  ...-->
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-sql-connector-hive-3.1.2_{{< scala_version >}}</artifactId>
+            <artifactId>flink-sql-connector-hive-3.1.2{{< scala_version >}}</artifactId>
             <version>{{< version >}}</version>
         </dependency>
 
         <dependency>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-parquet_{{< scala_version >}}</artifactId>
+            <artifactId>flink-parquet{{< scala_version >}}</artifactId>
             <version>{{< version >}}</version>
         </dependency>
 

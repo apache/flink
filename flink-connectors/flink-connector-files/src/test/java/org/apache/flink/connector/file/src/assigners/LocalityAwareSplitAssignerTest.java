@@ -305,6 +305,6 @@ public class LocalityAwareSplitAssignerTest {
     // ------------------------------------------------------------------------
 
     private static FileSourceSplit createSplit(int id, String... hosts) {
-        return new FileSourceSplit(String.valueOf(id), TEST_PATH, 0, 1024, hosts);
+        return new FileSourceSplit(String.valueOf(id), TEST_PATH, 0, 1024, 0, 1024, hosts);
     }
 }

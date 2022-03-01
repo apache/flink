@@ -38,7 +38,7 @@ public class LogListInfoTest extends RestResponseMarshallingTestBase {
     protected ResponseBody getTestResponseInstance() throws Exception {
         return new LogListInfo(
                 Arrays.asList(
-                        new LogInfo("taskmanager.log", 0),
-                        new LogInfo("taskmanager.out", Integer.MAX_VALUE)));
+                        new LogInfo("taskmanager.log", 0, 1632844800000L),
+                        new LogInfo("taskmanager.out", Integer.MAX_VALUE, 1632844800000L)));
     }
 }

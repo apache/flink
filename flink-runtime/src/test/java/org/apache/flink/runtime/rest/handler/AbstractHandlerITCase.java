@@ -20,11 +20,7 @@ package org.apache.flink.runtime.rest.handler;
 
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
-import org.apache.flink.runtime.concurrent.Executors;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.rest.RestClient;
-import org.apache.flink.runtime.rest.RestClientConfiguration;
-import org.apache.flink.runtime.rest.RestServerEndpointConfiguration;
 import org.apache.flink.runtime.rest.messages.EmptyMessageParameters;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.EmptyResponseBody;
@@ -36,6 +32,8 @@ import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.ConfigurationException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.core.StringContains;
 import org.junit.Rule;
@@ -53,7 +51,7 @@ import static org.junit.Assert.fail;
 public class AbstractHandlerITCase extends TestLogger {
 
     private static final RestfulGateway mockRestfulGateway =
-            new TestingDispatcherGateway.Builder().build();
+            TestingDispatcherGateway.newBuilder().build();
 
     private static final GatewayRetriever<RestfulGateway> mockGatewayRetriever =
             () -> CompletableFuture.completedFuture(mockRestfulGateway);
@@ -77,8 +75,7 @@ public class AbstractHandlerITCase extends TestLogger {
         Configuration config = new Configuration(REST_BASE_CONFIG);
         config.setInteger(RestOptions.PORT, serverPort);
 
-        return new RestClient(
-                RestClientConfiguration.fromConfiguration(config), Executors.directExecutor());
+        return new RestClient(config, Executors.directExecutor());
     }
 
     @Test
@@ -99,9 +96,7 @@ public class AbstractHandlerITCase extends TestLogger {
                                         new OutOfMemoryError("Metaspace")));
 
         try (final TestRestServerEndpoint server =
-                        TestRestServerEndpoint.builder(
-                                        RestServerEndpointConfiguration.fromConfiguration(
-                                                REST_BASE_CONFIG))
+                        TestRestServerEndpoint.builder(REST_BASE_CONFIG)
                                 .withHandler(messageHeaders, testRestHandler)
                                 .buildAndStart();
                 final RestClient restClient =

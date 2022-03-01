@@ -73,15 +73,7 @@ class Created implements State {
     }
 
     /** Context of the {@link Created} state. */
-    interface Context {
-
-        /**
-         * Transitions into the {@link Finished} state.
-         *
-         * @param archivedExecutionGraph archivedExecutionGraph is passed to the {@link Finished}
-         *     state
-         */
-        void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
+    interface Context extends StateTransitions.ToFinished, StateTransitions.ToWaitingForResources {
 
         /**
          * Creates an {@link ArchivedExecutionGraph} for the given jobStatus and failure cause.
@@ -93,9 +85,6 @@ class Created implements State {
          */
         ArchivedExecutionGraph getArchivedExecutionGraph(
                 JobStatus jobStatus, @Nullable Throwable cause);
-
-        /** Transitions into the {@link WaitingForResources} state. */
-        void goToWaitingForResources();
     }
 
     static class Factory implements StateFactory<Created> {

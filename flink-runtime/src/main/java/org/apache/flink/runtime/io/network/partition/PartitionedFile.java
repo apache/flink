@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -107,6 +108,10 @@ public class PartitionedFile {
 
     public int getNumRegions() {
         return numRegions;
+    }
+
+    public boolean isReadable() {
+        return Files.isReadable(dataFilePath) && Files.isReadable(indexFilePath);
     }
 
     /**

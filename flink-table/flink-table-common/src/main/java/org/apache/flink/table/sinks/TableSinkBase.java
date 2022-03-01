@@ -20,6 +20,7 @@ package org.apache.flink.table.sinks;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.table.connector.sink.DynamicTableSink;
 
 import java.util.Optional;
 
@@ -27,7 +28,10 @@ import java.util.Optional;
  * Base class for {@link TableSink}.
  *
  * @param <T> The return type of the {@link TableSinkBase}.
+ * @deprecated This class is implementing the deprecated {@link TableSink} interface. Implement
+ *     {@link DynamicTableSink} directly instead.
  */
+@Deprecated
 @Internal
 public abstract class TableSinkBase<T> implements TableSink<T> {
 

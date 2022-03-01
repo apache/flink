@@ -105,10 +105,10 @@ public class JsonRowDataSerDeSchemaTest {
                         .toInstant();
 
         Map<String, Long> map = new HashMap<>();
-        map.put("flink", 123L);
+        map.put("element", 123L);
 
         Map<String, Integer> multiSet = new HashMap<>();
-        multiSet.put("blink", 2);
+        multiSet.put("element", 2);
 
         Map<String, Map<String, Integer>> nestedMap = new HashMap<>();
         Map<String, Integer> innerMap = new HashMap<>();
@@ -135,8 +135,8 @@ public class JsonRowDataSerDeSchemaTest {
         root.put("timestamp3", "1990-10-14T12:12:43.123");
         root.put("timestamp9", "1990-10-14T12:12:43.123456789");
         root.put("timestampWithLocalZone", "1990-10-14T12:12:43.123456789Z");
-        root.putObject("map").put("flink", 123);
-        root.putObject("multiSet").put("blink", 2);
+        root.putObject("map").put("element", 123);
+        root.putObject("multiSet").put("element", 2);
         root.putObject("map2map").putObject("inner_map").put("key", 234);
 
         byte[] serializedJson = objectMapper.writeValueAsBytes(root);
@@ -197,7 +197,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         schema,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 
@@ -287,7 +287,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 
@@ -372,7 +372,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 
@@ -487,7 +487,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
 
@@ -530,7 +530,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.FAIL,
+                        JsonFormatOptions.MapNullKeyMode.FAIL,
                         "null",
                         true);
         // expect message for serializationSchema1
@@ -542,7 +542,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.DROP,
+                        JsonFormatOptions.MapNullKeyMode.DROP,
                         "null",
                         true);
         // expect result for serializationSchema2
@@ -552,7 +552,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "nullKey",
                         true);
         // expect result for serializationSchema3
@@ -596,14 +596,14 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         schema,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         true);
         JsonRowDataSerializationSchema scientificDecimalSerializer =
                 new JsonRowDataSerializationSchema(
                         schema,
                         TimestampFormat.ISO_8601,
-                        JsonOptions.MapNullKeyMode.LITERAL,
+                        JsonFormatOptions.MapNullKeyMode.LITERAL,
                         "null",
                         false);
 
@@ -641,7 +641,7 @@ public class JsonRowDataSerDeSchemaTest {
                 new JsonRowDataSerializationSchema(
                         rowType,
                         TimestampFormat.SQL,
-                        JsonOptions.MapNullKeyMode.FAIL,
+                        JsonFormatOptions.MapNullKeyMode.FAIL,
                         "null",
                         true);
         String errorMessage = "Fail to serialize at field: f1.";

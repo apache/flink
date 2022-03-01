@@ -20,8 +20,9 @@ package org.apache.flink.table.descriptors;
 
 import org.apache.flink.annotation.Internal;
 
-/** Validator for {@link ConnectorDescriptor}. */
+/** Base validator for options of a connector. */
 @Internal
+@Deprecated
 public abstract class ConnectorDescriptorValidator implements DescriptorValidator {
 
     /** Prefix for connector-related properties. */

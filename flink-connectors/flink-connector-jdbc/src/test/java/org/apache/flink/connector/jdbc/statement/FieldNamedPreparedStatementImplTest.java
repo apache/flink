@@ -19,7 +19,7 @@
 package org.apache.flink.connector.jdbc.statement;
 
 import org.apache.flink.connector.jdbc.dialect.JdbcDialect;
-import org.apache.flink.connector.jdbc.dialect.JdbcDialects;
+import org.apache.flink.connector.jdbc.dialect.JdbcDialectLoader;
 
 import org.junit.Test;
 
@@ -34,9 +34,7 @@ import static org.junit.Assert.assertEquals;
 /** Tests for {@link FieldNamedPreparedStatementImpl}. */
 public class FieldNamedPreparedStatementImplTest {
 
-    private final JdbcDialect dialect =
-            JdbcDialects.get("jdbc:mysql://localhost:3306/test")
-                    .orElseThrow(() -> new RuntimeException("Unsupported dialect."));
+    private final JdbcDialect dialect = JdbcDialectLoader.load("jdbc:mysql://localhost:3306/test");
     private final String[] fieldNames =
             new String[] {"id", "name", "email", "ts", "field1", "field_2", "__field_3__"};
     private final String[] keyFields = new String[] {"id", "__field_3__"};

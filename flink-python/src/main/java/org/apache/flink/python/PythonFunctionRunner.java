@@ -40,6 +40,9 @@ public interface PythonFunctionRunner {
      */
     void process(byte[] data) throws Exception;
 
+    /** Send the triggered timer to the Python function. */
+    void processTimer(byte[] timerData) throws Exception;
+
     /**
      * Retrieves the Python function result.
      *
@@ -48,6 +51,16 @@ public interface PythonFunctionRunner {
      *     the length of the Python function result byte array.
      */
     Tuple2<byte[], Integer> pollResult() throws Exception;
+
+    /**
+     * Retrieves the Python function result, waiting if necessary until an element becomes
+     * available.
+     *
+     * @return the head of he Python function result buffer. f0 means the byte array buffer which
+     *     stores the Python function result. f1 means the length of the Python function result byte
+     *     array.
+     */
+    Tuple2<byte[], Integer> takeResult() throws Exception;
 
     /**
      * Forces to finish the processing of the current bundle of elements. It will flush the data

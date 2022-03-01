@@ -44,7 +44,7 @@ import org.apache.flink.runtime.webmonitor.history.JsonArchivist;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.curator4.com.google.common.collect.Iterables;
+import org.apache.flink.shaded.curator5.com.google.common.collect.Iterables;
 
 import javax.annotation.Nullable;
 
@@ -90,8 +90,7 @@ public class JobExceptionsHandler
 
     @Override
     protected JobExceptionsInfoWithHistory handleRequest(
-            HandlerRequest<EmptyRequestBody, JobExceptionsMessageParameters> request,
-            ExecutionGraphInfo executionGraph) {
+            HandlerRequest<EmptyRequestBody> request, ExecutionGraphInfo executionGraph) {
         List<Integer> exceptionToReportMaxSizes =
                 request.getQueryParameter(UpperLimitExceptionParameter.class);
         final int exceptionToReportMaxSize =
@@ -120,7 +119,9 @@ public class JobExceptionsHandler
         final ArchivedExecutionGraph executionGraph =
                 executionGraphInfo.getArchivedExecutionGraph();
         if (executionGraph.getFailureInfo() == null) {
-            return new JobExceptionsInfoWithHistory();
+            return new JobExceptionsInfoWithHistory(
+                    createJobExceptionHistory(
+                            executionGraphInfo.getExceptionHistory(), exceptionToReportMaxSize));
         }
 
         List<JobExceptionsInfo.ExecutionExceptionInfo> taskExceptionList = new ArrayList<>();

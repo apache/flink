@@ -274,7 +274,7 @@ function install_tox() {
     # tox 3.14.0 depends on both 0.19 and 0.23 of importlib_metadata at the same time and
     # conda will try to install both these two versions and it will cause problems occasionally.
     # Using pip as the package manager could avoid this problem.
-    $CURRENT_DIR/install_command.sh -q virtualenv==16.0.0 tox==3.14.0 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q virtualenv==20.10.0 tox==3.14.0 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install tox failed \
         please try to exec the script again.\
@@ -322,7 +322,7 @@ function install_sphinx() {
         fi
     fi
 
-    $CURRENT_DIR/install_command.sh -q Sphinx==2.4.4 2>&1 >/dev/null
+    $CURRENT_DIR/install_command.sh -q Sphinx==2.4.4 Docutils==0.17.1 2>&1 >/dev/null
     if [ $? -ne 0 ]; then
         echo "pip install sphinx failed \
         please try to exec the script again.\
@@ -396,7 +396,7 @@ function install_environment() {
     fi
     print_function "STEP" "install miniconda... [SUCCESS]"
 
-    # step-3 install python environment whcih includes
+    # step-3 install python environment which includes
     # 3.6 3.7 3.8
     if [ $STEP -lt 3 ] && [ `need_install_component "py_env"` = true ]; then
         print_function "STEP" "installing python environment..."
@@ -460,7 +460,7 @@ function create_dir() {
 # Set created py-env in $PATH for tox's creating virtual env
 function activate () {
     if [ ! -d $CURRENT_DIR/.conda/envs ]; then
-        echo "For some unkown reasons,missing the directory $CURRENT_DIR/.conda/envs,\
+        echo "For some unknown reasons, missing the directory $CURRENT_DIR/.conda/envs,\
         you should exec the script with the option: -f"
         exit 1
     fi
@@ -471,7 +471,7 @@ function activate () {
     done
     export PATH 2>/dev/null
     if [ $? -ne 0 ]; then
-        echo "For some unkown reasons, the py package is not complete,\
+        echo "For some unknown reasons, the py package is not complete,\
         you should exec the script with the option: -f"
         exit 1
     fi
@@ -588,9 +588,9 @@ function tox_check() {
 
     if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
         # Only run test in latest python version triggered by a Git push
-        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
+        $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
     else
-        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
+        $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
     fi
 
     TOX_RESULT=$((grep -c "congratulations :)" "$LOG_FILE") 2>&1)
@@ -613,7 +613,7 @@ function flake8_check() {
 
     print_function "STAGE" "flake8 checks"
     if [ ! -f "$FLAKE8_PATH" ]; then
-        echo "For some unkown reasons, the flake8 package is not complete,\
+        echo "For some unknown reasons, the flake8 package is not complete,\
         you should exec the script with the parameter: -f"
     fi
 

@@ -32,20 +32,30 @@ import java.util.List;
  * org.apache.flink.table.client.cli.CliClientITCase}.
  */
 public final class SqlScriptReader implements AutoCloseable {
-
+    public static final String HINT_START_OF_OUTPUT = "!output";
+    private final boolean enableMultiStatement;
     private final BufferedReader reader;
     private String currentLine;
 
     public static List<TestSqlStatement> parseSqlScript(String in) {
-        try (SqlScriptReader sqlReader = new SqlScriptReader(in)) {
+        try (SqlScriptReader sqlReader = new SqlScriptReader(in, false)) {
             return sqlReader.parseSqlScript();
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
 
-    private SqlScriptReader(String input) {
+    public static List<TestSqlStatement> parseMultiStatementSqlScript(String in) {
+        try (SqlScriptReader sqlReader = new SqlScriptReader(in, true)) {
+            return sqlReader.parseSqlScript();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private SqlScriptReader(String input, boolean multiStatementEnabled) {
         this.reader = new BufferedReader(new StringReader(input));
+        this.enableMultiStatement = multiStatementEnabled;
     }
 
     private List<TestSqlStatement> parseSqlScript() throws IOException {
@@ -81,10 +91,15 @@ public final class SqlScriptReader implements AutoCloseable {
                     break;
 
                 case SQL_STATEMENT:
-                    sqlLines.append(currentLine).append("\n");
-                    if (currentLine.trim().endsWith(";")) {
+                    if (enableMultiStatement && currentLine.trim().equals(HINT_START_OF_OUTPUT)) {
                         // SQL statement is finished, begin to read result content
                         status = ReadingStatus.RESULT_CONTENT;
+                    } else {
+                        sqlLines.append(currentLine).append("\n");
+                        if (!enableMultiStatement && currentLine.trim().endsWith(";")) {
+                            // SQL statement is finished, begin to read result content
+                            status = ReadingStatus.RESULT_CONTENT;
+                        }
                     }
                     // continue reading
                     readLine();

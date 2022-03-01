@@ -38,7 +38,10 @@ import java.util.Map;
 /**
  * A source that pulls data from Apache NiFi using the NiFi Site-to-Site client. This source
  * produces NiFiDataPackets which encapsulate the content and attributes of a NiFi FlowFile.
+ *
+ * @deprecated The NiFi Source has been deprecated and will be removed in a future Flink release.
  */
+@Deprecated
 public class NiFiSource extends RichParallelSourceFunction<NiFiDataPacket> {
 
     private static final long serialVersionUID = 1L;

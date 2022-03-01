@@ -67,6 +67,8 @@ public final class FileSourceSplitSerializer implements SimpleVersionedSerialize
         split.path().write(out);
         out.writeLong(split.offset());
         out.writeLong(split.length());
+        out.writeLong(split.fileModificationTime());
+        out.writeLong(split.fileSize());
         writeStringArray(out, split.hostnames());
 
         final Optional<CheckpointedPosition> readerPosition = split.getReaderPosition();
@@ -102,13 +104,24 @@ public final class FileSourceSplitSerializer implements SimpleVersionedSerialize
         path.read(in);
         final long offset = in.readLong();
         final long len = in.readLong();
+        final long modificationTime = in.readLong();
+        final long fileSize = in.readLong();
         final String[] hosts = readStringArray(in);
 
         final CheckpointedPosition readerPosition =
                 in.readBoolean() ? new CheckpointedPosition(in.readLong(), in.readLong()) : null;
 
         // instantiate a new split and cache the serialized form
-        return new FileSourceSplit(id, path, offset, len, hosts, readerPosition, serialized);
+        return new FileSourceSplit(
+                id,
+                path,
+                offset,
+                len,
+                modificationTime,
+                fileSize,
+                hosts,
+                readerPosition,
+                serialized);
     }
 
     private static void writeStringArray(DataOutputView out, String[] strings) throws IOException {

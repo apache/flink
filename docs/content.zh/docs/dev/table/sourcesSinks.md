@@ -3,7 +3,7 @@ title: "User-defined Sources & Sinks"
 weight: 131
 type: docs
 aliases:
-  - /dev/table/sourceSinks.html
+  - /zh/dev/table/sourceSinks.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -452,7 +452,8 @@ public class SocketDynamicTableFactory implements DynamicTableSourceFactory {
     final byte byteDelimiter = (byte) (int) options.get(BYTE_DELIMITER);
 
     // derive the produced data type (excluding computed columns) from the catalog table
-    final DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+    final DataType producedDataType =
+            context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
 
     // create and return dynamic table source
     return new SocketDynamicTableSource(hostname, port, byteDelimiter, decodingFormat, producedDataType);

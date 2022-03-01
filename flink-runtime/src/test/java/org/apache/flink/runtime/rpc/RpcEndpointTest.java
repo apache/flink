@@ -19,21 +19,14 @@
 package org.apache.flink.runtime.rpc;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.runtime.akka.AkkaUtils;
-import org.apache.flink.runtime.concurrent.FutureUtils;
-import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcService;
-import org.apache.flink.runtime.rpc.akka.AkkaRpcServiceConfiguration;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorSystem;
-import akka.actor.Terminated;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -42,35 +35,27 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.BiConsumer;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for the RpcEndpoint, its self gateways and MainThreadExecutor scheduling command. */
 public class RpcEndpointTest extends TestLogger {
 
     private static final Time TIMEOUT = Time.seconds(10L);
-    private static ActorSystem actorSystem = null;
     private static RpcService rpcService = null;
 
     @BeforeClass
-    public static void setup() {
-        actorSystem = AkkaUtils.createDefaultActorSystem();
-        rpcService =
-                new AkkaRpcService(actorSystem, AkkaRpcServiceConfiguration.defaultConfiguration());
+    public static void setup() throws Exception {
+        rpcService = RpcSystem.load().localServiceBuilder(new Configuration()).createAndStart();
     }
 
     @AfterClass
     public static void teardown() throws Exception {
-
-        final CompletableFuture<Void> rpcTerminationFuture = rpcService.stopService();
-        final CompletableFuture<Terminated> actorSystemTerminationFuture =
-                AkkaFutureUtils.toJava(actorSystem.terminate());
-
-        FutureUtils.waitForAll(Arrays.asList(rpcTerminationFuture, actorSystemTerminationFuture))
-                .get(TIMEOUT.toMilliseconds(), TimeUnit.MILLISECONDS);
+        rpcService.stopService().get();
     }
 
     /**
@@ -376,21 +361,24 @@ public class RpcEndpointTest extends TestLogger {
             throws InterruptedException, ExecutionException, TimeoutException {
         final RpcEndpoint endpoint = new BaseEndpoint(rpcService);
         final Time timeout = Time.milliseconds(100);
+        CountDownLatch latch = new CountDownLatch(1);
         try {
             endpoint.start();
             final CompletableFuture<Throwable> throwableFuture =
                     endpoint.callAsync(
                                     () -> {
                                         endpoint.validateRunsInMainThread();
-                                        TimeUnit.MILLISECONDS.sleep(timeout.toMilliseconds() * 2);
+                                        latch.await();
                                         return 12345;
                                     },
                                     timeout)
                             .handle((ignore, throwable) -> throwable);
-            final Throwable throwable =
-                    throwableFuture.get(timeout.getSize() * 2, timeout.getUnit());
-            assertTrue(throwable instanceof TimeoutException);
+            final Throwable throwable = throwableFuture.get();
+
+            assertNotNull(throwable);
+            assertThat(throwable, instanceOf(TimeoutException.class));
         } finally {
+            latch.countDown();
             RpcUtils.terminateRpcEndpoint(endpoint, TIMEOUT);
         }
     }

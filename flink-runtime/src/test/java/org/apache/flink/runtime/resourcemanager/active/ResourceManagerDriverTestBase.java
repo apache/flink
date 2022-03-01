@@ -23,10 +23,10 @@ import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessUtils;
 import org.apache.flink.runtime.clusterframework.types.ResourceIDRetrievable;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.resourcemanager.WorkerResourceSpec;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.util.function.RunnableWithException;
 
 import org.junit.Test;
@@ -37,6 +37,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -194,6 +195,10 @@ public abstract class ResourceManagerDriverTestBase<WorkerType extends ResourceI
                         }
                     });
             return future;
+        }
+
+        protected final <T> CompletableFuture<T> runInMainThread(Supplier<T> supplier) {
+            return CompletableFuture.supplyAsync(supplier, mainThreadExecutor);
         }
 
         protected final void validateInMainThread() {

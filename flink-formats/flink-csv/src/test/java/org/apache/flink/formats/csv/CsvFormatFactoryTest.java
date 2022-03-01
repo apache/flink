@@ -249,7 +249,7 @@ public class CsvFormatFactoryTest extends TestLogger {
         options.put("target", "MyTarget");
         options.put("buffer-size", "1000");
 
-        options.put("format", CsvFormatFactory.IDENTIFIER);
+        options.put("format", CsvCommons.IDENTIFIER);
         options.put("csv.field-delimiter", ";");
         options.put("csv.quote-character", "'");
         options.put("csv.allow-comments", "true");

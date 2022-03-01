@@ -20,11 +20,14 @@ package org.apache.flink.streaming.connectors.kinesis.metrics;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumer;
 
 /** A container for {@link ShardConsumer}s to report metric values. */
 @Internal
 public class ShardConsumerMetricsReporter {
+
+    private final MetricGroup metricGroup;
 
     private volatile long millisBehindLatest = -1;
     private volatile long averageRecordSizeBytes = 0L;
@@ -32,6 +35,7 @@ public class ShardConsumerMetricsReporter {
     private volatile int numberOfDeaggregatedRecords = 0;
 
     public ShardConsumerMetricsReporter(final MetricGroup metricGroup) {
+        this.metricGroup = metricGroup;
         metricGroup.gauge(
                 KinesisConsumerMetricConstants.MILLIS_BEHIND_LATEST_GAUGE,
                 this::getMillisBehindLatest);
@@ -76,5 +80,11 @@ public class ShardConsumerMetricsReporter {
 
     public void setNumberOfDeaggregatedRecords(int numberOfDeaggregatedRecords) {
         this.numberOfDeaggregatedRecords = numberOfDeaggregatedRecords;
+    }
+
+    public void unregister() {
+        if (this.metricGroup instanceof AbstractMetricGroup) {
+            ((AbstractMetricGroup) this.metricGroup).close();
+        }
     }
 }

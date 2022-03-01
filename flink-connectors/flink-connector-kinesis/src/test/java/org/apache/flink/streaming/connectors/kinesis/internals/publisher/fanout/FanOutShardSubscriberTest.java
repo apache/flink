@@ -141,7 +141,7 @@ public class FanOutShardSubscriberTest {
         thrown.expectMessage("Timed out enqueuing event SubscriptionNextEvent");
 
         KinesisProxyV2Interface kinesis =
-                FakeKinesisFanOutBehavioursFactory.boundedShard().withBatchCount(5).build();
+                FakeKinesisFanOutBehavioursFactory.shardThatCreatesBackpressureOnQueue();
 
         FanOutShardSubscriber subscriber =
                 new FanOutShardSubscriber(

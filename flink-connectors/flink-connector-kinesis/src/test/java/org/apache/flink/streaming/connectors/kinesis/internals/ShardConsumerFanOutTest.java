@@ -71,7 +71,9 @@ public class ShardConsumerFanOutTest {
 
         StartingPosition actual = kinesis.getStartingPositionForSubscription(0);
         assertEquals(AT_TIMESTAMP, actual.type());
-        assertTrue(now.equals(actual.timestamp()) || now.isBefore(actual.timestamp()));
+
+        // Considering milliseconds to make now have the same precision as actual
+        assertTrue(now.toEpochMilli() <= actual.timestamp().toEpochMilli());
     }
 
     @Test

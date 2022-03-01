@@ -29,6 +29,7 @@ import org.apache.flink.runtime.io.network.partition.consumer.RemoteInputChannel
 
 import javax.annotation.Nullable;
 
+import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** An allocator used for requesting buffers in the client side netty handlers. */
@@ -69,6 +70,7 @@ class NetworkBufferAllocator {
      * @return The un-pooled network buffer.
      */
     Buffer allocateUnPooledNetworkBuffer(int size, Buffer.DataType dataType) {
+        checkArgument(size > 0, "Illegal buffer size, must be positive.");
         byte[] byteArray = new byte[size];
         MemorySegment memSeg = MemorySegmentFactory.wrap(byteArray);
 

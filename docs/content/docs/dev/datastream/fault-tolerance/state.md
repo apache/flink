@@ -283,7 +283,7 @@ class CountWindowAverage(FlatMapFunction):
     def open(self, runtime_context: RuntimeContext):
         descriptor = ValueStateDescriptor(
             "average",  # the state name
-            Types.TUPLE([Types.LONG(), Types.LONG()])  # type information
+            Types.PICKLED_BYTE_ARRAY()  # type information
         )
         self.sum = runtime_context.get_state(descriptor)
 
@@ -369,6 +369,22 @@ val stateDescriptor = new ValueStateDescriptor[String]("text state", classOf[Str
 stateDescriptor.enableTimeToLive(ttlConfig)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+from pyflink.common.time import Time
+from pyflink.common.typeinfo import Types
+from pyflink.datastream.state import ValueStateDescriptor, StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .set_update_type(StateTtlConfig.UpdateType.OnCreateAndWrite) \
+  .set_state_visibility(StateTtlConfig.StateVisibility.NeverReturnExpired) \
+  .build()
+
+state_descriptor = ValueStateDescriptor("text state", Types.STRING())
+state_descriptor.enable_time_to_live(ttl_config)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 The configuration has several options to consider:
@@ -379,11 +395,17 @@ The update type configures when the state TTL is refreshed (by default `OnCreate
 
  - `StateTtlConfig.UpdateType.OnCreateAndWrite` - only on creation and write access
  - `StateTtlConfig.UpdateType.OnReadAndWrite` - also on read access
+
+    (**Notes:** If you set the state visibility to `StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp`
+    at the same time, the state read cache will be disabled, which will cause some performance loss in PyFlink)
  
 The state visibility configures whether the expired value is returned on read access 
 if it is not cleaned up yet (by default `NeverReturnExpired`):
 
- - `StateTtlConfig.StateVisibility.NeverReturnExpired` - expired value is never returned
+ - `StateTtlConfig.StateVisibility.NeverReturnExpired` - expired value is never returned 
+
+    (**Notes:** The state read/write cache will be disabled, which will cause some performance loss in PyFlink)
+
  - `StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp` - returned if still available
  
 In case of `NeverReturnExpired`, the expired state behaves as if it does not exist anymore, 
@@ -409,8 +431,6 @@ will lead to compatibility failure and `StateMigrationException`.
 
 - The map state with TTL currently supports null user values only if the user value serializer can handle null values. 
 If the serializer does not support null values, it can be wrapped with `NullableSerializer` at the cost of an extra byte in the serialized form.
-
-- State TTL is still not supported in PyFlink DataStream API.
 
 #### Cleanup of Expired State
 
@@ -438,7 +458,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL is still not supported in PyFlink DataStream API.
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .disable_cleanup_in_background() \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -478,7 +504,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL is still not supported in PyFlink DataStream API.
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_full_snapshot() \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -522,7 +554,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL is still not supported in PyFlink DataStream API.
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_incrementally(10, True) \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -574,7 +612,13 @@ val ttlConfig = StateTtlConfig
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-State TTL is still not supported in PyFlink DataStream API.
+from pyflink.common.time import Time
+from pyflink.datastream.state import StateTtlConfig
+
+ttl_config = StateTtlConfig \
+  .new_builder(Time.seconds(1)) \
+  .cleanup_in_rocksdb_compact_filter(1000) \
+  .build()
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -725,7 +769,7 @@ public class BufferingSink
     @Override
     public void invoke(Tuple2<String, Integer> value, Context contex) throws Exception {
         bufferedElements.add(value);
-        if (bufferedElements.size() == threshold) {
+        if (bufferedElements.size() >= threshold) {
             for (Tuple2<String, Integer> element: bufferedElements) {
                 // send it to the sink
             }
@@ -772,7 +816,7 @@ class BufferingSink(threshold: Int = 0)
 
   override def invoke(value: (String, Int), context: Context): Unit = {
     bufferedElements += value
-    if (bufferedElements.size == threshold) {
+    if (bufferedElements.size >= threshold) {
       for (element <- bufferedElements) {
         // send it to the sink
       }
@@ -796,7 +840,7 @@ class BufferingSink(threshold: Int = 0)
     checkpointedState = context.getOperatorStateStore.getListState(descriptor)
 
     if(context.isRestored) {
-      for(element <- checkpointedState.get()) {
+      for(element <- checkpointedState.get().asScala) {
         bufferedElements += element
       }
     }

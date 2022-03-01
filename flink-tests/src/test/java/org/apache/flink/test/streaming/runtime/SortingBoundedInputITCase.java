@@ -57,7 +57,7 @@ import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.KeyedMultipleInputTransformation;
 import org.apache.flink.streaming.runtime.streamrecord.LatencyMarker;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.streamstatus.StreamStatus;
+import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
@@ -690,7 +690,7 @@ public class SortingBoundedInputITCase extends AbstractTestBase {
         public void setKeyContextElement(StreamRecord<Tuple2<Integer, byte[]>> record) {}
 
         @Override
-        public void processStreamStatus(StreamStatus streamStatus) throws Exception {}
+        public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {}
     }
 
     private static class InputGenerator extends SplittableIterator<Tuple2<Integer, byte[]>> {

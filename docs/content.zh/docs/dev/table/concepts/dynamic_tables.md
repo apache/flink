@@ -117,7 +117,7 @@ DataStream 上的关系查询
 
 当查询开始，`clicks` 表(左侧)是空的。当第一行数据被插入到 `clicks` 表时，查询开始计算结果表。第一行数据 `[Mary,./home]` 插入后，结果表(右侧，上部)由一行 `[Mary, 1]` 组成。当第二行 `[Bob, ./cart]` 插入到 `clicks` 表时，查询会更新结果表并插入了一行新数据 `[Bob, 1]`。第三行 `[Mary, ./prod?id=1]` 将产生已计算的结果行的更新，`[Mary, 1]` 更新成 `[Mary, 2]`。最后，当第四行数据加入 `clicks` 表时，查询将第三行 `[Liz, 1]` 插入到结果表中。
 
-第二条查询与第一条类似，但是除了用户属性之外，还将 `clicks` 分组至[每小时滚动窗口]({{< ref "docs/dev/table/sql/overview" >}}#group-windows)中，然后计算 url 数量(基于时间的计算，例如基于特定[时间属性](time_attributes.html)的窗口，后面会讨论)。同样，该图显示了不同时间点的输入和输出，以可视化动态表的变化特性。
+第二条查询与第一条类似，但是除了用户属性之外，还将 `clicks` 分组至[每小时滚动窗口]({{< ref "docs/dev/table/sql/overview" >}}#group-windows)中，然后计算 url 数量(基于时间的计算，例如基于特定[时间属性]({{< ref "docs/dev/table/concepts/time_attributes" >}})的窗口，后面会讨论)。同样，该图显示了不同时间点的输入和输出，以可视化动态表的变化特性。
 
 {{< img alt="Continuous Group-Window Query" src="/fig/table-streaming/query-groupBy-window-cnt.png" width="100%">}}
 
@@ -156,7 +156,7 @@ FROM (
 );
 ```
 
-[查询配置](query_configuration.html)章节讨论了控制连续查询执行的参数。一些参数可以用来在维持状态的大小和获得结果的准确性之间做取舍。
+[查询配置]({{< ref "docs/dev/table/config" >}})章节讨论了控制连续查询执行的参数。一些参数可以用来在维持状态的大小和获得结果的准确性之间做取舍。
 
 <a name="table-to-stream-conversion"></a>
 
@@ -179,6 +179,6 @@ FROM (
 {{< img alt="Dynamic tables" src="/fig/table-streaming/redo-mode.png" width="85%" >}}
 
 
-在[通用概念]({{< ref "docs/dev/table/common" >}}#convert-a-table-into-a-datastream)中讨论了将动态表转换为 `DataStream` 的 API。请注意，在将动态表转换为 `DataStream` 时，只支持 append 流和 retract 流。在 [TableSources 和 TableSinks](../sourceSinks.html#define-a-tablesink) 章节讨论向外部系统输出动态表的 `TableSink` 接口。
+在[通用概念]({{< ref "docs/dev/table/common" >}}#convert-a-table-into-a-datastream)中讨论了将动态表转换为 `DataStream` 的 API。请注意，在将动态表转换为 `DataStream` 时，只支持 append 流和 retract 流。在 [TableSources 和 TableSinks]({{< ref "docs/dev/table/sourcesSinks">}}#dynamic-table-sink) 章节讨论向外部系统输出动态表的 `TableSink` 接口。
 
 {{< top >}}

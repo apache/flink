@@ -19,10 +19,9 @@
 package org.apache.flink.formats.parquet.vector;
 
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.table.data.ColumnarRowData;
 import org.apache.flink.table.data.DecimalData;
-import org.apache.flink.table.data.vector.VectorizedColumnBatch;
-import org.apache.flink.table.runtime.functions.SqlDateTimeUtils;
+import org.apache.flink.table.data.columnar.ColumnarRowData;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
@@ -37,6 +36,7 @@ import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.TinyIntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.utils.DateTimeUtils;
 import org.apache.flink.types.Row;
 
 import org.apache.hadoop.conf.Configuration;
@@ -579,9 +579,7 @@ public class ParquetColumnarRowSplitReaderTest {
                 assertEquals(12, row.getLong(7));
                 assertEquals(13, row.getFloat(8), 0);
                 assertEquals(6.6, row.getDouble(9), 0);
-                assertEquals(
-                        SqlDateTimeUtils.dateToInternal(Date.valueOf("2020-11-23")),
-                        row.getInt(10));
+                assertEquals(DateTimeUtils.toInternal(Date.valueOf("2020-11-23")), row.getInt(10));
                 assertEquals(
                         LocalDateTime.of(1999, 1, 1, 1, 1),
                         row.getTimestamp(11, 9).toLocalDateTime());

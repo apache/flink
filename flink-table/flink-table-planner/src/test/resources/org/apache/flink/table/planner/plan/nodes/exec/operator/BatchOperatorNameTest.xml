@@ -1,0 +1,2099 @@
+<?xml version="1.0" ?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one or more
+contributor license agreements.  See the NOTICE file distributed with
+this work for additional information regarding copyright ownership.
+The ASF licenses this file to you under the Apache License, Version 2.0
+(the "License"); you may not use this file except in compliance with
+the License.  You may obtain a copy of the License at
+
+http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+<Root>
+  <TestCase name="testBoundedStreamScan[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(f0=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[f0])
+
+== Optimized Execution Plan ==
+BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[f0])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Collection Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Collection Source",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SourceConversion(table=[default_catalog.default_database.MyTable], fields=[f0])",
+    "pact" : "Operator",
+    "contents" : "SourceConversion(table=[default_catalog.default_database.MyTable], fields=[f0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testBoundedStreamScan[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(f0=[$0])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[f0])
+
+== Optimized Execution Plan ==
+BoundedStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[f0])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Collection Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Collection Source",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SourceConversion[]",
+    "pact" : "Operator",
+    "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable], fields=[f0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCorrelate[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(s=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+
+== Optimized Physical Plan ==
+Calc(select=[EXPR$0 AS s])
++- Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+Calc(select=[EXPR$0 AS s])
++- Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])",
+    "pact" : "Operator",
+    "contents" : "Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc(select=[EXPR$0 AS s])",
+    "pact" : "Operator",
+    "contents" : "Calc(select=[EXPR$0 AS s])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testCorrelate[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(s=[$4])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{2}])
+   :- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalTableFunctionScan(invocation=[func1($cor0.c)], rowType=[RecordType(VARCHAR(2147483647) EXPR$0)])
+
+== Optimized Physical Plan ==
+Calc(select=[EXPR$0 AS s])
++- Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+Calc(select=[EXPR$0 AS s])
++- Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])
+   +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Correlate[]",
+    "pact" : "Operator",
+    "contents" : "[]:Correlate(invocation=[func1($cor0.c)], correlate=[table(func1($cor0.c))], select=[a,b,c,d,EXPR$0], rowType=[RecordType(BIGINT a, INTEGER b, VARCHAR(2147483647) c, BIGINT d, VARCHAR(2147483647) EXPR$0)], joinType=[INNER])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[EXPR$0 AS s])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupWindowAggregate[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()])
+   +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[b, w$end AS window_end, EXPR$2])
++- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+
+== Optimized Execution Plan ==
+Calc(select=[b, w$end AS window_end, EXPR$2])
++- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])",
+    "pact" : "Operator",
+    "contents" : "LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])",
+    "pact" : "Operator",
+    "contents" : "HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
+    "pact" : "Operator",
+    "contents" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGroupWindowAggregate[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$2=[COUNT()])
+   +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[b, w$end AS window_end, EXPR$2])
++- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+
+== Optimized Execution Plan ==
+Calc(select=[b, w$end AS window_end, EXPR$2])
++- HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])
+   +- Exchange(distribution=[hash[b]])
+      +- LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime], metadata=[]]], fields=[b, rowtime])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "HashWindowAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:LocalHashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Partial_COUNT(*) AS count1$0])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashWindowAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:HashWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, Final_COUNT(count1$0) AS EXPR$2])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[b, w$end AS window_end, EXPR$2])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHashAggregate[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
+      +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
+         +- Exchange(distribution=[hash[a, b]])
+            +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Optimized Execution Plan ==
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
+      +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
+         +- Exchange(distribution=[hash[a, b]])
+            +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "LocalHashAggregate(groupBy=[a, b], select=[a, b])",
+    "pact" : "Operator",
+    "contents" : "LocalHashAggregate(groupBy=[a, b], select=[a, b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
+    "pact" : "Operator",
+    "contents" : "HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a, b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
+    "pact" : "Operator",
+    "contents" : "LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
+    "pact" : "Operator",
+    "contents" : "HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHashAggregate[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
+      +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
+         +- Exchange(distribution=[hash[a, b]])
+            +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Optimized Execution Plan ==
+HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
++- Exchange(distribution=[hash[a]])
+   +- LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
+      +- HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
+         +- Exchange(distribution=[hash[a, b]])
+            +- LocalHashAggregate(groupBy=[a, b], select=[a, b])
+               +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:LocalHashAggregate(groupBy=[a, b], select=[a, b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:HashAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a, b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:LocalHashAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "HashAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:HashAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHashJoin[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+
+== Optimized Physical Plan ==
+HashJoin(joinType=[InnerJoin], where=[=(a, d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[d]])
+   +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[d]])
+   +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])",
+    "pact" : "Operator",
+    "contents" : "HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[d]",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testHashJoin[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+
+== Optimized Physical Plan ==
+HashJoin(joinType=[InnerJoin], where=[=(a, d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[d]])
+   +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[d]])
+   +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: A[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: B[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "HashJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:HashJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[d]",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLegacySourceSink[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, id, amount, price])
++- LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MySource, source: [filterPushedDown=[false], filter=[]]]])
+
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, id, amount, price])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource, source: [filterPushedDown=[false], filter=[]]]], fields=[name, id, amount, price])
+
+== Optimized Execution Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, id, amount, price])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource, source: [filterPushedDown=[false], filter=[]]]], fields=[name, id, amount, price])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Collection Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Collection Source",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SourceConversion(table=[default_catalog.default_database.MySource, source: [filterPushedDown=[false], filter=[]]], fields=[name, id, amount, price])",
+    "pact" : "Operator",
+    "contents" : "SourceConversion(table=[default_catalog.default_database.MySource, source: [filterPushedDown=[false], filter=[]]], fields=[name, id, amount, price])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SinkConversion To Row",
+    "pact" : "Operator",
+    "contents" : "SinkConversion To Row",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: collect",
+    "pact" : "Data Sink",
+    "contents" : "Sink: collect",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLegacySourceSink[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalLegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, id, amount, price])
++- LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MySource, source: [filterPushedDown=[false], filter=[]]]])
+
+== Optimized Physical Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, id, amount, price])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource, source: [filterPushedDown=[false], filter=[]]]], fields=[name, id, amount, price])
+
+== Optimized Execution Plan ==
+LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[name, id, amount, price])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MySource, source: [filterPushedDown=[false], filter=[]]]], fields=[name, id, amount, price])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: Collection Source",
+    "pact" : "Data Source",
+    "contents" : "Source: Collection Source",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SourceConversion[]",
+    "pact" : "Operator",
+    "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MySource, source: [filterPushedDown=[false], filter=[]]], fields=[name, id, amount, price])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SinkConversion[]",
+    "pact" : "Operator",
+    "contents" : "[]:SinkConversion To Row",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: collect",
+    "pact" : "Data Sink",
+    "contents" : "Sink: collect",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimit[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSort(fetch=[10])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Limit(offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[10]]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+Limit(offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[10]]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[]]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[10]]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Limit(offset=[], fetch=[10], global=[false])",
+    "pact" : "Operator",
+    "contents" : "Limit(offset=[0], fetch=[10], global=[false])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Limit(offset=[], fetch=[10], global=[true])",
+    "pact" : "Operator",
+    "contents" : "Limit(offset=[0], fetch=[10], global=[true])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "GLOBAL",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLimit[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSort(fetch=[10])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Limit(offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[10]]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+Limit(offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- Limit(offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[10]]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, limit=[10]]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Limit[]",
+    "pact" : "Operator",
+    "contents" : "[]:Limit(offset=[0], fetch=[10], global=[false])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Limit[]",
+    "pact" : "Operator",
+    "contents" : "[]:Limit(offset=[0], fetch=[10], global=[true])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "GLOBAL",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLookupJoin[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], id=[$6], name=[$7], age=[$8])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 5}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalFilter(condition=[=($cor0.b, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
+   +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+
+== Optimized Execution Plan ==
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
+   +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
+    "pact" : "Operator",
+    "contents" : "Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
+    "pact" : "Operator",
+    "contents" : "LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])",
+    "pact" : "Operator",
+    "contents" : "Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testLookupJoin[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[$5], id=[$6], name=[$7], age=[$8])
++- LogicalCorrelate(correlation=[$cor0], joinType=[inner], requiredColumns=[{1, 5}])
+   :- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], rowtime=[$4], proctime=[PROCTIME()])
+   :  +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+   +- LogicalFilter(condition=[=($cor0.b, $0)])
+      +- LogicalSnapshot(period=[$cor0.proctime])
+         +- LogicalTableScan(table=[[default_catalog, default_database, LookupTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
+   +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+
+== Optimized Execution Plan ==
+Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])
++- LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])
+   +- Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d, rowtime])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, b, c, d, rowtime, PROCTIME() AS proctime])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "LookupJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:LookupJoin(table=[default_catalog.default_database.LookupTable], joinType=[InnerJoin], async=[false], lookup=[id=b], select=[a, b, c, d, rowtime, proctime, id, name, age])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, b, c, d, rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, id, name, age])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiInput[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7], a1=[$8], b1=[$9], c1=[$10], d1=[$11])
++- LogicalFilter(condition=[AND(=($0, $4), =($0, $8))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, C]])
+
+== Optimized Physical Plan ==
+HashJoin(joinType=[InnerJoin], where=[=(a, a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])
+:- HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])
+:  :- Exchange(distribution=[hash[a]])
+:  :  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
+:  +- Exchange(distribution=[hash[a]])
+:     +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[a]])
+   +- TableSourceScan(table=[[default_catalog, default_database, C]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])\n:- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[hash[a]])\n])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, C]], fields=[a, b, c, d])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[a]])
+   +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, C]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, C]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "MultipleInput(readOrder=[2,1,0], members=[\\nHashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])\\n:- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])\\n:  :- [#2] Exchange(distribution=[hash[a]])\\n:  +- [#3] Exchange(distribution=[hash[a]])\\n+- [#1] Exchange(distribution=[hash[a]])\\n])",
+    "pact" : "Operator",
+    "contents" : "MultipleInput(readOrder=[2,1,0], members=[\\nHashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])\\n:- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])\\n:  :- [#2] Exchange(distribution=[hash[a]])\\n:  +- [#3] Exchange(distribution=[hash[a]])\\n+- [#1] Exchange(distribution=[hash[a]])\\n])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testMultiInput[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7], a1=[$8], b1=[$9], c1=[$10], d1=[$11])
++- LogicalFilter(condition=[AND(=($0, $4), =($0, $8))])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalJoin(condition=[true], joinType=[inner])
+      :  :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+      :  +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, C]])
+
+== Optimized Physical Plan ==
+HashJoin(joinType=[InnerJoin], where=[=(a, a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])
+:- HashJoin(joinType=[InnerJoin], where=[=(a, a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])
+:  :- Exchange(distribution=[hash[a]])
+:  :  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
+:  +- Exchange(distribution=[hash[a]])
+:     +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[a]])
+   +- TableSourceScan(table=[[default_catalog, default_database, C]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+MultipleInput(readOrder=[2,1,0], members=[\nHashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])\n:- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])\n:  :- [#2] Exchange(distribution=[hash[a]])\n:  +- [#3] Exchange(distribution=[hash[a]])\n+- [#1] Exchange(distribution=[hash[a]])\n])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, C]], fields=[a, b, c, d])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[a]])
+   +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: C[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, C]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: A[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: B[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "MultipleInput[]",
+    "pact" : "Operator",
+    "contents" : "[]:MultipleInput(readOrder=[2,1,0], members=[\\nHashJoin(joinType=[InnerJoin], where=[(a = a1)], select=[a, b, c, d, a0, b0, c0, d0, a1, b1, c1, d1], build=[left])\\n:- HashJoin(joinType=[InnerJoin], where=[(a = a0)], select=[a, b, c, d, a0, b0, c0, d0], build=[right])\\n:  :- [#2] Exchange(distribution=[hash[a]])\\n:  +- [#3] Exchange(distribution=[hash[a]])\\n+- [#1] Exchange(distribution=[hash[a]])\\n])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedLoopJoin[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+
+== Optimized Physical Plan ==
+NestedLoopJoin(joinType=[InnerJoin], where=[=(a, d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[left])",
+    "pact" : "Operator",
+    "contents" : "NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[left])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "BROADCAST",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testNestedLoopJoin[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+
+== Optimized Physical Plan ==
+NestedLoopJoin(joinType=[InnerJoin], where=[=(a, d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[left])
+:- Exchange(distribution=[broadcast])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: B[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: A[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "NestedLoopJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:NestedLoopJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0], build=[left])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "BROADCAST",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverAggregate[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[b, w0$o0 AS $1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
+   +- Sort(orderBy=[b ASC, rowtime ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+
+== Optimized Execution Plan ==
+Calc(select=[b, w0$o0 AS $1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
+   +- Sort(orderBy=[b ASC, rowtime ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Sort(orderBy=[b ASC, rowtime ASC])",
+    "pact" : "Operator",
+    "contents" : "Sort(orderBy=[b ASC, rowtime ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
+    "pact" : "Operator",
+    "contents" : "OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc(select=[b, w0$o0 AS $1])",
+    "pact" : "Operator",
+    "contents" : "Calc(select=[b, w0$o0 AS $1])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testOverAggregate[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(b=[$1], cnt1=[COUNT($0) OVER (PARTITION BY $1 ORDER BY $4 NULLS FIRST ROWS 2 PRECEDING)])
++- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[b, w0$o0 AS $1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
+   +- Sort(orderBy=[b ASC, rowtime ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+
+== Optimized Execution Plan ==
+Calc(select=[b, w0$o0 AS $1])
++- OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])
+   +- Sort(orderBy=[b ASC, rowtime ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b, rowtime], metadata=[]]], fields=[a, b, rowtime])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Sort[]",
+    "pact" : "Operator",
+    "contents" : "[]:Sort(orderBy=[b ASC, rowtime ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "OverAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window#0=[COUNT(a) AS w0$o0 ROWS BETWEEN 2 PRECEDING AND CURRENT ROW], select=[a, b, rowtime, w0$o0])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[b, w0$o0 AS $1])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRank[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], row_num=[$1])
++- LogicalFilter(condition=[<=($1, $0)])
+   +- LogicalProject(a=[$0], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[a, w0$o0], where=[<=(w0$o0, a)])
++- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
+   +- Sort(orderBy=[b ASC, a ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
++- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
+   +- Sort(orderBy=[b ASC, a ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Sort(orderBy=[b ASC, a ASC])",
+    "pact" : "Operator",
+    "contents" : "Sort(orderBy=[b ASC, a ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
+    "pact" : "Operator",
+    "contents" : "OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
+    "pact" : "Operator",
+    "contents" : "Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testRank[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], row_num=[$1])
++- LogicalFilter(condition=[<=($1, $0)])
+   +- LogicalProject(a=[$0], row_num=[ROW_NUMBER() OVER (PARTITION BY $1 ORDER BY $0 NULLS FIRST)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[a, w0$o0], where=[<=(w0$o0, a)])
++- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
+   +- Sort(orderBy=[b ASC, a ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Optimized Execution Plan ==
+Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])
++- OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])
+   +- Sort(orderBy=[b ASC, a ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Sort[]",
+    "pact" : "Operator",
+    "contents" : "[]:Sort(orderBy=[b ASC, a ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "OverAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:OverAggregate(partitionBy=[b], orderBy=[a ASC], window#0=[ROW_NUMBER(*) AS w0$o0 ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW], select=[a, b, w0$o0])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[a, w0$o0], where=[(w0$o0 <= a)])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortAggregate[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
++- Sort(orderBy=[a ASC])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
+         +- Sort(orderBy=[a ASC])
+            +- SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
+               +- Sort(orderBy=[a ASC, b ASC])
+                  +- Exchange(distribution=[hash[a, b]])
+                     +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
+                        +- Sort(orderBy=[a ASC, b ASC])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Optimized Execution Plan ==
+SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
++- Sort(orderBy=[a ASC])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
+         +- Sort(orderBy=[a ASC])
+            +- SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
+               +- Sort(orderBy=[a ASC, b ASC])
+                  +- Exchange(distribution=[hash[a, b]])
+                     +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
+                        +- Sort(orderBy=[a ASC, b ASC])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Sort(orderBy=[a ASC, b ASC])",
+    "pact" : "Operator",
+    "contents" : "Sort(orderBy=[a ASC, b ASC])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "LocalSortAggregate(groupBy=[a, b], select=[a, b])",
+    "pact" : "Operator",
+    "contents" : "LocalSortAggregate(groupBy=[a, b], select=[a, b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sort(orderBy=[a ASC, b ASC])",
+    "pact" : "Operator",
+    "contents" : "Sort(orderBy=[a ASC, b ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a, b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
+    "pact" : "Operator",
+    "contents" : "SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sort(orderBy=[a ASC])",
+    "pact" : "Operator",
+    "contents" : "Sort(orderBy=[a ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
+    "pact" : "Operator",
+    "contents" : "LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sort(orderBy=[a ASC])",
+    "pact" : "Operator",
+    "contents" : "Sort(orderBy=[a ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
+    "pact" : "Operator",
+    "contents" : "SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortAggregate[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalAggregate(group=[{0}], b=[COUNT(DISTINCT $1)])
++- LogicalProject(a=[$0], b=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
++- Sort(orderBy=[a ASC])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
+         +- Sort(orderBy=[a ASC])
+            +- SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
+               +- Sort(orderBy=[a ASC, b ASC])
+                  +- Exchange(distribution=[hash[a, b]])
+                     +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
+                        +- Sort(orderBy=[a ASC, b ASC])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Optimized Execution Plan ==
+SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])
++- Sort(orderBy=[a ASC])
+   +- Exchange(distribution=[hash[a]])
+      +- LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])
+         +- Sort(orderBy=[a ASC])
+            +- SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])
+               +- Sort(orderBy=[a ASC, b ASC])
+                  +- Exchange(distribution=[hash[a, b]])
+                     +- LocalSortAggregate(groupBy=[a, b], select=[a, b])
+                        +- Sort(orderBy=[a ASC, b ASC])
+                           +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[a, b], metadata=[]]], fields=[a, b])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Sort[]",
+    "pact" : "Operator",
+    "contents" : "[]:Sort(orderBy=[a ASC, b ASC])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SortAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:LocalSortAggregate(groupBy=[a, b], select=[a, b])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sort[]",
+    "pact" : "Operator",
+    "contents" : "[]:Sort(orderBy=[a ASC, b ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a, b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SortAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:SortAggregate(isMerge=[true], groupBy=[a, b], select=[a, b])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sort[]",
+    "pact" : "Operator",
+    "contents" : "[]:Sort(orderBy=[a ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SortAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:LocalSortAggregate(groupBy=[a], select=[a, Partial_COUNT(b) AS count$0])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sort[]",
+    "pact" : "Operator",
+    "contents" : "[]:Sort(orderBy=[a ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SortAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_COUNT(count$0) AS b])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortLimit[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[10])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SortLimit(orderBy=[a ASC], offset=[], fetch=[10], global=[false])",
+    "pact" : "Operator",
+    "contents" : "SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[false])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SortLimit(orderBy=[a ASC], offset=[], fetch=[10], global=[true])",
+    "pact" : "Operator",
+    "contents" : "SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "GLOBAL",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortLimit[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSort(sort0=[$0], dir0=[ASC-nulls-first], fetch=[10])
++- LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])
++- Exchange(distribution=[single])
+   +- SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[false])
+      +- TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SortLimit[]",
+    "pact" : "Operator",
+    "contents" : "[]:SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[false])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SortLimit[]",
+    "pact" : "Operator",
+    "contents" : "[]:SortLimit(orderBy=[a ASC], offset=[0], fetch=[10], global=[true])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "GLOBAL",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortMergeJoin[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+
+== Optimized Physical Plan ==
+SortMergeJoin(joinType=[InnerJoin], where=[=(a, d0)], select=[a, b, c, d, a0, b0, c0, d0])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[d]])
+   +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[d]])
+   +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0])",
+    "pact" : "Operator",
+    "contents" : "SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "HASH[d]",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortWindowAggregate[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$2=[FIRST_VALUE($2)])
+   +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[b, w$end AS window_end, EXPR$2])
++- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
+   +- Sort(orderBy=[b ASC, rowtime ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
+
+== Optimized Execution Plan ==
+Calc(select=[b, w$end AS window_end, EXPR$2])
++- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
+   +- Sort(orderBy=[b ASC, rowtime ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: MyTable[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Sort[]",
+    "pact" : "Operator",
+    "contents" : "[]:Sort(orderBy=[b ASC, rowtime ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SortWindowAggregate[]",
+    "pact" : "Operator",
+    "contents" : "[]:SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[b, w$end AS window_end, EXPR$2])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortMergeJoin[isNameSimplifyEnabled=true]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3], a0=[$4], b0=[$5], c0=[$6], d0=[$7])
++- LogicalFilter(condition=[=($0, $7)])
+   +- LogicalJoin(condition=[true], joinType=[inner])
+      :- LogicalTableScan(table=[[default_catalog, default_database, A]])
+      +- LogicalTableScan(table=[[default_catalog, default_database, B]])
+
+== Optimized Physical Plan ==
+SortMergeJoin(joinType=[InnerJoin], where=[=(a, d0)], select=[a, b, c, d, a0, b0, c0, d0])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[d]])
+   +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Optimized Execution Plan ==
+SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0])
+:- Exchange(distribution=[hash[a]])
+:  +- TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])
++- Exchange(distribution=[hash[d]])
+   +- TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: A[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, A]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Source: B[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, B]], fields=[a, b, c, d])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "SortMergeJoin[]",
+    "pact" : "Operator",
+    "contents" : "[]:SortMergeJoin(joinType=[InnerJoin], where=[(a = d0)], select=[a, b, c, d, a0, b0, c0, d0])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[a]",
+      "side" : "second"
+    }, {
+      "id" : ,
+      "ship_strategy" : "HASH[d]",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testSortWindowAggregate[isNameSimplifyEnabled=false]">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalProject(b=[$0], window_end=[TUMBLE_END($1)], EXPR$2=[$2])
++- LogicalAggregate(group=[{0, 1}], EXPR$2=[FIRST_VALUE($2)])
+   +- LogicalProject(b=[$1], $f1=[$TUMBLE($4, 900000:INTERVAL MINUTE)], a=[$0])
+      +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+
+== Optimized Physical Plan ==
+Calc(select=[b, w$end AS window_end, EXPR$2])
++- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
+   +- Sort(orderBy=[b ASC, rowtime ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
+
+== Optimized Execution Plan ==
+Calc(select=[b, w$end AS window_end, EXPR$2])
++- SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])
+   +- Sort(orderBy=[b ASC, rowtime ASC])
+      +- Exchange(distribution=[hash[b]])
+         +- TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])",
+    "pact" : "Data Source",
+    "contents" : "TableSourceScan(table=[[default_catalog, default_database, MyTable, project=[b, rowtime, a], metadata=[]]], fields=[b, rowtime, a])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "Sort(orderBy=[b ASC, rowtime ASC])",
+    "pact" : "Operator",
+    "contents" : "Sort(orderBy=[b ASC, rowtime ASC])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH[b]",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
+    "pact" : "Operator",
+    "contents" : "SortWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w$, rowtime, 900000)], properties=[w$start, w$end, w$rowtime], select=[b, FIRST_VALUE(a) AS EXPR$2])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
+    "pact" : "Operator",
+    "contents" : "Calc(select=[b, w$end AS window_end, EXPR$2])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+</Root>

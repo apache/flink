@@ -25,8 +25,9 @@ import org.apache.flink.metrics.Histogram;
 import org.apache.flink.metrics.HistogramStatistics;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
-import org.apache.flink.runtime.metrics.MetricRegistryConfiguration;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
+import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;
 import org.apache.flink.runtime.metrics.util.TestReporter;
 import org.apache.flink.util.TestLogger;
@@ -45,11 +46,13 @@ public class MetricGroupRegistrationTest extends TestLogger {
     public void testMetricInstantiation() throws Exception {
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
-                        MetricRegistryConfiguration.defaultMetricRegistryConfiguration(),
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
                                 ReporterSetup.forReporter("test", new TestReporter1())));
 
-        MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
+        MetricGroup root =
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "host", new ResourceID("id"));
 
         Counter counter = root.counter("counter");
         assertEquals(counter, TestReporter1.lastPassedMetric);
@@ -113,9 +116,11 @@ public class MetricGroupRegistrationTest extends TestLogger {
         Configuration config = new Configuration();
 
         MetricRegistryImpl registry =
-                new MetricRegistryImpl(MetricRegistryConfiguration.fromConfiguration(config));
+                new MetricRegistryImpl(MetricRegistryTestUtils.fromConfiguration(config));
 
-        MetricGroup root = new TaskManagerMetricGroup(registry, "host", "id");
+        MetricGroup root =
+                TaskManagerMetricGroup.createTaskManagerMetricGroup(
+                        registry, "host", new ResourceID("id"));
 
         MetricGroup group1 = root.addGroup("group");
         MetricGroup group2 = root.addGroup("group");

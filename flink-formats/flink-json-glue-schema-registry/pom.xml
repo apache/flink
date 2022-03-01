@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<parent>
+		<artifactId>flink-formats</artifactId>
+		<groupId>org.apache.flink</groupId>
+		<version>1.15-SNAPSHOT</version>
+		<relativePath>..</relativePath>
+	</parent>
+	<modelVersion>4.0.0</modelVersion>
+
+	<artifactId>flink-json-glue-schema-registry_${scala.binary.version}</artifactId>
+	<name>Flink : Formats : JSON AWS Glue Schema Registry</name>
+	<packaging>jar</packaging>
+
+	<properties>
+		<glue.schema.registry.version>1.1.8</glue.schema.registry.version>
+		<aws.sdkv2.version>2.17.52</aws.sdkv2.version>
+		<netty.version>4.1.68.Final</netty.version>
+		<kotlin.version>1.3.50</kotlin.version>
+		<classgraph.version>4.8.120</classgraph.version>
+	</properties>
+
+	<!-- ============================= -->
+	<!-- DEPENDENCY MANAGEMENT -->
+	<!-- ============================= -->
+	<dependencyManagement>
+		<dependencies>
+			<!-- dependencies to solve enforcer check issue -->
+			<!-- can be removed once new version of Glue Schema Registry releases -->
+
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-handler</artifactId>
+				<version>${netty.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-codec-http</artifactId>
+				<version>${netty.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>org.jetbrains.kotlin</groupId>
+				<artifactId>kotlin-stdlib-common</artifactId>
+				<version>${kotlin.version}</version>
+			</dependency>
+
+			<dependency>
+				<groupId>io.github.classgraph</groupId>
+				<artifactId>classgraph</artifactId>
+				<version>${classgraph.version}</version>
+			</dependency>
+
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+		<!-- core dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-core</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-streaming-java</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-base</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.glue</groupId>
+			<artifactId>schema-registry-serde</artifactId>
+			<version>${glue.schema.registry.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.glue</groupId>
+			<artifactId>schema-registry-common</artifactId>
+			<version>${glue.schema.registry.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>aws-core</artifactId>
+			<version>${aws.sdkv2.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>com.kjetland</groupId>
+			<artifactId>mbknor-jackson-jsonschema_${scala.binary.version}</artifactId>
+			<version>1.0.39</version>
+			<exclusions>
+				<!-- Testcontainers dependency includes a newer version -->
+				<exclusion>
+					<groupId>org.jetbrains</groupId>
+					<artifactId>annotations</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
+		<dependency>
+			<groupId>com.github.erosb</groupId>
+			<artifactId>everit-json-schema</artifactId>
+			<version>1.12.2</version>
+		</dependency>
+
+	</dependencies>
+
+</project>

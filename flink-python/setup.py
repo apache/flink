@@ -120,8 +120,8 @@ else:
                 sources=["pyflink/fn_execution/stream_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/"]),
             Extension(
-                name="pyflink.fn_execution.beam.beam_stream",
-                sources=["pyflink/fn_execution/beam/beam_stream.pyx"],
+                name="pyflink.fn_execution.beam.beam_stream_fast",
+                sources=["pyflink/fn_execution/beam/beam_stream_fast.pyx"],
                 include_dirs=["pyflink/fn_execution/beam"]),
             Extension(
                 name="pyflink.fn_execution.beam.beam_coder_impl_fast",
@@ -152,8 +152,8 @@ else:
                     sources=["pyflink/fn_execution/stream_fast.c"],
                     include_dirs=["pyflink/fn_execution/"]),
                 Extension(
-                    name="pyflink.fn_execution.beam.beam_stream",
-                    sources=["pyflink/fn_execution/beam/beam_stream.c"],
+                    name="pyflink.fn_execution.beam.beam_stream_fast",
+                    sources=["pyflink/fn_execution/beam/beam_stream_fast.c"],
                     include_dirs=["pyflink/fn_execution/beam"]),
                 Extension(
                     name="pyflink.fn_execution.beam.beam_coder_impl_fast",
@@ -213,7 +213,7 @@ try:
         FLINK_DIST = os.path.join(FLINK_ROOT, "flink-dist")
         FLINK_BIN = os.path.join(FLINK_DIST, "src/main/flink-bin")
 
-        EXAMPLES_PATH = os.path.join(this_directory, "pyflink/table/examples")
+        EXAMPLES_PATH = os.path.join(this_directory, "pyflink/examples")
 
         LICENSE_FILE_PATH = os.path.join(FLINK_ROOT, "LICENSE")
         README_FILE_PATH = os.path.join(FLINK_BIN, "README.txt")
@@ -273,6 +273,7 @@ try:
                 'pyflink.fn_execution',
                 'pyflink.fn_execution.beam',
                 'pyflink.fn_execution.datastream',
+                'pyflink.fn_execution.datastream.window',
                 'pyflink.fn_execution.table',
                 'pyflink.fn_execution.utils',
                 'pyflink.metrics',
@@ -307,10 +308,12 @@ try:
         author='Apache Software Foundation',
         author_email='dev@flink.apache.org',
         python_requires='>=3.6',
-        install_requires=['py4j==0.10.8.1', 'python-dateutil==2.8.0', 'apache-beam==2.27.0',
+        install_requires=['py4j==0.10.9.3', 'python-dateutil==2.8.0', 'apache-beam==2.27.0',
                           'cloudpickle==1.2.2', 'avro-python3>=1.8.1,!=1.9.2,<1.10.0',
                           'pandas>=1.0,<1.2.0', 'pyarrow>=0.15.1,<3.0.0',
                           'pytz>=2018.3', 'numpy>=1.14.3,<1.20', 'fastavro>=0.21.4,<0.24',
+                          'requests>=2.26.0', 'protobuf<3.18',
+                          'pemja==0.1.2;python_full_version >= "3.7"',
                           apache_flink_libraries_dependency],
         cmdclass={'build_ext': build_ext},
         tests_require=['pytest==4.4.1'],

@@ -21,10 +21,13 @@ package org.apache.flink.core.io;
 import org.apache.flink.core.memory.DataInputDeserializer;
 import org.apache.flink.core.memory.DataOutputSerializer;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
+
 import org.junit.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -94,6 +97,21 @@ public class SimpleVersionedSerializationTest {
                 SimpleVersionedSerialization.readVersionAndDeSerialize(emptySerializer, outBytes);
         assertEquals(testString, deserialized);
         assertEquals(testString, deserializedFromBytes);
+    }
+
+    @Test
+    public void testListSerializationRoundTrip() throws IOException {
+        final SimpleVersionedSerializer<String> utfEncoder = new TestStringSerializer();
+        final List<String> datums = ImmutableList.of("beeep!", "beep!!!");
+
+        final DataOutputSerializer out = new DataOutputSerializer(32);
+        SimpleVersionedSerialization.writeVersionAndSerializeList(utfEncoder, datums, out);
+        final byte[] outBytes = out.getCopyOfBuffer();
+
+        final DataInputDeserializer in = new DataInputDeserializer(outBytes);
+        final List<String> deserialized =
+                SimpleVersionedSerialization.readVersionAndDeserializeList(utfEncoder, in);
+        assertEquals(datums, deserialized);
     }
 
     @Test(expected = IllegalArgumentException.class)

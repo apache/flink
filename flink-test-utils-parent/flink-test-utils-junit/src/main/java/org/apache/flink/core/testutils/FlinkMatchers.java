@@ -35,7 +35,15 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
-/** Some reusable hamcrest matchers for Flink. */
+/**
+ * Some reusable hamcrest matchers for Flink.
+ *
+ * @deprecated You should assertj assertions, which have built-in assertions for {@link
+ *     CompletableFuture}. To check chains of {@link Throwable} causes, use {@link
+ *     FlinkAssertions#anyCauseMatches(String)} or {@link FlinkAssertions#anyCauseMatches(Class,
+ *     String)}
+ */
+@Deprecated
 public class FlinkMatchers {
 
     // ------------------------------------------------------------------------

@@ -45,7 +45,7 @@ public class LegacySourceTransformation<T> extends PhysicalTransformation<T>
 
     private final StreamOperatorFactory<T> operatorFactory;
 
-    private final Boundedness boundedness;
+    private Boundedness boundedness;
 
     /**
      * Creates a new {@code LegacySourceTransformation} from the given operator.
@@ -75,6 +75,11 @@ public class LegacySourceTransformation<T> extends PhysicalTransformation<T>
         super(name, outputType, parallelism);
         this.operatorFactory = checkNotNull(operatorFactory);
         this.boundedness = checkNotNull(boundedness);
+    }
+
+    /** Mutable for legacy sources in the Table API. */
+    public void setBoundedness(Boundedness boundedness) {
+        this.boundedness = boundedness;
     }
 
     @Override

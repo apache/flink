@@ -32,7 +32,10 @@ import org.influxdb.InfluxDB;
 public class InfluxdbReporterOptions {
 
     public static final ConfigOption<String> HOST =
-            ConfigOptions.key("host").noDefaultValue().withDescription("the InfluxDB server host");
+            ConfigOptions.key("host")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription("the InfluxDB server host");
 
     public static final ConfigOption<Scheme> SCHEME =
             ConfigOptions.key("scheme")
@@ -42,27 +45,32 @@ public class InfluxdbReporterOptions {
 
     public static final ConfigOption<Integer> PORT =
             ConfigOptions.key("port")
+                    .intType()
                     .defaultValue(8086)
                     .withDescription("the InfluxDB server port");
 
     public static final ConfigOption<String> USERNAME =
             ConfigOptions.key("username")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription("(optional) InfluxDB username used for authentication");
 
     public static final ConfigOption<String> PASSWORD =
             ConfigOptions.key("password")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             "(optional) InfluxDB username's password used for authentication");
 
     public static final ConfigOption<String> DB =
             ConfigOptions.key("db")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription("the InfluxDB database to store metrics");
 
     public static final ConfigOption<String> RETENTION_POLICY =
             ConfigOptions.key("retentionPolicy")
+                    .stringType()
                     .defaultValue("")
                     .withDescription("(optional) the InfluxDB retention policy for metrics");
 
@@ -74,11 +82,13 @@ public class InfluxdbReporterOptions {
 
     public static final ConfigOption<Integer> CONNECT_TIMEOUT =
             ConfigOptions.key("connectTimeout")
+                    .intType()
                     .defaultValue(10000)
                     .withDescription("(optional) the InfluxDB connect timeout for metrics");
 
     public static final ConfigOption<Integer> WRITE_TIMEOUT =
             ConfigOptions.key("writeTimeout")
+                    .intType()
                     .defaultValue(10000)
                     .withDescription("(optional) the InfluxDB write timeout for metrics");
 

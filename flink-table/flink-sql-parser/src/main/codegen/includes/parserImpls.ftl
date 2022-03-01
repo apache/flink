@@ -423,19 +423,63 @@ SqlShowTables SqlShowTables() :
 }
 
 /**
-* Parse a "Show Create Table" query command.
+* SHOW COLUMNS FROM [[catalog.] database.]sqlIdentifier sql call.
 */
-SqlShowCreateTable SqlShowCreateTable() :
+SqlShowColumns SqlShowColumns() :
 {
     SqlIdentifier tableName;
+    SqlCharStringLiteral likeLiteral = null;
+    String prep = "FROM";
+    boolean notLike = false;
     SqlParserPos pos;
 }
 {
-    <SHOW> <CREATE> <TABLE> { pos = getPos();}
+    <SHOW> <COLUMNS> ( <FROM> | <IN> { prep = "IN"; } )
+    { pos = getPos();}
     tableName = CompoundIdentifier()
+    [
+        [
+            <NOT>
+            {
+                notLike = true;
+            }
+        ]
+        <LIKE>  <QUOTED_STRING>
+        {
+            String likeCondition = SqlParserUtil.parseString(token.image);
+            likeLiteral = SqlLiteral.createCharString(likeCondition, getPos());
+        }
+    ]
     {
-        return new SqlShowCreateTable(pos, tableName);
+        return new SqlShowColumns(pos, prep, tableName, notLike, likeLiteral);
     }
+}
+
+/**
+* Parse a "Show Create Table" query and "Show Create View" query commands.
+*/
+SqlShowCreate SqlShowCreate() :
+{
+    SqlIdentifier sqlIdentifier;
+    SqlParserPos pos;
+}
+{
+    <SHOW> <CREATE>
+    (
+        <TABLE>
+        { pos = getPos(); }
+        sqlIdentifier = CompoundIdentifier()
+        {
+            return new SqlShowCreateTable(pos, sqlIdentifier);
+        }
+    |
+        <VIEW>
+        { pos = getPos(); }
+        sqlIdentifier = CompoundIdentifier()
+        {
+            return new SqlShowCreateView(pos, sqlIdentifier);
+        }
+    )
 }
 
 /**
@@ -464,6 +508,7 @@ SqlAlterTable SqlAlterTable() :
     SqlIdentifier newTableIdentifier = null;
     SqlNodeList propertyList = SqlNodeList.EMPTY;
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
+    SqlNodeList partitionSpec = null;
     SqlIdentifier constraintName;
     SqlTableConstraint constraint;
 }
@@ -511,6 +556,17 @@ SqlAlterTable SqlAlterTable() :
                 tableIdentifier,
                 constraintName,
                 startPos.plus(getPos()));
+        }
+    |
+        [
+            <PARTITION>
+            {   partitionSpec = new SqlNodeList(getPos());
+                PartitionSpecCommaList(partitionSpec);
+            }
+        ]
+        <COMPACT>
+        {
+            return new SqlAlterTableCompact(startPos.plus(getPos()), tableIdentifier, partitionSpec);
         }
     )
 }
@@ -1654,21 +1710,174 @@ SqlEndStatementSet SqlEndStatementSet() :
 }
 
 /**
-* Parses a explain module statement.
+* Parse a statement set.
+*
+* STATEMENT SET BEGIN (RichSqlInsert();)+ END
+*/
+SqlNode SqlStatementSet() :
+{
+    SqlParserPos startPos;
+    SqlNode insert;
+    List<RichSqlInsert> inserts = new ArrayList<RichSqlInsert>();
+}
+{
+    <STATEMENT>{ startPos = getPos(); } <SET> <BEGIN>
+    (
+        insert = RichSqlInsert()
+        <SEMICOLON>
+        {
+            inserts.add((RichSqlInsert) insert);
+        }
+    )+
+    <END>
+    {
+        return new SqlStatementSet(inserts, startPos);
+    }
+}
+
+/**
+* Parses an explain module statement.
 */
 SqlNode SqlRichExplain() :
 {
     SqlNode stmt;
+    Set<String> explainDetails = new HashSet<String>();
 }
 {
-    <EXPLAIN> [ <PLAN> <FOR> ]
     (
+    LOOKAHEAD(3) <EXPLAIN> <PLAN> <FOR>
+    |
+    LOOKAHEAD(2) <EXPLAIN> ParseExplainDetail(explainDetails) ( <COMMA> ParseExplainDetail(explainDetails) )*
+    |
+    <EXPLAIN>
+    )
+    (
+        stmt = SqlStatementSet()
+        |
         stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
         |
         stmt = RichSqlInsert()
     )
     {
-        return new SqlRichExplain(getPos(), stmt);
+        return new SqlRichExplain(getPos(), stmt, explainDetails);
+    }
+}
+
+/**
+* Parses an execute statement.
+*/
+SqlNode SqlExecute() :
+{
+    SqlParserPos startPos;
+    SqlNode stmt;
+}
+{
+    <EXECUTE>{ startPos = getPos(); }
+    (
+        stmt = SqlStatementSet()
+        |
+        stmt = OrderedQueryOrExpr(ExprContext.ACCEPT_QUERY)
+        |
+        stmt = RichSqlInsert()
+    )
+    {
+        return new SqlExecute(stmt, startPos);
+    }
+}
+
+/**
+* Parses an execute plan statement.
+*/
+SqlNode SqlExecutePlan() :
+{
+    SqlNode filePath;
+}
+{
+    <EXECUTE> <PLAN>
+
+    filePath = StringLiteral()
+
+    {
+        return new SqlExecutePlan(getPos(), filePath);
+    }
+}
+
+/**
+* Parses a compile plan statement.
+*/
+SqlNode SqlCompileAndExecutePlan() :
+{
+    SqlParserPos startPos;
+    SqlNode filePath;
+    SqlNode operand;
+}
+{
+    <COMPILE> <AND> <EXECUTE> <PLAN> { startPos = getPos(); }
+
+    filePath = StringLiteral()
+
+    <FOR>
+
+    (
+        operand = SqlStatementSet()
+    |
+        operand = RichSqlInsert()
+    )
+
+    {
+        return new SqlCompileAndExecutePlan(startPos, filePath, operand);
+    }
+}
+
+/**
+* Parses a compile plan statement.
+*/
+SqlNode SqlCompilePlan() :
+{
+    SqlParserPos startPos;
+    SqlNode filePath;
+    boolean ifNotExists;
+    SqlNode operand;
+}
+{
+    <COMPILE> <PLAN> { startPos = getPos(); }
+
+    filePath = StringLiteral()
+
+    ifNotExists = IfNotExistsOpt()
+
+    <FOR>
+
+    (
+        operand = SqlStatementSet()
+    |
+        operand = RichSqlInsert()
+    )
+
+    {
+        return new SqlCompilePlan(startPos, filePath, ifNotExists, operand);
+    }
+}
+
+void ParseExplainDetail(Set<String> explainDetails):
+{
+}
+{
+    (
+        <ESTIMATED_COST> 
+        | 
+        <CHANGELOG_MODE> 
+        | 
+        <JSON_EXECUTION_PLAN>
+    ) 
+    {
+        if (explainDetails.contains(token.image.toUpperCase())) {
+            throw SqlUtil.newContextException(
+                getPos(),
+                ParserResource.RESOURCE.explainDetailIsDuplicate());
+        } else {
+            explainDetails.add(token.image.toUpperCase());
+        }
     }
 }
 
@@ -1765,5 +1974,33 @@ SqlNode SqlReset() :
     ]
     {
         return new SqlReset(span.end(this), key);
+    }
+}
+
+
+/** Parses a TRY_CAST invocation. */
+SqlNode TryCastFunctionCall() :
+{
+    final Span s;
+    final SqlOperator operator;
+    List<SqlNode> args = null;
+    SqlNode e = null;
+}
+{
+    <TRY_CAST> {
+        s = span();
+        operator = new SqlUnresolvedTryCastFunction(s.pos());
+    }
+    <LPAREN>
+        e = Expression(ExprContext.ACCEPT_SUB_QUERY) { args = startList(e); }
+    <AS>
+    (
+        e = DataType() { args.add(e); }
+    |
+        <INTERVAL> e = IntervalQualifier() { args.add(e); }
+    )
+    <RPAREN>
+    {
+        return operator.createCall(s.end(this), args);
     }
 }

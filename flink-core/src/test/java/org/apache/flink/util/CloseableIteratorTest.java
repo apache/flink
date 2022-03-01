@@ -30,7 +30,7 @@ import static org.junit.Assert.assertFalse;
 @SuppressWarnings("unchecked")
 public class CloseableIteratorTest {
 
-    private static final String[] ELEMENTS = new String[] {"flink", "blink"};
+    private static final String[] ELEMENTS = new String[] {"element-1", "element-2"};
 
     @Test
     public void testFlattenEmpty() throws Exception {

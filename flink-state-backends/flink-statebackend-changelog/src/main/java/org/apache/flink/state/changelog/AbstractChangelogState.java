@@ -33,7 +33,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * @param <S> Type of originally wrapped state object
  */
 abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V>>
-        implements InternalKvState<K, N, V> {
+        implements InternalKvState<K, N, V>, ChangelogState {
 
     protected final S delegatedState;
     protected final KvStateChangeLogger<V, N> changeLogger;
@@ -88,6 +88,11 @@ abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V
     public StateIncrementalVisitor<K, N, V> getStateIncrementalVisitor(
             int recommendedMaxNumberOfReturnedRecords) {
         return delegatedState.getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
+    }
+
+    @Override
+    public void resetWritingMetaFlag() {
+        changeLogger.resetWritingMetaFlag();
     }
 
     protected N getCurrentNamespace() throws NullPointerException {

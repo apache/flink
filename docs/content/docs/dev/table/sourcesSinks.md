@@ -106,6 +106,27 @@ that the planner can handle.
 
 {{< top >}}
 
+
+Project Configuration
+---------------------
+
+If you want to implement a custom connector or a custom format, the following dependency is usually 
+sufficient:
+
+{{< artifact flink-table-common withProvidedScope >}}
+
+If you want to develop a connector that needs to bridge with DataStream APIs (i.e. if you want to adapt
+a DataStream connector to the Table API), you need to add this dependency:
+
+{{< artifact flink-table-api-java-bridge withProvidedScope >}}
+
+When shipping the connector/format, we suggest providing both a thin JAR and an uber JAR. This way, 
+users can easily load the uber JAR in the SQL client or in the Flink distribution and start using it.
+
+**Note:** None of the table dependencies listed above should be packaged in the uber JAR since they 
+are already provided by the Flink distribution.
+
+
 Extension Points
 ----------------
 
@@ -452,7 +473,8 @@ public class SocketDynamicTableFactory implements DynamicTableSourceFactory {
     final byte byteDelimiter = (byte) (int) options.get(BYTE_DELIMITER);
 
     // derive the produced data type (excluding computed columns) from the catalog table
-    final DataType producedDataType = context.getCatalogTable().getSchema().toPhysicalRowDataType();
+    final DataType producedDataType =
+            context.getCatalogTable().getResolvedSchema().toPhysicalRowDataType();
 
     // create and return dynamic table source
     return new SocketDynamicTableSource(hostname, port, byteDelimiter, decodingFormat, producedDataType);

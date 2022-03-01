@@ -19,9 +19,9 @@
 package org.apache.flink.table.runtime.utils;
 
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
-import org.apache.flink.table.runtime.runners.python.beam.BeamTableStatelessPythonFunctionRunner;
+import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -31,11 +31,13 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.flink.streaming.api.utils.ProtoUtils.createFlattenRowTypeCoderInfoDescriptorProto;
+
 /**
- * A {@link BeamTableStatelessPythonFunctionRunner} that emit each input element in inner join and
- * emit null in left join when certain test conditions are met.
+ * A {@link BeamTablePythonFunctionRunner} that emit each input element in inner join and emit null
+ * in left join when certain test conditions are met.
  */
-public class PassThroughPythonTableFunctionRunner extends BeamTableStatelessPythonFunctionRunner {
+public class PassThroughPythonTableFunctionRunner extends BeamTablePythonFunctionRunner {
 
     private int num = 0;
 
@@ -43,7 +45,7 @@ public class PassThroughPythonTableFunctionRunner extends BeamTableStatelessPyth
 
     public PassThroughPythonTableFunctionRunner(
             String taskName,
-            PythonEnvironmentManager environmentManager,
+            ProcessPythonEnvironmentManager environmentManager,
             RowType inputType,
             RowType outputType,
             String functionUrn,
@@ -53,17 +55,19 @@ public class PassThroughPythonTableFunctionRunner extends BeamTableStatelessPyth
         super(
                 taskName,
                 environmentManager,
-                inputType,
-                outputType,
                 functionUrn,
                 userDefinedFunctions,
                 jobOptions,
                 flinkMetricContainer,
                 null,
+                null,
+                null,
+                null,
                 0.0,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.DataType.FLATTEN_ROW,
-                FlinkFnApi.CoderParam.OutputMode.MULTIPLE_WITH_END);
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        inputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true),
+                createFlattenRowTypeCoderInfoDescriptorProto(
+                        outputType, FlinkFnApi.CoderInfoDescriptor.Mode.MULTIPLE, true));
         this.buffer = new LinkedList<>();
     }
 

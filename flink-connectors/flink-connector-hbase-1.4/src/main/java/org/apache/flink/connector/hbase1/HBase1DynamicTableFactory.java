@@ -18,13 +18,13 @@
 
 package org.apache.flink.connector.hbase1;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.hbase.options.HBaseWriteOptions;
 import org.apache.flink.connector.hbase.util.HBaseTableSchema;
 import org.apache.flink.connector.hbase1.sink.HBaseDynamicTableSink;
 import org.apache.flink.connector.hbase1.source.HBaseDynamicTableSource;
-import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.factories.DynamicTableSinkFactory;
@@ -34,28 +34,31 @@ import org.apache.flink.table.factories.FactoryUtil.TableFactoryHelper;
 import org.apache.hadoop.conf.Configuration;
 
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import static org.apache.flink.connector.hbase.options.HBaseOptions.LOOKUP_CACHE_MAX_ROWS;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.LOOKUP_CACHE_TTL;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.LOOKUP_MAX_RETRIES;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.NULL_STRING_LITERAL;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.PROPERTIES_PREFIX;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.SINK_BUFFER_FLUSH_INTERVAL;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.SINK_BUFFER_FLUSH_MAX_SIZE;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.TABLE_NAME;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.ZOOKEEPER_QUORUM;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.ZOOKEEPER_ZNODE_PARENT;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.getHBaseConfiguration;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.getHBaseLookupOptions;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.getHBaseWriteOptions;
-import static org.apache.flink.connector.hbase.options.HBaseOptions.validatePrimaryKey;
-import static org.apache.flink.table.factories.FactoryUtil.SINK_PARALLELISM;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_ASYNC;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_CACHE_MAX_ROWS;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_CACHE_TTL;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.LOOKUP_MAX_RETRIES;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.NULL_STRING_LITERAL;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_INTERVAL;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_ROWS;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_BUFFER_FLUSH_MAX_SIZE;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.SINK_PARALLELISM;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.TABLE_NAME;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.ZOOKEEPER_QUORUM;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptions.ZOOKEEPER_ZNODE_PARENT;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptionsUtil.PROPERTIES_PREFIX;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptionsUtil.getHBaseConfiguration;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptionsUtil.getHBaseLookupOptions;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptionsUtil.getHBaseWriteOptions;
+import static org.apache.flink.connector.hbase.table.HBaseConnectorOptionsUtil.validatePrimaryKey;
 import static org.apache.flink.table.factories.FactoryUtil.createTableFactoryHelper;
 
 /** HBase connector factory. */
+@Internal
 public class HBase1DynamicTableFactory
         implements DynamicTableSourceFactory, DynamicTableSinkFactory {
 
@@ -68,15 +71,13 @@ public class HBase1DynamicTableFactory
 
         final ReadableConfig tableOptions = helper.getOptions();
 
-        TableSchema tableSchema = context.getCatalogTable().getSchema();
-        Map<String, String> options = context.getCatalogTable().getOptions();
-
-        validatePrimaryKey(tableSchema);
+        validatePrimaryKey(context.getPhysicalRowDataType(), context.getPrimaryKeyIndexes());
 
         String tableName = tableOptions.get(TABLE_NAME);
-        Configuration hbaseClientConf = getHBaseConfiguration(options);
+        Configuration hbaseClientConf = getHBaseConfiguration(tableOptions);
         String nullStringLiteral = tableOptions.get(NULL_STRING_LITERAL);
-        HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
+        HBaseTableSchema hbaseSchema =
+                HBaseTableSchema.fromDataType(context.getPhysicalRowDataType());
 
         return new HBaseDynamicTableSource(
                 hbaseClientConf,
@@ -93,16 +94,14 @@ public class HBase1DynamicTableFactory
 
         final ReadableConfig tableOptions = helper.getOptions();
 
-        TableSchema tableSchema = context.getCatalogTable().getSchema();
-        Map<String, String> options = context.getCatalogTable().getOptions();
-
-        validatePrimaryKey(tableSchema);
+        validatePrimaryKey(context.getPhysicalRowDataType(), context.getPrimaryKeyIndexes());
 
         String tableName = tableOptions.get(TABLE_NAME);
-        Configuration hbaseConf = getHBaseConfiguration(options);
+        Configuration hbaseConf = getHBaseConfiguration(tableOptions);
         HBaseWriteOptions hBaseWriteOptions = getHBaseWriteOptions(tableOptions);
         String nullStringLiteral = tableOptions.get(NULL_STRING_LITERAL);
-        HBaseTableSchema hbaseSchema = HBaseTableSchema.fromTableSchema(tableSchema);
+        HBaseTableSchema hbaseSchema =
+                HBaseTableSchema.fromDataType(context.getPhysicalRowDataType());
 
         return new HBaseDynamicTableSink(
                 tableName, hbaseSchema, hbaseConf, hBaseWriteOptions, nullStringLiteral);
@@ -130,9 +129,26 @@ public class HBase1DynamicTableFactory
         set.add(SINK_BUFFER_FLUSH_MAX_ROWS);
         set.add(SINK_BUFFER_FLUSH_INTERVAL);
         set.add(SINK_PARALLELISM);
+        set.add(LOOKUP_ASYNC);
         set.add(LOOKUP_CACHE_MAX_ROWS);
         set.add(LOOKUP_CACHE_TTL);
         set.add(LOOKUP_MAX_RETRIES);
         return set;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(
+                        TABLE_NAME,
+                        ZOOKEEPER_ZNODE_PARENT,
+                        ZOOKEEPER_QUORUM,
+                        NULL_STRING_LITERAL,
+                        SINK_BUFFER_FLUSH_MAX_SIZE,
+                        SINK_BUFFER_FLUSH_MAX_ROWS,
+                        SINK_BUFFER_FLUSH_INTERVAL,
+                        LOOKUP_CACHE_MAX_ROWS,
+                        LOOKUP_CACHE_TTL,
+                        LOOKUP_MAX_RETRIES)
+                .collect(Collectors.toSet());
     }
 }

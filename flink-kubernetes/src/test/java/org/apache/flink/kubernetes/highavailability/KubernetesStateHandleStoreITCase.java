@@ -33,10 +33,9 @@ import org.junit.Test;
 
 import java.util.UUID;
 
-import static org.apache.flink.kubernetes.highavailability.KubernetesHighAvailabilityTestBase.LEADER_CONFIGMAP_NAME;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.junit.Assert.assertThat;
 
 /**
  * IT Tests for the {@link KubernetesStateHandleStore}. We expect only the leader could update the
@@ -47,6 +46,7 @@ import static org.junit.Assert.assertThat;
  */
 public class KubernetesStateHandleStoreITCase extends TestLogger {
 
+    private static final String LEADER_CONFIGMAP_NAME = "leader-test-cluster";
     @ClassRule public static KubernetesResource kubernetesResource = new KubernetesResource();
 
     private final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();

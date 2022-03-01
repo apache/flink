@@ -33,6 +33,8 @@ import org.apache.flink.util.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.Nullable;
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -82,7 +84,7 @@ public class KubernetesStateHandleStore<T extends Serializable>
 
     private final Predicate<String> configMapKeyFilter;
 
-    private final String lockIdentity;
+    @Nullable private final String lockIdentity;
 
     /**
      * Creates a {@link KubernetesStateHandleStore}.
@@ -99,13 +101,13 @@ public class KubernetesStateHandleStore<T extends Serializable>
             String configMapName,
             RetrievableStateStorageHelper<T> storage,
             Predicate<String> configMapKeyFilter,
-            String lockIdentity) {
+            @Nullable String lockIdentity) {
 
         this.kubeClient = checkNotNull(kubeClient, "Kubernetes client");
         this.storage = checkNotNull(storage, "State storage");
         this.configMapName = checkNotNull(configMapName, "ConfigMap name");
         this.configMapKeyFilter = checkNotNull(configMapKeyFilter);
-        this.lockIdentity = checkNotNull(lockIdentity, "Lock identity of current HA service");
+        this.lockIdentity = lockIdentity;
     }
 
     /**
@@ -141,8 +143,7 @@ public class KubernetesStateHandleStore<T extends Serializable>
                             .checkAndUpdateConfigMap(
                                     configMapName,
                                     c -> {
-                                        if (KubernetesLeaderElector.hasLeadership(
-                                                c, lockIdentity)) {
+                                        if (isValidOperation(c)) {
                                             if (!c.getData().containsKey(key)) {
                                                 c.getData()
                                                         .put(
@@ -176,6 +177,10 @@ public class KubernetesStateHandleStore<T extends Serializable>
                 storeHandle.discardState();
             }
         }
+    }
+
+    private boolean isValidOperation(KubernetesConfigMap c) {
+        return lockIdentity == null || KubernetesLeaderElector.hasLeadership(c, lockIdentity);
     }
 
     /**
@@ -214,8 +219,7 @@ public class KubernetesStateHandleStore<T extends Serializable>
                             .checkAndUpdateConfigMap(
                                     configMapName,
                                     c -> {
-                                        if (KubernetesLeaderElector.hasLeadership(
-                                                c, lockIdentity)) {
+                                        if (isValidOperation(c)) {
                                             // Check the existence
                                             if (c.getData().containsKey(key)) {
                                                 c.getData()
@@ -380,7 +384,7 @@ public class KubernetesStateHandleStore<T extends Serializable>
                 .checkAndUpdateConfigMap(
                         configMapName,
                         configMap -> {
-                            if (KubernetesLeaderElector.hasLeadership(configMap, lockIdentity)) {
+                            if (isValidOperation(configMap)) {
                                 final String content = configMap.getData().remove(key);
                                 if (content != null) {
                                     try {
@@ -424,7 +428,7 @@ public class KubernetesStateHandleStore<T extends Serializable>
                 .checkAndUpdateConfigMap(
                         configMapName,
                         c -> {
-                            if (KubernetesLeaderElector.hasLeadership(c, lockIdentity)) {
+                            if (isValidOperation(c)) {
                                 final Map<String, String> updateData = new HashMap<>(c.getData());
                                 c.getData().entrySet().stream()
                                         .filter(entry -> configMapKeyFilter.test(entry.getKey()))
@@ -481,7 +485,7 @@ public class KubernetesStateHandleStore<T extends Serializable>
                 .checkAndUpdateConfigMap(
                         configMapName,
                         c -> {
-                            if (KubernetesLeaderElector.hasLeadership(c, lockIdentity)) {
+                            if (isValidOperation(c)) {
                                 c.getData().keySet().removeIf(configMapKeyFilter);
                                 return Optional.of(c);
                             }

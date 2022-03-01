@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.io.network;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.io.disk.BatchShuffleReadBufferPool;
@@ -36,14 +35,21 @@ import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGateFac
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.NettyShuffleMaster;
 import org.apache.flink.runtime.shuffle.ShuffleEnvironmentContext;
+import org.apache.flink.runtime.shuffle.ShuffleMasterContext;
 import org.apache.flink.runtime.shuffle.ShuffleServiceFactory;
 import org.apache.flink.runtime.taskmanager.NettyShuffleEnvironmentConfiguration;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.util.Hardware;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.util.Arrays;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.io.network.metrics.NettyShuffleMetricFactory.registerShuffleMetrics;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -52,11 +58,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class NettyShuffleServiceFactory
         implements ShuffleServiceFactory<NettyShuffleDescriptor, ResultPartition, SingleInputGate> {
 
+    private static final Logger LOG = LoggerFactory.getLogger(NettyShuffleServiceFactory.class);
     private static final String DIR_NAME_PREFIX = "netty-shuffle";
 
     @Override
-    public NettyShuffleMaster createShuffleMaster(Configuration configuration) {
-        return NettyShuffleMaster.INSTANCE;
+    public NettyShuffleMaster createShuffleMaster(ShuffleMasterContext shuffleMasterContext) {
+        return new NettyShuffleMaster(shuffleMasterContext.getConfiguration());
     }
 
     @Override
@@ -101,22 +108,52 @@ public class NettyShuffleServiceFactory
             ResultPartitionManager resultPartitionManager,
             MetricGroup metricGroup,
             Executor ioExecutor) {
+        NettyConfig nettyConfig = config.nettyConfig();
+        ConnectionManager connectionManager =
+                nettyConfig != null
+                        ? new NettyConnectionManager(
+                                resultPartitionManager,
+                                taskEventPublisher,
+                                nettyConfig,
+                                config.getMaxNumberOfConnections(),
+                                config.isConnectionReuseEnabled())
+                        : new LocalConnectionManager();
+        return createNettyShuffleEnvironment(
+                config,
+                taskExecutorResourceId,
+                taskEventPublisher,
+                resultPartitionManager,
+                connectionManager,
+                metricGroup,
+                ioExecutor);
+    }
+
+    @VisibleForTesting
+    public static NettyShuffleEnvironment createNettyShuffleEnvironment(
+            NettyShuffleEnvironmentConfiguration config,
+            ResourceID taskExecutorResourceId,
+            TaskEventPublisher taskEventPublisher,
+            ResultPartitionManager resultPartitionManager,
+            ConnectionManager connectionManager,
+            MetricGroup metricGroup,
+            Executor ioExecutor) {
         checkNotNull(config);
         checkNotNull(taskExecutorResourceId);
         checkNotNull(taskEventPublisher);
         checkNotNull(resultPartitionManager);
         checkNotNull(metricGroup);
-
-        NettyConfig nettyConfig = config.nettyConfig();
+        checkNotNull(connectionManager);
 
         FileChannelManager fileChannelManager =
                 new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
-
-        ConnectionManager connectionManager =
-                nettyConfig != null
-                        ? new NettyConnectionManager(
-                                resultPartitionManager, taskEventPublisher, nettyConfig)
-                        : new LocalConnectionManager();
+        if (LOG.isInfoEnabled()) {
+            LOG.info(
+                    "Created a new {} for storing result partitions of BLOCKING shuffles. Used directories:\n\t{}",
+                    FileChannelManager.class.getSimpleName(),
+                    Arrays.stream(fileChannelManager.getPaths())
+                            .map(File::getAbsolutePath)
+                            .collect(Collectors.joining("\n\t")));
+        }
 
         NetworkBufferPool networkBufferPool =
                 new NetworkBufferPool(

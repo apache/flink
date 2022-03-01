@@ -28,8 +28,6 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_TYPE;
 
 /** Test table sink factory. */
 public class TestTableSinkFactory implements TableFactory, TableSinkFactory<Row> {
@@ -49,10 +47,10 @@ public class TestTableSinkFactory implements TableFactory, TableSinkFactory<Row>
     public Map<String, String> requiredContext() {
         Map<String, String> context = new HashMap<>();
         context.put(CONNECTOR_TYPE, CONNECTOR_TYPE_VALUE_TEST);
-        context.put(FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST);
+        context.put(TableFactoryService.FORMAT_TYPE, FORMAT_TYPE_VALUE_TEST);
         context.put(REQUIRED_TEST, REQUIRED_TEST_VALUE);
         context.put(CONNECTOR_PROPERTY_VERSION, "1");
-        context.put(FORMAT_PROPERTY_VERSION, "1");
+        context.put(TableFactoryService.FORMAT_PROPERTY_VERSION, "1");
         return context;
     }
 

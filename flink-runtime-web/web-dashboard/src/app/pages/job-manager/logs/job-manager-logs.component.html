@@ -16,5 +16,10 @@
   ~ limitations under the License.
   -->
 
-<flink-monaco-editor [value]="logs"></flink-monaco-editor>
+<nz-code-editor
+  flinkAutoResize
+  [nzLoading]="loading"
+  [ngModel]="logs"
+  [nzEditorOption]="editorOptions"
+></nz-code-editor>
 <flink-refresh-download [compactMode]="true" [downloadHref]="'jobmanager/log'" [downloadName]="'jobmanager_log'" (reload)="reload()"></flink-refresh-download>

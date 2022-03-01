@@ -29,11 +29,11 @@ import org.apache.flink.runtime.rest.handler.HandlerRequestException;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
 import org.apache.flink.runtime.rest.messages.MessageParameter;
 import org.apache.flink.runtime.rest.messages.MessageQueryParameter;
-import org.apache.flink.runtime.testutils.TestingUtils;
 import org.apache.flink.runtime.util.BlobServerResource;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
 import org.apache.flink.runtime.webmonitor.retriever.GatewayRetriever;
 import org.apache.flink.runtime.webmonitor.testutils.ParameterProgram;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.flink.shaded.netty4.io.netty.handler.codec.http.HttpResponseStatus;
@@ -116,7 +116,7 @@ public abstract class JarHandlerParameterTest<
                         jarDir.resolve("program-without-manifest.jar"));
 
         restfulGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setBlobServerPort(BLOB_SERVER_RESOURCE.getBlobServerPort())
                         .setSubmitFunction(
                                 jobGraph -> {
@@ -206,7 +206,7 @@ public abstract class JarHandlerParameterTest<
     public void testProvideJobId() throws Exception {
         JobID jobId = new JobID();
 
-        HandlerRequest<REQB, M> request =
+        HandlerRequest<REQB> request =
                 createRequest(
                         getJarRequestBodyWithJobId(jobId),
                         getUnresolvedJarMessageParameters(),
@@ -279,7 +279,7 @@ public abstract class JarHandlerParameterTest<
     }
 
     protected static <REQB extends JarRequestBody, M extends JarMessageParameters>
-            HandlerRequest<REQB, M> createRequest(
+            HandlerRequest<REQB> createRequest(
                     REQB requestBody, M parameters, M unresolvedMessageParameters, Path jar)
                     throws HandlerRequestException {
 
@@ -291,7 +291,7 @@ public abstract class JarHandlerParameterTest<
                                         MessageParameter::getKey,
                                         JarHandlerParameterTest::getValuesAsString));
 
-        return new HandlerRequest<>(
+        return HandlerRequest.resolveParametersAndCreate(
                 requestBody,
                 unresolvedMessageParameters,
                 Collections.singletonMap(JarIdPathParameter.KEY, jar.getFileName().toString()),
@@ -316,7 +316,7 @@ public abstract class JarHandlerParameterTest<
 
     abstract REQB getJarRequestBodyWithJobId(JobID jobId);
 
-    abstract void handleRequest(HandlerRequest<REQB, M> request) throws Exception;
+    abstract void handleRequest(HandlerRequest<REQB> request) throws Exception;
 
     JobGraph validateDefaultGraph() {
         JobGraph jobGraph = LAST_SUBMITTED_JOB_GRAPH_REFERENCE.getAndSet(null);

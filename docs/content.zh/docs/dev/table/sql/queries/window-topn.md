@@ -23,12 +23,12 @@ under the License.
 -->
 
 # Window Top-N
-{{< label Streaming >}}
+{{< label Batch >}} {{< label Streaming >}}
 
 Window Top-N is a special [Top-N]({{< ref "docs/dev/table/sql/queries/topn" >}}) which returns the N smallest or largest values for each window and other partitioned keys.
 
 For streaming queries, unlike regular Top-N on continuous tables, window Top-N does not emit intermediate results but only a final result, the total top N records at the end of the window. Moreover, window Top-N purges all intermediate state when no longer needed.
-Therefore, window Top-N queries have better performance if users don't need results updated per record. Usually, Window Top-N is used with [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}) together.
+Therefore, window Top-N queries have better performance if users don't need results updated per record. Usually, Window Top-N is used with [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) directly. Besides, Window Top-N could be used with other operations based on [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}), such as [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}), [Window TopN]({{< ref "docs/dev/table/sql/queries/window-topn">}}) and [Window Join]({{< ref "docs/dev/table/sql/queries/window-join">}}). 
 
 Window Top-N can be defined in the same syntax as regular Top-N, see [Top-N documentation]({{< ref "docs/dev/table/sql/queries/topn" >}}) for more information.
 Besides that, Window Top-N requires the `PARTITION BY` clause contains `window_start` and `window_end` columns of the relation applied [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) or [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}).
@@ -48,6 +48,8 @@ WHERE rownum <= N [AND conditions]
 ```
 
 ## Example
+
+### Window Top-N follows after Window Aggregation
 
 The following example shows how to calculate Top 3 suppliers who have the highest sales for every tumbling 10 minutes window.
 
@@ -102,9 +104,34 @@ Flink SQL> SELECT *
 
 *Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
 
+### Window Top-N follows after Windowing TVF
+
+The following example shows how to calculate Top 3 items which have the highest price for every tumbling 10 minutes window.
+
+```sql
+Flink SQL> SELECT *
+  FROM (
+    SELECT *, ROW_NUMBER() OVER (PARTITION BY window_start, window_end ORDER BY price DESC) as rownum
+    FROM TABLE(
+               TUMBLE(TABLE Bid, DESCRIPTOR(bidtime), INTERVAL '10' MINUTES))
+  ) WHERE rownum <= 3;
++------------------+-------+------+-------------+------------------+------------------+--------+
+|          bidtime | price | item | supplier_id |     window_start |       window_end | rownum |
++------------------+-------+------+-------------+------------------+------------------+--------+
+| 2020-04-15 08:05 |  4.00 |    A |   supplier1 | 2020-04-15 08:00 | 2020-04-15 08:10 |      2 |
+| 2020-04-15 08:06 |  4.00 |    C |   supplier2 | 2020-04-15 08:00 | 2020-04-15 08:10 |      3 |
+| 2020-04-15 08:09 |  5.00 |    D |   supplier4 | 2020-04-15 08:00 | 2020-04-15 08:10 |      1 |
+| 2020-04-15 08:11 |  2.00 |    B |   supplier3 | 2020-04-15 08:10 | 2020-04-15 08:20 |      3 |
+| 2020-04-15 08:15 |  3.00 |    H |   supplier2 | 2020-04-15 08:10 | 2020-04-15 08:20 |      2 |
+| 2020-04-15 08:17 |  6.00 |    F |   supplier5 | 2020-04-15 08:10 | 2020-04-15 08:20 |      1 |
++------------------+-------+------+-------------+------------------+------------------+--------+
+```
+
+*Note: in order to better understand the behavior of windowing, we simplify the displaying of timestamp values to not show the trailing zeros, e.g. `2020-04-15 08:05` should be displayed as `2020-04-15 08:05:00.000` in Flink SQL Client if the type is `TIMESTAMP(3)`.*
+
 ## Limitation
 
-Currently, Flink only supports Window Top-N which follows after [Window Aggregation]({{< ref "docs/dev/table/sql/queries/window-agg" >}}). Window Top-N after [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) will be support in the near future.
+Currently, Flink only supports Window Top-N follows after [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) with Tumble Windows, Hop Windows and Cumulate Windows. Window Top-N follows after [Windowing TVF]({{< ref "docs/dev/table/sql/queries/window-tvf" >}}) with Session windows will be supported in the near future.
 
 
 {{< top >}}

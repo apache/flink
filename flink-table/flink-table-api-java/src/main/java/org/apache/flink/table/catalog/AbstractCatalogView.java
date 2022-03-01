@@ -81,7 +81,8 @@ public abstract class AbstractCatalogView implements CatalogView {
         return this.schema;
     }
 
+    @Override
     public String getComment() {
-        return this.comment;
+        return comment != null ? comment : "";
     }
 }

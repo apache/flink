@@ -19,7 +19,7 @@
 @import "theme";
 
 .wrapper {
-  margin: 24px;
+  margin: @margin-lg;
 }
 
 .header-icon {
@@ -27,41 +27,10 @@
   top: 1px;
 }
 
-.flink-memory-model {
-  margin-bottom: 24px;
-  ::ng-deep {
-    table {
-      border-collapse: collapse;
-    }
-    .ant-table-small {
-      border: none;
-      .ant-table-body {
-        margin: 0;
-        overflow: hidden !important;
-      }
-      tr {
-        &:hover {
-          td, th {
-            background: transparent;
-          }
-        }
-      }
-      td, th {
-        border-collapse: collapse;
-        border: 1px solid @border-color-split !important;
-        &.table-header {
-          background: @table-header-bg !important;
-          color: @table-header-color;
-          font-weight: 500;
-        }
-      }
-    }
-  }
-}
-
 nz-progress {
   display: block;
   width: 90%;
+
   ::ng-deep {
     .ant-progress-inner {
       border-radius: 0 !important;
@@ -69,8 +38,45 @@ nz-progress {
   }
 }
 
-nz-card {
-  &:last-child {
-    margin-top: 16px;
+.flink-memory-model {
+  margin-bottom: @margin-md;
+
+  ::ng-deep {
+    table {
+      border-collapse: collapse;
+    }
+
+    .ant-table-small {
+      border: none;
+
+      .ant-table-body {
+        overflow: hidden !important;
+        margin: 0;
+      }
+
+      td,
+      th {
+        border-collapse: collapse;
+
+        &.table-header {
+          background: @table-header-bg !important;
+          color: @table-header-color;
+          font-weight: 500;
+        }
+      }
+
+      tr {
+        &:hover {
+          td,
+          th {
+            background: transparent;
+          }
+        }
+      }
+    }
   }
+}
+
+.top-margin {
+  margin-top: @margin-md;
 }

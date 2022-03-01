@@ -23,7 +23,7 @@ import org.apache.flink.runtime.blob.BlobStore;
 import org.apache.flink.runtime.blob.VoidBlobStore;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
-import org.apache.flink.runtime.highavailability.nonha.standalone.StandaloneRunningJobsRegistry;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.JobGraphStore;
 import org.apache.flink.runtime.jobmanager.StandaloneJobGraphStore;
 import org.apache.flink.runtime.leaderelection.LeaderElectionService;
@@ -117,8 +117,8 @@ public class TestingManualHighAvailabilityServices implements HighAvailabilitySe
     }
 
     @Override
-    public RunningJobsRegistry getRunningJobsRegistry() throws Exception {
-        return new StandaloneRunningJobsRegistry();
+    public JobResultStore getJobResultStore() {
+        return new EmbeddedJobResultStore();
     }
 
     @Override

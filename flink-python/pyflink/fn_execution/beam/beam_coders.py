@@ -15,23 +15,22 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import pickle
-from typing import Any
-
-from apache_beam.coders import Coder, coder_impl
+from apache_beam.coders import Coder
 from apache_beam.coders.coders import FastCoder, LengthPrefixCoder
 from apache_beam.portability import common_urns
 from apache_beam.typehints import typehints
 
-from pyflink.fn_execution.coders import ArrowCoder, OverWindowArrowCoder, LengthPrefixBaseCoder
-from pyflink.fn_execution.flink_fn_execution_pb2 import CoderParam
+from pyflink.fn_execution.coders import LengthPrefixBaseCoder
+from pyflink.fn_execution.flink_fn_execution_pb2 import CoderInfoDescriptor
 
 try:
     from pyflink.fn_execution.beam import beam_coder_impl_fast as beam_coder_impl
-    from pyflink.fn_execution.beam.beam_coder_impl_fast import PassThroughPrefixCoderImpl
+    from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkFieldCoderBeamWrapper
+    from pyflink.fn_execution.beam.beam_coder_impl_fast import FlinkLengthPrefixCoderBeamWrapper
 except ImportError:
     from pyflink.fn_execution.beam import beam_coder_impl_slow as beam_coder_impl
-    PassThroughPrefixCoderImpl = beam_coder_impl.BeamCoderImpl
+    from pyflink.fn_execution.beam.beam_coder_impl_slow import FlinkFieldCoderBeamWrapper
+    from pyflink.fn_execution.beam.beam_coder_impl_slow import FlinkLengthPrefixCoderBeamWrapper
 
 FLINK_CODER_URN = "flink:coder:v1"
 
@@ -66,20 +65,18 @@ class FlinkCoder(FastCoder):
 
     def get_impl(self):
         if isinstance(self._internal_coder, LengthPrefixBaseCoder):
-            if isinstance(self._internal_coder._field_coder, (ArrowCoder, OverWindowArrowCoder)):
-                from pyflink.fn_execution.beam.beam_coder_impl_slow import BeamCoderImpl
-                return BeamCoderImpl(self._create_impl())
-            else:
-                return beam_coder_impl.BeamCoderImpl(self._create_impl())
+            return FlinkLengthPrefixCoderBeamWrapper(self._create_impl())
         else:
-            return PassThroughPrefixCoderImpl(self._create_impl())
+            return FlinkFieldCoderBeamWrapper(self._create_impl())
 
     def to_type_hint(self):
         return typehints.Any
 
-    @Coder.register_urn(FLINK_CODER_URN, CoderParam)
-    def _pickle_from_runner_api_parameter(coder_praram_proto, unused_components, unused_context):
-        return FlinkCoder(LengthPrefixBaseCoder.from_coder_param_proto(coder_praram_proto))
+    @Coder.register_urn(FLINK_CODER_URN, CoderInfoDescriptor)
+    def _pickle_from_runner_api_parameter(
+            coder_info_descriptor_proto, unused_components, unused_context):
+        return FlinkCoder(LengthPrefixBaseCoder.from_coder_info_descriptor_proto(
+            coder_info_descriptor_proto))
 
     def __repr__(self):
         return 'FlinkCoder[%s]' % repr(self._internal_coder)
@@ -93,27 +90,3 @@ class FlinkCoder(FastCoder):
 
     def __hash__(self):
         return hash(self._internal_coder)
-
-
-class DataViewFilterCoder(FastCoder):
-
-    def to_type_hint(self):
-        return Any
-
-    def __init__(self, udf_data_view_specs):
-        self._udf_data_view_specs = udf_data_view_specs
-
-    def filter_data_views(self, row):
-        i = 0
-        for specs in self._udf_data_view_specs:
-            for spec in specs:
-                row[i][spec.field_index] = None
-            i += 1
-        return row
-
-    def _create_impl(self):
-        filter_data_views = self.filter_data_views
-        dumps = pickle.dumps
-        HIGHEST_PROTOCOL = pickle.HIGHEST_PROTOCOL
-        return coder_impl.CallbackCoderImpl(
-            lambda x: dumps(filter_data_views(x), HIGHEST_PROTOCOL), pickle.loads)

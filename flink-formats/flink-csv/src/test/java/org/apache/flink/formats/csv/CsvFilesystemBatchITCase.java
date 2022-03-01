@@ -40,6 +40,11 @@ public class CsvFilesystemBatchITCase {
     public static class GeneralCsvFilesystemBatchITCase extends BatchFileSystemITCaseBase {
 
         @Override
+        public boolean supportsReadingMetadata() {
+            return false;
+        }
+
+        @Override
         public String[] formatProperties() {
             List<String> ret = new ArrayList<>();
             ret.add("'format'='csv'");
@@ -56,6 +61,11 @@ public class CsvFilesystemBatchITCase {
     public static class EnrichedCsvFilesystemBatchITCase extends BatchFileSystemITCaseBase {
 
         @Override
+        public boolean supportsReadingMetadata() {
+            return false;
+        }
+
+        @Override
         public String[] formatProperties() {
             List<String> ret = new ArrayList<>();
             ret.add("'format'='csv'");
@@ -70,7 +80,22 @@ public class CsvFilesystemBatchITCase {
             new File(path).mkdirs();
             File file = new File(path, "test_file");
             file.createNewFile();
-            FileUtils.writeFileUtf8(file, "x5,5,1,1\n" + "x5,5,2,2,2\n" + "x5,5,1,1");
+            FileUtils.writeFileUtf8(
+                    file, "x5,5,1,1\n" + "x5,5,2,2,2\n" + "x5,5,3,3,3,3\n" + "x5,5,1,1");
+
+            check(
+                    "select * from nonPartitionedTable",
+                    Arrays.asList(Row.of("x5", 5, 1, 1), Row.of("x5", 5, 1, 1)));
+        }
+
+        @Test
+        public void testParseErrorLast() throws Exception {
+            String path = new URI(resultPath()).getPath();
+            new File(path).mkdirs();
+            File file = new File(path, "test_file");
+            file.createNewFile();
+            FileUtils.writeFileUtf8(
+                    file, "x5,5,1,1\n" + "x5,5,2,2,2\n" + "x5,5,1,1\n" + "x5,5,3,3,3,3\n");
 
             check(
                     "select * from nonPartitionedTable",

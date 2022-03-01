@@ -22,6 +22,7 @@ import org.apache.flink.client.deployment.ClusterClientServiceLoader;
 import org.apache.flink.client.deployment.DefaultClusterClientServiceLoader;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 
 import org.apache.commons.cli.CommandLine;
@@ -128,6 +129,53 @@ public class CliFrontendRunTest extends CliFrontendTestBase {
             assertEquals("--arg2", programOptions.getProgramArgs()[3]);
             assertEquals("value2", programOptions.getProgramArgs()[4]);
         }
+    }
+
+    @Test
+    public void testClaimRestoreModeParsing() throws Exception {
+        testRestoreMode("-rm", "claim", RestoreMode.CLAIM);
+    }
+
+    @Test
+    public void testLegacyRestoreModeParsing() throws Exception {
+        testRestoreMode("-rm", "legacy", RestoreMode.LEGACY);
+    }
+
+    @Test
+    public void testNoClaimRestoreModeParsing() throws Exception {
+        testRestoreMode("-rm", "no_claim", RestoreMode.NO_CLAIM);
+    }
+
+    @Test
+    public void testClaimRestoreModeParsingLongOption() throws Exception {
+        testRestoreMode("--restoreMode", "claim", RestoreMode.CLAIM);
+    }
+
+    @Test
+    public void testLegacyRestoreModeParsingLongOption() throws Exception {
+        testRestoreMode("--restoreMode", "legacy", RestoreMode.LEGACY);
+    }
+
+    @Test
+    public void testNoClaimRestoreModeParsingLongOption() throws Exception {
+        testRestoreMode("--restoreMode", "no_claim", RestoreMode.NO_CLAIM);
+    }
+
+    private void testRestoreMode(String flag, String arg, RestoreMode expectedMode)
+            throws Exception {
+        String[] parameters = {"-s", "expectedSavepointPath", "-n", flag, arg, getTestJarPath()};
+
+        CommandLine commandLine =
+                CliFrontendParser.parse(CliFrontendParser.RUN_OPTIONS, parameters, true);
+        ProgramOptions programOptions = ProgramOptions.create(commandLine);
+        ExecutionConfigAccessor executionOptions =
+                ExecutionConfigAccessor.fromProgramOptions(programOptions, Collections.emptyList());
+
+        SavepointRestoreSettings savepointSettings = executionOptions.getSavepointRestoreSettings();
+        assertTrue(savepointSettings.restoreSavepoint());
+        assertEquals(expectedMode, savepointSettings.getRestoreMode());
+        assertEquals("expectedSavepointPath", savepointSettings.getRestorePath());
+        assertTrue(savepointSettings.allowNonRestoredState());
     }
 
     @Test(expected = CliArgsException.class)

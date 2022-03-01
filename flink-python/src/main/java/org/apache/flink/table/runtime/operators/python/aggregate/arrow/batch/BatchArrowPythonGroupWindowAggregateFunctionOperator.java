@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.python.aggregate.arrow.batch;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
@@ -29,6 +28,7 @@ import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.utils.JoinedRowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.window.TimeWindow;
 import org.apache.flink.table.runtime.operators.window.grouping.HeapWindowsGrouping;
 import org.apache.flink.table.runtime.operators.window.grouping.WindowsGrouping;
@@ -87,25 +87,25 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType outputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             int inputTimeFieldIndex,
             int maxLimitSize,
             long windowSize,
             long slideSize,
             int[] namedProperties,
-            int[] groupKey,
-            int[] groupingSet,
-            int[] udafInputOffsets) {
+            GeneratedProjection inputGeneratedProjection,
+            GeneratedProjection groupKeyGeneratedProjection,
+            GeneratedProjection groupSetGeneratedProjection) {
         super(
                 config,
                 pandasAggFunctions,
                 inputType,
-                outputType,
-                groupKey,
-                groupingSet,
-                udafInputOffsets,
-                FlinkFnApi.CoderParam.DataType.ARROW,
-                FlinkFnApi.CoderParam.DataType.ARROW);
+                udfInputType,
+                udfOutputType,
+                inputGeneratedProjection,
+                groupKeyGeneratedProjection,
+                groupSetGeneratedProjection);
         this.namedProperties = namedProperties;
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.maxLimitSize = maxLimitSize;
@@ -115,13 +115,7 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
 
     @Override
     public void open() throws Exception {
-        userDefinedFunctionOutputType =
-                new RowType(
-                        outputType
-                                .getFields()
-                                .subList(
-                                        groupingSet.length,
-                                        outputType.getFieldCount() - namedProperties.length));
+        super.open();
         inputKeyAndWindow = new LinkedList<>();
         windowProperty = new GenericRowData(namedProperties.length);
         windowAggResult = new JoinedRowData();
@@ -129,7 +123,6 @@ public class BatchArrowPythonGroupWindowAggregateFunctionOperator
                 new HeapWindowsGrouping(
                         maxLimitSize, windowSize, slideSize, inputTimeFieldIndex, false);
         forwardedInputSerializer = new RowDataSerializer(inputType);
-        super.open();
     }
 
     @Override

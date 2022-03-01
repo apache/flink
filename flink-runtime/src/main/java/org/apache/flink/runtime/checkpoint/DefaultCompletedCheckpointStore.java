@@ -19,24 +19,22 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
 import org.apache.flink.runtime.persistence.ResourceVersion;
 import org.apache.flink.runtime.persistence.StateHandleStore;
-import org.apache.flink.runtime.state.RetrievableStateHandle;
-import org.apache.flink.util.FlinkException;
+import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collection;
 import java.util.List;
-import java.util.Set;
+import java.util.Optional;
 import java.util.concurrent.Executor;
-import java.util.stream.Collectors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -56,13 +54,10 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to circumvent those situations.
  */
 public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
-        implements CompletedCheckpointStore {
+        extends AbstractCompleteCheckpointStore {
 
     private static final Logger LOG =
             LoggerFactory.getLogger(DefaultCompletedCheckpointStore.class);
-
-    private static final Comparator<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>>
-            STRING_COMPARATOR = Comparator.comparing(o -> o.f1);
 
     /** Completed checkpoints state handle store. */
     private final StateHandleStore<CompletedCheckpoint, R> checkpointStateHandleStore;
@@ -81,6 +76,9 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
 
     private final CheckpointStoreUtil completedCheckpointStoreUtil;
 
+    /** False if store has been shutdown. */
+    private final AtomicBoolean running = new AtomicBoolean(true);
+
     /**
      * Creates a {@link DefaultCompletedCheckpointStore} instance.
      *
@@ -95,18 +93,16 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
             int maxNumberOfCheckpointsToRetain,
             StateHandleStore<CompletedCheckpoint, R> stateHandleStore,
             CheckpointStoreUtil completedCheckpointStoreUtil,
+            Collection<CompletedCheckpoint> completedCheckpoints,
+            SharedStateRegistry sharedStateRegistry,
             Executor executor) {
-
+        super(sharedStateRegistry);
         checkArgument(maxNumberOfCheckpointsToRetain >= 1, "Must retain at least one checkpoint.");
-
         this.maxNumberOfCheckpointsToRetain = maxNumberOfCheckpointsToRetain;
-
         this.checkpointStateHandleStore = checkNotNull(stateHandleStore);
-
         this.completedCheckpoints = new ArrayDeque<>(maxNumberOfCheckpointsToRetain + 1);
-
+        this.completedCheckpoints.addAll(completedCheckpoints);
         this.ioExecutor = checkNotNull(executor);
-
         this.completedCheckpointStoreUtil = checkNotNull(completedCheckpointStoreUtil);
     }
 
@@ -116,84 +112,49 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
     }
 
     /**
-     * Recover all the valid checkpoints from state handle store. All the successfully recovered
-     * checkpoints will be added to {@link #completedCheckpoints} sorted by checkpoint id.
-     */
-    @Override
-    public void recover() throws Exception {
-        LOG.info("Recovering checkpoints from {}.", checkpointStateHandleStore);
-
-        // Get all there is first
-        final List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> initialCheckpoints =
-                checkpointStateHandleStore.getAllAndLock();
-
-        initialCheckpoints.sort(STRING_COMPARATOR);
-
-        final int numberOfInitialCheckpoints = initialCheckpoints.size();
-
-        LOG.info(
-                "Found {} checkpoints in {}.",
-                numberOfInitialCheckpoints,
-                checkpointStateHandleStore);
-        if (haveAllDownloaded(initialCheckpoints)) {
-            LOG.info(
-                    "All {} checkpoints found are already downloaded.", numberOfInitialCheckpoints);
-            return;
-        }
-
-        final List<CompletedCheckpoint> retrievedCheckpoints =
-                new ArrayList<>(numberOfInitialCheckpoints);
-        LOG.info("Trying to fetch {} checkpoints from storage.", numberOfInitialCheckpoints);
-
-        for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> checkpointStateHandle :
-                initialCheckpoints) {
-            retrievedCheckpoints.add(
-                    checkNotNull(retrieveCompletedCheckpoint(checkpointStateHandle)));
-        }
-
-        // Clear local handles in order to prevent duplicates on recovery. The local handles should
-        // reflect the state handle store contents.
-        completedCheckpoints.clear();
-        completedCheckpoints.addAll(retrievedCheckpoints);
-    }
-
-    /**
      * Synchronously writes the new checkpoints to state handle store and asynchronously removes
      * older ones.
      *
      * @param checkpoint Completed checkpoint to add.
      * @throws PossibleInconsistentStateException if adding the checkpoint failed and leaving the
-     *     system in an possibly inconsistent state, i.e. it's uncertain whether the checkpoint
+     *     system in a possibly inconsistent state, i.e. it's uncertain whether the checkpoint
      *     metadata was fully written to the underlying systems or not.
      */
     @Override
-    public void addCheckpoint(
+    public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
             final CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup)
             throws Exception {
-
+        Preconditions.checkState(running.get(), "Checkpoint store has already been shutdown.");
         checkNotNull(checkpoint, "Checkpoint");
 
         final String path =
                 completedCheckpointStoreUtil.checkpointIDToName(checkpoint.getCheckpointID());
 
-        // Now add the new one. If it fails, we don't want to loose existing data.
+        // Now add the new one. If it fails, we don't want to lose existing data.
         checkpointStateHandleStore.addAndLock(path, checkpoint);
 
         completedCheckpoints.addLast(checkpoint);
 
-        CheckpointSubsumeHelper.subsume(
-                completedCheckpoints,
-                maxNumberOfCheckpointsToRetain,
-                completedCheckpoint ->
-                        tryRemoveCompletedCheckpoint(
-                                completedCheckpoint,
-                                completedCheckpoint.shouldBeDiscardedOnSubsume(),
-                                checkpointsCleaner,
-                                postCleanup));
+        Optional<CompletedCheckpoint> subsume =
+                CheckpointSubsumeHelper.subsume(
+                        completedCheckpoints,
+                        maxNumberOfCheckpointsToRetain,
+                        completedCheckpoint ->
+                                tryRemoveCompletedCheckpoint(
+                                        completedCheckpoint,
+                                        completedCheckpoint.shouldBeDiscardedOnSubsume(),
+                                        checkpointsCleaner,
+                                        postCleanup));
+        unregisterUnusedState(completedCheckpoints);
 
-        LOG.debug("Added {} to {}.", checkpoint, path);
+        if (subsume.isPresent()) {
+            LOG.debug("Added {} to {} without any older checkpoint to subsume.", checkpoint, path);
+        } else {
+            LOG.debug("Added {} to {} and subsume {}.", checkpoint, path, subsume);
+        }
+        return subsume.orElse(null);
     }
 
     @Override
@@ -214,30 +175,42 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
     @Override
     public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner)
             throws Exception {
-        if (jobStatus.isGloballyTerminalState()) {
-            LOG.info("Shutting down");
-
-            for (CompletedCheckpoint checkpoint : completedCheckpoints) {
-                try {
-                    tryRemoveCompletedCheckpoint(
-                            checkpoint,
-                            checkpoint.shouldBeDiscardedOnShutdown(jobStatus),
-                            checkpointsCleaner,
-                            () -> {});
-                } catch (Exception e) {
-                    LOG.warn("Fail to remove checkpoint during shutdown.", e);
+        super.shutdown(jobStatus, checkpointsCleaner);
+        if (running.compareAndSet(true, false)) {
+            if (jobStatus.isGloballyTerminalState()) {
+                LOG.info("Shutting down");
+                long lowestRetained = Long.MAX_VALUE;
+                for (CompletedCheckpoint checkpoint : completedCheckpoints) {
+                    try {
+                        if (!tryRemoveCompletedCheckpoint(
+                                checkpoint,
+                                checkpoint.shouldBeDiscardedOnShutdown(jobStatus),
+                                checkpointsCleaner,
+                                () -> {})) {
+                            lowestRetained = Math.min(lowestRetained, checkpoint.getCheckpointID());
+                        }
+                    } catch (Exception e) {
+                        LOG.warn("Fail to remove checkpoint during shutdown.", e);
+                        if (!checkpoint.shouldBeDiscardedOnShutdown(jobStatus)) {
+                            lowestRetained = Math.min(lowestRetained, checkpoint.getCheckpointID());
+                        }
+                    }
                 }
+                completedCheckpoints.clear();
+                checkpointStateHandleStore.clearEntries();
+                // Now discard the shared state of not subsumed checkpoints - only if:
+                // - the job is in a globally terminal state. Otherwise,
+                // it can be a suspension, after which this state might still be needed.
+                // - checkpoint is not retained (it might be used externally)
+                // - checkpoint handle removal succeeded (e.g. from ZK) - otherwise, it might still
+                // be used in recovery if the job status is lost
+                getSharedStateRegistry().unregisterUnusedState(lowestRetained);
+            } else {
+                LOG.info("Suspending");
+                // Clear the local handles, but don't remove any state
+                completedCheckpoints.clear();
+                checkpointStateHandleStore.releaseAll();
             }
-
-            completedCheckpoints.clear();
-            checkpointStateHandleStore.clearEntries();
-        } else {
-            LOG.info("Suspending");
-
-            // Clear the local handles, but don't remove any state
-            completedCheckpoints.clear();
-
-            checkpointStateHandleStore.releaseAll();
         }
     }
 
@@ -245,7 +218,7 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
     // Private methods
     // ---------------------------------------------------------------------------------------------------------
 
-    private void tryRemoveCompletedCheckpoint(
+    private boolean tryRemoveCompletedCheckpoint(
             CompletedCheckpoint completedCheckpoint,
             boolean shouldDiscard,
             CheckpointsCleaner checkpointsCleaner,
@@ -254,26 +227,9 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
         if (tryRemove(completedCheckpoint.getCheckpointID())) {
             checkpointsCleaner.cleanCheckpoint(
                     completedCheckpoint, shouldDiscard, postCleanup, ioExecutor);
+            return shouldDiscard;
         }
-    }
-
-    private boolean haveAllDownloaded(
-            List<Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String>> checkpointPointers) {
-        if (completedCheckpoints.size() != checkpointPointers.size()) {
-            return false;
-        }
-        Set<Long> localIds =
-                completedCheckpoints.stream()
-                        .map(CompletedCheckpoint::getCheckpointID)
-                        .collect(Collectors.toSet());
-        for (Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> initialCheckpoint :
-                checkpointPointers) {
-            if (!localIds.contains(
-                    completedCheckpointStoreUtil.nameToCheckpointID(initialCheckpoint.f1))) {
-                return false;
-            }
-        }
-        return true;
+        return shouldDiscard;
     }
 
     /**
@@ -285,35 +241,5 @@ public class DefaultCompletedCheckpointStore<R extends ResourceVersion<R>>
     private boolean tryRemove(long checkpointId) throws Exception {
         return checkpointStateHandleStore.releaseAndTryRemove(
                 completedCheckpointStoreUtil.checkpointIDToName(checkpointId));
-    }
-
-    private CompletedCheckpoint retrieveCompletedCheckpoint(
-            Tuple2<RetrievableStateHandle<CompletedCheckpoint>, String> stateHandle)
-            throws FlinkException {
-        long checkpointId = completedCheckpointStoreUtil.nameToCheckpointID(stateHandle.f1);
-
-        LOG.info("Trying to retrieve checkpoint {}.", checkpointId);
-
-        try {
-            return stateHandle.f0.retrieveState();
-        } catch (ClassNotFoundException cnfe) {
-            throw new FlinkException(
-                    "Could not retrieve checkpoint "
-                            + checkpointId
-                            + " from state handle under "
-                            + stateHandle.f1
-                            + ". This indicates that you are trying to recover from state written by an "
-                            + "older Flink version which is not compatible. Try cleaning the state handle store.",
-                    cnfe);
-        } catch (IOException ioe) {
-            throw new FlinkException(
-                    "Could not retrieve checkpoint "
-                            + checkpointId
-                            + " from state handle under "
-                            + stateHandle.f1
-                            + ". This indicates that the retrieved state handle is broken. Try cleaning the "
-                            + "state handle store.",
-                    ioe);
-        }
     }
 }

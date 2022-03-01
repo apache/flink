@@ -18,12 +18,14 @@
 
 package org.apache.flink.table.planner.delegation.hive;
 
+import org.apache.flink.api.java.tuple.Tuple4;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
-import org.apache.flink.table.operations.CatalogSinkModifyOperation;
 import org.apache.flink.table.operations.Operation;
+import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.planner.delegation.PlannerContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQB;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
@@ -84,13 +86,14 @@ public class HiveParserDMLHelper {
         this.catalogManager = catalogManager;
     }
 
-    public CatalogSinkModifyOperation createInsertOperation(
-            RelNode queryRelNode,
-            Table destTable,
-            Map<String, String> staticPartSpec,
-            List<String> destSchema,
-            boolean overwrite)
-            throws SemanticException {
+    public Tuple4<ObjectIdentifier, QueryOperation, Map<String, String>, Boolean>
+            createInsertOperationInfo(
+                    RelNode queryRelNode,
+                    Table destTable,
+                    Map<String, String> staticPartSpec,
+                    List<String> destSchema,
+                    boolean overwrite)
+                    throws SemanticException {
         // sanity check
         Preconditions.checkArgument(
                 queryRelNode instanceof Project
@@ -202,12 +205,8 @@ public class HiveParserDMLHelper {
         UnresolvedIdentifier unresolvedIdentifier = UnresolvedIdentifier.of(targetTablePath);
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
-        return new CatalogSinkModifyOperation(
-                identifier,
-                new PlannerQueryOperation(queryRelNode),
-                staticPartSpec,
-                overwrite,
-                Collections.emptyMap());
+        return Tuple4.of(
+                identifier, new PlannerQueryOperation(queryRelNode), staticPartSpec, overwrite);
     }
 
     public Operation createInsertOperation(HiveParserCalcitePlanner analyzer, RelNode queryRelNode)
@@ -270,12 +269,20 @@ public class HiveParserDMLHelper {
                         .collect(Collectors.toSet())
                         .contains(destTable.getDbName() + "." + destTable.getTableName());
 
-        return createInsertOperation(
-                queryRelNode,
-                destTable,
-                staticPartSpec,
-                analyzer.getDestSchemaForClause(insClauseName),
-                overwrite);
+        Tuple4<ObjectIdentifier, QueryOperation, Map<String, String>, Boolean> insertOperationInfo =
+                createInsertOperationInfo(
+                        queryRelNode,
+                        destTable,
+                        staticPartSpec,
+                        analyzer.getDestSchemaForClause(insClauseName),
+                        overwrite);
+
+        return new SinkModifyOperation(
+                catalogManager.getTableOrError(insertOperationInfo.f0),
+                insertOperationInfo.f1,
+                insertOperationInfo.f2,
+                insertOperationInfo.f3,
+                Collections.emptyMap());
     }
 
     private RelNode replaceDistForStaticParts(

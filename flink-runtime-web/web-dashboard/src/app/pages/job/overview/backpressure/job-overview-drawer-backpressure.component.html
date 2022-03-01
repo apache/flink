@@ -21,28 +21,29 @@
   [nzSize]="'small'"
   [nzLoading]="isLoading"
   [nzData]="listOfSubTaskBackpressure"
-  [nzScroll]="{y:'calc( 100% - 72px )'}"
-  [nzWidthConfig]="['33.33%','33.33%','33.33%']"
+  [nzScroll]="{ y: 'calc( 100% - 72px )' }"
+  [nzWidthConfig]="['33.33%', '33.33%', '33.33%']"
   [nzFrontPagination]="false"
-  [nzShowPagination]="false">
+  [nzShowPagination]="false"
+>
   <thead>
     <tr>
-      <th colspan="3">
+      <th colspan="3" class="title">
         <span *ngIf="selectedVertex?.detail?.status === 'RUNNING'">
-           Measurement:
+          Measurement:
           <span *ngIf="backpressure['end-timestamp']">
-            {{ (now - backpressure['end-timestamp']) | humanizeDuration }} ago
+            {{ now - backpressure['end-timestamp'] | humanizeDuration }} ago
           </span>
-          <span *ngIf="backpressure['status'] === 'deprecated'">
-            Sampling in progress...
-          </span>
-          <span *ngIf="(!backpressure['end-timestamp']) && (backpressure['status'] !== 'deprecated')">
+          <span *ngIf="backpressure['status'] === 'deprecated'">Sampling in progress...</span>
+          <span *ngIf="!backpressure['end-timestamp'] && backpressure['status'] !== 'deprecated'">
             -
           </span>
           <nz-divider [nzType]="'vertical'"></nz-divider>
           Back Pressure Status:
           <span>
-            <flink-backpressure-badge [state]="backpressure['backpressure-level']"></flink-backpressure-badge>
+            <flink-backpressure-badge
+              [state]="backpressure['backpressure-level']"
+            ></flink-backpressure-badge>
           </span>
         </span>
         <span *ngIf="selectedVertex?.detail?.status !== 'RUNNING'">
@@ -57,11 +58,16 @@
     </tr>
   </thead>
   <tbody>
-    <tr *ngFor="let subtask of listOfSubTaskBackpressure;trackBy:trackBackPressureBy;">
+    <tr *ngFor="let subtask of listOfSubTaskBackpressure; trackBy: trackBySubtask">
       <td>{{ subtask['subtask'] }}</td>
-      <td>{{ this.prettyPrint(subtask['ratio']) }} / {{ this.prettyPrint(subtask['idleRatio']) }} / {{ this.prettyPrint(subtask['busyRatio']) }}</td>
       <td>
-        <flink-backpressure-badge [state]="subtask['backpressure-level']"></flink-backpressure-badge>
+        {{ this.prettyPrint(subtask['ratio']) }} / {{ this.prettyPrint(subtask['idleRatio']) }} /
+        {{ this.prettyPrint(subtask['busyRatio']) }}
+      </td>
+      <td>
+        <flink-backpressure-badge
+          [state]="subtask['backpressure-level']"
+        ></flink-backpressure-badge>
       </td>
     </tr>
   </tbody>

@@ -43,10 +43,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 
 /** General tests for the {@link InitJobManagerDecorator}. */
 public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {
@@ -71,6 +71,8 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
     private static final String RESOURCE_NAME = "test";
     private static final Long RESOURCE_AMOUNT = 2L;
     private static final String RESOURCE_CONFIG_KEY = "test.com/test";
+
+    private static final String USER_DEFINED_FLINK_LOG_DIR = "/path/of/flink-log";
 
     private Pod resultPod;
     private Container resultMainContainer;
@@ -98,6 +100,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
                         RESOURCE_NAME,
                         KubernetesConfigOptions.EXTERNAL_RESOURCE_KUBERNETES_CONFIG_KEY_SUFFIX),
                 RESOURCE_CONFIG_KEY);
+        this.flinkConfig.set(KubernetesConfigOptions.FLINK_LOG_DIR, USER_DEFINED_FLINK_LOG_DIR);
     }
 
     @Override
@@ -143,8 +146,12 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
         assertEquals(String.valueOf(TOTAL_PROCESS_MEMORY), requests.get("memory").getAmount());
 
         final Map<String, Quantity> limits = resourceRequirements.getLimits();
-        assertEquals(Double.toString(TASK_MANAGER_CPU), limits.get("cpu").getAmount());
-        assertEquals(String.valueOf(TOTAL_PROCESS_MEMORY), limits.get("memory").getAmount());
+        assertEquals(
+                Double.toString(TASK_MANAGER_CPU * TASK_MANAGER_CPU_LIMIT_FACTOR),
+                limits.get("cpu").getAmount());
+        assertEquals(
+                Integer.toString((int) (TOTAL_PROCESS_MEMORY * TASK_MANAGER_MEMORY_LIMIT_FACTOR)),
+                limits.get("memory").getAmount());
     }
 
     @Test
@@ -177,8 +184,7 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
         final Map<String, String> resultEnvVars =
                 this.resultMainContainer.getEnv().stream()
                         .collect(Collectors.toMap(EnvVar::getName, EnvVar::getValue));
-
-        assertEquals(expectedEnvVars, resultEnvVars);
+        expectedEnvVars.forEach((k, v) -> assertThat(resultEnvVars.get(k), is(v)));
     }
 
     @Test
@@ -234,5 +240,18 @@ public class InitTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase 
         assertThat(
                 this.resultPod.getSpec().getTolerations(),
                 Matchers.containsInAnyOrder(TOLERATION.toArray()));
+    }
+
+    @Test
+    public void testFlinkLogDirEnvShouldBeSetIfConfiguredViaOptions() {
+        final List<EnvVar> envVars = this.resultMainContainer.getEnv();
+        assertThat(
+                envVars.stream()
+                        .anyMatch(
+                                envVar ->
+                                        envVar.getName().equals(Constants.ENV_FLINK_LOG_DIR)
+                                                && envVar.getValue()
+                                                        .equals(USER_DEFINED_FLINK_LOG_DIR)),
+                is(true));
     }
 }

@@ -111,8 +111,12 @@ function log_environment_info {
     echo "Disk information"
     df -hH
 
-    echo "Allocated ports"
-    sudo netstat -tulpn
+    if sudo -n true 2>/dev/null; then
+      echo "Allocated ports"
+      sudo netstat -tulpn
+    else
+      echo "Could not retrieve allocated ports because no sudo rights."
+    fi
 
     echo "Running docker containers"
     docker ps -a

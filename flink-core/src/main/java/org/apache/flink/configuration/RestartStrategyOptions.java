@@ -29,7 +29,12 @@ import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
-/** Config options for restart strategies. */
+/**
+ * Config options for restart strategies.
+ *
+ * <p>{@link CleanupOptions} copied this collection of parameters to provide similar user
+ * experience. FLINK-26359 is created to clean this up.
+ */
 @PublicEvolving
 @ConfigGroups(
         groups = {
@@ -47,6 +52,7 @@ public class RestartStrategyOptions {
 
     public static final ConfigOption<String> RESTART_STRATEGY =
             ConfigOptions.key("restart-strategy")
+                    .stringType()
                     .noDefaultValue()
                     .withDescription(
                             Description.builder()
@@ -63,21 +69,21 @@ public class RestartStrategyOptions {
                                                     code("fixeddelay"),
                                                     code("fixed-delay"),
                                                     link(
-                                                            "../dev/task_failure_recovery.html#fixed-delay-restart-strategy",
+                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#fixed-delay-restart-strategy",
                                                             "here")),
                                             text(
                                                     "%s, %s: Failure rate restart strategy. More details can be found %s.",
                                                     code("failurerate"),
                                                     code("failure-rate"),
                                                     link(
-                                                            "../dev/task_failure_recovery.html#failure-rate-restart-strategy",
+                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#failure-rate-restart-strategy",
                                                             "here")),
                                             text(
                                                     "%s, %s: Exponential delay restart strategy. More details can be found %s.",
                                                     code("exponentialdelay"),
                                                     code("exponential-delay"),
                                                     link(
-                                                            "../dev/task_failure_recovery.html#exponential-delay-restart-strategy",
+                                                            "{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/ops/state/task_failure_recovery#exponential-delay-restart-strategy",
                                                             "here")))
                                     .text(
                                             "If checkpointing is disabled, the default value is %s. "
@@ -116,6 +122,7 @@ public class RestartStrategyOptions {
     public static final ConfigOption<Integer>
             RESTART_STRATEGY_FAILURE_RATE_MAX_FAILURES_PER_INTERVAL =
                     ConfigOptions.key("restart-strategy.failure-rate.max-failures-per-interval")
+                            .intType()
                             .defaultValue(1)
                             .withDescription(
                                     Description.builder()

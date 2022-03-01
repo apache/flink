@@ -26,7 +26,7 @@ import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.functions.TemporalTableFunction;
 import org.apache.flink.table.operations.QueryOperation;
-import org.apache.flink.table.sinks.TableSink;
+import org.apache.flink.table.types.DataType;
 
 /**
  * The {@link Table} object is the core abstraction of the Table API. Similar to how the DataStream
@@ -86,7 +86,7 @@ import org.apache.flink.table.sinks.TableSink;
  * }</pre>
  */
 @PublicEvolving
-public interface Table {
+public interface Table extends Explainable<Table>, Executable {
 
     /**
      * Returns the schema of this table.
@@ -941,19 +941,6 @@ public interface Table {
     }
 
     /**
-     * Writes the {@link Table} to a {@link DynamicTableSink} that was registered under the
-     * specified path. For the path resolution algorithm see {@link
-     * TableEnvironment#useDatabase(String)}.
-     *
-     * @param tablePath The path of the registered {@link TableSink} to which the {@link Table} is
-     *     written.
-     * @deprecated use {@link #executeInsert(String)} for single sink, use {@link
-     *     TableEnvironment#createStatementSet()} for multiple sinks.
-     */
-    @Deprecated
-    void insertInto(String tablePath);
-
-    /**
      * Groups the records of a table by assigning them to windows defined by a time or row interval.
      *
      * <p>For streaming tables of infinite size, grouping into windows is required to define finite
@@ -1313,8 +1300,7 @@ public interface Table {
 
     /**
      * Declares that the pipeline defined by the given {@link Table} object should be written to a
-     * table (backed by a {@link DynamicTableSink}) that was registered under the specified path. It
-     * executes the insert operation.
+     * table (backed by a {@link DynamicTableSink}) that was registered under the specified path.
      *
      * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
      * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
@@ -1322,20 +1308,26 @@ public interface Table {
      * <p>Example:
      *
      * <pre>{@code
-     * Table table = tableEnv.fromQuery("select * from MyTable");
-     * TableResult tableResult = table.executeInsert("MySink");
-     * tableResult...
+     * Table table = tableEnv.sqlQuery("SELECT * FROM MyTable");
+     * TablePipeline tablePipeline = table.insertInto("MySinkTable");
+     * TableResult tableResult = tablePipeline.execute();
+     * tableResult.await();
      * }</pre>
      *
+     * <p>One can execute the returned {@link TablePipeline} using {@link TablePipeline#execute()},
+     * or compile it to a {@link CompiledPlan} using {@link TablePipeline#compilePlan()}.
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
      * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
-     * @return The insert operation execution result.
+     * @return The complete pipeline from one or more source tables to a sink table.
      */
-    TableResult executeInsert(String tablePath);
+    TablePipeline insertInto(String tablePath);
 
     /**
      * Declares that the pipeline defined by the given {@link Table} object should be written to a
-     * table (backed by a {@link DynamicTableSink}) that was registered under the specified path. It
-     * executes the insert operation.
+     * table (backed by a {@link DynamicTableSink}) that was registered under the specified path.
      *
      * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
      * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
@@ -1343,35 +1335,158 @@ public interface Table {
      * <p>Example:
      *
      * <pre>{@code
-     * Table table = tableEnv.fromQuery("select * from MyTable");
-     * TableResult tableResult = table.executeInsert("MySink", true);
-     * tableResult...
+     * Table table = tableEnv.sqlQuery("SELECT * FROM MyTable");
+     * TablePipeline tablePipeline = table.insertInto("MySinkTable", true);
+     * TableResult tableResult = tablePipeline.execute();
+     * tableResult.await();
      * }</pre>
+     *
+     * <p>One can execute the returned {@link TablePipeline} using {@link TablePipeline#execute()},
+     * or compile it to a {@link CompiledPlan} using {@link TablePipeline#compilePlan()}.
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
      *
      * @param tablePath The path of the registered table (backed by a {@link DynamicTableSink}).
-     * @param overwrite The flag that indicates whether the insert should overwrite existing data or
-     *     not.
-     * @return The insert operation execution result.
+     * @param overwrite Indicates whether existing data should be overwritten.
+     * @return The complete pipeline from one or more source tables to a sink table.
      */
-    TableResult executeInsert(String tablePath, boolean overwrite);
+    TablePipeline insertInto(String tablePath, boolean overwrite);
 
     /**
-     * Collects the contents of the current table local client.
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) expressed via the given {@link TableDescriptor}.
+     *
+     * <p>The {@link TableDescriptor descriptor} won't be registered in the catalog, but it will be
+     * propagated directly in the operation tree. Note that calling this method multiple times, even
+     * with the same descriptor, results in multiple sink tables instances.
+     *
+     * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
+     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+     *
+     * <ul>
+     *   <li>overwrite automatically derived columns with a custom {@link DataType}
+     *   <li>add metadata columns next to the physical columns
+     *   <li>declare a primary key
+     * </ul>
+     *
+     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
+     * columns will be automatically derived and implicitly put at the beginning of the schema
+     * declaration.
+     *
+     * <p>Examples:
      *
      * <pre>{@code
-     * Table table = tableEnv.fromQuery("select * from MyTable");
-     * TableResult tableResult = table.execute();
-     * tableResult...
+     * Schema schema = Schema.newBuilder()
+     *   .column("f0", DataTypes.STRING())
+     *   .build();
+     *
+     * Table table = tableEnv.from(TableDescriptor.forConnector("datagen")
+     *   .schema(schema)
+     *   .build());
+     *
+     * table.insertInto(TableDescriptor.forConnector("blackhole")
+     *   .schema(schema)
+     *   .build());
      * }</pre>
+     *
+     * <p>One can execute the returned {@link TablePipeline} using {@link TablePipeline#execute()},
+     * or compile it to a {@link CompiledPlan} using {@link TablePipeline#compilePlan()}.
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
+     * @param descriptor Descriptor describing the sink table into which data should be inserted.
+     * @return The complete pipeline from one or more source tables to a sink table.
      */
-    TableResult execute();
+    TablePipeline insertInto(TableDescriptor descriptor);
 
     /**
-     * Returns the AST of this table and the execution plan to compute the result of this table.
+     * Declares that the pipeline defined by the given {@link Table} object should be written to a
+     * table (backed by a {@link DynamicTableSink}) expressed via the given {@link TableDescriptor}.
      *
-     * @param extraDetails The extra explain details which the explain result should include, e.g.
-     *     estimated cost, changelog mode for streaming
-     * @return AST and the execution plan.
+     * <p>The {@link TableDescriptor descriptor} won't be registered in the catalog, but it will be
+     * propagated directly in the operation tree. Note that calling this method multiple times, even
+     * with the same descriptor, results in multiple sink tables being registered.
+     *
+     * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
+     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
+     *
+     * <ul>
+     *   <li>overwrite automatically derived columns with a custom {@link DataType}
+     *   <li>add metadata columns next to the physical columns
+     *   <li>declare a primary key
+     * </ul>
+     *
+     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
+     * columns will be automatically derived and implicitly put at the beginning of the schema
+     * declaration.
+     *
+     * <p>Examples:
+     *
+     * <pre>{@code
+     * Schema schema = Schema.newBuilder()
+     *   .column("f0", DataTypes.STRING())
+     *   .build();
+     *
+     * Table table = tableEnv.from(TableDescriptor.forConnector("datagen")
+     *   .schema(schema)
+     *   .build());
+     *
+     * table.insertInto(TableDescriptor.forConnector("blackhole")
+     *   .schema(schema)
+     *   .build(), true);
+     * }</pre>
+     *
+     * <p>One can execute the returned {@link TablePipeline} using {@link TablePipeline#execute()},
+     * or compile it to a {@link CompiledPlan} using {@link TablePipeline#compilePlan()}.
+     *
+     * <p>If multiple pipelines should insert data into one or more sink tables as part of a single
+     * execution, use a {@link StatementSet} (see {@link TableEnvironment#createStatementSet()}).
+     *
+     * @param descriptor Descriptor describing the sink table into which data should be inserted.
+     * @param overwrite Indicates whether existing data should be overwritten.
+     * @return The complete pipeline from one or more source tables to a sink table.
      */
-    String explain(ExplainDetail... extraDetails);
+    TablePipeline insertInto(TableDescriptor descriptor, boolean overwrite);
+
+    /**
+     * Shorthand for {@code tableEnv.insertInto(tablePath).execute()}.
+     *
+     * @see #insertInto(String)
+     * @see TablePipeline#execute()
+     */
+    default TableResult executeInsert(String tablePath) {
+        return insertInto(tablePath).execute();
+    }
+
+    /**
+     * Shorthand for {@code tableEnv.insertInto(tablePath, overwrite).execute()}.
+     *
+     * @see #insertInto(String, boolean)
+     * @see TablePipeline#execute()
+     */
+    default TableResult executeInsert(String tablePath, boolean overwrite) {
+        return insertInto(tablePath, overwrite).execute();
+    }
+
+    /**
+     * Shorthand for {@code tableEnv.insertInto(descriptor).execute()}.
+     *
+     * @see #insertInto(TableDescriptor)
+     * @see TablePipeline#execute()
+     */
+    default TableResult executeInsert(TableDescriptor descriptor) {
+        return insertInto(descriptor).execute();
+    }
+
+    /**
+     * Shorthand for {@code tableEnv.insertInto(descriptor, overwrite).execute()}.
+     *
+     * @see #insertInto(TableDescriptor, boolean)
+     * @see TablePipeline#execute()
+     */
+    default TableResult executeInsert(TableDescriptor descriptor, boolean overwrite) {
+        return insertInto(descriptor, overwrite).execute();
+    }
 }

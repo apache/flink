@@ -31,9 +31,6 @@ public interface OnCompletionActions {
      */
     void jobReachedGloballyTerminalState(ExecutionGraphInfo executionGraphInfo);
 
-    /** Job was finished by another JobMaster. */
-    void jobFinishedByOther();
-
     /** The {@link JobMaster} failed while executing the job. */
     void jobMasterFailed(Throwable cause);
 }

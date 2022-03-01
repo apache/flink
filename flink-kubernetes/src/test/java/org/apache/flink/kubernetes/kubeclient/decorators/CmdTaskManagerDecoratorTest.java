@@ -30,12 +30,12 @@ import org.junit.Test;
 
 import java.util.List;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
-import static org.junit.Assert.assertThat;
 
 /** General tests for the{@link CmdTaskManagerDecorator}. */
 public class CmdTaskManagerDecoratorTest extends KubernetesTaskManagerTestBase {

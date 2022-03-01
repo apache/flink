@@ -23,9 +23,11 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SourceSplit;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.connector.source.SplitsAssignment;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.SplitEnumeratorMetricGroup;
 import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.util.ThrowableCatchingRunnable;
+
+import javax.annotation.Nonnull;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -47,7 +49,7 @@ import java.util.function.BiConsumer;
 
 /** A mock class for {@link SplitEnumeratorContext}. */
 public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
-        implements SplitEnumeratorContext<SplitT> {
+        implements SplitEnumeratorContext<SplitT>, AutoCloseable {
     private final Map<Integer, List<SourceEvent>> sentSourceEvent;
     private final ConcurrentMap<Integer, ReaderInfo> registeredReaders;
     private final List<SplitsAssignment<SplitT>> splitsAssignmentSequence;
@@ -79,8 +81,8 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
     }
 
     @Override
-    public MetricGroup metricGroup() {
-        return new UnregisteredMetricsGroup();
+    public SplitEnumeratorMetricGroup metricGroup() {
+        return UnregisteredMetricsGroup.createSplitEnumeratorMetricGroup();
     }
 
     @Override
@@ -185,8 +187,10 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
         mainExecutor.execute(runnable);
     }
 
-    public void close() {
+    public void close() throws Exception {
         stoppedAcceptAsyncCalls.set(true);
+        workerExecutor.shutdownNow();
+        mainExecutor.shutdownNow();
     }
 
     // ------------ helper method to manipulate the context -------------
@@ -271,7 +275,7 @@ public class MockSplitEnumeratorContext<SplitT extends SourceSplit>
         }
 
         @Override
-        public Thread newThread(Runnable r) {
+        public Thread newThread(@Nonnull Runnable r) {
             if (t != null) {
                 throw new IllegalStateException(
                         "Should never happen. This factory should only be used by a "

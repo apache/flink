@@ -56,6 +56,11 @@ final class ChannelState {
         blockedChannels.add(channelInfo);
     }
 
+    public void channelFinished(InputChannelInfo channelInfo) {
+        blockedChannels.remove(channelInfo);
+        sequenceNumberInAnnouncedChannels.remove(channelInfo);
+    }
+
     public void prioritizeAllAnnouncements() throws IOException {
         for (Map.Entry<InputChannelInfo, Integer> announcedNumberInChannel :
                 sequenceNumberInAnnouncedChannels.entrySet()) {

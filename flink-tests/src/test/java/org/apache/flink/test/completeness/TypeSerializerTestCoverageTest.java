@@ -181,6 +181,9 @@ public class TypeSerializerTestCoverageTest extends TestLogger {
             // serializer defined in test classes
             if (Modifier.isAbstract(typeSerializer.getModifiers())
                     || Modifier.isPrivate(typeSerializer.getModifiers())
+                    || (typeSerializer.getName().contains("$")
+                            && SimpleVersionedSerializerTypeSerializerProxy.class.isAssignableFrom(
+                                    typeSerializer))
                     || typeSerializer.getName().contains("Test$")
                     || typeSerializer.getName().contains("TestBase$")
                     || typeSerializer.getName().contains("TestType$")

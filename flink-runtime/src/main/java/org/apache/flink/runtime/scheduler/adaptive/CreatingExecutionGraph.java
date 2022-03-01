@@ -19,18 +19,27 @@
 package org.apache.flink.runtime.scheduler.adaptive;
 
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.runtime.concurrent.FutureUtils;
+import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ExecutionVertex;
+import org.apache.flink.runtime.scheduler.DefaultOperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
+import org.apache.flink.runtime.scheduler.GlobalFailureHandler;
+import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.VertexParallelism;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 
 import javax.annotation.Nullable;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 
 /**
@@ -44,16 +53,18 @@ import java.util.concurrent.ScheduledFuture;
 public class CreatingExecutionGraph implements State {
 
     private final Context context;
-
-    private final Logger log;
+    private final Logger logger;
+    private final OperatorCoordinatorHandlerFactory operatorCoordinatorHandlerFactory;
 
     public CreatingExecutionGraph(
             Context context,
             CompletableFuture<ExecutionGraphWithVertexParallelism>
                     executionGraphWithParallelismFuture,
-            Logger log) {
+            Logger logger,
+            OperatorCoordinatorHandlerFactory operatorCoordinatorFactory) {
         this.context = context;
-        this.log = log;
+        this.logger = logger;
+        this.operatorCoordinatorHandlerFactory = operatorCoordinatorFactory;
 
         FutureUtils.assertNoException(
                 executionGraphWithParallelismFuture.handle(
@@ -72,22 +83,45 @@ public class CreatingExecutionGraph implements State {
             @Nullable ExecutionGraphWithVertexParallelism executionGraphWithVertexParallelism,
             @Nullable Throwable throwable) {
         if (throwable != null) {
-            log.info(
+            logger.info(
                     "Failed to go from {} to {} because the ExecutionGraph creation failed.",
                     CreatingExecutionGraph.class.getSimpleName(),
                     Executing.class.getSimpleName(),
                     throwable);
             context.goToFinished(context.getArchivedExecutionGraph(JobStatus.FAILED, throwable));
         } else {
+            for (ExecutionVertex vertex :
+                    executionGraphWithVertexParallelism.executionGraph.getAllExecutionVertices()) {
+                vertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
+            }
+
             final AssignmentResult result =
                     context.tryToAssignSlots(executionGraphWithVertexParallelism);
 
             if (result.isSuccess()) {
-                log.debug(
+                logger.debug(
                         "Successfully reserved and assigned the required slots for the ExecutionGraph.");
-                context.goToExecuting(result.getExecutionGraph());
+                final ExecutionGraph executionGraph = result.getExecutionGraph();
+                final ExecutionGraphHandler executionGraphHandler =
+                        new ExecutionGraphHandler(
+                                executionGraph,
+                                getLogger(),
+                                context.getIOExecutor(),
+                                context.getMainThreadExecutor());
+                // Operator coordinator outlives the current state, so we need to use context as a
+                // global failure handler.
+                final OperatorCoordinatorHandler operatorCoordinatorHandler =
+                        operatorCoordinatorHandlerFactory.create(executionGraph, context);
+                operatorCoordinatorHandler.initializeOperatorCoordinators(
+                        context.getMainThreadExecutor());
+                operatorCoordinatorHandler.startAllOperatorCoordinators();
+                context.goToExecuting(
+                        result.getExecutionGraph(),
+                        executionGraphHandler,
+                        operatorCoordinatorHandler,
+                        Collections.emptyList());
             } else {
-                log.debug(
+                logger.debug(
                         "Failed to reserve and assign the required slots. Waiting for new resources.");
                 context.goToWaitingForResources();
             }
@@ -106,7 +140,7 @@ public class CreatingExecutionGraph implements State {
 
     @Override
     public JobStatus getJobStatus() {
-        return JobStatus.INITIALIZING;
+        return JobStatus.CREATED;
     }
 
     @Override
@@ -121,28 +155,15 @@ public class CreatingExecutionGraph implements State {
 
     @Override
     public Logger getLogger() {
-        return log;
+        return logger;
     }
 
     /** Context for the {@link CreatingExecutionGraph} state. */
-    interface Context {
-
-        /**
-         * Transitions into the {@link Finished} state.
-         *
-         * @param archivedExecutionGraph archivedExecutionGraph representing the final job state
-         */
-        void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
-
-        /**
-         * Transitions into the {@link Executing} state.
-         *
-         * @param executionGraph executionGraph which is passed to the {@link Executing} state
-         */
-        void goToExecuting(ExecutionGraph executionGraph);
-
-        /** Transitions into the {@link WaitingForResources} state. */
-        void goToWaitingForResources();
+    interface Context
+            extends GlobalFailureHandler,
+                    StateTransitions.ToExecuting,
+                    StateTransitions.ToFinished,
+                    StateTransitions.ToWaitingForResources {
 
         /**
          * Creates the {@link ArchivedExecutionGraph} for the given job status and cause. Cause can
@@ -177,6 +198,36 @@ public class CreatingExecutionGraph implements State {
          */
         AssignmentResult tryToAssignSlots(
                 ExecutionGraphWithVertexParallelism executionGraphWithVertexParallelism);
+
+        /**
+         * Gets the I/O executor.
+         *
+         * @return the I/O executor
+         */
+        Executor getIOExecutor();
+
+        /**
+         * Gets the main thread executor.
+         *
+         * @return the main thread executor
+         */
+        ComponentMainThreadExecutor getMainThreadExecutor();
+    }
+
+    @FunctionalInterface
+    interface OperatorCoordinatorHandlerFactory {
+
+        /**
+         * Creates a new {@link OperatorCoordinatorHandler}. This interface is primarily intended
+         * for easier testing.
+         *
+         * @param executionGraph Current execution graph, that contains operator coordinators that
+         *     we want to start.
+         * @param globalFailureHandler Global failure handler.
+         * @return An {@link OperatorCoordinatorHandler} instance.
+         */
+        OperatorCoordinatorHandler create(
+                ExecutionGraph executionGraph, GlobalFailureHandler globalFailureHandler);
     }
 
     /**
@@ -243,7 +294,11 @@ public class CreatingExecutionGraph implements State {
 
         @Override
         public CreatingExecutionGraph getState() {
-            return new CreatingExecutionGraph(context, executionGraphWithParallelismFuture, log);
+            return new CreatingExecutionGraph(
+                    context,
+                    executionGraphWithParallelismFuture,
+                    log,
+                    DefaultOperatorCoordinatorHandler::new);
         }
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.util.StringUtils;
 
 import java.io.Serializable;
@@ -26,6 +27,7 @@ import java.util.Objects;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** A database name and object (table/view/function) name combo in a catalog. */
+@PublicEvolving
 public class ObjectPath implements Serializable {
     private final String databaseName;
     private final String objectName;

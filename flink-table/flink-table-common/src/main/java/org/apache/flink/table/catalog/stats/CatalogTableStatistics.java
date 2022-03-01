@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.catalog.stats;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import java.util.HashMap;
 import java.util.Map;
 
 /** Statistics for a non-partitioned table or a partition of a partitioned table. */
+@PublicEvolving
 public class CatalogTableStatistics {
     public static final CatalogTableStatistics UNKNOWN = new CatalogTableStatistics(-1, -1, -1, -1);
 

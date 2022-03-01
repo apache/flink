@@ -18,9 +18,12 @@
 package org.apache.flink.streaming.connectors.kinesis.internals;
 
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
+import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
+import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher;
 import org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisherFactory;
+import org.apache.flink.streaming.connectors.kinesis.metrics.KinesisConsumerMetricConstants;
 import org.apache.flink.streaming.connectors.kinesis.metrics.ShardConsumerMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.KinesisStreamShardState;
 import org.apache.flink.streaming.connectors.kinesis.model.SequenceNumber;
@@ -47,12 +50,11 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_SHARD_ENDING_SEQUENCE_NUM;
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 /** Tests for the {@link ShardConsumer}. */
 public class ShardConsumerTestUtils {
 
-    public static <T> ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+    public static ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
             final int expectedNumberOfMessages,
             final RecordPublisherFactory recordPublisherFactory,
             final SequenceNumber startingSequenceNumber,
@@ -66,15 +68,32 @@ public class ShardConsumerTestUtils {
                 SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get());
     }
 
-    public static <T> ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+    public static ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
             final int expectedNumberOfMessages,
             final RecordPublisherFactory recordPublisherFactory,
             final SequenceNumber startingSequenceNumber,
             final Properties consumerProperties,
-            final SequenceNumber expectedLastProcessedSequenceNum)
+            final AbstractMetricGroup metricGroup)
+            throws InterruptedException {
+        return assertNumberOfMessagesReceivedFromKinesis(
+                expectedNumberOfMessages,
+                recordPublisherFactory,
+                startingSequenceNumber,
+                consumerProperties,
+                SENTINEL_SHARD_ENDING_SEQUENCE_NUM.get(),
+                metricGroup);
+    }
+
+    public static ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+            final int expectedNumberOfMessages,
+            final RecordPublisherFactory recordPublisherFactory,
+            final SequenceNumber startingSequenceNumber,
+            final Properties consumerProperties,
+            final SequenceNumber expectedLastProcessedSequenceNum,
+            final AbstractMetricGroup metricGroup)
             throws InterruptedException {
         ShardConsumerMetricsReporter shardMetricsReporter =
-                new ShardConsumerMetricsReporter(mock(MetricGroup.class));
+                new ShardConsumerMetricsReporter(metricGroup);
 
         StreamShardHandle fakeToBeConsumedShard = getMockStreamShard("fakeStream", 0);
 
@@ -116,7 +135,7 @@ public class ShardConsumerTestUtils {
                 recordPublisherFactory.create(
                         startingPosition,
                         fetcher.getConsumerConfiguration(),
-                        mock(MetricGroup.class),
+                        metricGroup,
                         shardHandle);
 
         int shardIndex =
@@ -139,6 +158,22 @@ public class ShardConsumerTestUtils {
         return shardMetricsReporter;
     }
 
+    public static ShardConsumerMetricsReporter assertNumberOfMessagesReceivedFromKinesis(
+            final int expectedNumberOfMessages,
+            final RecordPublisherFactory recordPublisherFactory,
+            final SequenceNumber startingSequenceNumber,
+            final Properties consumerProperties,
+            final SequenceNumber expectedLastProcessedSequenceNum)
+            throws InterruptedException {
+        return assertNumberOfMessagesReceivedFromKinesis(
+                expectedNumberOfMessages,
+                recordPublisherFactory,
+                startingSequenceNumber,
+                consumerProperties,
+                expectedLastProcessedSequenceNum,
+                createFakeShardConsumerMetricGroup());
+    }
+
     public static StreamShardHandle getMockStreamShard(String streamName, int shardId) {
         return new StreamShardHandle(
                 streamName,
@@ -154,5 +189,20 @@ public class ShardConsumerTestUtils {
 
     public static SequenceNumber fakeSequenceNumber() {
         return new SequenceNumber("fakeStartingState");
+    }
+
+    public static AbstractMetricGroup createFakeShardConsumerMetricGroup(
+            OperatorMetricGroup metricGroup) {
+        return (AbstractMetricGroup)
+                metricGroup
+                        .addGroup(KinesisConsumerMetricConstants.STREAM_METRICS_GROUP, "fakeStream")
+                        .addGroup(
+                                KinesisConsumerMetricConstants.SHARD_METRICS_GROUP,
+                                "shardId-000000000000");
+    }
+
+    public static AbstractMetricGroup createFakeShardConsumerMetricGroup() {
+        return createFakeShardConsumerMetricGroup(
+                UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup());
     }
 }

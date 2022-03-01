@@ -37,7 +37,7 @@ import org.apache.flink.table.connector.sink.DynamicTableSink;
  * @param <I> runtime interface needed by the table sink
  */
 @PublicEvolving
-public interface EncodingFormatFactory<I> extends Factory {
+public interface EncodingFormatFactory<I> extends FormatFactory {
 
     /**
      * Creates a format from the given context and format options.

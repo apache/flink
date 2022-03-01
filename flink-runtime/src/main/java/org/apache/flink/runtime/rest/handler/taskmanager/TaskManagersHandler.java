@@ -57,7 +57,7 @@ public class TaskManagersHandler
 
     @Override
     protected CompletableFuture<TaskManagersInfo> handleRequest(
-            @Nonnull HandlerRequest<EmptyRequestBody, EmptyMessageParameters> request,
+            @Nonnull HandlerRequest<EmptyRequestBody> request,
             @Nonnull ResourceManagerGateway gateway)
             throws RestHandlerException {
         return gateway.requestTaskManagerInfo(timeout).thenApply(TaskManagersInfo::new);

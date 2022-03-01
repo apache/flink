@@ -21,11 +21,11 @@ from pyflink.table import expressions as expr
 from pyflink.table.types import DataTypes
 from pyflink.table.udf import udaf, udf, AggregateFunction
 from pyflink.testing import source_sink_utils
-from pyflink.testing.test_case_utils import PyFlinkBlinkBatchTableTestCase, \
-    PyFlinkBlinkStreamTableTestCase
+from pyflink.testing.test_case_utils import PyFlinkBatchTableTestCase, \
+    PyFlinkStreamTableTestCase
 
 
-class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
+class BatchPandasUDAFITTests(PyFlinkBatchTableTestCase):
 
     def test_check_result_type(self):
         def pandas_udaf():
@@ -280,7 +280,7 @@ class BatchPandasUDAFITTests(PyFlinkBlinkBatchTableTestCase):
                             "+I[3, 2.0, 3, 2.0, 1.0, 1.0, 2.0, 2.0, 1.0, 1.0]"])
 
 
-class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
+class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
     def test_sliding_group_window_over_time(self):
         # create source file path
         import tempfile
@@ -760,6 +760,7 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
                             "+I[3, 2.0, 4]"])
         os.remove(source_path)
 
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_over_aggregate_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -811,7 +812,7 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
         self.t_env.create_temporary_system_function("mean_udaf", mean_udaf)
         self.t_env.create_temporary_system_function("max_add_min_udaf", max_add_min_udaf)
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("""
+        json_plan = self.t_env._j_tenv.compilePlanSql("""
         insert into sink_table
             select a,
              mean_udaf(b)
@@ -823,7 +824,7 @@ class StreamPandasUDAFITTests(PyFlinkBlinkStreamTableTestCase):
             from source_table
         """)
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
         import glob
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]

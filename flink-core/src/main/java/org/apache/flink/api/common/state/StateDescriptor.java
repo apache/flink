@@ -100,7 +100,7 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
     /** Name for queries against state created from this StateDescriptor. */
     @Nullable private String queryableStateName;
 
-    /** Name for queries against state created from this StateDescriptor. */
+    /** The configuration of state time-to-live(TTL), it is disabled by default. */
     @Nonnull private StateTtlConfig ttlConfig = StateTtlConfig.DISABLED;
 
     /** The default value returned by the state when no other value is bound to a key. */
@@ -264,10 +264,11 @@ public abstract class StateDescriptor<S extends State, T> implements Serializabl
      */
     public void enableTimeToLive(StateTtlConfig ttlConfig) {
         Preconditions.checkNotNull(ttlConfig);
-        Preconditions.checkArgument(
-                ttlConfig.getUpdateType() != StateTtlConfig.UpdateType.Disabled
-                        && queryableStateName == null,
-                "Queryable state is currently not supported with TTL");
+        if (ttlConfig.isEnabled()) {
+            Preconditions.checkArgument(
+                    queryableStateName == null,
+                    "Queryable state is currently not supported with TTL");
+        }
         this.ttlConfig = ttlConfig;
     }
 

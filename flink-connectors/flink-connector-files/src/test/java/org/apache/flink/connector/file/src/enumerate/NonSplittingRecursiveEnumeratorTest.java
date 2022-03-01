@@ -123,7 +123,8 @@ public class NonSplittingRecursiveEnumeratorTest {
 
         assertEquals(1, splits.size());
         assertSplitsEqual(
-                new FileSourceSplit("ignoredId", testPath, 0L, 12345L), splits.iterator().next());
+                new FileSourceSplit("ignoredId", testPath, 0L, 12345L, 0, 12345L),
+                splits.iterator().next());
     }
 
     @Test
@@ -146,7 +147,8 @@ public class NonSplittingRecursiveEnumeratorTest {
 
         assertEquals(1, splits.size());
         assertSplitsEqual(
-                new FileSourceSplit("ignoredId", testPath, 0L, 10000L), splits.iterator().next());
+                new FileSourceSplit("ignoredId", testPath, 0L, 10000L, 0, 12345L),
+                splits.iterator().next());
     }
 
     @Test
@@ -171,7 +173,16 @@ public class NonSplittingRecursiveEnumeratorTest {
 
         assertSplitsEqual(
                 new FileSourceSplit(
-                        "ignoredId", testPath, 0L, 1000L, "host1", "host2", "host3", "host4"),
+                        "ignoredId",
+                        testPath,
+                        0L,
+                        1000L,
+                        0,
+                        1000L,
+                        "host1",
+                        "host2",
+                        "host3",
+                        "host4"),
                 splits.iterator().next());
     }
 

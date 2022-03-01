@@ -20,12 +20,16 @@ package org.apache.flink.connector.kafka.source.enumerator.initializer;
 
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
 
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
 import org.apache.kafka.common.TopicPartition;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Properties;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A initializer that initialize the partitions to the earliest / latest / last-committed offsets.
@@ -34,7 +38,7 @@ import java.util.Map;
  *
  * <p>Package private and should be instantiated via {@link OffsetsInitializer}.
  */
-class ReaderHandledOffsetsInitializer implements OffsetsInitializer {
+class ReaderHandledOffsetsInitializer implements OffsetsInitializer, OffsetsInitializerValidator {
     private static final long serialVersionUID = 172938052008787981L;
     private final long startingOffset;
     private final OffsetResetStrategy offsetResetStrategy;
@@ -64,5 +68,16 @@ class ReaderHandledOffsetsInitializer implements OffsetsInitializer {
     @Override
     public OffsetResetStrategy getAutoOffsetResetStrategy() {
         return offsetResetStrategy;
+    }
+
+    @Override
+    public void validate(Properties kafkaSourceProperties) {
+        if (startingOffset == KafkaPartitionSplit.COMMITTED_OFFSET) {
+            checkState(
+                    kafkaSourceProperties.containsKey(ConsumerConfig.GROUP_ID_CONFIG),
+                    String.format(
+                            "Property %s is required when using committed offset for offsets initializer",
+                            ConsumerConfig.GROUP_ID_CONFIG));
+        }
     }
 }

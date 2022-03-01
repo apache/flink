@@ -49,7 +49,7 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
 
     /**
      * The ID of the resource in which the TaskManager is started. This can be for example the YARN
-     * container ID, Mesos container ID, or any other unique identifier.
+     * container ID or any other unique identifier.
      */
     private final ResourceID resourceID;
 
@@ -139,7 +139,6 @@ public class TaskManagerLocation implements Comparable<TaskManagerLocation>, jav
      *
      * <ul>
      *   <li>If the TaskManager is started via YARN, this is the YARN container ID.
-     *   <li>If the TaskManager is started via Mesos, this is the Mesos container ID.
      *   <li>If the TaskManager is started in standalone mode, or via a MiniCluster, this is a
      *       random ID.
      *   <li>Other deployment modes can set the resource ID in other ways.

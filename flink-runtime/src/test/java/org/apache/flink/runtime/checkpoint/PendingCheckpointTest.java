@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.local.LocalFileSystem;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -26,11 +27,8 @@ import org.apache.flink.runtime.OperatorIDPair;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.StringSerializer;
 import org.apache.flink.runtime.checkpoint.PendingCheckpoint.TaskAcknowledgeResult;
 import org.apache.flink.runtime.checkpoint.hooks.MasterHooks;
-import org.apache.flink.runtime.concurrent.Executors;
 import org.apache.flink.runtime.executiongraph.Execution;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
-import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.ExecutionGraphCheckpointPlanCalculatorContext;
 import org.apache.flink.runtime.executiongraph.ExecutionJobVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
@@ -42,11 +40,12 @@ import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.TestingStreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FsCheckpointStorageLocation;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
+import org.apache.flink.util.concurrent.Executors;
 
-import org.hamcrest.Matchers;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.mockito.Mockito;
 
@@ -67,7 +66,8 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledFuture;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.contains;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
@@ -75,6 +75,7 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
@@ -114,13 +115,22 @@ public class PendingCheckpointTest {
 
     @Rule public final TemporaryFolder tmpFolder = new TemporaryFolder();
 
+    @Rule public final ExpectedException expectedException = ExpectedException.none();
+
     /** Tests that pending checkpoints can be subsumed iff they are forced. */
     @Test
     public void testCanBeSubsumed() throws Exception {
         // Forced checkpoints cannot be subsumed
         CheckpointProperties forced =
                 new CheckpointProperties(
-                        true, CheckpointType.SAVEPOINT, false, false, false, false, false);
+                        true,
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false);
         PendingCheckpoint pending = createPendingCheckpoint(forced);
         assertFalse(pending.canBeSubsumed());
 
@@ -134,7 +144,14 @@ public class PendingCheckpointTest {
         // Non-forced checkpoints can be subsumed
         CheckpointProperties subsumed =
                 new CheckpointProperties(
-                        false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+                        false,
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false);
         pending = createPendingCheckpoint(subsumed);
         assertFalse(pending.canBeSubsumed());
     }
@@ -142,7 +159,8 @@ public class PendingCheckpointTest {
     @Test
     public void testSyncSavepointCannotBeSubsumed() throws Exception {
         // Forced checkpoints cannot be subsumed
-        CheckpointProperties forced = CheckpointProperties.forSyncSavepoint(true, false);
+        CheckpointProperties forced =
+                CheckpointProperties.forSyncSavepoint(true, false, SavepointFormatType.CANONICAL);
         PendingCheckpoint pending = createPendingCheckpoint(forced);
         assertFalse(pending.canBeSubsumed());
 
@@ -162,7 +180,14 @@ public class PendingCheckpointTest {
     public void testCompletionFuture() throws Exception {
         CheckpointProperties props =
                 new CheckpointProperties(
-                        false, CheckpointType.SAVEPOINT, false, false, false, false, false);
+                        false,
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                        false,
+                        false,
+                        false,
+                        false,
+                        false,
+                        false);
 
         // Abort declined
         PendingCheckpoint pending = createPendingCheckpoint(props);
@@ -218,11 +243,11 @@ public class PendingCheckpointTest {
     public void testAbortDiscardsState() throws Exception {
         CheckpointProperties props =
                 new CheckpointProperties(
-                        false, CheckpointType.CHECKPOINT, false, false, false, false, false);
+                        false, CheckpointType.CHECKPOINT, false, false, false, false, false, false);
         QueueExecutor executor = new QueueExecutor();
 
         OperatorState state = mock(OperatorState.class);
-        doNothing().when(state).registerSharedStates(any(SharedStateRegistry.class));
+        doNothing().when(state).registerSharedStates(any(SharedStateRegistry.class), eq(0L));
 
         // Abort declined
         PendingCheckpoint pending = createPendingCheckpoint(props, executor);
@@ -377,7 +402,7 @@ public class PendingCheckpointTest {
     public void testSetCanceller() throws Exception {
         final CheckpointProperties props =
                 new CheckpointProperties(
-                        false, CheckpointType.CHECKPOINT, true, true, true, true, true);
+                        false, CheckpointType.CHECKPOINT, true, true, true, true, true, false);
 
         PendingCheckpoint aborted = createPendingCheckpoint(props);
         abort(aborted, CheckpointFailureReason.CHECKPOINT_DECLINED);
@@ -508,7 +533,7 @@ public class PendingCheckpointTest {
         assertTrue(checkpoint.isFullyAcknowledged());
         assertThat(
                 checkpoint.getOperatorStates().keySet(),
-                Matchers.containsInAnyOrder(OPERATOR_ID, coord1.operatorId(), coord2.operatorId()));
+                containsInAnyOrder(OPERATOR_ID, coord1.operatorId(), coord2.operatorId()));
     }
 
     @Test
@@ -548,66 +573,33 @@ public class PendingCheckpointTest {
     }
 
     @Test
-    public void testFinalizeCheckpointWithFullyFinishedOperators() throws Exception {
-        JobVertexID finishedJobVertexID = new JobVertexID();
-        JobVertexID runningJobVertexID = new JobVertexID();
-        OperatorID finishedOperatorID = new OperatorID();
-        OperatorID runningOperatorID = new OperatorID();
-
-        ExecutionGraph executionGraph =
-                new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
-                        .addJobVertex(
-                                finishedJobVertexID,
-                                1,
-                                256,
-                                Collections.singletonList(
-                                        OperatorIDPair.generatedIDOnly(finishedOperatorID)),
-                                true)
-                        .addJobVertex(
-                                runningJobVertexID,
-                                1,
-                                256,
-                                Collections.singletonList(
-                                        OperatorIDPair.generatedIDOnly(runningOperatorID)),
-                                true)
-                        .build();
-        executionGraph
-                .getJobVertex(finishedJobVertexID)
-                .getTaskVertices()[0]
-                .getCurrentExecutionAttempt()
-                .markFinished();
-        PendingCheckpoint pendingCheckpoint = createPendingCheckpoint(executionGraph);
-        assertThat(pendingCheckpoint.getCheckpointPlan().getFullyFinishedJobVertex().size(), is(1));
+    public void testReportTaskFinishedOnRestore() throws IOException {
+        RecordCheckpointPlan recordCheckpointPlan =
+                new RecordCheckpointPlan(new ArrayList<>(ACK_TASKS));
+        PendingCheckpoint checkpoint = createPendingCheckpoint(recordCheckpointPlan);
+        checkpoint.acknowledgeTask(
+                ACK_TASKS.get(0).getAttemptId(),
+                TaskStateSnapshot.FINISHED_ON_RESTORE,
+                new CheckpointMetrics(),
+                null);
         assertThat(
-                pendingCheckpoint
-                        .getCheckpointPlan()
-                        .getFullyFinishedJobVertex()
-                        .get(0)
-                        .getJobVertexId(),
-                is(finishedJobVertexID));
+                recordCheckpointPlan.getReportedFinishedOnRestoreTasks(),
+                contains(ACK_TASKS.get(0).getVertex()));
+    }
 
-        // Report the state for the running operator
-        ExecutionAttemptID runningTaskId =
-                executionGraph
-                        .getJobVertex(runningJobVertexID)
-                        .getTaskVertices()[0]
-                        .getCurrentExecutionAttempt()
-                        .getAttemptId();
-        TaskStateSnapshot taskStateSnapshot = new TaskStateSnapshot();
-        taskStateSnapshot.putSubtaskStateByOperatorID(
-                runningOperatorID, new OperatorSubtaskState());
-        TaskAcknowledgeResult result =
-                pendingCheckpoint.acknowledgeTask(
-                        runningTaskId, taskStateSnapshot, new CheckpointMetrics(), null);
-        assertThat(result, is(TaskAcknowledgeResult.SUCCESS));
-
-        CompletedCheckpoint completedCheckpoint =
-                pendingCheckpoint.finalizeCheckpoint(
-                        new CheckpointsCleaner(), () -> {}, Executors.directExecutor(), null);
-        assertThat(completedCheckpoint.getOperatorStates().size(), is(2));
-        OperatorState finishedOperatorState =
-                completedCheckpoint.getOperatorStates().get(finishedOperatorID);
-        assertThat(finishedOperatorState.isFullyFinished(), is(true));
+    @Test
+    public void testReportTaskFinishedOperators() throws IOException {
+        RecordCheckpointPlan recordCheckpointPlan =
+                new RecordCheckpointPlan(new ArrayList<>(ACK_TASKS));
+        PendingCheckpoint checkpoint = createPendingCheckpoint(recordCheckpointPlan);
+        checkpoint.acknowledgeTask(
+                ACK_TASKS.get(0).getAttemptId(),
+                new TaskStateSnapshot(10, true),
+                new CheckpointMetrics(),
+                null);
+        assertThat(
+                recordCheckpointPlan.getReportedOperatorsFinishedTasks(),
+                contains(ACK_TASKS.get(0).getVertex()));
     }
 
     // ------------------------------------------------------------------------
@@ -632,6 +624,17 @@ public class PendingCheckpointTest {
             throws IOException {
         return createPendingCheckpoint(
                 props, Collections.emptyList(), masterStateIdentifiers, Executors.directExecutor());
+    }
+
+    private PendingCheckpoint createPendingCheckpoint(CheckpointPlan checkpointPlan)
+            throws IOException {
+        return createPendingCheckpoint(
+                CheckpointProperties.forCheckpoint(
+                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
+                Collections.emptyList(),
+                Collections.emptyList(),
+                checkpointPlan,
+                Executors.directExecutor());
     }
 
     private PendingCheckpoint createPendingCheckpointWithCoordinators(OperatorInfo... coordinators)
@@ -671,6 +674,30 @@ public class PendingCheckpointTest {
             Executor executor)
             throws IOException {
 
+        final List<Execution> ackTasks = new ArrayList<>(ACK_TASKS);
+        final List<ExecutionVertex> tasksToCommit = new ArrayList<>(TASKS_TO_COMMIT);
+        return createPendingCheckpoint(
+                props,
+                operatorCoordinators,
+                masterStateIdentifiers,
+                new DefaultCheckpointPlan(
+                        Collections.emptyList(),
+                        ackTasks,
+                        tasksToCommit,
+                        Collections.emptyList(),
+                        Collections.emptyList(),
+                        true),
+                executor);
+    }
+
+    private PendingCheckpoint createPendingCheckpoint(
+            CheckpointProperties props,
+            Collection<OperatorID> operatorCoordinators,
+            Collection<String> masterStateIdentifiers,
+            CheckpointPlan checkpointPlan,
+            Executor executor)
+            throws IOException {
+
         final Path checkpointDir = new Path(tmpFolder.newFolder().toURI());
         final FsCheckpointStorageLocation location =
                 new FsCheckpointStorageLocation(
@@ -681,57 +708,15 @@ public class PendingCheckpointTest {
                         CheckpointStorageLocationReference.getDefault(),
                         1024,
                         4096);
-
-        final List<Execution> ackTasks = new ArrayList<>(ACK_TASKS);
-        final List<ExecutionVertex> tasksToCommit = new ArrayList<>(TASKS_TO_COMMIT);
 
         return new PendingCheckpoint(
                 new JobID(),
                 0,
                 1,
-                new CheckpointPlan(
-                        Collections.emptyList(),
-                        ackTasks,
-                        tasksToCommit,
-                        Collections.emptyList(),
-                        Collections.emptyList()),
+                checkpointPlan,
                 operatorCoordinators,
                 masterStateIdentifiers,
                 props,
-                location,
-                new CompletableFuture<>());
-    }
-
-    private PendingCheckpoint createPendingCheckpoint(ExecutionGraph executionGraph)
-            throws Exception {
-        DefaultCheckpointPlanCalculator checkpointPlanCalculator =
-                new DefaultCheckpointPlanCalculator(
-                        new JobID(),
-                        new ExecutionGraphCheckpointPlanCalculatorContext(executionGraph),
-                        executionGraph.getVerticesTopologically());
-        checkpointPlanCalculator.setAllowCheckpointsAfterTasksFinished(true);
-        CheckpointPlan checkpointPlan = checkpointPlanCalculator.calculateCheckpointPlan().get();
-
-        final Path checkpointDir = new Path(tmpFolder.newFolder().toURI());
-        final FsCheckpointStorageLocation location =
-                new FsCheckpointStorageLocation(
-                        LocalFileSystem.getSharedInstance(),
-                        checkpointDir,
-                        checkpointDir,
-                        checkpointDir,
-                        CheckpointStorageLocationReference.getDefault(),
-                        1024,
-                        4096);
-
-        return new PendingCheckpoint(
-                executionGraph.getJobID(),
-                0,
-                1,
-                checkpointPlan,
-                Collections.emptyList(),
-                Collections.emptyList(),
-                CheckpointProperties.forCheckpoint(
-                        CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                 location,
                 new CompletableFuture<>());
     }
@@ -814,6 +799,43 @@ public class PendingCheckpointTest {
         @Override
         public SimpleVersionedSerializer<String> createCheckpointDataSerializer() {
             return new StringSerializer();
+        }
+    }
+
+    private static class RecordCheckpointPlan extends DefaultCheckpointPlan {
+
+        private List<ExecutionVertex> reportedFinishedOnRestoreTasks = new ArrayList<>();
+
+        private List<ExecutionVertex> reportedOperatorsFinishedTasks = new ArrayList<>();
+
+        public RecordCheckpointPlan(List<Execution> tasksToWaitFor) {
+            super(
+                    Collections.emptyList(),
+                    tasksToWaitFor,
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    Collections.emptyList(),
+                    true);
+        }
+
+        @Override
+        public void reportTaskFinishedOnRestore(ExecutionVertex task) {
+            super.reportTaskFinishedOnRestore(task);
+            reportedFinishedOnRestoreTasks.add(task);
+        }
+
+        @Override
+        public void reportTaskHasFinishedOperators(ExecutionVertex task) {
+            super.reportTaskHasFinishedOperators(task);
+            reportedOperatorsFinishedTasks.add(task);
+        }
+
+        public List<ExecutionVertex> getReportedFinishedOnRestoreTasks() {
+            return reportedFinishedOnRestoreTasks;
+        }
+
+        public List<ExecutionVertex> getReportedOperatorsFinishedTasks() {
+            return reportedOperatorsFinishedTasks;
         }
     }
 }

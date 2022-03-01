@@ -35,11 +35,11 @@ import org.apache.flink.kubernetes.kubeclient.factory.KubernetesJobManagerFactor
 import org.apache.flink.kubernetes.kubeclient.parameters.KubernetesJobManagerParameters;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesConfigMap;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesPod;
-import org.apache.flink.kubernetes.kubeclient.resources.NoOpWatchCallbackHandler;
+import org.apache.flink.kubernetes.kubeclient.resources.KubernetesService;
+import org.apache.flink.kubernetes.utils.Constants;
 import org.apache.flink.runtime.persistence.PossibleInconsistentStateException;
-import org.apache.flink.runtime.rest.HttpMethodWrapper;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.util.ExceptionUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -49,9 +49,10 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
-import okhttp3.mockwebserver.RecordedRequest;
 import org.junit.Test;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,22 +61,23 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOG4J_NAME;
 import static org.apache.flink.kubernetes.utils.Constants.CONFIG_FILE_LOGBACK_NAME;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isIn;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 /** Tests for Fabric implementation of {@link FlinkKubeClient}. */
 public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
-    private static final long TIMEOUT = 10 * 1000;
     private static final int RPC_PORT = 7123;
     private static final int BLOB_SERVER_PORT = 8346;
 
@@ -173,6 +175,51 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     }
 
     @Test
+    public void testUpdateRestServicePort() throws Exception {
+        this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
+
+        final int expectedRestPort = 9081;
+        flinkKubeClient
+                .updateServiceTargetPort(
+                        KubernetesService.ServiceType.REST_SERVICE,
+                        CLUSTER_ID,
+                        Constants.REST_PORT_NAME,
+                        expectedRestPort)
+                .get();
+        final int updatedRestPort =
+                getServiceTargetPort(
+                        CLUSTER_ID + Constants.FLINK_REST_SERVICE_SUFFIX, Constants.REST_PORT_NAME);
+        assertThat(updatedRestPort, is(expectedRestPort));
+    }
+
+    @Test
+    public void testUpdateInternalServicePort() throws Exception {
+        this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
+
+        final int expectedBlobPort = 9082;
+        flinkKubeClient
+                .updateServiceTargetPort(
+                        KubernetesService.ServiceType.INTERNAL_SERVICE,
+                        CLUSTER_ID,
+                        Constants.BLOB_SERVER_PORT_NAME,
+                        expectedBlobPort)
+                .get();
+        final int updatedBlobPort =
+                getServiceTargetPort(CLUSTER_ID, Constants.BLOB_SERVER_PORT_NAME);
+        assertThat(updatedBlobPort, is(expectedBlobPort));
+    }
+
+    private int getServiceTargetPort(String serviceName, String portName) {
+        final List<Integer> ports =
+                kubeClient.services().withName(serviceName).get().getSpec().getPorts().stream()
+                        .filter(servicePort -> servicePort.getName().equalsIgnoreCase(portName))
+                        .map(servicePort -> servicePort.getTargetPort().getIntVal())
+                        .collect(Collectors.toList());
+        assertThat(ports.size(), is(1));
+        return ports.get(0);
+    }
+
+    @Test
     public void testCreateFlinkTaskManagerPod() throws Exception {
         this.flinkKubeClient.createJobManagerComponent(this.kubernetesJobManagerSpecification);
 
@@ -251,12 +298,61 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
     }
 
     @Test
-    public void testNodePortService() {
-        mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
+    public void testNodePortServiceWithInternalIP() {
+        testNodePortService(KubernetesConfigOptions.NodePortAddressType.InternalIP);
+    }
 
-        final Optional<Endpoint> resultEndpoint = flinkKubeClient.getRestEndpoint(CLUSTER_ID);
-        assertThat(resultEndpoint.isPresent(), is(true));
-        assertThat(resultEndpoint.get().getPort(), is(NODE_PORT));
+    @Test
+    public void testNodePortServiceWithExternalIP() {
+        testNodePortService(KubernetesConfigOptions.NodePortAddressType.ExternalIP);
+    }
+
+    private void testNodePortService(KubernetesConfigOptions.NodePortAddressType addressType) {
+        flinkConfig.set(
+                KubernetesConfigOptions.REST_SERVICE_EXPOSED_NODE_PORT_ADDRESS_TYPE, addressType);
+        final List<String> internalAddresses =
+                Arrays.asList("InternalIP:10.0.0.1", "InternalIP:10.0.0.2", "InternalIP:10.0.0.3");
+        final List<String> externalAddresses =
+                Arrays.asList("ExternalIP:7.7.7.7", "ExternalIP:8.8.8.8", "ExternalIP:9.9.9.9");
+        final List<String> addresses = new ArrayList<>();
+        addresses.addAll(internalAddresses);
+        addresses.addAll(externalAddresses);
+        mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
+        mockExpectedNodesFromServerSide(addresses);
+        try (final Fabric8FlinkKubeClient localClient =
+                new Fabric8FlinkKubeClient(
+                        flinkConfig,
+                        kubeClient,
+                        org.apache.flink.util.concurrent.Executors.newDirectExecutorService())) {
+            final Optional<Endpoint> resultEndpoint = localClient.getRestEndpoint(CLUSTER_ID);
+            assertThat(resultEndpoint.isPresent(), is(true));
+            final List<String> expectedIps;
+            switch (addressType) {
+                case InternalIP:
+                    expectedIps =
+                            internalAddresses.stream()
+                                    .map(s -> s.split(":")[1])
+                                    .collect(Collectors.toList());
+                    break;
+                case ExternalIP:
+                    expectedIps =
+                            externalAddresses.stream()
+                                    .map(s -> s.split(":")[1])
+                                    .collect(Collectors.toList());
+                    break;
+                default:
+                    throw new IllegalArgumentException(
+                            String.format("Unexpected address type %s.", addressType));
+            }
+            assertThat(resultEndpoint.get().getAddress(), isIn(expectedIps));
+            assertThat(resultEndpoint.get().getPort(), is(NODE_PORT));
+        }
+    }
+
+    @Test
+    public void testNodePortServiceWithNoMatchingIP() {
+        mockExpectedServiceFromServerSide(buildExternalServiceWithNodePort());
+        assertFalse(flinkKubeClient.getRestEndpoint(CLUSTER_ID).isPresent());
     }
 
     @Test
@@ -511,25 +607,6 @@ public class Fabric8FlinkKubeClientTest extends KubernetesClientTestBase {
                             .isPresent(),
                     is(true));
         }
-    }
-
-    @Test
-    public void testWatchConfigMaps() throws Exception {
-        final String kubeConfigFile = writeKubeConfigForMockKubernetesServer();
-        flinkConfig.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
-
-        final FlinkKubeClient realFlinkKubeClient =
-                FlinkKubeClientFactory.getInstance().fromConfiguration(flinkConfig, "testing");
-        realFlinkKubeClient.watchConfigMaps(CLUSTER_ID, new NoOpWatchCallbackHandler<>());
-        final String path =
-                "/api/v1/namespaces/"
-                        + NAMESPACE
-                        + "/configmaps?fieldSelector=metadata.name%3D"
-                        + CLUSTER_ID
-                        + "&watch=true";
-        final RecordedRequest watchRequest = server.takeRequest(TIMEOUT, TimeUnit.MILLISECONDS);
-        assertThat(watchRequest.getPath(), is(path));
-        assertThat(watchRequest.getMethod(), is(HttpMethodWrapper.GET.toString()));
     }
 
     @Test

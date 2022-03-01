@@ -34,7 +34,7 @@ under the License.
 ## 独立部署模式（Standalone Deployment）下的内存配置
 
 [独立部署模式]({{< ref "docs/deployment/resource-providers/standalone/overview" >}})下，我们通常更关注 Flink 应用本身使用的内存大小。
-建议配置 [Flink 总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)（[`taskmanager.memory.flink.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-flink-size) 或者 [`jobmanager.memory.flink.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-flink-size" >}})）或其组成部分。
+建议配置 [Flink 总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)（[`taskmanager.memory.flink.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-flink-size) 或者 [`jobmanager.memory.flink.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-flink-size)）或其组成部分。
 此外，如果出现 [Metaspace 不足的问题]({{< ref "docs/deployment/memory/mem_trouble" >}}#outofmemoryerror-metaspace)，可以调整 *JVM Metaspace* 的大小。
 
 这种情况下通常无需配置*进程总内存*，因为不管是 Flink 还是部署环境都不会对 *JVM 开销* 进行限制，它只与机器的物理资源相关。
@@ -43,15 +43,15 @@ under the License.
 
 ## 容器（Container）的内存配置
 
-在容器化部署模式（Containerized Deployment）下（[Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}})、[Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}}) 或 [Mesos]({{< ref "docs/deployment/resource-providers/mesos" >}})），建议配置[进程总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)（[`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size) 或者 [`jobmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size)）。
+在容器化部署模式（Containerized Deployment）下（[Kubernetes]({{< ref "docs/deployment/resource-providers/standalone/kubernetes" >}}) 或 [Yarn]({{< ref "docs/deployment/resource-providers/yarn" >}})），建议配置[进程总内存]({{< ref "docs/deployment/memory/mem_setup" >}}#configure-total-memory)（[`taskmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#taskmanager-memory-process-size) 或者 [`jobmanager.memory.process.size`]({{< ref "docs/deployment/config" >}}#jobmanager-memory-process-size)）。
 该配置参数用于指定分配给 Flink *JVM 进程*的总内存，也就是需要申请的容器大小。
 
 <span class="label label-info">提示</span>
 如果配置了 *Flink 总内存*，Flink 会自动加上 JVM 相关的内存部分，根据推算出的*进程总内存*大小申请容器。
 
-<div class="alert alert-warning">
-  <strong>注意：</strong> 如果 Flink 或者用户代码分配超过容器大小的非托管的堆外（本地）内存，部署环境可能会杀掉超用内存的容器，造成作业执行失败。
-</div>
+{{< hint warning >}}
+**注意：** 如果 Flink 或者用户代码分配超过容器大小的非托管的堆外（本地）内存，部署环境可能会杀掉超用内存的容器，造成作业执行失败。
+{{< /hint >}}
 
 请参考[容器内存超用]({{< ref "docs/deployment/memory/mem_trouble" >}}#container-memory-exceeded)中的相关描述。
 

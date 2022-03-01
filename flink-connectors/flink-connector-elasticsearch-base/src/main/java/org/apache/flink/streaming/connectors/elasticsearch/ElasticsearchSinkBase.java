@@ -37,7 +37,6 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.rest.RestStatus;
 
 import java.io.Serializable;
@@ -416,8 +415,8 @@ public abstract class ElasticsearchSinkBase<T, C extends AutoCloseable> extends 
         if (bulkProcessorFlushIntervalMillis == -1) {
             bulkProcessorBuilder.setFlushInterval(null);
         } else {
-            bulkProcessorBuilder.setFlushInterval(
-                    TimeValue.timeValueMillis(bulkProcessorFlushIntervalMillis));
+            callBridge.configureBulkProcessorFlushInterval(
+                    bulkProcessorBuilder, bulkProcessorFlushIntervalMillis);
         }
     }
 

@@ -22,7 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.checkpoint.AbstractCheckpointStats;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsHistory;
 import org.apache.flink.runtime.checkpoint.CheckpointStatsSnapshot;
-import org.apache.flink.runtime.checkpoint.MinMaxAvgStats;
+import org.apache.flink.runtime.checkpoint.StatsSummary;
 import org.apache.flink.runtime.checkpoint.SubtaskStateStats;
 import org.apache.flink.runtime.checkpoint.TaskStateStats;
 import org.apache.flink.runtime.executiongraph.AccessExecutionGraph;
@@ -37,7 +37,7 @@ import org.apache.flink.runtime.rest.messages.JobVertexIdPathParameter;
 import org.apache.flink.runtime.rest.messages.MessageHeaders;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.checkpoints.CheckpointIdPathParameter;
-import org.apache.flink.runtime.rest.messages.checkpoints.MinMaxAvgStatistics;
+import org.apache.flink.runtime.rest.messages.checkpoints.StatsSummaryDto;
 import org.apache.flink.runtime.rest.messages.checkpoints.SubtaskCheckpointStatistics;
 import org.apache.flink.runtime.rest.messages.checkpoints.TaskCheckpointMessageParameters;
 import org.apache.flink.runtime.rest.messages.checkpoints.TaskCheckpointStatisticsWithSubtaskDetails;
@@ -84,8 +84,7 @@ public class TaskCheckpointStatisticDetailsHandler
 
     @Override
     protected TaskCheckpointStatisticsWithSubtaskDetails handleCheckpointRequest(
-            HandlerRequest<EmptyRequestBody, TaskCheckpointMessageParameters> request,
-            AbstractCheckpointStats checkpointStats)
+            HandlerRequest<EmptyRequestBody> request, AbstractCheckpointStats checkpointStats)
             throws RestHandlerException {
 
         final JobVertexID jobVertexId = request.getPathParameter(JobVertexIdPathParameter.class);
@@ -142,6 +141,7 @@ public class TaskCheckpointStatisticDetailsHandler
                 checkpointStats.getCheckpointId(),
                 checkpointStats.getStatus(),
                 taskStatistics.getLatestAckTimestamp(),
+                taskStatistics.getCheckpointedSize(),
                 taskStatistics.getStateSize(),
                 taskStatistics.getEndToEndDuration(checkpointStats.getTriggerTimestamp()),
                 0,
@@ -155,32 +155,37 @@ public class TaskCheckpointStatisticDetailsHandler
 
     private static TaskCheckpointStatisticsWithSubtaskDetails.Summary createSummary(
             TaskStateStats.TaskStateStatsSummary taskStatisticsSummary, long triggerTimestamp) {
-        final MinMaxAvgStats ackTSStats = taskStatisticsSummary.getAckTimestampStats();
+        final StatsSummary ackTSStats = taskStatisticsSummary.getAckTimestampStats();
 
         final TaskCheckpointStatisticsWithSubtaskDetails.CheckpointDuration checkpointDuration =
                 new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointDuration(
-                        MinMaxAvgStatistics.valueOf(
+                        StatsSummaryDto.valueOf(
                                 taskStatisticsSummary.getSyncCheckpointDurationStats()),
-                        MinMaxAvgStatistics.valueOf(
+                        StatsSummaryDto.valueOf(
                                 taskStatisticsSummary.getAsyncCheckpointDurationStats()));
 
         final TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment checkpointAlignment =
                 new TaskCheckpointStatisticsWithSubtaskDetails.CheckpointAlignment(
-                        new MinMaxAvgStatistics(0, 0, 0),
-                        MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getProcessedDataStats()),
-                        MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getPersistedDataStats()),
-                        MinMaxAvgStatistics.valueOf(
-                                taskStatisticsSummary.getAlignmentDurationStats()));
+                        new StatsSummaryDto(0, 0, 0, 0, 0, 0, 0, 0),
+                        StatsSummaryDto.valueOf(taskStatisticsSummary.getProcessedDataStats()),
+                        StatsSummaryDto.valueOf(taskStatisticsSummary.getPersistedDataStats()),
+                        StatsSummaryDto.valueOf(taskStatisticsSummary.getAlignmentDurationStats()));
 
         return new TaskCheckpointStatisticsWithSubtaskDetails.Summary(
-                MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getStateSizeStats()),
-                new MinMaxAvgStatistics(
+                StatsSummaryDto.valueOf(taskStatisticsSummary.getCheckpointedSize()),
+                StatsSummaryDto.valueOf(taskStatisticsSummary.getStateSizeStats()),
+                new StatsSummaryDto(
                         Math.max(0L, ackTSStats.getMinimum() - triggerTimestamp),
                         Math.max(0L, ackTSStats.getMaximum() - triggerTimestamp),
-                        Math.max(0L, ackTSStats.getAverage() - triggerTimestamp)),
+                        Math.max(0L, ackTSStats.getAverage() - triggerTimestamp),
+                        ackTSStats.createSnapshot().getQuantile(.50d),
+                        ackTSStats.createSnapshot().getQuantile(.90d),
+                        ackTSStats.createSnapshot().getQuantile(.95d),
+                        ackTSStats.createSnapshot().getQuantile(.99d),
+                        ackTSStats.createSnapshot().getQuantile(.999d)),
                 checkpointDuration,
                 checkpointAlignment,
-                MinMaxAvgStatistics.valueOf(taskStatisticsSummary.getCheckpointStartDelayStats()));
+                StatsSummaryDto.valueOf(taskStatisticsSummary.getCheckpointStartDelayStats()));
     }
 
     private static List<SubtaskCheckpointStatistics> createSubtaskCheckpointStatistics(
@@ -198,6 +203,7 @@ public class TaskCheckpointStatisticDetailsHandler
                                 i,
                                 subtask.getAckTimestamp(),
                                 subtask.getEndToEndDuration(triggerTimestamp),
+                                subtask.getCheckpointedSize(),
                                 subtask.getStateSize(),
                                 new SubtaskCheckpointStatistics.CompletedSubtaskCheckpointStatistics
                                         .CheckpointDuration(

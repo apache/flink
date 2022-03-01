@@ -19,6 +19,7 @@ package org.apache.flink.table.data.binary;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.core.memory.MemorySegment;
+import org.apache.flink.util.Preconditions;
 
 /** A basic implementation of {@link BinaryFormat} which describe a section of memory. */
 @Internal
@@ -31,6 +32,7 @@ public class BinarySection implements BinaryFormat {
     public BinarySection() {}
 
     public BinarySection(MemorySegment[] segments, int offset, int sizeInBytes) {
+        Preconditions.checkArgument(segments != null);
         this.segments = segments;
         this.offset = offset;
         this.sizeInBytes = sizeInBytes;
@@ -41,6 +43,7 @@ public class BinarySection implements BinaryFormat {
     }
 
     public void pointTo(MemorySegment[] segments, int offset, int sizeInBytes) {
+        Preconditions.checkArgument(segments != null);
         this.segments = segments;
         this.offset = offset;
         this.sizeInBytes = sizeInBytes;

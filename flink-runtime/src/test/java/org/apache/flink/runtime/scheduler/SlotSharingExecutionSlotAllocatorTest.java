@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotProfile;
+import org.apache.flink.runtime.clusterframework.types.SlotProfileTestingUtils;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.jobmaster.TestingPayload;
@@ -655,7 +656,7 @@ public class SlotSharingExecutionSlotAllocatorTest extends TestLogger {
             askedBulks.add(bulk);
             return (group, resourceProfile) -> {
                 askedGroups.add(group);
-                return SlotProfile.noLocality(resourceProfile);
+                return SlotProfileTestingUtils.noLocality(resourceProfile);
             };
         }
 

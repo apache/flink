@@ -23,6 +23,8 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.TaskOperatorEventGateway;
 import org.apache.flink.runtime.jobmaster.JobMasterOperatorEventGateway;
 import org.apache.flink.runtime.messages.Acknowledge;
+import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
+import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.util.SerializedValue;
 
@@ -63,5 +65,11 @@ public class RpcTaskOperatorEventGateway implements TaskOperatorEventGateway {
                         errorHandler.accept(exception);
                     }
                 });
+    }
+
+    @Override
+    public CompletableFuture<CoordinationResponse> sendRequestToCoordinator(
+            OperatorID operator, SerializedValue<CoordinationRequest> request) {
+        return rpcGateway.sendRequestToCoordinator(operator, request);
     }
 }

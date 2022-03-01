@@ -36,6 +36,7 @@ import org.apache.flink.yarn.configuration.YarnConfigOptionsInternal;
 import org.apache.flink.yarn.configuration.YarnDeploymentTarget;
 import org.apache.flink.yarn.configuration.YarnLogConfigUtil;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.service.Service;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -65,9 +66,10 @@ import static junit.framework.TestCase.assertTrue;
 import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.runtime.jobmanager.JobManagerProcessUtils.createDefaultJobManagerProcessSpec;
 import static org.apache.flink.yarn.configuration.YarnConfigOptions.CLASSPATH_INCLUDE_USER_JAR;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.fail;
 
 /** Tests for the {@link YarnClusterDescriptor}. */
@@ -694,7 +696,33 @@ public class YarnClusterDescriptorTest extends TestLogger {
             fail();
         } catch (IllegalArgumentException exception) {
             assertThat(
-                    exception.getMessage(), containsString("This is an illegal ship directory :"));
+                    exception.getMessage(),
+                    containsString("User-shipped directories configured via :"));
+        }
+    }
+
+    /** Tests that the usrlib will be automatically shipped. */
+    @Test
+    public void testShipUsrLib() throws IOException {
+        final Map<String, String> oldEnv = System.getenv();
+        final Map<String, String> env = new HashMap<>(1);
+        final File homeFolder = temporaryFolder.newFolder().getAbsoluteFile();
+        final File libFolder = new File(homeFolder.getAbsolutePath(), "lib");
+        assertTrue(libFolder.createNewFile());
+        final File usrLibFolder =
+                new File(homeFolder.getAbsolutePath(), ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
+        assertTrue(usrLibFolder.mkdirs());
+        final File usrLibFile = new File(usrLibFolder, "usrLibFile.jar");
+        assertTrue(usrLibFile.createNewFile());
+        env.put(ConfigConstants.ENV_FLINK_LIB_DIR, libFolder.getAbsolutePath());
+        CommonTestUtils.setEnv(env);
+
+        try (YarnClusterDescriptor descriptor = createYarnClusterDescriptor()) {
+            final Set<File> effectiveShipFiles = new HashSet<>();
+            descriptor.addUsrLibFolderToShipFiles(effectiveShipFiles);
+            assertThat(effectiveShipFiles, containsInAnyOrder(usrLibFolder));
+        } finally {
+            CommonTestUtils.setEnv(oldEnv);
         }
     }
 
@@ -738,6 +766,36 @@ public class YarnClusterDescriptorTest extends TestLogger {
                     () ->
                             yarnClusterDescriptor.deployApplicationCluster(
                                     clusterSpecification, appConfig));
+        }
+    }
+
+    @Test
+    public void testGetStagingDirWithoutSpecifyingStagingDir() throws IOException {
+        try (final YarnClusterDescriptor yarnClusterDescriptor = createYarnClusterDescriptor()) {
+            YarnConfiguration yarnConfig = new YarnConfiguration();
+            yarnConfig.set("fs.defaultFS", "file://tmp");
+            FileSystem defaultFileSystem = FileSystem.get(yarnConfig);
+            Path stagingDir = yarnClusterDescriptor.getStagingDir(defaultFileSystem);
+            assertEquals("file", defaultFileSystem.getScheme());
+            assertEquals("file", stagingDir.getFileSystem(yarnConfig).getScheme());
+        }
+    }
+
+    @Test
+    public void testGetStagingDirWithSpecifyingStagingDir() throws IOException {
+        final Configuration flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.STAGING_DIRECTORY, "file:///tmp/path1");
+        try (final YarnClusterDescriptor yarnClusterDescriptor =
+                createYarnClusterDescriptor(flinkConfig)) {
+            YarnConfiguration yarnConfig = new YarnConfiguration();
+            yarnConfig.set("fs.defaultFS", "viewfs://hadoop-ns01");
+            yarnConfig.set("fs.viewfs.mounttable.hadoop-ns01.link./tmp", "file://tmp");
+            FileSystem defaultFileSystem = FileSystem.get(yarnConfig);
+
+            Path stagingDir = yarnClusterDescriptor.getStagingDir(defaultFileSystem);
+
+            assertEquals("viewfs", defaultFileSystem.getScheme());
+            assertEquals("file", stagingDir.getFileSystem(yarnConfig).getScheme());
         }
     }
 

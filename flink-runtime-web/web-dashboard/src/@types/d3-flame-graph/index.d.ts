@@ -17,11 +17,11 @@
  */
 
 declare module 'd3-flame-graph' {
-  type ColorMapper = (node: any, originalColor: string) => string;
+  type ColorMapper = (node: unknown, originalColor: string) => string;
 
   export function flamegraph(): FlameGraph;
   export const offCpuColorMapper: ColorMapper;
-  export function defaultFlamegraphTooltip(): any;
+  export function defaultFlamegraphTooltip(): unknown;
 
   export interface StackFrame {
     name: string;
@@ -29,14 +29,14 @@ declare module 'd3-flame-graph' {
     children: StackFrame[];
   }
 
-  type LabelHandler = (node: any) => string;
-  type ClickHandler = (node: any) => void;
-  type DetailsHandler = (node: any) => void;
-  type SearchHandler = (results: any, sum: any, totalValue: any) => void;
-  type SearchMatch = (node: any, term: string) => boolean;
+  type LabelHandler = (node: unknown) => string;
+  type ClickHandler = (node: unknown) => void;
+  type DetailsHandler = (node: unknown) => void;
+  type SearchHandler = (results: unknown, sum: unknown, totalValue: unknown) => void;
+  type SearchMatch = (node: unknown, term: string) => boolean;
 
   interface FlameGraph {
-    (selection: any): any;
+    (selection: unknown): unknown;
 
     selfValue(val: boolean): FlameGraph;
     selfValue(): boolean;
@@ -52,7 +52,7 @@ declare module 'd3-flame-graph' {
     title(): string;
     tooltip(val: boolean): FlameGraph;
     tooltip(): boolean;
-    tooltip(any: tip): boolean;
+    tooltip(tip: unknown): boolean;
     transitionDuration(val: number): FlameGraph;
     transitionDuration(): number;
     transitionEase(val: string): FlameGraph;

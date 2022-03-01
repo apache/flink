@@ -59,4 +59,20 @@ public interface PullingAsyncDataInput<T> extends AvailabilityProvider {
 
     /** @return true if is finished and for example end of input was reached, false otherwise. */
     boolean isFinished();
+
+    /**
+     * Tells if we consumed all available data.
+     *
+     * <p>Moreover it tells us the reason why there is no more data incoming. If any of the upstream
+     * subtasks finished because of the stop-with-savepoint --no-drain, we should not drain the
+     * input. See also {@code StopMode}.
+     */
+    EndOfDataStatus hasReceivedEndOfData();
+
+    /** Status for describing if we have reached the end of data. */
+    enum EndOfDataStatus {
+        NOT_END_OF_DATA,
+        DRAINED,
+        STOPPED
+    }
 }

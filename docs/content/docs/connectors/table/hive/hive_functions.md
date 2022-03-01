@@ -97,7 +97,6 @@ To use a Hive User Defined Function, user have to
 
 - set a HiveCatalog backed by Hive Metastore that contains that function as current catalog of the session
 - include a jar that contains that function in Flink's classpath
-- use Blink planner.
 
 ## Using Hive User Defined Functions
 

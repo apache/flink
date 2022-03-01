@@ -31,14 +31,13 @@ import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
 import org.apache.flink.table.delegation.Planner;
-import org.apache.flink.table.delegation.PlannerFactory;
-import org.apache.flink.table.factories.ComponentFactoryService;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.util.TemporaryClassLoaderContext;
 
 import java.lang.reflect.Method;
 import java.net.URLClassLoader;
-import java.util.Map;
 import java.util.function.Supplier;
 
 import static org.apache.flink.table.client.gateway.context.SessionContext.SessionState;
@@ -107,17 +106,16 @@ public class ExecutionContext {
                     "The old planner is not supported anymore. Please update to new default planner.");
         }
 
-        TableConfig config = new TableConfig();
-        config.addConfiguration(flinkConfig);
+        TableConfig tableConfig = new TableConfig();
+        tableConfig.addConfiguration(flinkConfig);
 
         StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();
 
-        final Map<String, String> executorProperties = settings.toExecutorProperties();
-        Executor executor = lookupExecutor(executorProperties, streamExecEnv);
+        final Executor executor = lookupExecutor(settings.getExecutor(), streamExecEnv);
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,
-                config,
+                tableConfig,
                 executor,
                 sessionState.catalogManager,
                 sessionState.moduleManager,
@@ -128,28 +126,27 @@ public class ExecutionContext {
     private StreamTableEnvironment createStreamTableEnvironment(
             StreamExecutionEnvironment env,
             EnvironmentSettings settings,
-            TableConfig config,
+            TableConfig tableConfig,
             Executor executor,
             CatalogManager catalogManager,
             ModuleManager moduleManager,
             FunctionCatalog functionCatalog,
             ClassLoader userClassLoader) {
 
-        final Map<String, String> plannerProperties = settings.toPlannerProperties();
         final Planner planner =
-                ComponentFactoryService.find(PlannerFactory.class, plannerProperties)
-                        .create(
-                                plannerProperties,
-                                executor,
-                                config,
-                                functionCatalog,
-                                catalogManager);
+                PlannerFactoryUtil.createPlanner(
+                        settings.getPlanner(),
+                        executor,
+                        tableConfig,
+                        moduleManager,
+                        catalogManager,
+                        functionCatalog);
 
         return new StreamTableEnvironmentImpl(
                 catalogManager,
                 moduleManager,
                 functionCatalog,
-                config,
+                tableConfig,
                 env,
                 planner,
                 executor,
@@ -158,18 +155,17 @@ public class ExecutionContext {
     }
 
     private Executor lookupExecutor(
-            Map<String, String> executorProperties,
-            StreamExecutionEnvironment executionEnvironment) {
+            String executorIdentifier, StreamExecutionEnvironment executionEnvironment) {
         try {
-            ExecutorFactory executorFactory =
-                    ComponentFactoryService.find(ExecutorFactory.class, executorProperties);
-            Method createMethod =
+            final ExecutorFactory executorFactory =
+                    FactoryUtil.discoverFactory(
+                            classLoader, ExecutorFactory.class, executorIdentifier);
+            final Method createMethod =
                     executorFactory
                             .getClass()
-                            .getMethod("create", Map.class, StreamExecutionEnvironment.class);
+                            .getMethod("create", StreamExecutionEnvironment.class);
 
-            return (Executor)
-                    createMethod.invoke(executorFactory, executorProperties, executionEnvironment);
+            return (Executor) createMethod.invoke(executorFactory, executionEnvironment);
         } catch (Exception e) {
             throw new TableException(
                     "Could not instantiate the executor. Make sure a planner module is on the classpath",

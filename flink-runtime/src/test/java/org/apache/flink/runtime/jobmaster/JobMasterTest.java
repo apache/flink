@@ -32,6 +32,7 @@ import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.RestartStrategyOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.core.io.InputSplitAssigner;
 import org.apache.flink.core.io.InputSplitSource;
@@ -41,7 +42,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
 import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
-import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
@@ -89,6 +90,7 @@ import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
 import org.apache.flink.runtime.resourcemanager.utils.TestingResourceManagerGateway;
 import org.apache.flink.runtime.rpc.RpcUtils;
 import org.apache.flink.runtime.rpc.TestingRpcService;
+import org.apache.flink.runtime.rpc.exceptions.RecipientUnreachableException;
 import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.ExecutionGraphInfo;
 import org.apache.flink.runtime.scheduler.TestingSchedulerNG;
@@ -107,12 +109,15 @@ import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.testutils.junit.FailsWithAdaptiveScheduler;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TimeUtils;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -130,6 +135,7 @@ import javax.annotation.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -139,6 +145,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Queue;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -154,7 +162,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory.useSameServicesForAllJobs;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.anyOf;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -206,8 +213,9 @@ public class JobMasterTest extends TestLogger {
     public static void setupClass() {
         rpcService = new TestingRpcService();
 
-        fastHeartbeatServices = new HeartbeatServices(fastHeartbeatInterval, fastHeartbeatTimeout);
-        heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout);
+        fastHeartbeatServices =
+                new HeartbeatServices(fastHeartbeatInterval, fastHeartbeatTimeout, -1);
+        heartbeatServices = new HeartbeatServices(heartbeatInterval, heartbeatTimeout, 1);
     }
 
     @Before
@@ -246,18 +254,17 @@ public class JobMasterTest extends TestLogger {
     }
 
     @Test
-    public void testHeartbeatTimeoutWithTaskManager() throws Exception {
+    public void testTaskManagerRegistrationTriggersHeartbeating() throws Exception {
         final CompletableFuture<ResourceID> heartbeatResourceIdFuture = new CompletableFuture<>();
-        final CompletableFuture<JobID> disconnectedJobManagerFuture = new CompletableFuture<>();
         final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
                 new LocalUnresolvedTaskManagerLocation();
         final TestingTaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
-                        .setHeartbeatJobManagerConsumer(
-                                (taskManagerId, ignored) ->
-                                        heartbeatResourceIdFuture.complete(taskManagerId))
-                        .setDisconnectJobManagerConsumer(
-                                (jobId, throwable) -> disconnectedJobManagerFuture.complete(jobId))
+                        .setHeartbeatJobManagerFunction(
+                                (taskManagerId, ignored) -> {
+                                    heartbeatResourceIdFuture.complete(taskManagerId);
+                                    return FutureUtils.completedVoidFuture();
+                                })
                         .createTestingTaskExecutorGateway();
 
         rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
@@ -267,7 +274,7 @@ public class JobMasterTest extends TestLogger {
                         .withResourceId(jmResourceId)
                         .withConfiguration(configuration)
                         .withHighAvailabilityServices(haServices)
-                        .withHeartbeatServices(fastHeartbeatServices)
+                        .withHeartbeatServices(new HeartbeatServices(1L, 10000L))
                         .createJobMaster();
 
         jobMaster.start();
@@ -280,9 +287,69 @@ public class JobMasterTest extends TestLogger {
             // request at interval time
             CompletableFuture<RegistrationResponse> registrationResponse =
                     jobMasterGateway.registerTaskManager(
-                            taskExecutorGateway.getAddress(),
-                            unresolvedTaskManagerLocation,
                             jobGraph.getJobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    taskExecutorGateway.getAddress(),
+                                    unresolvedTaskManagerLocation,
+                                    TestingUtils.zeroUUID()),
+                            testingTimeout);
+
+            // wait for the completion of the registration
+            registrationResponse.get();
+
+            assertThat(heartbeatResourceIdFuture.join(), anyOf(nullValue(), equalTo(jmResourceId)));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
+    }
+
+    @Test
+    public void testHeartbeatTimeoutWithTaskManager() throws Exception {
+        runHeartbeatTest(
+                new TestingTaskExecutorGatewayBuilder()
+                        .setHeartbeatJobManagerFunction(
+                                (taskManagerId, ignored) -> FutureUtils.completedVoidFuture()),
+                fastHeartbeatServices);
+    }
+
+    private void runHeartbeatTest(
+            TestingTaskExecutorGatewayBuilder testingTaskExecutorGatewayBuilder,
+            HeartbeatServices heartbeatServices)
+            throws Exception {
+        final CompletableFuture<JobID> disconnectedJobManagerFuture = new CompletableFuture<>();
+        final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
+                new LocalUnresolvedTaskManagerLocation();
+        final TestingTaskExecutorGateway taskExecutorGateway =
+                testingTaskExecutorGatewayBuilder
+                        .setDisconnectJobManagerConsumer(
+                                (jobId, throwable) -> disconnectedJobManagerFuture.complete(jobId))
+                        .createTestingTaskExecutorGateway();
+
+        rpcService.registerGateway(taskExecutorGateway.getAddress(), taskExecutorGateway);
+
+        final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withResourceId(jmResourceId)
+                        .withConfiguration(configuration)
+                        .withHighAvailabilityServices(haServices)
+                        .withHeartbeatServices(heartbeatServices)
+                        .createJobMaster();
+
+        jobMaster.start();
+
+        try {
+            final JobMasterGateway jobMasterGateway =
+                    jobMaster.getSelfGateway(JobMasterGateway.class);
+
+            // register task manager will trigger monitor heartbeat target, schedule heartbeat
+            // request at interval time
+            CompletableFuture<RegistrationResponse> registrationResponse =
+                    jobMasterGateway.registerTaskManager(
+                            jobGraph.getJobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    taskExecutorGateway.getAddress(),
+                                    unresolvedTaskManagerLocation,
+                                    TestingUtils.zeroUUID()),
                             testingTimeout);
 
             // wait for the completion of the registration
@@ -292,14 +359,24 @@ public class JobMasterTest extends TestLogger {
                     disconnectedJobManagerFuture.get(
                             testingTimeout.toMilliseconds(), TimeUnit.MILLISECONDS);
 
-            assertThat(disconnectedJobManager, Matchers.equalTo(jobGraph.getJobID()));
-
-            final ResourceID heartbeatResourceId = heartbeatResourceIdFuture.getNow(null);
-
-            assertThat(heartbeatResourceId, anyOf(nullValue(), equalTo(jmResourceId)));
+            assertThat(disconnectedJobManager, equalTo(jobGraph.getJobID()));
         } finally {
             RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
         }
+    }
+
+    @Test
+    public void testTaskManagerBecomesUnreachableTriggersDisconnect() throws Exception {
+        runHeartbeatTest(
+                new TestingTaskExecutorGatewayBuilder()
+                        .setHeartbeatJobManagerFunction(
+                                (taskManagerId, ignored) ->
+                                        FutureUtils.completedExceptionally(
+                                                new RecipientUnreachableException(
+                                                        "sender",
+                                                        "recipient",
+                                                        "test heartbeat target is unreachable"))),
+                heartbeatServices);
     }
 
     /**
@@ -318,7 +395,7 @@ public class JobMasterTest extends TestLogger {
         final OneShotLatch hasReceivedSlotOffers = new OneShotLatch();
         final TestingTaskExecutorGateway taskExecutorGateway =
                 new TestingTaskExecutorGatewayBuilder()
-                        .setHeartbeatJobManagerConsumer(
+                        .setHeartbeatJobManagerFunction(
                                 (taskManagerId, allocatedSlotReport) -> {
                                     try {
                                         if (hasReceivedSlotOffers.isTriggered()) {
@@ -337,6 +414,7 @@ public class JobMasterTest extends TestLogger {
                                     if (terminateHeartbeatVerification.get()) {
                                         assertionFuture.complete(null);
                                     }
+                                    return FutureUtils.completedVoidFuture();
                                 })
                         .createTestingTaskExecutorGateway();
 
@@ -365,9 +443,11 @@ public class JobMasterTest extends TestLogger {
             // request at interval time
             CompletableFuture<RegistrationResponse> registrationResponse =
                     jobMasterGateway.registerTaskManager(
-                            taskExecutorGateway.getAddress(),
-                            unresolvedTaskManagerLocation,
                             jobGraph.getJobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    taskExecutorGateway.getAddress(),
+                                    unresolvedTaskManagerLocation,
+                                    TestingUtils.zeroUUID()),
                             testingTimeout);
 
             // wait for the completion of the registration
@@ -494,12 +574,6 @@ public class JobMasterTest extends TestLogger {
                     "TestingSlotPool does not support this operation.");
         }
 
-        @Override
-        public Optional<ResourceID> failAllocation(AllocationID allocationID, Exception cause) {
-            throw new UnsupportedOperationException(
-                    "TestingSlotPool does not support this operation.");
-        }
-
         @Nonnull
         @Override
         public Collection<SlotInfoWithUtilization> getAvailableSlotsInformation() {
@@ -531,6 +605,7 @@ public class JobMasterTest extends TestLogger {
         public CompletableFuture<PhysicalSlot> requestNewAllocatedSlot(
                 @Nonnull SlotRequestId slotRequestId,
                 @Nonnull ResourceProfile resourceProfile,
+                @Nonnull Collection<AllocationID> preferredAllocations,
                 @Nullable Time timeout) {
             return new CompletableFuture<>();
         }
@@ -538,7 +613,9 @@ public class JobMasterTest extends TestLogger {
         @Nonnull
         @Override
         public CompletableFuture<PhysicalSlot> requestNewAllocatedBatchSlot(
-                @Nonnull SlotRequestId slotRequestId, @Nonnull ResourceProfile resourceProfile) {
+                @Nonnull SlotRequestId slotRequestId,
+                @Nonnull ResourceProfile resourceProfile,
+                @Nonnull Collection<AllocationID> preferredAllocations) {
             return new CompletableFuture<>();
         }
 
@@ -563,6 +640,9 @@ public class JobMasterTest extends TestLogger {
 
             return new AllocatedSlotReport(jobId, allocatedSlotInfos);
         }
+
+        @Override
+        public void setIsJobRestarting(boolean isJobRestarting) {}
 
         @Override
         public void releaseSlot(@Nonnull SlotRequestId slotRequestId, @Nullable Throwable cause) {
@@ -640,6 +720,79 @@ public class JobMasterTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testResourceManagerBecomesUnreachableTriggersDisconnect() throws Exception {
+        final String resourceManagerAddress = "rm";
+        final ResourceManagerId resourceManagerId = ResourceManagerId.generate();
+        final ResourceID rmResourceId = new ResourceID(resourceManagerAddress);
+
+        final TestingResourceManagerGateway resourceManagerGateway =
+                new TestingResourceManagerGateway(
+                        resourceManagerId, rmResourceId, resourceManagerAddress, "localhost");
+
+        final CompletableFuture<JobID> disconnectedJobManagerFuture = new CompletableFuture<>();
+        final CountDownLatch registrationAttempts = new CountDownLatch(2);
+
+        final Queue<CompletableFuture<RegistrationResponse>> connectionResponses =
+                new ArrayDeque<>(2);
+        connectionResponses.add(
+                CompletableFuture.completedFuture(
+                        resourceManagerGateway.getJobMasterRegistrationSuccess()));
+        connectionResponses.add(new CompletableFuture<>());
+
+        resourceManagerGateway.setRegisterJobManagerFunction(
+                (jobMasterId, resourceID, s, jobID) -> {
+                    registrationAttempts.countDown();
+                    return connectionResponses.poll();
+                });
+
+        resourceManagerGateway.setDisconnectJobManagerConsumer(
+                tuple -> disconnectedJobManagerFuture.complete(tuple.f0));
+        resourceManagerGateway.setJobMasterHeartbeatFunction(
+                ignored ->
+                        FutureUtils.completedExceptionally(
+                                new RecipientUnreachableException(
+                                        "sender", "recipient", "resource manager is unreachable")));
+
+        rpcService.registerGateway(resourceManagerAddress, resourceManagerGateway);
+
+        final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withJobMasterId(jobMasterId)
+                        .withResourceId(jmResourceId)
+                        .withConfiguration(configuration)
+                        .withHighAvailabilityServices(haServices)
+                        .withHeartbeatServices(heartbeatServices)
+                        .createJobMaster();
+
+        jobMaster.start();
+
+        try {
+            // define a leader and see that a registration happens
+            rmLeaderRetrievalService.notifyListener(
+                    resourceManagerAddress, resourceManagerId.toUUID());
+
+            final JobMasterGateway jobMasterGateway =
+                    jobMaster.getSelfGateway(JobMasterGateway.class);
+
+            CommonTestUtils.waitUntilCondition(
+                    () -> {
+                        jobMasterGateway.heartbeatFromResourceManager(rmResourceId);
+                        return disconnectedJobManagerFuture.isDone();
+                    },
+                    Deadline.fromNow(TimeUtils.toDuration(testingTimeout)),
+                    50L);
+
+            // heartbeat timeout should trigger disconnect JobManager from ResourceManager
+            assertThat(disconnectedJobManagerFuture.join(), equalTo(jobGraph.getJobID()));
+
+            // the JobMaster should try to reconnect to the RM
+            registrationAttempts.await();
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
+    }
+
     /**
      * Tests that a JobMaster will restore the given JobGraph from its savepoint upon initial
      * submission.
@@ -659,8 +812,8 @@ public class JobMasterTest extends TestLogger {
         final StandaloneCompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
         final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
-                useSameServicesForAllJobs(
-                        completedCheckpointStore, new StandaloneCheckpointIDCounter());
+                PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
+                        maxCheckpoints -> completedCheckpointStore);
         haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
 
         final JobMaster jobMaster =
@@ -692,7 +845,7 @@ public class JobMasterTest extends TestLogger {
             // been created
             taskSubmitLatch.await();
             final CompletedCheckpoint savepointCheckpoint =
-                    completedCheckpointStore.getLatestCheckpoint(false);
+                    completedCheckpointStore.getLatestCheckpoint();
 
             assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -731,11 +884,11 @@ public class JobMasterTest extends TestLogger {
 
         final StandaloneCompletedCheckpointStore completedCheckpointStore =
                 new StandaloneCompletedCheckpointStore(1);
-        completedCheckpointStore.addCheckpoint(
+        completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 completedCheckpoint, new CheckpointsCleaner(), () -> {});
         final CheckpointRecoveryFactory testingCheckpointRecoveryFactory =
-                useSameServicesForAllJobs(
-                        completedCheckpointStore, new StandaloneCheckpointIDCounter());
+                PerJobCheckpointRecoveryFactory.withoutCheckpointStoreRecovery(
+                        maxCheckpoints -> completedCheckpointStore);
         haServices.setCheckpointRecoveryFactory(testingCheckpointRecoveryFactory);
 
         final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService).createJobMaster();
@@ -743,7 +896,7 @@ public class JobMasterTest extends TestLogger {
         try {
             // starting the JobMaster should have read the savepoint
             final CompletedCheckpoint savepointCheckpoint =
-                    completedCheckpointStore.getLatestCheckpoint(false);
+                    completedCheckpointStore.getLatestCheckpoint();
 
             assertThat(savepointCheckpoint, Matchers.notNullValue());
 
@@ -1320,15 +1473,15 @@ public class JobMasterTest extends TestLogger {
     }
 
     /**
-     * Tests that the timeout in {@link JobMasterGateway#triggerSavepoint(String, boolean, Time)} is
-     * respected.
+     * Tests that the timeout in {@link JobMasterGateway#triggerSavepoint(String, boolean,
+     * SavepointFormatType, Time)} is respected.
      */
     @Test
     public void testTriggerSavepointTimeout() throws Exception {
         final TestingSchedulerNG testingSchedulerNG =
                 TestingSchedulerNG.newBuilder()
                         .setTriggerSavepointFunction(
-                                (ignoredA, ignoredB) -> new CompletableFuture<>())
+                                (ignoredA, ignoredB, formatType) -> new CompletableFuture<>())
                         .build();
 
         final JobMaster jobMaster =
@@ -1346,9 +1499,11 @@ public class JobMasterTest extends TestLogger {
             final JobMasterGateway jobMasterGateway =
                     jobMaster.getSelfGateway(JobMasterGateway.class);
             final CompletableFuture<String> savepointFutureLowTimeout =
-                    jobMasterGateway.triggerSavepoint("/tmp", false, Time.milliseconds(1));
+                    jobMasterGateway.triggerSavepoint(
+                            "/tmp", false, SavepointFormatType.CANONICAL, Time.milliseconds(1));
             final CompletableFuture<String> savepointFutureHighTimeout =
-                    jobMasterGateway.triggerSavepoint("/tmp", false, RpcUtils.INF_TIMEOUT);
+                    jobMasterGateway.triggerSavepoint(
+                            "/tmp", false, SavepointFormatType.CANONICAL, RpcUtils.INF_TIMEOUT);
 
             try {
                 savepointFutureLowTimeout.get(testingTimeout.getSize(), testingTimeout.getUnit());
@@ -1597,7 +1752,8 @@ public class JobMasterTest extends TestLogger {
                         jobMasterGateway.disconnectTaskManager(
                                 localTaskManagerLocation.getResourceID(),
                                 new FlinkException("Test disconnectTaskManager exception.")),
-                (jobMasterGateway, resourceID) -> (ignoredA, ignoredB) -> {});
+                (jobMasterGateway, resourceID) ->
+                        (ignoredA, ignoredB) -> FutureUtils.completedVoidFuture());
     }
 
     @Test
@@ -1615,6 +1771,7 @@ public class JobMasterTest extends TestLogger {
                             jobMasterGateway.heartbeatFromTaskManager(
                                     taskManagerResourceId,
                                     TaskExecutorToJobManagerHeartbeatPayload.empty());
+                            return FutureUtils.completedVoidFuture();
                         });
     }
 
@@ -1631,12 +1788,107 @@ public class JobMasterTest extends TestLogger {
 
             final CompletableFuture<RegistrationResponse> registrationResponse =
                     jobMaster.registerTaskManager(
-                            "foobar",
-                            new LocalUnresolvedTaskManagerLocation(),
                             new JobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    "foobar",
+                                    new LocalUnresolvedTaskManagerLocation(),
+                                    TestingUtils.zeroUUID()),
                             testingTimeout);
 
             assertThat(registrationResponse.get(), instanceOf(JMTMRegistrationRejection.class));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
+    }
+
+    @Test
+    public void testJobMasterAcknowledgesDuplicateTaskExecutorRegistrations() throws Exception {
+        final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService).createJobMaster();
+
+        final TestingTaskExecutorGateway testingTaskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder().createTestingTaskExecutorGateway();
+        rpcService.registerGateway(
+                testingTaskExecutorGateway.getAddress(), testingTaskExecutorGateway);
+
+        try {
+            jobMaster.start();
+
+            final TaskManagerRegistrationInformation taskManagerRegistrationInformation =
+                    TaskManagerRegistrationInformation.create(
+                            testingTaskExecutorGateway.getAddress(),
+                            new LocalUnresolvedTaskManagerLocation(),
+                            UUID.randomUUID());
+
+            final CompletableFuture<RegistrationResponse> firstRegistrationResponse =
+                    jobMaster.registerTaskManager(
+                            jobGraph.getJobID(),
+                            taskManagerRegistrationInformation,
+                            testingTimeout);
+            final CompletableFuture<RegistrationResponse> secondRegistrationResponse =
+                    jobMaster.registerTaskManager(
+                            jobGraph.getJobID(),
+                            taskManagerRegistrationInformation,
+                            testingTimeout);
+
+            assertThat(firstRegistrationResponse.get(), instanceOf(JMTMRegistrationSuccess.class));
+            assertThat(secondRegistrationResponse.get(), instanceOf(JMTMRegistrationSuccess.class));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
+    }
+
+    @Test
+    public void testJobMasterDisconnectsOldTaskExecutorIfNewSessionIsSeen() throws Exception {
+        final JobMaster jobMaster = new JobMasterBuilder(jobGraph, rpcService).createJobMaster();
+
+        final CompletableFuture<Void> firstTaskExecutorDisconnectedFuture =
+                new CompletableFuture<>();
+        final TestingTaskExecutorGateway firstTaskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setAddress("firstTaskExecutor")
+                        .setDisconnectJobManagerConsumer(
+                                (jobID, throwable) ->
+                                        firstTaskExecutorDisconnectedFuture.complete(null))
+                        .createTestingTaskExecutorGateway();
+        final TestingTaskExecutorGateway secondTaskExecutorGateway =
+                new TestingTaskExecutorGatewayBuilder()
+                        .setAddress("secondTaskExecutor")
+                        .createTestingTaskExecutorGateway();
+
+        rpcService.registerGateway(firstTaskExecutorGateway.getAddress(), firstTaskExecutorGateway);
+        rpcService.registerGateway(
+                secondTaskExecutorGateway.getAddress(), secondTaskExecutorGateway);
+
+        try {
+            jobMaster.start();
+
+            final LocalUnresolvedTaskManagerLocation taskManagerLocation =
+                    new LocalUnresolvedTaskManagerLocation();
+            final UUID firstTaskManagerSessionId = UUID.randomUUID();
+
+            final CompletableFuture<RegistrationResponse> firstRegistrationResponse =
+                    jobMaster.registerTaskManager(
+                            jobGraph.getJobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    firstTaskExecutorGateway.getAddress(),
+                                    taskManagerLocation,
+                                    firstTaskManagerSessionId),
+                            testingTimeout);
+            assertThat(firstRegistrationResponse.get(), instanceOf(JMTMRegistrationSuccess.class));
+
+            final UUID secondTaskManagerSessionId = UUID.randomUUID();
+            final CompletableFuture<RegistrationResponse> secondRegistrationResponse =
+                    jobMaster.registerTaskManager(
+                            jobGraph.getJobID(),
+                            TaskManagerRegistrationInformation.create(
+                                    secondTaskExecutorGateway.getAddress(),
+                                    taskManagerLocation,
+                                    secondTaskManagerSessionId),
+                            testingTimeout);
+
+            assertThat(secondRegistrationResponse.get(), instanceOf(JMTMRegistrationSuccess.class));
+            // the first TaskExecutor should be disconnected
+            firstTaskExecutorDisconnectedFuture.get();
         } finally {
             RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
         }
@@ -1673,10 +1925,72 @@ public class JobMasterTest extends TestLogger {
         jobMasterTerminationFuture.get();
     }
 
+    @Test
+    public void testJobMasterAcceptsSlotsWhenJobIsRestarting() throws Exception {
+        configuration.set(RestartStrategyOptions.RESTART_STRATEGY, "fixed-delay");
+        configuration.set(
+                RestartStrategyOptions.RESTART_STRATEGY_FIXED_DELAY_DELAY, Duration.ofDays(1));
+        final int numberSlots = 1;
+        final JobMaster jobMaster =
+                new JobMasterBuilder(jobGraph, rpcService)
+                        .withConfiguration(configuration)
+                        .createJobMaster();
+
+        try {
+            jobMaster.start();
+
+            final JobMasterGateway jobMasterGateway =
+                    jobMaster.getSelfGateway(JobMasterGateway.class);
+
+            final LocalUnresolvedTaskManagerLocation unresolvedTaskManagerLocation =
+                    new LocalUnresolvedTaskManagerLocation();
+            registerSlotsAtJobMaster(
+                    numberSlots,
+                    jobMasterGateway,
+                    jobGraph.getJobID(),
+                    new TestingTaskExecutorGatewayBuilder()
+                            .setAddress("firstTaskManager")
+                            .createTestingTaskExecutorGateway(),
+                    unresolvedTaskManagerLocation);
+
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            jobMasterGateway.requestJobStatus(testingTimeout).get()
+                                    == JobStatus.RUNNING,
+                    Deadline.fromNow(TimeUtils.toDuration(testingTimeout)));
+
+            jobMasterGateway.disconnectTaskManager(
+                    unresolvedTaskManagerLocation.getResourceID(),
+                    new FlinkException("Test exception."));
+
+            CommonTestUtils.waitUntilCondition(
+                    () ->
+                            jobMasterGateway.requestJobStatus(testingTimeout).get()
+                                    == JobStatus.RESTARTING,
+                    Deadline.fromNow(TimeUtils.toDuration(testingTimeout)));
+
+            assertThat(
+                    registerSlotsAtJobMaster(
+                            numberSlots,
+                            jobMasterGateway,
+                            jobGraph.getJobID(),
+                            new TestingTaskExecutorGatewayBuilder()
+                                    .setAddress("secondTaskManager")
+                                    .createTestingTaskExecutorGateway(),
+                            new LocalUnresolvedTaskManagerLocation()),
+                    hasSize(numberSlots));
+        } finally {
+            RpcUtils.terminateRpcEndpoint(jobMaster, testingTimeout);
+        }
+    }
+
     private void runJobFailureWhenTaskExecutorTerminatesTest(
             HeartbeatServices heartbeatServices,
             BiConsumer<LocalUnresolvedTaskManagerLocation, JobMasterGateway> jobReachedRunningState,
-            BiFunction<JobMasterGateway, ResourceID, BiConsumer<ResourceID, AllocatedSlotReport>>
+            BiFunction<
+                            JobMasterGateway,
+                            ResourceID,
+                            BiFunction<ResourceID, AllocatedSlotReport, CompletableFuture<Void>>>
                     heartbeatConsumerFunction)
             throws Exception {
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
@@ -1709,7 +2023,7 @@ public class JobMasterTest extends TestLogger {
                                                 taskDeploymentDescriptor.getExecutionAttemptId());
                                         return CompletableFuture.completedFuture(Acknowledge.get());
                                     })
-                            .setHeartbeatJobManagerConsumer(
+                            .setHeartbeatJobManagerFunction(
                                     heartbeatConsumerFunction.apply(
                                             jobMasterGateway,
                                             taskManagerUnresolvedLocation.getResourceID()))
@@ -1760,9 +2074,11 @@ public class JobMasterTest extends TestLogger {
 
         jobMasterGateway
                 .registerTaskManager(
-                        taskExecutorGateway.getAddress(),
-                        unresolvedTaskManagerLocation,
                         jobId,
+                        TaskManagerRegistrationInformation.create(
+                                taskExecutorGateway.getAddress(),
+                                unresolvedTaskManagerLocation,
+                                TestingUtils.zeroUUID()),
                         testingTimeout)
                 .get();
 

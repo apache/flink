@@ -84,6 +84,12 @@ public class TestingSlotPoolServiceBuilder implements SlotPoolServiceFactory {
                 createAllocatedSlotReportFunction);
     }
 
+    public TestingSlotPoolServiceBuilder setConnectToResourceManagerConsumer(
+            Consumer<? super ResourceManagerGateway> connectToResourceManagerConsumer) {
+        this.connectToResourceManagerConsumer = connectToResourceManagerConsumer;
+        return this;
+    }
+
     public static TestingSlotPoolServiceBuilder newBuilder() {
         return new TestingSlotPoolServiceBuilder();
     }

@@ -37,7 +37,7 @@ If you're simply using Flink's own serializers, this page is irrelevant and can 
 
 When registering a managed operator or keyed state, a `StateDescriptor` is required
 to specify the state's name, as well as information about the type of the state. The type information is used by Flink's
-[type serialization framework](../../types_serialization.html) to create appropriate serializers for the state.
+[type serialization framework]({{< ref "docs/dev/datastream/fault-tolerance/serialization/types_serialization" >}}) to create appropriate serializers for the state.
 
 It is also possible to completely bypass this and let Flink use your own custom serializer to serialize managed states,
 simply by directly instantiating the `StateDescriptor` with your own `TypeSerializer` implementation:
@@ -215,7 +215,7 @@ as your serializer's snapshot class:
  - `TypeSerializerSchemaCompatibility.incompatible()`, if the new serializer class is different then the previous one.
  
 Below is an example of how the `SimpleTypeSerializerSnapshot` is used, using Flink's `IntSerializer` as an example:
-<div data-lang="java" markdown="1">
+
 ```java
 public class IntSerializerSnapshot extends SimpleTypeSerializerSnapshot<Integer> {
     public IntSerializerSnapshot() {
@@ -223,7 +223,6 @@ public class IntSerializerSnapshot extends SimpleTypeSerializerSnapshot<Integer>
     }
 }
 ```
-</div>
 
 The `IntSerializer` has no state or configurations. Serialization format is solely defined by the serializer
 class itself, and can only be read by another `IntSerializer`. Therefore, it suits the use case of the
@@ -252,7 +251,7 @@ composite serializers. It deals with reading and writing the nested serializer s
 the final compatibility result taking into account the compatibility of all nested serializers.
 
 Below is an example of how the `CompositeTypeSerializerSnapshot` is used, using Flink's `MapSerializer` as an example:
-<div data-lang="java" markdown="1">
+
 ```java
 public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot<Map<K, V>, MapSerializer> {
 
@@ -284,7 +283,6 @@ public class MapSerializerSnapshot<K, V> extends CompositeTypeSerializerSnapshot
     }
 }
 ```
-</div>
 
 When implementing a new serializer snapshot as a subclass of `CompositeTypeSerializerSnapshot`,
 the following three methods must be implemented:
@@ -313,7 +311,6 @@ has outer snapshot information, then all three methods must be implemented.
 Below is an example of how the `CompositeTypeSerializerSnapshot` is used for composite serializer snapshots
 that do have outer snapshot information, using Flink's `GenericArraySerializer` as an example:
 
-<div data-lang="java" markdown="1">
 ```java
 public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerializerSnapshot<C[], GenericArraySerializer> {
 
@@ -364,7 +361,6 @@ public final class GenericArraySerializerSnapshot<C> extends CompositeTypeSerial
     }
 }
 ```
-</div>
 
 There are two important things to notice in the above code snippet. First of all, since this
 `CompositeTypeSerializerSnapshot` implementation has outer snapshot information that is written as part of the snapshot,

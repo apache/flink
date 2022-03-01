@@ -44,9 +44,8 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ValueDataTypeConverter}. */
 @RunWith(Parameterized.class)
@@ -121,7 +120,10 @@ public class ValueDataTypeConverterTest {
                         },
                         DataTypes.ARRAY(DataTypes.ARRAY(DataTypes.INT()))
                     },
-                    {TimePointUnit.HOUR, new AtomicDataType(new SymbolType<>(TimePointUnit.class))},
+                    {
+                        TimePointUnit.HOUR,
+                        new AtomicDataType(new SymbolType<>(), TimePointUnit.class)
+                    },
                     {new BigDecimal[0], null}
                 });
     }
@@ -133,8 +135,10 @@ public class ValueDataTypeConverterTest {
 
     @Test
     public void testClassToDataTypeConversion() {
-        assertEquals(
-                Optional.ofNullable(dataType).map(DataType::notNull),
-                ValueDataTypeConverter.extractDataType(value));
+        if (dataType == null) {
+            assertThat(ValueDataTypeConverter.extractDataType(value)).isEmpty();
+        } else {
+            assertThat(ValueDataTypeConverter.extractDataType(value)).contains(dataType.notNull());
+        }
     }
 }

@@ -33,9 +33,8 @@ import javax.annotation.Nullable;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link ClassDataTypeConverter}. */
 @RunWith(Parameterized.class)
@@ -100,8 +99,7 @@ public class ClassDataTypeConverterTest {
                     },
                     {
                         TimeIntervalUnit.class,
-                        new AtomicDataType(new SymbolType<>(TimeIntervalUnit.class))
-                                .bridgedTo(TimeIntervalUnit.class)
+                        new AtomicDataType(new SymbolType<>()).bridgedTo(TimeIntervalUnit.class)
                     },
                     {Row.class, null}
                 });
@@ -114,6 +112,10 @@ public class ClassDataTypeConverterTest {
 
     @Test
     public void testClassToDataTypeConversion() {
-        assertEquals(Optional.ofNullable(dataType), ClassDataTypeConverter.extractDataType(clazz));
+        if (dataType == null) {
+            assertThat(ClassDataTypeConverter.extractDataType(clazz)).isEmpty();
+        } else {
+            assertThat(ClassDataTypeConverter.extractDataType(clazz)).contains(dataType);
+        }
     }
 }

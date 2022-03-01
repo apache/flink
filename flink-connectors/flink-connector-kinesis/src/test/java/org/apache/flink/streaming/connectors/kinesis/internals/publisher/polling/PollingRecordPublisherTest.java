@@ -17,7 +17,6 @@
 
 package org.apache.flink.streaming.connectors.kinesis.internals.publisher.polling;
 
-import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.streaming.connectors.kinesis.metrics.PollingRecordPublisherMetricsReporter;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 import org.apache.flink.streaming.connectors.kinesis.proxy.KinesisProxyInterface;
@@ -29,6 +28,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import static org.apache.flink.streaming.connectors.kinesis.internals.ShardConsumerTestUtils.createFakeShardConsumerMetricGroup;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.COMPLETE;
 import static org.apache.flink.streaming.connectors.kinesis.internals.publisher.RecordPublisher.RecordPublisherRunResult.INCOMPLETE;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_EARLIEST_SEQUENCE_NUM;
@@ -64,7 +64,9 @@ public class PollingRecordPublisherTest {
     @Test
     public void testRunEmitsRunLoopTimeNanos() throws Exception {
         PollingRecordPublisherMetricsReporter metricsReporter =
-                spy(new PollingRecordPublisherMetricsReporter(mock(MetricGroup.class)));
+                spy(
+                        new PollingRecordPublisherMetricsReporter(
+                                createFakeShardConsumerMetricGroup()));
 
         KinesisProxyInterface fakeKinesis = totalNumOfRecordsAfterNumOfGetRecordsCalls(5, 5, 100);
         PollingRecordPublisher recordPublisher =
@@ -152,7 +154,7 @@ public class PollingRecordPublisherTest {
     PollingRecordPublisher createPollingRecordPublisher(final KinesisProxyInterface kinesis)
             throws Exception {
         PollingRecordPublisherMetricsReporter metricsReporter =
-                new PollingRecordPublisherMetricsReporter(mock(MetricGroup.class));
+                new PollingRecordPublisherMetricsReporter(createFakeShardConsumerMetricGroup());
 
         return createPollingRecordPublisher(kinesis, metricsReporter);
     }

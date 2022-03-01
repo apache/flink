@@ -27,6 +27,7 @@ import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
 import org.apache.commons.math3.stat.descriptive.rank.Percentile;
 import org.apache.commons.math3.stat.ranking.NaNStrategy;
 
+import java.io.Serializable;
 import java.util.Arrays;
 
 /**
@@ -36,7 +37,9 @@ import java.util.Arrays;
  * <p>The statistics takes a point-in-time snapshot of a {@link DescriptiveStatistics} instance and
  * allows optimised metrics retrieval from this.
  */
-public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistics {
+public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistics
+        implements Serializable {
+    private static final long serialVersionUID = 1L;
     private final CommonMetricsSnapshot statisticsSummary = new CommonMetricsSnapshot();
 
     public DescriptiveStatisticsHistogramStatistics(
@@ -87,7 +90,9 @@ public class DescriptiveStatisticsHistogramStatistics extends HistogramStatistic
      * will not return a value but instead populate this class so that further values can be
      * retrieved from it.
      */
-    private static class CommonMetricsSnapshot implements UnivariateStatistic {
+    private static class CommonMetricsSnapshot implements UnivariateStatistic, Serializable {
+        private static final long serialVersionUID = 1L;
+
         private long count = 0;
         private double min = Double.NaN;
         private double max = Double.NaN;

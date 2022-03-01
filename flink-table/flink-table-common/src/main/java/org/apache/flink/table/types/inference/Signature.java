@@ -64,6 +64,7 @@ public final class Signature {
      * <p>The type is represented as {@link String} in order to also express type families or
      * varargs.
      */
+    @PublicEvolving
     public static final class Argument {
 
         private final @Nullable String name;

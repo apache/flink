@@ -22,10 +22,10 @@ import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.Preconditions;
-import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
 
 import static org.apache.flink.runtime.checkpoint.channel.CheckpointInProgressRequestState.CANCELLED;
 import static org.apache.flink.runtime.checkpoint.channel.CheckpointInProgressRequestState.COMPLETED;
@@ -76,8 +76,7 @@ interface ChannelStateWriteRequest {
             long checkpointId,
             String name,
             CloseableIterator<Buffer> iterator,
-            BiConsumerWithException<ChannelStateCheckpointWriter, Buffer, Exception>
-                    bufferConsumer) {
+            BiConsumer<ChannelStateCheckpointWriter, Buffer> bufferConsumer) {
         return new CheckpointInProgressRequest(
                 name,
                 checkpointId,

@@ -6,17 +6,27 @@ Learn more about Flink at [https://flink.apache.org/](https://flink.apache.org/)
 
 ## Python Packaging
 
-This packaging allows you to write Flink programs in Python, but it is currently a very initial version and will change in future versions.
+PyFlink is a Python API for Apache Flink that allows you to build scalable batch and streaming workloads,
+such as real-time data processing pipelines, large-scale exploratory data analysis, Machine Learning (ML)
+pipelines and ETL processes. If you’re already familiar with Python and libraries such as Pandas,
+then PyFlink makes it simpler to leverage the full capabilities of the Flink ecosystem.
+Depending on the level of abstraction you need, there are two different APIs that can be used in PyFlink: PyFlink Table API and PyFlink DataStream API.
 
-In this initial version only Table API is supported, you can find the documentation at [https://ci.apache.org/projects/flink/flink-docs-stable/dev/table/tableApi.html](https://ci.apache.org/projects/flink/flink-docs-stable/dev/table/tableApi.html)
+The PyFlink Table API allows you to write powerful relational queries in a way that is similar to
+using SQL or working with tabular data in Python. You can find more information about it via the tutorial
+[https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/table_api_tutorial/](https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/table_api_tutorial/)
 
-The tutorial can be found at [https://ci.apache.org/projects/flink/flink-docs-stable/tutorials/python_table_api.html](https://ci.apache.org/projects/flink/flink-docs-stable/tutorials/python_table_api.html)
+The PyFlink DataStream API gives you lower-level control over the core building blocks of Flink,
+state and time, to build more complex stream processing use cases.
+Tutorial can be found at [https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/datastream_tutorial/](https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/datastream_tutorial/)
 
-The auto-generated Python docs can be found at [https://ci.apache.org/projects/flink/flink-docs-stable/api/python/](https://ci.apache.org/projects/flink/flink-docs-stable/api/python/)
+You can find more information via the documentation at [https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/overview/](https://nightlies.apache.org/flink/flink-docs-stable/docs/dev/python/overview/)
+
+The auto-generated Python docs can be found at [https://nightlies.apache.org/flink/flink-docs-stable/api/python/](https://nightlies.apache.org/flink/flink-docs-stable/api/python/)
 
 ## Python Requirements
 
-Apache Flink Python API depends on Py4J (currently version 0.10.8.1), CloudPickle (currently version 1.2.2), python-dateutil(currently version 2.8.0), Apache Beam (currently version 2.27.0).
+Apache Flink Python API depends on Py4J (currently version 0.10.9.3), CloudPickle (currently version 1.2.2), python-dateutil(currently version 2.8.0), Apache Beam (currently version 2.27.0).
 
 ## Development Notices
 

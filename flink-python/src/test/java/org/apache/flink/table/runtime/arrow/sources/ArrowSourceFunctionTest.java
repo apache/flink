@@ -44,7 +44,7 @@ import java.util.List;
 import java.util.Objects;
 
 /** Tests for {@link ArrowSourceFunction}. */
-public class ArrowSourceFunctionTest extends ArrowSourceFunctionTestBase<RowData> {
+public class ArrowSourceFunctionTest extends ArrowSourceFunctionTestBase {
 
     private static List<LogicalType> fieldTypes = new ArrayList<>();
     private static RowType rowType;
@@ -113,7 +113,7 @@ public class ArrowSourceFunctionTest extends ArrowSourceFunctionTestBase<RowData
     }
 
     @Override
-    public AbstractArrowSourceFunction<RowData> createArrowSourceFunction(byte[][] arrowData) {
+    public ArrowSourceFunction createArrowSourceFunction(byte[][] arrowData) {
         return new ArrowSourceFunction(dataType, arrowData);
     }
 }

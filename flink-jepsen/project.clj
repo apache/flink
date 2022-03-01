@@ -19,10 +19,11 @@
             :url  "http://www.apache.org/licenses/LICENSE-2.0"}
   :main jepsen.flink.flink
   :aot [jepsen.flink.flink]
-  :dependencies [[org.clojure/clojure "1.9.0"],
+  :dependencies [;; jepsen 0.1.19 is not compatible with 1.10.1+
+                 [org.clojure/clojure "1.10.0"],
                  [cheshire "5.8.0"]
                  [clj-http "3.8.0"]
-                 [jepsen "0.1.13"],
+                 [jepsen "0.1.19"],
                  [jepsen.zookeeper "0.1.0"]
                  [org.clojure/data.xml "0.0.8"]
                  [zookeeper-clj "0.9.4" :exclusions [org.slf4j/slf4j-log4j12]]]

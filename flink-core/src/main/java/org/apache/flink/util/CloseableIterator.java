@@ -18,6 +18,8 @@
 
 package org.apache.flink.util;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 import javax.annotation.Nonnull;
 
 import java.util.ArrayDeque;
@@ -38,6 +40,7 @@ import static java.util.Arrays.asList;
  *
  * @param <T> the type of iterated elements.
  */
+@PublicEvolving
 public interface CloseableIterator<T> extends Iterator<T>, AutoCloseable {
 
     CloseableIterator<?> EMPTY_INSTANCE =

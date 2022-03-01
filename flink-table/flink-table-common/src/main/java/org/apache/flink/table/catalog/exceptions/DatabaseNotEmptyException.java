@@ -18,7 +18,10 @@
 
 package org.apache.flink.table.catalog.exceptions;
 
+import org.apache.flink.annotation.PublicEvolving;
+
 /** Exception for trying to drop on a database that is not empty. */
+@PublicEvolving
 public class DatabaseNotEmptyException extends Exception {
     private static final String MSG = "Database %s in catalog %s is not empty.";
 

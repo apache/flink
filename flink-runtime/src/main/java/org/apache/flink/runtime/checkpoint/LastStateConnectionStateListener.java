@@ -18,8 +18,8 @@
 
 package org.apache.flink.runtime.checkpoint;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionStateListener;
 
 import java.util.Optional;
 

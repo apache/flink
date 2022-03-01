@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.delegation.hive.copy;
 
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.metadata.Table;
 import org.apache.hadoop.hive.ql.parse.QBMetaData;
 import org.apache.hadoop.hive.ql.plan.CreateTableDesc;
@@ -26,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -52,6 +50,7 @@ public class HiveParserQB {
     private boolean isQuery;
     private boolean insideView;
     private Set<String> aliasInsideView;
+    private final Map<String, List<List<String>>> valuesTableToData = new HashMap<>();
 
     // used by PTFs
     /*
@@ -269,14 +268,6 @@ public class HiveParserQB {
         return ++numSubQueryPredicates;
     }
 
-    /**
-     * List of dbName.tblName of encrypted target tables of insert statement Used to support Insert
-     * ... values(...).
-     */
-    List<Path> getEncryptedTargetTablePaths() {
-        return Collections.emptyList();
-    }
-
     public HashMap<String, Table> getViewToTabSchema() {
         return viewAliasToViewSchema;
     }
@@ -310,5 +301,9 @@ public class HiveParserQB {
 
     public boolean isMaterializedView() {
         return false;
+    }
+
+    public Map<String, List<List<String>>> getValuesTableToData() {
+        return valuesTableToData;
     }
 }

@@ -23,6 +23,9 @@ import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.core.testutils.CheckedThread;
 import org.apache.flink.runtime.io.disk.FileChannelManager;
 import org.apache.flink.runtime.io.disk.FileChannelManagerImpl;
+import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
+import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
 import org.apache.flink.runtime.io.network.buffer.BufferConsumer;
 import org.apache.flink.runtime.io.network.buffer.BufferDecompressor;
@@ -118,7 +121,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
         readLongs(
                 reader,
                 numLongs,
-                subpartition.getBuffersInBacklog(),
+                subpartition.getBuffersInBacklogUnsafe(),
                 compressionEnabled,
                 decompressor);
 
@@ -140,7 +143,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
             readLongs(
                     reader,
                     numLongs,
-                    subpartition.getBuffersInBacklog(),
+                    subpartition.getBuffersInBacklogUnsafe(),
                     compressionEnabled,
                     decompressor);
             reader.releaseAllResources();
@@ -163,7 +166,7 @@ public class BoundedBlockingSubpartitionWriteReadTest {
                         subpartition,
                         10,
                         numLongs,
-                        subpartition.getBuffersInBacklog(),
+                        subpartition.getBuffersInBacklogUnsafe(),
                         compressionEnabled);
         for (CheckedThread t : readerThreads) {
             t.start();
@@ -247,8 +250,17 @@ public class BoundedBlockingSubpartitionWriteReadTest {
     private BoundedBlockingSubpartition createAndFillPartition(long numLongs) throws IOException {
         BoundedBlockingSubpartition subpartition = createSubpartition();
         writeLongs(subpartition, numLongs);
+        writeEndOfData(subpartition);
         subpartition.finish();
         return subpartition;
+    }
+
+    private void writeEndOfData(BoundedBlockingSubpartition subpartition) throws IOException {
+        try (BufferConsumer eventBufferConsumer =
+                EventSerializer.toBufferConsumer(new EndOfData(StopMode.DRAIN), false)) {
+            // Retain the buffer so that it can be recycled by each channel of targetPartition
+            subpartition.add(eventBufferConsumer.copy(), 0);
+        }
     }
 
     private BoundedBlockingSubpartition createSubpartition() throws IOException {

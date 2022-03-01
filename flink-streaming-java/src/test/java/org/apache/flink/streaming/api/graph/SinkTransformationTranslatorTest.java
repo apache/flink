@@ -27,11 +27,10 @@ import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
-import org.apache.flink.streaming.runtime.operators.sink.BatchCommitterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.BatchGlobalCommitterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.StatelessSinkWriterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.StreamingCommitterOperatorFactory;
-import org.apache.flink.streaming.runtime.operators.sink.StreamingGlobalCommitterOperatorFactory;
+import org.apache.flink.streaming.api.operators.SimpleOperatorFactory;
+import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.sink.CommitterOperatorFactory;
+import org.apache.flink.streaming.runtime.operators.sink.SinkWriterOperatorFactory;
 import org.apache.flink.streaming.runtime.operators.sink.TestSink;
 import org.apache.flink.util.TestLogger;
 
@@ -41,42 +40,24 @@ import org.junit.runners.Parameterized;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.function.Predicate;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /** Tests for {@link org.apache.flink.streaming.api.transformations.SinkTransformation}. */
 @RunWith(Parameterized.class)
 public class SinkTransformationTranslatorTest extends TestLogger {
 
-    @Parameterized.Parameters(
-            name =
-                    "Execution Mode: {0}, Expected Committer Operator: {1}, Expected Global Committer Operator: {2}")
-    public static Collection<Object[]> data() {
-        return Arrays.asList(
-                new Object[][] {
-                    {
-                        RuntimeExecutionMode.STREAMING,
-                        StreamingCommitterOperatorFactory.class,
-                        StreamingGlobalCommitterOperatorFactory.class
-                    },
-                    {
-                        RuntimeExecutionMode.BATCH,
-                        BatchCommitterOperatorFactory.class,
-                        BatchGlobalCommitterOperatorFactory.class
-                    }
-                });
+    @Parameterized.Parameters(name = "Execution Mode: {0}")
+    public static Collection<Object> data() {
+        return Arrays.asList(RuntimeExecutionMode.STREAMING, RuntimeExecutionMode.BATCH);
     }
 
     @Parameterized.Parameter() public RuntimeExecutionMode runtimeExecutionMode;
-
-    @Parameterized.Parameter(1)
-    public Class<?> committerClass;
-
-    @Parameterized.Parameter(2)
-    public Class<?> globalCommitterClass;
 
     static final String NAME = "FileSink";
     static final String SLOT_SHARE_GROUP = "FileGroup";
@@ -88,8 +69,8 @@ public class SinkTransformationTranslatorTest extends TestLogger {
         final StreamGraph streamGraph =
                 buildGraph(TestSink.newBuilder().build(), runtimeExecutionMode);
 
-        final StreamNode sourceNode = findNodeNameContains(streamGraph, "Source");
-        final StreamNode writerNode = findNodeNameContains(streamGraph, "Writer");
+        final StreamNode sourceNode = findNodeName(streamGraph, node -> node.contains("Source"));
+        final StreamNode writerNode = findWriter(streamGraph);
 
         assertThat(streamGraph.getStreamNodes().size(), equalTo(2));
 
@@ -97,9 +78,7 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 sourceNode,
                 IntSerializer.class,
                 writerNode,
-                String.format("Sink Writer: %s", NAME),
-                UID,
-                StatelessSinkWriterOperatorFactory.class,
+                SinkWriterOperatorFactory.class,
                 PARALLELISM,
                 -1);
     }
@@ -111,8 +90,19 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 buildGraph(
                         TestSink.newBuilder().setDefaultCommitter().build(), runtimeExecutionMode);
 
-        final StreamNode writerNode = findNodeNameContains(streamGraph, "Writer");
-        final StreamNode committerNode = findNodeNameContains(streamGraph, "Committer");
+        final StreamNode sourceNode = findNodeName(streamGraph, node -> node.contains("Source"));
+        final StreamNode writerNode = findWriter(streamGraph);
+
+        validateTopology(
+                sourceNode,
+                IntSerializer.class,
+                writerNode,
+                SinkWriterOperatorFactory.class,
+                PARALLELISM,
+                -1);
+
+        final StreamNode committerNode =
+                findNodeName(streamGraph, name -> name.contains("Committer"));
 
         assertThat(streamGraph.getStreamNodes().size(), equalTo(3));
 
@@ -120,11 +110,9 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                 writerNode,
                 SimpleVersionedSerializerTypeSerializerProxy.class,
                 committerNode,
-                String.format("Sink Committer: %s", NAME),
-                String.format("Sink Committer: %s", UID),
-                committerClass,
-                runtimeExecutionMode == RuntimeExecutionMode.STREAMING ? PARALLELISM : 1,
-                runtimeExecutionMode == RuntimeExecutionMode.STREAMING ? -1 : 1);
+                CommitterOperatorFactory.class,
+                PARALLELISM,
+                -1);
     }
 
     @Test
@@ -138,21 +126,49 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                                 .build(),
                         runtimeExecutionMode);
 
-        final StreamNode committerNode = findNodeNameContains(streamGraph, "Committer");
-        final StreamNode globalCommitterNode =
-                findNodeNameContains(streamGraph, "Global Committer");
+        final StreamNode sourceNode = findNodeName(streamGraph, node -> node.contains("Source"));
+        final StreamNode writerNode = findWriter(streamGraph);
+        final StreamNode committerNode = findCommitter(streamGraph);
 
         validateTopology(
-                committerNode,
+                sourceNode,
+                IntSerializer.class,
+                writerNode,
+                SinkWriterOperatorFactory.class,
+                PARALLELISM,
+                -1);
+
+        StreamNode lastNode;
+        if (runtimeExecutionMode == RuntimeExecutionMode.STREAMING) {
+            // in streaming writer and committer are merged into one operator
+            assertThat(streamGraph.getStreamNodes().size(), equalTo(4));
+        } else {
+            assertThat(streamGraph.getStreamNodes().size(), equalTo(4));
+            validateTopology(
+                    writerNode,
+                    SimpleVersionedSerializerTypeSerializerProxy.class,
+                    committerNode,
+                    CommitterOperatorFactory.class,
+                    PARALLELISM,
+                    -1);
+        }
+        lastNode = committerNode;
+
+        final StreamNode globalCommitterNode = findGlobalCommitter(streamGraph);
+        validateTopology(
+                lastNode,
                 SimpleVersionedSerializerTypeSerializerProxy.class,
                 globalCommitterNode,
-                String.format("Sink Global Committer: %s", NAME),
-                String.format("Sink Global Committer: %s", UID),
-                globalCommitterClass,
+                SimpleOperatorFactory.class,
                 1,
                 1);
     }
 
+    /**
+     * It is not possible anymore with Sink V2 to have a topology consisting only of Sink Writer and
+     * a Global Committer. The SinkV1Adapter translates these topologies into a Sink Writer, an only
+     * forwarding committer and the Global Committer.
+     */
     @Test
     public void generateWriterGlobalCommitterTopology() {
         final StreamGraph streamGraph =
@@ -160,23 +176,54 @@ public class SinkTransformationTranslatorTest extends TestLogger {
                         TestSink.newBuilder()
                                 .setCommittableSerializer(
                                         TestSink.StringCommittableSerializer.INSTANCE)
+                                .setGlobalCommittableSerializer(
+                                        TestSink.StringCommittableSerializer.INSTANCE)
                                 .setDefaultGlobalCommitter()
                                 .build(),
                         runtimeExecutionMode);
 
-        final StreamNode writerNode = findNodeNameContains(streamGraph, "Writer");
-        final StreamNode globalCommitterNode =
-                findNodeNameContains(streamGraph, "Global Committer");
+        final StreamNode sourceNode = findNodeName(streamGraph, node -> node.contains("Source"));
+        final StreamNode writerNode = findWriter(streamGraph);
+
+        validateTopology(
+                sourceNode,
+                IntSerializer.class,
+                writerNode,
+                SinkWriterOperatorFactory.class,
+                PARALLELISM,
+                -1);
+
+        final StreamNode committerNode = findCommitter(streamGraph);
+        final StreamNode globalCommitterNode = findGlobalCommitter(streamGraph);
 
         validateTopology(
                 writerNode,
                 SimpleVersionedSerializerTypeSerializerProxy.class,
+                committerNode,
+                CommitterOperatorFactory.class,
+                PARALLELISM,
+                -1);
+
+        validateTopology(
+                committerNode,
+                SimpleVersionedSerializerTypeSerializerProxy.class,
                 globalCommitterNode,
-                String.format("Sink Global Committer: %s", NAME),
-                String.format("Sink Global Committer: %s", UID),
-                globalCommitterClass,
+                SimpleOperatorFactory.class,
                 1,
                 1);
+    }
+
+    private StreamNode findWriter(StreamGraph streamGraph) {
+        return findNodeName(
+                streamGraph, name -> name.contains("Writer") && !name.contains("Committer"));
+    }
+
+    private StreamNode findCommitter(StreamGraph streamGraph) {
+        return findNodeName(streamGraph, name -> name.contains("Committer"));
+    }
+
+    private StreamNode findGlobalCommitter(StreamGraph streamGraph) {
+        return findNodeName(streamGraph, name -> name.contains("Global Committer"));
     }
 
     @Test(expected = IllegalStateException.class)
@@ -199,32 +246,28 @@ public class SinkTransformationTranslatorTest extends TestLogger {
         final DataStreamSource<Integer> src = env.fromElements(1, 2);
         final DataStreamSink<Integer> dataStreamSink =
                 src.sinkTo(
-                        TestSink.newBuilder()
-                                .setDefaultCommitter()
-                                .setDefaultGlobalCommitter()
-                                .build());
+                                TestSink.newBuilder()
+                                        .setDefaultCommitter()
+                                        .setDefaultGlobalCommitter()
+                                        .build())
+                        .name(NAME);
         dataStreamSink.disableChaining();
 
         final StreamGraph streamGraph = env.getStreamGraph();
-        final StreamNode writer = findNodeNameContains(streamGraph, "Writer");
-        final StreamNode committer = findNodeNameContains(streamGraph, "Committer");
-        final StreamNode globalCommitter = findNodeNameContains(streamGraph, "Global Committer");
+        final StreamNode writer = findWriter(streamGraph);
+        final StreamNode globalCommitter = findCommitter(streamGraph);
 
         assertThat(writer.getOperatorFactory().getChainingStrategy(), is(ChainingStrategy.NEVER));
         assertThat(
-                committer.getOperatorFactory().getChainingStrategy(), is(ChainingStrategy.ALWAYS));
-        assertThat(
                 globalCommitter.getOperatorFactory().getChainingStrategy(),
-                is(ChainingStrategy.ALWAYS));
+                is(ChainingStrategy.NEVER));
     }
 
     private void validateTopology(
             StreamNode src,
             Class<?> srcOutTypeInfo,
             StreamNode dest,
-            String name,
-            String uid,
-            Class<?> expectedOperatorFactory,
+            Class<? extends StreamOperatorFactory> operatorFactoryClass,
             int expectedParallelism,
             int expectedMaxParallelism) {
 
@@ -238,18 +281,15 @@ public class SinkTransformationTranslatorTest extends TestLogger {
         assertThat(destInputEdge.getSourceId(), equalTo(src.getId()));
         assertThat(dest.getTypeSerializersIn()[0], instanceOf(srcOutTypeInfo));
 
-        // verify dest node
-        assertThat(dest.getOperatorName(), equalTo(name));
-        assertThat(dest.getTransformationUID(), equalTo(uid));
+        // make sure 2 sink operators have different names/uid
+        assertThat(dest.getOperatorName(), not(equalTo(src.getOperatorName())));
+        assertThat(dest.getTransformationUID(), not(equalTo(src.getTransformationUID())));
 
-        assertThat(dest.getOperatorFactory(), instanceOf(expectedOperatorFactory));
+        assertThat(dest.getOperatorFactory(), instanceOf(operatorFactoryClass));
         assertThat(dest.getParallelism(), equalTo(expectedParallelism));
         assertThat(dest.getMaxParallelism(), equalTo(expectedMaxParallelism));
         assertThat(dest.getOperatorFactory().getChainingStrategy(), is(ChainingStrategy.ALWAYS));
         assertThat(dest.getSlotSharingGroup(), equalTo(SLOT_SHARE_GROUP));
-
-        // verify dest node output
-        assertThat(dest.getOutEdges().size(), equalTo(0));
     }
 
     private StreamGraph buildGraph(TestSink sink, RuntimeExecutionMode runtimeExecutionMode) {
@@ -261,7 +301,9 @@ public class SinkTransformationTranslatorTest extends TestLogger {
         final DataStreamSource<Integer> src = env.fromElements(1, 2);
         final DataStreamSink<Integer> dataStreamSink = src.rebalance().sinkTo(sink);
         setSinkProperty(dataStreamSink);
-        return env.getStreamGraph("test");
+        // Trigger the plan generation but do not clear the transformations
+        env.getExecutionPlan();
+        return env.getStreamGraph();
     }
 
     private void setSinkProperty(DataStreamSink<Integer> dataStreamSink) {
@@ -271,13 +313,10 @@ public class SinkTransformationTranslatorTest extends TestLogger {
         dataStreamSink.slotSharingGroup(SLOT_SHARE_GROUP);
     }
 
-    private StreamNode findNodeNameContains(StreamGraph streamGraph, String nodeName) {
+    private StreamNode findNodeName(StreamGraph streamGraph, Predicate<String> predicate) {
         return streamGraph.getStreamNodes().stream()
-                .filter(x -> x.getOperatorName().contains(nodeName))
+                .filter(node -> predicate.test(node.getOperatorName()))
                 .findFirst()
-                .orElseThrow(
-                        () ->
-                                new IllegalStateException(
-                                        "Can not find the node contains " + nodeName));
+                .orElseThrow(() -> new IllegalStateException("Can not find the node"));
     }
 }

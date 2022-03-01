@@ -273,7 +273,7 @@ public class RMQConnectionConfig implements Serializable {
     }
 
     /**
-     * Retrieve the the channel prefetch count.
+     * Retrieve the channel prefetch count.
      *
      * @return an Optional of the prefetch count, if set, for the consumer channel
      */

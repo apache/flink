@@ -18,9 +18,12 @@
 
 package org.apache.flink.api.connector.source;
 
-import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.annotation.Public;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.core.io.InputStatus;
+import org.apache.flink.metrics.Gauge;
+import org.apache.flink.metrics.groups.OperatorIOMetricGroup;
+import org.apache.flink.metrics.groups.SourceReaderMetricGroup;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -29,10 +32,20 @@ import java.util.concurrent.CompletableFuture;
  * The interface for a source reader which is responsible for reading the records from the source
  * splits assigned by {@link SplitEnumerator}.
  *
+ * <p>Implementations can provide the following metrics:
+ *
+ * <ul>
+ *   <li>{@link OperatorIOMetricGroup#getNumRecordsInCounter()} (highly recommended)
+ *   <li>{@link OperatorIOMetricGroup#getNumBytesInCounter()} (recommended)
+ *   <li>{@link SourceReaderMetricGroup#getNumRecordsInErrorsCounter()} (recommended)
+ *   <li>{@link SourceReaderMetricGroup#setPendingRecordsGauge(Gauge)}
+ *   <li>{@link SourceReaderMetricGroup#setPendingBytesGauge(Gauge)}
+ * </ul>
+ *
  * @param <T> The type of the record emitted by this source reader.
- * @param <SplitT> The type of the the source splits.
+ * @param <SplitT> The type of the source splits.
  */
-@PublicEvolving
+@Public
 public interface SourceReader<T, SplitT extends SourceSplit>
         extends AutoCloseable, CheckpointListener {
 

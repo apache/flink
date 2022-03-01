@@ -45,7 +45,7 @@ under the License.
 
 当 Flink 部署在资源管理系统（Kubernetes、Yarn）上时，扩展资源框架将确保分配的 Pod、Container 包含所需的扩展资源。目前，许多资源管理系统都支持扩展资源。
 例如，Kubernetes 从 v1.10 开始通过 [Device Plugin](https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/) 机制支持 GPU、FPGA 等资源调度，Yarn 从 2.10 和 3.1 开始支持 GPU 和 FPGA 的调度。
-目前，扩展资源框架并不支持 Mesos 模式。在 Standalone 模式下，由用户负责确保扩展资源的可用性。
+在 Standalone 模式下，由用户负责确保扩展资源的可用性。
 
 扩展资源框架向算子提供扩展资源相关*信息*，这些信息由你配置的扩展资源 *Driver* 生成，包含了使用扩展资源所需要的基本属性。
 
@@ -148,9 +148,9 @@ class ExternalResourceMapFunction extends RichMapFunction[(String, String)] {
 
 `ExternalResourceInfo` 中包含一个或多个键-值对，其键值表示资源的不同维度。你可以通过 `ExternalResourceInfo#getKeys` 获取所有的键。
 
-<div class="alert alert-info">
-     <strong>提示：</strong>目前，RuntimeContext#getExternalResourceInfos 返回的信息对所有算子都是可用的。
-</div>
+{{< hint info >}}
+**提示：** 目前，RuntimeContext#getExternalResourceInfos 返回的信息对所有算子都是可用的。
+{{< /hint >}}
 
 <a name="implement-a-plugin-for-your-custom-resource-type"></a>
 
@@ -230,9 +230,9 @@ class FPGAInfo extends ExternalResourceInfo {
 之后，将 `FPGADriver`，`FPGADriverFactory`，`META-INF/services/` 和所有外部依赖打入 jar 包。在你的 Flink 发行版的 `plugins/` 文件夹中创建一个名为“fpga”的文件夹，将打好的 jar 包放入其中。
 更多细节请查看 [Flink Plugin]({{< ref "docs/deployment/filesystems/plugins" >}})。
 
-<div class="alert alert-info">
-     <strong>提示：</strong> 扩展资源由运行在同一台机器上的所有算子共享。社区可能会在未来的版本中支持外部资源隔离。
-</div>
+{{< hint info >}}
+**提示：** 扩展资源由运行在同一台机器上的所有算子共享。社区可能会在未来的版本中支持外部资源隔离。
+{{< /hint >}}
 
 # 已支持的扩展资源插件
 
@@ -244,11 +244,11 @@ class FPGAInfo extends ExternalResourceInfo {
 
 我们为 GPU 提供了第一方插件。该插件利用一个脚本来发现 GPU 设备的索引，该索引可通过“index”从 `ExternalResourceInfo` 中获取。我们提供了一个默认脚本，可以用来发现 NVIDIA GPU。您还可以提供自定义脚本。
 
-我们提供了[一个示例程序](https://github.com/apache/flink/blob/master/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/gpu/MatrixVectorMul.java)，展示了如何在 Flink 中使用 GPU 资源来做矩阵-向量乘法。
+我们提供了{{< gh_link file="/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/gpu/MatrixVectorMul.java" name="一个示例程序" >}}，展示了如何在 Flink 中使用 GPU 资源来做矩阵-向量乘法。
 
-<div class="alert alert-info">
-     <strong>提示：</strong>目前，对于所有算子，RuntimeContext#getExternalResourceInfos 会返回同样的资源信息。也即，在同一个 TaskManager 中运行的所有算子都可以访问同一组 GPU 设备。扩展资源目前没有算子级别的隔离。
-</div>
+{{< hint info >}}
+**提示：** 目前，对于所有算子，RuntimeContext#getExternalResourceInfos 会返回同样的资源信息。也即，在同一个 TaskManager 中运行的所有算子都可以访问同一组 GPU 设备。扩展资源目前没有算子级别的隔离。
+{{< /hint >}}
 
 ### 前置准备
 
@@ -326,9 +326,9 @@ external-resource.gpu.kubernetes.config-key: nvidia.com/gpu # for Kubernetes
 
   - `--coordination-file filePath`：用于同步 GPU 资源分配状态的文件路径。默认路径为 `/var/tmp/flink-gpu-coordination`。
 
-<div class="alert alert-info">
-     <strong>提示：</strong>协调模式只确保一个 GPU 设备不会被同一个 Flink 集群的多个 TaskManager 共享。不同 Flink 集群间（具有不同的协调文件）或非 Flink 应用程序仍然可以使用相同的 GPU 设备。
-</div>
+{{< hint info >}}
+**提示：** 协调模式只确保一个 GPU 设备不会被同一个 Flink 集群的多个 TaskManager 共享。不同 Flink 集群间（具有不同的协调文件）或非 Flink 应用程序仍然可以使用相同的 GPU 设备。
+{{< /hint >}}
 
 #### 自定义脚本
 

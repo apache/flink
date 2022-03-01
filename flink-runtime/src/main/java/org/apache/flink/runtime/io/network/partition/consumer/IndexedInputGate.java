@@ -64,4 +64,6 @@ public abstract class IndexedInputGate extends InputGate implements Checkpointab
     public void convertToPriorityEvent(int channelIndex, int sequenceNumber) throws IOException {
         getChannel(channelIndex).convertToPriorityEvent(sequenceNumber);
     }
+
+    public abstract void triggerDebloating();
 }

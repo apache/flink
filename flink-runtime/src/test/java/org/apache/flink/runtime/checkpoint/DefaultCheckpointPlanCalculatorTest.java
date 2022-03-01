@@ -329,8 +329,8 @@ public class DefaultCheckpointPlanCalculatorTest {
                 new DefaultCheckpointPlanCalculator(
                         graph.getJobID(),
                         new ExecutionGraphCheckpointPlanCalculatorContext(graph),
-                        graph.getVerticesTopologically());
-        checkpointPlanCalculator.setAllowCheckpointsAfterTasksFinished(true);
+                        graph.getVerticesTopologically(),
+                        true);
         return checkpointPlanCalculator;
     }
 

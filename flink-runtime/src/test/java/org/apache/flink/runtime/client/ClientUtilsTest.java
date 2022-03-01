@@ -20,7 +20,6 @@ package org.apache.flink.runtime.client;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.cache.DistributedCache;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.blob.BlobClient;
@@ -56,9 +55,7 @@ public class ClientUtilsTest extends TestLogger {
     @BeforeClass
     public static void setup() throws IOException {
         Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
-        blobServer = new BlobServer(config, new VoidBlobStore());
+        blobServer = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
         blobServer.start();
     }
 

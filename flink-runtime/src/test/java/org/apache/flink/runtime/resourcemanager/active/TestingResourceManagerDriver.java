@@ -21,8 +21,8 @@ package org.apache.flink.runtime.resourcemanager.active;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.TaskExecutorProcessSpec;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.ScheduledExecutor;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.function.BiConsumerWithException;
 import org.apache.flink.util.function.TriFunctionWithException;
 

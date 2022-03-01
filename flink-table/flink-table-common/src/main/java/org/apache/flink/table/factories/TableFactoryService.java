@@ -18,12 +18,10 @@
 
 package org.apache.flink.table.factories;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.table.api.AmbiguousTableFactoryException;
-import org.apache.flink.table.api.NoMatchingTableFactoryException;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.descriptors.Descriptor;
-import org.apache.flink.table.descriptors.FormatDescriptorValidator;
 import org.apache.flink.table.descriptors.Schema;
 import org.apache.flink.util.Preconditions;
 
@@ -43,10 +41,26 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_PROPERTY_VERSION;
-import static org.apache.flink.table.descriptors.FormatDescriptorValidator.FORMAT_PROPERTY_VERSION;
 
 /** Unified class to search for a {@link TableFactory} of provided type and properties. */
+@Deprecated
+@Internal
 public class TableFactoryService {
+
+    /** Prefix for format-related properties. */
+    public static final String FORMAT = "format";
+
+    /** Key for describing the type of the format. Usually used for factory discovery. */
+    public static final String FORMAT_TYPE = "format.type";
+
+    /**
+     * Key for describing the property version. This property can be used for backwards
+     * compatibility in case the property format changes.
+     */
+    public static final String FORMAT_PROPERTY_VERSION = "format.property-version";
+
+    /** Key for deriving the schema of the format from the table's schema. */
+    public static final String FORMAT_DERIVE_SCHEMA = "format.derive-schema";
 
     private static final Logger LOG = LoggerFactory.getLogger(TableFactoryService.class);
 
@@ -456,9 +470,9 @@ public class TableFactoryService {
                             k -> {
                                 if (includeSchema) {
                                     return k.startsWith(Schema.SCHEMA + ".")
-                                            || k.startsWith(FormatDescriptorValidator.FORMAT + ".");
+                                            || k.startsWith(FORMAT + ".");
                                 } else {
-                                    return k.startsWith(FormatDescriptorValidator.FORMAT + ".");
+                                    return k.startsWith(FORMAT + ".");
                                 }
                             })
                     .collect(Collectors.toList());

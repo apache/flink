@@ -28,7 +28,7 @@ import org.apache.flink.api.common.externalresource.ExternalResourceInfo;
 import org.apache.flink.api.common.functions.BroadcastVariableInitializer;
 import org.apache.flink.api.common.functions.RuntimeContext;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.util.SimpleUserCodeClassLoader;
 
 import java.util.HashMap;
@@ -56,7 +56,7 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
             ExecutionConfig executionConfig,
             Map<String, Future<Path>> cpTasks,
             Map<String, Accumulator<?, ?>> accumulators,
-            MetricGroup metrics) {
+            OperatorMetricGroup metrics) {
         this(
                 taskInfo,
                 userCodeClassLoader,
@@ -73,7 +73,7 @@ public class RuntimeUDFContext extends AbstractRuntimeUDFContext {
             ExecutionConfig executionConfig,
             Map<String, Future<Path>> cpTasks,
             Map<String, Accumulator<?, ?>> accumulators,
-            MetricGroup metrics,
+            OperatorMetricGroup metrics,
             JobID jobID) {
         super(
                 taskInfo,

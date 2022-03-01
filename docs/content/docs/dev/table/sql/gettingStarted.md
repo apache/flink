@@ -106,7 +106,7 @@ A continuous query can be defined from this table that reads new rows as they ar
 For example, we can filter for just those employees who work in department `1`. 
 
 ```sql
-SELECT * from employee_information WHERE DeptId = 1;
+SELECT * from employee_information WHERE dept_id = 1;
 ``` 
 
 ---------------
@@ -126,7 +126,7 @@ SELECT
 	dept_id,
 	COUNT(*) as emp_count 
 FROM employee_information 
-GROUP BY dep_id;
+GROUP BY dept_id;
  ``` 
 
 Such queries are considered _stateful_. Flink's advanced fault-tolerance mechanism will maintain internal state and consistency, so queries always return the correct result, even in the face of hardware failure. 

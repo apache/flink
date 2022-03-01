@@ -18,16 +18,16 @@
 
 package org.apache.flink.orc.vector;
 
-import org.apache.flink.table.data.ColumnarRowData;
-import org.apache.flink.table.data.vector.ColumnVector;
-import org.apache.flink.table.data.vector.VectorizedColumnBatch;
+import org.apache.flink.table.data.columnar.ColumnarRowData;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.vector.VectorizedColumnBatch;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.hadoop.hive.ql.exec.vector.StructColumnVector;
 
 /** This column vector is used to adapt hive's StructColumnVector to Flink's RowColumnVector. */
 public class OrcRowColumnVector extends AbstractOrcColumnVector
-        implements org.apache.flink.table.data.vector.RowColumnVector {
+        implements org.apache.flink.table.data.columnar.vector.RowColumnVector {
 
     private final ColumnarRowData columnarRowData;
 

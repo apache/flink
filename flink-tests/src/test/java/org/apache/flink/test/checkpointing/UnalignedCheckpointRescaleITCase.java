@@ -46,11 +46,13 @@ import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.util.Collector;
 
+import org.apache.commons.lang3.ArrayUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collections;
 
@@ -65,6 +67,7 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
     private final Topology topology;
     private final int oldParallelism;
     private final int newParallelism;
+    private final int buffersPerChannel;
 
     enum Topology implements DagCreator {
         PIPELINE {
@@ -456,53 +459,68 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         }
     }
 
-    @Parameterized.Parameters(name = "{0} {1} from {2} to {3}")
+    @Parameterized.Parameters(name = "{0} {1} from {2} to {3}, buffersPerChannel = {4}")
     public static Object[][] getScaleFactors() {
-        return new Object[][] {
-            new Object[] {"downscale", Topology.KEYED_DIFFERENT_PARALLELISM, 12, 7},
-            new Object[] {"upscale", Topology.KEYED_DIFFERENT_PARALLELISM, 7, 12},
-            new Object[] {"downscale", Topology.KEYED_BROADCAST, 7, 2},
-            new Object[] {"upscale", Topology.KEYED_BROADCAST, 2, 7},
-            new Object[] {"downscale", Topology.BROADCAST, 5, 2},
-            new Object[] {"upscale", Topology.BROADCAST, 2, 5},
-            new Object[] {"upscale", Topology.PIPELINE, 1, 2},
-            new Object[] {"upscale", Topology.PIPELINE, 2, 3},
-            new Object[] {"upscale", Topology.PIPELINE, 3, 7},
-            new Object[] {"upscale", Topology.PIPELINE, 4, 8},
-            new Object[] {"upscale", Topology.PIPELINE, 20, 21},
-            new Object[] {"downscale", Topology.PIPELINE, 2, 1},
-            new Object[] {"downscale", Topology.PIPELINE, 3, 2},
-            new Object[] {"downscale", Topology.PIPELINE, 7, 3},
-            new Object[] {"downscale", Topology.PIPELINE, 8, 4},
-            new Object[] {"downscale", Topology.PIPELINE, 21, 20},
-            new Object[] {"no scale", Topology.PIPELINE, 1, 1},
-            new Object[] {"no scale", Topology.PIPELINE, 3, 3},
-            new Object[] {"no scale", Topology.PIPELINE, 7, 7},
-            new Object[] {"no scale", Topology.PIPELINE, 20, 20},
-            new Object[] {"upscale", Topology.UNION, 1, 2},
-            new Object[] {"upscale", Topology.UNION, 2, 3},
-            new Object[] {"upscale", Topology.UNION, 3, 7},
-            new Object[] {"downscale", Topology.UNION, 2, 1},
-            new Object[] {"downscale", Topology.UNION, 3, 2},
-            new Object[] {"downscale", Topology.UNION, 7, 3},
-            new Object[] {"no scale", Topology.UNION, 1, 1},
-            new Object[] {"no scale", Topology.UNION, 7, 7},
-            new Object[] {"upscale", Topology.MULTI_INPUT, 1, 2},
-            new Object[] {"upscale", Topology.MULTI_INPUT, 2, 3},
-            new Object[] {"upscale", Topology.MULTI_INPUT, 3, 7},
-            new Object[] {"downscale", Topology.MULTI_INPUT, 2, 1},
-            new Object[] {"downscale", Topology.MULTI_INPUT, 3, 2},
-            new Object[] {"downscale", Topology.MULTI_INPUT, 7, 3},
-            new Object[] {"no scale", Topology.MULTI_INPUT, 1, 1},
-            new Object[] {"no scale", Topology.MULTI_INPUT, 7, 7},
-        };
+        Object[][] parameters =
+                new Object[][] {
+                    new Object[] {"downscale", Topology.KEYED_DIFFERENT_PARALLELISM, 12, 7},
+                    new Object[] {"upscale", Topology.KEYED_DIFFERENT_PARALLELISM, 7, 12},
+                    new Object[] {"downscale", Topology.KEYED_BROADCAST, 7, 2},
+                    new Object[] {"upscale", Topology.KEYED_BROADCAST, 2, 7},
+                    new Object[] {"downscale", Topology.BROADCAST, 5, 2},
+                    new Object[] {"upscale", Topology.BROADCAST, 2, 5},
+                    new Object[] {"upscale", Topology.PIPELINE, 1, 2},
+                    new Object[] {"upscale", Topology.PIPELINE, 2, 3},
+                    new Object[] {"upscale", Topology.PIPELINE, 3, 7},
+                    new Object[] {"upscale", Topology.PIPELINE, 4, 8},
+                    new Object[] {"upscale", Topology.PIPELINE, 20, 21},
+                    new Object[] {"downscale", Topology.PIPELINE, 2, 1},
+                    new Object[] {"downscale", Topology.PIPELINE, 3, 2},
+                    new Object[] {"downscale", Topology.PIPELINE, 7, 3},
+                    new Object[] {"downscale", Topology.PIPELINE, 8, 4},
+                    new Object[] {"downscale", Topology.PIPELINE, 21, 20},
+                    new Object[] {"no scale", Topology.PIPELINE, 1, 1},
+                    new Object[] {"no scale", Topology.PIPELINE, 3, 3},
+                    new Object[] {"no scale", Topology.PIPELINE, 7, 7},
+                    new Object[] {"no scale", Topology.PIPELINE, 20, 20},
+                    new Object[] {"upscale", Topology.UNION, 1, 2},
+                    new Object[] {"upscale", Topology.UNION, 2, 3},
+                    new Object[] {"upscale", Topology.UNION, 3, 7},
+                    new Object[] {"downscale", Topology.UNION, 2, 1},
+                    new Object[] {"downscale", Topology.UNION, 3, 2},
+                    new Object[] {"downscale", Topology.UNION, 7, 3},
+                    new Object[] {"no scale", Topology.UNION, 1, 1},
+                    new Object[] {"no scale", Topology.UNION, 7, 7},
+                    new Object[] {"upscale", Topology.MULTI_INPUT, 1, 2},
+                    new Object[] {"upscale", Topology.MULTI_INPUT, 2, 3},
+                    new Object[] {"upscale", Topology.MULTI_INPUT, 3, 7},
+                    new Object[] {"downscale", Topology.MULTI_INPUT, 2, 1},
+                    new Object[] {"downscale", Topology.MULTI_INPUT, 3, 2},
+                    new Object[] {"downscale", Topology.MULTI_INPUT, 7, 3},
+                    new Object[] {"no scale", Topology.MULTI_INPUT, 1, 1},
+                    new Object[] {"no scale", Topology.MULTI_INPUT, 7, 7},
+                };
+        return Arrays.stream(parameters)
+                .map(
+                        params ->
+                                new Object[][] {
+                                    ArrayUtils.add(params, 0),
+                                    ArrayUtils.add(params, BUFFER_PER_CHANNEL)
+                                })
+                .flatMap(Arrays::stream)
+                .toArray(Object[][]::new);
     }
 
     public UnalignedCheckpointRescaleITCase(
-            String desc, Topology topology, int oldParallelism, int newParallelism) {
+            String desc,
+            Topology topology,
+            int oldParallelism,
+            int newParallelism,
+            int buffersPerChannel) {
         this.topology = topology;
         this.oldParallelism = oldParallelism;
         this.newParallelism = newParallelism;
+        this.buffersPerChannel = buffersPerChannel;
     }
 
     @Test
@@ -510,7 +528,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         final UnalignedSettings prescaleSettings =
                 new UnalignedSettings(topology)
                         .setParallelism(oldParallelism)
-                        .setExpectedFailures(1);
+                        .setExpectedFailures(1)
+                        .setBuffersPerChannel(buffersPerChannel);
         prescaleSettings.setGenerateCheckpoint(true);
         final File checkpointDir = super.execute(prescaleSettings);
 
@@ -518,7 +537,8 @@ public class UnalignedCheckpointRescaleITCase extends UnalignedCheckpointTestBas
         final UnalignedSettings postscaleSettings =
                 new UnalignedSettings(topology)
                         .setParallelism(newParallelism)
-                        .setExpectedFailures(1);
+                        .setExpectedFailures(1)
+                        .setBuffersPerChannel(buffersPerChannel);
         postscaleSettings.setRestoreCheckpoint(checkpointDir);
         super.execute(postscaleSettings);
     }

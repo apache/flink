@@ -40,7 +40,8 @@ Cluster](#flink-cluster) is bound to the lifetime of the Flink Application.
 
 A Flink Job Cluster is a dedicated [Flink Cluster](#flink-cluster) that only
 executes a single [Flink Job](#flink-job). The lifetime of the
-[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job.
+[Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job. 
+This deployment mode has been deprecated since Flink 1.15.  
 
 #### Flink Cluster
 
@@ -171,6 +172,10 @@ RocksDB).
 A Sub-Task is a [Task](#task) responsible for processing a [partition](#partition) of
 the data stream. The term "Sub-Task" emphasizes that there are multiple parallel Tasks for the same
 [Operator](#operator) or [Operator Chain](#operator-chain).
+
+#### Table Program
+
+A generic term for pipelines declared with Flink's relational APIs (Table API or SQL).
 
 #### Task
 

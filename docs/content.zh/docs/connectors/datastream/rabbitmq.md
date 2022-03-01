@@ -38,7 +38,7 @@ Flink 自身既没有复用 "RabbitMQ AMQP Java Client" 的代码，也没有将
 
 这个连接器可以访问 [RabbitMQ](http://www.rabbitmq.com/) 的数据流。使用这个连接器，需要在工程里添加下面的依赖：
 
-{{< artifact flink-connector-rabbitmq withScalaVersion >}}
+{{< artifact flink-connector-rabbitmq >}}
 
 注意连接器现在没有包含在二进制发行版中。集群执行的相关信息请参考 [这里]({{< ref "docs/dev/datastream/project-configuration" >}}).
 
@@ -106,6 +106,28 @@ val stream = env
         true,                        // use correlation ids; can be false if only at-least-once is required
         new SimpleStringSchema))     // deserialization schema to turn messages into Java objects
     .setParallelism(1)               // non-parallel source is only required for exactly-once
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+env = StreamExecutionEnvironment.get_execution_environment()
+# checkpointing is required for exactly-once or at-least-once guarantees
+env.enable_checkpointing(...)
+
+connection_config = RMQConnectionConfig.Builder() \
+    .set_host("localhost") \
+    .set_port(5000) \
+    ...
+    .build()
+
+stream = env \
+    .add_source(RMQSource(
+        connection_config,
+        "queueName",
+        True,
+        SimpleStringSchema(),
+    )) \
+    .set_parallelism(1)
 ```
 {{< /tab >}}
 {{< /tabs >}}

@@ -48,9 +48,9 @@ public abstract class ResultSubpartition {
     }
 
     /** Gets the total numbers of buffers (data buffers plus events). */
-    protected abstract long getTotalNumberOfBuffers();
+    protected abstract long getTotalNumberOfBuffersUnsafe();
 
-    protected abstract long getTotalNumberOfBytes();
+    protected abstract long getTotalNumberOfBytesUnsafe();
 
     public int getSubPartitionIndex() {
         return subpartitionInfo.getSubPartitionIdx();
@@ -62,7 +62,7 @@ public abstract class ResultSubpartition {
     }
 
     @VisibleForTesting
-    public final boolean add(BufferConsumer bufferConsumer) throws IOException {
+    public final int add(BufferConsumer bufferConsumer) throws IOException {
         return add(bufferConsumer, 0);
     }
 
@@ -80,10 +80,10 @@ public abstract class ResultSubpartition {
      * @param bufferConsumer the buffer to add (transferring ownership to this writer)
      * @param partialRecordLength the length of bytes to skip in order to start with a complete
      *     record, from position index 0 of the underlying {@cite MemorySegment}.
-     * @return true if operation succeeded and bufferConsumer was enqueued for consumption.
+     * @return the preferable buffer size for this subpartition or -1 if the add operation fails.
      * @throws IOException thrown in case of errors while adding the buffer
      */
-    public abstract boolean add(BufferConsumer bufferConsumer, int partialRecordLength)
+    public abstract int add(BufferConsumer bufferConsumer, int partialRecordLength)
             throws IOException;
 
     public abstract void flush();
@@ -97,20 +97,19 @@ public abstract class ResultSubpartition {
 
     public abstract boolean isReleased();
 
-    /**
-     * Gets the number of non-event buffers in this subpartition.
-     *
-     * <p><strong>Beware:</strong> This method should only be used in tests in non-concurrent access
-     * scenarios since it does not make any concurrency guarantees.
-     */
-    @VisibleForTesting
-    abstract int getBuffersInBacklog();
+    /** Gets the number of non-event buffers in this subpartition. */
+    abstract int getBuffersInBacklogUnsafe();
 
     /**
      * Makes a best effort to get the current size of the queue. This method must not acquire locks
      * or interfere with the task and network threads in any way.
      */
     public abstract int unsynchronizedGetNumberOfQueuedBuffers();
+
+    /** Get the current size of the queue. */
+    public abstract int getNumberOfQueuedBuffers();
+
+    public abstract void bufferSize(int desirableNewBufferSize);
 
     // ------------------------------------------------------------------------
 

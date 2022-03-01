@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.types.utils;
 
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -37,6 +38,7 @@ import org.apache.flink.table.types.logical.FloatType;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.LogicalTypeVisitor;
 import org.apache.flink.table.types.logical.MapType;
 import org.apache.flink.table.types.logical.MultisetType;
@@ -54,7 +56,6 @@ import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.table.types.logical.YearMonthIntervalType;
 import org.apache.flink.table.types.logical.ZonedTimestampType;
 
-import java.util.Collections;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -201,9 +202,29 @@ public final class LogicalTypeDataTypeConverter {
 
         @Override
         public DataType visit(DistinctType distinctType) {
-            return new FieldsDataType(
-                    distinctType,
-                    Collections.singletonList(distinctType.getSourceType().accept(this)));
+            final DataType sourceDataType = distinctType.getSourceType().accept(this);
+            if (sourceDataType instanceof AtomicDataType) {
+                return new AtomicDataType(distinctType, sourceDataType.getConversionClass());
+            } else if (sourceDataType instanceof CollectionDataType) {
+                final CollectionDataType collectionDataType = (CollectionDataType) sourceDataType;
+                return new CollectionDataType(
+                        distinctType,
+                        collectionDataType.getConversionClass(),
+                        collectionDataType.getElementDataType());
+            } else if (sourceDataType instanceof KeyValueDataType) {
+                final KeyValueDataType keyValueDataType = (KeyValueDataType) sourceDataType;
+                return new KeyValueDataType(
+                        distinctType,
+                        keyValueDataType.getConversionClass(),
+                        keyValueDataType.getKeyDataType(),
+                        keyValueDataType.getValueDataType());
+            } else if (sourceDataType instanceof FieldsDataType) {
+                return new FieldsDataType(
+                        distinctType,
+                        sourceDataType.getConversionClass(),
+                        sourceDataType.getChildren());
+            }
+            throw new IllegalStateException("Unexpected data type instance.");
         }
 
         @Override
@@ -232,6 +253,13 @@ public final class LogicalTypeDataTypeConverter {
 
         @Override
         public DataType visit(LogicalType other) {
+            if (other.is(LogicalTypeRoot.UNRESOLVED)) {
+                throw new ValidationException(
+                        String.format(
+                                "Unresolved logical type '%s' cannot be used to create a data type.",
+                                other));
+            }
+            // for legacy types
             return new AtomicDataType(other);
         }
     }

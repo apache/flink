@@ -37,7 +37,6 @@ import org.apache.flink.streaming.api.functions.windowing.ProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyProcessWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.ReduceApplyWindowFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
-import org.apache.flink.streaming.api.windowing.assigners.BaseAlignedWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.MergingWindowAssigner;
 import org.apache.flink.streaming.api.windowing.assigners.WindowAssigner;
 import org.apache.flink.streaming.api.windowing.evictors.Evictor;
@@ -111,13 +110,6 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
                     "A merging window assigner cannot be used with a trigger that does not support merging.");
         }
 
-        if (windowAssigner instanceof BaseAlignedWindowAssigner) {
-            throw new UnsupportedOperationException(
-                    "Cannot use a "
-                            + windowAssigner.getClass().getSimpleName()
-                            + " with a custom trigger.");
-        }
-
         this.trigger = trigger;
     }
 
@@ -138,12 +130,6 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
     public void evictor(Evictor<? super T, ? super W> evictor) {
         Preconditions.checkNotNull(evictor, "Evictor cannot be null");
 
-        if (windowAssigner instanceof BaseAlignedWindowAssigner) {
-            throw new UnsupportedOperationException(
-                    "Cannot use a "
-                            + windowAssigner.getClass().getSimpleName()
-                            + " with an Evictor.");
-        }
         this.evictor = evictor;
     }
 
@@ -340,7 +326,11 @@ public class WindowOperatorBuilder<T, K, W extends Window> {
         }
     }
 
-    public String generateOperatorName(Function function1, @Nullable Function function2) {
+    public String generateOperatorName() {
+        return windowAssigner.getClass().getSimpleName();
+    }
+
+    public String generateOperatorDescription(Function function1, @Nullable Function function2) {
         return "Window("
                 + windowAssigner
                 + ", "

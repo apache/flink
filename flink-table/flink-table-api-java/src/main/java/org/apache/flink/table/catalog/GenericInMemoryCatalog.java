@@ -174,9 +174,7 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
                                 newDatabase.getClass().getName()));
             }
 
-            Map<String, String> mergedProperties = new HashMap<>(existingDatabase.getProperties());
-            mergedProperties.putAll(newDatabase.getProperties());
-            databases.put(databaseName, newDatabase.copy(mergedProperties));
+            databases.put(databaseName, newDatabase.copy());
         } else if (!ignoreIfNotExists) {
             throw new DatabaseNotExistException(getName(), databaseName);
         }
@@ -253,6 +251,11 @@ public class GenericInMemoryCatalog extends AbstractCatalog {
         } else if (!ignoreIfNotExists) {
             throw new TableNotExistException(getName(), tablePath);
         }
+    }
+
+    @Override
+    public boolean supportsManagedTable() {
+        return true;
     }
 
     // ------ tables and views ------

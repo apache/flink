@@ -307,7 +307,7 @@ public abstract class DataSet<T> {
      * <p>Additional fields can be added to the projection by calling {@link
      * ProjectOperator#project(int[])}.
      *
-     * <p><b>Note: With the current implementation, the Project transformation looses type
+     * <p><b>Note: With the current implementation, the Project transformation loses type
      * information.</b>
      *
      * @param fieldIndexes The field indexes of the input tuple that are retained. The order of
@@ -1535,7 +1535,7 @@ public abstract class DataSet<T> {
      * <ul>
      *   <li>A directory is created and multiple files are written underneath. (Default behavior)
      *       <br>
-     *       This sink creates a directory called "path1", and files "1", "2" ... are writen
+     *       This sink creates a directory called "path1", and files "1", "2" ... are written
      *       underneath depending on <a
      *       href="https://flink.apache.org/faq.html#what-is-the-parallelism-how-do-i-set-it">parallelism</a>
      *       <pre>{@code .
@@ -1557,7 +1557,7 @@ public abstract class DataSet<T> {
      * ...
      * dataset.writeAsText("file:///path1"); }</pre>
      *   <li>A directory is always created when <a
-     *       href="https://ci.apache.org/projects/flink/flink-docs-master/setup/config.html#file-systems">fs.output.always-create-directory</a>
+     *       href="https://nightlies.apache.org/flink/flink-docs-master/setup/config.html#file-systems">fs.output.always-create-directory</a>
      *       is set to true in flink-conf.yaml file, even when parallelism is set to 1.
      *       <pre>{@code .
      * └── path1/

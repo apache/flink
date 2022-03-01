@@ -18,58 +18,194 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.util.function.TriFunction;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.BiConsumer;
+import java.util.function.Supplier;
 
 /** Test {@link CompletedCheckpointStore} implementation for testing the shutdown behavior. */
 public final class TestingCompletedCheckpointStore implements CompletedCheckpointStore {
 
-    private final CompletableFuture<JobStatus> shutdownStatus;
+    private final TriFunction<
+                    CompletedCheckpoint, CheckpointsCleaner, Runnable, CompletedCheckpoint>
+            addCheckpointAndSubsumeOldestOneFunction;
+    private final BiConsumer<JobStatus, CheckpointsCleaner> shutdownConsumer;
+    private final Supplier<List<CompletedCheckpoint>> getAllCheckpointsSupplier;
+    private final Supplier<Integer> getNumberOfRetainedCheckpointsSuppler;
+    private final Supplier<Integer> getMaxNumberOfRetainedCheckpointsSupplier;
+    private final Supplier<Boolean> requiresExternalizedCheckpointsSupplier;
+    private final Supplier<SharedStateRegistry> getSharedStateRegistrySupplier;
 
-    public TestingCompletedCheckpointStore(CompletableFuture<JobStatus> shutdownStatus) {
-        this.shutdownStatus = shutdownStatus;
+    public static TestingCompletedCheckpointStore
+            createStoreWithShutdownCheckAndNoCompletedCheckpoints(
+                    CompletableFuture<JobStatus> shutdownFuture) {
+        return TestingCompletedCheckpointStore.builder()
+                .withShutdownConsumer(
+                        ((jobStatus, ignoredCheckpointsCleaner) ->
+                                shutdownFuture.complete(jobStatus)))
+                .withGetAllCheckpointsSupplier(Collections::emptyList)
+                .build();
+    }
+
+    private TestingCompletedCheckpointStore(
+            TriFunction<CompletedCheckpoint, CheckpointsCleaner, Runnable, CompletedCheckpoint>
+                    addCheckpointAndSubsumeOldestOneFunction,
+            BiConsumer<JobStatus, CheckpointsCleaner> shutdownConsumer,
+            Supplier<List<CompletedCheckpoint>> getAllCheckpointsSupplier,
+            Supplier<Integer> getNumberOfRetainedCheckpointsSuppler,
+            Supplier<Integer> getMaxNumberOfRetainedCheckpointsSupplier,
+            Supplier<Boolean> requiresExternalizedCheckpointsSupplier,
+            Supplier<SharedStateRegistry> getSharedStateRegistrySupplier) {
+        this.addCheckpointAndSubsumeOldestOneFunction = addCheckpointAndSubsumeOldestOneFunction;
+        this.shutdownConsumer = shutdownConsumer;
+        this.getAllCheckpointsSupplier = getAllCheckpointsSupplier;
+        this.getNumberOfRetainedCheckpointsSuppler = getNumberOfRetainedCheckpointsSuppler;
+        this.getMaxNumberOfRetainedCheckpointsSupplier = getMaxNumberOfRetainedCheckpointsSupplier;
+        this.requiresExternalizedCheckpointsSupplier = requiresExternalizedCheckpointsSupplier;
+        this.getSharedStateRegistrySupplier = getSharedStateRegistrySupplier;
     }
 
     @Override
-    public void recover() {}
-
-    @Override
-    public void addCheckpoint(
+    public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
             CompletedCheckpoint checkpoint,
             CheckpointsCleaner checkpointsCleaner,
             Runnable postCleanup) {
-        throw new UnsupportedOperationException("Not implemented.");
-    }
-
-    @Override
-    public CompletedCheckpoint getLatestCheckpoint(boolean isPreferCheckpointForRecovery) {
-        return null;
+        return addCheckpointAndSubsumeOldestOneFunction.apply(
+                checkpoint, checkpointsCleaner, postCleanup);
     }
 
     @Override
     public void shutdown(JobStatus jobStatus, CheckpointsCleaner checkpointsCleaner) {
-        shutdownStatus.complete(jobStatus);
+        shutdownConsumer.accept(jobStatus, checkpointsCleaner);
     }
 
     @Override
     public List<CompletedCheckpoint> getAllCheckpoints() {
-        return Collections.emptyList();
+        return getAllCheckpointsSupplier.get();
     }
 
     @Override
     public int getNumberOfRetainedCheckpoints() {
-        throw new UnsupportedOperationException("Not implemented.");
+        return getNumberOfRetainedCheckpointsSuppler.get();
     }
 
     @Override
     public int getMaxNumberOfRetainedCheckpoints() {
-        throw new UnsupportedOperationException("Not implemented.");
+        return getMaxNumberOfRetainedCheckpointsSupplier.get();
     }
 
     @Override
     public boolean requiresExternalizedCheckpoints() {
-        throw new UnsupportedOperationException("Not implemented.");
+        return requiresExternalizedCheckpointsSupplier.get();
+    }
+
+    @Override
+    public SharedStateRegistry getSharedStateRegistry() {
+        return getSharedStateRegistrySupplier.get();
+    }
+
+    public static Builder builder() {
+        return new TestingCompletedCheckpointStore.Builder();
+    }
+
+    /** {@code Builder} for creating {@code TestingCompletedCheckpointStore} instances. */
+    public static class Builder {
+
+        private TriFunction<CompletedCheckpoint, CheckpointsCleaner, Runnable, CompletedCheckpoint>
+                addCheckpointAndSubsumeOldestOneFunction =
+                        (ignoredCompletedCheckpoint,
+                                ignoredCheckpointsCleaner,
+                                ignoredPostCleanup) -> {
+                            throw new UnsupportedOperationException(
+                                    "addCheckpointAndSubsumeOldestOne is not implemented.");
+                        };
+        private BiConsumer<JobStatus, CheckpointsCleaner> shutdownConsumer =
+                (ignoredJobStatus, ignoredCheckpointsCleaner) -> {
+                    throw new UnsupportedOperationException("shutdown is not implemented.");
+                };
+        private Supplier<List<CompletedCheckpoint>> getAllCheckpointsSupplier =
+                () -> {
+                    throw new UnsupportedOperationException(
+                            "getAllCheckpoints is not implemented.");
+                };
+        private Supplier<Integer> getNumberOfRetainedCheckpointsSuppler =
+                () -> {
+                    throw new UnsupportedOperationException(
+                            "getNumberOfRetainedCheckpointsis not implemented.");
+                };
+        private Supplier<Integer> getMaxNumberOfRetainedCheckpointsSupplier =
+                () -> {
+                    throw new UnsupportedOperationException(
+                            "getMaxNumberOfRetainedCheckpoints is not implemented.");
+                };
+        private Supplier<Boolean> requiresExternalizedCheckpointsSupplier =
+                () -> {
+                    throw new UnsupportedOperationException(
+                            "requiresExternalizedCheckpoints is not implemented.");
+                };
+        private Supplier<SharedStateRegistry> getSharedStateRegistrySupplier =
+                () -> {
+                    throw new UnsupportedOperationException(
+                            "getSharedStateRegistry is not implemented.");
+                };
+
+        public Builder withAddCheckpointAndSubsumeOldestOneFunction(
+                TriFunction<CompletedCheckpoint, CheckpointsCleaner, Runnable, CompletedCheckpoint>
+                        addCheckpointAndSubsumeOldestOneFunction) {
+            this.addCheckpointAndSubsumeOldestOneFunction =
+                    addCheckpointAndSubsumeOldestOneFunction;
+            return this;
+        }
+
+        public Builder withShutdownConsumer(
+                BiConsumer<JobStatus, CheckpointsCleaner> shutdownConsumer) {
+            this.shutdownConsumer = shutdownConsumer;
+            return this;
+        }
+
+        public Builder withGetAllCheckpointsSupplier(
+                Supplier<List<CompletedCheckpoint>> getAllCheckpointsSupplier) {
+            this.getAllCheckpointsSupplier = getAllCheckpointsSupplier;
+            return this;
+        }
+
+        public Builder withGetNumberOfRetainedCheckpointsSupplier(
+                Supplier<Integer> getNumberOfRetainedCheckpointsSuppler) {
+            this.getNumberOfRetainedCheckpointsSuppler = getNumberOfRetainedCheckpointsSuppler;
+            return this;
+        }
+
+        public Builder withGetMaxNumberOfRetainedCheckpointsSupplier(
+                Supplier<Integer> getMaxNumberOfRetainedCheckpoints) {
+            this.getMaxNumberOfRetainedCheckpointsSupplier = getMaxNumberOfRetainedCheckpoints;
+            return this;
+        }
+
+        public Builder withRequiresExternalizedCheckpointsSupplier(
+                Supplier<Boolean> requiresExternalizedCheckpointsSupplier) {
+            this.requiresExternalizedCheckpointsSupplier = requiresExternalizedCheckpointsSupplier;
+            return this;
+        }
+
+        public Builder withGetSharedStateRegistrySupplier(
+                Supplier<SharedStateRegistry> getSharedStateRegistrySupplier) {
+            this.getSharedStateRegistrySupplier = getSharedStateRegistrySupplier;
+            return this;
+        }
+
+        public TestingCompletedCheckpointStore build() {
+            return new TestingCompletedCheckpointStore(
+                    addCheckpointAndSubsumeOldestOneFunction,
+                    shutdownConsumer,
+                    getAllCheckpointsSupplier,
+                    getNumberOfRetainedCheckpointsSuppler,
+                    getMaxNumberOfRetainedCheckpointsSupplier,
+                    requiresExternalizedCheckpointsSupplier,
+                    getSharedStateRegistrySupplier);
+        }
     }
 }

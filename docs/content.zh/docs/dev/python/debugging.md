@@ -28,7 +28,34 @@ under the License.
 
 ## 打印日志信息
 
-Python UDF 可以通过 `print` 或者标准的 Python logging 模块记录上下文和调试信息。
+### 客户端日志
+
+你可以通过 `print` 或者标准的 Python logging 模块，在 PyFlink 作业中，Python UDF 之外的地方打印上下文和调试信息。
+在提交作业时，日志信息会打印在客户端的日志文件中。
+
+```python
+from pyflink.table import EnvironmentSettings, TableEnvironment
+
+# 创建 TableEnvironment
+env_settings = EnvironmentSettings.in_streaming_mode()
+table_env = TableEnvironment.create(env_settings)
+
+table = table_env.from_elements([(1, 'Hi'), (2, 'Hello')])
+
+# 使用 logging 模块
+import logging
+logging.warning(table.get_schema())
+
+# 使用 print 函数
+print(table.get_schema())
+```
+
+**注意:** 客户端缺省的日志级别是 `WARNING`，因此，只有日志级别在 `WARNING` 及以上的日志信息才会打印在客户端的日志文件中。
+
+### 服务器端日志
+
+你可以通过 `print` 或者标准的 Python logging 模块，在 Python UDF 中打印上下文和调试信息。
+在作业运行的过程中，日志信息会打印在 `TaskManager` 的日志文件中。
 
 ```python
 @udf(result_type=DataTypes.BIGINT())
@@ -41,6 +68,8 @@ def add(i, j):
     return i + j
 ```
 
+**注意:** 服务器端缺省的日志级别是 `INFO`，因此，只有日志级别在 `INFO` 及以上的日志信息才会打印在 `TaskManager` 的日志文件中。
+
 ## 查看日志
 
 如果设置了环境变量`FLINK_HOME`，日志将会放置在`FLINK_HOME`指向目录的log目录之下。否则，日志将会放在安装的Pyflink模块的
@@ -51,6 +80,13 @@ $ python -c "import pyflink;import os;print(os.path.dirname(os.path.abspath(pyfl
 ```
 
 ## 调试Python UDFs
+
+### 本地调试
+
+你可以直接在 PyCharm 等 IDE 调试你的 Python 函数。
+
+### 远程调试
+
 你可以利用PyCharm提供的[`pydevd_pycharm`](https://pypi.org/project/pydevd-pycharm/)工具进行Python UDF的调试
 
 1. 在PyCharm里创建一个Python Remote Debug
@@ -73,3 +109,14 @@ $ python -c "import pyflink;import os;print(os.path.dirname(os.path.abspath(pyfl
 4. 启动刚刚创建的Python Remote Dubug Server
 
 5. 运行你的Python代码
+
+
+## Profiling Python UDFs
+
+你可以打开profile来分析性能瓶颈
+
+```python
+t_env.get_config().get_configuration().set_boolean("python.profile.enabled", True)
+``` 
+
+你可以在[日志](#查看日志)里面查看profile的结果

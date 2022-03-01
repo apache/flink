@@ -32,6 +32,7 @@ public class PythonOptions {
     /** The maximum number of elements to include in a bundle. */
     public static final ConfigOption<Integer> MAX_BUNDLE_SIZE =
             ConfigOptions.key("python.fn-execution.bundle.size")
+                    .intType()
                     .defaultValue(100000)
                     .withDescription(
                             "The maximum number of elements to include in a bundle for Python "
@@ -42,6 +43,7 @@ public class PythonOptions {
     /** The maximum time to wait before finalising a bundle (in milliseconds). */
     public static final ConfigOption<Long> MAX_BUNDLE_TIME_MILLS =
             ConfigOptions.key("python.fn-execution.bundle.time")
+                    .longType()
                     .defaultValue(1000L)
                     .withDescription(
                             "Sets the waiting timeout(in milliseconds) before processing a bundle for "
@@ -51,6 +53,7 @@ public class PythonOptions {
     /** The maximum number of elements to include in an arrow batch. */
     public static final ConfigOption<Integer> MAX_ARROW_BATCH_SIZE =
             ConfigOptions.key("python.fn-execution.arrow.batch.size")
+                    .intType()
                     .defaultValue(10000)
                     .withDescription(
                             "The maximum number of elements to include in an arrow batch for Python "
@@ -60,10 +63,31 @@ public class PythonOptions {
     /** The configuration to enable or disable metric for Python execution. */
     public static final ConfigOption<Boolean> PYTHON_METRIC_ENABLED =
             ConfigOptions.key("python.metric.enabled")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             "When it is false, metric for Python will be disabled. You can "
                                     + "disable the metric to achieve better performance at some circumstance.");
+
+    /** The configuration to enable or disable profile for Python execution. */
+    public static final ConfigOption<Boolean> PYTHON_PROFILE_ENABLED =
+            ConfigOptions.key("python.profile.enabled")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "Specifies whether to enable Python worker profiling. The profile result "
+                                    + "will be displayed in the log file of the TaskManager periodically. "
+                                    + "The interval between each profiling is determined by the config options "
+                                    + "python.fn-execution.bundle.size and python.fn-execution.bundle.time.");
+
+    /** The configuration to enable or disable python operator chaining. */
+    public static final ConfigOption<Boolean> PYTHON_OPERATOR_CHAINING_ENABLED =
+            ConfigOptions.key("python.operator-chaining.enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Python operator chaining allows non-shuffle operations to be co-located in the "
+                                    + "same thread fully avoiding serialization and de-serialization.");
 
     public static final ConfigOption<String> PYTHON_FILES =
             ConfigOptions.key("python.files")
@@ -93,8 +117,8 @@ public class PythonOptions {
                     .noDefaultValue()
                     .withDescription(
                             "Add python archive files for job. The archive files will be extracted "
-                                    + "to the working directory of python UDF worker. Currently only zip-format is "
-                                    + "supported. For each archive file, a target directory is specified. If the target "
+                                    + "to the working directory of python UDF worker. "
+                                    + "For each archive file, a target directory is specified. If the target "
                                     + "directory name is specified, the archive file will be extracted to a "
                                     + "directory with the specified name. Otherwise, the archive file will be extracted to "
                                     + "a directory with the same name of the archive file. The files uploaded via this "
@@ -125,21 +149,24 @@ public class PythonOptions {
                                     .text(
                                             "The path of the Python interpreter used to launch the Python process when submitting the "
                                                     + "Python jobs via \"flink run\" or compiling the Java/Scala jobs containing Python UDFs. "
-                                                    + "Equivalent to the environment variable PYFLINK_CLIENT_EXECUTABLE. "
+                                                    + "Equivalent to the command line option \"-pyclientexec\" or the environment variable PYFLINK_CLIENT_EXECUTABLE. "
                                                     + "The priority is as following: ")
                                     .linebreak()
                                     .text(
-                                            "1. the configuration 'python.client.executable' defined in the source code;")
+                                            "1. the configuration 'python.client.executable' defined in the source code(Only used in Flink Java SQL/Table API job call Python UDF);")
                                     .linebreak()
-                                    .text("2. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
+                                    .text("2. the command line option \"-pyclientexec\";")
                                     .linebreak()
                                     .text(
                                             "3. the configuration 'python.client.executable' defined in flink-conf.yaml")
+                                    .linebreak()
+                                    .text("4. the environment variable PYFLINK_CLIENT_EXECUTABLE;")
                                     .build());
 
     /** Whether the memory used by the Python framework is managed memory. */
     public static final ConfigOption<Boolean> USE_MANAGED_MEMORY =
             ConfigOptions.key("python.fn-execution.memory.managed")
+                    .booleanType()
                     .defaultValue(true)
                     .withDescription(
                             String.format(
@@ -153,6 +180,7 @@ public class PythonOptions {
     @Experimental
     public static final ConfigOption<Integer> STATE_CACHE_SIZE =
             ConfigOptions.key("python.state.cache-size")
+                    .intType()
                     .defaultValue(1000)
                     .withDescription(
                             "The maximum number of states cached in a Python UDF worker. Note that this "
@@ -162,6 +190,7 @@ public class PythonOptions {
     @Experimental
     public static final ConfigOption<Integer> MAP_STATE_READ_CACHE_SIZE =
             ConfigOptions.key("python.map-state.read-cache-size")
+                    .intType()
                     .defaultValue(1000)
                     .withDescription(
                             "The maximum number of cached entries for a single Python MapState. "
@@ -171,6 +200,7 @@ public class PythonOptions {
     @Experimental
     public static final ConfigOption<Integer> MAP_STATE_WRITE_CACHE_SIZE =
             ConfigOptions.key("python.map-state.write-cache-size")
+                    .intType()
                     .defaultValue(1000)
                     .withDescription(
                             "The maximum number of cached write requests for a single Python "
@@ -186,10 +216,25 @@ public class PythonOptions {
     @Experimental
     public static final ConfigOption<Integer> MAP_STATE_ITERATE_RESPONSE_BATCH_SIZE =
             ConfigOptions.key("python.map-state.iterate-response-batch-size")
+                    .intType()
                     .defaultValue(1000)
                     .withDescription(
                             "The maximum number of the MapState keys/entries sent to Python UDF worker "
                                     + "in each batch when iterating a Python MapState. Note that this is an experimental flag "
                                     + "and might not be available "
                                     + "in future releases.");
+
+    /** Specify the python runtime execution mode. */
+    @Experimental
+    public static final ConfigOption<String> PYTHON_EXECUTION_MODE =
+            ConfigOptions.key("python.execution-mode")
+                    .stringType()
+                    .defaultValue("process")
+                    .withDescription(
+                            "Specify the python runtime execution mode. The optional values are `process`, `multi-thread` and `sub-interpreter`. "
+                                    + "The `process` mode means that the Python user-defined functions will be executed in separate Python process. "
+                                    + "The `multi-thread` mode means that the Python user-defined functions will be executed in the same thread as Java Operator, but it will be affected by GIL performance. "
+                                    + "The `sub-interpreter` mode means that the Python user-defined functions will be executed in python different sub-interpreters rather than different threads of one interpreter, "
+                                    + "which can largely overcome the effects of the GIL, but it maybe fail in some CPython extensions libraries, such as numpy, tensorflow. "
+                                    + "Note that if the python operator dose not support `multi-thread` and `sub-interpreter` mode, we will still use `process` mode.");
 }

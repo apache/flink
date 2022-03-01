@@ -20,9 +20,9 @@ package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.webmonitor.TestingDispatcherGateway;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -91,8 +91,7 @@ class TestingDispatcherGatewayService
         private Function<JobID, CompletableFuture<Void>> onRemovedJobGraphFunction =
                 ignored -> FutureUtils.completedVoidFuture();
 
-        private DispatcherGateway dispatcherGateway =
-                new TestingDispatcherGateway.Builder().build();
+        private DispatcherGateway dispatcherGateway = TestingDispatcherGateway.newBuilder().build();
 
         private CompletableFuture<ApplicationStatus> shutDownFuture = new CompletableFuture<>();
 

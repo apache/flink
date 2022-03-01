@@ -17,15 +17,32 @@
   -->
 
 <div class="metric-selector">
-  <span *ngIf="listOfMetricName.length === 0; else elseTemplate;">No Available Metric</span>
+  <span *ngIf="listOfMetricName.length === 0; else elseTemplate">No Available Metric</span>
   <ng-template #elseTemplate>
     Add Metric:
-    <nz-select nzSize="small" [ngModel]="null" nzShowSearch [nzPlaceHolder]="'Select Metric Name'" (ngModelChange)="updateMetric($event)">
-      <nz-option *ngFor="let name of listOfUnselectedMetric" [nzLabel]="name" [nzValue]="name"></nz-option>
+    <nz-select
+      nzSize="small"
+      [ngModel]="null"
+      nzShowSearch
+      [nzPlaceHolder]="'Select Metric Name'"
+      (ngModelChange)="updateMetric($event)"
+    >
+      <nz-option
+        *ngFor="let name of listOfUnselectedMetric"
+        [nzLabel]="name"
+        [nzValue]="name"
+        nzCustomContent
+      >
+        <span [title]="name">{{ name }}</span>
+      </nz-option>
     </nz-select>
   </ng-template>
 </div>
 
 <div class="metric-area">
-  <flink-job-chart [title]="metric" (closed)="closeMetric($event)" *ngFor="let metric of listOfSelectedMetric"></flink-job-chart>
+  <flink-job-chart
+    [title]="metric"
+    (closed)="closeMetric($event)"
+    *ngFor="let metric of listOfSelectedMetric"
+  ></flink-job-chart>
 </div>

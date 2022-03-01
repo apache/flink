@@ -22,7 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.util.FileUtils;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.ShutdownHookUtil;
+import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 
@@ -50,7 +52,7 @@ public abstract class AbstractBlobCache implements Closeable {
     protected final AtomicLong tempFileCounter = new AtomicLong(0);
 
     /** Root directory for local file storage. */
-    protected final File storageDir;
+    protected final Reference<File> storageDir;
 
     /** Blob store for distributed file storage, e.g. in HA. */
     protected final BlobView blobView;
@@ -75,6 +77,7 @@ public abstract class AbstractBlobCache implements Closeable {
 
     public AbstractBlobCache(
             final Configuration blobClientConfig,
+            final Reference<File> storageDir,
             final BlobView blobView,
             final Logger logger,
             @Nullable final InetSocketAddress serverAddress)
@@ -86,7 +89,7 @@ public abstract class AbstractBlobCache implements Closeable {
         this.readWriteLock = new ReentrantReadWriteLock();
 
         // configure and create the storage directory
-        this.storageDir = BlobUtils.initLocalStorageDirectory(blobClientConfig);
+        this.storageDir = storageDir;
         log.info("Created BLOB cache storage directory " + storageDir);
 
         // configure the number of fetch retries
@@ -104,10 +107,18 @@ public abstract class AbstractBlobCache implements Closeable {
         shutdownHook = ShutdownHookUtil.addShutdownHook(this, getClass().getSimpleName(), log);
 
         this.serverAddress = serverAddress;
+
+        checkStoredBlobsForCorruption();
+    }
+
+    private void checkStoredBlobsForCorruption() throws IOException {
+        if (storageDir.deref().exists()) {
+            BlobUtils.checkAndDeleteCorruptedBlobs(storageDir.deref().toPath(), log);
+        }
     }
 
     public File getStorageDir() {
-        return storageDir;
+        return storageDir.deref();
     }
 
     /**
@@ -126,7 +137,7 @@ public abstract class AbstractBlobCache implements Closeable {
     protected File getFileInternal(@Nullable JobID jobId, BlobKey blobKey) throws IOException {
         checkArgument(blobKey != null, "BLOB key cannot be null.");
 
-        final File localFile = BlobUtils.getStorageLocation(storageDir, jobId, blobKey);
+        final File localFile = BlobUtils.getStorageLocation(storageDir.deref(), jobId, blobKey);
         readWriteLock.readLock().lock();
 
         try {
@@ -228,7 +239,7 @@ public abstract class AbstractBlobCache implements Closeable {
      */
     File createTemporaryFilename() throws IOException {
         return new File(
-                BlobUtils.getIncomingDirectory(storageDir),
+                BlobUtils.getIncomingDirectory(storageDir.deref()),
                 String.format("temp-%08d", tempFileCounter.getAndIncrement()));
     }
 
@@ -241,7 +252,9 @@ public abstract class AbstractBlobCache implements Closeable {
 
             // Clean up the storage directory
             try {
-                FileUtils.deleteDirectory(storageDir);
+                storageDir
+                        .owned()
+                        .ifPresent(FunctionUtils.uncheckedConsumer(FileUtils::deleteDirectory));
             } finally {
                 // Remove shutdown hook to prevent resource leaks
                 ShutdownHookUtil.removeShutdownHook(shutdownHook, getClass().getSimpleName(), log);

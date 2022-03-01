@@ -27,20 +27,25 @@ import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.execution.Environment;
+import org.apache.flink.runtime.highavailability.zookeeper.CuratorFrameworkWithUnhandledErrorListener;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmaster.JobResult;
+import org.apache.flink.runtime.leaderretrieval.DefaultLeaderRetrievalService;
+import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.minicluster.TestingMiniCluster;
 import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.runtime.testutils.ZooKeeperTestUtils;
+import org.apache.flink.runtime.util.ZooKeeperUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -49,10 +54,12 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 
 /** Test the election of a new JobManager leader. */
 public class ZooKeeperLeaderElectionITCase extends TestLogger {
@@ -85,6 +92,7 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
      * successfully executed.
      */
     @Test
+    @Ignore("FLINK-25235")
     public void testJobExecutionOnClusterWithLeaderChange() throws Exception {
         final int numDispatchers = 3;
         final int numTMs = 2;
@@ -98,16 +106,37 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
         configuration.setLong(ClusterOptions.REFUSED_REGISTRATION_DELAY, 50L);
 
         final TestingMiniClusterConfiguration miniClusterConfiguration =
-                new TestingMiniClusterConfiguration.Builder()
+                TestingMiniClusterConfiguration.newBuilder()
                         .setConfiguration(configuration)
                         .setNumberDispatcherResourceManagerComponents(numDispatchers)
                         .setNumTaskManagers(numTMs)
                         .setNumSlotsPerTaskManager(numSlotsPerTM)
                         .build();
 
-        Deadline timeout = Deadline.fromNow(TEST_TIMEOUT);
+        final Deadline timeout = Deadline.fromNow(TEST_TIMEOUT);
 
-        try (TestingMiniCluster miniCluster = new TestingMiniCluster(miniClusterConfiguration)) {
+        try (TestingMiniCluster miniCluster =
+                        TestingMiniCluster.newBuilder(miniClusterConfiguration).build();
+                final CuratorFrameworkWithUnhandledErrorListener curatorFramework =
+                        ZooKeeperUtils.startCuratorFramework(
+                                configuration,
+                                exception -> fail("Fatal error in curator framework."))) {
+
+            // We need to watch for resource manager leader changes to avoid race conditions.
+            final DefaultLeaderRetrievalService resourceManagerLeaderRetrieval =
+                    ZooKeeperUtils.createLeaderRetrievalService(
+                            curatorFramework.asCuratorFramework(),
+                            ZooKeeperUtils.getLeaderPathForResourceManager(),
+                            configuration);
+            @SuppressWarnings("unchecked")
+            final CompletableFuture<String>[] resourceManagerLeaderFutures =
+                    (CompletableFuture<String>[]) new CompletableFuture[numDispatchers];
+            for (int i = 0; i < numDispatchers; i++) {
+                resourceManagerLeaderFutures[i] = new CompletableFuture<>();
+            }
+            resourceManagerLeaderRetrieval.start(
+                    new TestLeaderRetrievalListener(resourceManagerLeaderFutures));
+
             miniCluster.start();
 
             final int parallelism = numTMs * numSlotsPerTM;
@@ -121,36 +150,37 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
                 final DispatcherGateway leaderDispatcherGateway =
                         getNextLeadingDispatcherGateway(
                                 miniCluster, previousLeaderAddress, timeout);
+                // Make sure resource manager has also changed leadership.
+                resourceManagerLeaderFutures[i].get();
                 previousLeaderAddress = leaderDispatcherGateway.getAddress();
-
-                CommonTestUtils.waitUntilCondition(
-                        () ->
-                                leaderDispatcherGateway
-                                                .requestJobStatus(jobGraph.getJobID(), RPC_TIMEOUT)
-                                                .get()
-                                        == JobStatus.RUNNING,
-                        timeout,
-                        50L);
-
+                awaitRunningStatus(leaderDispatcherGateway, jobGraph, timeout);
                 leaderDispatcherGateway.shutDownCluster();
             }
 
             final DispatcherGateway leaderDispatcherGateway =
                     getNextLeadingDispatcherGateway(miniCluster, previousLeaderAddress, timeout);
-            CommonTestUtils.waitUntilCondition(
-                    () ->
-                            leaderDispatcherGateway
-                                            .requestJobStatus(jobGraph.getJobID(), RPC_TIMEOUT)
-                                            .get()
-                                    == JobStatus.RUNNING,
-                    timeout,
-                    50L);
+            // Make sure resource manager has also changed leadership.
+            resourceManagerLeaderFutures[numDispatchers - 1].get();
+            awaitRunningStatus(leaderDispatcherGateway, jobGraph, timeout);
             CompletableFuture<JobResult> jobResultFuture =
                     leaderDispatcherGateway.requestJobResult(jobGraph.getJobID(), RPC_TIMEOUT);
             BlockingOperator.unblock();
 
             assertThat(jobResultFuture.get().isSuccess(), is(true));
+
+            resourceManagerLeaderRetrieval.stop();
         }
+    }
+
+    private static void awaitRunningStatus(
+            DispatcherGateway dispatcherGateway, JobGraph jobGraph, Deadline timeout)
+            throws Exception {
+        CommonTestUtils.waitUntilCondition(
+                () ->
+                        dispatcherGateway.requestJobStatus(jobGraph.getJobID(), RPC_TIMEOUT).get()
+                                == JobStatus.RUNNING,
+                timeout,
+                50L);
     }
 
     private DispatcherGateway getNextLeadingDispatcherGateway(
@@ -217,5 +247,25 @@ public class ZooKeeperLeaderElectionITCase extends TestLogger {
                 lock.notifyAll();
             }
         }
+    }
+
+    private static class TestLeaderRetrievalListener implements LeaderRetrievalListener {
+
+        private final CompletableFuture<String>[] futures;
+
+        int changeIdx = 0;
+
+        private TestLeaderRetrievalListener(CompletableFuture<String>[] futures) {
+            this.futures = futures;
+        }
+
+        @Override
+        public void notifyLeaderAddress(
+                @Nullable String leaderAddress, @Nullable UUID leaderSessionID) {
+            futures[changeIdx++].complete(leaderAddress);
+        }
+
+        @Override
+        public void handleError(Exception exception) {}
     }
 }

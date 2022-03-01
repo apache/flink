@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.getLength;
-import static org.apache.flink.table.types.logical.utils.LogicalTypeChecks.hasFamily;
 import static org.apache.flink.table.types.logical.utils.LogicalTypeMerging.findCommonType;
 
 /**
@@ -57,11 +56,11 @@ class StringConcatTypeStrategy implements TypeStrategy {
         }
 
         final LogicalType minimumType;
-        if (hasFamily(type1, LogicalTypeFamily.CHARACTER_STRING)
-                || hasFamily(type2, LogicalTypeFamily.CHARACTER_STRING)) {
+        if (type1.is(LogicalTypeFamily.CHARACTER_STRING)
+                || type2.is(LogicalTypeFamily.CHARACTER_STRING)) {
             minimumType = new CharType(false, length);
-        } else if (hasFamily(type1, LogicalTypeFamily.BINARY_STRING)
-                || hasFamily(type2, LogicalTypeFamily.BINARY_STRING)) {
+        } else if (type1.is(LogicalTypeFamily.BINARY_STRING)
+                || type2.is(LogicalTypeFamily.BINARY_STRING)) {
             minimumType = new BinaryType(false, length);
         } else {
             return Optional.empty();

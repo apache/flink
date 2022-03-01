@@ -25,6 +25,10 @@ import pyflink.fn_execution.beam.beam_coders # noqa # pylint: disable=unused-imp
 
 import apache_beam.runners.worker.sdk_worker_main
 
+# disable bundle processor shutdown
+from apache_beam.runners.worker import sdk_worker
+sdk_worker.DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 86400 * 30
+
 
 def print_to_logging(logging_func, msg, *args, **kwargs):
     if msg != '\n':
@@ -50,7 +54,7 @@ class CustomPrint(object):
             self._msg_buffer.clear()
 
 
-if __name__ == '__main__':
+def main():
     import builtins
     import logging
     from functools import partial
@@ -63,5 +67,7 @@ if __name__ == '__main__':
 
     custom_print = CustomPrint(print)
     builtins.print = custom_print.print
+    # Remove all the built-in log handles
+    logging.getLogger().handlers = []
     apache_beam.runners.worker.sdk_worker_main.main(sys.argv)
     custom_print.close()

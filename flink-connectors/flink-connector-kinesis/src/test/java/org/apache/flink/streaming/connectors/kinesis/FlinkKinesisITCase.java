@@ -19,18 +19,21 @@ package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
+import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.InitialPosition;
-import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.streaming.connectors.kinesis.testutils.KinesisPubsubClient;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -51,18 +54,18 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.assertThat;
 
 /** IT cases for using Kinesis consumer/producer based on Kinesalite. */
+@Ignore("See FLINK-23528")
 public class FlinkKinesisITCase extends TestLogger {
     public static final String TEST_STREAM = "test_stream";
 
     @ClassRule
-    public static MiniClusterWithClientResource miniCluster =
+    public static final MiniClusterWithClientResource MINI_CLUSTER =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder().build());
 
     @ClassRule
     public static KinesaliteContainer kinesalite =
-            new KinesaliteContainer(
-                    DockerImageName.parse("instructure/kinesalite").withTag("latest"));
+            new KinesaliteContainer(DockerImageName.parse(DockerImageVersions.KINESALITE));
 
     @Rule public TemporaryFolder temp = new TemporaryFolder();
 
@@ -135,10 +138,14 @@ public class FlinkKinesisITCase extends TestLogger {
 
     private String stopWithSavepoint() throws Exception {
         JobStatusMessage job =
-                miniCluster.getClusterClient().listJobs().get().stream().findFirst().get();
-        return miniCluster
+                MINI_CLUSTER.getClusterClient().listJobs().get().stream().findFirst().get();
+        return MINI_CLUSTER
                 .getClusterClient()
-                .stopWithSavepoint(job.getJobId(), true, temp.getRoot().getAbsolutePath())
+                .stopWithSavepoint(
+                        job.getJobId(),
+                        true,
+                        temp.getRoot().getAbsolutePath(),
+                        SavepointFormatType.CANONICAL)
                 .get();
     }
 

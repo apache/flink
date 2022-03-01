@@ -23,10 +23,10 @@ import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.common.serialization.SimpleStringEncoder;
 import org.apache.flink.api.java.utils.ParameterTool;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.streaming.api.functions.sink.filesystem.StreamingFileSink;
 import org.apache.flink.streaming.api.functions.source.RichSourceFunction;
 import org.apache.flink.util.Preconditions;
 
@@ -101,8 +101,8 @@ public class MatrixVectorMul {
 
         // Emit result
         if (params.has("output")) {
-            result.addSink(
-                    StreamingFileSink.forRowFormat(
+            result.sinkTo(
+                    FileSink.forRowFormat(
                                     new Path(params.get("output")),
                                     new SimpleStringEncoder<List<Float>>())
                             .build());

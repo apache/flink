@@ -21,8 +21,11 @@ package org.apache.flink.state.changelog;
 import org.apache.flink.api.common.state.AggregatingState;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.runtime.state.changelog.StateChange;
+import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalAggregatingState;
 import org.apache.flink.runtime.state.internal.InternalKvState;
+import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;
+import org.apache.flink.state.changelog.restore.StateChangeApplier;
 import org.apache.flink.util.ExceptionUtils;
 
 import java.io.IOException;
@@ -42,10 +45,14 @@ class ChangelogAggregatingState<K, N, IN, ACC, OUT>
         extends AbstractChangelogState<K, N, ACC, InternalAggregatingState<K, N, IN, ACC, OUT>>
         implements InternalAggregatingState<K, N, IN, ACC, OUT> {
 
+    private final InternalKeyContext<K> keyContext;
+
     ChangelogAggregatingState(
             InternalAggregatingState<K, N, IN, ACC, OUT> delegatedState,
-            KvStateChangeLogger<ACC, N> changeLogger) {
+            KvStateChangeLogger<ACC, N> changeLogger,
+            InternalKeyContext<K> keyContext) {
         super(delegatedState, changeLogger);
+        this.keyContext = keyContext;
     }
 
     @Override
@@ -95,9 +102,18 @@ class ChangelogAggregatingState<K, N, IN, ACC, OUT>
 
     @SuppressWarnings("unchecked")
     static <T, K, N, SV, S extends State, IS extends S> IS create(
-            InternalKvState<K, N, SV> aggregatingState, KvStateChangeLogger<SV, N> changeLogger) {
+            InternalKvState<K, N, SV> aggregatingState,
+            KvStateChangeLogger<SV, N> changeLogger,
+            InternalKeyContext<K> keyContext) {
         return (IS)
                 new ChangelogAggregatingState<>(
-                        (InternalAggregatingState<K, N, T, SV, ?>) aggregatingState, changeLogger);
+                        (InternalAggregatingState<K, N, T, SV, ?>) aggregatingState,
+                        changeLogger,
+                        keyContext);
+    }
+
+    @Override
+    public StateChangeApplier getChangeApplier(ChangelogApplierFactory factory) {
+        return factory.forAggregating(delegatedState, keyContext);
     }
 }

@@ -35,9 +35,9 @@ import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoT
  *
  * @param <T> The return type of the {@link TableSink}.
  * @deprecated This interface has been replaced by {@link DynamicTableSink}. The new interface
- *     consumes internal data structures and only works with the Blink planner. See FLIP-95 for more
- *     information.
+ *     consumes internal data structures. See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public interface TableSink<T> {
 

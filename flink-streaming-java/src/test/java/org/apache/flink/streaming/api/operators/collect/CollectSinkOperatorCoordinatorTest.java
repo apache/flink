@@ -26,6 +26,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.streaming.api.operators.collect.utils.CollectTestUtils;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.NetUtils;
 
 import org.junit.Assert;
 import org.junit.Test;
@@ -165,7 +166,7 @@ public class CollectSinkOperatorCoordinatorTest {
             try {
                 while (running) {
                     if (socket == null) {
-                        socket = server.accept();
+                        socket = NetUtils.acceptWithoutTimeout(server);
                         inStream = new DataInputViewStreamWrapper(socket.getInputStream());
                         outStream = new DataOutputViewStreamWrapper(socket.getOutputStream());
                     }

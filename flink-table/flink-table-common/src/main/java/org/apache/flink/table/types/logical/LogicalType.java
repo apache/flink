@@ -78,6 +78,33 @@ public abstract class LogicalType implements Serializable {
     }
 
     /**
+     * Returns whether the root of the type equals to the {@code typeRoot} or not.
+     *
+     * @param typeRoot The root type to check against for equality
+     */
+    public boolean is(LogicalTypeRoot typeRoot) {
+        return this.typeRoot == typeRoot;
+    }
+
+    /**
+     * Returns whether the root of the type equals to at least on of the {@code typeRoots} or not.
+     *
+     * @param typeRoots The root types to check against for equality
+     */
+    public boolean isAnyOf(LogicalTypeRoot... typeRoots) {
+        return Arrays.stream(typeRoots).anyMatch(tr -> this.typeRoot == tr);
+    }
+
+    /**
+     * Returns whether the family type of the type equals to the {@code family} or not.
+     *
+     * @param family The family type to check against for equality
+     */
+    public boolean is(LogicalTypeFamily family) {
+        return typeRoot.getFamilies().contains(family);
+    }
+
+    /**
      * Returns a deep copy of this type with possibly different nullability.
      *
      * @param isNullable the intended nullability of the copied type

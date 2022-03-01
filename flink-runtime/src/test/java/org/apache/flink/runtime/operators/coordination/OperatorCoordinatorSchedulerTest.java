@@ -24,13 +24,13 @@ import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.OperatorIDPair;
+import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -64,6 +64,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.hamcrest.Matcher;
 import org.junit.After;
@@ -105,7 +106,6 @@ import static org.junit.Assert.fail;
  * Tests for the integration of the {@link OperatorCoordinator} with the scheduler, to ensure the
  * relevant actions are leading to the right method invocations on the coordinator.
  */
-@SuppressWarnings("serial")
 public class OperatorCoordinatorSchedulerTest extends TestLogger {
 
     private final JobVertexID testVertexId = new JobVertexID();
@@ -119,7 +119,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
     @After
     public void shutdownScheduler() throws Exception {
         if (createdScheduler != null) {
-            createdScheduler.close();
+            closeScheduler(createdScheduler);
         }
     }
 
@@ -140,7 +140,7 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         final DefaultScheduler scheduler = createAndStartScheduler();
         final TestingOperatorCoordinator coordinator = getCoordinator(scheduler);
 
-        scheduler.close();
+        closeScheduler(scheduler);
 
         assertTrue(coordinator.isClosed());
     }
@@ -774,9 +774,18 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
                 SchedulerTestingUtils.getExecutionState(scheduler, testVertexId, subtask));
     }
 
-    private void failGlobalAndRestart(DefaultScheduler scheduler, Throwable reason) {
+    private void failGlobalAndRestart(DefaultScheduler scheduler, Throwable reason)
+            throws InterruptedException {
         scheduler.handleGlobalFailure(reason);
         SchedulerTestingUtils.setAllExecutionsToCancelled(scheduler);
+
+        // make sure the checkpoint is no longer triggering (this means that the operator event
+        // valve has been closed)
+        final CheckpointCoordinator checkpointCoordinator =
+                scheduler.getExecutionGraph().getCheckpointCoordinator();
+        while (checkpointCoordinator != null && checkpointCoordinator.isTriggering()) {
+            Thread.sleep(1);
+        }
 
         // make sure we propagate all asynchronous and delayed actions
         executor.triggerAll();
@@ -866,6 +875,12 @@ public class OperatorCoordinatorSchedulerTest extends TestLogger {
         }
 
         return checkpointId;
+    }
+
+    private void closeScheduler(DefaultScheduler scheduler) throws Exception {
+        final CompletableFuture<Void> closeFuture = scheduler.closeAsync();
+        executor.triggerAll();
+        closeFuture.get();
     }
 
     // ------------------------------------------------------------------------

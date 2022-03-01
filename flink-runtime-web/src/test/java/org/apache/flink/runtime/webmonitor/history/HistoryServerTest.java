@@ -327,7 +327,9 @@ public class HistoryServerTest extends TestLogger {
                                             new IllegalStateException(
                                                     "Expected at least one existing job"));
 
-            // delete one archive from jm
+            // trigger another fetch and delete one archive from jm
+            // we fetch again to probabilistically cause a concurrent deletion
+            hs.fetchArchives();
             Files.deleteIfExists(jmDirectory.toPath().resolve(jobIdToDelete));
 
             assertTrue(firstArchiveExpiredLatch.await(10L, TimeUnit.SECONDS));
@@ -424,7 +426,7 @@ public class HistoryServerTest extends TestLogger {
         env.execute();
     }
 
-    static Tuple2<Integer, String> getFromHTTP(String url) throws Exception {
+    public static Tuple2<Integer, String> getFromHTTP(String url) throws Exception {
         URL u = new URL(url);
         HttpURLConnection connection = (HttpURLConnection) u.openConnection();
         connection.setConnectTimeout(100000);

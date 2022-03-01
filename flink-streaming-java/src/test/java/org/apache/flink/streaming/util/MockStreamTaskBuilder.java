@@ -38,7 +38,13 @@ import javax.annotation.Nullable;
 
 import java.util.function.BiConsumer;
 
-/** A builder of {@link MockStreamTask}. */
+/**
+ * A builder of {@link MockStreamTask}.
+ *
+ * @deprecated This class is deprecated in favour of using {@link
+ *     org.apache.flink.streaming.runtime.tasks.StreamTaskMailboxTestHarnessBuilder}.
+ */
+@Deprecated
 public class MockStreamTaskBuilder {
     private final Environment environment;
     private Object checkpointLock = new Object();

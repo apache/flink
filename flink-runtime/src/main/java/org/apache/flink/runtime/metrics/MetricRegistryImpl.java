@@ -27,20 +27,20 @@ import org.apache.flink.metrics.View;
 import org.apache.flink.metrics.reporter.MetricReporter;
 import org.apache.flink.metrics.reporter.Scheduled;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
-import org.apache.flink.runtime.concurrent.FutureUtils;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
 import org.apache.flink.runtime.metrics.groups.AbstractMetricGroup;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.groups.ReporterScopedSettings;
 import org.apache.flink.runtime.metrics.scope.ScopeFormats;
 import org.apache.flink.runtime.rpc.RpcService;
-import org.apache.flink.runtime.util.ExecutorThreadFactory;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceGateway;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.TimeUtils;
+import org.apache.flink.util.concurrent.ExecutorThreadFactory;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -170,7 +170,8 @@ public class MetricRegistryImpl implements MetricRegistry {
                                     new ReporterScopedSettings(
                                             reporters.size(),
                                             delimiterForReporter.charAt(0),
-                                            reporterSetup.getExcludedVariables())));
+                                            reporterSetup.getExcludedVariables(),
+                                            reporterSetup.getAdditionalVariables())));
                 } catch (Throwable t) {
                     LOG.error(
                             "Could not instantiate metrics reporter {}. Metrics might not be exposed/reported.",

@@ -26,7 +26,8 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
-import org.apache.flink.runtime.akka.AkkaUtils;
+import org.apache.flink.runtime.rpc.RpcService;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.test.testdata.WordCountData;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
@@ -35,7 +36,6 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
-import akka.actor.ActorSystem;
 import org.junit.AssumptionViolatedException;
 import org.junit.Rule;
 import org.junit.Test;
@@ -48,8 +48,6 @@ import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.util.Enumeration;
 import java.util.List;
-
-import scala.Some;
 
 import static org.junit.Assert.fail;
 
@@ -148,14 +146,15 @@ public class IPv6HostnamesITCase extends TestLogger {
 
                             // test whether Akka's netty can bind to the address
                             log.info("Testing whether Akka can use " + addr);
-                            int port = NetUtils.getAvailablePort();
-                            ActorSystem as =
-                                    AkkaUtils.createActorSystem(
-                                            new Configuration(),
-                                            new Some<scala.Tuple2<String, Object>>(
-                                                    new scala.Tuple2<String, Object>(
-                                                            addr.getHostAddress(), port)));
-                            as.terminate();
+                            try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+                                final RpcService rpcService =
+                                        RpcSystem.load()
+                                                .localServiceBuilder(new Configuration())
+                                                .withBindAddress(addr.getHostAddress())
+                                                .withBindPort(port.getPort())
+                                                .createAndStart();
+                                rpcService.stopService().get();
+                            }
 
                             log.info("Using address " + addr);
                             return (Inet6Address) addr;

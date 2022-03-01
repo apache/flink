@@ -19,13 +19,14 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.runtime.blob.BlobWriter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
-import org.apache.flink.runtime.concurrent.ScheduledExecutorServiceAdapter;
 import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.failover.flip1.FailoverStrategyFactoryLoader;
 import org.apache.flink.runtime.executiongraph.failover.flip1.RestartBackoffTimeStrategy;
@@ -38,6 +39,7 @@ import org.apache.flink.runtime.jobmaster.slotpool.SlotPoolService;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
+import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import org.slf4j.Logger;
 
@@ -122,6 +124,7 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                 schedulerComponents.getStartUpAction(),
                 new ScheduledExecutorServiceAdapter(futureExecutor),
                 userCodeLoader,
+                new CheckpointsCleaner(),
                 checkpointRecoveryFactory,
                 jobManagerJobMetricGroup,
                 schedulerComponents.getSchedulingStrategyFactory(),
@@ -132,8 +135,17 @@ public class DefaultSchedulerFactory implements SchedulerNGFactory {
                 schedulerComponents.getAllocatorFactory(),
                 initializationTimestamp,
                 mainThreadExecutor,
-                jobStatusListener,
-                executionGraphFactory);
+                (jobId, jobStatus, timestamp) -> {
+                    if (jobStatus == JobStatus.RESTARTING) {
+                        slotPool.setIsJobRestarting(true);
+                    } else {
+                        slotPool.setIsJobRestarting(false);
+                    }
+                    jobStatusListener.jobStatusChanges(jobId, jobStatus, timestamp);
+                },
+                executionGraphFactory,
+                shuffleMaster,
+                rpcTimeout);
     }
 
     @Override

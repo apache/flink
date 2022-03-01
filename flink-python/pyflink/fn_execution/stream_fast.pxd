@@ -25,11 +25,13 @@ cdef class LengthPrefixInputStream:
 cdef class LengthPrefixOutputStream:
     cdef void write(self, char*data, size_t length)
     cpdef void flush(self)
+    cpdef void close(self)
 
 cdef class InputStream:
     cdef char*_input_data
     cdef size_t _input_pos
 
+    cpdef bytes read(self, size_t size)
     cdef long read_byte(self) except? -1
     cdef int8_t read_int8(self) except? -1
     cdef int16_t read_int16(self) except? -1
@@ -44,6 +46,7 @@ cdef class OutputStream:
     cdef size_t buffer_size
     cdef size_t pos
 
+    cpdef void write(self, bytes v)
     cdef void write_byte(self, unsigned char val)
     cdef void write_int8(self, int8_t v)
     cdef void write_int16(self, int16_t v)

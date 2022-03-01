@@ -39,7 +39,7 @@ import org.apache.flink.api.common.state.ReducingState;
 import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
-import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.groups.OperatorMetricGroup;
 
 import java.io.Serializable;
 import java.util.List;
@@ -76,7 +76,7 @@ public interface RuntimeContext {
      * @return The metric group for this parallel subtask.
      */
     @PublicEvolving
-    MetricGroup getMetricGroup();
+    OperatorMetricGroup getMetricGroup();
 
     /**
      * Gets the parallelism with which the parallel task runs.
