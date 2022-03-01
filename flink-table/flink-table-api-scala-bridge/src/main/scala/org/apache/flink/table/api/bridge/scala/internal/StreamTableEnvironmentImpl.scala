@@ -317,10 +317,10 @@ object StreamTableEnvironmentImpl {
     val functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager)
 
     val executor = AbstractStreamTableEnvironmentImpl.lookupExecutor(
-      classLoader, settings.getExecutor, executionEnvironment.getWrappedStreamExecutionEnvironment)
+      classLoader, executionEnvironment.getWrappedStreamExecutionEnvironment)
 
-    val planner = PlannerFactoryUtil.createPlanner(settings.getPlanner, executor, tableConfig,
-      moduleManager, catalogManager, functionCatalog)
+    val planner = PlannerFactoryUtil.createPlanner(
+      executor, tableConfig, moduleManager, catalogManager, functionCatalog)
 
     new StreamTableEnvironmentImpl(
       catalogManager,
