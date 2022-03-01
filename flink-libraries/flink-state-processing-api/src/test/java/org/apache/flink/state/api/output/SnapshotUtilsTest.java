@@ -56,8 +56,17 @@ public class SnapshotUtilsTest {
     private static SnapshotType actualSnapshotType;
 
     @Test
-    public void testSnapshotUtilsLifecycle() throws Exception {
+    public void testSnapshotUtilsLifecycleWithDefaultSavepointFormatType() throws Exception {
         testSnapshotUtilsLifecycleWithSavepointFormatType(SavepointFormatType.DEFAULT);
+    }
+
+    @Test
+    public void testSnapshotUtilsLifecycleWithCanonicalSavepointFormatType() throws Exception {
+        testSnapshotUtilsLifecycleWithSavepointFormatType(SavepointFormatType.CANONICAL);
+    }
+
+    @Test
+    public void testSnapshotUtilsLifecycleWithNativeSavepointFormatType() throws Exception {
         testSnapshotUtilsLifecycleWithSavepointFormatType(SavepointFormatType.NATIVE);
     }
 
