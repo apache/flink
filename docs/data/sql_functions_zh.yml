@@ -480,8 +480,7 @@ temporal:
       是 DAY，MINUTE，DAY TO HOUR 或 DAY TO SECOND，以毫秒为间隔；YEAR 或 YEAR TO MONTH 表示几个月的间隔。例
       如 `INTERVAL '10 00:00:00.004' DAY TO SECOND，INTERVAL '10' DAY` 或 `INTERVAL '2-10' YEAR TO
       MONTH` 返回间隔。
-  - sql: YEAR(date)
-    table: numeric.year | numeric.years
+  - table: numeric.year | numeric.years
     description: 创建 numeric 年的月间隔。
   - table: numeric.quarter | numeric.quarters
     description: 为 numeric 季度创建月间隔。例如 `2.quarters` 返回 `6`。
