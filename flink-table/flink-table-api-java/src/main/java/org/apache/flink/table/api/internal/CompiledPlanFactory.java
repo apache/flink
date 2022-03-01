@@ -19,10 +19,9 @@
 package org.apache.flink.table.api.internal;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.CompiledPlan;
 
-/** Factory for {@link CompiledPlan}, to inject {@link TableEnvironmentInternal}. */
+/** Factory for {@link CompiledPlanInternal}, to inject {@link TableEnvironmentInternal}. */
 @Internal
-public interface CompiledPlanInternalFactory {
+public interface CompiledPlanFactory {
     CompiledPlanInternal create(TableEnvironmentInternal tableEnvironmentInternal);
 }

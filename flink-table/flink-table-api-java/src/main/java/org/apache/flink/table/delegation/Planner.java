@@ -23,8 +23,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.PlanReference;
+import org.apache.flink.table.api.internal.CompiledPlanFactory;
 import org.apache.flink.table.api.internal.CompiledPlanInternal;
-import org.apache.flink.table.api.internal.CompiledPlanInternalFactory;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -93,10 +93,10 @@ public interface Planner {
     // --- Plan compilation and restore
 
     @Experimental
-    CompiledPlanInternalFactory loadPlan(PlanReference planReference) throws IOException;
+    CompiledPlanFactory loadPlan(PlanReference planReference) throws IOException;
 
     @Experimental
-    CompiledPlanInternalFactory compilePlan(List<ModifyOperation> modifyOperations);
+    CompiledPlanFactory compilePlan(List<ModifyOperation> modifyOperations);
 
     @Experimental
     List<Transformation<?>> translatePlan(CompiledPlanInternal plan);

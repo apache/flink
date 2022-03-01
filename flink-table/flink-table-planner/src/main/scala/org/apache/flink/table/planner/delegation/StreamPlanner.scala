@@ -23,7 +23,7 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
-import org.apache.flink.table.api.internal.{CompiledPlanInternal, CompiledPlanInternalFactory, TableEnvironmentInternal}
+import org.apache.flink.table.api.internal.{CompiledPlanInternal, CompiledPlanFactory, TableEnvironmentInternal}
 import org.apache.flink.table.api.{CompiledPlan, ExplainDetail, PlanReference, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.delegation.Executor
@@ -134,7 +134,7 @@ class StreamPlanner(
     new StreamPlanner(executor, tableConfig, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def loadPlan(planReference: PlanReference): CompiledPlanInternalFactory = {
+  override def loadPlan(planReference: PlanReference): CompiledPlanFactory = {
     val ctx = createSerdeContext
     val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
     val execNodeGraph = planReference match {
@@ -158,7 +158,7 @@ class StreamPlanner(
   }
 
   override def compilePlan(
-     modifyOperations: util.List[ModifyOperation]): CompiledPlanInternalFactory = {
+     modifyOperations: util.List[ModifyOperation]): CompiledPlanFactory = {
     validateAndOverrideConfiguration()
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
@@ -214,7 +214,7 @@ class StreamPlanner(
   }
 
   def createCompiledPlanInternalFactory(
-     ctx: SerdeContext, execGraph: ExecNodeGraph): CompiledPlanInternalFactory = {
+     ctx: SerdeContext, execGraph: ExecNodeGraph): CompiledPlanFactory = {
     (tEnv: TableEnvironmentInternal) =>
       new ExecNodeGraphCompiledPlan(
         tEnv,
