@@ -182,25 +182,11 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
         return planRestoreOption == CatalogPlanRestore.ALL_ENFORCED;
     }
 
-    static ValidationException missingIdentifier() {
-        return new ValidationException(
-                String.format(
-                        "The table cannot be deserialized as no identifier is present in the persisted plan."
-                                + "However, lookup is forced by '%s' = '%s'. "
-                                + "Either allow restoring the table from the catalog with '%s' = '%s' / '%s' "
-                                + "or make sure to not use anonymous tables when generating the plan.",
-                        PLAN_RESTORE_CATALOG_OBJECTS.key(),
-                        IDENTIFIER.name(),
-                        PLAN_RESTORE_CATALOG_OBJECTS.key(),
-                        CatalogPlanRestore.ALL.name(),
-                        CatalogPlanRestore.ALL_ENFORCED.name()));
-    }
-
     static ValidationException lookupDisabled(ObjectIdentifier objectIdentifier) {
         return new ValidationException(
                 String.format(
-                        "The persisted plan does not contain the field '%s' and the '%s.%s' field, " 
-                                + "which are required catalog metadata for table '%s'. "
+                        "The persisted plan does not contain the required catalog metadata for table '%s', "
+                                + "that is the field '%s' and the field '%s.%s'. "
                                 + "However, lookup is disabled because option '%s' = '%s'. "
                                 + "Either enable the catalog lookup with '%s' = '%s' / '%s' or "
                                 + "regenerate the plan with '%s' != '%s'. "
@@ -243,7 +229,8 @@ final class ContextResolvedTableJsonDeserializer extends StdDeserializer<Context
         } else {
             initialReason =
                     String.format(
-                            "Cannot resolve table '%s' and the persisted plan does not include the '%s' field and the '%s.%s' field. ",
+                            "Cannot resolve table '%s' and the persisted plan does not "
+                                    + "include the field '%s' and the field '%s.%s'. ",
                             identifier.asSummaryString(),
                             FIELD_NAME_CATALOG_TABLE,
                             FIELD_NAME_CATALOG_TABLE,
