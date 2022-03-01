@@ -133,7 +133,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void testPreparingCommitAtSnapshotTimeEnsuresBufferedRecordsArePersistedToDestination()
+    public void testFlushingAtEndEnsuresBufferedRecordsArePersistedToDestination()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder().context(sinkInitContext).build();
@@ -170,7 +170,7 @@ public class AsyncSinkWriterTest {
         assertEquals(3, res.size());
     }
 
-    public void writeFiveRecordsWithOneFailingThenCallPrepareCommitWithFlushing()
+    public void writeFiveRecordsWithOneFailingThenCallFlushAtEnd()
             throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder().context(sinkInitContext).maxBatchSize(3).build();
@@ -188,14 +188,14 @@ public class AsyncSinkWriterTest {
     @Test
     public void testThatSnapshotsAreTakenOfBufferCorrectlyBeforeAndAfterManualFlush()
             throws IOException, InterruptedException {
-        writeFiveRecordsWithOneFailingThenCallPrepareCommitWithFlushing();
+        writeFiveRecordsWithOneFailingThenCallFlushAtEnd();
         assertEquals(5, res.size());
     }
 
     @Test
     public void metricsAreLoggedEachTimeSubmitRequestEntriesIsCalled()
             throws IOException, InterruptedException {
-        writeFiveRecordsWithOneFailingThenCallPrepareCommitWithFlushing();
+        writeFiveRecordsWithOneFailingThenCallFlushAtEnd();
         assertEquals(5, sinkInitContext.getNumRecordsOutCounter().getCount());
         assertEquals(20, sinkInitContext.getNumBytesOutCounter().getCount());
     }
@@ -297,9 +297,8 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void
-            testFailedEntriesAreRetriedInTheNextPossiblePersistRequestIfPrepareCommitIsTriggered()
-                    throws IOException, InterruptedException {
+    public void testFailedEntriesAreRetriedInTheNextPossiblePersistRequestOnCallingFlush()
+            throws IOException, InterruptedException {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
                         .context(sinkInitContext)
@@ -340,7 +339,7 @@ public class AsyncSinkWriterTest {
         sink.write("515");
         sink.write("505");
         // Buffer continues to fill up without blocking on write, until eventually yield is called
-        // on the mailbox thread during the prepare commit
+        // on the mailbox thread
         sink.flush(true);
         assertEquals(Arrays.asList(25, 55, 965, 75, 95, 955, 550, 645, 545, 535, 515, 505), res);
     }
@@ -423,13 +422,13 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void prepareCommitDoesNotFlushElementsIfFlushIsSetToFalse() throws Exception {
+    public void prepareCommitDoesNotFlushBufferElements() throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder().context(sinkInitContext).build();
         sink.write(String.valueOf(0));
         sink.write(String.valueOf(1));
         sink.write(String.valueOf(2));
-        sink.flush(false);
+        sink.prepareCommit();
         assertEquals(0, res.size());
     }
 
@@ -557,7 +556,7 @@ public class AsyncSinkWriterTest {
     }
 
     @Test
-    public void prepareCommitFlushesInflightElementsAndDoesNotFlushIfFlushIsSetToFalse()
+    public void prepareCommitFlushesInflightElementsAndDoesNotFlushBufferedElements()
             throws Exception {
         AsyncSinkWriterImpl sink =
                 new AsyncSinkWriterImplBuilder()
@@ -574,7 +573,7 @@ public class AsyncSinkWriterTest {
         assertEquals(Arrays.asList(0, 1), res);
         assertThatBufferStatesAreEqual(sink.wrapRequests(2), getWriterState(sink));
 
-        sink.flush(false); // buffer: [225, 2], inflight: [], destination: [0, 1]
+        sink.prepareCommit(); // buffer: [225, 2], inflight: [], destination: [0, 1]
         assertEquals(Arrays.asList(0, 1), res);
         assertThatBufferStatesAreEqual(sink.wrapRequests(225, 2), getWriterState(sink));
 

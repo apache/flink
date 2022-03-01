@@ -22,6 +22,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.common.operators.ProcessingTimeService;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.StatefulSink;
+import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.Preconditions;
@@ -51,7 +52,8 @@ import java.util.function.Consumer;
  */
 @PublicEvolving
 public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable>
-        implements StatefulSink.StatefulSinkWriter<InputT, BufferedRequestState<RequestEntryT>> {
+        implements StatefulSink.StatefulSinkWriter<InputT, BufferedRequestState<RequestEntryT>>,
+                TwoPhaseCommittingSink.PrecommittingSinkWriter<InputT, Void> {
 
     private static final int INFLIGHT_MESSAGES_LIMIT_INCREASE_RATE = 10;
     private static final double INFLIGHT_MESSAGES_LIMIT_DECREASE_FACTOR = 0.5;
@@ -502,6 +504,16 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
         if (inFlightRequestsCount > 0) {
             mailboxExecutor.yield();
         }
+    }
+
+    /**
+     * This method is called before a snapshot is requested. All inflight requests should be
+     * completed to capture failed requests in the snapshot.
+     */
+    @Override
+    public Collection<Void> prepareCommit() throws InterruptedException {
+        yieldIfThereExistsInFlightRequests();
+        return Collections.emptyList();
     }
 
     /**
