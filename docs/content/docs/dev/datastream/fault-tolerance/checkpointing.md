@@ -112,7 +112,7 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
 // enable externalized checkpoints which are retained
 // after job cancellation
-env.getCheckpointConfig().enableExternalizedCheckpoints(
+env.getCheckpointConfig().setExternalizedCheckpointCleanup(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
 // enables the unaligned checkpoints
@@ -153,7 +153,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 // enable externalized checkpoints which are retained 
 // after job cancellation
-env.getCheckpointConfig().enableExternalizedCheckpoints(
+env.getCheckpointConfig().setExternalizedCheckpointCleanup(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
 // enables the unaligned checkpoints
