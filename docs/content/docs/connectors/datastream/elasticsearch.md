@@ -172,10 +172,10 @@ esSinkBuilder.setBulkFlushMaxActions(1);
 // provide a RestClientFactory for custom configuration on the internally created REST client
 esSinkBuilder.setRestClientFactory(
   restClientBuilder -> {
-    restClientBuilder.setDefaultHeaders(...)
-    restClientBuilder.setMaxRetryTimeoutMillis(...)
-    restClientBuilder.setPathPrefix(...)
-    restClientBuilder.setHttpClientConfigCallback(...)
+    restClientBuilder.setDefaultHeaders(...);
+    restClientBuilder.setMaxRetryTimeoutMillis(...);
+    restClientBuilder.setPathPrefix(...);
+    restClientBuilder.setHttpClientConfigCallback(...);
   }
 );
 
