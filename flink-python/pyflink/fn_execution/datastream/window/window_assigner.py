@@ -1,7 +1,7 @@
 import math
 from typing import Iterable, Collection
 
-from pyflink.common import TypeSerializer
+from pyflink.common import TypeSerializer, Time
 from pyflink.common.typeinfo import Types
 from pyflink.datastream import Trigger
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ReducingStateDescriptor
@@ -145,18 +145,18 @@ class TumblingWindowAssigner(WindowAssigner[object, TimeWindow]):
     For example, in order to window into windows of 1 minute, every 10 seconds:
     ::
             >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-            >>> .window(TumblingWindowAssigner(60000, 10000, False))
+            >>> .window(TumblingWindowAssigner(Time.minutes(1), Time.seconds(10), False))
 
     A WindowAssigner that windows elements into windows based on the timestamp of the elements. Windows cannot overlap.
     For example, in order to window into windows of 1 minute:
      ::
             >>> data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
             >>> .key_by(lambda x: x[0], key_type=Types.STRING()) \
-            >>> .window(TumblingWindowAssigner(60000, 0, True))
+            >>> .window(TumblingWindowAssigner(Time.minutes(1), Time.seconds(0), True))
     """
-    def __init__(self, size: int, offset: int, is_event_time: bool):
-        self._size = size
-        self._offset = offset
+    def __init__(self, size: Time, offset: Time, is_event_time: bool):
+        self._size = size.to_milliseconds()
+        self._offset = offset.to_milliseconds()
         self._is_event_time = is_event_time
 
     def assign_windows(self,
@@ -232,19 +232,19 @@ class SlidingWindowAssigner(WindowAssigner[object, TimeWindow]):
     For example, in order to window into windows of 1 minute, every 10 seconds:
     ::
             >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-            >>> .window(SlidingWindowAssigner(60000, 10000, 0, False))
+            >>> .window(SlidingWindowAssigner(Time.minutes(1), Time.seconds(10), Time.seconds(0), False))
 
     A WindowAssigner that windows elements into sliding windows based on the timestamp of the elements. Windows can possibly overlap.
     For example, in order to window into windows of 1 minute, every 10 seconds:
     ::
             >>> data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
             >>> .key_by(lambda x: x[0], key_type=Types.STRING()) \
-            >>> .window(SlidingWindowAssigner(60000, 10000, 0, True))
+            >>> .window(SlidingWindowAssigner(Time.minutes(1), Time.seconds(10), Time.seconds(0), True))
     """
-    def __init__(self, size: int, slide: int, offset: int, is_event_time: bool):
-        self._size = size
-        self._slide = slide
-        self._offset = offset
+    def __init__(self, size: Time, slide: Time, offset: Time, is_event_time: bool):
+        self._size = size.to_milliseconds()
+        self._slide = slide.to_milliseconds()
+        self._offset = offset.to_milliseconds()
         self._is_event_time = is_event_time
         self._pane_size = math.gcd(size, slide)
         self._num_panes_per_window = size // self._pane_size
@@ -337,8 +337,8 @@ class SessionWindowAssigner(MergingWindowAssigner[object, TimeWindow]):
         WindowAssigner that windows elements into sessions based on the timestamp. Windows cannot
         overlap.
         """
-    def __init__(self, session_gap: int, is_event_time: bool):
-        self._session_gap = session_gap
+    def __init__(self, session_gap: Time, is_event_time: bool):
+        self._session_gap = session_gap.to_milliseconds()
         self._is_event_time = is_event_time
 
     def merge_windows(self,
