@@ -42,14 +42,13 @@ import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.InstanceOfAssertFactories.type;
 
-/** Various test utils for serializing/deserializing to JSON. */
-public class JsonSerdeTestUtil {
+class JsonSerdeTestUtil {
 
     private JsonSerdeTestUtil() {
         // no instantiation
     }
 
-    public static SerdeContext configuredSerdeContext() {
+    static SerdeContext configuredSerdeContext() {
         return configuredSerdeContext(
                 CatalogManagerMocks.createEmptyCatalogManager(), TableConfig.getDefault());
     }
@@ -91,7 +90,7 @@ public class JsonSerdeTestUtil {
                 plannerContext.createFrameworkConfig().getOperatorTable());
     }
 
-    public static String toJson(SerdeContext serdeContext, Object object) throws IOException {
+    static String toJson(SerdeContext serdeContext, Object object) throws IOException {
         final ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeContext);
         return objectWriter.writeValueAsString(object);
     }
