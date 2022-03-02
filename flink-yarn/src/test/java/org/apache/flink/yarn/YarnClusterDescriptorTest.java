@@ -27,6 +27,7 @@ import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ResourceManagerOptions;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessSpec;
 import org.apache.flink.runtime.jobmanager.JobManagerProcessUtils;
@@ -840,8 +841,10 @@ public class YarnClusterDescriptorTest extends TestLogger {
         final String fakeClassPath = fakeLocalFlinkJar + ":./usrlib/user.jar";
         final ApplicationId appId = ApplicationId.newInstance(0, 0);
         final Map<String, String> masterEnv =
-                getTestMasterEnv(flinkHomeDir, fakeLocalFlinkJar, fakeClassPath, appId);
+                getTestMasterEnv(
+                        new Configuration(), flinkHomeDir, fakeClassPath, fakeLocalFlinkJar, appId);
 
+        assertEquals("./lib", masterEnv.get(ConfigConstants.ENV_FLINK_LIB_DIR));
         assertEquals(appId.toString(), masterEnv.get(YarnConfigKeys.ENV_APP_ID));
         assertEquals(
                 YarnApplicationFileUploader.getApplicationDirPath(
@@ -854,10 +857,30 @@ public class YarnClusterDescriptorTest extends TestLogger {
         assertEquals(flinkHomeDir.getPath(), masterEnv.get(YarnConfigKeys.ENV_CLIENT_HOME_DIR));
     }
 
-    private Map<String, String> getTestMasterEnv(
-            File flinkHomeDir, String fakeLocalFlinkJar, String fakeClassPath, ApplicationId appId)
-            throws IOException {
+    @Test
+    public void testEnvFlinkLibDirVarNotOverriddenByContainerEnv() throws IOException {
         final Configuration flinkConfig = new Configuration();
+        flinkConfig.setString(
+                ResourceManagerOptions.CONTAINERIZED_MASTER_ENV_PREFIX
+                        + ConfigConstants.ENV_FLINK_LIB_DIR,
+                "fake_path");
+        final Map<String, String> masterEnv =
+                getTestMasterEnv(
+                        flinkConfig,
+                        temporaryFolder.newFolder(),
+                        "",
+                        "./lib/flink_dist.jar",
+                        ApplicationId.newInstance(0, 0));
+        assertEquals("./lib", masterEnv.get(ConfigConstants.ENV_FLINK_LIB_DIR));
+    }
+
+    private Map<String, String> getTestMasterEnv(
+            Configuration flinkConfig,
+            File flinkHomeDir,
+            String fakeClassPath,
+            String fakeLocalFlinkJar,
+            ApplicationId appId)
+            throws IOException {
         try (final YarnClusterDescriptor yarnClusterDescriptor =
                 createYarnClusterDescriptor(flinkConfig)) {
             final YarnApplicationFileUploader yarnApplicationFileUploader =

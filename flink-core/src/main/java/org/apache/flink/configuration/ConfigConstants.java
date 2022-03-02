@@ -1729,6 +1729,11 @@ public final class ConfigConstants {
     /** The environment variable name which contains the location of the lib folder. */
     public static final String ENV_FLINK_LIB_DIR = "FLINK_LIB_DIR";
 
+    /**
+     * The default Flink lib directory if none has been specified via {@link #ENV_FLINK_LIB_DIR}.
+     */
+    public static final String DEFAULT_FLINK_LIB_DIR = "lib";
+
     /** The environment variable name which contains the location of the opt directory. */
     public static final String ENV_FLINK_OPT_DIR = "FLINK_OPT_DIR";
 

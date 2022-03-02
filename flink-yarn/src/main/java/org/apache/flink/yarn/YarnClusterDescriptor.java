@@ -1825,6 +1825,8 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
                         this.flinkConfiguration));
         // set Flink app class path
         env.put(ENV_FLINK_CLASSPATH, classPathStr);
+        // Set FLINK_LIB_DIR to `lib` folder under working dir in container
+        env.put(ENV_FLINK_LIB_DIR, Path.CUR_DIR + "/" + ConfigConstants.DEFAULT_FLINK_LIB_DIR);
         // set Flink on YARN internal configuration values
         env.put(YarnConfigKeys.FLINK_DIST_JAR, localFlinkJarStr);
         env.put(YarnConfigKeys.ENV_APP_ID, appIdStr);
