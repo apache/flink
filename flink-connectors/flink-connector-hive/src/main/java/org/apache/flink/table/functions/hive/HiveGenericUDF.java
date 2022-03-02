@@ -40,8 +40,9 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveGenericUDF.class);
 
+    private final HiveShim hiveShim;
+
     private transient GenericUDF.DeferredObject[] deferredObjects;
-    private HiveShim hiveShim;
 
     public HiveGenericUDF(HiveFunctionWrapper<GenericUDF> hiveFunctionWrapper, HiveShim hiveShim) {
         super(hiveFunctionWrapper);
@@ -56,8 +57,7 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
 
         function = createFunction();
 
-        ObjectInspector[] argInspectors =
-                HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
+        ObjectInspector[] argInspectors = HiveInspectors.getArgInspectors(hiveShim, arguments);
 
         try {
             returnInspector = function.initializeAndFoldConstants(argInspectors);
@@ -65,12 +65,12 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
             throw new FlinkHiveUDFException(e);
         }
 
-        deferredObjects = new GenericUDF.DeferredObject[argTypes.length];
+        deferredObjects = new GenericUDF.DeferredObject[arguments.size()];
 
         for (int i = 0; i < deferredObjects.length; i++) {
             deferredObjects[i] =
                     new DeferredObjectAdapter(
-                            argInspectors[i], argTypes[i].getLogicalType(), hiveShim);
+                            argInspectors[i], arguments.getDataType(i).getLogicalType(), hiveShim);
         }
     }
 
@@ -93,12 +93,11 @@ public class HiveGenericUDF extends HiveScalarFunction<GenericUDF> {
     }
 
     @Override
-    protected DataType inferReturnType() throws UDFArgumentException {
+    public DataType inferReturnType() throws UDFArgumentException {
         LOG.info(
                 "Getting result type of HiveGenericUDF from {}",
                 hiveFunctionWrapper.getClassName());
-        ObjectInspector[] argumentInspectors =
-                HiveInspectors.toInspectors(hiveShim, constantArguments, argTypes);
+        ObjectInspector[] argumentInspectors = HiveInspectors.getArgInspectors(hiveShim, arguments);
 
         ObjectInspector resultObjectInspector =
                 createFunction().initializeAndFoldConstants(argumentInspectors);

@@ -94,6 +94,15 @@ public interface CallContext {
     }
 
     /**
+     * Creates a validation error for exiting the type inference process with a meaningful exception
+     * and cause.
+     */
+    default ValidationException newValidationError(
+            Throwable cause, String message, Object... args) {
+        return new ValidationException(String.format(message, args), cause);
+    }
+
+    /**
      * Returns whether the function call happens as part of an aggregation that defines grouping
      * columns.
      *
