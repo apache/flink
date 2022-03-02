@@ -24,7 +24,6 @@ import org.apache.flink.streaming.connectors.kafka.KafkaProducerTestBase;
 import org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl;
 
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 /**
@@ -90,7 +89,6 @@ public class KafkaSourceLegacyITCase extends KafkaConsumerTestBase {
 
     // --- broker failure ---
 
-    @Ignore("FLINK-26387")
     @Test
     public void testBrokerFailure() throws Exception {
         runBrokerFailureTest();

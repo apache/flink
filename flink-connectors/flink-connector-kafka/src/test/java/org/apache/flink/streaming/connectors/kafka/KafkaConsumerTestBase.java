@@ -1463,23 +1463,30 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
     public void runBrokerFailureTest() throws Exception {
         final String topic = "brokerFailureTestTopic";
 
+        // Start a temporary multi-broker cluster.
+        // This test case relies on stopping a broker and switching partition leader to another
+        // during the test, so single-broker cluster (kafkaServer) could not fulfill the
+        // requirement.
+        KafkaTestEnvironment multiBrokerCluster = constructKafkaTestEnvironment();
+        multiBrokerCluster.prepare(KafkaTestEnvironment.createConfig().setKafkaServersNumber(3));
+
         final int parallelism = 2;
         final int numElementsPerPartition = 1000;
         final int totalElements = parallelism * numElementsPerPartition;
         final int failAfterElements = numElementsPerPartition / 3;
 
-        createTestTopic(topic, parallelism, 1);
+        multiBrokerCluster.createTestTopic(topic, parallelism, 2);
 
         DataGenerators.generateRandomizedIntegerSequence(
                 StreamExecutionEnvironment.getExecutionEnvironment(),
-                kafkaServer,
+                multiBrokerCluster,
                 topic,
                 parallelism,
                 numElementsPerPartition,
                 true);
 
         // find leader to shut down
-        int leaderId = kafkaServer.getLeaderToShutDown(topic);
+        int leaderId = multiBrokerCluster.getLeaderToShutDown(topic);
 
         LOG.info("Leader to shutdown {}", leaderId);
 
@@ -1495,12 +1502,12 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         env.setRestartStrategy(RestartStrategies.noRestart());
 
         Properties props = new Properties();
-        props.putAll(standardProps);
-        props.putAll(secureProps);
+        props.putAll(multiBrokerCluster.getStandardProperties());
+        props.putAll(multiBrokerCluster.getSecureProperties());
 
         getStream(env, topic, schema, props)
                 .map(new PartitionValidatingMapper(parallelism, 1))
-                .map(new BrokerKillingMapper<Integer>(leaderId, failAfterElements))
+                .map(new BrokerKillingMapper<>(multiBrokerCluster, leaderId, failAfterElements))
                 .addSink(new ValidatingExactlyOnceSink(totalElements))
                 .setParallelism(1);
 
@@ -1508,8 +1515,8 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
             BrokerKillingMapper.killedLeaderBefore = false;
             tryExecute(env, "Broker failure once test");
         } finally {
-            // start a new broker:
-            kafkaServer.restartBroker(leaderId);
+            // Tear down the temporary cluster anyway
+            multiBrokerCluster.shutdown();
         }
     }
 
@@ -2584,6 +2591,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         public static volatile boolean killedLeaderBefore;
         public static volatile boolean hasBeenCheckpointedBeforeFailure;
 
+        private static KafkaTestEnvironment kafkaServerToKill;
         private final int shutdownBrokerId;
         private final int failCount;
         private int numElementsTotal;
@@ -2591,7 +2599,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         private boolean failer;
         private boolean hasBeenCheckpointed;
 
-        public BrokerKillingMapper(int shutdownBrokerId, int failCount) {
+        public BrokerKillingMapper(
+                KafkaTestEnvironment kafkaServer, int shutdownBrokerId, int failCount) {
+            kafkaServerToKill = kafkaServer;
             this.shutdownBrokerId = shutdownBrokerId;
             this.failCount = failCount;
         }
@@ -2610,7 +2620,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
                 if (failer && numElementsTotal >= failCount) {
                     // shut down a Kafka broker
-                    kafkaServer.stopBroker(shutdownBrokerId);
+                    kafkaServerToKill.stopBroker(shutdownBrokerId);
+                    hasBeenCheckpointedBeforeFailure = hasBeenCheckpointed;
+                    killedLeaderBefore = true;
                 }
             }
             return value;
