@@ -99,7 +99,7 @@ class TransformationsTest {
         final StreamTableEnvironment env =
                 StreamTableEnvironment.create(
                         StreamExecutionEnvironment.getExecutionEnvironment(),
-                        EnvironmentSettings.newInstance().inStreamingMode().build());
+                        EnvironmentSettings.newInstance().inBatchMode().build());
 
         final Table table = env.fromValues(1, 2, 3);
 
