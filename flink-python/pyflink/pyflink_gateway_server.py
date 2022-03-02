@@ -291,21 +291,23 @@ def launch_gateway_server_process(env, args):
         classpath = os.pathsep.join(
             [construct_flink_classpath(env), construct_hadoop_classpath(env)])
         if "FLINK_TESTING" in env:
-            retry_times = 3
+            total_retry_times = 3
+            retry_times = 0
             status = 0
             error = None
-            while retry_times > 0 and not status:
-                retry_times -= 1
+            while retry_times < total_retry_times and not status:
+                retry_times += 1
                 try:
                     download_apache_avro()
                     status = 1
                 except CalledProcessError as e:
                     status = 0
                     error = e
-                    print("Retry {0} times to download avro.".format(retry_times))
+                    print("{0} retry download, {1} retries remaining".format(
+                        retry_times, total_retry_times - retry_times))
                     # sleep 3 seconds and then re-download.
                     time.sleep(3)
-            if retry_times == 0 and not status:
+            if retry_times == total_retry_times and not status:
                 raise error
 
             classpath = os.pathsep.join([classpath, construct_test_classpath()])
