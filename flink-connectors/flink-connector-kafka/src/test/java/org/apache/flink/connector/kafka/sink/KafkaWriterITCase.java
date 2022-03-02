@@ -193,6 +193,42 @@ public class KafkaWriterITCase {
     }
 
     @Test
+    void testNumRecordsOutErrorsCounterMetric() throws Exception {
+        Properties properties = getKafkaClientConfiguration();
+        final InternalSinkWriterMetricGroup metricGroup =
+                InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup());
+
+        try (final KafkaWriter<Integer> writer =
+                createWriterWithConfiguration(
+                        properties, DeliveryGuarantee.EXACTLY_ONCE, metricGroup)) {
+            final Counter numRecordsOutErrors = metricGroup.getNumRecordsOutErrorsCounter();
+            org.assertj.core.api.Assertions.assertThat(numRecordsOutErrors.getCount())
+                    .isEqualTo(0L);
+
+            writer.write(1, SINK_WRITER_CONTEXT);
+            org.assertj.core.api.Assertions.assertThat(numRecordsOutErrors.getCount())
+                    .isEqualTo(0L);
+
+            final String transactionalId = writer.getCurrentProducer().getTransactionalId();
+
+            try (FlinkKafkaInternalProducer<byte[], byte[]> producer =
+                    new FlinkKafkaInternalProducer<>(properties, transactionalId)) {
+
+                producer.initTransactions();
+                producer.beginTransaction();
+                producer.send(new ProducerRecord<byte[], byte[]>(topic, "2".getBytes()));
+                producer.commitTransaction();
+            }
+
+            writer.write(3, SINK_WRITER_CONTEXT);
+            writer.flush(false);
+            writer.prepareCommit();
+            org.assertj.core.api.Assertions.assertThat(numRecordsOutErrors.getCount())
+                    .isEqualTo(1L);
+        }
+    }
+
+    @Test
     public void testMetadataPublisher() throws Exception {
         List<String> metadataList = new ArrayList<>();
         try (final KafkaWriter<Integer> writer =
