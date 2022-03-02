@@ -39,6 +39,7 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import javax.annotation.Nullable;
@@ -107,6 +108,7 @@ public class KafkaITCase extends KafkaConsumerTestBase {
 
     // --- broker failure ---
 
+    @Ignore("FLINK-26393")
     @Test(timeout = 60000)
     public void testBrokerFailure() throws Exception {
         runBrokerFailureTest();
