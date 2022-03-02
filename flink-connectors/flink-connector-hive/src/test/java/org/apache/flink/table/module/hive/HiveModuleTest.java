@@ -23,10 +23,9 @@ import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.hive.HiveSimpleUDF;
-import org.apache.flink.table.functions.hive.HiveSimpleUDFTest.HiveUDFCallContext;
 import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.utils.LegacyRowResource;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -34,6 +33,8 @@ import org.apache.flink.util.CollectionUtil;
 import org.junit.Rule;
 import org.junit.Test;
 
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.table.catalog.hive.client.HiveShimLoader.HIVE_VERSION_V2_3_9;
@@ -90,7 +91,10 @@ public class HiveModuleTest {
 
         DataType[] inputType = new DataType[] {DataTypes.STRING()};
 
-        CallContext callContext = new HiveUDFCallContext(new Object[0], inputType);
+        CallContextMock callContext = new CallContextMock();
+        callContext.argumentDataTypes = Arrays.asList(inputType);
+        callContext.argumentLiterals = Arrays.asList(new Boolean[inputType.length]);
+        Collections.fill(callContext.argumentLiterals, false);
         udf.getTypeInference(null).getOutputTypeStrategy().inferType(callContext);
 
         udf.open(null);
@@ -137,8 +141,6 @@ public class HiveModuleTest {
                                 .collect());
         assertThat(results.toString()).isEqualTo("[2018-01-192019-12-27 17:58:23.385]");
 
-        // TODO: null cannot be a constant argument at the moment. This test will make more sense
-        // when that changes.
         results =
                 CollectionUtil.iteratorToList(
                         tEnv.sqlQuery("select concat('ab',cast(null as int))").execute().collect());

@@ -27,7 +27,6 @@ import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.hive.HiveGenericUDAF;
-import org.apache.flink.table.functions.hive.HiveGenericUDTF;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseDriver;
@@ -48,7 +47,6 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateView
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
-import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -891,18 +889,6 @@ public class HiveParserUtils {
                 || sqlOperator instanceof HiveAggSqlFunction) {
             SqlReturnTypeInference returnTypeInference = sqlOperator.getReturnTypeInference();
             return returnTypeInference.inferReturnType(operatorBinding);
-        } else if (sqlOperator instanceof HiveTableSqlFunction) {
-            HiveGenericUDTF hiveGenericUDTF =
-                    (HiveGenericUDTF)
-                            ((HiveTableSqlFunction) sqlOperator)
-                                    .makeFunction(new Object[0], new LogicalType[0]);
-            DataType dataType =
-                    hiveGenericUDTF.getHiveResultType(
-                            operatorBinding.getConstantOperands(),
-                            types.stream()
-                                    .map(HiveParserUtils::toDataType)
-                                    .toArray(DataType[]::new));
-            return toRelDataType(dataType, dataTypeFactory);
         } else {
             throw new FlinkHiveException(
                     "Unsupported SqlOperator class " + sqlOperator.getClass().getName());
@@ -916,14 +902,6 @@ public class HiveParserUtils {
                 operands.stream().map(RexNode::getType).collect(Collectors.toList()),
                 operands,
                 dataTypeFactory);
-    }
-
-    public static RelDataType toRelDataType(DataType dataType, RelDataTypeFactory dtFactory) {
-        try {
-            return toRelDataType(HiveTypeUtil.toHiveTypeInfo(dataType, false), dtFactory);
-        } catch (SemanticException e) {
-            throw new FlinkHiveException(e);
-        }
     }
 
     public static DataType toDataType(RelDataType relDataType) {

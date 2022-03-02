@@ -19,13 +19,11 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
-import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.hive.util.TestHiveUDFArray;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.CallContext;
+import org.apache.flink.table.types.inference.utils.CallContextMock;
 
 import org.apache.hadoop.hive.ql.exec.UDF;
 import org.apache.hadoop.hive.ql.udf.UDFBase64;
@@ -44,8 +42,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.Arrays;
-import java.util.List;
-import java.util.Optional;
+import java.util.Collections;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -222,7 +219,10 @@ public class HiveSimpleUDFTest {
                 new HiveSimpleUDF(new HiveFunctionWrapper(hiveUdfClass.getName()), hiveShim);
 
         // Hive UDF won't have literal args
-        CallContext callContext = new HiveUDFCallContext(new Object[0], argTypes);
+        CallContextMock callContext = new CallContextMock();
+        callContext.argumentDataTypes = Arrays.asList(argTypes);
+        callContext.argumentLiterals = Arrays.asList(new Boolean[argTypes.length]);
+        Collections.fill(callContext.argumentLiterals, false);
         udf.getTypeInference(null).getOutputTypeStrategy().inferType(callContext);
 
         udf.open(null);
@@ -255,63 +255,6 @@ public class HiveSimpleUDFTest {
     public static class StringUDF extends UDF {
         public String evaluate(String content) {
             return content;
-        }
-    }
-
-    /** A CallContext implementation for Hive UDF tests. */
-    public static class HiveUDFCallContext implements CallContext {
-
-        private final Object[] constantArgs;
-        private final DataType[] argTypes;
-
-        public HiveUDFCallContext(Object[] constantArgs, DataType[] argTypes) {
-            this.constantArgs = constantArgs;
-            this.argTypes = argTypes;
-        }
-
-        @Override
-        public DataTypeFactory getDataTypeFactory() {
-            return null;
-        }
-
-        @Override
-        public FunctionDefinition getFunctionDefinition() {
-            return null;
-        }
-
-        @Override
-        public boolean isArgumentLiteral(int pos) {
-            return pos >= 0 && pos < constantArgs.length && constantArgs[pos] != null;
-        }
-
-        @Override
-        public boolean isArgumentNull(int pos) {
-            return false;
-        }
-
-        @Override
-        public <T> Optional<T> getArgumentValue(int pos, Class<T> clazz) {
-            return (Optional<T>) Optional.of(constantArgs[pos]);
-        }
-
-        @Override
-        public String getName() {
-            return null;
-        }
-
-        @Override
-        public List<DataType> getArgumentDataTypes() {
-            return Arrays.asList(argTypes);
-        }
-
-        @Override
-        public Optional<DataType> getOutputDataType() {
-            return Optional.empty();
-        }
-
-        @Override
-        public boolean isGroupedAggregation() {
-            return false;
         }
     }
 }
