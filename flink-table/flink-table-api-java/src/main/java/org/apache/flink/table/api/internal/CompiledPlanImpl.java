@@ -40,7 +40,7 @@ class CompiledPlanImpl implements CompiledPlan {
         this.internalPlan = internalPlan;
     }
 
-    public InternalPlan unwrap() {
+    InternalPlan unwrap() {
         return internalPlan;
     }
 
