@@ -94,7 +94,7 @@ public final class PulsarSource<OUT>
      * The constructor for PulsarSource, it's package protected for forcing using {@link
      * PulsarSourceBuilder}.
      */
-    PulsarSource(
+    public PulsarSource(
             SourceConfiguration sourceConfiguration,
             PulsarSubscriber subscriber,
             RangeGenerator rangeGenerator,

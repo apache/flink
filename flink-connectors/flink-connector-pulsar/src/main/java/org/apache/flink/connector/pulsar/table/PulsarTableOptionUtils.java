@@ -1,0 +1,130 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.flink.connector.pulsar.table;
+
+import org.apache.flink.api.common.serialization.DeserializationSchema;
+import org.apache.flink.api.common.serialization.SerializationSchema;
+import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.connector.format.DecodingFormat;
+import org.apache.flink.table.connector.format.EncodingFormat;
+import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.factories.DeserializationFormatFactory;
+import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.SerializationFormatFactory;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.util.Preconditions;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.stream.IntStream;
+
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FIELDS;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.KEY_FORMAT;
+import static org.apache.flink.connector.pulsar.table.PulsarTableOptions.TOPIC;
+import static org.apache.flink.table.factories.FactoryUtil.FORMAT;
+
+public class PulsarTableOptionUtils {
+
+    public static List<String> getTopicListFromOptions(ReadableConfig tableOptions) {
+        List<String> topics = tableOptions.getOptional(TOPIC).orElse(new ArrayList<>());
+        return topics;
+    }
+
+    public static DecodingFormat<DeserializationSchema<RowData>> getKeyDecodingFormat(
+            FactoryUtil.TableFactoryHelper helper) {
+        return helper.discoverOptionalDecodingFormat(DeserializationFormatFactory.class, KEY_FORMAT)
+                .orElse(null);
+    }
+
+    public static EncodingFormat<SerializationSchema<RowData>> getKeyEncodingFormat(
+            FactoryUtil.TableFactoryHelper helper) {
+        return helper.discoverOptionalEncodingFormat(SerializationFormatFactory.class, KEY_FORMAT)
+                .orElse(null);
+    }
+
+    public static DecodingFormat<DeserializationSchema<RowData>> getValueDecodingFormat(
+            FactoryUtil.TableFactoryHelper helper) {
+        return helper.discoverOptionalDecodingFormat(DeserializationFormatFactory.class, FORMAT)
+                .get();
+    }
+
+    public static EncodingFormat<SerializationSchema<RowData>> getValueEncodingFormat(
+            FactoryUtil.TableFactoryHelper helper) {
+        return helper.discoverOptionalEncodingFormat(SerializationFormatFactory.class, FORMAT)
+                .get();
+    }
+
+    /**
+     * Creates an array of indices that determine which physical fields of the table schema to
+     * include in the key format and the order that those fields have in the key format.
+     */
+    public static int[] createKeyFormatProjection(
+            ReadableConfig options, DataType physicalDataType) {
+        final LogicalType physicalType = physicalDataType.getLogicalType();
+        Preconditions.checkArgument(
+                physicalType.is(LogicalTypeRoot.ROW), "Row data type expected.");
+        final Optional<String> optionalKeyFormat = options.getOptional(KEY_FORMAT);
+        final Optional<List<String>> optionalKeyFields = options.getOptional(KEY_FIELDS);
+
+        // TODO validations here
+
+        if (!optionalKeyFormat.isPresent()) {
+            return new int[0];
+        }
+
+        final List<String> keyFields = optionalKeyFields.get();
+        final List<String> physicalFields = LogicalTypeChecks.getFieldNames(physicalType);
+        return keyFields.stream()
+                .mapToInt(
+                        keyField -> {
+                            final int pos = physicalFields.indexOf(keyField);
+                            // check that field name exists
+                            if (pos < 0) {
+                                // TODO find a pattern to create Validation Exceptions
+                                throw new ValidationException(
+                                        String.format(
+                                                "Could not find the field '%s' in the table schema for usage in the key format. "
+                                                        + "A key field must be a regular, physical column. "
+                                                        + "The following columns can be selected in the '%s' option:\n"
+                                                        + "%s",
+                                                keyField, KEY_FIELDS.key(), physicalFields));
+                            }
+                            // check that field name is prefixed correctly
+                            return pos;
+                        })
+                .toArray();
+    }
+
+    public static int[] createValueFormatProjection(
+            ReadableConfig options, DataType physicalDataType) {
+        final LogicalType physicalType = physicalDataType.getLogicalType();
+        //        Preconditions.checkArgument(
+        //                physicalType.is(LogicalTypeRoot.ROW), "Row data type expected.");
+        final int physicalFieldCount = LogicalTypeChecks.getFieldCount(physicalType);
+        final IntStream physicalFields = IntStream.range(0, physicalFieldCount);
+        final int[] keyProjection = createKeyFormatProjection(options, physicalDataType);
+        return physicalFields
+                .filter(pos -> IntStream.of(keyProjection).noneMatch(k -> k == pos))
+                .toArray();
+    }
+}
