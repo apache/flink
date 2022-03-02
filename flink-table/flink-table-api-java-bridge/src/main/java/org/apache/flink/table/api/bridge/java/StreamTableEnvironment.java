@@ -128,40 +128,6 @@ public interface StreamTableEnvironment extends TableEnvironment {
     }
 
     /**
-     * Creates a table environment that is the entry point and central context for creating Table
-     * and SQL API programs that integrate with the Java-specific {@link DataStream} API.
-     *
-     * <p>It is unified for bounded and unbounded data processing.
-     *
-     * <p>A stream table environment is responsible for:
-     *
-     * <ul>
-     *   <li>Convert a {@link DataStream} into {@link Table} and vice-versa.
-     *   <li>Connecting to external systems.
-     *   <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.
-     *   <li>Executing SQL statements.
-     *   <li>Offering further configuration options.
-     * </ul>
-     *
-     * <p>Note: If you don't intend to use the {@link DataStream} API, {@link TableEnvironment} is
-     * meant for pure table programs.
-     *
-     * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the {@link
-     *     TableEnvironment}.
-     * @param tableConfig The configuration of the {@link TableEnvironment}.
-     * @deprecated Use {@link #create(StreamExecutionEnvironment)} and {@link #getConfig()} for
-     *     manipulating {@link TableConfig}.
-     */
-    @Deprecated
-    static StreamTableEnvironment create(
-            StreamExecutionEnvironment executionEnvironment, TableConfig tableConfig) {
-        return StreamTableEnvironmentImpl.create(
-                executionEnvironment,
-                EnvironmentSettings.fromConfiguration(tableConfig.getConfiguration()),
-                tableConfig);
-    }
-
-    /**
      * Registers a {@link TableFunction} under a unique name in the TableEnvironment's catalog.
      * Registered functions can be referenced in Table API and SQL queries.
      *
