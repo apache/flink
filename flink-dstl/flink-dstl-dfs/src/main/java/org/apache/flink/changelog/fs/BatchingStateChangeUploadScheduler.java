@@ -228,7 +228,7 @@ class BatchingStateChangeUploadScheduler implements StateChangeUploadScheduler {
             uploadBatchSizes.update(tasks.size());
             retryingExecutor.execute(
                     retryPolicy,
-                    () -> delegate.upload(tasks),
+                    () -> delegate.upload(tasks).complete(),
                     t -> tasks.forEach(task -> task.fail(t)));
         } catch (Throwable t) {
             tasks.forEach(task -> task.fail(t));

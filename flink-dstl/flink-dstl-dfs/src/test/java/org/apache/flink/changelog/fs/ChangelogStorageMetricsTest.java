@@ -35,10 +35,11 @@ import org.junit.rules.TemporaryFolder;
 import java.io.File;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.util.concurrent.Executors.newSingleThreadScheduledExecutor;
 import static org.apache.flink.changelog.fs.ChangelogStorageMetricGroup.CHANGELOG_STORAGE_UPLOAD_QUEUE_SIZE;
@@ -264,25 +265,22 @@ public class ChangelogStorageMetricsTest {
         }
 
         @Override
-        public void upload(Collection<UploadTask> tasks) throws IOException {
+        public UploadTasksResult upload(Collection<UploadTask> tasks) throws IOException {
+            Map<UploadTask, Map<StateChangeSet, Long>> map = new HashMap<>();
             for (UploadTask uploadTask : tasks) {
                 int currentAttempt = 1 + attemptsPerTask.getOrDefault(uploadTask, 0);
                 if (currentAttempt == maxAttempts) {
                     attemptsPerTask.remove(uploadTask);
-                    uploadTask.complete(Collections.singletonList(getResult(uploadTask)));
+                    map.put(
+                            uploadTask,
+                            uploadTask.changeSets.stream()
+                                    .collect(Collectors.toMap(Function.identity(), ign -> 0L)));
                 } else {
                     attemptsPerTask.put(uploadTask, currentAttempt);
                     throw new IOException();
                 }
             }
-        }
-
-        private UploadResult getResult(UploadTask uploadTask) {
-            return new UploadResult(
-                    new EmptyStreamStateHandle(),
-                    0,
-                    uploadTask.changeSets.iterator().next().getSequenceNumber(),
-                    uploadTask.getSize());
+            return new UploadTasksResult(map, new EmptyStreamStateHandle());
         }
 
         @Override

@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static java.util.Collections.emptyMap;
 import static java.util.stream.Collectors.toList;
 
 class TestingStateChangeUploader implements StateChangeUploader {
@@ -44,11 +45,12 @@ class TestingStateChangeUploader implements StateChangeUploader {
     }
 
     @Override
-    public void upload(Collection<UploadTask> tasks) throws IOException {
+    public UploadTasksResult upload(Collection<UploadTask> tasks) throws IOException {
         for (UploadTask uploadTask : tasks) {
             this.uploaded.addAll(uploadTask.changeSets);
             this.tasks.add(uploadTask);
         }
+        return new UploadTasksResult(emptyMap(), new ByteStreamStateHandle("", new byte[0]));
     }
 
     public Collection<StateChangeSet> getUploaded() {

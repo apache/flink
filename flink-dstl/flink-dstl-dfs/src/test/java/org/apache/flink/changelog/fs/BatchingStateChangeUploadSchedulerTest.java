@@ -23,6 +23,7 @@ import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
+import org.apache.flink.runtime.state.testutils.EmptyStreamStateHandle;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.function.BiConsumerWithException;
 
@@ -45,6 +46,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.apache.flink.changelog.fs.UnregisteredChangelogStorageMetricGroup.createUnregisteredChangelogStorageMetricGroup;
@@ -148,7 +150,8 @@ public class BatchingStateChangeUploadSchedulerTest {
                             final AtomicInteger currentAttempt = new AtomicInteger(0);
 
                             @Override
-                            public void upload(Collection<UploadTask> tasks) throws IOException {
+                            public UploadTasksResult upload(Collection<UploadTask> tasks)
+                                    throws IOException {
                                 for (UploadTask uploadTask : tasks) {
                                     if (currentAttempt.getAndIncrement() < maxAttempts - 1) {
                                         throw new IOException();
@@ -156,6 +159,7 @@ public class BatchingStateChangeUploadSchedulerTest {
                                         uploadTask.complete(emptyList());
                                     }
                                 }
+                                return null;
                             }
                         },
                         new DirectScheduledExecutorService(),
@@ -390,9 +394,10 @@ public class BatchingStateChangeUploadSchedulerTest {
 
     private static final class BlockingUploader implements StateChangeUploader {
         @Override
-        public void upload(Collection<UploadTask> tasks) {
+        public UploadTasksResult upload(Collection<UploadTask> tasks) {
             try {
                 Thread.sleep(Long.MAX_VALUE);
+                return new UploadTasksResult(emptyMap(), new EmptyStreamStateHandle());
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
