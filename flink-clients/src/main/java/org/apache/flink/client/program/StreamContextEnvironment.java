@@ -116,7 +116,6 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
     @Override
     public JobExecutionResult execute(StreamGraph streamGraph) throws Exception {
-        checkNotAllowedConfigurations();
         final JobClient jobClient = executeAsync(streamGraph);
         final List<JobListener> jobListeners = getJobListeners();
 
@@ -184,6 +183,7 @@ public class StreamContextEnvironment extends StreamExecutionEnvironment {
 
     @Override
     public JobClient executeAsync(StreamGraph streamGraph) throws Exception {
+        checkNotAllowedConfigurations();
         validateAllowedExecution();
         final JobClient jobClient = super.executeAsync(streamGraph);
 
