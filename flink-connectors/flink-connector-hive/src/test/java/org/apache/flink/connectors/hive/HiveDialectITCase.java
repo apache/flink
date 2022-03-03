@@ -35,6 +35,8 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.module.CoreModule;
+import org.apache.flink.table.module.hive.HiveModule;
 import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.command.ClearOperation;
 import org.apache.flink.table.operations.command.HelpOperation;
@@ -713,6 +715,150 @@ public class HiveDialectITCase {
         tableEnv.executeSql(
                 "alter table tbl drop partition (dt='2020-04-30',country='china'),partition (dt='2020-05-01',country='belgium')");
         assertEquals(1, hiveCatalog.listPartitions(tablePath).size());
+    }
+
+    @Test
+    public void test1() throws Exception {
+        tableEnv.executeSql("CREATE TABLE part(p_type STRING, p_size INT)");
+        tableEnv.executeSql("CREATE TABLE t1 (c1 INT, c2 CHAR(100))");
+        tableEnv.executeSql("CREATE TABLE t2 (c1 INT)");
+
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select * from part where p_size IN (select count(*) from part pp "
+                                                + "where pp.p_type = part.p_type)")
+                                .collect());
+        System.out.println(results);
+        results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("SELECT c1 FROM t1 WHERE c1 IN (SELECT c1 FROM t2)")
+                                .collect());
+        System.out.println(results);
+    }
+
+    @Test
+    public void testT1() throws Exception {
+        //        tableEnv.executeSql("CREATE TABLE 1p (key STRING)");
+        //        List<Row> results =
+        //                CollectionUtil.iteratorToList(tableEnv.executeSql("select * from
+        // 1p").collect());
+        //        System.out.println(results);
+        tableEnv.executeSql("CREATE TABLE t1 (1p STRING)");
+        tableEnv.executeSql("insert into t1 values('23')").await();
+        List<Row> results =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("select 1p from t1").collect());
+        System.out.println(results);
+    }
+
+    @Test
+    public void testUdtf() throws Exception {
+        tableEnv.executeSql(
+                "create function hiveudtf as 'org.apache.hadoop.hive.ql.udf.generic.GenericUDTFExplode'");
+        tableEnv.executeSql("create table baz(ai array<int>, d double)");
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select col1,d from baz lateral view hiveudtf(ai) tbl1 as col1")
+                                .collect());
+        System.out.println(results);
+    }
+
+    @Test
+    public void testJsonTupleUTDF() throws Exception {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+        tableEnv.executeSql("create table foo (x int, y int)");
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select foo.x, b.role_id from foo, lateral table(json_tuple('{\"a\":\"0\",\"b\":\"1\"}', 'role')) AS b(role_id)")
+                                .collect());
+        System.out.println(results);
+    }
+
+    @Test
+    public void testPercent_rank() throws Exception {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        tableEnv.executeSql(
+                "create table cbo_t1(key string, value string, c_int int, c_float float, c_boolean boolean)");
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "select percent_rank() over(partition by c_float order by key) from cbo_t1")
+                                .collect());
+        System.out.println(results);
+    }
+
+    @Test
+    public void testApprox() throws Exception {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        tableEnv.executeSql("create table src (key double,val string)");
+
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select percentile_approx(key,0.5) from src")
+                                .collect());
+
+        System.out.println(results);
+    }
+
+    @Test
+    public void testJsonTuple() throws Exception {
+        // automatically load hive module in hive-compatible mode
+        HiveModule hiveModule = new HiveModule(hiveCatalog.getHiveVersion());
+        CoreModule coreModule = CoreModule.INSTANCE;
+        for (String loaded : tableEnv.listModules()) {
+            tableEnv.unloadModule(loaded);
+        }
+        tableEnv.loadModule("hive", hiveModule);
+        tableEnv.loadModule("core", coreModule);
+
+        tableEnv.executeSql("CREATE TABLE dest1(c1 STRING)");
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql(
+                                        "SELECT json FROM dest1 a LATERAL VIEW json_tuple(c1, 'a') b AS json")
+                                .collect());
+        System.out.println(results);
+    }
+
+    @Test
+    public void t1r() throws Exception {
+        tableEnv.executeSql("CREATE TABLE tg (c1 string comment '\\'sdsd\\'')");
+        List<Row> results =
+                CollectionUtil.iteratorToList(tableEnv.executeSql("select null").collect());
+        System.out.println(results);
+    }
+
+    @Test
+    public void t3() throws Exception {
+        List<Row> results =
+                CollectionUtil.iteratorToList(
+                        tableEnv.executeSql("select " + "${hiveconf:hive.in.tez.test}").collect());
+        System.out.println(results);
     }
 
     @Test

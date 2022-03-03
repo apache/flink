@@ -133,7 +133,7 @@ public class HiveGenericUDTF extends TableFunction<Row> implements HiveFunction 
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-        return createTypeInference();
+        return createTypeInference(typeFactory);
     }
 
     @Override

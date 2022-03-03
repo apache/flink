@@ -72,7 +72,7 @@ public abstract class HiveScalarFunction<UDFType> extends ScalarFunction impleme
 
     @Override
     public TypeInference getTypeInference(DataTypeFactory typeFactory) {
-        return createTypeInference();
+        return createTypeInference(typeFactory);
     }
 
     /** See {@link ScalarFunction#open(FunctionContext)}. */

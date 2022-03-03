@@ -75,8 +75,8 @@ public class HiveFunctionArguments implements Serializable {
                                         ClassLogicalTypeConverter.getDefaultExternalClassForType(
                                                 argTypes[i].getLogicalType()))
                                 .orElse(null);
-                // we always use string type for string constant arg because that's what hive UDFs
-                // expect.
+                // we always use string type for string constant arg because that's what hive
+                // UDFs expect.
                 // it may happen that the type is char when call the function
                 // in Flink SQL for calcite treat string literal as char type.
                 if (args[i] instanceof String) {

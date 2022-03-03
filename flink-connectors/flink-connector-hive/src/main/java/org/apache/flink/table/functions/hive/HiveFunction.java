@@ -19,6 +19,7 @@
 package org.apache.flink.table.functions.hive;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.ArgumentCount;
@@ -55,7 +56,7 @@ public interface HiveFunction {
     HiveFunctionWrapper getFunctionWrapper();
 
     /** Creates {@link TypeInference} for the function. */
-    default TypeInference createTypeInference() {
+    default TypeInference createTypeInference(DataTypeFactory typeFactory) {
         TypeInference.Builder builder = TypeInference.newBuilder();
         builder.inputTypeStrategy(new HiveFunctionInputStrategy(this));
         builder.outputTypeStrategy(new HiveFunctionOutputStrategy(this));

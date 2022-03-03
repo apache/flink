@@ -21,6 +21,7 @@ package org.apache.flink.table.functions.hive;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.inference.utils.CallContextMock;
 
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFCount;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator;
@@ -31,6 +32,9 @@ import org.junit.Test;
 
 import java.math.BigDecimal;
 import java.util.Arrays;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.junit.Assert.assertEquals;
 
@@ -114,12 +118,19 @@ public class HiveGenericUDAFTest {
         HiveFunctionWrapper<GenericUDAFResolver2> wrapper =
                 new HiveFunctionWrapper(hiveUdfClass.getName());
 
+        CallContextMock callContext = new CallContextMock();
+        callContext.argumentDataTypes = Arrays.asList(argTypes);
+        callContext.argumentValues =
+                Arrays.stream(constantArgs).map(Optional::ofNullable).collect(Collectors.toList());
+        callContext.argumentLiterals =
+                Arrays.stream(constantArgs).map(Objects::nonNull).collect(Collectors.toList());
+
         HiveGenericUDAF udf =
                 new HiveGenericUDAF(
                         wrapper, HiveShimLoader.loadHiveShim(HiveShimLoader.getHiveVersion()));
 
-        udf.setArgumentTypesAndConstants(constantArgs, argTypes);
-        udf.getHiveResultType(constantArgs, argTypes);
+        udf.setArguments(callContext);
+        udf.inferReturnType();
 
         udf.open(null);
 
