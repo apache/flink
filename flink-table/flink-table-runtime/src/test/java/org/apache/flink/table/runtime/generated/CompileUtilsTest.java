@@ -41,7 +41,8 @@ public class CompileUtilsTest {
     @Before
     public void before() {
         // cleanup cached class before tests
-        CompileUtils.COMPILED_CACHE.invalidateAll();
+        CompileUtils.COMPILED_CLASS_CACHE.invalidateAll();
+        CompileUtils.COMPILED_EXPRESSION_CACHE.invalidateAll();
     }
 
     @Test
