@@ -36,19 +36,22 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
-import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.toMap;
 import static org.apache.flink.changelog.fs.UnregisteredChangelogStorageMetricGroup.createUnregisteredChangelogStorageMetricGroup;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.rethrow;
@@ -184,26 +187,15 @@ public class BatchingStateChangeUploadSchedulerTest {
         AtomicReference<List<SequenceNumber>> failed = new AtomicReference<>();
         UploadTask upload =
                 new UploadTask(getChanges(4), unused -> {}, (sqn, error) -> failed.set(sqn));
-        ManuallyTriggeredScheduledExecutorService scheduler =
+        ManuallyTriggeredScheduledExecutorService executorService =
                 new ManuallyTriggeredScheduledExecutorService();
         try (BatchingStateChangeUploadScheduler store =
-                new BatchingStateChangeUploadScheduler(
-                        0,
-                        0,
-                        Integer.MAX_VALUE,
-                        RetryPolicy.fixed(1, 1, 1),
-                        new BlockingUploader(),
-                        scheduler,
-                        new RetryingExecutor(
-                                1,
-                                createUnregisteredChangelogStorageMetricGroup()
-                                        .getAttemptsPerUpload()),
-                        createUnregisteredChangelogStorageMetricGroup())) {
+                scheduler(1, executorService, new BlockingUploader(), 1)) {
             store.upload(upload);
             Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
             while (!upload.finished.get() && deadline.hasTimeLeft()) {
-                scheduler.triggerScheduledTasks();
-                scheduler.triggerAll();
+                executorService.triggerScheduledTasks();
+                executorService.triggerAll();
                 Thread.sleep(10);
             }
         }
@@ -214,6 +206,44 @@ public class BatchingStateChangeUploadSchedulerTest {
                         .map(StateChangeSet::getSequenceNumber)
                         .collect(Collectors.toSet()),
                 new HashSet<>(failed.get()));
+    }
+
+    @Test
+    public void testRetryOnTimeout() throws Exception {
+        int numAttempts = 3;
+        AtomicReference<List<SequenceNumber>> failed = new AtomicReference<>(emptyList());
+        AtomicReference<List<UploadResult>> succeeded = new AtomicReference<>(emptyList());
+        UploadTask upload =
+                new UploadTask(getChanges(4), succeeded::set, (sqn, error) -> failed.set(sqn));
+        ManuallyTriggeredScheduledExecutorService executorService =
+                new ManuallyTriggeredScheduledExecutorService();
+        BlockingUploader uploader = new BlockingUploader();
+        try (BatchingStateChangeUploadScheduler store =
+                scheduler(numAttempts, executorService, uploader, 10)) {
+            store.upload(upload);
+            Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
+            while (uploader.getUploadsCount() < numAttempts - 1 && deadline.hasTimeLeft()) {
+                executorService.triggerScheduledTasks();
+                executorService.triggerAll();
+                Thread.sleep(10);
+            }
+            uploader.unblock();
+            while (!upload.finished.get() && deadline.hasTimeLeft()) {
+                executorService.triggerScheduledTasks();
+                executorService.triggerAll();
+                Thread.sleep(10);
+            }
+        }
+
+        assertTrue(upload.finished.get());
+        assertEquals(
+                upload.changeSets.stream()
+                        .map(StateChangeSet::getSequenceNumber)
+                        .collect(Collectors.toSet()),
+                succeeded.get().stream()
+                        .map(UploadResult::getSequenceNumber)
+                        .collect(Collectors.toSet()));
+        assertTrue(failed.get().isEmpty());
     }
 
     @Test(expected = RejectedExecutionException.class)
@@ -393,11 +423,17 @@ public class BatchingStateChangeUploadSchedulerTest {
     }
 
     private static final class BlockingUploader implements StateChangeUploader {
+        private final AtomicBoolean blocking = new AtomicBoolean(true);
+        private final AtomicInteger uploadsCounter = new AtomicInteger();
+
         @Override
         public UploadTasksResult upload(Collection<UploadTask> tasks) {
+            uploadsCounter.incrementAndGet();
             try {
-                Thread.sleep(Long.MAX_VALUE);
-                return new UploadTasksResult(emptyMap(), new EmptyStreamStateHandle());
+                while (blocking.get()) {
+                    Thread.sleep(10);
+                }
+                return new UploadTasksResult(withOffsets(tasks), new EmptyStreamStateHandle());
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
@@ -405,5 +441,40 @@ public class BatchingStateChangeUploadSchedulerTest {
 
         @Override
         public void close() {}
+
+        private void unblock() {
+            blocking.set(false);
+        }
+
+        private int getUploadsCount() {
+            return uploadsCounter.get();
+        }
+
+        private Map<UploadTask, Map<StateChangeSet, Long>> withOffsets(
+                Collection<UploadTask> tasks) {
+            return tasks.stream().collect(toMap(identity(), this::withOffsets));
+        }
+
+        private Map<StateChangeSet, Long> withOffsets(UploadTask task) {
+            return task.changeSets.stream().collect(toMap(identity(), ign -> 0L));
+        }
+    }
+
+    private BatchingStateChangeUploadScheduler scheduler(
+            int numAttempts,
+            ManuallyTriggeredScheduledExecutorService scheduler,
+            StateChangeUploader uploader,
+            int timeout) {
+        return new BatchingStateChangeUploadScheduler(
+                0,
+                0,
+                Integer.MAX_VALUE,
+                RetryPolicy.fixed(numAttempts, timeout, 1),
+                uploader,
+                scheduler,
+                new RetryingExecutor(
+                        numAttempts,
+                        createUnregisteredChangelogStorageMetricGroup().getAttemptsPerUpload()),
+                createUnregisteredChangelogStorageMetricGroup());
     }
 }

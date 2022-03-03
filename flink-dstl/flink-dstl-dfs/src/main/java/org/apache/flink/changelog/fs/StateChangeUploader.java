@@ -69,5 +69,9 @@ interface StateChangeUploader extends AutoCloseable {
         public long getStateSize() {
             return handle.getStateSize();
         }
+
+        public void discard() throws Exception {
+            handle.discardState();
+        }
     }
 }

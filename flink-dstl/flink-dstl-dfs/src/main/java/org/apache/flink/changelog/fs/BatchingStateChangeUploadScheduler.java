@@ -17,6 +17,7 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.changelog.fs.StateChangeUploader.UploadTasksResult;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.AvailabilityProvider.AvailabilityHelper;
@@ -226,10 +227,7 @@ class BatchingStateChangeUploadScheduler implements StateChangeUploadScheduler {
                 return;
             }
             uploadBatchSizes.update(tasks.size());
-            retryingExecutor.execute(
-                    retryPolicy,
-                    () -> delegate.upload(tasks).complete(),
-                    t -> tasks.forEach(task -> task.fail(t)));
+            retryingExecutor.execute(retryPolicy, asRetriableAction(tasks));
         } catch (Throwable t) {
             tasks.forEach(task -> task.fail(t));
             if (findThrowable(t, IOException.class).isPresent()) {
@@ -295,5 +293,30 @@ class BatchingStateChangeUploadScheduler implements StateChangeUploadScheduler {
         // the task will either be notified about availability immediately;
         // or back-pressured hard trying to seize capacity in upload()
         return availabilityHelper;
+    }
+
+    private RetryingExecutor.RetriableAction<UploadTasksResult> asRetriableAction(
+            Collection<UploadTask> tasks) {
+        return new RetryingExecutor.RetriableAction<UploadTasksResult>() {
+            @Override
+            public UploadTasksResult tryExecute() throws Exception {
+                return delegate.upload(tasks);
+            }
+
+            @Override
+            public void completeWithResult(UploadTasksResult uploadTasksResult) {
+                uploadTasksResult.complete();
+            }
+
+            @Override
+            public void discardResult(UploadTasksResult uploadTasksResult) throws Exception {
+                uploadTasksResult.discard();
+            }
+
+            @Override
+            public void handleFailure(Throwable throwable) {
+                tasks.forEach(task -> task.fail(throwable));
+            }
+        };
     }
 }
