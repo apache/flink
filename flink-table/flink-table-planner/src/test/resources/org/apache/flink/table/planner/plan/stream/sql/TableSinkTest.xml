@@ -748,4 +748,20 @@ Sink(table=[default_catalog.default_database.SinkJoinChangeLog], fields=[person,
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInsertPartColumn">
+	<Resource name="ast">
+	  <![CDATA[
+LogicalSink(table=[default_catalog.default_database.zm_test], fields=[a, m])
++- LogicalProject(a=[CAST($0):BIGINT], m=[null:(VARCHAR(2147483647) CHARACTER SET "UTF-16LE", BIGINT) MAP])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
+]]>
+	</Resource>
+	<Resource name="optimized rel plan">
+	  <![CDATA[
+Sink(table=[default_catalog.default_database.zm_test], fields=[a, m], changelogMode=[NONE])
++- Calc(select=[CAST(a AS BIGINT) AS a, null:(VARCHAR(2147483647), BIGINT) MAP AS m], changelogMode=[I])
+   +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c], changelogMode=[I])
+]]>
+	</Resource>
+  </TestCase>
 </Root>

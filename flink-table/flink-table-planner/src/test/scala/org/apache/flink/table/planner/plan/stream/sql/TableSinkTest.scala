@@ -771,6 +771,24 @@ class TableSinkTest extends TableTestBase {
 
     util.verifyAstPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
   }
+
+  @Test
+  def testInsertPartColumn(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE zm_test (
+         |  `a` BIGINT,
+         |  `m` MAP<STRING,BIGINT>
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'true'
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql(
+      "INSERT INTO zm_test(`a`) SELECT `a` FROM MyTable")
+    util.verifyRelPlan(stmtSet, ExplainDetail.CHANGELOG_MODE)
+  }
 }
 
 /** tests table factory use ParallelSourceFunction which support parallelism by env*/
