@@ -76,7 +76,7 @@ class BatchPlanner(
   }
 
   override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
-    validateAndOverrideConfiguration()
+    beforeTranslation()
     val planner = createDummyPlanner()
 
     val transformations = execGraph.getRootNodes.map {
@@ -85,7 +85,7 @@ class BatchPlanner(
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
             "This is a bug and should not happen. Please file an issue.")
     }
-    cleanupInternalConfigurations()
+    afterTranslation()
     transformations
   }
 
@@ -152,8 +152,8 @@ class BatchPlanner(
     throw new UnsupportedOperationException(
       "The compiled plan feature is not supported in batch mode.")
 
-  override def validateAndOverrideConfiguration(): Unit = {
-    super.validateAndOverrideConfiguration()
+  override def beforeTranslation(): Unit = {
+    super.beforeTranslation()
     val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
     if (runtimeMode != RuntimeExecutionMode.BATCH) {
       throw new IllegalArgumentException(

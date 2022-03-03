@@ -73,7 +73,7 @@ class StreamPlanner(
   override protected def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor] = Seq()
 
   override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
-    validateAndOverrideConfiguration()
+    beforeTranslation()
     val planner = createDummyPlanner()
     val transformations = execGraph.getRootNodes.map {
       case node: StreamExecNode[_] => node.translateToPlan(planner)
@@ -81,7 +81,7 @@ class StreamPlanner(
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
     }
-    cleanupInternalConfigurations()
+    afterTranslation()
     transformations
   }
 
@@ -163,11 +163,11 @@ class StreamPlanner(
 
   override def compilePlan(
      modifyOperations: util.List[ModifyOperation]): InternalPlan = {
-    validateAndOverrideConfiguration()
+    beforeTranslation()
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-    cleanupInternalConfigurations()
+    afterTranslation()
 
     new ExecNodeGraphInternalPlan(
       JsonSerdeUtil.createObjectWriter(createSerdeContext)
@@ -177,18 +177,18 @@ class StreamPlanner(
   }
 
   override def translatePlan(plan: InternalPlan): util.List[Transformation[_]] = {
-    validateAndOverrideConfiguration()
+    beforeTranslation()
     val execGraph = plan.asInstanceOf[ExecNodeGraphInternalPlan].getExecNodeGraph
     val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
+    afterTranslation()
     transformations
   }
 
   override def explainPlan(plan: InternalPlan, extraDetails: ExplainDetail*): String = {
-    validateAndOverrideConfiguration()
+    beforeTranslation()
     val execGraph = plan.asInstanceOf[ExecNodeGraphInternalPlan].getExecNodeGraph
     val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
+    afterTranslation()
 
     val streamGraph = executor.createPipeline(transformations, tableConfig.getConfiguration, null)
       .asInstanceOf[StreamGraph]
@@ -208,8 +208,8 @@ class StreamPlanner(
     sb.toString()
   }
 
-  override def validateAndOverrideConfiguration(): Unit = {
-    super.validateAndOverrideConfiguration()
+  override def beforeTranslation(): Unit = {
+    super.beforeTranslation()
     val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
     if (runtimeMode != RuntimeExecutionMode.STREAMING) {
       throw new IllegalArgumentException(
