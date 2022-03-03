@@ -298,6 +298,7 @@ public class CheckpointStatsTrackerTest {
                                 CheckpointStatsTracker.NUMBER_OF_FAILED_CHECKPOINTS_METRIC,
                                 CheckpointStatsTracker.LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC,
                                 CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC,
+                                CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC,
                                 CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC,
                                 CheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_PROCESSED_DATA_METRIC,
@@ -305,7 +306,7 @@ public class CheckpointStatsTrackerTest {
                                         .LATEST_COMPLETED_CHECKPOINT_PERSISTED_DATA_METRIC,
                                 CheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC)));
-        assertEquals(10, registeredGaugeNames.size());
+        assertEquals(11, registeredGaugeNames.size());
     }
 
     /**
@@ -336,7 +337,7 @@ public class CheckpointStatsTrackerTest {
         CheckpointStatsTracker stats = new CheckpointStatsTracker(0, metricGroup);
 
         // Make sure to adjust this test if metrics are added/removed
-        assertEquals(10, registeredGauges.size());
+        assertEquals(11, registeredGauges.size());
 
         // Check initial values
         Gauge<Long> numCheckpoints =
@@ -362,6 +363,11 @@ public class CheckpointStatsTrackerTest {
                 (Gauge<Long>)
                         registeredGauges.get(
                                 CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC);
+        Gauge<Long> latestCompletedFullSize =
+                (Gauge<Long>)
+                        registeredGauges.get(
+                                CheckpointStatsTracker
+                                        .LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC);
         Gauge<Long> latestCompletedDuration =
                 (Gauge<Long>)
                         registeredGauges.get(
@@ -388,6 +394,7 @@ public class CheckpointStatsTrackerTest {
         assertEquals(Long.valueOf(0), numFailedCheckpoints.getValue());
         assertEquals(Long.valueOf(-1), latestRestoreTimestamp.getValue());
         assertEquals(Long.valueOf(-1), latestCompletedSize.getValue());
+        assertEquals(Long.valueOf(-1), latestCompletedFullSize.getValue());
         assertEquals(Long.valueOf(-1), latestCompletedDuration.getValue());
         assertEquals(Long.valueOf(-1), latestProcessedData.getValue());
         assertEquals(Long.valueOf(-1), latestPersistedData.getValue());
@@ -408,7 +415,8 @@ public class CheckpointStatsTrackerTest {
         assertEquals(Long.valueOf(0), numFailedCheckpoints.getValue());
 
         long ackTimestamp = 11231230L;
-        long stateSize = 12381238L;
+        long checkpointedSize = 123L;
+        long fullCheckpointSize = 12381238L;
         long processedData = 4242L;
         long persistedData = 4444L;
         long ignored = 0;
@@ -418,8 +426,8 @@ public class CheckpointStatsTrackerTest {
                 new SubtaskStateStats(
                         0,
                         ackTimestamp,
-                        stateSize,
-                        stateSize,
+                        checkpointedSize,
+                        fullCheckpointSize,
                         ignored,
                         ignored,
                         processedData,
@@ -439,7 +447,8 @@ public class CheckpointStatsTrackerTest {
         assertEquals(Long.valueOf(1), numCompletedCheckpoints.getValue());
         assertEquals(Long.valueOf(0), numFailedCheckpoints.getValue());
         assertEquals(Long.valueOf(-1), latestRestoreTimestamp.getValue());
-        assertEquals(Long.valueOf(stateSize), latestCompletedSize.getValue());
+        assertEquals(Long.valueOf(checkpointedSize), latestCompletedSize.getValue());
+        assertEquals(Long.valueOf(fullCheckpointSize), latestCompletedFullSize.getValue());
         assertEquals(Long.valueOf(processedData), latestProcessedData.getValue());
         assertEquals(Long.valueOf(persistedData), latestPersistedData.getValue());
         assertEquals(Long.valueOf(ackTimestamp), latestCompletedDuration.getValue());
