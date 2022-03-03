@@ -18,9 +18,16 @@
 package org.apache.flink.changelog.fs;
 
 import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
+import org.apache.flink.runtime.state.StreamStateHandle;
+import org.apache.flink.util.Preconditions;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
+import static java.util.Collections.unmodifiableMap;
+import static java.util.stream.Collectors.toList;
 
 /**
  * The purpose of this interface is to abstract the different implementations of uploading state
@@ -28,5 +35,39 @@ import java.util.Collection;
  * argument which is meant to initiate such an upload.
  */
 interface StateChangeUploader extends AutoCloseable {
-    void upload(Collection<UploadTask> tasks) throws IOException;
+    /**
+     * Execute the upload task and return the results. It is the caller responsibility to {@link
+     * UploadTask#complete(List) complete} the tasks.
+     */
+    UploadTasksResult upload(Collection<UploadTask> tasks) throws IOException;
+
+    final class UploadTasksResult {
+        private final Map<UploadTask, Map<StateChangeSet, Long>> tasksOffsets;
+        private final StreamStateHandle handle;
+
+        public UploadTasksResult(
+                Map<UploadTask, Map<StateChangeSet, Long>> tasksOffsets, StreamStateHandle handle) {
+            this.tasksOffsets = unmodifiableMap(tasksOffsets);
+            this.handle = Preconditions.checkNotNull(handle);
+        }
+
+        public void complete() {
+            for (Map.Entry<UploadTask, Map<StateChangeSet, Long>> entry : tasksOffsets.entrySet()) {
+                UploadTask task = entry.getKey();
+                Map<StateChangeSet, Long> offsets = entry.getValue();
+                task.complete(buildResults(handle, offsets));
+            }
+        }
+
+        private List<UploadResult> buildResults(
+                StreamStateHandle handle, Map<StateChangeSet, Long> offsets) {
+            return offsets.entrySet().stream()
+                    .map(e -> UploadResult.of(handle, e.getKey(), e.getValue()))
+                    .collect(toList());
+        }
+
+        public long getStateSize() {
+            return handle.getStateSize();
+        }
+    }
 }

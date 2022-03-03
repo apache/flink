@@ -56,18 +56,22 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 
 /**
  * Schedules {@link UploadTask upload tasks} on a {@link StateChangeUploader}. In the simplest form,
- * directly calls {@link StateChangeUploader#upload(Collection)} (UploadTask)}. Other
- * implementations might batch the tasks for efficiency.
+ * directly calls {@link StateChangeUploader#upload(Collection)}. Other implementations might batch
+ * the tasks for efficiency.
  */
 interface StateChangeUploadScheduler extends AutoCloseable {
 
+    /**
+     * Schedule the upload and {@link UploadTask#complete(List) complete} or {@link
+     * UploadTask#fail(Throwable) fail} the corresponding tasks.
+     */
     void upload(UploadTask uploadTask) throws IOException;
 
     static StateChangeUploadScheduler directScheduler(StateChangeUploader uploader) {
         return new StateChangeUploadScheduler() {
             @Override
             public void upload(UploadTask uploadTask) throws IOException {
-                uploader.upload(singletonList(uploadTask));
+                uploader.upload(singletonList(uploadTask)).complete();
             }
 
             @Override
@@ -109,8 +113,8 @@ interface StateChangeUploadScheduler extends AutoCloseable {
     @ThreadSafe
     final class UploadTask {
         final Collection<StateChangeSet> changeSets;
-        final BiConsumer<List<SequenceNumber>, Throwable> failureCallback;
         final Consumer<List<UploadResult>> successCallback;
+        final BiConsumer<List<SequenceNumber>, Throwable> failureCallback;
         final AtomicBoolean finished = new AtomicBoolean();
 
         public UploadTask(
@@ -118,8 +122,8 @@ interface StateChangeUploadScheduler extends AutoCloseable {
                 Consumer<List<UploadResult>> successCallback,
                 BiConsumer<List<SequenceNumber>, Throwable> failureCallback) {
             this.changeSets = new ArrayList<>(changeSets);
-            this.failureCallback = failureCallback;
             this.successCallback = successCallback;
+            this.failureCallback = failureCallback;
         }
 
         public void complete(List<UploadResult> results) {
