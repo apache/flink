@@ -17,6 +17,7 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.changelog.StateChange;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -30,8 +31,12 @@ import static java.util.stream.Collectors.toList;
 
 class TestingStateChangeUploader implements StateChangeUploader {
     private final Collection<StateChangeSet> uploaded = new CopyOnWriteArrayList<>();
-    private final List<UploadTask> tasks = new CopyOnWriteArrayList<>();
+    private final List<UploadTask> tasks;
     private boolean closed;
+
+    TestingStateChangeUploader() {
+        tasks = new CopyOnWriteArrayList<>();
+    }
 
     @Override
     public void close() {
@@ -39,9 +44,11 @@ class TestingStateChangeUploader implements StateChangeUploader {
     }
 
     @Override
-    public void upload(UploadTask uploadTask) throws IOException {
-        uploaded.addAll(uploadTask.changeSets);
-        tasks.add(uploadTask);
+    public void upload(Collection<UploadTask> tasks) throws IOException {
+        for (UploadTask uploadTask : tasks) {
+            this.uploaded.addAll(uploadTask.changeSets);
+            this.tasks.add(uploadTask);
+        }
     }
 
     public Collection<StateChangeSet> getUploaded() {

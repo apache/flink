@@ -19,7 +19,7 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.changelog.fs.StateChangeUploader.UploadTask;
+import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
@@ -55,8 +55,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
-/** {@link BatchingStateChangeUploader} test. */
-public class BatchingStateChangeUploaderTest {
+/** {@link BatchingStateChangeUploadScheduler} test. */
+public class BatchingStateChangeUploadSchedulerTest {
 
     private static final int MAX_BYTES_IN_FLIGHT = 10_000;
     private final Random random = new Random();
@@ -77,7 +77,7 @@ public class BatchingStateChangeUploaderTest {
                 });
     }
 
-    private void upload(BatchingStateChangeUploader store, List<StateChangeSet> changeSets)
+    private void upload(BatchingStateChangeUploadScheduler store, List<StateChangeSet> changeSets)
             throws IOException {
         store.upload(new UploadTask(changeSets, unused -> {}, (unused0, unused1) -> {}));
     }
@@ -138,8 +138,8 @@ public class BatchingStateChangeUploaderTest {
     public void testRetry() throws Exception {
         final int maxAttempts = 5;
 
-        try (BatchingStateChangeUploader store =
-                new BatchingStateChangeUploader(
+        try (BatchingStateChangeUploadScheduler store =
+                new BatchingStateChangeUploadScheduler(
                         0,
                         0,
                         MAX_BYTES_IN_FLIGHT,
@@ -148,11 +148,13 @@ public class BatchingStateChangeUploaderTest {
                             final AtomicInteger currentAttempt = new AtomicInteger(0);
 
                             @Override
-                            public void upload(UploadTask uploadTask) throws IOException {
-                                if (currentAttempt.getAndIncrement() < maxAttempts - 1) {
-                                    throw new IOException();
-                                } else {
-                                    uploadTask.complete(emptyList());
+                            public void upload(Collection<UploadTask> tasks) throws IOException {
+                                for (UploadTask uploadTask : tasks) {
+                                    if (currentAttempt.getAndIncrement() < maxAttempts - 1) {
+                                        throw new IOException();
+                                    } else {
+                                        uploadTask.complete(emptyList());
+                                    }
                                 }
                             }
                         },
@@ -180,8 +182,8 @@ public class BatchingStateChangeUploaderTest {
                 new UploadTask(getChanges(4), unused -> {}, (sqn, error) -> failed.set(sqn));
         ManuallyTriggeredScheduledExecutorService scheduler =
                 new ManuallyTriggeredScheduledExecutorService();
-        try (BatchingStateChangeUploader store =
-                new BatchingStateChangeUploader(
+        try (BatchingStateChangeUploadScheduler store =
+                new BatchingStateChangeUploadScheduler(
                         0,
                         0,
                         Integer.MAX_VALUE,
@@ -214,8 +216,8 @@ public class BatchingStateChangeUploaderTest {
     public void testErrorHandling() throws Exception {
         TestingStateChangeUploader probe = new TestingStateChangeUploader();
         DirectScheduledExecutorService scheduler = new DirectScheduledExecutorService();
-        try (BatchingStateChangeUploader store =
-                new BatchingStateChangeUploader(
+        try (BatchingStateChangeUploadScheduler store =
+                new BatchingStateChangeUploadScheduler(
                         Integer.MAX_VALUE,
                         MAX_BYTES_IN_FLIGHT,
                         MAX_BYTES_IN_FLIGHT,
@@ -237,7 +239,7 @@ public class BatchingStateChangeUploaderTest {
         TestingStateChangeUploader probe = new TestingStateChangeUploader();
         DirectScheduledExecutorService scheduler = new DirectScheduledExecutorService();
         DirectScheduledExecutorService retryScheduler = new DirectScheduledExecutorService();
-        new BatchingStateChangeUploader(
+        new BatchingStateChangeUploadScheduler(
                         0,
                         0,
                         MAX_BYTES_IN_FLIGHT,
@@ -341,8 +343,8 @@ public class BatchingStateChangeUploaderTest {
             TestScenario test)
             throws Exception {
         TestingStateChangeUploader probe = new TestingStateChangeUploader();
-        try (BatchingStateChangeUploader store =
-                new BatchingStateChangeUploader(
+        try (BatchingStateChangeUploadScheduler store =
+                new BatchingStateChangeUploadScheduler(
                         delayMs,
                         sizeThreshold,
                         maxBytesInFlight,
@@ -368,7 +370,7 @@ public class BatchingStateChangeUploaderTest {
 
     private interface TestScenario
             extends BiConsumerWithException<
-                    BatchingStateChangeUploader, TestingStateChangeUploader, Exception> {}
+                    BatchingStateChangeUploadScheduler, TestingStateChangeUploader, Exception> {}
 
     private Tuple2<Thread, CompletableFuture<Void>> uploadAsync(int limit, TestScenario test) {
         CompletableFuture<Void> future = new CompletableFuture<>();
@@ -388,7 +390,7 @@ public class BatchingStateChangeUploaderTest {
 
     private static final class BlockingUploader implements StateChangeUploader {
         @Override
-        public void upload(UploadTask uploadTask) {
+        public void upload(Collection<UploadTask> tasks) {
             try {
                 Thread.sleep(Long.MAX_VALUE);
             } catch (InterruptedException e) {

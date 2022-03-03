@@ -17,6 +17,7 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
@@ -42,13 +43,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.core.fs.FileSystem.WriteMode.NO_OVERWRITE;
 
 /**
- * A synchronous {@link StateChangeUploader} implementation that uploads the changes using {@link
- * FileSystem}.
+ * A synchronous {@link StateChangeUploadScheduler} implementation that uploads the changes using
+ * {@link FileSystem}.
  */
 class StateChangeFsUploader implements StateChangeUploader {
     private static final Logger LOG = LoggerFactory.getLogger(StateChangeFsUploader.class);
@@ -74,11 +74,6 @@ class StateChangeFsUploader implements StateChangeUploader {
         this.bufferSize = bufferSize;
         this.metrics = metrics;
         this.clock = SystemClock.getInstance();
-    }
-
-    @Override
-    public void upload(UploadTask uploadTask) throws IOException {
-        upload(singletonList(uploadTask));
     }
 
     public void upload(Collection<UploadTask> tasks) throws IOException {

@@ -19,7 +19,7 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.changelog.fs.StateChangeUploader.UploadTask;
+import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
@@ -63,9 +63,9 @@ import static org.apache.flink.util.Preconditions.checkState;
  * #persistInternal(SequenceNumber) persist} is called.
  *
  * <p>On {@link #persist(SequenceNumber) persist}, accumulated changes are sent to the {@link
- * StateChangeUploader} as an immutable {@link StateChangeUploader.UploadTask task}. An {@link
- * FsStateChangelogWriter.UploadCompletionListener upload listener} is also registered. Upon
- * notification it updates the Writer local state (for future persist calls) and completes the
+ * StateChangeUploadScheduler} as an immutable {@link StateChangeUploadScheduler.UploadTask task}.
+ * An {@link FsStateChangelogWriter.UploadCompletionListener upload listener} is also registered.
+ * Upon notification it updates the Writer local state (for future persist calls) and completes the
  * future returned to the original caller. The uploader notifies all listeners via a callback in a
  * task.
  *
@@ -91,7 +91,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
 
     private final UUID logId;
     private final KeyGroupRange keyGroupRange;
-    private final StateChangeUploader uploader;
+    private final StateChangeUploadScheduler uploader;
     private final long preEmptivePersistThresholdInBytes;
 
     /** Lock to synchronize handling of upload completion with new upload requests. */
@@ -143,7 +143,7 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
     FsStateChangelogWriter(
             UUID logId,
             KeyGroupRange keyGroupRange,
-            StateChangeUploader uploader,
+            StateChangeUploadScheduler uploader,
             long preEmptivePersistThresholdInBytes) {
         this.logId = logId;
         this.keyGroupRange = keyGroupRange;
