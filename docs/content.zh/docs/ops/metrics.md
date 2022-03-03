@@ -1207,7 +1207,12 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     </tr>
     <tr>
       <td>lastCheckpointSize</td>
-      <td>The total size of the last checkpoint (in bytes).</td>
+      <td>The checkpointed size of the last checkpoint (in bytes), this metric could be different from lastCheckpointFullSize if incremental checkpoint or changelog is enabled.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastCheckpointFullSize</td>
+      <td>The full size of the last checkpoint (in bytes).</td>
       <td>Gauge</td>
     </tr>
     <tr>
