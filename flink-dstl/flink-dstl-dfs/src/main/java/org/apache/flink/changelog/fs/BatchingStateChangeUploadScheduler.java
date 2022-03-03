@@ -46,12 +46,13 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link StateChangeUploader} that waits for some configured amount of time before passing the
- * accumulated state changes to the actual store.
+ * A {@link StateChangeUploadScheduler} that waits for some configured amount of time before passing
+ * the accumulated state changes to the actual store.
  */
 @ThreadSafe
-class BatchingStateChangeUploader implements StateChangeUploader {
-    private static final Logger LOG = LoggerFactory.getLogger(BatchingStateChangeUploader.class);
+class BatchingStateChangeUploadScheduler implements StateChangeUploadScheduler {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(BatchingStateChangeUploadScheduler.class);
 
     private final RetryingExecutor retryingExecutor;
     private final RetryPolicy retryPolicy;
@@ -97,7 +98,7 @@ class BatchingStateChangeUploader implements StateChangeUploader {
 
     private final Histogram uploadBatchSizes;
 
-    BatchingStateChangeUploader(
+    BatchingStateChangeUploadScheduler(
             long persistDelayMs,
             long sizeThresholdBytes,
             RetryPolicy retryPolicy,
@@ -116,7 +117,7 @@ class BatchingStateChangeUploader implements StateChangeUploader {
                 metricGroup);
     }
 
-    BatchingStateChangeUploader(
+    BatchingStateChangeUploadScheduler(
             long persistDelayMs,
             long sizeThresholdBytes,
             long maxBytesInFlight,

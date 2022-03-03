@@ -18,6 +18,7 @@ package org.apache.flink.changelog.fs;
  */
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.metrics.Gauge;
@@ -33,6 +34,7 @@ import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -132,8 +134,8 @@ public class ChangelogStorageMetricsTest {
                 new StateChangeFsUploader(basePath, basePath.getFileSystem(), false, 100, metrics);
         ManuallyTriggeredScheduledExecutorService scheduler =
                 new ManuallyTriggeredScheduledExecutorService();
-        BatchingStateChangeUploader batcher =
-                new BatchingStateChangeUploader(
+        BatchingStateChangeUploadScheduler batcher =
+                new BatchingStateChangeUploadScheduler(
                         Long.MAX_VALUE,
                         Long.MAX_VALUE,
                         Long.MAX_VALUE,
@@ -175,8 +177,8 @@ public class ChangelogStorageMetricsTest {
         ChangelogStorageMetricGroup metrics =
                 new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
 
-        BatchingStateChangeUploader batcher =
-                new BatchingStateChangeUploader(
+        BatchingStateChangeUploadScheduler batcher =
+                new BatchingStateChangeUploadScheduler(
                         Long.MAX_VALUE,
                         1,
                         Long.MAX_VALUE,
@@ -227,8 +229,8 @@ public class ChangelogStorageMetricsTest {
                 new StateChangeFsUploader(path, path.getFileSystem(), false, 100, metrics);
         ManuallyTriggeredScheduledExecutorService scheduler =
                 new ManuallyTriggeredScheduledExecutorService();
-        BatchingStateChangeUploader batcher =
-                new BatchingStateChangeUploader(
+        BatchingStateChangeUploadScheduler batcher =
+                new BatchingStateChangeUploadScheduler(
                         Long.MAX_VALUE,
                         Long.MAX_VALUE,
                         Long.MAX_VALUE,
@@ -262,14 +264,16 @@ public class ChangelogStorageMetricsTest {
         }
 
         @Override
-        public void upload(UploadTask uploadTask) throws IOException {
-            int currentAttempt = 1 + attemptsPerTask.getOrDefault(uploadTask, 0);
-            if (currentAttempt == maxAttempts) {
-                attemptsPerTask.remove(uploadTask);
-                uploadTask.complete(Collections.singletonList(getResult(uploadTask)));
-            } else {
-                attemptsPerTask.put(uploadTask, currentAttempt);
-                throw new IOException();
+        public void upload(Collection<UploadTask> tasks) throws IOException {
+            for (UploadTask uploadTask : tasks) {
+                int currentAttempt = 1 + attemptsPerTask.getOrDefault(uploadTask, 0);
+                if (currentAttempt == maxAttempts) {
+                    attemptsPerTask.remove(uploadTask);
+                    uploadTask.complete(Collections.singletonList(getResult(uploadTask)));
+                } else {
+                    attemptsPerTask.put(uploadTask, currentAttempt);
+                    throw new IOException();
+                }
             }
         }
 
