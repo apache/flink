@@ -420,14 +420,26 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     }
 
     val addElementsCode = elements.map { element =>
-      s"""
-         |${element.code}
-         |if (${element.nullTerm}) {
-         |  $fieldTerm.addNull();
-         |} else {
-         |  $fieldTerm.add(${element.resultTerm});
-         |}
-         |""".stripMargin
+      if (element.literalValue.isDefined) {
+        // Don't generate the null check in case the element is a literal expression
+        if (element.literalValue.get != null) {
+          s"""
+             |${element.code}
+             |$fieldTerm.add(${element.resultTerm});
+             |""".stripMargin
+        } else if (element.literalValue.get == null) {
+          s"$fieldTerm.addNull();"
+        }
+      } else {
+        s"""
+           |${element.code}
+           |if (${element.nullTerm}) {
+           |  $fieldTerm.addNull();
+           |} else {
+           |  $fieldTerm.add(${element.resultTerm});
+           |}
+           |""".stripMargin
+      }
     }.mkString("\n")
     val setBuildingFunctionName = newName("buildSet")
     val setBuildingFunctionCode =
@@ -886,8 +898,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 
   /**
     * Adds a reusable string constant to the member area of the generated class.
+    *
+    * The string must be already escaped with
+    * [[org.apache.flink.table.utils.EncodingUtils.escapeJava()]].
     */
-  def addReusableStringConstants(value: String): String = {
+  def addReusableEscapedStringConstant(value: String): String = {
     reusableStringConstants.get(value) match {
       case Some(field) => field
       case None =>
