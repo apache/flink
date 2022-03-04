@@ -38,7 +38,7 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor
 from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
-
+from pyflink.datastream.window import CountTumblingWindowAssigner, CountSlidingWindowAssigner
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
            'DataStreamSink', 'CloseableIterator']
@@ -229,24 +229,6 @@ class DataStream(object):
             self._j_data_stream.slotSharingGroup(slot_sharing_group.get_java_slot_sharing_group())
         else:
             self._j_data_stream.slotSharingGroup(slot_sharing_group)
-        return self
-
-    def set_description(self, description: str) -> 'DataStream':
-        """
-        Sets the description for this operator.
-
-        Description is used in json plan and web ui, but not in logging and metrics where only
-        name is available. Description is expected to provide detailed information about the
-        operator, while name is expected to be more simple, providing summary information only,
-        so that we can have more user-friendly logging messages and metric tags without losing
-        useful messages for debugging.
-
-        :param description: The description for this operator.
-        :return: The operator with new description.
-
-        .. versionadded:: 1.15.0
-        """
-        self._j_data_stream.setDescription(description)
         return self
 
     def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
@@ -905,24 +887,6 @@ class DataStreamSink(object):
         self._j_data_stream_sink.setParallelism(parallelism)
         return self
 
-    def set_description(self, description: str) -> 'DataStreamSink':
-        """
-        Sets the description for this sink.
-
-        Description is used in json plan and web ui, but not in logging and metrics where only
-        name is available. Description is expected to provide detailed information about the sink,
-        while name is expected to be more simple, providing summary information only, so that we can
-        have more user-friendly logging messages and metric tags without losing useful messages for
-        debugging.
-
-        :param description: The description for this sink.
-        :return: The sink with new description.
-
-        .. versionadded:: 1.15.0
-        """
-        self._j_data_stream_sink.setDescription(description)
-        return self
-
     def disable_chaining(self) -> 'DataStreamSink':
         """
         Turns off chaining for this operator so thread co-location will not be used as an
@@ -1215,6 +1179,18 @@ class KeyedStream(DataStream):
         :return: The trigger windows data stream.
         """
         return WindowedStream(self, window_assigner)
+
+    def count_window(self, window_size: int, window_slide = 0):
+        """
+        Windows this KeyedStream into tumbling count windows.
+        Params:
+        :param window_size: The size of the windows in number of elements.
+        :param window_slide: The slide interval in number of elements.
+        """
+        if window_slide is 0:
+            return WindowedStream(self, CountTumblingWindowAssigner(window_size))
+        else:
+            return WindowedStream(self, CountSlidingWindowAssigner(window_size, window_slide))
 
     def union(self, *streams) -> 'DataStream':
         return self._values().union(*streams)
