@@ -167,7 +167,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
                         + "',"
                         + "  'table-name'='"
                         + INPUT_TABLE
-                        + "',"
+                        + "'"
                         + "  'scan.partition.column'='id',"
                         + "  'scan.partition.num'='2',"
                         + "  'scan.partition.lower-bound'='0',"
@@ -204,6 +204,52 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
                         + "real_col FLOAT,\n"
                         + "double_col DOUBLE,\n"
                         + "decimal_col DECIMAL(10, 4)\n"
+                        + ") WITH (\n"
+                        + "  'connector'='jdbc',\n"
+                        + "  'url'='"
+                        + DB_URL
+                        + "',\n"
+                        + "  'table-name'='"
+                        + INPUT_TABLE
+                        + "',\n"
+                        + "  'scan.partition.column'='id',\n"
+                        + "  'scan.partition.num'='2',\n"
+                        + "  'scan.partition.lower-bound'='1',\n"
+                        + "  'scan.partition.upper-bound'='2'\n"
+                        + ")");
+
+        Iterator<Row> collected =
+                tEnv.executeSql("SELECT * FROM " + INPUT_TABLE + " LIMIT 1").collect();
+        List<String> result =
+                CollectionUtil.iteratorToList(collected).stream()
+                        .map(Row::toString)
+                        .sorted()
+                        .collect(Collectors.toList());
+
+        Set<String> expected = new HashSet<>();
+        expected.add(
+                "+I[1, 2020-01-01T15:35:00.123456, 2020-01-01T15:35:00.123456789, 15:35, 1.175E-37, 1.79769E308, 100.1234]");
+        expected.add(
+                "+I[2, 2020-01-01T15:36:01.123456, 2020-01-01T15:36:01.123456789, 15:36:01, -1.175E-37, -1.79769E308, 101.1234]");
+        assertEquals(1, result.size());
+        assertTrue(
+                "The actual output is not a subset of the expected set.",
+                expected.containsAll(result));
+    }
+
+    @Test
+    public void testNamedParameterEscape() throws Exception {
+        tEnv.executeSql(
+                "CREATE TABLE "
+                        + INPUT_TABLE
+                        + "(\n"
+                        + "`:id` BIGINT,\n"
+                        + "`.timestamp6_col` TIMESTAMP(6),\n"
+                        + "`{timestamp9_col}` TIMESTAMP(9),\n"
+                        + "`:{time_col}` TIME,\n"
+                        + "`:{\\{real_col\\}}` FLOAT,\n"
+                        + "`^double:_col` DOUBLE,\n"
+                        + "`decimal:_col$` DECIMAL(10, 4)\n"
                         + ") WITH (\n"
                         + "  'connector'='jdbc',\n"
                         + "  'url'='"
