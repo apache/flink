@@ -21,6 +21,7 @@ import org.apache.flink.changelog.fs.BatchingStateChangeUploadSchedulerTest.Bloc
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.changelog.inmemory.StateChangelogStorageTest;
@@ -28,30 +29,29 @@ import org.apache.flink.streaming.runtime.tasks.StreamTaskActionExecutor;
 import org.apache.flink.streaming.runtime.tasks.mailbox.MailboxExecutorImpl;
 import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
+import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.stream.Stream;
 
 import static org.apache.flink.changelog.fs.UnregisteredChangelogStorageMetricGroup.createUnregisteredChangelogStorageMetricGroup;
 
 /** {@link FsStateChangelogStorage} test. */
-@RunWith(Parameterized.class)
-public class FsStateChangelogStorageTest extends StateChangelogStorageTest {
-    @Parameterized.Parameter public boolean compression;
+public class FsStateChangelogStorageTest
+        extends StateChangelogStorageTest<ChangelogStateHandleStreamImpl> {
 
-    @Parameterized.Parameters(name = "use compression = {0}")
-    public static Object[] parameters() {
-        return new Object[] {true, false};
+    public static Stream<Boolean> parameters() {
+        return Stream.of(true, false);
     }
 
     @Override
-    protected StateChangelogStorage<?> getFactory() throws IOException {
+    protected StateChangelogStorage<ChangelogStateHandleStreamImpl> getFactory(
+            boolean compression, File temporaryFolder) throws IOException {
         return new FsStateChangelogStorage(
-                Path.fromLocalFile(temporaryFolder.newFolder()),
+                Path.fromLocalFile(temporaryFolder),
                 compression,
                 1024 * 1024 * 10,
                 createUnregisteredChangelogStorageMetricGroup());
