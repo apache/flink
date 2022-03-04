@@ -1,5 +1,7 @@
 ---
 title: Security
+icon: <i class="fa fa-shield title maindish" aria-hidden="true"></i>
+bold: true
 bookCollapseSection: true
 weight: 8
 ---

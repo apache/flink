@@ -584,4 +584,6 @@ spec:
       emptyDir: { }
 ```
 
-{{< top >}}
+## Security
+
+To learn about running a secure Flink cluster in Kubernetes, go to the [security section]({{< ref "docs/security/running-cluster" >}}#running-a-secure-flink-cluster-in-kubernetes).

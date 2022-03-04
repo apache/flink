@@ -294,5 +294,6 @@ $ ./bin/stop-zookeeper-quorum.sh
 Stopping zookeeper daemon (pid: 7101) on host localhost.
 ```
 
+## Security
 
-{{< top >}}
+To learn about running a secure Flink cluster in standalone mode, go to the [security section]({{< ref "docs/security/running-cluster" >}}#running-a-secure-flink-cluster-in-standalone-mode).

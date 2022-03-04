@@ -238,4 +238,130 @@ security.ssl.rest.truststore-password: truststore_password
 security.ssl.rest.authentication-enabled: false
 ```
 
+### Example SSL Setup
 
+#### Internal Connections
+
+Execute the following keytool commands to create a key pair in a keystore:
+
+```bash
+$ keytool -genkeypair -alias flink.internal -keystore internal.keystore -dname "CN=flink.internal" -storepass internal_store_password -keyalg RSA -keysize 4096 -storetype PKCS12
+```
+
+The single key/certificate in the keystore is used the same way by the server and the client endpoints
+(mutual authentication). The key pair acts as the shared secret for internal security, and you can
+directly use it as a keystore and a truststore.
+
+```yaml
+security.ssl.internal.enabled: true
+security.ssl.internal.keystore: /path/to/flink/conf/internal.keystore
+security.ssl.internal.truststore: /path/to/flink/conf/internal.keystore
+security.ssl.internal.keystore-password: internal_store_password
+security.ssl.internal.truststore-password: internal_store_password
+security.ssl.internal.key-password: internal_store_password
+```
+
+{{< hint warning >}}
+Storing plaintext passwords in config files should not be used in production. Consider using [Kubernetes
+secrets](https://kubernetes.io/docs/concepts/configuration/secret/) or environment variables instead.
+{{< /hint >}}
+
+#### External Connections (REST Endpoints)
+
+The REST endpoint may receive connections from external processes, including tools that are not part
+of Flink (i.e. cURL requests to the REST API). Setting up a proper certificate that is signed through
+a CA hierarchy may make sense for the REST endpoint.
+
+However, as mentioned above, the REST endpoint does not authenticate clients and typically needs to
+be secured via a proxy anyways.
+
+**REST endpoint (with a simple self-signed certificate)**
+
+This example shows how to create a simple keystore / truststore pair. The truststore does not contain
+the private key and can be shared with other applications. In this example, *myhost.company.org / ip:10.0.2.15*
+is the node (or service) for the JobManager.
+
+```bash
+$ keytool -genkeypair -alias flink.rest -keystore rest.keystore -dname "CN=myhost.company.org" -ext "SAN=dns:myhost.company.org,ip:10.0.2.15" -storepass rest_keystore_password -keyalg RSA -keysize 4096 -storetype PKCS12
+
+$ keytool -exportcert -keystore rest.keystore -alias flink.rest -storepass rest_keystore_password -file flink.cer
+
+$ keytool -importcert -keystore rest.truststore -alias flink.rest -storepass rest_truststore_password -file flink.cer -noprompt
+```
+
+```yaml
+security.ssl.rest.enabled: true
+security.ssl.rest.keystore: /path/to/flink/conf/rest.keystore
+security.ssl.rest.truststore: /path/to/flink/conf/rest.truststore
+security.ssl.rest.keystore-password: rest_keystore_password
+security.ssl.rest.truststore-password: rest_truststore_password
+security.ssl.rest.key-password: rest_keystore_password
+```
+
+{{< hint warning >}}
+Storing plaintext passwords in config files should not be used in production. Consider using [Kubernetes
+secrets](https://kubernetes.io/docs/concepts/configuration/secret/) or environment variables instead.
+{{< /hint >}}
+
+**REST endpoint (with a self-signed CA)**
+
+Execute the following keytool commands to create a truststore with a self-signed CA:
+
+```bash
+$ keytool -genkeypair -alias ca -keystore ca.keystore -dname "CN=Sample CA" -storepass ca_keystore_password -keyalg RSA -keysize 4096 -ext "bc=ca:true" -storetype PKCS12
+
+$ keytool -exportcert -keystore ca.keystore -alias ca -storepass ca_keystore_password -file ca.cer
+
+$ keytool -importcert -keystore ca.truststore -alias ca -storepass ca_truststore_password -file ca.cer -noprompt
+```
+
+Now create a keystore for the REST endpoint with a certificate signed by the above CA.
+Let *flink.company.org / ip:10.0.2.15* be the hostname of the JobManager.
+
+```bash
+$ keytool -genkeypair -alias flink.rest -keystore rest.signed.keystore -dname "CN=flink.company.org" -ext "SAN=dns:flink.company.org" -storepass rest_keystore_password -keyalg RSA -keysize 4096 -storetype PKCS12
+
+$ keytool -certreq -alias flink.rest -keystore rest.signed.keystore -storepass rest_keystore_password -file rest.csr
+
+$ keytool -gencert -alias ca -keystore ca.keystore -storepass ca_keystore_password -ext "SAN=dns:flink.company.org,ip:10.0.2.15" -infile rest.csr -outfile rest.cer
+
+$ keytool -importcert -keystore rest.signed.keystore -storepass rest_keystore_password -file ca.cer -alias ca -noprompt
+
+$ keytool -importcert -keystore rest.signed.keystore -storepass rest_keystore_password -file rest.cer -alias flink.rest -noprompt
+```
+
+Now add the following configuration to your `flink-conf.yaml`:
+
+```yaml
+security.ssl.rest.enabled: true
+security.ssl.rest.keystore: /path/to/flink/conf/rest.signed.keystore
+security.ssl.rest.truststore: /path/to/flink/conf/ca.truststore
+security.ssl.rest.keystore-password: rest_keystore_password
+security.ssl.rest.key-password: rest_keystore_password
+security.ssl.rest.truststore-password: ca_truststore_password
+```
+
+{{< hint warning >}}
+Storing plaintext passwords in config files should not be used in production. Consider using [Kubernetes
+secrets](https://kubernetes.io/docs/concepts/configuration/secret/) or environment variables instead.
+{{< /hint >}}
+
+**Querying the REST endpoint with the cURL utility**
+
+You can convert the keystore into the `PEM` format using `openssl`:
+
+```bash
+$ openssl pkcs12 -passin pass:rest_keystore_password -in rest.keystore -out rest.pem -nodes
+```
+
+Then you can query the REST Endpoint with `curl`:
+
+```bash
+$ curl --cacert rest.pem flink_url
+```
+
+If mutual SSL is enabled:
+
+```bash
+$ curl --cacert rest.pem --cert rest.pem flink_url
+```

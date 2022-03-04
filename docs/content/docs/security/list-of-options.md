@@ -1,5 +1,5 @@
 ---
-title: Incorporating Security Features in a Running Cluster
+title: Options for SSL, SASL, Kerberos
 weight: 5
 type: docs
 aliases:
