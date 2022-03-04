@@ -34,6 +34,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -61,8 +62,8 @@ public class DefaultResourceCleanerTest {
 
         final CompletableFuture<Void> cleanupResult =
                 createTestInstanceBuilder()
-                        .withRegularCleanup(cleanup0)
-                        .withRegularCleanup(cleanup1)
+                        .withRegularCleanup("Reg #0", cleanup0)
+                        .withRegularCleanup("Reg #1", cleanup1)
                         .build()
                         .cleanupAsync(JOB_ID);
 
@@ -84,8 +85,8 @@ public class DefaultResourceCleanerTest {
 
         final CompletableFuture<Void> cleanupResult =
                 createTestInstanceBuilder()
-                        .withRegularCleanup(cleanup0)
-                        .withRegularCleanup(cleanup1)
+                        .withRegularCleanup("Reg #0", cleanup0)
+                        .withRegularCleanup("Reg #1", cleanup1)
                         .build()
                         .cleanupAsync(JOB_ID);
 
@@ -105,6 +106,7 @@ public class DefaultResourceCleanerTest {
                 .hasExactlyElementsOfTypes(
                         ExecutionException.class,
                         FutureUtils.RetryException.class,
+                        CompletionException.class,
                         expectedException.getClass())
                 .last()
                 .isEqualTo(expectedException);
@@ -117,8 +119,8 @@ public class DefaultResourceCleanerTest {
 
         final CompletableFuture<Void> cleanupResult =
                 createTestInstanceBuilder()
-                        .withRegularCleanup(cleanup0)
-                        .withRegularCleanup(cleanup1)
+                        .withRegularCleanup("Reg #0", cleanup0)
+                        .withRegularCleanup("Reg #1", cleanup1)
                         .build()
                         .cleanupAsync(JOB_ID);
 
@@ -138,6 +140,7 @@ public class DefaultResourceCleanerTest {
                 .hasExactlyElementsOfTypes(
                         ExecutionException.class,
                         FutureUtils.RetryException.class,
+                        CompletionException.class,
                         expectedException.getClass())
                 .last()
                 .isEqualTo(expectedException);
@@ -154,10 +157,10 @@ public class DefaultResourceCleanerTest {
 
         final DefaultResourceCleaner<CleanupCallback> testInstance =
                 createTestInstanceBuilder()
-                        .withPrioritizedCleanup(highPriorityCleanup)
-                        .withPrioritizedCleanup(lowerThanHighPriorityCleanup)
-                        .withRegularCleanup(noPriorityCleanup0)
-                        .withRegularCleanup(noPriorityCleanup1)
+                        .withPrioritizedCleanup("Prio #0", highPriorityCleanup)
+                        .withPrioritizedCleanup("Prio #1", lowerThanHighPriorityCleanup)
+                        .withRegularCleanup("Reg #0", noPriorityCleanup0)
+                        .withRegularCleanup("Reg #1", noPriorityCleanup1)
                         .build();
 
         final CompletableFuture<Void> overallCleanupResult = testInstance.cleanupAsync(JOB_ID);
@@ -189,10 +192,10 @@ public class DefaultResourceCleanerTest {
 
         final DefaultResourceCleaner<CleanupCallback> testInstance =
                 createTestInstanceBuilder()
-                        .withPrioritizedCleanup(highPriorityCleanup)
-                        .withPrioritizedCleanup(lowerThanHighPriorityCleanup)
-                        .withRegularCleanup(noPriorityCleanup0)
-                        .withRegularCleanup(noPriorityCleanup1)
+                        .withPrioritizedCleanup("Prio #0", highPriorityCleanup)
+                        .withPrioritizedCleanup("Prio #1", lowerThanHighPriorityCleanup)
+                        .withRegularCleanup("Reg #0", noPriorityCleanup0)
+                        .withRegularCleanup("Reg #1", noPriorityCleanup1)
                         .build();
 
         assertThat(highPriorityCleanup.isDone()).isFalse();
@@ -224,8 +227,8 @@ public class DefaultResourceCleanerTest {
 
         final CompletableFuture<Void> compositeCleanupResult =
                 createTestInstanceBuilder(TestingRetryStrategies.createWithNumberOfRetries(2))
-                        .withRegularCleanup(cleanupWithRetries)
-                        .withRegularCleanup(oneRunCleanup)
+                        .withRegularCleanup("Reg #0", cleanupWithRetries)
+                        .withRegularCleanup("Reg #1", oneRunCleanup)
                         .build()
                         .cleanupAsync(JOB_ID);
 
@@ -246,9 +249,9 @@ public class DefaultResourceCleanerTest {
 
         final CompletableFuture<Void> compositeCleanupResult =
                 createTestInstanceBuilder(TestingRetryStrategies.createWithNumberOfRetries(1))
-                        .withPrioritizedCleanup(cleanupWithRetry)
-                        .withPrioritizedCleanup(oneRunHigherPriorityCleanup)
-                        .withRegularCleanup(oneRunCleanup)
+                        .withPrioritizedCleanup("Prio #0", cleanupWithRetry)
+                        .withPrioritizedCleanup("Prio #1", oneRunHigherPriorityCleanup)
+                        .withRegularCleanup("Reg #0", oneRunCleanup)
                         .build()
                         .cleanupAsync(JOB_ID);
 
