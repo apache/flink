@@ -2307,7 +2307,8 @@ public class HiveParserCalcitePlanner {
                 } else {
                     // Case when this is an expression
                     HiveParserTypeCheckCtx typeCheckCtx =
-                            new HiveParserTypeCheckCtx(inputRR, frameworkConfig, cluster);
+                            new HiveParserTypeCheckCtx(
+                                    inputRR, true, true, frameworkConfig, cluster);
                     // We allow stateful functions in the SELECT list (but nowhere else)
                     typeCheckCtx.setAllowStatefulFunctions(true);
                     if (!qbp.getDestToGroupBy().isEmpty()) {
