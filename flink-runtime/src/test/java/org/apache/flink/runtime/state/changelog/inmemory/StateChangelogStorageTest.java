@@ -28,10 +28,11 @@ import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.util.CloseableIterator;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -45,35 +46,44 @@ import java.util.stream.Stream;
 import static java.util.function.Function.identity;
 import static java.util.stream.Collectors.toMap;
 import static java.util.stream.StreamSupport.stream;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** {@link InMemoryStateChangelogStorage} test. */
 public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
 
     private final Random random = new Random();
 
-    @Rule public TemporaryFolder temporaryFolder = new TemporaryFolder();
+    @TempDir public File temporaryFolder;
 
-    @Test(expected = IllegalStateException.class)
-    public void testNoAppendAfterClose() throws IOException {
-        StateChangelogWriter<?> writer =
-                getFactory()
-                        .createWriter(
-                                new OperatorID().toString(),
-                                KeyGroupRange.of(0, 0),
-                                new SyncMailboxExecutor());
-        writer.close();
-        writer.append(0, new byte[0]);
+    public static Stream<Boolean> parameters() {
+        return Stream.of(true);
     }
 
-    @Test
-    public void testWriteAndRead() throws Exception {
+    @MethodSource("parameters")
+    @ParameterizedTest
+    public void testNoAppendAfterClose(boolean compression) throws IOException {
+        assertThatThrownBy(
+                        () -> {
+                            StateChangelogWriter<?> writer =
+                                    getFactory(compression, temporaryFolder)
+                                            .createWriter(
+                                                    new OperatorID().toString(),
+                                                    KeyGroupRange.of(0, 0),
+                                                    new SyncMailboxExecutor());
+                            writer.close();
+                            writer.append(0, new byte[0]);
+                        })
+                .isInstanceOf(IllegalStateException.class);
+    }
+
+    @MethodSource("parameters")
+    @ParameterizedTest
+    public void testWriteAndRead(boolean compression) throws Exception {
         KeyGroupRange kgRange = KeyGroupRange.of(0, 5);
         Map<Integer, List<byte[]>> appendsByKeyGroup = generateAppends(kgRange, 10, 20);
 
-        try (StateChangelogStorage<T> client = getFactory();
+        try (StateChangelogStorage<T> client = getFactory(compression, temporaryFolder);
                 StateChangelogWriter<T> writer =
                         client.createWriter(
                                 new OperatorID().toString(), kgRange, new SyncMailboxExecutor())) {
@@ -95,16 +105,16 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
 
     private void assertByteMapsEqual(
             Map<Integer, List<byte[]>> expected, Map<Integer, List<byte[]>> actual) {
-        assertEquals(expected.size(), actual.size());
+        assertThat(actual.size()).isEqualTo(expected.size());
         for (Map.Entry<Integer, List<byte[]>> e : expected.entrySet()) {
             List<byte[]> expectedList = e.getValue();
             List<byte[]> actualList = actual.get(e.getKey());
             Iterator<byte[]> ite = expectedList.iterator(), ale = actualList.iterator();
             while (ite.hasNext() && ale.hasNext()) {
-                assertArrayEquals(ite.next(), ale.next());
+                assertThat(ale.next()).isEqualTo(ite.next());
             }
-            assertFalse(ite.hasNext());
-            assertFalse(ale.hasNext());
+            assertThat(ite.hasNext()).isFalse();
+            assertThat(ale.hasNext()).isFalse();
         }
     }
 
@@ -139,7 +149,8 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
         return bytes;
     }
 
-    protected StateChangelogStorage<T> getFactory() throws IOException {
+    protected StateChangelogStorage<T> getFactory(boolean compression, File temporaryFolder)
+            throws IOException {
         return (StateChangelogStorage<T>) new InMemoryStateChangelogStorage();
     }
 }
