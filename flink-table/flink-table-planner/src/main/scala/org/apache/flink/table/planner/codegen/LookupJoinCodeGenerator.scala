@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.codegen.calls.BridgingFunctionGenUtil.veri
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.functions.inference.LookupCallContext
 import org.apache.flink.table.planner.plan.utils.LookupJoinUtil.{ConstantLookupKey, FieldRefLookupKey, LookupKey}
+import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.collector.{TableFunctionCollector, TableFunctionResultFuture}
 import org.apache.flink.table.runtime.generated.{GeneratedCollector, GeneratedFunction, GeneratedResultFuture}
@@ -213,10 +214,8 @@ object LookupJoinCodeGenerator {
         .map(lookupKeys.get)
         .map {
           case constantKey: ConstantLookupKey =>
-            generateLiteral(
-              ctx,
-              constantKey.sourceType,
-              constantKey.literal.getValue3)
+            val res = RexLiteralUtil.toFlinkInternalValue(constantKey.literal)
+            generateLiteral(ctx, res.f0, res.f1)
           case fieldKey: FieldRefLookupKey =>
             generateInputAccess(
               ctx,
