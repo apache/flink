@@ -22,7 +22,6 @@ import org.apache.flink.streaming.connectors.kafka.internals.FlinkKafkaInternalP
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
-import kafka.server.KafkaServer;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
@@ -203,7 +202,7 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
     @Test(timeout = 30000L)
     public void testProducerWhenCommitEmptyPartitionsToOutdatedTxnCoordinator() throws Exception {
         String topic = "flink-kafka-producer-txn-coordinator-changed";
-        createTestTopic(topic, 1, 2);
+        createTestTopic(topic, 1, 1);
         Producer<String, String> kafkaProducer = new FlinkKafkaInternalProducer<>(extraProperties);
         try {
             kafkaProducer.initTransactions();
@@ -243,31 +242,9 @@ public class FlinkKafkaInternalProducerITCase extends KafkaTestBase {
         }
     }
 
-    private void restartBroker(int brokerId) {
-        KafkaServer toRestart = null;
-        for (KafkaServer server : kafkaServer.getBrokers()) {
-            if (kafkaServer.getBrokerId(server) == brokerId) {
-                toRestart = server;
-            }
-        }
-
-        if (toRestart == null) {
-            StringBuilder listOfBrokers = new StringBuilder();
-            for (KafkaServer server : kafkaServer.getBrokers()) {
-                listOfBrokers.append(kafkaServer.getBrokerId(server));
-                listOfBrokers.append(" ; ");
-            }
-
-            throw new IllegalArgumentException(
-                    "Cannot find broker to restart: "
-                            + brokerId
-                            + " ; available brokers: "
-                            + listOfBrokers.toString());
-        } else {
-            toRestart.shutdown();
-            toRestart.awaitShutdown();
-            toRestart.startup();
-        }
+    private void restartBroker(int brokerId) throws Exception {
+        kafkaServer.stopBroker(brokerId);
+        kafkaServer.restartBroker(brokerId);
     }
 
     private class ErrorCheckingCallback implements Callback {

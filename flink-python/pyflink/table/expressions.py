@@ -84,7 +84,7 @@ def _add_version_doc():
 
 def col(name: str) -> Expression:
     """
-    Creates an expression which refers to a table's field.
+    Creates an expression which refers to a table's column.
 
     Example:
     ::
@@ -93,7 +93,7 @@ def col(name: str) -> Expression:
 
     :param name: the field name to refer to
     """
-    return _unary_op("$", name)
+    return _unary_op("col", name)
 
 
 def lit(v, data_type: DataType = None) -> Expression:

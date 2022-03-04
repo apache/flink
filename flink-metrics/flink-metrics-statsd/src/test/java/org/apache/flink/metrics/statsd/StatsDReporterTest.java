@@ -30,9 +30,8 @@ import org.apache.flink.metrics.util.TestCounter;
 import org.apache.flink.metrics.util.TestHistogram;
 import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.metrics.util.TestMetricGroup;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -44,24 +43,23 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the StatsDReporter. */
-public class StatsDReporterTest extends TestLogger {
+class StatsDReporterTest {
 
     @Test
-    public void testReplaceInvalidChars() {
+    void testReplaceInvalidChars() {
         StatsDReporter reporter = new StatsDReporter();
 
-        assertEquals("", reporter.filterCharacters(""));
-        assertEquals("abc", reporter.filterCharacters("abc"));
-        assertEquals("a-b--", reporter.filterCharacters("a:b::"));
+        assertThat(reporter.filterCharacters("")).isEqualTo("");
+        assertThat(reporter.filterCharacters("abc")).isEqualTo("abc");
+        assertThat(reporter.filterCharacters("a:b::")).isEqualTo("a-b--");
     }
 
     /** Tests that the registered metrics' names don't contain invalid characters. */
     @Test
-    public void testAddingMetrics() {
+    void testAddingMetrics() {
         String counterName = "testCounter";
 
         final String scope = "scope";
@@ -81,19 +79,19 @@ public class StatsDReporterTest extends TestLogger {
 
         Map<Counter, String> counters = reporter.getCounters();
 
-        assertTrue(counters.containsKey(myCounter));
+        assertThat(counters).containsKey(myCounter);
 
         String expectedCounterName =
                 reporter.filterCharacters(scope)
                         + delimiter
                         + reporter.filterCharacters(counterName);
 
-        assertEquals(expectedCounterName, counters.get(myCounter));
+        assertThat(counters.get(myCounter)).isEqualTo(expectedCounterName);
     }
 
     /** Tests that histograms are properly reported via the StatsD reporter. */
     @Test
-    public void testStatsDHistogramReporting() throws Exception {
+    void testStatsDHistogramReporting() throws Exception {
         Set<String> expectedLines = new HashSet<>(6);
         expectedLines.add("metric.count:1|g");
         expectedLines.add("metric.mean:4.0|g");
@@ -111,7 +109,7 @@ public class StatsDReporterTest extends TestLogger {
     }
 
     @Test
-    public void testStatsDHistogramReportingOfNegativeValues() throws Exception {
+    void testStatsDHistogramReportingOfNegativeValues() throws Exception {
         TestHistogram histogram = new TestHistogram();
         histogram.setCount(-101);
         histogram.setMean(-104);
@@ -142,7 +140,7 @@ public class StatsDReporterTest extends TestLogger {
 
     /** Tests that meters are properly reported via the StatsD reporter. */
     @Test
-    public void testStatsDMetersReporting() throws Exception {
+    void testStatsDMetersReporting() throws Exception {
         Set<String> expectedLines = new HashSet<>(4);
         expectedLines.add("metric.rate:5.0|g");
         expectedLines.add("metric.count:100|g");
@@ -151,7 +149,7 @@ public class StatsDReporterTest extends TestLogger {
     }
 
     @Test
-    public void testStatsDMetersReportingOfNegativeValues() throws Exception {
+    void testStatsDMetersReportingOfNegativeValues() throws Exception {
         Set<String> expectedLines = new HashSet<>();
         expectedLines.add("metric.rate:0|g");
         expectedLines.add("metric.rate:-5.3|g");
@@ -163,7 +161,7 @@ public class StatsDReporterTest extends TestLogger {
 
     /** Tests that counter are properly reported via the StatsD reporter. */
     @Test
-    public void testStatsDCountersReporting() throws Exception {
+    void testStatsDCountersReporting() throws Exception {
         Set<String> expectedLines = new HashSet<>(2);
         expectedLines.add("metric:100|g");
 
@@ -171,7 +169,7 @@ public class StatsDReporterTest extends TestLogger {
     }
 
     @Test
-    public void testStatsDCountersReportingOfNegativeValues() throws Exception {
+    void testStatsDCountersReportingOfNegativeValues() throws Exception {
         Set<String> expectedLines = new HashSet<>();
         expectedLines.add("metric:0|g");
         expectedLines.add("metric:-51|g");
@@ -180,7 +178,7 @@ public class StatsDReporterTest extends TestLogger {
     }
 
     @Test
-    public void testStatsDGaugesReporting() throws Exception {
+    void testStatsDGaugesReporting() throws Exception {
         Set<String> expectedLines = new HashSet<>(2);
         expectedLines.add("metric:75|g");
 
@@ -188,7 +186,7 @@ public class StatsDReporterTest extends TestLogger {
     }
 
     @Test
-    public void testStatsDGaugesReportingOfNegativeValues() throws Exception {
+    void testStatsDGaugesReportingOfNegativeValues() throws Exception {
         Set<String> expectedLines = new HashSet<>();
         expectedLines.add("metric:0|g");
         expectedLines.add("metric:-12345|g");
@@ -225,7 +223,7 @@ public class StatsDReporterTest extends TestLogger {
             reporter.report();
 
             receiver.waitUntilNumLines(expectation.size(), timeout);
-            assertEquals(expectation, receiver.getLines());
+            assertThat(receiver.getLines()).isEqualTo(expectation);
 
         } finally {
             if (reporter != null) {

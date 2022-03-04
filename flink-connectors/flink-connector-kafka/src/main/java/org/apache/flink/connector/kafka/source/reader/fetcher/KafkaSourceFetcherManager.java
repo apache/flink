@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.reader.fetcher;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.SourceReaderBase;
 import org.apache.flink.connector.base.source.reader.fetcher.SingleThreadFetcherManager;
@@ -46,6 +47,7 @@ import java.util.function.Supplier;
  * Kafka using the KafkaConsumer inside the {@link
  * org.apache.flink.connector.kafka.source.reader.KafkaPartitionSplitReader}.
  */
+@Internal
 public class KafkaSourceFetcherManager
         extends SingleThreadFetcherManager<ConsumerRecord<byte[], byte[]>, KafkaPartitionSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaSourceFetcherManager.class);

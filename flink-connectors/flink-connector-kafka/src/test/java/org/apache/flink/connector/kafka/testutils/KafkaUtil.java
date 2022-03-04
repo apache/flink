@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.kafka.testutils;
 
+import org.apache.flink.util.StringUtils;
+
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -56,6 +58,15 @@ public class KafkaUtil {
      * @return configured Kafka container
      */
     public static KafkaContainer createKafkaContainer(String dockerImageVersion, Logger logger) {
+        return createKafkaContainer(dockerImageVersion, logger, null);
+    }
+
+    /**
+     * This method helps to set commonly used Kafka configurations and aligns the internal Kafka log
+     * levels with the ones used by the capturing logger, and set the prefix of logger.
+     */
+    public static KafkaContainer createKafkaContainer(
+            String dockerImageVersion, Logger logger, String loggerPrefix) {
         String logLevel;
         if (logger.isTraceEnabled()) {
             logLevel = "TRACE";
@@ -71,6 +82,10 @@ public class KafkaUtil {
             logLevel = "OFF";
         }
 
+        Slf4jLogConsumer logConsumer = new Slf4jLogConsumer(logger);
+        if (!StringUtils.isNullOrWhitespaceOnly(loggerPrefix)) {
+            logConsumer.withPrefix(loggerPrefix);
+        }
         return new KafkaContainer(DockerImageName.parse(dockerImageVersion))
                 .withEnv("KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR", "1")
                 .withEnv("KAFKA_TRANSACTION_STATE_LOG_MIN_ISR", "1")
@@ -84,7 +99,7 @@ public class KafkaUtil {
                         "KAFKA_TRANSACTION_MAX_TIMEOUT_MS",
                         String.valueOf(Duration.ofHours(2).toMillis()))
                 .withEnv("KAFKA_LOG4J_TOOLS_ROOT_LOGLEVEL", logLevel)
-                .withLogConsumer(new Slf4jLogConsumer(logger));
+                .withLogConsumer(logConsumer);
     }
 
     /**

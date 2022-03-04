@@ -33,6 +33,7 @@ import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
 import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 import org.apache.flink.shaded.zookeeper3.org.apache.zookeeper.data.Stat;
 
 import org.junit.AfterClass;
@@ -218,10 +219,21 @@ public class ZooKeeperCompletedCheckpointStoreITCase extends CompletedCheckpoint
         final String checkpointPath =
                 CHECKPOINT_PATH
                         + checkpointStoreUtil.checkpointIDToName(checkpoint.getCheckpointID());
-        Stat stat = client.checkExists().forPath(checkpointPath);
+        final List<String> checkpointPathChildren = client.getChildren().forPath(checkpointPath);
+        assertEquals(
+                "The checkpoint node should not be marked for deletion.",
+                1,
+                checkpointPathChildren.size());
 
-        assertNotNull("The checkpoint node should exist.", stat);
-        assertEquals("The checkpoint node should not be locked.", 0, stat.getNumChildren());
+        final String locksNodeName = Iterables.getOnlyElement(checkpointPathChildren);
+        final String locksNodePath =
+                ZooKeeperUtils.generateZookeeperPath(checkpointPath, locksNodeName);
+
+        final Stat locksStat = client.checkExists().forPath(locksNodePath);
+        assertEquals(
+                "There shouldn't be any lock node available for the checkpoint",
+                0,
+                locksStat.getNumChildren());
 
         // Recover again
         sharedStateRegistry.close();

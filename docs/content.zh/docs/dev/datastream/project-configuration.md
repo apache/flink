@@ -205,7 +205,7 @@ these dependencies similar to the scope of the dependencies to *test* or to *pro
 
 #### Requirements
 
-The only requirements are working __Maven 3.0.4__ (or higher) and __Java 8.x__ installations.
+The only requirements are working __Maven 3.0.4__ (or higher) and __Java 11__ installations.
 
 #### Create Project
 
@@ -292,7 +292,7 @@ can run the application from the JAR file without additionally specifying the ma
 
 #### Requirements
 
-The only requirements are working __Gradle 3.x__ (or higher) and __Java 8.x__ installations.
+The only requirements are working __Gradle 3.x__ (or higher) and __Java 11__ installations.
 
 #### Create Project
 

@@ -58,13 +58,8 @@ public class JobExceptionsInfoWithHistory extends JobExceptionsInfo implements R
         this.exceptionHistory = exceptionHistory;
     }
 
-    public JobExceptionsInfoWithHistory() {
-        this(
-                null,
-                null,
-                Collections.emptyList(),
-                false,
-                new JobExceptionHistory(Collections.emptyList(), false));
+    public JobExceptionsInfoWithHistory(JobExceptionHistory exceptionHistory) {
+        this(null, null, Collections.emptyList(), false, exceptionHistory);
     }
 
     @JsonIgnore

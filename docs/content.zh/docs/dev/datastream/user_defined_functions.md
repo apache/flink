@@ -40,7 +40,7 @@ under the License.
 ```java
 class MyMapFunction implements MapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-};
+}
 data.map(new MyMapFunction());
 ```
 
@@ -78,7 +78,7 @@ data.reduce((i1,i2) -> i1 + i2);
 ```java
 class MyMapFunction implements MapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-};
+}
 ```
 
 替换成
@@ -86,7 +86,7 @@ class MyMapFunction implements MapFunction<String, Integer> {
 ```java
 class MyMapFunction extends RichMapFunction<String, Integer> {
   public Integer map(String value) { return Integer.parseInt(value); }
-};
+}
 ```
 
 并将 function 照常传递给 `map` transformation:
@@ -136,8 +136,8 @@ data.map { x => x.toInt }
 
 ```scala
 class MyMapFunction extends RichMapFunction[String, Int] {
-  def map(in: String):Int = { in.toInt }
-};
+  def map(in: String): Int = in.toInt
+}
 ```
 
 并将 function 传递给 `map` transformation:
@@ -149,7 +149,7 @@ data.map(new MyMapFunction())
 Rich functions 也可以定义成匿名类:
 ```scala
 data.map (new RichMapFunction[String, Int] {
-  def map(in: String):Int = { in.toInt }
+  def map(in: String): Int = in.toInt
 })
 ```
 {{< /tab >}}

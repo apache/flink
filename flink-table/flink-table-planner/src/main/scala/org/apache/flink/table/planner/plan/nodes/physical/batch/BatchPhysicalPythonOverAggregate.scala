@@ -64,13 +64,18 @@ class BatchPhysicalPythonOverAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (partitionKeyIndices.length == 0) {
+      InputProperty.SINGLETON_DISTRIBUTION
+    } else {
+      InputProperty.hashDistribution(partitionKeyIndices)
+    }
     new BatchExecPythonOverAggregate(
       new OverSpec(
         new PartitionSpec(partitionKeyIndices),
         offsetAndInsensitiveSensitiveGroups.map(OverAggregateUtil.createGroupSpec(_, logicWindow)),
         logicWindow.constants,
         OverAggregateUtil.calcOriginalInputFields(logicWindow)),
-      InputProperty.DEFAULT,
+      InputProperty.builder().requiredDistribution(requiredDistribution).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

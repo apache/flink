@@ -101,7 +101,8 @@ public class JavaUserDefinedScalarFunctions {
     /** Testing open method is called. */
     public static class UdfWithOpen extends ScalarFunction {
 
-        private boolean isOpened = false;
+        // transient make this class serializable by class name
+        private transient boolean isOpened = false;
 
         @Override
         public void open(FunctionContext context) throws Exception {

@@ -31,6 +31,7 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.TableConfig;
@@ -44,6 +45,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -51,7 +53,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTran
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MatchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -138,21 +139,22 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
 
         checkOrderKeys(inputRowType);
-        final TableConfig config = planner.getTableConfig();
         final EventComparator<RowData> eventComparator =
                 createEventComparator(config, inputRowType);
         final Transformation<RowData> timestampedInputTransform =
-                translateOrder(inputTransform, inputRowType);
+                translateOrder(inputTransform, inputRowType, config);
 
         final Tuple2<Pattern<RowData, RowData>, List<String>> cepPatternAndNames =
-                translatePattern(matchSpec, config, planner.getRelBuilder(), inputRowType);
+                translatePattern(
+                        matchSpec, config.getTableConfig(), planner.getRelBuilder(), inputRowType);
         final Pattern<RowData, RowData> cepPattern = cepPatternAndNames.f0;
 
         // TODO remove this once it is supported in CEP library
@@ -186,7 +188,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
                 NFACompiler.compileFactory(cepPattern, false);
         final MatchCodeGenerator generator =
                 new MatchCodeGenerator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(config.getTableConfig()),
                         planner.getRelBuilder(),
                         false, // nullableInput
                         JavaScalaConversionUtil.toScala(cepPatternAndNames.f1),
@@ -251,12 +253,12 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     }
 
     private EventComparator<RowData> createEventComparator(
-            TableConfig config, RowType inputRowType) {
+            ExecNodeConfig config, RowType inputRowType) {
         SortSpec orderKeys = matchSpec.getOrderKeys();
         if (orderKeys.getFieldIndices().length > 1) {
             GeneratedRecordComparator rowComparator =
                     ComparatorCodeGenerator.gen(
-                            config, "RowDataComparator", inputRowType, orderKeys);
+                            config.getTableConfig(), "RowDataComparator", inputRowType, orderKeys);
             return new RowDataEventComparator(rowComparator);
         } else {
             return null;
@@ -264,7 +266,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     }
 
     private Transformation<RowData> translateOrder(
-            Transformation<RowData> inputTransform, RowType inputRowType) {
+            Transformation<RowData> inputTransform, RowType inputRowType, ReadableConfig config) {
         SortSpec.SortFieldSpec timeOrderField = matchSpec.getOrderKeys().getFieldSpec(0);
         int timeOrderFieldIdx = timeOrderField.getFieldIndex();
         LogicalType timeOrderFieldType = inputRowType.getTypeAt(timeOrderFieldIdx);
@@ -275,12 +277,13 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
             Transformation<RowData> transform =
                     ExecNodeUtil.createOneInputTransformation(
                             inputTransform,
-                            new TransformationMetadata(
-                                    createTransformationUid(TIMESTAMP_INSERTER_TRANSFORMATION),
-                                    "StreamRecordTimestampInserter",
+                            createTransformationMeta(
+                                    TIMESTAMP_INSERTER_TRANSFORMATION,
                                     String.format(
                                             "StreamRecordTimestampInserter(rowtime field: %s)",
-                                            timeOrderFieldIdx)),
+                                            timeOrderFieldIdx),
+                                    "StreamRecordTimestampInserter",
+                                    config),
                             new StreamRecordTimestampInserter(timeOrderFieldIdx, precision),
                             inputTransform.getOutputType(),
                             inputTransform.getParallelism());
@@ -296,9 +299,12 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
 
     @VisibleForTesting
     public static Tuple2<Pattern<RowData, RowData>, List<String>> translatePattern(
-            MatchSpec matchSpec, TableConfig config, RelBuilder relBuilder, RowType inputRowType) {
+            MatchSpec matchSpec,
+            TableConfig tableConfig,
+            RelBuilder relBuilder,
+            RowType inputRowType) {
         final PatternVisitor patternVisitor =
-                new PatternVisitor(config, relBuilder, inputRowType, matchSpec);
+                new PatternVisitor(tableConfig, relBuilder, inputRowType, matchSpec);
 
         final Pattern<RowData, RowData> cepPattern;
         if (matchSpec.getInterval().isPresent()) {
@@ -323,7 +329,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
 
     /** The visitor to traverse the pattern RexNode. */
     private static class PatternVisitor extends RexDefaultVisitor<Pattern<RowData, RowData>> {
-        private final TableConfig config;
+        private final TableConfig tableConfig;
         private final RelBuilder relBuilder;
         private final RowType inputRowType;
         private final MatchSpec matchSpec;
@@ -331,11 +337,11 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         private Pattern<RowData, RowData> pattern;
 
         public PatternVisitor(
-                TableConfig config,
+                TableConfig tableConfig,
                 RelBuilder relBuilder,
                 RowType inputRowType,
                 MatchSpec matchSpec) {
-            this.config = config;
+            this.tableConfig = tableConfig;
             this.relBuilder = relBuilder;
             this.inputRowType = inputRowType;
             this.matchSpec = matchSpec;
@@ -351,7 +357,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
             if (patternDefinition != null) {
                 MatchCodeGenerator generator =
                         new MatchCodeGenerator(
-                                new CodeGeneratorContext(config),
+                                new CodeGeneratorContext(tableConfig),
                                 relBuilder,
                                 false, // nullableInput
                                 JavaScalaConversionUtil.toScala(new ArrayList<>(names)),

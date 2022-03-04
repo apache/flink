@@ -72,7 +72,7 @@ public class IterateITCase extends AbstractTestBase {
 
     private static boolean[] iterated;
 
-    private int parallelism = miniClusterResource.getNumberSlots();
+    private int parallelism = MINI_CLUSTER_RESOURCE.getNumberSlots();
 
     @Test(expected = UnsupportedOperationException.class)
     public void testIncorrectParallelism() throws Exception {

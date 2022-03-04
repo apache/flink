@@ -52,8 +52,9 @@ If you want to use Table API & SQL, check out the [documentation](https://nightl
   * SQL validator
   * Query planner, optimizer and rules implementation
   * Code generator
-  * Two jars are produced: one doesn't have any classifier and bundles all the classes from this module together with the two parsers, including 3rd party dependencies, while the other jar, classified as `loader-bundle`, extends the first jar including scala dependencies.
-* `flink-table-planner-loader`: Loader for `flink-table-planner` that loads the planner in a separate classpath, isolating the Scala version used to compile the planner.
+  * The produced jar includes all the classes from this module together with the two parsers, including 3rd party dependencies (excluding Scala dependencies).
+* `flink-table-planner-loader-bundle` Bundles `flink-table-planner`, including Scala dependencies.
+* `flink-table-planner-loader`: Loader for `flink-table-planner` that loads the planner and it's Scala dependencies in a separate classpath using `flink-table-planner-loader-bundle`, isolating the Scala version used to compile the planner.
 
 ### SQL client
 
@@ -65,7 +66,8 @@ If you want to use Table API & SQL, check out the [documentation](https://nightl
 
 ### Notes
 
-No module except `flink-table-planner` should depend on `flink-table-runtime` in production classpath, 
+No module except `flink-table-planner` should depend on `flink-table-runtime` in production classpath,
+no module except `flink-table-planner-loader` should depend on `flink-table-planner-loader-bundle` in production classpath,
 and similarly no module should depend on `flink-table-planner` or `flink-table-planner-loader` in production classpath.
 For testing, you should depend on `flink-table-planner-loader` and `flink-table-runtime`.
 These are already shipped by the Flink distribution.

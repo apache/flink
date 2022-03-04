@@ -26,8 +26,8 @@ CONFLUENT_MAJOR_VERSION="6.2"
 KAFKA_SQL_VERSION="universal"
 ELASTICSEARCH_VERSION=7
 # we use the smallest version possible
-ELASTICSEARCH_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.15.2-darwin-x86_64.tar.gz'
-ELASTICSEARCH_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.15.2-linux-x86_64.tar.gz'
+ELASTICSEARCH_MAC_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.2-darwin-x86_64.tar.gz'
+ELASTICSEARCH_LINUX_DOWNLOAD_URL='https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.2-linux-x86_64.tar.gz'
 
 source "$(dirname "$0")"/common.sh
 source "$(dirname "$0")"/kafka_sql_common.sh \

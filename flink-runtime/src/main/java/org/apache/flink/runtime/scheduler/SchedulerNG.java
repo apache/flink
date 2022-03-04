@@ -66,15 +66,13 @@ import java.util.concurrent.CompletableFuture;
  * <p>Implementations can expect that methods will not be invoked concurrently. In fact, all
  * invocations will originate from a thread in the {@link ComponentMainThreadExecutor}.
  */
-public interface SchedulerNG extends AutoCloseableAsync {
+public interface SchedulerNG extends GlobalFailureHandler, AutoCloseableAsync {
 
     void startScheduling();
 
     void cancel();
 
     CompletableFuture<JobStatus> getJobTerminationFuture();
-
-    void handleGlobalFailure(Throwable cause);
 
     default boolean updateTaskExecutionState(TaskExecutionState taskExecutionState) {
         return updateTaskExecutionState(new TaskExecutionStateTransition(taskExecutionState));

@@ -415,7 +415,7 @@ class MiscITCase extends BatchTestBase {
 
   @Test
   def testOrderByAgg(): Unit = {
-    tEnv.getConfig.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tEnv.getConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
     env.setParallelism(1)
     checkQuery(
       Seq((1, 10), (1, 20), (10, 1), (10, 2)),

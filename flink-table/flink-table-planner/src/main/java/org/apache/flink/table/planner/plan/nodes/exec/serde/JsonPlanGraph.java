@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.FlinkVersion;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -47,13 +49,14 @@ import static org.apache.flink.util.Preconditions.checkArgument;
  *
  * <p>This model is used only during serialization/deserialization.
  */
-class JsonPlanGraph {
-    public static final String FIELD_NAME_FLINK_VERSION = "flinkVersion";
-    public static final String FIELD_NAME_NODES = "nodes";
-    public static final String FIELD_NAME_EDGES = "edges";
+@Internal
+final class JsonPlanGraph {
+    static final String FIELD_NAME_FLINK_VERSION = "flinkVersion";
+    static final String FIELD_NAME_NODES = "nodes";
+    static final String FIELD_NAME_EDGES = "edges";
 
     @JsonProperty(FIELD_NAME_FLINK_VERSION)
-    private final String flinkVersion;
+    private final FlinkVersion flinkVersion;
 
     @JsonProperty(FIELD_NAME_NODES)
     private final List<ExecNode<?>> nodes;
@@ -62,8 +65,8 @@ class JsonPlanGraph {
     private final List<JsonPlanEdge> edges;
 
     @JsonCreator
-    public JsonPlanGraph(
-            @JsonProperty(FIELD_NAME_FLINK_VERSION) String flinkVersion,
+    JsonPlanGraph(
+            @JsonProperty(FIELD_NAME_FLINK_VERSION) FlinkVersion flinkVersion,
             @JsonProperty(FIELD_NAME_NODES) List<ExecNode<?>> nodes,
             @JsonProperty(FIELD_NAME_EDGES) List<JsonPlanEdge> edges) {
         this.flinkVersion = flinkVersion;
@@ -71,7 +74,7 @@ class JsonPlanGraph {
         this.edges = edges;
     }
 
-    public static JsonPlanGraph fromExecNodeGraph(ExecNodeGraph execGraph) {
+    static JsonPlanGraph fromExecNodeGraph(ExecNodeGraph execGraph) {
         final List<ExecNode<?>> allNodes = new ArrayList<>();
         final List<JsonPlanEdge> allEdges = new ArrayList<>();
         final Set<Integer> nodesIds = new HashSet<>();
@@ -111,7 +114,7 @@ class JsonPlanGraph {
         return new JsonPlanGraph(execGraph.getFlinkVersion(), allNodes, allEdges);
     }
 
-    public ExecNodeGraph convertToExecNodeGraph() {
+    ExecNodeGraph convertToExecNodeGraph() {
         Map<Integer, ExecNode<?>> idToExecNodes = new HashMap<>();
         for (ExecNode<?> execNode : nodes) {
             int id = execNode.getId();

@@ -87,6 +87,13 @@ Flink JobManager 是 [Flink Cluster](#flink-cluster) 的主节点。它包含三
 
 JobMaster 是在 [Flink JobManager](#flink-jobmanager) 运行中的组件之一。JobManager 负责监督单个作业 [Task](#task) 的执行。以前，整个 [Flink JobManager](#flink-jobmanager) 都叫做 JobManager。
 
+#### JobResultStore
+
+The JobResultStore is a Flink component that persists the results of globally terminated
+(i.e. finished, cancelled or failed) jobs to a filesystem, allowing the results to outlive
+a finished job. These results are then used by Flink to determine whether jobs should
+be subject to recovery in highly-available clusters.
+
 #### Logical Graph
 
 A logical graph is a directed graph where the nodes are  [Operators](#operator)

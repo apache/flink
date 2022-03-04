@@ -62,9 +62,10 @@ object GenerateUtils {
       ctx: CodeGeneratorContext,
       returnType: LogicalType,
       operands: Seq[GeneratedExpression],
-      resultNullable: Boolean = false)
+      resultNullable: Boolean = false,
+      wrapTryCatch: Boolean = false)
       (call: Seq[String] => String): GeneratedExpression = {
-    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable) {
+    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable, wrapTryCatch) {
       args => ("", call(args))
     }
   }
@@ -76,7 +77,8 @@ object GenerateUtils {
       ctx: CodeGeneratorContext,
       returnType: LogicalType,
       operands: Seq[GeneratedExpression],
-      resultNullable: Boolean = false)
+      resultNullable: Boolean = false,
+      wrapTryCatch: Boolean = false)
       (call: Seq[String] => (String, String)): GeneratedExpression = {
     val resultTypeTerm = if (resultNullable) {
       boxedTypeTermForType(returnType)
@@ -95,14 +97,30 @@ object GenerateUtils {
 
     val (stmt, result) = call(operands.map(_.resultTerm))
 
+    val wrappedResultAssignment = if (wrapTryCatch) {
+      s"""
+         |try {
+         |  $stmt
+         |  $resultTerm = $result;
+         |} catch (Throwable ${newName("ignored")}) {
+         |  $nullTerm = true;
+         |  $resultTerm = $defaultValue;
+         |}
+         |""".stripMargin
+    } else {
+      s"""
+         |$stmt
+         |$resultTerm = $result;
+         |""".stripMargin
+    }
+
     val resultCode = if (ctx.nullCheck && operands.nonEmpty) {
       s"""
          |${operands.map(_.code).mkString("\n")}
          |$nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
          |$resultTerm = $defaultValue;
          |if (!$nullTerm) {
-         |  $stmt
-         |  $resultTerm = $result;
+         |  $wrappedResultAssignment
          |  $nullTermCode
          |}
          |""".stripMargin
@@ -110,16 +128,14 @@ object GenerateUtils {
       s"""
          |${operands.map(_.code).mkString("\n")}
          |$nullTerm = false;
-         |$stmt
-         |$resultTerm = $result;
+         |$wrappedResultAssignment
          |$nullTermCode
          |""".stripMargin
     } else {
       s"""
          |$nullTerm = false;
          |${operands.map(_.code).mkString("\n")}
-         |$stmt
-         |$resultTerm = $result;
+         |$wrappedResultAssignment
          |""".stripMargin
     }
 
@@ -148,7 +164,8 @@ object GenerateUtils {
       ctx: CodeGeneratorContext,
       returnType: LogicalType,
       operands: Seq[GeneratedExpression],
-      resultNullable: Boolean = false)
+      resultNullable: Boolean = false,
+      wrapTryCatch: Boolean = false)
       (call: Seq[String] => String): GeneratedExpression = {
     val resultTypeTerm = if (resultNullable) {
       boxedTypeTermForType(returnType)
@@ -173,10 +190,26 @@ object GenerateUtils {
         x.resultTerm
       })
 
+
+    val wrappedResultAssignment = if (wrapTryCatch) {
+      s"""
+         |try {
+         |  $resultTerm = ${call(parameters)};
+         |} catch (Throwable ${newName("ignored")}) {
+         |  $nullTerm = true;
+         |  $resultTerm = $defaultValue;
+         |}
+         |""".stripMargin
+    } else {
+      s"""
+         |$resultTerm = ${call(parameters)};
+         |""".stripMargin
+    }
+
     val resultCode = if (ctx.nullCheck) {
       s"""
          |${operands.map(_.code).mkString("\n")}
-         |$resultTerm = ${call(parameters)};
+         |$wrappedResultAssignment
          |$nullTermCode
          |if ($nullTerm) {
          |  $resultTerm = $defaultValue;
@@ -185,7 +218,7 @@ object GenerateUtils {
     } else {
       s"""
          |${operands.map(_.code).mkString("\n")}
-         |$resultTerm = ${call(parameters)};
+         |$wrappedResultAssignment
          |$nullTermCode
        """.stripMargin
     }

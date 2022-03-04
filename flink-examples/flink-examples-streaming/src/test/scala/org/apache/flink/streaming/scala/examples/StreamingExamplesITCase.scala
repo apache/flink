@@ -28,7 +28,6 @@ import org.apache.flink.streaming.examples.iteration.util.IterateExampleData
 import org.apache.flink.streaming.scala.examples.iteration.IterateExample
 import org.apache.flink.streaming.scala.examples.join.WindowJoin
 import org.apache.flink.streaming.scala.examples.join.WindowJoin.{Grade, Salary}
-import org.apache.flink.streaming.scala.examples.twitter.TwitterExample
 import org.apache.flink.streaming.scala.examples.windowing.{SessionWindowing, WindowWordCount}
 import org.apache.flink.streaming.scala.examples.wordcount.WordCount
 import org.apache.flink.streaming.test.examples.join.WindowJoinData
@@ -89,12 +88,6 @@ class StreamingExamplesITCase extends AbstractTestBase {
     catch {
       case _: Throwable =>
     }
-  }
-
-  @Test
-  def testTwitterExample(): Unit = {
-    val resultPath = getTempDirPath("result")
-    TwitterExample.main(Array("--output", resultPath))
   }
 
   @Test

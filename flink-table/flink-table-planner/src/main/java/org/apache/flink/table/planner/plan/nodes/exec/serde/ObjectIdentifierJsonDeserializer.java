@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.UnresolvedIdentifier;
@@ -28,11 +29,16 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.deser.std
 
 import java.io.IOException;
 
-/** JSON deserializer for {@link ObjectIdentifier}. */
-public class ObjectIdentifierJsonDeserializer extends StdDeserializer<ObjectIdentifier> {
+/**
+ * JSON deserializer for {@link ObjectIdentifier}.
+ *
+ * @see ObjectIdentifierJsonSerializer for the reverse operation
+ */
+@Internal
+final class ObjectIdentifierJsonDeserializer extends StdDeserializer<ObjectIdentifier> {
     private static final long serialVersionUID = 1L;
 
-    public ObjectIdentifierJsonDeserializer() {
+    ObjectIdentifierJsonDeserializer() {
         super(ObjectIdentifier.class);
     }
 

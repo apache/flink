@@ -493,7 +493,7 @@ class CalcITCase extends StreamingTestBase {
     val tableId = TestValuesTableFactory.registerData(rows)
 
     // We need a fixed timezone to make sure this test can run on machines across the world
-    tEnv.getConfig.getConfiguration.setString("table.local-time-zone", "Europe/Berlin")
+    tEnv.getConfig.set("table.local-time-zone", "Europe/Berlin")
 
     tEnv.executeSql(s"""
                        |CREATE TABLE T (

@@ -410,7 +410,7 @@ When using `-i <init.sql>` option to initialize SQL Client session, the followin
 
 When execute queries or insert statements, please enter the interactive mode or use the -f option to submit the SQL statements.
 
-<span class="label label-danger">Attention</span> If SQL Client meets errors in initialization, SQL Client will exit with error messages.
+<span class="label label-danger">Attention</span> If SQL Client receives errors during initialization, SQL Client will exit with error messages.
 
 ### Dependencies
 
@@ -437,7 +437,7 @@ In both modes, SQL Client supports to parse and execute all types of the Flink s
 
 ### Interactive Command Line
 
-In interactive Command Line, the SQL Client reads user inputs and executes the statement when getting semicolon (`;`).
+In interactive Command Line, the SQL Client reads user inputs and executes the statement terminated by a semicolon (`;`).
 
 SQL Client will print success message if the statement is executed successfully. When getting errors, SQL Client will also print error messages.
 By default, the error message only contains the error cause. In order to print the full exception stack for debugging, please set the
@@ -447,7 +447,7 @@ By default, the error message only contains the error cause. In order to print t
 
 SQL Client supports to execute a SQL script file with the `-f` option. SQL Client will execute
 statements one by one in the SQL script file and print execution messages for each executed statements.
-Once a statement is failed, the SQL Client will exist and all the remaining statements will not be executed.
+Once a statement fails, the SQL Client will exit and all the remaining statements will not be executed.
 
 An example of such a file is presented below.
 
@@ -494,7 +494,7 @@ This configuration:
 - set the savepoint path,
 - submit a sql job that load the savepoint from the specified savepoint path.
 
-<span class="label label-danger">Attention</span> Comparing to interactive mode, SQL Client will stop execution and exits when meets errors.
+<span class="label label-danger">Attention</span> Compared to the interactive mode, SQL Client will stop execution and exits when there are errors.
 
 ### Execute a set of SQL statements
 
@@ -508,13 +508,15 @@ of executing multiple queries.
 
 #### Syntax
 ```sql
-BEGIN STATEMENT SET;
+EXECUTE STATEMENT SET 
+BEGIN
   -- one or more INSERT INTO statements
   { INSERT INTO|OVERWRITE <select_statement>; }+
 END;
 ```
 
 <span class="label label-danger">Attention</span> The statements of enclosed in the `STATEMENT SET` must be separated by a semicolon (;).
+The old syntax `BEGIN STATEMENT SET; ... END;` is deprecated, may be removed in the future version.
 
 {{< tabs "statement set" >}}
 
@@ -553,22 +555,20 @@ Flink SQL> CREATE TABLE uniqueview (
 > );
 [INFO] Execute statement succeed.
 
-Flink SQL> BEGIN STATEMENT SET;
-[INFO] Begin a statement set.
-
-Flink SQL> INSERT INTO pageviews
+Flink SQL> EXECUTE STATEMENT SET
+> BEGIN
+>
+> INSERT INTO pageview
 > SELECT page_id, count(1)
 > FROM pageviews
 > GROUP BY page_id;
-[INFO] Add SQL update statement to the statement set.
-
-Flink SQL> INSERT INTO uniqueview
+>
+> INSERT INTO uniqueview
 > SELECT page_id, count(distinct user_id)
 > FROM pageviews
 > GROUP BY page_id;
-[INFO] Add SQL update statement to the statement set.
-
-Flink SQL> END;
+>
+> END;
 [INFO] Submitting SQL update statement to the cluster...
 [INFO] SQL update statement has been successfully submitted to the cluster:
 Job ID: 6b1af540c0c0bb3fcfcad50ac037c862
@@ -607,9 +607,10 @@ CREATE TABLE uniqueview (
   'table-name' = 'uniqueview'
 );
 
-BEGIN STATEMENT SET;
+EXECUTE STATEMENT SET
+BEGIN
 
-INSERT INTO pageviews
+INSERT INTO pageview
 SELECT page_id, count(1)
 FROM pageviews
 GROUP BY page_id;
@@ -642,9 +643,9 @@ Job ID: 6f922fe5cba87406ff23ae4a7bb79044
 
 <span class="label label-danger">Attention</span> The SQL Client does not track the status of the running Flink job after submission. The CLI process can be shutdown after the submission without affecting the detached query. Flink's `restart strategy` takes care of the fault-tolerance. A query can be cancelled using Flink's web interface, command-line, or REST API.
 
-However, for batch users, it's more common that the next DML statement requires to wait util the
+However, for batch users, it's more common that the next DML statement requires waiting until the
 previous DML statement finishes. In order to execute DML statements synchronously, you can set
-`table.dml-sync` option true in SQL Client.
+`table.dml-sync` option to `true` in SQL Client.
 
 ```sql
 Flink SQL> SET 'table.dml-sync' = 'true';

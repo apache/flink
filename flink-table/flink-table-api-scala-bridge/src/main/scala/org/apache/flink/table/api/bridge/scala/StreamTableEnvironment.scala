@@ -844,26 +844,6 @@ trait StreamTableEnvironment extends TableEnvironment {
     */
   @deprecated
   def toRetractStream[T: TypeInformation](table: Table): DataStream[(Boolean, T)]
-
-  /**
-    * Triggers the program execution. The environment will execute all parts of
-    * the program.
-    *
-    * The program execution will be logged and displayed with the provided name
-    *
-    * It calls the StreamExecutionEnvironment#execute on the underlying
-    * [[StreamExecutionEnvironment]]. In contrast to the [[TableEnvironment]] this
-    * environment translates queries eagerly.
-    *
-    * @param jobName Desired name of the job
-    * @return The result of the job execution, containing elapsed time and accumulators.
-    * @throws Exception which occurs during job execution.
-    * @deprecated Use [[StreamExecutionEnvironment.execute(String)]] instead or directly call
-    *             the execute methods of the Table API such as [[executeSql(String)]].
-    */
-  @deprecated
-  @throws[Exception]
-  override def execute(jobName: String): JobExecutionResult
 }
 
 object StreamTableEnvironment {

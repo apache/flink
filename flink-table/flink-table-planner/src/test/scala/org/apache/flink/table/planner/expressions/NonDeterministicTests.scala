@@ -80,11 +80,12 @@ class NonDeterministicTests extends ExpressionTestBase {
   def testTemporalFunctionsInBatchMode(): Unit = {
     val zoneId = ZoneId.of("Asia/Shanghai")
     config.setLocalTimeZone(zoneId)
-    config.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
 
-    config.getConfiguration.setLong(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME, 1123L)
-    config.getConfiguration.setLong(InternalConfigOptions.TABLE_QUERY_START_LOCAL_TIME,
-      1123L + TimeZone.getTimeZone(zoneId).getOffset(1123L))
+    config.set(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME, Long.box(1123L))
+    config.set(
+      InternalConfigOptions.TABLE_QUERY_START_LOCAL_TIME,
+      Long.box(1123L + TimeZone.getTimeZone(zoneId).getOffset(1123L)))
 
     val temporalFunctions = getCodeGenFunctions(List(
       "CURRENT_DATE",
@@ -109,7 +110,7 @@ class NonDeterministicTests extends ExpressionTestBase {
 
   @Test
   def testCurrentRowTimestampFunctionsInBatchMode(): Unit = {
-    config.getConfiguration.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+    config.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
     val temporalFunctions = getCodeGenFunctions(List("CURRENT_ROW_TIMESTAMP()"))
 
     val round1 = evaluateFunctionResult(temporalFunctions)

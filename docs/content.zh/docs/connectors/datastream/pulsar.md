@@ -175,8 +175,8 @@ Flink 使用 `TypeInformation` 将解析出来的结果序列化传递到下游�
 订阅是命名好的配置规则，指导消息如何投递给消费者。连接器需要提供一个独立的订阅名称,支持 Pulsar 的四种订阅模式：
 
 - [exclusive（独占）](https://pulsar.apache.org/docs/zh-CN/concepts-messaging/#exclusive)
-- [shared（共享）](https://pulsar.apache.org/docs/zh-CN/concepts-messaging/#shared)
-- [failover（灾备）](https://pulsar.apache.org/docs/zh-CN/concepts-messaging/#failover)
+- [shared（共享）](https://pulsar.apache.org/docs/zh-CN/concepts-messaging/#shared%E5%85%B1%E4%BA%AB)
+- [failover（灾备）](https://pulsar.apache.org/docs/zh-CN/concepts-messaging/#failover%E7%81%BE%E5%A4%87)
 - [key_shared（key 共享）](https://pulsar.apache.org/docs/zh-CN/concepts-messaging/#key_shared)
 
 当前 Pulsar 连接器里面，`独占` 和 `灾备` 的实现没有区别，如果 Flink 的一个 reader 挂了，连接器会把所有未消费的数据交给其他的 reader 来消费数据。

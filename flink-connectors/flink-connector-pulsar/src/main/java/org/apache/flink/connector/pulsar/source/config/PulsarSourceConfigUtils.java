@@ -19,12 +19,7 @@
 package org.apache.flink.connector.pulsar.source.config;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.Preconditions;
-
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
-import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableSet;
+import org.apache.flink.connector.pulsar.common.config.PulsarConfigValidator;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -32,14 +27,12 @@ import org.apache.pulsar.client.api.DeadLetterPolicy;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
 
-import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.setOptionValue;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_ADMIN_URL;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAMS;
 import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.PULSAR_AUTH_PARAM_MAP;
@@ -79,117 +72,78 @@ public final class PulsarSourceConfigUtils {
         // No need to create instance.
     }
 
-    private static final List<Set<ConfigOption<?>>> CONFLICT_SOURCE_OPTIONS =
-            ImmutableList.<Set<ConfigOption<?>>>builder()
-                    .add(ImmutableSet.of(PULSAR_AUTH_PARAMS, PULSAR_AUTH_PARAM_MAP))
+    public static final PulsarConfigValidator SOURCE_CONFIG_VALIDATOR =
+            PulsarConfigValidator.builder()
+                    .requiredOption(PULSAR_SERVICE_URL)
+                    .requiredOption(PULSAR_ADMIN_URL)
+                    .requiredOption(PULSAR_SUBSCRIPTION_NAME)
+                    .conflictOptions(PULSAR_AUTH_PARAMS, PULSAR_AUTH_PARAM_MAP)
                     .build();
-
-    private static final Set<ConfigOption<?>> REQUIRED_SOURCE_OPTIONS =
-            ImmutableSet.<ConfigOption<?>>builder()
-                    .add(PULSAR_SERVICE_URL)
-                    .add(PULSAR_ADMIN_URL)
-                    .add(PULSAR_SUBSCRIPTION_NAME)
-                    .build();
-
-    /**
-     * Helper method for checking client related config options. We would validate:
-     *
-     * <ul>
-     *   <li>If user have provided the required client config options.
-     *   <li>If user have provided some conflict options.
-     * </ul>
-     */
-    public static void checkConfigurations(Configuration configuration) {
-        REQUIRED_SOURCE_OPTIONS.forEach(
-                option ->
-                        Preconditions.checkArgument(
-                                configuration.contains(option),
-                                "Config option %s is not provided for pulsar source.",
-                                option));
-
-        CONFLICT_SOURCE_OPTIONS.forEach(
-                options -> {
-                    long nums = options.stream().filter(configuration::contains).count();
-                    Preconditions.checkArgument(
-                            nums <= 1,
-                            "Conflict config options %s were provided, we only support one of them for creating pulsar source.",
-                            options);
-                });
-    }
 
     /** Create a pulsar consumer builder by using the given Configuration. */
     public static <T> ConsumerBuilder<T> createConsumerBuilder(
-            PulsarClient client, Schema<T> schema, Configuration configuration) {
+            PulsarClient client, Schema<T> schema, SourceConfiguration configuration) {
         ConsumerBuilder<T> builder = client.newConsumer(schema);
 
-        setOptionValue(configuration, PULSAR_SUBSCRIPTION_NAME, builder::subscriptionName);
-        setOptionValue(
-                configuration, PULSAR_ACK_TIMEOUT_MILLIS, v -> builder.ackTimeout(v, MILLISECONDS));
-        setOptionValue(configuration, PULSAR_ACK_RECEIPT_ENABLED, builder::isAckReceiptEnabled);
-        setOptionValue(
-                configuration,
-                PULSAR_TICK_DURATION_MILLIS,
-                v -> builder.ackTimeoutTickTime(v, MILLISECONDS));
-        setOptionValue(
-                configuration,
+        configuration.useOption(PULSAR_SUBSCRIPTION_NAME, builder::subscriptionName);
+        configuration.useOption(
+                PULSAR_ACK_TIMEOUT_MILLIS, v -> builder.ackTimeout(v, MILLISECONDS));
+        configuration.useOption(PULSAR_ACK_RECEIPT_ENABLED, builder::isAckReceiptEnabled);
+        configuration.useOption(
+                PULSAR_TICK_DURATION_MILLIS, v -> builder.ackTimeoutTickTime(v, MILLISECONDS));
+        configuration.useOption(
                 PULSAR_NEGATIVE_ACK_REDELIVERY_DELAY_MICROS,
                 v -> builder.negativeAckRedeliveryDelay(v, MICROSECONDS));
-        setOptionValue(configuration, PULSAR_SUBSCRIPTION_TYPE, builder::subscriptionType);
-        setOptionValue(configuration, PULSAR_SUBSCRIPTION_MODE, builder::subscriptionMode);
-        setOptionValue(configuration, PULSAR_CRYPTO_FAILURE_ACTION, builder::cryptoFailureAction);
-        setOptionValue(configuration, PULSAR_RECEIVER_QUEUE_SIZE, builder::receiverQueueSize);
-        setOptionValue(
-                configuration,
+        configuration.useOption(PULSAR_SUBSCRIPTION_TYPE, builder::subscriptionType);
+        configuration.useOption(PULSAR_SUBSCRIPTION_MODE, builder::subscriptionMode);
+        configuration.useOption(PULSAR_CRYPTO_FAILURE_ACTION, builder::cryptoFailureAction);
+        configuration.useOption(PULSAR_RECEIVER_QUEUE_SIZE, builder::receiverQueueSize);
+        configuration.useOption(
                 PULSAR_ACKNOWLEDGEMENTS_GROUP_TIME_MICROS,
                 v -> builder.acknowledgmentGroupTime(v, MICROSECONDS));
-        setOptionValue(
-                configuration,
-                PULSAR_REPLICATE_SUBSCRIPTION_STATE,
-                builder::replicateSubscriptionState);
-        setOptionValue(
-                configuration,
+        configuration.useOption(
+                PULSAR_REPLICATE_SUBSCRIPTION_STATE, builder::replicateSubscriptionState);
+        configuration.useOption(
                 PULSAR_MAX_TOTAL_RECEIVER_QUEUE_SIZE_ACROSS_PARTITIONS,
                 builder::maxTotalReceiverQueueSizeAcrossPartitions);
-        setOptionValue(configuration, PULSAR_CONSUMER_NAME, builder::consumerName);
-        setOptionValue(configuration, PULSAR_READ_COMPACTED, builder::readCompacted);
-        setOptionValue(configuration, PULSAR_PRIORITY_LEVEL, builder::priorityLevel);
-        setOptionValue(configuration, PULSAR_CONSUMER_PROPERTIES, builder::properties);
-        setOptionValue(
-                configuration,
-                PULSAR_SUBSCRIPTION_INITIAL_POSITION,
-                builder::subscriptionInitialPosition);
+        configuration.useOption(PULSAR_CONSUMER_NAME, builder::consumerName);
+        configuration.useOption(PULSAR_READ_COMPACTED, builder::readCompacted);
+        configuration.useOption(PULSAR_PRIORITY_LEVEL, builder::priorityLevel);
+        configuration.useOption(
+                PULSAR_SUBSCRIPTION_INITIAL_POSITION, builder::subscriptionInitialPosition);
         createDeadLetterPolicy(configuration).ifPresent(builder::deadLetterPolicy);
-        setOptionValue(
-                configuration,
+        configuration.useOption(
                 PULSAR_AUTO_UPDATE_PARTITIONS_INTERVAL_SECONDS,
                 v -> builder.autoUpdatePartitionsInterval(v, SECONDS));
-        setOptionValue(configuration, PULSAR_RETRY_ENABLE, builder::enableRetry);
-        setOptionValue(
-                configuration,
-                PULSAR_MAX_PENDING_CHUNKED_MESSAGE,
-                builder::maxPendingChunkedMessage);
-        setOptionValue(
-                configuration,
+        configuration.useOption(PULSAR_RETRY_ENABLE, builder::enableRetry);
+        configuration.useOption(
+                PULSAR_MAX_PENDING_CHUNKED_MESSAGE, builder::maxPendingChunkedMessage);
+        configuration.useOption(
                 PULSAR_AUTO_ACK_OLDEST_CHUNKED_MESSAGE_ON_QUEUE_FULL,
                 builder::autoAckOldestChunkedMessageOnQueueFull);
-        setOptionValue(
-                configuration,
+        configuration.useOption(
                 PULSAR_EXPIRE_TIME_OF_INCOMPLETE_CHUNKED_MESSAGE_MILLIS,
                 v -> builder.expireTimeOfIncompleteChunkedMessage(v, MILLISECONDS));
-        setOptionValue(configuration, PULSAR_POOL_MESSAGES, builder::poolMessages);
+        configuration.useOption(PULSAR_POOL_MESSAGES, builder::poolMessages);
+
+        Map<String, String> properties = configuration.getProperties(PULSAR_CONSUMER_PROPERTIES);
+        if (!properties.isEmpty()) {
+            builder.properties(properties);
+        }
 
         return builder;
     }
 
-    private static Optional<DeadLetterPolicy> createDeadLetterPolicy(Configuration configuration) {
+    private static Optional<DeadLetterPolicy> createDeadLetterPolicy(
+            SourceConfiguration configuration) {
         if (configuration.contains(PULSAR_MAX_REDELIVER_COUNT)
                 || configuration.contains(PULSAR_RETRY_LETTER_TOPIC)
                 || configuration.contains(PULSAR_DEAD_LETTER_TOPIC)) {
             DeadLetterPolicy.DeadLetterPolicyBuilder builder = DeadLetterPolicy.builder();
 
-            setOptionValue(configuration, PULSAR_MAX_REDELIVER_COUNT, builder::maxRedeliverCount);
-            setOptionValue(configuration, PULSAR_RETRY_LETTER_TOPIC, builder::retryLetterTopic);
-            setOptionValue(configuration, PULSAR_DEAD_LETTER_TOPIC, builder::deadLetterTopic);
+            configuration.useOption(PULSAR_MAX_REDELIVER_COUNT, builder::maxRedeliverCount);
+            configuration.useOption(PULSAR_RETRY_LETTER_TOPIC, builder::retryLetterTopic);
+            configuration.useOption(PULSAR_DEAD_LETTER_TOPIC, builder::deadLetterTopic);
 
             return Optional.of(builder.build());
         } else {

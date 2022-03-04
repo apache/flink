@@ -760,6 +760,7 @@ class StreamPandasUDAFITTests(PyFlinkStreamTableTestCase):
                             "+I[3, 2.0, 4]"])
         os.remove(source_path)
 
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_over_aggregate_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir

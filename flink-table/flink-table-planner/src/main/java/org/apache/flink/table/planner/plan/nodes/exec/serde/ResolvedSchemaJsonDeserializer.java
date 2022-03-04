@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
@@ -37,10 +38,16 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchem
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.PRIMARY_KEY;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.ResolvedSchemaJsonSerializer.WATERMARK_SPECS;
 
-class ResolvedSchemaJsonDeserializer extends StdDeserializer<ResolvedSchema> {
+/**
+ * JSON deserializer for {@link ResolvedSchema}.
+ *
+ * @see ResolvedSchemaJsonSerializer for the reverse operation
+ */
+@Internal
+final class ResolvedSchemaJsonDeserializer extends StdDeserializer<ResolvedSchema> {
     private static final long serialVersionUID = 1L;
 
-    public ResolvedSchemaJsonDeserializer() {
+    ResolvedSchemaJsonDeserializer() {
         super(ResolvedSchema.class);
     }
 

@@ -81,8 +81,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
     private final SinkWriterStateHandler<InputT> writerStateHandler;
 
     private final MailboxExecutor mailboxExecutor;
-    // record endOfInput state to avoid duplicate prepareCommit on final notifyCheckpointComplete
-    // once FLIP-147 is fully operational all endOfInput processing needs to be removed
+
     private boolean endOfInput = false;
 
     SinkWriterOperator(
@@ -131,6 +130,7 @@ class SinkWriterOperator<InputT, CommT> extends AbstractStreamOperator<Committab
             sinkWriter.flush(false);
             emitCommittables(checkpointId);
         }
+        // no records are expected to emit after endOfInput
     }
 
     @Override

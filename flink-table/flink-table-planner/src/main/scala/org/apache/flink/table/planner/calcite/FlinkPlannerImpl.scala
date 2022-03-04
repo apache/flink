@@ -19,10 +19,11 @@
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.sql.parser.ExtendedSqlNode
-import org.apache.flink.sql.parser.dml.{RichSqlInsert, SqlBeginStatementSet, SqlEndStatementSet, SqlExecute, SqlStatementSet}
+import org.apache.flink.sql.parser.dml.{RichSqlInsert, SqlBeginStatementSet, SqlCompileAndExecutePlan, SqlEndStatementSet, SqlExecute, SqlExecutePlan, SqlStatementSet}
 import org.apache.flink.sql.parser.dql._
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader
+
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.config.NullCollation
 import org.apache.calcite.plan._
@@ -36,13 +37,15 @@ import org.apache.calcite.sql.validate.SqlValidator
 import org.apache.calcite.sql.{SqlInsert, SqlKind, SqlNode, SqlOperatorTable}
 import org.apache.calcite.sql2rel.{SqlRexConvertletTable, SqlToRelConverter}
 import org.apache.calcite.tools.{FrameworkConfig, RelConversionException}
-import org.apache.flink.sql.parser.ddl.{SqlReset, SqlSet, SqlUseModules}
+import org.apache.flink.sql.parser.ddl.{SqlCompilePlan, SqlReset, SqlSet, SqlUseModules}
 import org.apache.flink.table.planner.parse.CalciteParser
 
 import javax.annotation.Nullable
+
 import java.lang.{Boolean => JBoolean}
 import java.util
 import java.util.function.{Function => JFunction}
+
 import scala.collection.JavaConverters._
 
 /**
@@ -140,7 +143,8 @@ class FlinkPlannerImpl(
         || sqlNode.isInstanceOf[SqlBeginStatementSet]
         || sqlNode.isInstanceOf[SqlEndStatementSet]
         || sqlNode.isInstanceOf[SqlSet]
-        || sqlNode.isInstanceOf[SqlReset]) {
+        || sqlNode.isInstanceOf[SqlReset]
+        || sqlNode.isInstanceOf[SqlExecutePlan]) {
         return sqlNode
       }
       sqlNode match {
@@ -166,6 +170,12 @@ class FlinkPlannerImpl(
           val validatedSource = validator.validate(insert.getSource)
           insert.setOperand(2, validatedSource)
           insert
+        case compile: SqlCompilePlan =>
+          compile.setOperand(0, validate(compile.getOperandList.get(0)))
+          compile
+        case compileAndExecute: SqlCompileAndExecutePlan =>
+          compileAndExecute.setOperand(0, validate(compileAndExecute.getOperandList.get(0)))
+          compileAndExecute
         case _ =>
           validator.validate(sqlNode)
       }

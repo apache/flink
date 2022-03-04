@@ -321,7 +321,7 @@ public class WritableSavepointWindowITCase extends AbstractTestBase {
         JobGraph jobGraph = sEnv.getStreamGraph().getJobGraph();
         jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.forPath(savepointPath, true));
 
-        ClusterClient<?> client = miniClusterResource.getClusterClient();
+        ClusterClient<?> client = MINI_CLUSTER_RESOURCE.getClusterClient();
         try {
             Optional<SerializedThrowable> serializedThrowable =
                     client.submitJob(jobGraph)

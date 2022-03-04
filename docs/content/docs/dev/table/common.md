@@ -63,7 +63,7 @@ Table table2 = tableEnv.from("SourceTable");
 Table table3 = tableEnv.sqlQuery("SELECT * FROM SourceTable");
 
 // Emit a Table API result Table to a TableSink, same for SQL result
-TableResult tableResult = table2.executeInsert("SinkTable");
+TableResult tableResult = table2.insertInto("SinkTable").execute();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -84,16 +84,16 @@ tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datag
   .build())
 
 // Create a sink table (using SQL DDL)
-tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable");
+tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable")
 
 // Create a Table object from a Table API query
-val table1 = tableEnv.from("SourceTable");
+val table1 = tableEnv.from("SourceTable")
 
 // Create a Table object from a SQL query
-val table2 = tableEnv.sqlQuery("SELECT * FROM SourceTable");
+val table2 = tableEnv.sqlQuery("SELECT * FROM SourceTable")
 
 // Emit a Table API result Table to a TableSink, same for SQL result
-val tableResult = table1.executeInsert("SinkTable");
+val tableResult = table1.insertInto("SinkTable").execute()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -388,11 +388,11 @@ tableEnv.createTemporaryView("other_catalog.other_database.exampleView", table);
 {{< tab "Scala" >}}
 ```scala
 // get a TableEnvironment
-val tEnv: TableEnvironment = ...;
+val tEnv: TableEnvironment = ...
 tEnv.useCatalog("custom_catalog")
 tEnv.useDatabase("custom_database")
 
-val table: Table = ...;
+val table: Table = ...
 
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 
@@ -644,7 +644,9 @@ A batch `Table` can only be written to a `BatchTableSink`, while a streaming `Ta
 
 Please see the documentation about [Table Sources & Sinks]({{< ref "docs/dev/table/sourcesSinks" >}}) for details about available sinks and instructions for how to implement a custom `DynamicTableSink`.
 
-The `Table.executeInsert(String tableName)` method emits the `Table` to a registered `TableSink`. The method looks up the `TableSink` from the catalog by the name and validates that the schema of the `Table` is identical to the schema of the `TableSink`. 
+The `Table.insertInto(String tableName)` method defines a complete end-to-end pipeline emitting the source table to a registered sink table.
+The method looks up the table sink from the catalog by the name and validates that the schema of the `Table` is identical to the schema of the sink.
+A pipeline can be explained with `TablePipeline.explain()` and executed invoking `TablePipeline.execute()`.
 
 The following examples shows how to emit a `Table`:
 
@@ -672,9 +674,14 @@ tableEnv.createTemporaryTable("CsvSinkTable", TableDescriptor.forConnector("file
 // compute a result Table using Table API operators and/or SQL queries
 Table result = ...
 
-// emit the result Table to the registered TableSink
-result.executeInsert("CsvSinkTable");
+// Prepare the insert into pipeline
+TablePipeline pipeline = result.insertInto("CsvSinkTable");
 
+// Print explain details
+pipeline.printExplain();
+
+// emit the result Table to the registered TableSink
+pipeline.execute();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -700,8 +707,14 @@ tableEnv.createTemporaryTable("CsvSinkTable", TableDescriptor.forConnector("file
 // compute a result Table using Table API operators and/or SQL queries
 val result: Table = ...
 
+// Prepare the insert into pipeline
+val pipeline = result.insertInto("CsvSinkTable")
+
+// Print explain details
+pipeline.printExplain()
+
 // emit the result Table to the registered TableSink
-result.executeInsert("CsvSinkTable")
+pipeline.execute()
 
 ```
 {{< /tab >}}
@@ -750,9 +763,9 @@ A query is internally represented as a logical query plan and is translated in t
 A Table API or SQL query is translated when:
 
 * `TableEnvironment.executeSql()` is called. This method is used for executing a given statement, and the sql query is translated immediately once this method is called.
-* `Table.executeInsert()` is called. This method is used for inserting the table content to the given sink path, and the Table API is translated immediately once this method is called.
-* `Table.execute()` is called. This method is used for collecting the table content to local client, and the Table API is translated immediately once this method is called.
-* `StatementSet.execute()` is called. A `Table` (emitted to a sink through `StatementSet.addInsert()`) or an INSERT statement (specified through `StatementSet.addInsertSql()`) will be buffered in `StatementSet` first. They are translated once `StatementSet.execute()` is called. All sinks will be optimized into one DAG.
+* `TablePipeline.execute()` is called. This method is used for executing a source-to-sink pipeline, and the Table API program is translated immediately once this method is called.
+* `Table.execute()` is called. This method is used for collecting the table content to the local client, and the Table API is translated immediately once this method is called.
+* `StatementSet.execute()` is called. A `TablePipeline` (emitted to a sink through `StatementSet.add()`) or an INSERT statement (specified through `StatementSet.addInsertSql()`) will be buffered in `StatementSet` first. They are transformed once `StatementSet.execute()` is called. All sinks will be optimized into one DAG.
 * A `Table` is translated when it is converted into a `DataStream` (see [Integration with DataStream](#integration-with-datastream)). Once translated, it's a regular DataStream program and is executed when `StreamExecutionEnvironment.execute()` is called.
 
 {{< top >}}
@@ -908,10 +921,10 @@ tEnv.createTemporaryTable("MySink2", TableDescriptor.forConnector("filesystem")
 StatementSet stmtSet = tEnv.createStatementSet();
 
 Table table1 = tEnv.from("MySource1").where($("word").like("F%"));
-stmtSet.addInsert("MySink1", table1);
+stmtSet.add(table1.insertInto("MySink1");
 
 Table table2 = table1.unionAll(tEnv.from("MySource2"));
-stmtSet.addInsert("MySink2", table2);
+stmtSet.add(table2.insertInto("MySink2");
 
 String explanation = stmtSet.explain();
 System.out.println(explanation);
@@ -952,10 +965,10 @@ tEnv.createTemporaryTable("MySink2", TableDescriptor.forConnector("filesystem")
 val stmtSet = tEnv.createStatementSet()
 
 val table1 = tEnv.from("MySource1").where($"word".like("F%"))
-stmtSet.addInsert("MySink1", table1)
+stmtSet.add(table1.insertInto("MySink1"))
 
 val table2 = table1.unionAll(tEnv.from("MySource2"))
-stmtSet.addInsert("MySink2", table2)
+stmtSet.add(table2.insertInto("MySink2"))
 
 val explanation = stmtSet.explain()
 println(explanation)

@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.functions;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
@@ -27,11 +28,13 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
+import org.apache.flink.table.types.logical.utils.LogicalTypeCasts;
 import org.apache.flink.types.Row;
 
 import org.junit.runners.Parameterized;
 
 import java.math.BigDecimal;
+import java.time.DateTimeException;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -40,13 +43,11 @@ import java.time.LocalTime;
 import java.time.Period;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
-import java.util.AbstractMap;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.apache.flink.table.api.DataTypes.ARRAY;
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -58,6 +59,7 @@ import static org.apache.flink.table.api.DataTypes.DATE;
 import static org.apache.flink.table.api.DataTypes.DAY;
 import static org.apache.flink.table.api.DataTypes.DECIMAL;
 import static org.apache.flink.table.api.DataTypes.DOUBLE;
+import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.FLOAT;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.DataTypes.INTERVAL;
@@ -76,6 +78,9 @@ import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.DataTypes.YEAR;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour;
+import static org.apache.flink.util.CollectionUtil.entry;
+import static org.apache.flink.util.CollectionUtil.map;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST}. */
 public class CastFunctionITCase extends BuiltInFunctionTestBase {
@@ -124,6 +129,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     public static List<TestSpec> testData() {
         final List<TestSpec> specs = new ArrayList<>();
         specs.addAll(allTypesBasic());
+        specs.addAll(toStringCasts());
         specs.addAll(decimalCasts());
         specs.addAll(numericBounds());
         specs.addAll(constructedTypes());
@@ -131,6 +137,831 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     public static List<TestSpec> allTypesBasic() {
+        return Arrays.asList(
+                CastTestSpecBuilder.testCastTo(BOOLEAN())
+                        .fromCase(BOOLEAN(), null, null)
+                        .failRuntime(CHAR(3), "foo", TableException.class)
+                        .fromCase(CHAR(4), "true", true)
+                        .fromCase(VARCHAR(5), "FalsE", false)
+                        .failRuntime(STRING(), "Apache Flink", TableException.class)
+                        .fromCase(STRING(), "TRUE", true)
+                        .failRuntime(STRING(), "", TableException.class)
+                        .fromCase(BOOLEAN(), true, true)
+                        .fromCase(BOOLEAN(), false, false)
+                        // Not supported - no fix
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        //
+                        // https://issues.apache.org/jira/browse/FLINK-24576 should also fail for
+                        // SQL
+                        .failTableApiValidation(DECIMAL(4, 3), 4.3)
+                        .fromCase(TINYINT(), DEFAULT_POSITIVE_TINY_INT, true)
+                        .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, true)
+                        .fromCase(TINYINT(), 0, false)
+                        .fromCase(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT, true)
+                        .fromCase(SMALLINT(), DEFAULT_NEGATIVE_SMALL_INT, true)
+                        .fromCase(SMALLINT(), 0, false)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, true)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, true)
+                        .fromCase(INT(), 0, false)
+                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, true)
+                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, true)
+                        .fromCase(BIGINT(), 0, false)
+                        // https://issues.apache.org/jira/browse/FLINK-24576 should also fail for
+                        // SQL
+                        .failTableApiValidation(FLOAT(), -123.456)
+                        .failTableApiValidation(DOUBLE(), 0)
+                        // Not supported - no fix
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        // TIMESTAMP_WITH_TIME_ZONE
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(BINARY(2))
+                        .fromCase(BINARY(5), null, null)
+                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
+                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
+                        .fromCase(STRING(), "AAbbcCdD", new byte[] {-86, -69})
+                        .fromCase(VARCHAR(4), "FC", new byte[] {-4, 0})
+                        .fromCase(STRING(), "df", new byte[] {-33, 0})
+                        // Not supported - no fix
+                        .failValidation(BOOLEAN(), true)
+                        //
+                        .fromCase(BINARY(2), DEFAULT_BINARY, DEFAULT_BINARY)
+                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, new byte[] {0, 1})
+                        .fromCase(BYTES(), DEFAULT_BYTES, new byte[] {0, 1})
+                        .fromCase(BINARY(1), new byte[] {111}, new byte[] {111, 0})
+                        .fromCase(VARBINARY(1), new byte[] {111}, new byte[] {111, 0})
+                        .fromCase(BYTES(), new byte[] {11}, new byte[] {11, 0})
+                        // Not supported - no fix
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        // TIMESTAMP_WITH_TIME_ZONE
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        //
+                        // RAW supported - check CastFunctionMiscITCase
+                        .build(),
+                CastTestSpecBuilder.testCastTo(VARBINARY(4))
+                        .fromCase(VARBINARY(5), null, null)
+                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
+                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
+                        .fromCase(STRING(), "AAbbCcDdEe", new byte[] {-86, -69, -52, -35})
+                        // Not supported - no fix
+                        .failValidation(BOOLEAN(), true)
+                        //
+                        .fromCase(BINARY(2), DEFAULT_BINARY, DEFAULT_BINARY)
+                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, DEFAULT_VARBINARY)
+                        .fromCase(VARBINARY(10), DEFAULT_VARBINARY, DEFAULT_VARBINARY)
+                        .fromCase(BYTES(), DEFAULT_BYTES, new byte[] {0, 1, 2, 3})
+                        // Not supported - no fix
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        // TIMESTAMP_WITH_TIME_ZONE
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        //
+                        // RAW supported - check CastFunctionMiscITCase
+                        .build(),
+                CastTestSpecBuilder.testCastTo(BYTES())
+                        .fromCase(BYTES(), null, null)
+                        .fromCase(CHAR(4), "666f", new byte[] {102, 111})
+                        .fromCase(VARCHAR(8), "666F", new byte[] {102, 111})
+                        .fromCase(STRING(), "aaBBCcDdEe", new byte[] {-86, -69, -52, -35, -18})
+                        // Not supported - no fix
+                        .failValidation(BOOLEAN(), true)
+                        //
+                        .fromCase(BINARY(2), DEFAULT_BINARY, DEFAULT_BINARY)
+                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, DEFAULT_VARBINARY)
+                        .fromCase(BYTES(), DEFAULT_BYTES, DEFAULT_BYTES)
+                        // Not supported - no fix
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        // TIMESTAMP_WITH_TIME_ZONE
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        //
+                        // RAW supported - check CastFunctionMiscITCase
+                        .build(),
+                CastTestSpecBuilder.testCastTo(DECIMAL(5, 3))
+                        .fromCase(DECIMAL(10, 2), null, null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
+                        .fromCase(STRING(), "1.234", new BigDecimal("1.234"))
+                        .fromCase(STRING(), "1.2", new BigDecimal("1.200"))
+                        .fromCase(BOOLEAN(), true, new BigDecimal("1.000"))
+                        .fromCase(BOOLEAN(), false, new BigDecimal("0.000"))
+                        // Not supported - no fix
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        //
+                        .fromCase(DECIMAL(4, 3), 9.87, new BigDecimal("9.870"))
+                        .fromCase(TINYINT(), -1, new BigDecimal("-1.000"))
+                        .fromCase(SMALLINT(), 3, new BigDecimal("3.000"))
+                        .fromCase(INT(), 42, new BigDecimal("42.000"))
+                        .fromCase(BIGINT(), 8, new BigDecimal("8.000"))
+                        .fromCase(FLOAT(), -12.345, new BigDecimal("-12.345"))
+                        .fromCase(DOUBLE(), 12.678, new BigDecimal("12.678"))
+                        // Not supported - no fix
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        // TIMESTAMP_WITH_TIME_ZONE
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(TINYINT())
+                        .fromCase(TINYINT(), null, null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
+                        .fromCase(STRING(), "1.234", (byte) 1)
+                        .fromCase(STRING(), "123", (byte) 123)
+                        .failRuntime(STRING(), "-130", NumberFormatException.class)
+                        .fromCase(BOOLEAN(), true, (byte) 1)
+                        .fromCase(BOOLEAN(), false, (byte) 0)
+                        // Not supported - no fix
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        //
+                        .fromCase(DECIMAL(4, 3), 9.87, (byte) 9)
+                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
+                        // instead of overflow
+                        .fromCase(DECIMAL(10, 3), 9123.87, (byte) -93)
+                        .fromCase(TINYINT(), DEFAULT_POSITIVE_TINY_INT, DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(SMALLINT(), 32, (byte) 32)
+                        .fromCase(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT, (byte) 57)
+                        .fromCase(SMALLINT(), DEFAULT_NEGATIVE_SMALL_INT, (byte) -57)
+                        .fromCase(INT(), -12, (byte) -12)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (byte) -121)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (byte) 121)
+                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, (byte) 53)
+                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, (byte) -53)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, (byte) 123)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, (byte) -123)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, (byte) 123)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, (byte) -123)
+                        // Not supported - no fix
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        // TIMESTAMP_WITH_TIME_ZONE
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(SMALLINT())
+                        .fromCase(SMALLINT(), null, null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
+                        .fromCase(STRING(), "1.234", (short) 1)
+                        .fromCase(STRING(), "123", (short) 123)
+                        .failRuntime(STRING(), "-32769", NumberFormatException.class)
+                        .fromCase(BOOLEAN(), true, (short) 1)
+                        .fromCase(BOOLEAN(), false, (short) 0)
+                        // Not supported - no fix
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        //
+                        .fromCase(DECIMAL(4, 3), 9.87, (short) 9)
+                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
+                        // instead of overflow
+                        .fromCase(DECIMAL(10, 3), 91235.87, (short) 25699)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_POSITIVE_TINY_INT,
+                                (short) DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_NEGATIVE_TINY_INT,
+                                (short) DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(
+                                SMALLINT(), DEFAULT_POSITIVE_SMALL_INT, DEFAULT_POSITIVE_SMALL_INT)
+                        .fromCase(
+                                SMALLINT(), DEFAULT_NEGATIVE_SMALL_INT, DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(SMALLINT(), 32780, (short) -32756)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (short) -10617)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (short) 10617)
+                        .fromCase(INT(), -12, (short) -12)
+                        .fromCase(BIGINT(), 123, (short) 123)
+                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, (short) 7221)
+                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, (short) -7221)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, (short) 123)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, (short) -123)
+                        .fromCase(FLOAT(), 123456.78, (short) -7616)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, (short) 123)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, (short) -123)
+                        .fromCase(DOUBLE(), 123456.7890, (short) -7616)
+                        // Not supported - no fix
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        // TIMESTAMP_WITH_TIME_ZONE
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(INT())
+                        .fromCase(INT(), null, null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
+                        .fromCase(STRING(), "1.234", 1)
+                        .fromCase(STRING(), "123", 123)
+                        .failRuntime(STRING(), "-3276913443134", NumberFormatException.class)
+                        .fromCase(BOOLEAN(), true, 1)
+                        .fromCase(BOOLEAN(), false, 0)
+                        // Not supported - no fix
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        //
+                        .fromCase(DECIMAL(4, 3), 9.87, 9)
+                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
+                        // instead of overflow
+                        .fromCase(DECIMAL(20, 3), 3276913443134.87, -146603714)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_POSITIVE_TINY_INT,
+                                (int) DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_NEGATIVE_TINY_INT,
+                                (int) DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_POSITIVE_SMALL_INT,
+                                (int) DEFAULT_POSITIVE_SMALL_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_NEGATIVE_SMALL_INT,
+                                (int) DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, DEFAULT_POSITIVE_INT)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, DEFAULT_NEGATIVE_INT)
+                        .fromCase(BIGINT(), 123, 123)
+                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, -539222987)
+                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, 539222987)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123)
+                        .fromCase(FLOAT(), 9234567891.12, 644633299)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123)
+                        .fromCase(DOUBLE(), 9234567891.12345, 644633299)
+                        // Not supported - no fix
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        // TIMESTAMP_WITH_TIME_ZONE
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(BIGINT())
+                        .fromCase(BIGINT(), null, null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
+                        .fromCase(STRING(), "1.234", 1L)
+                        .fromCase(STRING(), "123", 123L)
+                        .fromCase(STRING(), "-3276913443134", -3276913443134L)
+                        .fromCase(BOOLEAN(), true, 1L)
+                        .fromCase(BOOLEAN(), false, 0L)
+                        // Not supported - no fix
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        //
+                        .fromCase(DECIMAL(4, 3), 9.87, 9L)
+                        .fromCase(DECIMAL(20, 3), 3276913443134.87, 3276913443134L)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_POSITIVE_TINY_INT,
+                                (long) DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_NEGATIVE_TINY_INT,
+                                (long) DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_POSITIVE_SMALL_INT,
+                                (long) DEFAULT_POSITIVE_SMALL_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_NEGATIVE_SMALL_INT,
+                                (long) DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (long) DEFAULT_POSITIVE_INT)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (long) DEFAULT_NEGATIVE_INT)
+                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, DEFAULT_POSITIVE_BIGINT)
+                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, DEFAULT_NEGATIVE_BIGINT)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123L)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123L)
+                        .fromCase(FLOAT(), 9234567891.12, 9234567891L)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123L)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123L)
+                        .fromCase(DOUBLE(), 9234567891.12345, 9234567891L)
+                        // Not supported - no fix
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        // TIMESTAMP_WITH_TIME_ZONE
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(FLOAT())
+                        .fromCase(FLOAT(), null, null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
+                        .fromCase(STRING(), "1.234", 1.234f)
+                        .fromCase(STRING(), "123", 123.0f)
+                        .fromCase(STRING(), "-3276913443134", -3.27691403E12f)
+                        .fromCase(BOOLEAN(), true, 1.0f)
+                        .fromCase(BOOLEAN(), false, 0.0f)
+                        // Not supported - no fix
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        //
+                        .fromCase(DECIMAL(4, 3), 9.87, 9.87f)
+                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
+                        // instead of overflow
+                        .fromCase(DECIMAL(4, 3), 9.87, 9.87f)
+                        .fromCase(DECIMAL(20, 3), 3276913443134.87, 3.27691351E12f)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_POSITIVE_TINY_INT,
+                                (float) DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_NEGATIVE_TINY_INT,
+                                (float) DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_POSITIVE_SMALL_INT,
+                                (float) DEFAULT_POSITIVE_SMALL_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_NEGATIVE_SMALL_INT,
+                                (float) DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (float) DEFAULT_POSITIVE_INT)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (float) DEFAULT_NEGATIVE_INT)
+                        .fromCase(
+                                BIGINT(), DEFAULT_POSITIVE_BIGINT, (float) DEFAULT_POSITIVE_BIGINT)
+                        .fromCase(
+                                BIGINT(), DEFAULT_NEGATIVE_BIGINT, (float) DEFAULT_NEGATIVE_BIGINT)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, DEFAULT_POSITIVE_FLOAT)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, DEFAULT_NEGATIVE_FLOAT)
+                        .fromCase(FLOAT(), 9234567891.12, 9234567891.12f)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123.456789f)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123.456789f)
+                        .fromCase(DOUBLE(), 1239234567891.1234567891234, 1.23923451E12f)
+                        // Not supported - no fix
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        // TIMESTAMP_WITH_TIME_ZONE
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(DOUBLE())
+                        .fromCase(DOUBLE(), null, null)
+                        .failRuntime(CHAR(3), "foo", NumberFormatException.class)
+                        .failRuntime(VARCHAR(5), "Flink", NumberFormatException.class)
+                        .failRuntime(STRING(), "Apache", NumberFormatException.class)
+                        .fromCase(STRING(), "1.234", 1.234d)
+                        .fromCase(STRING(), "123", 123.0d)
+                        .fromCase(STRING(), "-3276913443134", -3.276913443134E12)
+                        .fromCase(BOOLEAN(), true, 1.0d)
+                        .fromCase(BOOLEAN(), false, 0.0d)
+                        // Not supported - no fix
+                        .failValidation(BINARY(2), DEFAULT_BINARY)
+                        .failValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failValidation(BYTES(), DEFAULT_BYTES)
+                        //
+                        .fromCase(DECIMAL(4, 3), 9.87, 9.87d)
+                        .fromCase(DECIMAL(20, 3), 3276913443134.87, 3.27691344313487E12d)
+                        .fromCase(
+                                DECIMAL(30, 20),
+                                new BigDecimal("123456789.123456789123456789"),
+                                1.2345678912345679E8d)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_POSITIVE_TINY_INT,
+                                (double) DEFAULT_POSITIVE_TINY_INT)
+                        .fromCase(
+                                TINYINT(),
+                                DEFAULT_NEGATIVE_TINY_INT,
+                                (double) DEFAULT_NEGATIVE_TINY_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_POSITIVE_SMALL_INT,
+                                (double) DEFAULT_POSITIVE_SMALL_INT)
+                        .fromCase(
+                                SMALLINT(),
+                                DEFAULT_NEGATIVE_SMALL_INT,
+                                (double) DEFAULT_NEGATIVE_SMALL_INT)
+                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (double) DEFAULT_POSITIVE_INT)
+                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (double) DEFAULT_NEGATIVE_INT)
+                        .fromCase(
+                                BIGINT(), DEFAULT_POSITIVE_BIGINT, (double) DEFAULT_POSITIVE_BIGINT)
+                        .fromCase(
+                                BIGINT(), DEFAULT_NEGATIVE_BIGINT, (double) DEFAULT_NEGATIVE_BIGINT)
+                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123.456d)
+                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123.456)
+                        .fromCase(FLOAT(), 9234567891.12, 9234567891.12d)
+                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, DEFAULT_POSITIVE_DOUBLE)
+                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, DEFAULT_NEGATIVE_DOUBLE)
+                        .fromCase(DOUBLE(), 1239234567891.1234567891234, 1.2392345678911235E12d)
+                        // Not supported - no fix
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        .failValidation(TIMESTAMP(), DEFAULT_TIMESTAMP)
+                        // TIMESTAMP_WITH_TIME_ZONE
+                        .failValidation(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(DATE())
+                        .fromCase(DATE(), null, null)
+                        .failRuntime(CHAR(3), "foo", DateTimeException.class)
+                        .failRuntime(VARCHAR(5), "Flink", DateTimeException.class)
+                        .fromCase(STRING(), "123", LocalDate.of(123, 1, 1))
+                        .fromCase(STRING(), "2021-09-27", LocalDate.of(2021, 9, 27))
+                        .fromCase(
+                                STRING(),
+                                "2021-09-27 12:34:56.123456789",
+                                LocalDate.of(2021, 9, 27))
+                        .failRuntime(STRING(), "2021/09/27", DateTimeException.class)
+                        // Not supported - no fix
+                        .failValidation(BOOLEAN(), true)
+                        .failTableApiValidation(BINARY(2), DEFAULT_BINARY)
+                        .failTableApiValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApiValidation(BYTES(), DEFAULT_BYTES)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        //
+                        .fromCase(DATE(), DEFAULT_DATE, DEFAULT_DATE)
+                        // Not supported - no fix
+                        .failValidation(TIME(), DEFAULT_TIME)
+                        //
+                        .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
+                        .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
+
+                        // https://issues.apache.org/jira/browse/FLINK-20869
+                        // TIMESTAMP_WITH_TIME_ZONE
+
+                        // https://issues.apache.org/jira/browse/FLINK-24422 - Accept only Instant
+                        .fromCase(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
+                        .fromCase(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
+                        // Not supported - no fix
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(TIME())
+                        .fromCase(TIME(), null, null)
+                        .failRuntime(CHAR(3), "foo", DateTimeException.class)
+                        .failRuntime(VARCHAR(5), "Flink", DateTimeException.class)
+                        .failRuntime(STRING(), "Flink", DateTimeException.class)
+                        .fromCase(STRING(), "123", LocalTime.of(23, 0, 0))
+                        .fromCase(STRING(), "123:45", LocalTime.of(23, 45, 0))
+                        .failRuntime(STRING(), "2021-09-27", DateTimeException.class)
+                        .failRuntime(STRING(), "2021-09-27 12:34:56", DateTimeException.class)
+                        // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
+                        // lost
+                        .fromCase(STRING(), "12:34:56.123456789", LocalTime.of(12, 34, 56, 0))
+                        .failRuntime(
+                                STRING(), "2021-09-27 12:34:56.123456789", DateTimeException.class)
+                        // Not supported - no fix
+                        .failValidation(BOOLEAN(), true)
+                        .failTableApiValidation(BINARY(2), DEFAULT_BINARY)
+                        .failTableApiValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApiValidation(BYTES(), DEFAULT_BYTES)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        .failValidation(DATE(), DEFAULT_DATE)
+                        //
+                        .fromCase(TIME(5), DEFAULT_TIME, LocalTime.of(12, 34, 56, 0))
+                        .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
+                        .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
+
+                        // https://issues.apache.org/jira/browse/FLINK-20869
+                        // TIMESTAMP_WITH_TIME_ZONE
+
+                        // https://issues.apache.org/jira/browse/FLINK-24422 - Accept only Instant
+                        .fromCase(TIMESTAMP_LTZ(4), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
+                        .fromCase(
+                                TIMESTAMP_LTZ(4), DEFAULT_TIMESTAMP_LTZ, LocalTime.of(7, 54, 56, 0))
+                        // Not supported - no fix
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP(9))
+                        .fromCase(TIMESTAMP(), null, null)
+                        .failRuntime(CHAR(3), "foo", DateTimeException.class)
+                        .failRuntime(VARCHAR(5), "Flink", DateTimeException.class)
+                        .failRuntime(STRING(), "123", DateTimeException.class)
+                        .fromCase(STRING(), "2021-09-27", LocalDateTime.of(2021, 9, 27, 0, 0, 0, 0))
+                        .failRuntime(STRING(), "2021/09/27", DateTimeException.class)
+                        .fromCase(
+                                STRING(),
+                                "2021-09-27 12:34:56.123456789",
+                                LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123456789))
+                        // Not supported - no fix
+                        .failValidation(BOOLEAN(), true)
+                        .failTableApiValidation(BINARY(2), DEFAULT_BINARY)
+                        .failTableApiValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApiValidation(BYTES(), DEFAULT_BYTES)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        //
+                        .fromCase(DATE(), DEFAULT_DATE, LocalDateTime.of(2021, 9, 24, 0, 0, 0, 0))
+
+                        // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
+                        // lost
+                        // https://issues.apache.org/jira/browse/FLINK-24423 Continue using EPOCH
+                        // date or use 0 for the year?
+                        .fromCase(
+                                TIME(5), DEFAULT_TIME, LocalDateTime.of(1970, 1, 1, 12, 34, 56, 0))
+                        .fromCase(
+                                TIMESTAMP(),
+                                DEFAULT_TIMESTAMP,
+                                LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123456000))
+                        .fromCase(
+                                TIMESTAMP(8),
+                                DEFAULT_TIMESTAMP,
+                                LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123456700))
+                        .fromCase(
+                                TIMESTAMP(4),
+                                DEFAULT_TIMESTAMP,
+                                LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123400000))
+
+                        // https://issues.apache.org/jira/browse/FLINK-20869
+                        // TIMESTAMP_WITH_TIME_ZONE
+
+                        // https://issues.apache.org/jira/browse/FLINK-24422 - Accept only Instant
+                        .fromCase(
+                                TIMESTAMP_LTZ(4),
+                                DEFAULT_TIMESTAMP,
+                                LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123400000))
+                        .fromCase(
+                                TIMESTAMP_LTZ(4),
+                                DEFAULT_TIMESTAMP_LTZ,
+                                LocalDateTime.of(2021, 9, 25, 7, 54, 56, 123400000))
+                        // Not supported - no fix
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
+                        .fromCase(TIMESTAMP_LTZ(), null, null)
+                        .failRuntime(CHAR(3), "foo", DateTimeParseException.class)
+                        .failRuntime(VARCHAR(5), "Flink", DateTimeParseException.class)
+                        .failRuntime(STRING(), "Apache", DateTimeParseException.class)
+                        .fromCase(
+                                STRING(),
+                                "2021-09-27",
+                                fromLocalToUTC(LocalDateTime.of(2021, 9, 27, 0, 0, 0, 0)))
+                        .fromCase(
+                                STRING(),
+                                "2021-09-27 12:34:56.123",
+                                fromLocalToUTC(
+                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123000000)))
+                        .fromCase(
+                                STRING(),
+                                "2021-09-27 12:34:56.123456789",
+                                fromLocalToUTC(
+                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123456789)))
+
+                        // Not supported - no fix
+                        .failValidation(BOOLEAN(), true)
+                        .failTableApiValidation(BINARY(2), DEFAULT_BINARY)
+                        .failTableApiValidation(VARBINARY(5), DEFAULT_VARBINARY)
+                        .failTableApiValidation(BYTES(), DEFAULT_BYTES)
+                        .failValidation(DECIMAL(5, 3), 12.345)
+                        .failValidation(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
+                        .failValidation(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
+                        .failValidation(INT(), DEFAULT_POSITIVE_INT)
+                        .failValidation(BIGINT(), DEFAULT_POSITIVE_BIGINT)
+                        .failValidation(FLOAT(), DEFAULT_POSITIVE_FLOAT)
+                        .failValidation(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
+                        //
+                        .fromCase(
+                                DATE(),
+                                DEFAULT_DATE,
+                                fromLocalToUTC(LocalDateTime.of(2021, 9, 24, 0, 0, 0, 0)))
+
+                        // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
+                        // lost
+                        // https://issues.apache.org/jira/browse/FLINK-24423 Continue using EPOCH
+                        // date or use 0 for the year?
+                        .fromCase(
+                                TIME(5),
+                                DEFAULT_TIME,
+                                fromLocalToUTC(LocalDateTime.of(1970, 1, 1, 12, 34, 56, 0)))
+                        .fromCase(
+                                TIMESTAMP(),
+                                DEFAULT_TIMESTAMP,
+                                fromLocalToUTC(
+                                        LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123456000)))
+                        .fromCase(
+                                TIMESTAMP(8),
+                                DEFAULT_TIMESTAMP,
+                                fromLocalToUTC(
+                                        LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123456700)))
+                        .fromCase(
+                                TIMESTAMP(4),
+                                DEFAULT_TIMESTAMP,
+                                fromLocalToUTC(
+                                        LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123400000)))
+
+                        // https://issues.apache.org/jira/browse/FLINK-20869
+                        // TIMESTAMP_WITH_TIME_ZONE
+
+                        // https://issues.apache.org/jira/browse/FLINK-24422 - Accept only Instant
+                        .fromCase(
+                                TIMESTAMP_LTZ(4),
+                                DEFAULT_TIMESTAMP,
+                                fromLocalToUTC(
+                                        LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123400000)))
+                        .fromCase(
+                                TIMESTAMP_LTZ(4),
+                                DEFAULT_TIMESTAMP_LTZ,
+                                fromLocalToUTC(LocalDateTime.of(2021, 9, 25, 7, 54, 56, 123400000)))
+                        // Not supported - no fix
+                        .failValidation(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
+                        .failValidation(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
+                        .failValidation(ARRAY(INT()), DEFAULT_ARRAY)
+                        // MULTISET
+                        // MAP
+                        // ROW
+                        // RAW
+                        .build(),
+                // CastTestSpecBuilder
+                // .testCastTo(INTERVAL(YEAR()))
+                // https://issues.apache.org/jira/browse/FLINK-24426 allow cast from string
+                // .fromCase(CHAR(3), "foo", null)
+                // .fromCase(VARCHAR(5), "Flink", null)
+                // .fromCase(STRING(), "123", null)
+                // .fromCase(STRING(), "INTERVAL '2 YEARS'", Period.of(2, 0, 0))
+                // .fromCase(STRING(), "+01-05", Period.of(1, 5, 0))
+                //
+                // https://issues.apache.org/jira/browse/FLINK-24428
+                // .fromCase(INTERVAL(YEAR()), 0, Period.of(0, 0, 0))
+                // .fromCase(INTERVAL(YEAR()), 11, Period.of(0, 0, 0))
+                // .fromCase(INTERVAL(YEAR()), 84, Period.of(7, 0, 0))
+                // .fromCase(INTERVAL(YEAR()), 89, Period.of(7, 0, 0))
+                // .fromCase(INTERVAL(MONTH()), 89, Period.of(7, 0, 0))
+                // .fromCase(INTERVAL(DAY()), Duration.ofDays(300), Period.of(0, 0, 0))
+                // .fromCase(INTERVAL(DAY()), Duration.ofDays(400), Period.of(1, 0, 0))
+                // .fromCase(INTERVAL(HOUR()), Duration.ofDays(400), Period.of(1, 0, 0))
+                // .build(),
+                CastTestSpecBuilder
+                        // https://issues.apache.org/jira/browse/FLINK-24426 allow cast from string
+                        // .fromCase(STRING(), "'+01-05'".resultsIn(Period.of(0, 17, 0)
+                        .testCastTo(INTERVAL(MONTH()))
+                        .fromCase(INTERVAL(MONTH()), null, null)
+                        .fromCase(INTERVAL(YEAR()), 0, Period.of(0, 0, 0))
+                        .fromCase(INTERVAL(YEAR()), 11, Period.of(0, 11, 0))
+                        .fromCase(INTERVAL(YEAR()), 84, Period.of(0, 84, 0))
+                        .fromCase(INTERVAL(YEAR()), 89, Period.of(0, 89, 0))
+                        .fromCase(INTERVAL(MONTH()), 89, Period.of(0, 89, 0))
+                        // https://issues.apache.org/jira/browse/FLINK-24428
+                        // .fromCase(INTERVAL(DAY()), Duration.ofDays(300), Period.of(0, 0, 0))
+                        // .fromCase(INTERVAL(DAY()), Duration.ofDays(400), Period.of(1, 0, 0))
+                        // .fromCase(INTERVAL(HOUR()), Duration.ofDays(400), Period.of(1, 0, 0))
+                        .build()
+                // CastTestSpecBuilder
+                // .testCastTo(INTERVAL(DAY()))
+                // https://issues.apache.org/jira/browse/FLINK-24426 allow cast from string
+                // .fromCase(STRING(), "+41 10:17:36.789", Duration.of(...))
+                // https://issues.apache.org/jira/browse/FLINK-24428
+                // .build()
+                //
+                );
+    }
+
+    public static List<TestSpec> toStringCasts() {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(CHAR(3))
                         .fromCase(CHAR(5), null, null)
@@ -245,833 +1076,18 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(INTERVAL(DAY()), 10, "+0 00:00:00.010")
                         .fromCase(INTERVAL(DAY()), 123456789L, "+1 10:17:36.789")
                         .fromCase(INTERVAL(DAY()), Duration.ofHours(36), "+1 12:00:00.000")
-                        // https://issues.apache.org/jira/browse/FLINK-21456 Not supported currently
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(BOOLEAN())
-                        .fromCase(BOOLEAN(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(CHAR(4), "true", true)
-                        .fromCase(VARCHAR(5), "FalsE", false)
-                        .fromCase(STRING(), "Apache Flink", null)
-                        .fromCase(STRING(), "TRUE", true)
-                        .fromCase(STRING(), "", null)
-                        .fromCase(BOOLEAN(), true, true)
-                        .fromCase(BOOLEAN(), false, false)
-                        // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
-                        //
-                        // https://issues.apache.org/jira/browse/FLINK-24576 should also fail for
-                        // SQL
-                        .failTableApi(DECIMAL(4, 3), 4.3)
-                        .fromCase(TINYINT(), DEFAULT_POSITIVE_TINY_INT, true)
-                        .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, true)
-                        .fromCase(TINYINT(), 0, false)
-                        .fromCase(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT, true)
-                        .fromCase(SMALLINT(), DEFAULT_NEGATIVE_SMALL_INT, true)
-                        .fromCase(SMALLINT(), 0, false)
-                        .fromCase(INT(), DEFAULT_POSITIVE_INT, true)
-                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, true)
-                        .fromCase(INT(), 0, false)
-                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, true)
-                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, true)
-                        .fromCase(BIGINT(), 0, false)
-                        // https://issues.apache.org/jira/browse/FLINK-24576 should also fail for
-                        // SQL
-                        .failTableApi(FLOAT(), -123.456)
-                        .failTableApi(DOUBLE(), 0)
-                        // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
-                        // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(BINARY(2))
-                        .fromCase(BINARY(5), null, null)
-                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
-                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
-                        .fromCase(STRING(), "AAbbcCdD", new byte[] {-86, -69})
-                        .fromCase(VARCHAR(4), "FC", new byte[] {-4, 0})
-                        .fromCase(STRING(), "df", new byte[] {-33, 0})
-                        // Not supported - no fix
-                        .fail(BOOLEAN(), true)
-                        //
-                        .fromCase(BINARY(2), DEFAULT_BINARY, DEFAULT_BINARY)
-                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, new byte[] {0, 1})
-                        .fromCase(BYTES(), DEFAULT_BYTES, new byte[] {0, 1})
-                        .fromCase(BINARY(1), new byte[] {111}, new byte[] {111, 0})
-                        .fromCase(VARBINARY(1), new byte[] {111}, new byte[] {111, 0})
-                        .fromCase(BYTES(), new byte[] {11}, new byte[] {11, 0})
-                        // Not supported - no fix
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
-                        // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        //
-                        // RAW supported - check CastFunctionMiscITCase
-                        .build(),
-                CastTestSpecBuilder.testCastTo(VARBINARY(4))
-                        .fromCase(VARBINARY(5), null, null)
-                        .fromCase(CHAR(4), "666F", new byte[] {102, 111})
-                        .fromCase(VARCHAR(8), "666f", new byte[] {102, 111})
-                        .fromCase(STRING(), "AAbbCcDdEe", new byte[] {-86, -69, -52, -35})
-                        // Not supported - no fix
-                        .fail(BOOLEAN(), true)
-                        //
-                        .fromCase(BINARY(2), DEFAULT_BINARY, DEFAULT_BINARY)
-                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, DEFAULT_VARBINARY)
-                        .fromCase(VARBINARY(10), DEFAULT_VARBINARY, DEFAULT_VARBINARY)
-                        .fromCase(BYTES(), DEFAULT_BYTES, new byte[] {0, 1, 2, 3})
-                        // Not supported - no fix
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
-                        // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        //
-                        // RAW supported - check CastFunctionMiscITCase
-                        .build(),
-                CastTestSpecBuilder.testCastTo(BYTES())
-                        .fromCase(BYTES(), null, null)
-                        .fromCase(CHAR(4), "666f", new byte[] {102, 111})
-                        .fromCase(VARCHAR(8), "666F", new byte[] {102, 111})
-                        .fromCase(STRING(), "aaBBCcDdEe", new byte[] {-86, -69, -52, -35, -18})
-                        // Not supported - no fix
-                        .fail(BOOLEAN(), true)
-                        //
-                        .fromCase(BINARY(2), DEFAULT_BINARY, DEFAULT_BINARY)
-                        .fromCase(VARBINARY(3), DEFAULT_VARBINARY, DEFAULT_VARBINARY)
-                        .fromCase(BYTES(), DEFAULT_BYTES, DEFAULT_BYTES)
-                        // Not supported - no fix
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_NEGATIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
-                        // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        //
-                        // RAW supported - check CastFunctionMiscITCase
-                        .build(),
-                CastTestSpecBuilder.testCastTo(DECIMAL(5, 3))
-                        .fromCase(DECIMAL(10, 2), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
-                        .fromCase(STRING(), "1.234", new BigDecimal("1.234"))
-                        .fromCase(STRING(), "1.2", new BigDecimal("1.200"))
-                        .fromCase(BOOLEAN(), true, new BigDecimal("1.000"))
-                        .fromCase(BOOLEAN(), false, new BigDecimal("0.000"))
-                        // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
-                        //
-                        .fromCase(DECIMAL(4, 3), 9.87, new BigDecimal("9.870"))
-                        .fromCase(TINYINT(), -1, new BigDecimal("-1.000"))
-                        .fromCase(SMALLINT(), 3, new BigDecimal("3.000"))
-                        .fromCase(INT(), 42, new BigDecimal("42.000"))
-                        .fromCase(BIGINT(), 8, new BigDecimal("8.000"))
-                        .fromCase(FLOAT(), -12.345, new BigDecimal("-12.345"))
-                        .fromCase(DOUBLE(), 12.678, new BigDecimal("12.678"))
-                        // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
-                        // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(TINYINT())
-                        .fromCase(TINYINT(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
-                        .fromCase(STRING(), "1.234", (byte) 1)
-                        .fromCase(STRING(), "123", (byte) 123)
-                        .fromCase(STRING(), "-130", null)
-                        .fromCase(BOOLEAN(), true, (byte) 1)
-                        .fromCase(BOOLEAN(), false, (byte) 0)
-                        // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
-                        //
-                        .fromCase(DECIMAL(4, 3), 9.87, (byte) 9)
-                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
-                        // instead of overflow
-                        .fromCase(DECIMAL(10, 3), 9123.87, (byte) -93)
-                        .fromCase(TINYINT(), DEFAULT_POSITIVE_TINY_INT, DEFAULT_POSITIVE_TINY_INT)
-                        .fromCase(TINYINT(), DEFAULT_NEGATIVE_TINY_INT, DEFAULT_NEGATIVE_TINY_INT)
-                        .fromCase(SMALLINT(), 32, (byte) 32)
-                        .fromCase(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT, (byte) 57)
-                        .fromCase(SMALLINT(), DEFAULT_NEGATIVE_SMALL_INT, (byte) -57)
-                        .fromCase(INT(), -12, (byte) -12)
-                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (byte) -121)
-                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (byte) 121)
-                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, (byte) 53)
-                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, (byte) -53)
-                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, (byte) 123)
-                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, (byte) -123)
-                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, (byte) 123)
-                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, (byte) -123)
-                        // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
-                        // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(SMALLINT())
-                        .fromCase(SMALLINT(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
-                        .fromCase(STRING(), "1.234", (short) 1)
-                        .fromCase(STRING(), "123", (short) 123)
-                        .fromCase(STRING(), "-32769", null)
-                        .fromCase(BOOLEAN(), true, (short) 1)
-                        .fromCase(BOOLEAN(), false, (short) 0)
-                        // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
-                        //
-                        .fromCase(DECIMAL(4, 3), 9.87, (short) 9)
-                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
-                        // instead of overflow
-                        .fromCase(DECIMAL(10, 3), 91235.87, (short) 25699)
+                        .fromCase(ARRAY(INT().nullable()), new Integer[] {null, 456}, "[NULL, 456]")
                         .fromCase(
-                                TINYINT(),
-                                DEFAULT_POSITIVE_TINY_INT,
-                                (short) DEFAULT_POSITIVE_TINY_INT)
+                                MAP(STRING(), INTERVAL(MONTH()).nullable()),
+                                map(entry("a", -123), entry("b", null)),
+                                "{a=-10-03, b=NULL}")
                         .fromCase(
-                                TINYINT(),
-                                DEFAULT_NEGATIVE_TINY_INT,
-                                (short) DEFAULT_NEGATIVE_TINY_INT)
-                        .fromCase(
-                                SMALLINT(), DEFAULT_POSITIVE_SMALL_INT, DEFAULT_POSITIVE_SMALL_INT)
-                        .fromCase(
-                                SMALLINT(), DEFAULT_NEGATIVE_SMALL_INT, DEFAULT_NEGATIVE_SMALL_INT)
-                        .fromCase(SMALLINT(), 32780, (short) -32756)
-                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (short) -10617)
-                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (short) 10617)
-                        .fromCase(INT(), -12, (short) -12)
-                        .fromCase(BIGINT(), 123, (short) 123)
-                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, (short) 7221)
-                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, (short) -7221)
-                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, (short) 123)
-                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, (short) -123)
-                        .fromCase(FLOAT(), 123456.78, (short) -7616)
-                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, (short) 123)
-                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, (short) -123)
-                        .fromCase(DOUBLE(), 123456.7890, (short) -7616)
-                        // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
-                        // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(INT())
-                        .fromCase(INT(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
-                        .fromCase(STRING(), "1.234", 1)
-                        .fromCase(STRING(), "123", 123)
-                        .fromCase(STRING(), "-3276913443134", null)
-                        .fromCase(BOOLEAN(), true, 1)
-                        .fromCase(BOOLEAN(), false, 0)
-                        // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
-                        //
-                        .fromCase(DECIMAL(4, 3), 9.87, 9)
-                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
-                        // instead of overflow
-                        .fromCase(DECIMAL(20, 3), 3276913443134.87, -146603714)
-                        .fromCase(
-                                TINYINT(),
-                                DEFAULT_POSITIVE_TINY_INT,
-                                (int) DEFAULT_POSITIVE_TINY_INT)
-                        .fromCase(
-                                TINYINT(),
-                                DEFAULT_NEGATIVE_TINY_INT,
-                                (int) DEFAULT_NEGATIVE_TINY_INT)
-                        .fromCase(
-                                SMALLINT(),
-                                DEFAULT_POSITIVE_SMALL_INT,
-                                (int) DEFAULT_POSITIVE_SMALL_INT)
-                        .fromCase(
-                                SMALLINT(),
-                                DEFAULT_NEGATIVE_SMALL_INT,
-                                (int) DEFAULT_NEGATIVE_SMALL_INT)
-                        .fromCase(INT(), DEFAULT_POSITIVE_INT, DEFAULT_POSITIVE_INT)
-                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, DEFAULT_NEGATIVE_INT)
-                        .fromCase(BIGINT(), 123, 123)
-                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, -539222987)
-                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, 539222987)
-                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123)
-                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123)
-                        .fromCase(FLOAT(), 9234567891.12, 644633299)
-                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123)
-                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123)
-                        .fromCase(DOUBLE(), 9234567891.12345, 644633299)
-                        // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
-                        // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(BIGINT())
-                        .fromCase(BIGINT(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
-                        .fromCase(STRING(), "1.234", 1L)
-                        .fromCase(STRING(), "123", 123L)
-                        .fromCase(STRING(), "-3276913443134", -3276913443134L)
-                        .fromCase(BOOLEAN(), true, 1L)
-                        .fromCase(BOOLEAN(), false, 0L)
-                        // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
-                        //
-                        .fromCase(DECIMAL(4, 3), 9.87, 9L)
-                        .fromCase(DECIMAL(20, 3), 3276913443134.87, 3276913443134L)
-                        .fromCase(
-                                TINYINT(),
-                                DEFAULT_POSITIVE_TINY_INT,
-                                (long) DEFAULT_POSITIVE_TINY_INT)
-                        .fromCase(
-                                TINYINT(),
-                                DEFAULT_NEGATIVE_TINY_INT,
-                                (long) DEFAULT_NEGATIVE_TINY_INT)
-                        .fromCase(
-                                SMALLINT(),
-                                DEFAULT_POSITIVE_SMALL_INT,
-                                (long) DEFAULT_POSITIVE_SMALL_INT)
-                        .fromCase(
-                                SMALLINT(),
-                                DEFAULT_NEGATIVE_SMALL_INT,
-                                (long) DEFAULT_NEGATIVE_SMALL_INT)
-                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (long) DEFAULT_POSITIVE_INT)
-                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (long) DEFAULT_NEGATIVE_INT)
-                        .fromCase(BIGINT(), DEFAULT_POSITIVE_BIGINT, DEFAULT_POSITIVE_BIGINT)
-                        .fromCase(BIGINT(), DEFAULT_NEGATIVE_BIGINT, DEFAULT_NEGATIVE_BIGINT)
-                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123L)
-                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123L)
-                        .fromCase(FLOAT(), 9234567891.12, 9234567891L)
-                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123L)
-                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123L)
-                        .fromCase(DOUBLE(), 9234567891.12345, 9234567891L)
-                        // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
-                        // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(FLOAT())
-                        .fromCase(FLOAT(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
-                        .fromCase(STRING(), "1.234", 1.234f)
-                        .fromCase(STRING(), "123", 123.0f)
-                        .fromCase(STRING(), "-3276913443134", -3.27691403E12f)
-                        .fromCase(BOOLEAN(), true, 1.0f)
-                        .fromCase(BOOLEAN(), false, 0.0f)
-                        // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
-                        //
-                        .fromCase(DECIMAL(4, 3), 9.87, 9.87f)
-                        // https://issues.apache.org/jira/browse/FLINK-24420 - Check out of range
-                        // instead of overflow
-                        .fromCase(DECIMAL(4, 3), 9.87, 9.87f)
-                        .fromCase(DECIMAL(20, 3), 3276913443134.87, 3.27691351E12f)
-                        .fromCase(
-                                TINYINT(),
-                                DEFAULT_POSITIVE_TINY_INT,
-                                (float) DEFAULT_POSITIVE_TINY_INT)
-                        .fromCase(
-                                TINYINT(),
-                                DEFAULT_NEGATIVE_TINY_INT,
-                                (float) DEFAULT_NEGATIVE_TINY_INT)
-                        .fromCase(
-                                SMALLINT(),
-                                DEFAULT_POSITIVE_SMALL_INT,
-                                (float) DEFAULT_POSITIVE_SMALL_INT)
-                        .fromCase(
-                                SMALLINT(),
-                                DEFAULT_NEGATIVE_SMALL_INT,
-                                (float) DEFAULT_NEGATIVE_SMALL_INT)
-                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (float) DEFAULT_POSITIVE_INT)
-                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (float) DEFAULT_NEGATIVE_INT)
-                        .fromCase(
-                                BIGINT(), DEFAULT_POSITIVE_BIGINT, (float) DEFAULT_POSITIVE_BIGINT)
-                        .fromCase(
-                                BIGINT(), DEFAULT_NEGATIVE_BIGINT, (float) DEFAULT_NEGATIVE_BIGINT)
-                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, DEFAULT_POSITIVE_FLOAT)
-                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, DEFAULT_NEGATIVE_FLOAT)
-                        .fromCase(FLOAT(), 9234567891.12, 9234567891.12f)
-                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, 123.456789f)
-                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, -123.456789f)
-                        .fromCase(DOUBLE(), 1239234567891.1234567891234, 1.23923451E12f)
-                        // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
-                        // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(DOUBLE())
-                        .fromCase(DOUBLE(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "Apache", null)
-                        .fromCase(STRING(), "1.234", 1.234d)
-                        .fromCase(STRING(), "123", 123.0d)
-                        .fromCase(STRING(), "-3276913443134", -3.276913443134E12)
-                        .fromCase(BOOLEAN(), true, 1.0d)
-                        .fromCase(BOOLEAN(), false, 0.0d)
-                        // Not supported - no fix
-                        .fail(BINARY(2), DEFAULT_BINARY)
-                        .fail(VARBINARY(5), DEFAULT_VARBINARY)
-                        .fail(BYTES(), DEFAULT_BYTES)
-                        //
-                        .fromCase(DECIMAL(4, 3), 9.87, 9.87d)
-                        .fromCase(DECIMAL(20, 3), 3276913443134.87, 3.27691344313487E12d)
-                        .fromCase(
-                                DECIMAL(30, 20),
-                                new BigDecimal("123456789.123456789123456789"),
-                                1.2345678912345679E8d)
-                        .fromCase(
-                                TINYINT(),
-                                DEFAULT_POSITIVE_TINY_INT,
-                                (double) DEFAULT_POSITIVE_TINY_INT)
-                        .fromCase(
-                                TINYINT(),
-                                DEFAULT_NEGATIVE_TINY_INT,
-                                (double) DEFAULT_NEGATIVE_TINY_INT)
-                        .fromCase(
-                                SMALLINT(),
-                                DEFAULT_POSITIVE_SMALL_INT,
-                                (double) DEFAULT_POSITIVE_SMALL_INT)
-                        .fromCase(
-                                SMALLINT(),
-                                DEFAULT_NEGATIVE_SMALL_INT,
-                                (double) DEFAULT_NEGATIVE_SMALL_INT)
-                        .fromCase(INT(), DEFAULT_POSITIVE_INT, (double) DEFAULT_POSITIVE_INT)
-                        .fromCase(INT(), DEFAULT_NEGATIVE_INT, (double) DEFAULT_NEGATIVE_INT)
-                        .fromCase(
-                                BIGINT(), DEFAULT_POSITIVE_BIGINT, (double) DEFAULT_POSITIVE_BIGINT)
-                        .fromCase(
-                                BIGINT(), DEFAULT_NEGATIVE_BIGINT, (double) DEFAULT_NEGATIVE_BIGINT)
-                        .fromCase(FLOAT(), DEFAULT_POSITIVE_FLOAT, 123.456d)
-                        .fromCase(FLOAT(), DEFAULT_NEGATIVE_FLOAT, -123.456)
-                        .fromCase(FLOAT(), 9234567891.12, 9234567891.12d)
-                        .fromCase(DOUBLE(), DEFAULT_POSITIVE_DOUBLE, DEFAULT_POSITIVE_DOUBLE)
-                        .fromCase(DOUBLE(), DEFAULT_NEGATIVE_DOUBLE, DEFAULT_NEGATIVE_DOUBLE)
-                        .fromCase(DOUBLE(), 1239234567891.1234567891234, 1.2392345678911235E12d)
-                        // Not supported - no fix
-                        .fail(DATE(), DEFAULT_DATE)
-                        .fail(TIME(), DEFAULT_TIME)
-                        .fail(TIMESTAMP(), DEFAULT_TIMESTAMP)
-                        // TIMESTAMP_WITH_TIME_ZONE
-                        .fail(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP_LTZ)
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(DATE())
-                        .fromCase(DATE(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "123", LocalDate.of(123, 1, 1))
-                        .fromCase(STRING(), "2021-09-27", LocalDate.of(2021, 9, 27))
-                        .fromCase(
-                                STRING(),
-                                "2021-09-27 12:34:56.123456789",
-                                LocalDate.of(2021, 9, 27))
-                        .fromCase(STRING(), "2021/09/27", null)
-                        // Not supported - no fix
-                        .fail(BOOLEAN(), true)
-                        .failTableApi(BINARY(2), DEFAULT_BINARY)
-                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failTableApi(BYTES(), DEFAULT_BYTES)
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        //
-                        .fromCase(DATE(), DEFAULT_DATE, DEFAULT_DATE)
-                        // Not supported - no fix
-                        .fail(TIME(), DEFAULT_TIME)
-                        //
-                        .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
-                        .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
-
-                        // https://issues.apache.org/jira/browse/FLINK-20869
-                        // TIMESTAMP_WITH_TIME_ZONE
-
-                        // https://issues.apache.org/jira/browse/FLINK-24422 - Accept only Instant
-                        .fromCase(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
-                        .fromCase(TIMESTAMP_LTZ(), DEFAULT_TIMESTAMP, LocalDate.of(2021, 9, 24))
-                        // Not supported - no fix
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(TIME())
-                        .fromCase(TIME(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "123", LocalTime.of(23, 0, 0))
-                        .fromCase(STRING(), "123:45", LocalTime.of(23, 45, 0))
-                        .fromCase(STRING(), "2021-09-27", null)
-                        .fromCase(STRING(), "2021-09-27 12:34:56", null)
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
-                        // lost
-                        .fromCase(STRING(), "12:34:56.123456789", LocalTime.of(12, 34, 56, 0))
-                        .fromCase(STRING(), "2021-09-27 12:34:56.123456789", null)
-                        // Not supported - no fix
-                        .fail(BOOLEAN(), true)
-                        .failTableApi(BINARY(2), DEFAULT_BINARY)
-                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failTableApi(BYTES(), DEFAULT_BYTES)
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        .fail(DATE(), DEFAULT_DATE)
-                        //
-                        .fromCase(TIME(5), DEFAULT_TIME, LocalTime.of(12, 34, 56, 0))
-                        .fromCase(TIMESTAMP(), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
-                        .fromCase(TIMESTAMP(4), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
-
-                        // https://issues.apache.org/jira/browse/FLINK-20869
-                        // TIMESTAMP_WITH_TIME_ZONE
-
-                        // https://issues.apache.org/jira/browse/FLINK-24422 - Accept only Instant
-                        .fromCase(TIMESTAMP_LTZ(4), DEFAULT_TIMESTAMP, LocalTime.of(12, 34, 56, 0))
-                        .fromCase(
-                                TIMESTAMP_LTZ(4), DEFAULT_TIMESTAMP_LTZ, LocalTime.of(7, 54, 56, 0))
-                        // Not supported - no fix
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(TIMESTAMP(9))
-                        .fromCase(TIMESTAMP(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "123", null)
-                        .fromCase(STRING(), "2021-09-27", LocalDateTime.of(2021, 9, 27, 0, 0, 0, 0))
-                        .fromCase(STRING(), "2021/09/27", null)
-                        .fromCase(
-                                STRING(),
-                                "2021-09-27 12:34:56.123456789",
-                                LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123456789))
-                        // Not supported - no fix
-                        .fail(BOOLEAN(), true)
-                        .failTableApi(BINARY(2), DEFAULT_BINARY)
-                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failTableApi(BYTES(), DEFAULT_BYTES)
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        //
-                        .fromCase(DATE(), DEFAULT_DATE, LocalDateTime.of(2021, 9, 24, 0, 0, 0, 0))
-
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
-                        // lost
-                        // https://issues.apache.org/jira/browse/FLINK-24423 Continue using EPOCH
-                        // date or use 0 for the year?
-                        .fromCase(
-                                TIME(5), DEFAULT_TIME, LocalDateTime.of(1970, 1, 1, 12, 34, 56, 0))
-                        .fromCase(
-                                TIMESTAMP(),
-                                DEFAULT_TIMESTAMP,
-                                LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123456000))
-                        .fromCase(
-                                TIMESTAMP(8),
-                                DEFAULT_TIMESTAMP,
-                                LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123456700))
-                        .fromCase(
-                                TIMESTAMP(4),
-                                DEFAULT_TIMESTAMP,
-                                LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123400000))
-
-                        // https://issues.apache.org/jira/browse/FLINK-20869
-                        // TIMESTAMP_WITH_TIME_ZONE
-
-                        // https://issues.apache.org/jira/browse/FLINK-24422 - Accept only Instant
-                        .fromCase(
-                                TIMESTAMP_LTZ(4),
-                                DEFAULT_TIMESTAMP,
-                                LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123400000))
-                        .fromCase(
-                                TIMESTAMP_LTZ(4),
-                                DEFAULT_TIMESTAMP_LTZ,
-                                LocalDateTime.of(2021, 9, 25, 7, 54, 56, 123400000))
-                        // Not supported - no fix
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                CastTestSpecBuilder.testCastTo(TIMESTAMP_LTZ(9))
-                        .fromCase(TIMESTAMP_LTZ(), null, null)
-                        .fromCase(CHAR(3), "foo", null)
-                        .fromCase(VARCHAR(5), "Flink", null)
-                        .fromCase(STRING(), "123", null)
-                        .fromCase(
-                                STRING(),
-                                "2021-09-27",
-                                fromLocalToUTC(LocalDateTime.of(2021, 9, 27, 0, 0, 0, 0)))
-                        .fromCase(
-                                STRING(),
-                                "2021-09-27 12:34:56.123",
-                                fromLocalToUTC(
-                                        LocalDateTime.of(2021, 9, 27, 12, 34, 56, 123000000)))
-                        // https://issues.apache.org/jira/browse/FLINK-24446 Fractional seconds are
-                        // lost
-                        .fromCase(
-                                STRING(),
-                                "2021-09-27 12:34:56.123456789",
-                                fromLocalToUTC(LocalDateTime.of(2021, 9, 27, 12, 34, 56, 0)))
-
-                        // Not supported - no fix
-                        .fail(BOOLEAN(), true)
-                        .failTableApi(BINARY(2), DEFAULT_BINARY)
-                        .failTableApi(VARBINARY(5), DEFAULT_VARBINARY)
-                        .failTableApi(BYTES(), DEFAULT_BYTES)
-                        .fail(DECIMAL(5, 3), 12.345)
-                        .fail(TINYINT(), DEFAULT_POSITIVE_TINY_INT)
-                        .fail(SMALLINT(), DEFAULT_POSITIVE_SMALL_INT)
-                        .fail(INT(), DEFAULT_POSITIVE_INT)
-                        .fail(BIGINT(), DEFAULT_POSITIVE_BIGINT)
-                        .fail(FLOAT(), DEFAULT_POSITIVE_FLOAT)
-                        .fail(DOUBLE(), DEFAULT_POSITIVE_DOUBLE)
-                        //
-                        .fromCase(
-                                DATE(),
-                                DEFAULT_DATE,
-                                fromLocalToUTC(LocalDateTime.of(2021, 9, 24, 0, 0, 0, 0)))
-
-                        // https://issues.apache.org/jira/browse/FLINK-17224 Fractional seconds are
-                        // lost
-                        // https://issues.apache.org/jira/browse/FLINK-24423 Continue using EPOCH
-                        // date or use 0 for the year?
-                        .fromCase(
-                                TIME(5),
-                                DEFAULT_TIME,
-                                fromLocalToUTC(LocalDateTime.of(1970, 1, 1, 12, 34, 56, 0)))
-                        .fromCase(
-                                TIMESTAMP(),
-                                DEFAULT_TIMESTAMP,
-                                fromLocalToUTC(
-                                        LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123456000)))
-                        .fromCase(
-                                TIMESTAMP(8),
-                                DEFAULT_TIMESTAMP,
-                                fromLocalToUTC(
-                                        LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123456700)))
-                        .fromCase(
-                                TIMESTAMP(4),
-                                DEFAULT_TIMESTAMP,
-                                fromLocalToUTC(
-                                        LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123400000)))
-
-                        // https://issues.apache.org/jira/browse/FLINK-20869
-                        // TIMESTAMP_WITH_TIME_ZONE
-
-                        // https://issues.apache.org/jira/browse/FLINK-24422 - Accept only Instant
-                        .fromCase(
-                                TIMESTAMP_LTZ(4),
-                                DEFAULT_TIMESTAMP,
-                                fromLocalToUTC(
-                                        LocalDateTime.of(2021, 9, 24, 12, 34, 56, 123400000)))
-                        .fromCase(
-                                TIMESTAMP_LTZ(4),
-                                DEFAULT_TIMESTAMP_LTZ,
-                                fromLocalToUTC(LocalDateTime.of(2021, 9, 25, 7, 54, 56, 123400000)))
-                        // Not supported - no fix
-                        .fail(INTERVAL(YEAR(), MONTH()), DEFAULT_INTERVAL_YEAR)
-                        .fail(INTERVAL(DAY(), SECOND()), DEFAULT_INTERVAL_DAY)
-                        .fail(ARRAY(INT()), DEFAULT_ARRAY)
-                        // MULTISET
-                        // MAP
-                        // ROW
-                        // RAW
-                        .build(),
-                // CastTestSpecBuilder
-                // .testCastTo(INTERVAL(YEAR()))
-                // https://issues.apache.org/jira/browse/FLINK-24426 allow cast from string
-                // .fromCase(CHAR(3), "foo", null)
-                // .fromCase(VARCHAR(5), "Flink", null)
-                // .fromCase(STRING(), "123", null)
-                // .fromCase(STRING(), "INTERVAL '2 YEARS'", Period.of(2, 0, 0))
-                // .fromCase(STRING(), "+01-05", Period.of(1, 5, 0))
-                //
-                // https://issues.apache.org/jira/browse/FLINK-24428
-                // .fromCase(INTERVAL(YEAR()), 0, Period.of(0, 0, 0))
-                // .fromCase(INTERVAL(YEAR()), 11, Period.of(0, 0, 0))
-                // .fromCase(INTERVAL(YEAR()), 84, Period.of(7, 0, 0))
-                // .fromCase(INTERVAL(YEAR()), 89, Period.of(7, 0, 0))
-                // .fromCase(INTERVAL(MONTH()), 89, Period.of(7, 0, 0))
-                // .fromCase(INTERVAL(DAY()), Duration.ofDays(300), Period.of(0, 0, 0))
-                // .fromCase(INTERVAL(DAY()), Duration.ofDays(400), Period.of(1, 0, 0))
-                // .fromCase(INTERVAL(HOUR()), Duration.ofDays(400), Period.of(1, 0, 0))
-                // .build(),
-                CastTestSpecBuilder
-                        // https://issues.apache.org/jira/browse/FLINK-24426 allow cast from string
-                        // .fromCase(STRING(), "'+01-05'".resultsIn(Period.of(0, 17, 0)
-                        .testCastTo(INTERVAL(MONTH()))
-                        .fromCase(INTERVAL(MONTH()), null, null)
-                        .fromCase(INTERVAL(YEAR()), 0, Period.of(0, 0, 0))
-                        .fromCase(INTERVAL(YEAR()), 11, Period.of(0, 11, 0))
-                        .fromCase(INTERVAL(YEAR()), 84, Period.of(0, 84, 0))
-                        .fromCase(INTERVAL(YEAR()), 89, Period.of(0, 89, 0))
-                        .fromCase(INTERVAL(MONTH()), 89, Period.of(0, 89, 0))
-                        // https://issues.apache.org/jira/browse/FLINK-24428
-                        // .fromCase(INTERVAL(DAY()), Duration.ofDays(300), Period.of(0, 0, 0))
-                        // .fromCase(INTERVAL(DAY()), Duration.ofDays(400), Period.of(1, 0, 0))
-                        // .fromCase(INTERVAL(HOUR()), Duration.ofDays(400), Period.of(1, 0, 0))
-                        .build()
-                // CastTestSpecBuilder
-                // .testCastTo(INTERVAL(DAY()))
-                // https://issues.apache.org/jira/browse/FLINK-24426 allow cast from string
-                // .fromCase(STRING(), "+41 10:17:36.789", Duration.of(...))
-                // https://issues.apache.org/jira/browse/FLINK-24428
-                // .build()
-                //
-                );
+                                ROW(FIELD("f0", INT().nullable()), FIELD("f1", STRING())),
+                                Row.of(null, "abc"),
+                                "(NULL, abc)")
+                        // MULTISET, RAW and STRUCTURED are tested in CastFunctionMiscITCase,
+                        // because we need to work around the limitations of fromValues
+                        .build());
     }
 
     public static List<TestSpec> decimalCasts() {
@@ -1082,9 +1098,10 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .fromCase(DOUBLE(), 3.123456, new BigDecimal("3.1235"))
                         .fromCase(DECIMAL(10, 8), 12.34561234, new BigDecimal("12.3456"))
                         // out of precision/scale bounds
+                        // Should these fail? https://issues.apache.org/jira/browse/FLINK-24847
                         .fromCase(INT(), 12345, null)
                         .fromCase(FLOAT(), 12345.678912, null)
-                        .fromCase(STRING(), 12345.6789, null)
+                        .failRuntime(STRING(), "12345.6789", NumberFormatException.class)
                         .build());
     }
 
@@ -1207,12 +1224,14 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         private final List<Object> columnData = new ArrayList<>();
         private final List<DataType> columnTypes = new ArrayList<>();
         private final List<Object> expectedValues = new ArrayList<>();
+        private final List<Class<? extends Throwable>> expectedFailureClasses = new ArrayList<>();
         private final List<TestType> testTypes = new ArrayList<>();
 
         private enum TestType {
             RESULT,
             ERROR_SQL,
-            ERROR_TABLE_API
+            ERROR_TABLE_API,
+            ERROR_RUNTIME
         }
 
         private static CastTestSpecBuilder testCastTo(DataType targetType) {
@@ -1229,23 +1248,37 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
             this.columnTypes.add(dataType);
             this.columnData.add(src);
             this.expectedValues.add(target);
+            assertThat(
+                            LogicalTypeCasts.supportsExplicitCast(
+                                    dataType.getLogicalType(), targetType.getLogicalType()))
+                    .as("Should support explicit casting")
+                    .isTrue();
             return this;
         }
 
-        private CastTestSpecBuilder failTableApi(DataType dataType, Object src) {
-            return fail(TestType.ERROR_TABLE_API, dataType, src);
+        private CastTestSpecBuilder failTableApiValidation(DataType dataType, Object src) {
+            return failValidation(TestType.ERROR_TABLE_API, dataType, src);
         }
 
-        private CastTestSpecBuilder failSQL(DataType dataType, Object src) {
-            return fail(TestType.ERROR_TABLE_API, dataType, src);
+        private CastTestSpecBuilder failSqlValidation(DataType dataType, Object src) {
+            return failValidation(TestType.ERROR_TABLE_API, dataType, src);
         }
 
-        private CastTestSpecBuilder fail(DataType dataType, Object src) {
-            fail(TestType.ERROR_TABLE_API, dataType, src);
-            return fail(TestType.ERROR_SQL, dataType, src);
+        private CastTestSpecBuilder failValidation(DataType dataType, Object src) {
+            failValidation(TestType.ERROR_TABLE_API, dataType, src);
+            return failValidation(TestType.ERROR_SQL, dataType, src);
         }
 
-        private CastTestSpecBuilder fail(TestType type, DataType dataType, Object src) {
+        private CastTestSpecBuilder failRuntime(
+                DataType dataType, Object src, Class<? extends Throwable> failureClass) {
+            this.testTypes.add(TestType.ERROR_RUNTIME);
+            this.columnTypes.add(dataType);
+            this.columnData.add(src);
+            this.expectedValues.add(failureClass);
+            return this;
+        }
+
+        private CastTestSpecBuilder failValidation(TestType type, DataType dataType, Object src) {
             this.testTypes.add(type);
             this.columnTypes.add(dataType);
             this.columnData.add(src);
@@ -1281,6 +1314,16 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         testSpec.testSqlValidationError(
                                 "CAST(" + colName + " AS " + targetType.toString() + ")", errorMsg);
                         idxOffset++;
+                        break;
+                    case ERROR_RUNTIME:
+                        @SuppressWarnings("unchecked")
+                        Class<? extends Throwable> throwableClazz =
+                                (Class<? extends Throwable>) expectedValues.get(i - idxOffset);
+                        testSpec.testSqlRuntimeError(
+                                "CAST(" + colName + " AS " + targetType.toString() + ")",
+                                throwableClazz);
+                        testSpec.testTableApiRuntimeError(
+                                $(colName).cast(targetType), throwableClazz);
                         break;
                     case RESULT:
                         testSpecs.add(
@@ -1331,21 +1374,5 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
 
     private static boolean isTimestampToNumeric(LogicalType srcType, LogicalType trgType) {
         return srcType.is(LogicalTypeFamily.TIMESTAMP) && trgType.is(LogicalTypeFamily.NUMERIC);
-    }
-
-    private static <K, V> Map.Entry<K, V> entry(K k, V v) {
-        return new AbstractMap.SimpleImmutableEntry<>(k, v);
-    }
-
-    @SafeVarargs
-    private static <K, V> Map<K, V> map(Map.Entry<K, V>... entries) {
-        if (entries == null) {
-            return Collections.emptyMap();
-        }
-        Map<K, V> map = new HashMap<>();
-        for (Map.Entry<K, V> entry : entries) {
-            map.put(entry.getKey(), entry.getValue());
-        }
-        return map;
     }
 }

@@ -89,9 +89,9 @@ import org.apache.flink.table.api.bridge.scala._
 val settings = EnvironmentSettings
     .newInstance()
     .inStreamingMode()
-    .build();
+    .build()
 
-val tEnv = TableEnvironment.create(settings);
+val tEnv = TableEnvironment.create(settings)
 
 // 在表环境中注册 Orders 表
 // ...
@@ -363,7 +363,7 @@ Table result = orders.select($("a"), $("c").as("d"));
 {{< tab "Scala" >}}
 ```scala
 val orders = tableEnv.from("Orders")
-Table result = orders.select($"a", $"c" as "d");
+Table result = orders.select($"a", $"c" as "d")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -495,7 +495,7 @@ Table result = orders.addColumns(concat($("c"), "sunny"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.addColumns(concat($"c", "Sunny"))
 ```
 {{< /tab >}}
@@ -526,7 +526,7 @@ Table result = orders.addOrReplaceColumns(concat($("c"), "sunny").as("desc"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.addOrReplaceColumns(concat($"c", "Sunny") as "desc")
 ```
 {{< /tab >}}
@@ -553,7 +553,7 @@ Table result = orders.dropColumns($("b"), $("c"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.dropColumns($"b", $"c")
 ```
 {{< /tab >}}
@@ -581,7 +581,7 @@ Table result = orders.renameColumns($("b").as("b2"), $("c").as("c2"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.renameColumns($"b" as "b2", $"c" as "c2")
 ```
 {{< /tab >}}
@@ -773,7 +773,7 @@ Table result = orders
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders: Table = tableEnv.from("Orders");
+val orders: Table = tableEnv.from("Orders")
 // 按属性分组后的的互异（互不相同、去重）聚合
 val groupByDistinctResult = orders
     .groupBy($"a")
@@ -833,11 +833,11 @@ orders.groupBy("users")
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders: Table = tEnv.from("Orders");
+val orders: Table = tEnv.from("Orders")
 
 // 对 user-defined aggregate functions 使用互异（互不相同、去重）聚合
-val myUdagg = new MyUdagg();
-orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDistinctResult");
+val myUdagg = new MyUdagg()
+orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDistinctResult")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1360,7 +1360,7 @@ Table result = left.select($("a"), $("b"), $("c")).where($("a").in(right));
 {{< tab "Scala" >}}
 ```scala
 val left = tableEnv.from("Orders1")
-val right = tableEnv.from("Orders2");
+val right = tableEnv.from("Orders2")
 
 val result = left.select($"a", $"b", $"c").where($"a".in(right))
 ```

@@ -19,16 +19,16 @@
 package org.apache.flink.tests.util.pulsar;
 
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContextFactory;
-import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
+import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.tests.util.pulsar.cases.KeySharedSubscriptionContext;
 import org.apache.flink.tests.util.pulsar.cases.SharedSubscriptionContext;
 import org.apache.flink.tests.util.pulsar.common.FlinkContainerWithPulsarEnvironment;
+import org.apache.flink.tests.util.pulsar.common.PulsarContainerTestEnvironment;
 import org.apache.flink.tests.util.pulsar.common.UnorderedSourceTestSuiteBase;
-
-import static org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime.container;
 
 /**
  * Pulsar E2E test based on connector testing framework. It's used for Shared & Key_Shared
@@ -36,14 +36,17 @@ import static org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime.
  */
 public class PulsarSourceUnorderedE2ECase extends UnorderedSourceTestSuiteBase<String> {
 
+    // Defines the Semantic.
+    @TestSemantics
+    CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
+
     // Defines TestEnvironment.
     @TestEnv
     FlinkContainerWithPulsarEnvironment flink = new FlinkContainerWithPulsarEnvironment(1, 8);
 
     // Defines ConnectorExternalSystem.
     @TestExternalSystem
-    PulsarTestEnvironment pulsar =
-            new PulsarTestEnvironment(container(flink.getFlinkContainers().getJobManager()));
+    PulsarContainerTestEnvironment pulsar = new PulsarContainerTestEnvironment(flink);
 
     // Defines a set of external context Factories for different test cases.
     @SuppressWarnings("unused")

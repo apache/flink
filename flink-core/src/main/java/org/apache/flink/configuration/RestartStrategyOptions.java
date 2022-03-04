@@ -29,7 +29,12 @@ import static org.apache.flink.configuration.description.LinkElement.link;
 import static org.apache.flink.configuration.description.TextElement.code;
 import static org.apache.flink.configuration.description.TextElement.text;
 
-/** Config options for restart strategies. */
+/**
+ * Config options for restart strategies.
+ *
+ * <p>{@link CleanupOptions} copied this collection of parameters to provide similar user
+ * experience. FLINK-26359 is created to clean this up.
+ */
 @PublicEvolving
 @ConfigGroups(
         groups = {

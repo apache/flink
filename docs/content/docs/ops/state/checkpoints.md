@@ -98,7 +98,7 @@ This way, you will have a checkpoint around to resume from if your job fails.
 
 ```java
 CheckpointConfig config = env.getCheckpointConfig();
-config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+config.setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 ```
 
 The `ExternalizedCheckpointCleanup` mode configures what happens with checkpoints when you cancel the job:

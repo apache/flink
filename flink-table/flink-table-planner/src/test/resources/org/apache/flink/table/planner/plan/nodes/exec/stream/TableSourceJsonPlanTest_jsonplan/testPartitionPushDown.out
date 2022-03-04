@@ -58,12 +58,9 @@
       "inputIndex" : 1,
       "type" : "INT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "LITERAL",
         "value" : "A",

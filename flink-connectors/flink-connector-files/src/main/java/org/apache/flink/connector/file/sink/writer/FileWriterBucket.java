@@ -202,11 +202,12 @@ class FileWriterBucket<IN> {
         }
 
         List<FileSinkCommittable> committables = new ArrayList<>();
-        pendingFiles.forEach(pendingFile -> committables.add(new FileSinkCommittable(pendingFile)));
+        pendingFiles.forEach(
+                pendingFile -> committables.add(new FileSinkCommittable(bucketId, pendingFile)));
         pendingFiles.clear();
 
         if (inProgressFileToCleanup != null) {
-            committables.add(new FileSinkCommittable(inProgressFileToCleanup));
+            committables.add(new FileSinkCommittable(bucketId, inProgressFileToCleanup));
             inProgressFileToCleanup = null;
         }
 

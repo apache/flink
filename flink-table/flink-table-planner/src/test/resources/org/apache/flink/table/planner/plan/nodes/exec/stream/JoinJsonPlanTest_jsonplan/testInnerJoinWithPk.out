@@ -59,11 +59,7 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "a2",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -177,11 +173,7 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "b2",
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,

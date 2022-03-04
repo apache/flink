@@ -109,8 +109,7 @@ class SortLimitITCase extends BatchTestBase {
 
   @Test
   def testOrderBehindField(): Unit = {
-    conf.getConfiguration.setInteger(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1)
+    tableConfig.set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(1))
     val expected = data3.sortBy((x : Row) => x.getField(2).asInstanceOf[String])
 
     checkResult(

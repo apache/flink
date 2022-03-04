@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.runtime.stream.jsonplan;
 
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.table.planner.runtime.utils.TestData;
@@ -73,8 +72,7 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                     }
                 });
         tableEnv.getConfig()
-                .getConfiguration()
-                .setString(
+                .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
                         aggPhase.toString());
     }
@@ -89,8 +87,7 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                 "cnt BIGINT",
                 "sum_int INT",
                 "distinct_cnt BIGINT");
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
+        compileSqlAndExecutePlan(
                         "insert into MySink select\n"
                                 + "  name,\n"
                                 + "  window_start,\n"
@@ -100,8 +97,8 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                                 + "  COUNT(DISTINCT `string`)\n"
                                 + "FROM TABLE(\n"
                                 + "   TUMBLE(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND))\n"
-                                + "GROUP BY name, window_start, window_end");
-        tableEnv.executePlan(compiledPlan).await();
+                                + "GROUP BY name, window_start, window_end")
+                .await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(
@@ -118,15 +115,14 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
     @Test
     public void testEventTimeHopWindow() throws Exception {
         createTestValuesSinkTable("MySink", "name STRING", "cnt BIGINT");
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
+        compileSqlAndExecutePlan(
                         "insert into MySink select\n"
                                 + "  name,\n"
                                 + "  COUNT(*)\n"
                                 + "FROM TABLE(\n"
                                 + "   HOP(TABLE MyTable, DESCRIPTOR(rowtime), INTERVAL '5' SECOND, INTERVAL '10' SECOND))\n"
-                                + "GROUP BY name, window_start, window_end");
-        tableEnv.executePlan(compiledPlan).await();
+                                + "GROUP BY name, window_start, window_end")
+                .await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(
@@ -148,8 +144,7 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
     @Test
     public void testEventTimeCumulateWindow() throws Exception {
         createTestValuesSinkTable("MySink", "name STRING", "cnt BIGINT");
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
+        compileSqlAndExecutePlan(
                         "insert into MySink select\n"
                                 + "  name,\n"
                                 + "  COUNT(*)\n"
@@ -159,8 +154,8 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                                 + "     DESCRIPTOR(rowtime),\n"
                                 + "     INTERVAL '5' SECOND,\n"
                                 + "     INTERVAL '15' SECOND))"
-                                + "GROUP BY name, window_start, window_end");
-        tableEnv.executePlan(compiledPlan).await();
+                                + "GROUP BY name, window_start, window_end")
+                .await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(
@@ -185,14 +180,11 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
     @Test
     public void testDistinctSplitEnabled() throws Exception {
         tableEnv.getConfig()
-                .getConfiguration()
-                .setBoolean(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
         createTestValuesSinkTable(
                 "MySink", "name STRING", "max_double DOUBLE", "cnt_distinct_int BIGINT");
 
-        CompiledPlan compiledPlan =
-                tableEnv.compilePlanSql(
+        compileSqlAndExecutePlan(
                         "insert into MySink select name, "
                                 + "   max(`double`),\n"
                                 + "   count(distinct `int`) "
@@ -202,8 +194,8 @@ public class WindowAggregateJsonITCase extends JsonPlanTestBase {
                                 + "     DESCRIPTOR(rowtime),\n"
                                 + "     INTERVAL '5' SECOND,\n"
                                 + "     INTERVAL '15' SECOND))"
-                                + "GROUP BY name, window_start, window_end");
-        tableEnv.executePlan(compiledPlan).await();
+                                + "GROUP BY name, window_start, window_end")
+                .await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(

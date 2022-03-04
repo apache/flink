@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
-import org.apache.flink.table.catalog.{ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable}
+import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.connector.sink.DynamicTableSink
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.abilities.sink.SinkAbilitySpec
@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.Sink
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecSink
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, FlinkRelOptUtil, RelDescriptionWriterImpl}
+import org.apache.flink.table.planner.plan.utils.{ChangelogPlanUtils, RelDescriptionWriterImpl}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode

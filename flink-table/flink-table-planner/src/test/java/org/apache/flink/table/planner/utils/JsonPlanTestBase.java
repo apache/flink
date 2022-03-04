@@ -18,10 +18,13 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.transformations.UnionTransformation;
+import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
-import org.apache.flink.table.api.internal.TableEnvironmentInternal;
+import org.apache.flink.table.api.internal.CompiledPlanUtils;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Row;
@@ -47,6 +50,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
 /** The base class for json plan testing. */
@@ -54,13 +58,11 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
 
     @Rule public ExpectedException exception = ExpectedException.none();
 
-    protected TableEnvironmentInternal tableEnv;
+    protected TableEnvironment tableEnv;
 
     @Before
     public void setup() throws Exception {
-        tableEnv =
-                (TableEnvironmentInternal)
-                        TableEnvironment.create(EnvironmentSettings.inStreamingMode());
+        tableEnv = TableEnvironment.create(EnvironmentSettings.inStreamingMode());
     }
 
     @After
@@ -69,7 +71,29 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
     }
 
     protected TableResult compileSqlAndExecutePlan(String sql) {
-        return tableEnv.executePlan(tableEnv.compilePlanSql(sql));
+        CompiledPlan compiledPlan = tableEnv.compilePlanSql(sql);
+        checkTransformationUids(compiledPlan);
+        return compiledPlan.execute();
+    }
+
+    protected void checkTransformationUids(CompiledPlan compiledPlan) {
+        List<Transformation<?>> transformations =
+                CompiledPlanUtils.toTransformations(tableEnv, compiledPlan);
+
+        transformations.stream()
+                .flatMap(t -> t.getTransitivePredecessors().stream())
+                // UnionTransformations don't need an uid
+                .filter(t -> !(t instanceof UnionTransformation))
+                .forEach(
+                        t ->
+                                assertThat(t.getUid())
+                                        .as(
+                                                "Transformation '"
+                                                        + t.getName()
+                                                        + "' with description '"
+                                                        + t.getDescription()
+                                                        + "' should contain a defined uid")
+                                        .isNotBlank());
     }
 
     protected void createTestValuesSourceTable(

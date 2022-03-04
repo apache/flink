@@ -418,7 +418,7 @@ public class ExecutionConfigOptions {
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<LegacyCastBehaviour> TABLE_EXEC_LEGACY_CAST_BEHAVIOUR =
-            key("table.exec.sink.legacy-cast-behaviour")
+            key("table.exec.legacy-cast-behaviour")
                     .enumType(LegacyCastBehaviour.class)
                     .defaultValue(LegacyCastBehaviour.ENABLED)
                     .withDescription(
@@ -435,6 +435,61 @@ public class ExecutionConfigOptions {
                             "Rank operators have a cache which caches partial state contents "
                                     + "to reduce state access. Cache size is the number of records "
                                     + "in each ranking task.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<Boolean> TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED =
+            key("table.exec.simplify-operator-name-enabled")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "When it is true, the optimizer will simplify the operator name with id and type of ExecNode and keep detail in description. Default value is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean>
+            TABLE_EXEC_DEDUPLICATE_INSERT_UPDATE_AFTER_SENSITIVE_ENABLED =
+                    key("table.exec.deduplicate.insert-update-after-sensitive-enabled")
+                            .booleanType()
+                            .defaultValue(true)
+                            .withDeprecatedKeys(
+                                    "table.exec.deduplicate.insert-and-updateafter-sensitive.enabled")
+                            .withDescription(
+                                    "Set whether the job (especially the sinks) is sensitive to "
+                                            + "INSERT messages and UPDATE_AFTER messages. "
+                                            + "If false, Flink may, sometimes (e.g. deduplication "
+                                            + "for last row), send UPDATE_AFTER instead of INSERT "
+                                            + "for the first row. If true, Flink will guarantee to "
+                                            + "send INSERT for the first row, in that case there "
+                                            + "will be additional overhead. Default is true.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    public static final ConfigOption<Boolean>
+            TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED =
+                    ConfigOptions.key("table.exec.deduplicate.mini-batch.compact-changes-enabled")
+                            .booleanType()
+                            .defaultValue(false)
+                            .withDeprecatedKeys(
+                                    "table.exec.deduplicate.mini-batch.compact-changes.enabled")
+                            .withDescription(
+                                    "Set whether to compact the changes sent downstream in row-time "
+                                            + "mini-batch. If true, Flink will compact changes and send "
+                                            + "only the latest change downstream. Note that if the "
+                                            + "downstream needs the details of versioned data, this "
+                                            + "optimization cannot be applied. If false, Flink will send "
+                                            + "all changes to downstream just like when the mini-batch is "
+                                            + "not enabled.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.STREAMING)
+    @Deprecated
+    public static final ConfigOption<Boolean> TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS =
+            key("table.exec.legacy-transformation-uids")
+                    .booleanType()
+                    .defaultValue(false)
+                    .withDescription(
+                            "In Flink 1.15 Transformation UIDs are generated deterministically starting from the metadata available after the planning phase. "
+                                    + "This new behaviour allows a safe restore of persisted plan, remapping the plan execution graph to the correct operators state. "
+                                    + "Setting this flag to true enables the previous \"legacy\" behavior, which is generating uids from the Transformation graph topology. "
+                                    + "We strongly suggest to keep this flag disabled, as this flag is going to be removed in the next releases. "
+                                    + "If you have a pipeline relying on the old behavior, please create a new pipeline and regenerate the operators state.");
 
     // ------------------------------------------------------------------------------------------
     // Enum option types

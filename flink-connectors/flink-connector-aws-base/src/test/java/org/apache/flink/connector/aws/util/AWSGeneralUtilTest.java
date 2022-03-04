@@ -30,6 +30,7 @@ import software.amazon.awssdk.auth.credentials.EnvironmentVariableCredentialsPro
 import software.amazon.awssdk.auth.credentials.ProfileCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.SystemPropertyCredentialsProvider;
 import software.amazon.awssdk.auth.credentials.WebIdentityTokenFileCredentialsProvider;
+import software.amazon.awssdk.core.exception.SdkClientException;
 import software.amazon.awssdk.http.Protocol;
 import software.amazon.awssdk.http.SdkHttpConfigurationOption;
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
@@ -740,6 +741,50 @@ public class AWSGeneralUtilTest {
         testConfig.setProperty(AWSConfigConstants.AWS_CREDENTIALS_PROVIDER, "wrongProviderType");
 
         AWSGeneralUtil.validateAwsConfiguration(testConfig);
+    }
+
+    @Test
+    public void testMissingWebIdentityTokenFileInCredentials() {
+        exception.expect(IllegalStateException.class);
+        exception.expectMessage(
+                "Either the environment variable AWS_WEB_IDENTITY_TOKEN_FILE or the javaproperty aws.webIdentityTokenFile must be set");
+        Properties properties = TestUtil.getStandardProperties();
+        properties.setProperty(AWS_CREDENTIALS_PROVIDER, "WEB_IDENTITY_TOKEN");
+
+        AWSGeneralUtil.validateAwsCredentials(properties);
+    }
+
+    @Test
+    public void testMissingEnvironmentVariableCredentials() {
+        exception.expect(SdkClientException.class);
+        exception.expectMessage("Access key must be specified either via environment variable");
+        Properties properties = TestUtil.getStandardProperties();
+        properties.setProperty(AWS_CREDENTIALS_PROVIDER, "ENV_VAR");
+
+        AWSGeneralUtil.validateAwsCredentials(properties);
+    }
+
+    @Test
+    public void testFailedSystemPropertiesCredentialsValidationsOnMissingAccessKey() {
+        exception.expect(SdkClientException.class);
+        exception.expectMessage(
+                "Access key must be specified either via environment variable (AWS_ACCESS_KEY_ID) or system property (aws.accessKeyId)");
+        Properties properties = TestUtil.getStandardProperties();
+        properties.setProperty(AWS_CREDENTIALS_PROVIDER, "SYS_PROP");
+
+        AWSGeneralUtil.validateAwsCredentials(properties);
+    }
+
+    @Test
+    public void testFailedSystemPropertiesCredentialsValidationsOnMissingSecretKey() {
+        System.setProperty("aws.accessKeyId", "accesKeyId");
+        exception.expect(SdkClientException.class);
+        exception.expectMessage(
+                "Secret key must be specified either via environment variable (AWS_SECRET_ACCESS_KEY) or system property (aws.secretAccessKey)");
+        Properties properties = TestUtil.getStandardProperties();
+        properties.setProperty(AWS_CREDENTIALS_PROVIDER, "SYS_PROP");
+
+        AWSGeneralUtil.validateAwsCredentials(properties);
     }
 
     private WebIdentityTokenFileCredentialsProvider.Builder

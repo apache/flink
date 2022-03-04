@@ -83,6 +83,7 @@ public abstract class PlanReference {
     }
 
     /** Plan reference to a file in the local filesystem. */
+    @Experimental
     public static class FilePlanReference extends PlanReference {
 
         private final File file;
@@ -119,6 +120,7 @@ public abstract class PlanReference {
     }
 
     /** Plan reference to a string containing the serialized persisted plan in JSON. */
+    @Experimental
     public static class ContentPlanReference extends PlanReference {
 
         private final String content;
@@ -155,6 +157,7 @@ public abstract class PlanReference {
     }
 
     /** Plan reference to a file in the provided {@link ClassLoader}. */
+    @Experimental
     public static class ResourcePlanReference extends PlanReference {
 
         private final ClassLoader classLoader;

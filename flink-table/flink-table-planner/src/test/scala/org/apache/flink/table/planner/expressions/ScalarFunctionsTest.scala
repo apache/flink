@@ -3706,6 +3706,50 @@ class ScalarFunctionsTest extends ScalarTypesTestBase {
     testSqlApi("TIMESTAMPADD(MONTH, -1, time '23:59:59')", "23:59:59")
     testSqlApi("TIMESTAMPADD(QUARTER, -1, time '23:59:59')", "23:59:59")
     testSqlApi("TIMESTAMPADD(YEAR, -1, time '23:59:59')", "23:59:59")
+
+    // test TIMESTAMPADD with positive time interval expressed in TINYINT in various granularity.
+    testSqlApi("TIMESTAMPADD(SECOND, CAST(1 AS TINYINT), time '23:59:59')", "00:00:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, CAST(1 AS TINYINT), time '00:00:00')", "00:01:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, CAST(1 AS TINYINT), time '23:59:59')", "00:00:59")
+    testSqlApi("TIMESTAMPADD(HOUR, CAST(1 AS TINYINT), time '23:59:59')", "00:59:59")
+    testSqlApi("TIMESTAMPADD(DAY, CAST(15 AS TINYINT), date '2021-10-30')", "2021-11-14")
+    testSqlApi("TIMESTAMPADD(WEEK, CAST(3 AS TINYINT), date '2021-10-30')", "2021-11-20")
+    testSqlApi("TIMESTAMPADD(MONTH, CAST(6 AS TINYINT), date '2021-10-30')", "2022-04-30")
+    testSqlApi("TIMESTAMPADD(QUARTER, CAST(1 AS TINYINT), date '2021-10-30')", "2022-01-30")
+    testSqlApi("TIMESTAMPADD(YEAR, CAST(10 AS TINYINT), date '2021-10-30')", "2031-10-30")
+
+    // test TIMESTAMPADD with negative time interval expressed in TINYINT in various granularity.
+    testSqlApi("TIMESTAMPADD(SECOND, CAST(-1 AS TINYINT), time '00:00:00')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MINUTE, CAST(-1 AS TINYINT), time '00:00:00')", "23:59:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, CAST(-1 AS TINYINT), time '00:00:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(HOUR, CAST(-1 AS TINYINT), time '00:00:00')", "23:00:00")
+    testSqlApi("TIMESTAMPADD(DAY, CAST(-1 AS TINYINT), date '2021-10-30')", "2021-10-29")
+    testSqlApi("TIMESTAMPADD(WEEK, CAST(-1 AS TINYINT), date '2021-10-30')", "2021-10-23")
+    testSqlApi("TIMESTAMPADD(MONTH, CAST(-1 AS TINYINT), date '2021-10-30')", "2021-09-30")
+    testSqlApi("TIMESTAMPADD(QUARTER, CAST(-1 AS TINYINT), date '2021-10-30')", "2021-07-30")
+    testSqlApi("TIMESTAMPADD(YEAR, CAST(-1 AS TINYINT), date '2021-10-30')", "2020-10-30")
+
+    // test TIMESTAMPADD with positive time interval expressed in SMALLINT in various granularity.
+    testSqlApi("TIMESTAMPADD(SECOND, CAST(1 AS SMALLINT), time '23:59:59')", "00:00:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, CAST(1 AS SMALLINT), time '00:00:00')", "00:01:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, CAST(1 AS SMALLINT), time '23:59:59')", "00:00:59")
+    testSqlApi("TIMESTAMPADD(HOUR, CAST(1 AS SMALLINT), time '23:59:59')", "00:59:59")
+    testSqlApi("TIMESTAMPADD(DAY, CAST(15 AS SMALLINT), date '2021-10-30')", "2021-11-14")
+    testSqlApi("TIMESTAMPADD(WEEK, CAST(3 AS SMALLINT), date '2021-10-30')", "2021-11-20")
+    testSqlApi("TIMESTAMPADD(MONTH, CAST(6 AS SMALLINT), date '2021-10-30')", "2022-04-30")
+    testSqlApi("TIMESTAMPADD(QUARTER, CAST(1 AS SMALLINT), date '2021-10-30')", "2022-01-30")
+    testSqlApi("TIMESTAMPADD(YEAR, CAST(10 AS SMALLINT), date '2021-10-30')", "2031-10-30")
+
+    // test TIMESTAMPADD with negative time interval expressed in SMALLINT in various granularity.
+    testSqlApi("TIMESTAMPADD(SECOND, CAST(-1 AS SMALLINT), time '00:00:00')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(MINUTE, CAST(-1 AS SMALLINT), time '00:00:00')", "23:59:00")
+    testSqlApi("TIMESTAMPADD(MINUTE, CAST(-1 AS SMALLINT), time '00:00:59')", "23:59:59")
+    testSqlApi("TIMESTAMPADD(HOUR, CAST(-1 AS SMALLINT), time '00:00:00')", "23:00:00")
+    testSqlApi("TIMESTAMPADD(DAY, CAST(-1 AS SMALLINT), date '2021-10-30')", "2021-10-29")
+    testSqlApi("TIMESTAMPADD(WEEK, CAST(-1 AS SMALLINT), date '2021-10-30')", "2021-10-23")
+    testSqlApi("TIMESTAMPADD(MONTH, CAST(-1 AS SMALLINT), date '2021-10-30')", "2021-09-30")
+    testSqlApi("TIMESTAMPADD(QUARTER, CAST(-1 AS SMALLINT), date '2021-10-30')", "2021-07-30")
+    testSqlApi("TIMESTAMPADD(YEAR, CAST(-1 AS SMALLINT), date '2021-10-30')", "2020-10-30")
   }
 
   @Test

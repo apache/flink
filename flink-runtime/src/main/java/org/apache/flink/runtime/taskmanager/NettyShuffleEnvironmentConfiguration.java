@@ -95,6 +95,8 @@ public class NettyShuffleEnvironmentConfiguration {
     /** The maximum number of tpc connections between taskmanagers for data communication. */
     private final int maxNumberOfConnections;
 
+    private final boolean connectionReuseEnabled;
+
     public NettyShuffleEnvironmentConfiguration(
             int numNetworkBuffers,
             int networkBufferSize,
@@ -114,7 +116,8 @@ public class NettyShuffleEnvironmentConfiguration {
             int sortShuffleMinBuffers,
             int sortShuffleMinParallelism,
             BufferDebloatConfiguration debloatConfiguration,
-            int maxNumberOfConnections) {
+            int maxNumberOfConnections,
+            boolean connectionReuseEnabled) {
 
         this.numNetworkBuffers = numNetworkBuffers;
         this.networkBufferSize = networkBufferSize;
@@ -135,6 +138,7 @@ public class NettyShuffleEnvironmentConfiguration {
         this.sortShuffleMinParallelism = sortShuffleMinParallelism;
         this.debloatConfiguration = debloatConfiguration;
         this.maxNumberOfConnections = maxNumberOfConnections;
+        this.connectionReuseEnabled = connectionReuseEnabled;
     }
 
     // ------------------------------------------------------------------------
@@ -189,6 +193,10 @@ public class NettyShuffleEnvironmentConfiguration {
 
     public String[] getTempDirs() {
         return tempDirs;
+    }
+
+    public boolean isConnectionReuseEnabled() {
+        return connectionReuseEnabled;
     }
 
     public BoundedBlockingSubpartitionType getBlockingSubpartitionType() {
@@ -309,6 +317,11 @@ public class NettyShuffleEnvironmentConfiguration {
                         1,
                         configuration.getInteger(
                                 NettyShuffleEnvironmentOptions.MAX_NUM_TCP_CONNECTIONS));
+
+        boolean connectionReuseEnabled =
+                configuration.get(
+                        NettyShuffleEnvironmentOptions.TCP_CONNECTION_REUSE_ACROSS_JOBS_ENABLED);
+
         return new NettyShuffleEnvironmentConfiguration(
                 numberOfNetworkBuffers,
                 pageSize,
@@ -328,7 +341,8 @@ public class NettyShuffleEnvironmentConfiguration {
                 sortShuffleMinBuffers,
                 sortShuffleMinParallelism,
                 BufferDebloatConfiguration.fromConfiguration(configuration),
-                maxNumConnections);
+                maxNumConnections,
+                connectionReuseEnabled);
     }
 
     /**
@@ -466,6 +480,7 @@ public class NettyShuffleEnvironmentConfiguration {
         result = 31 * result + sortShuffleMinBuffers;
         result = 31 * result + sortShuffleMinParallelism;
         result = 31 * result + maxNumberOfConnections;
+        result = 31 * result + (connectionReuseEnabled ? 1 : 0);
         return result;
     }
 
@@ -497,7 +512,8 @@ public class NettyShuffleEnvironmentConfiguration {
                             == that.blockingShuffleCompressionEnabled
                     && this.maxBuffersPerChannel == that.maxBuffersPerChannel
                     && Objects.equals(this.compressionCodec, that.compressionCodec)
-                    && this.maxNumberOfConnections == that.maxNumberOfConnections;
+                    && this.maxNumberOfConnections == that.maxNumberOfConnections
+                    && this.connectionReuseEnabled == that.connectionReuseEnabled;
         }
     }
 
@@ -536,6 +552,8 @@ public class NettyShuffleEnvironmentConfiguration {
                 + sortShuffleMinParallelism
                 + ", maxNumberOfConnections="
                 + maxNumberOfConnections
+                + ", connectionReuseEnabled="
+                + connectionReuseEnabled
                 + '}';
     }
 }

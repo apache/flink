@@ -217,7 +217,7 @@ trait ImplicitExpressionConversions {
   implicit class FieldExpression(val sc: StringContext) {
 
     /**
-     * Creates an unresolved reference to a table's field.
+     * Creates an unresolved reference to a table's column.
      *
      * Example:
      * {{{
@@ -374,7 +374,7 @@ trait ImplicitExpressionConversions {
   // ----------------------------------------------------------------------------------------------
 
   /**
-   * Creates an unresolved reference to a table's field.
+   * Creates an unresolved reference to a table's column.
    *
    * For example:
    *
@@ -386,6 +386,20 @@ trait ImplicitExpressionConversions {
    * using string interpolation like `$"key"` would be inconvenient.
    */
   def $(name: String): Expression = Expressions.$(name)
+
+  /**
+   * Creates an unresolved reference to a table's column.
+   *
+   * For example:
+   *
+   * ```
+   * tab.select(col("key"), col("value"))
+   * ```
+   *
+   * This method is a synonym of [[$(String)]] for cases where a method name containing a dollar
+   * sign would be inconvenient.
+   */
+  def col(name: String): Expression = Expressions.col(name)
 
   /**
    * Creates a SQL literal.

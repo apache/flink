@@ -22,12 +22,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "TO_TIMESTAMP",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$TO_TIMESTAMP$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
                     "inputIndex" : 2,
@@ -42,12 +38,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "PROCTIME",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
                   "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -63,19 +55,16 @@
               "rowtimeAttribute" : "rowtime",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "-",
-                    "kind" : "MINUS",
-                    "syntax" : "SPECIAL"
-                  },
+                  "kind" : "CALL",
+                  "syntax" : "SPECIAL",
+                  "internalName" : "$-$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
                     "inputIndex" : 3,
                     "type" : "TIMESTAMP(3)"
                   }, {
                     "kind" : "LITERAL",
-                    "value" : 1000,
+                    "value" : "1000",
                     "type" : "INTERVAL SECOND(6) NOT NULL"
                   } ],
                   "type" : "TIMESTAMP(3)"
@@ -110,12 +99,8 @@
       "inputIndex" : 2,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "TO_TIMESTAMP",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$TO_TIMESTAMP$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
@@ -137,19 +122,16 @@
     "id" : 3,
     "type" : "stream-exec-watermark-assigner_1",
     "watermarkExpr" : {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "-",
-        "kind" : "MINUS",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$-$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 3,
         "type" : "TIMESTAMP(3)"
       }, {
         "kind" : "LITERAL",
-        "value" : 1000,
+        "value" : "1000",
         "type" : "INTERVAL SECOND(6) NOT NULL"
       } ],
       "type" : "TIMESTAMP(3)"
@@ -199,19 +181,11 @@
       "inputIndex" : 2,
       "type" : "VARCHAR(2147483647)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "MOD",
-        "kind" : "MOD",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$MOD$1",
       "operands" : [ {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "HASH_CODE",
-          "kind" : "OTHER_FUNCTION",
-          "syntax" : "FUNCTION"
-        },
+        "kind" : "CALL",
+        "internalName" : "$HASH_CODE$1",
         "operands" : [ {
           "kind" : "INPUT_REF",
           "inputIndex" : 2,
@@ -271,11 +245,8 @@
     "grouping" : [ 0, 3 ],
     "aggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
@@ -284,11 +255,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -297,11 +264,8 @@
       "type" : "BIGINT"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 2 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -438,11 +402,8 @@
     "grouping" : [ 0, 1 ],
     "aggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ ],
       "filterArg" : -1,
       "distinct" : false,
@@ -451,11 +412,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -464,11 +421,8 @@
       "type" : "BIGINT"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 2 ],
       "filterArg" : -1,
       "distinct" : true,
@@ -598,11 +552,7 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "$SUM0",
-        "kind" : "SUM0",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$$SUM0$1",
       "argList" : [ 4 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -611,11 +561,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 5 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -624,11 +570,7 @@
       "type" : "BIGINT"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "$SUM0",
-        "kind" : "SUM0",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$$SUM0$1",
       "argList" : [ 6 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -680,11 +622,7 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : null,
-      "aggFunction" : {
-        "name" : "$SUM0",
-        "kind" : "SUM0",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$$SUM0$1",
       "argList" : [ 4 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -693,11 +631,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "SUM",
-        "kind" : "SUM",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$SUM$1",
       "argList" : [ 5 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -706,11 +640,7 @@
       "type" : "BIGINT"
     }, {
       "name" : null,
-      "aggFunction" : {
-        "name" : "$SUM0",
-        "kind" : "SUM0",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$$SUM0$1",
       "argList" : [ 6 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -775,12 +705,9 @@
     "id" : 12,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
@@ -788,12 +715,9 @@
       } ],
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 4,
@@ -801,12 +725,9 @@
       } ],
       "type" : "TIMESTAMP(3)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 5,
@@ -814,12 +735,9 @@
       } ],
       "type" : "TIMESTAMP(3)"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
@@ -831,12 +749,9 @@
       "inputIndex" : 2,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 3,

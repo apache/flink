@@ -104,7 +104,7 @@ else
     echo "Success: Elasticsearch7SinkExample.class and other user classes are included in the jar."
 fi
 
-setup_elasticsearch "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.15.2-linux-x86_64.tar.gz" 7
+setup_elasticsearch "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-7.10.2-linux-x86_64.tar.gz" 7
 wait_elasticsearch_working
 
 function shutdownAndCleanup {

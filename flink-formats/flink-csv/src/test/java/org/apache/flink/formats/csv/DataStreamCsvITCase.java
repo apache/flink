@@ -26,16 +26,15 @@ import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.src.FileSource;
 import org.apache.flink.connector.file.src.reader.StreamFormat;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.formats.common.Converter;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
-import org.apache.flink.runtime.testutils.MiniClusterExtension;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamUtils;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.BasePathBucketAssigner;
 import org.apache.flink.streaming.api.operators.collect.ClientAndIterator;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.function.FunctionWithException;
 
@@ -79,6 +78,7 @@ public class DataStreamCsvITCase {
 
     @TempDir File outDir;
 
+    @RegisterExtension
     private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
             new MiniClusterExtension(
                     new MiniClusterResourceConfiguration.Builder()
@@ -87,10 +87,6 @@ public class DataStreamCsvITCase {
                             .setRpcServiceSharing(RpcServiceSharing.DEDICATED)
                             .withHaLeadershipControl()
                             .build());
-
-    @RegisterExtension
-    private static AllCallbackWrapper<MiniClusterExtension> allCallbackWrapper =
-            new AllCallbackWrapper<>(MINI_CLUSTER_RESOURCE);
 
     // ------------------------------------------------------------------------
     //  test data

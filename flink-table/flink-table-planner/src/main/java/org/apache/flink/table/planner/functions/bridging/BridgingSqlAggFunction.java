@@ -19,11 +19,12 @@
 package org.apache.flink.table.planner.functions.bridging;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.FunctionDefinition;
-import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.FunctionRequirement;
+import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.TypeInference;
@@ -33,10 +34,7 @@ import org.apache.calcite.sql.SqlAggFunction;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.util.Optionality;
 
-import javax.annotation.Nullable;
-
 import java.util.List;
-import java.util.Optional;
 
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createName;
 import static org.apache.flink.table.planner.functions.bridging.BridgingUtils.createParamTypes;
@@ -58,9 +56,7 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
 
     private final FlinkTypeFactory typeFactory;
 
-    private final @Nullable FunctionIdentifier identifier;
-
-    private final FunctionDefinition definition;
+    private final ContextResolvedFunction resolvedFunction;
 
     private final TypeInference typeInference;
 
@@ -70,25 +66,26 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
             DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory,
             SqlKind kind,
-            @Nullable FunctionIdentifier identifier,
-            FunctionDefinition definition,
+            ContextResolvedFunction resolvedFunction,
             TypeInference typeInference) {
         super(
-                createName(identifier, definition),
-                createSqlIdentifier(identifier),
+                createName(resolvedFunction),
+                createSqlIdentifier(resolvedFunction),
                 kind,
-                createSqlReturnTypeInference(dataTypeFactory, definition, typeInference),
-                createSqlOperandTypeInference(dataTypeFactory, definition, typeInference),
-                createSqlOperandTypeChecker(dataTypeFactory, definition, typeInference),
-                createSqlFunctionCategory(identifier),
+                createSqlReturnTypeInference(
+                        dataTypeFactory, resolvedFunction.getDefinition(), typeInference),
+                createSqlOperandTypeInference(
+                        dataTypeFactory, resolvedFunction.getDefinition(), typeInference),
+                createSqlOperandTypeChecker(
+                        dataTypeFactory, resolvedFunction.getDefinition(), typeInference),
+                createSqlFunctionCategory(resolvedFunction),
                 createOrderRequirement(),
-                createOverWindowRequirement(definition),
+                createOverWindowRequirement(resolvedFunction.getDefinition()),
                 createGroupOrderRequirement());
 
         this.dataTypeFactory = dataTypeFactory;
         this.typeFactory = typeFactory;
-        this.identifier = identifier;
-        this.definition = definition;
+        this.resolvedFunction = resolvedFunction;
         this.typeInference = typeInference;
         this.paramTypes = createParamTypes(typeFactory, typeInference);
     }
@@ -100,25 +97,39 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
      * @param typeFactory used for bridging to {@link RelDataType}
      * @param kind commonly used SQL standard function; use {@link SqlKind#OTHER_FUNCTION} if this
      *     function cannot be mapped to a common function kind.
-     * @param identifier catalog identifier
-     * @param definition system or user-defined {@link FunctionDefinition}
+     * @param resolvedFunction system or user-defined {@link FunctionDefinition} with context
      * @param typeInference type inference logic
      */
     public static BridgingSqlAggFunction of(
             DataTypeFactory dataTypeFactory,
             FlinkTypeFactory typeFactory,
             SqlKind kind,
-            FunctionIdentifier identifier,
-            FunctionDefinition definition,
+            ContextResolvedFunction resolvedFunction,
             TypeInference typeInference) {
-
+        final FunctionKind functionKind = resolvedFunction.getDefinition().getKind();
         checkState(
-                definition.getKind() == FunctionKind.AGGREGATE
-                        || definition.getKind() == FunctionKind.TABLE_AGGREGATE,
+                functionKind == FunctionKind.AGGREGATE
+                        || functionKind == FunctionKind.TABLE_AGGREGATE,
                 "Aggregating function kind expected.");
 
         return new BridgingSqlAggFunction(
-                dataTypeFactory, typeFactory, kind, identifier, definition, typeInference);
+                dataTypeFactory, typeFactory, kind, resolvedFunction, typeInference);
+    }
+
+    /** Creates an instance of a aggregate function during translation. */
+    public static BridgingSqlAggFunction of(
+            FlinkContext context,
+            FlinkTypeFactory typeFactory,
+            ContextResolvedFunction resolvedFunction) {
+        final DataTypeFactory dataTypeFactory = context.getCatalogManager().getDataTypeFactory();
+        final TypeInference typeInference =
+                resolvedFunction.getDefinition().getTypeInference(dataTypeFactory);
+        return of(
+                dataTypeFactory,
+                typeFactory,
+                SqlKind.OTHER_FUNCTION,
+                resolvedFunction,
+                typeInference);
     }
 
     public DataTypeFactory getDataTypeFactory() {
@@ -129,12 +140,12 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
         return typeFactory;
     }
 
-    public Optional<FunctionIdentifier> getIdentifier() {
-        return Optional.ofNullable(identifier);
+    public ContextResolvedFunction getResolvedFunction() {
+        return resolvedFunction;
     }
 
     public FunctionDefinition getDefinition() {
-        return definition;
+        return resolvedFunction.getDefinition();
     }
 
     public TypeInference getTypeInference() {
@@ -156,7 +167,7 @@ public final class BridgingSqlAggFunction extends SqlAggFunction {
 
     @Override
     public boolean isDeterministic() {
-        return definition.isDeterministic();
+        return resolvedFunction.getDefinition().isDeterministic();
     }
 
     // --------------------------------------------------------------------------------------------

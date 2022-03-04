@@ -101,13 +101,8 @@ public class ExecutionContext {
         // checks the value of RUNTIME_MODE
         EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(flinkConfig);
 
-        if (!settings.isBlinkPlanner()) {
-            throw new TableException(
-                    "The old planner is not supported anymore. Please update to new default planner.");
-        }
-
-        TableConfig config = new TableConfig();
-        config.addConfiguration(flinkConfig);
+        TableConfig tableConfig = new TableConfig();
+        tableConfig.addConfiguration(flinkConfig);
 
         StreamExecutionEnvironment streamExecEnv = createStreamExecutionEnvironment();
 
@@ -115,7 +110,7 @@ public class ExecutionContext {
         return createStreamTableEnvironment(
                 streamExecEnv,
                 settings,
-                config,
+                tableConfig,
                 executor,
                 sessionState.catalogManager,
                 sessionState.moduleManager,
@@ -126,7 +121,7 @@ public class ExecutionContext {
     private StreamTableEnvironment createStreamTableEnvironment(
             StreamExecutionEnvironment env,
             EnvironmentSettings settings,
-            TableConfig config,
+            TableConfig tableConfig,
             Executor executor,
             CatalogManager catalogManager,
             ModuleManager moduleManager,
@@ -137,7 +132,7 @@ public class ExecutionContext {
                 PlannerFactoryUtil.createPlanner(
                         settings.getPlanner(),
                         executor,
-                        config,
+                        tableConfig,
                         moduleManager,
                         catalogManager,
                         functionCatalog);
@@ -146,7 +141,7 @@ public class ExecutionContext {
                 catalogManager,
                 moduleManager,
                 functionCatalog,
-                config,
+                tableConfig,
                 env,
                 planner,
                 executor,

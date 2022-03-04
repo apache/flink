@@ -120,11 +120,21 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
     }
 
     @Test
-    public void testStopWithExplicitSavepointType() throws Exception {
+    public void testStopWithExplicitSavepointTypeShortOption() throws Exception {
+        testStopWithExplicitSavepointType("-t", SavepointFormatType.NATIVE);
+    }
+
+    @Test
+    public void testStopWithExplicitSavepointTypeLongOption() throws Exception {
+        testStopWithExplicitSavepointType("--type", SavepointFormatType.NATIVE);
+    }
+
+    private void testStopWithExplicitSavepointType(String flag, SavepointFormatType expectedFormat)
+            throws Exception {
         JobID jid = new JobID();
 
         String[] parameters = {
-            "-p", "test-target-dir", jid.toString(), "-type", SavepointFormatType.NATIVE.toString()
+            "-p", "test-target-dir", jid.toString(), flag, expectedFormat.toString()
         };
         OneShotLatch stopWithSavepointLatch = new OneShotLatch();
         TestingClusterClient<String> clusterClient = new TestingClusterClient<>();
@@ -133,6 +143,7 @@ public class CliFrontendStopWithSavepointTest extends CliFrontendTestBase {
                     assertThat(jobID, is(jid));
                     assertThat(advanceToEndOfEventTime, is(false));
                     assertThat(savepointDirectory, is("test-target-dir"));
+                    assertThat(formatType, is(expectedFormat));
                     stopWithSavepointLatch.trigger();
                     return CompletableFuture.completedFuture(savepointDirectory);
                 });

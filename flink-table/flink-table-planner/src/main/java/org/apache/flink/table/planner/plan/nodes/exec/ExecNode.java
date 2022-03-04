@@ -20,8 +20,6 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonDeserializer;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -30,8 +28,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTypeInfo;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonTypeIdResolver;
 
 import java.util.List;
@@ -75,8 +71,6 @@ public interface ExecNode<T> extends ExecNodeTranslator<T> {
      * data structures.
      */
     @JsonProperty(value = FIELD_NAME_OUTPUT_TYPE)
-    @JsonSerialize(using = LogicalTypeJsonSerializer.class)
-    @JsonDeserialize(using = LogicalTypeJsonDeserializer.class)
     LogicalType getOutputType();
 
     /**

@@ -36,15 +36,13 @@ class TwoStageAggregateTest extends TableTestBase {
     util = streamTestUtil()
     util.tableEnv.getConfig
       .setIdleStateRetentionTime(Time.hours(1), Time.hours(2))
-    util.tableEnv.getConfig.getConfiguration
+    util.tableEnv.getConfig
       .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
-    util.tableEnv.getConfig.getConfiguration
-        .setBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration
-      .setLong(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 3)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-      AggregatePhaseStrategy.TWO_PHASE.toString)
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, Long.box(3))
+      .set(
+        OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
+        AggregatePhaseStrategy.TWO_PHASE.toString)
   }
 
   @Test

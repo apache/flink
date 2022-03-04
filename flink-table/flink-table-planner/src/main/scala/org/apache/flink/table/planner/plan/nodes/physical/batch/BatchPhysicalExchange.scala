@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecExchange
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalExchange
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapConfig
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.planner.utils.StreamExchangeModeUtils.getBatchStreamExchangeMode
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -59,7 +59,9 @@ class BatchPhysicalExchange(
       throw new UnsupportedOperationException("Range sort is not supported.")
     }
 
-    val exchangeMode = getBatchStreamExchangeMode(unwrapConfig(this), StreamExchangeMode.UNDEFINED)
+    val exchangeMode = getBatchStreamExchangeMode(
+      unwrapTableConfig(this),
+      StreamExchangeMode.UNDEFINED)
 
     val damBehavior = if (exchangeMode eq StreamExchangeMode.BATCH) {
       InputProperty.DamBehavior.BLOCKING

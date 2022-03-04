@@ -18,14 +18,12 @@
 
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.table.catalog.ResolvedCatalogTable
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecTableSourceScan
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalTableSourceScan
 import org.apache.flink.table.planner.plan.schema.TableSourceTable
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode

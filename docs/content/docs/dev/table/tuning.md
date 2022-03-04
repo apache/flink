@@ -62,11 +62,11 @@ The following examples show how to enable these options.
 TableEnvironment tEnv = ...
 
 // access flink configuration
-Configuration configuration = tEnv.getConfig().getConfiguration();
+TableConfig configuration = tEnv.getConfig();
 // set low-level key-value options
-configuration.setString("table.exec.mini-batch.enabled", "true"); // enable mini-batch optimization
-configuration.setString("table.exec.mini-batch.allow-latency", "5 s"); // use 5 seconds to buffer input records
-configuration.setString("table.exec.mini-batch.size", "5000"); // the maximum number of records can be buffered by each aggregate operator task
+configuration.set("table.exec.mini-batch.enabled", "true"); // enable mini-batch optimization
+configuration.set("table.exec.mini-batch.allow-latency", "5 s"); // use 5 seconds to buffer input records
+configuration.set("table.exec.mini-batch.size", "5000"); // the maximum number of records can be buffered by each aggregate operator task
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -75,11 +75,11 @@ configuration.setString("table.exec.mini-batch.size", "5000"); // the maximum nu
 val tEnv: TableEnvironment = ...
 
 // access flink configuration
-val configuration = tEnv.getConfig().getConfiguration()
+val configuration = tEnv.getConfig()
 // set low-level key-value options
-configuration.setString("table.exec.mini-batch.enabled", "true") // enable mini-batch optimization
-configuration.setString("table.exec.mini-batch.allow-latency", "5 s") // use 5 seconds to buffer input records
-configuration.setString("table.exec.mini-batch.size", "5000") // the maximum number of records can be buffered by each aggregate operator task
+configuration.set("table.exec.mini-batch.enabled", "true") // enable mini-batch optimization
+configuration.set("table.exec.mini-batch.allow-latency", "5 s") // use 5 seconds to buffer input records
+configuration.set("table.exec.mini-batch.size", "5000") // the maximum number of records can be buffered by each aggregate operator task
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -88,11 +88,11 @@ configuration.setString("table.exec.mini-batch.size", "5000") // the maximum num
 t_env = ...
 
 # access flink configuration
-configuration = t_env.get_config().get_configuration();
+configuration = t_env.get_config();
 # set low-level key-value options
-configuration.set_string("table.exec.mini-batch.enabled", "true"); # enable mini-batch optimization
-configuration.set_string("table.exec.mini-batch.allow-latency", "5 s"); # use 5 seconds to buffer input records
-configuration.set_string("table.exec.mini-batch.size", "5000"); # the maximum number of records can be buffered by each aggregate operator task
+configuration.set("table.exec.mini-batch.enabled", "true"); # enable mini-batch optimization
+configuration.set("table.exec.mini-batch.allow-latency", "5 s"); # use 5 seconds to buffer input records
+configuration.set("table.exec.mini-batch.size", "5000"); # the maximum number of records can be buffered by each aggregate operator task
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -125,12 +125,12 @@ The following examples show how to enable the local-global aggregation.
 TableEnvironment tEnv = ...
 
 // access flink configuration
-Configuration configuration = tEnv.getConfig().getConfiguration();
+TableConfig configuration = tEnv.getConfig();
 // set low-level key-value options
-configuration.setString("table.exec.mini-batch.enabled", "true"); // local-global aggregation depends on mini-batch is enabled
-configuration.setString("table.exec.mini-batch.allow-latency", "5 s");
-configuration.setString("table.exec.mini-batch.size", "5000");
-configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE"); // enable two-phase, i.e. local-global aggregation
+configuration.set("table.exec.mini-batch.enabled", "true"); // local-global aggregation depends on mini-batch is enabled
+configuration.set("table.exec.mini-batch.allow-latency", "5 s");
+configuration.set("table.exec.mini-batch.size", "5000");
+configuration.set("table.optimizer.agg-phase-strategy", "TWO_PHASE"); // enable two-phase, i.e. local-global aggregation
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -139,12 +139,12 @@ configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE"); // e
 val tEnv: TableEnvironment = ...
 
 // access flink configuration
-val configuration = tEnv.getConfig().getConfiguration()
+val configuration = tEnv.getConfig()
 // set low-level key-value options
-configuration.setString("table.exec.mini-batch.enabled", "true") // local-global aggregation depends on mini-batch is enabled
-configuration.setString("table.exec.mini-batch.allow-latency", "5 s")
-configuration.setString("table.exec.mini-batch.size", "5000")
-configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE") // enable two-phase, i.e. local-global aggregation
+configuration.set("table.exec.mini-batch.enabled", "true") // local-global aggregation depends on mini-batch is enabled
+configuration.set("table.exec.mini-batch.allow-latency", "5 s")
+configuration.set("table.exec.mini-batch.size", "5000")
+configuration.set("table.optimizer.agg-phase-strategy", "TWO_PHASE") // enable two-phase, i.e. local-global aggregation
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -153,12 +153,12 @@ configuration.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE") // en
 t_env = ...
 
 # access flink configuration
-configuration = t_env.get_config().get_configuration();
+configuration = t_env.get_config();
 # set low-level key-value options
-configuration.set_string("table.exec.mini-batch.enabled", "true"); # local-global aggregation depends on mini-batch is enabled
-configuration.set_string("table.exec.mini-batch.allow-latency", "5 s");
-configuration.set_string("table.exec.mini-batch.size", "5000");
-configuration.set_string("table.optimizer.agg-phase-strategy", "TWO_PHASE"); # enable two-phase, i.e. local-global aggregation
+configuration.set("table.exec.mini-batch.enabled", "true"); # local-global aggregation depends on mini-batch is enabled
+configuration.set("table.exec.mini-batch.allow-latency", "5 s");
+configuration.set("table.exec.mini-batch.size", "5000");
+configuration.set("table.optimizer.agg-phase-strategy", "TWO_PHASE"); # enable two-phase, i.e. local-global aggregation
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -212,9 +212,8 @@ The following examples show how to enable the split distinct aggregation optimiz
 // instantiate table environment
 TableEnvironment tEnv = ...
 
-tEnv.getConfig()        // access high-level configuration
-  .getConfiguration()   // set low-level key-value options
-  .setString("table.optimizer.distinct-agg.split.enabled", "true");  // enable distinct agg split
+tEnv.getConfig()
+  .set("table.optimizer.distinct-agg.split.enabled", "true");  // enable distinct agg split
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -222,9 +221,8 @@ tEnv.getConfig()        // access high-level configuration
 // instantiate table environment
 val tEnv: TableEnvironment = ...
 
-tEnv.getConfig         // access high-level configuration
-  .getConfiguration    // set low-level key-value options
-  .setString("table.optimizer.distinct-agg.split.enabled", "true")  // enable distinct agg split
+tEnv.getConfig
+  .set("table.optimizer.distinct-agg.split.enabled", "true")  // enable distinct agg split
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -232,9 +230,8 @@ tEnv.getConfig         // access high-level configuration
 # instantiate table environment
 t_env = ...
 
-t_env.get_config()        # access high-level configuration
-  .get_configuration()    # set low-level key-value options
-  .set_string("table.optimizer.distinct-agg.split.enabled", "true"); # enable distinct agg split
+t_env.get_config()
+  .set("table.optimizer.distinct-agg.split.enabled", "true"); # enable distinct agg split
 ```
 {{< /tab >}}
 {{< /tabs >}}

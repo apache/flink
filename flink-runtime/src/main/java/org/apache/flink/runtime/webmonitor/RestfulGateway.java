@@ -184,7 +184,7 @@ public interface RestfulGateway extends RpcGateway {
     }
 
     /**
-     * Get the status of of savepoint triggered under the specified operation key.
+     * Get the status of a savepoint triggered under the specified operation key.
      *
      * @param operationKey key of the operation
      * @return Future which completes immediately with the status, or fails if no operation is

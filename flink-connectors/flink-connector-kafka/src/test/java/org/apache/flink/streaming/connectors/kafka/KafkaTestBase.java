@@ -82,7 +82,7 @@ public abstract class KafkaTestBase extends TestLogger {
 
     public static final Logger LOG = LoggerFactory.getLogger(KafkaTestBase.class);
 
-    public static final int NUMBER_OF_KAFKA_SERVERS = 3;
+    public static final int NUMBER_OF_KAFKA_SERVERS = 1;
 
     public static String brokerConnectionStrings;
 

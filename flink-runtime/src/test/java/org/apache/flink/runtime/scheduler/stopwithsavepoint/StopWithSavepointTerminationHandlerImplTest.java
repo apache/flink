@@ -223,6 +223,7 @@ public class StopWithSavepointTerminationHandlerImplTest extends TestLogger {
                 new HashMap<>(),
                 null,
                 CheckpointProperties.forSavepoint(true, SavepointFormatType.CANONICAL),
-                new TestCompletedCheckpointStorageLocation(streamStateHandle, "savepoint-path"));
+                new TestCompletedCheckpointStorageLocation(streamStateHandle, "savepoint-path"),
+                null);
     }
 }

@@ -29,12 +29,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "PROCTIME",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
                   "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -86,12 +82,8 @@
       "inputIndex" : 0,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "PROCTIME",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$PROCTIME$1",
       "operands" : [ ],
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -197,12 +189,9 @@
         "kind" : "PROCTIME"
       }
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,
@@ -296,11 +285,8 @@
         },
         "aggCalls" : [ {
           "name" : "w0$o0",
-          "aggFunction" : {
-            "name" : "COUNT",
-            "kind" : "COUNT",
-            "syntax" : "FUNCTION_STAR"
-          },
+          "syntax" : "FUNCTION_STAR",
+          "internalName" : "$COUNT$1",
           "argList" : [ 0 ],
           "filterArg" : -1,
           "distinct" : false,
@@ -311,7 +297,7 @@
       } ],
       "constants" : [ {
         "kind" : "LITERAL",
-        "value" : 10000,
+        "value" : "10000",
         "type" : "INTERVAL SECOND(6) NOT NULL"
       } ],
       "originalInputFields" : 3
@@ -353,12 +339,9 @@
       "inputIndex" : 2,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 3,

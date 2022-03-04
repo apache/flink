@@ -134,6 +134,13 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                         Row.of(3, "foo", Instant.parse("2020-11-11T10:11:22.777Z")),
                         Row.of(4, "foo", Instant.parse("2020-11-11T10:11:23.888Z")));
 
+        final SinkFunction<RowData> sinkFunction =
+                new SinkFunction<RowData>() {
+                    @Override
+                    public void invoke(RowData value, Context context) {
+                        addElement(timestamps, context.timestamp());
+                    }
+                };
         final TableDescriptor sourceDescriptor =
                 TableFactoryHarness.newBuilder()
                         .schema(schemaStreamRecordTimestampInserter(true))
@@ -143,18 +150,8 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                     @Override
                                     public DataStreamSinkProvider getSinkRuntimeProvider(
                                             DynamicTableSink.Context context) {
-                                        return dataStream ->
-                                                dataStream.addSink(
-                                                        new SinkFunction<RowData>() {
-                                                            @Override
-                                                            public void invoke(
-                                                                    RowData value,
-                                                                    Context context) {
-                                                                addElement(
-                                                                        timestamps,
-                                                                        context.timestamp());
-                                                            }
-                                                        });
+                                        return (providerContext, dataStream) ->
+                                                dataStream.addSink(sinkFunction);
                                     }
                                 })
                         .build();
@@ -238,8 +235,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         // accordingly, based on their type length
         try {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
                             ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD.name());
 
@@ -258,8 +254,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
 
         } finally {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
                             ExecutionConfigOptions.TypeLengthEnforcer.IGNORE.name());
         }
@@ -318,8 +313,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         // accordingly, based on their type length
         try {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
                             ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD.name());
 
@@ -362,8 +356,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
 
         } finally {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
                             ExecutionConfigOptions.TypeLengthEnforcer.IGNORE.name());
         }
@@ -418,8 +411,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         // Change config option to "drop", to drop the columns instead of throwing errors
         try {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key(),
                             ExecutionConfigOptions.NotNullEnforcer.DROP.name());
 
@@ -434,8 +426,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
             assertThat(results.get().get(1).getInt(2)).isEqualTo(33);
         } finally {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key(),
                             ExecutionConfigOptions.NotNullEnforcer.ERROR.name());
         }
@@ -445,6 +436,14 @@ public class CommonExecSinkITCase extends AbstractTestBase {
     public void testFromValuesWatermarkPropagation() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
         final SharedReference<List<Long>> watermarks = sharedObjects.add(new ArrayList<>());
+        final SinkFunction<RowData> sinkFunction =
+                new SinkFunction<RowData>() {
+                    @Override
+                    public void writeWatermark(
+                            org.apache.flink.api.common.eventtime.Watermark watermark) {
+                        addElement(watermarks, watermark.getTimestamp());
+                    }
+                };
         final TableDescriptor sinkDescriptor =
                 TableFactoryHarness.newBuilder()
                         .sink(
@@ -452,20 +451,8 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                                     @Override
                                     public DataStreamSinkProvider getSinkRuntimeProvider(
                                             DynamicTableSink.Context context) {
-                                        return dataStream ->
-                                                dataStream.addSink(
-                                                        new SinkFunction<RowData>() {
-                                                            @Override
-                                                            public void writeWatermark(
-                                                                    org.apache.flink.api.common
-                                                                                    .eventtime
-                                                                                    .Watermark
-                                                                            watermark) {
-                                                                addElement(
-                                                                        watermarks,
-                                                                        watermark.getTimestamp());
-                                                            }
-                                                        });
+                                        return (providerContext, dataStream) ->
+                                                dataStream.addSink(sinkFunction);
                                     }
                                 })
                         .build();
@@ -515,7 +502,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         return new TableFactoryHarness.SinkBase() {
             @Override
             public DataStreamSinkProvider getSinkRuntimeProvider(Context context) {
-                return dataStream -> {
+                return (providerContext, dataStream) -> {
                     TestSink<RowData> sink = buildRecordWriterTestSink(new RecordWriter(fetched));
                     if (useSinkV2) {
                         return dataStream.sinkTo(SinkV1Adapter.wrap(sink));

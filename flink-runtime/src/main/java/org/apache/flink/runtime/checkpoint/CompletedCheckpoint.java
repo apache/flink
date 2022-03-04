@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
+import javax.annotation.concurrent.NotThreadSafe;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -43,6 +44,7 @@ import java.util.Map;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A CompletedCheckpoint describes a checkpoint after all required tasks acknowledged it (with their
@@ -66,6 +68,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * metadata file. For a state backend that stores metadata in database tables, the pointer could be
  * the table name and row key. The pointer is encoded as a String.
  */
+@NotThreadSafe
 public class CompletedCheckpoint implements Serializable, Checkpoint {
 
     private static final Logger LOG = LoggerFactory.getLogger(CompletedCheckpoint.class);
@@ -104,8 +107,8 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
     /** External pointer to the completed checkpoint (for example file path). */
     private final String externalPointer;
 
-    /** Optional stats tracker callback for discard. */
-    @Nullable private transient volatile CompletedCheckpointStats.DiscardCallback discardCallback;
+    /** Completed statistic for managing discard marker. */
+    @Nullable private final transient CompletedCheckpointStats completedCheckpointStats;
 
     // ------------------------------------------------------------------------
 
@@ -117,7 +120,8 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
             Map<OperatorID, OperatorState> operatorStates,
             @Nullable Collection<MasterState> masterHookStates,
             CheckpointProperties props,
-            CompletedCheckpointStorageLocation storageLocation) {
+            CompletedCheckpointStorageLocation storageLocation,
+            @Nullable CompletedCheckpointStats completedCheckpointStats) {
 
         checkArgument(checkpointID >= 0);
         checkArgument(timestamp >= 0);
@@ -140,6 +144,7 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
         this.storageLocation = checkNotNull(storageLocation);
         this.metadataHandle = storageLocation.getMetadataHandle();
         this.externalPointer = storageLocation.getExternalPointer();
+        this.completedCheckpointStats = completedCheckpointStats;
     }
 
     // ------------------------------------------------------------------------
@@ -214,72 +219,20 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
     //  Discard and Dispose
     // ------------------------------------------------------------------------
 
-    public void discardOnFailedStoring() throws Exception {
-        discard();
-    }
-
-    public boolean discardOnSubsume() throws Exception {
-        if (shouldBeDiscardedOnSubsume()) {
-            discard();
-            return true;
+    public DiscardObject markAsDiscarded() {
+        if (completedCheckpointStats != null) {
+            completedCheckpointStats.discard();
         }
 
-        return false;
+        return new CompletedCheckpointDiscardObject();
     }
 
-    public boolean discardOnShutdown(JobStatus jobStatus) throws Exception {
-
-        if (shouldBeDiscardedOnShutdown(jobStatus)) {
-
-            discard();
-            return true;
-        } else {
-            LOG.info("Checkpoint with ID {} at '{}' not discarded.", checkpointID, externalPointer);
-            return false;
-        }
+    public DiscardObject markAsDiscardedOnSubsume() {
+        return shouldBeDiscardedOnSubsume() ? markAsDiscarded() : NOOP_DISCARD_OBJECT;
     }
 
-    @Override
-    public void discard() throws Exception {
-        LOG.trace("Executing discard procedure for {}.", this);
-
-        try {
-            // collect exceptions and continue cleanup
-            Exception exception = null;
-
-            // drop the metadata
-            try {
-                metadataHandle.discardState();
-            } catch (Exception e) {
-                exception = e;
-            }
-
-            // discard private state objects
-            try {
-                StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
-            } catch (Exception e) {
-                exception = ExceptionUtils.firstOrSuppressed(e, exception);
-            }
-
-            // discard location as a whole
-            try {
-                storageLocation.disposeStorageLocation();
-            } catch (Exception e) {
-                exception = ExceptionUtils.firstOrSuppressed(e, exception);
-            }
-
-            if (exception != null) {
-                throw exception;
-            }
-        } finally {
-            operatorStates.clear();
-
-            // to be null-pointer safe, copy reference to stack
-            CompletedCheckpointStats.DiscardCallback discardCallback = this.discardCallback;
-            if (discardCallback != null) {
-                discardCallback.notifyDiscardedCheckpoint();
-            }
-        }
+    public DiscardObject markAsDiscardedOnShutdown(JobStatus jobStatus) {
+        return shouldBeDiscardedOnShutdown(jobStatus) ? markAsDiscarded() : NOOP_DISCARD_OBJECT;
     }
 
     public boolean shouldBeDiscardedOnSubsume() {
@@ -320,13 +273,9 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
         return firstInterestingFields.equals(secondInterestingFields);
     }
 
-    /**
-     * Sets the callback for tracking when this checkpoint is discarded.
-     *
-     * @param discardCallback Callback to call when the checkpoint is discarded.
-     */
-    void setDiscardCallback(@Nullable CompletedCheckpointStats.DiscardCallback discardCallback) {
-        this.discardCallback = discardCallback;
+    @Nullable
+    public CompletedCheckpointStats getStatistic() {
+        return completedCheckpointStats;
     }
 
     @Override
@@ -334,5 +283,54 @@ public class CompletedCheckpoint implements Serializable, Checkpoint {
         return String.format(
                 "%s %d @ %d for %s located at %s",
                 props.getCheckpointType().getName(), checkpointID, timestamp, job, externalPointer);
+    }
+
+    /** Implementation of {@link org.apache.flink.runtime.checkpoint.Checkpoint.DiscardObject}. */
+    @NotThreadSafe
+    public class CompletedCheckpointDiscardObject implements DiscardObject {
+
+        @Override
+        public void discard() throws Exception {
+            LOG.trace("Executing discard procedure for {}.", this);
+            checkState(
+                    isMarkedAsDiscarded(),
+                    "Checkpoint should be marked as discarded before discard.");
+
+            try {
+                // collect exceptions and continue cleanup
+                Exception exception = null;
+
+                // drop the metadata
+                try {
+                    metadataHandle.discardState();
+                } catch (Exception e) {
+                    exception = e;
+                }
+
+                // discard private state objects
+                try {
+                    StateUtil.bestEffortDiscardAllStateObjects(operatorStates.values());
+                } catch (Exception e) {
+                    exception = ExceptionUtils.firstOrSuppressed(e, exception);
+                }
+
+                // discard location as a whole
+                try {
+                    storageLocation.disposeStorageLocation();
+                } catch (Exception e) {
+                    exception = ExceptionUtils.firstOrSuppressed(e, exception);
+                }
+
+                if (exception != null) {
+                    throw exception;
+                }
+            } finally {
+                operatorStates.clear();
+            }
+        }
+
+        private boolean isMarkedAsDiscarded() {
+            return completedCheckpointStats == null || completedCheckpointStats.isDiscarded();
+        }
     }
 }

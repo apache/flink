@@ -57,7 +57,7 @@ A workaround is to switch the shell to **sh** on the first line of **docker-entr
 
 If you want to follow along, you will require a computer with: 
 
-* Java 8 or 11
+* Java 11
 * Maven 
 * Docker
 

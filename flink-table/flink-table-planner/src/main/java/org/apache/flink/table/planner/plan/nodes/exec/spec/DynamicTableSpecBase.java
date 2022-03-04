@@ -33,7 +33,7 @@ class DynamicTableSpecBase {
     Map<String, String> loadOptionsFromCatalogTable(
             ContextResolvedTable contextResolvedTable, FlinkContext flinkContext) {
         // We need to load options from the catalog only if PLAN_RESTORE_CATALOG_OBJECTS == ALL and
-        // the table is not anonymous.
+        // the table is permanent.
         // In case of CatalogPlanRestore.ALL_ENFORCED, catalog querying is disabled.
         // In case of CatalogPlanRestore.IDENTIFIER, getCatalogTable() already returns the table
         //  loaded from the catalog
@@ -42,7 +42,7 @@ class DynamicTableSpecBase {
                         .getTableConfig()
                         .getConfiguration()
                         .get(TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS);
-        if (contextResolvedTable.isAnonymous()
+        if (!contextResolvedTable.isPermanent()
                 || catalogPlanRestore != TableConfigOptions.CatalogPlanRestore.ALL) {
             return Collections.emptyMap();
         }

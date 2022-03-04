@@ -37,7 +37,7 @@ Checkpoint 在默认的情况下仅用于恢复失败的作业，并不保留，
 
 ```java
 CheckpointConfig config = env.getCheckpointConfig();
-config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+config.setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 ```
 
 `ExternalizedCheckpointCleanup` 配置项定义了当作业取消时，对作业 checkpoint 的操作：

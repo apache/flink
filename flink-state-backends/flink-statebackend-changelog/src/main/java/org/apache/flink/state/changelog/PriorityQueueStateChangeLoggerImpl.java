@@ -27,8 +27,7 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger<K, T, Void>
-        implements PriorityQueueStateChangeLogger<T> {
+class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger<K, T, Void> {
     private final TypeSerializer<T> serializer;
 
     PriorityQueueStateChangeLoggerImpl(
@@ -49,9 +48,4 @@ class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger
     @Override
     protected void serializeScope(Void unused, DataOutputViewStreamWrapper out)
             throws IOException {}
-
-    @Override
-    public void stateElementPolled() throws IOException {
-        log(StateChangeOperation.REMOVE_FIRST_ELEMENT, null);
-    }
 }

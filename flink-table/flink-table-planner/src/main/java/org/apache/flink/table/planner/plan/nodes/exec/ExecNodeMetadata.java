@@ -22,6 +22,7 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -80,6 +81,13 @@ public @interface ExecNodeMetadata {
      *
      * <p>Restore can verify whether the restored ExecNode config map contains only options of the
      * given keys.
+     *
+     * <p>Common options used for all {@link StreamExecNode}s:
+     *
+     * <ul>
+     *   <li>{@link ExecutionConfigOptions#TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED}
+     *   <li>{@link ExecutionConfigOptions#TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM}
+     * </ul>
      */
     String[] consumedOptions() default {};
 

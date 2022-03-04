@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.planner.calcite.FlinkContext;
@@ -33,6 +34,7 @@ import org.apache.calcite.sql.SqlOperatorTable;
 /**
  * A context to allow the store user-defined data within ExecNode serialization and deserialization.
  */
+@Internal
 public class SerdeContext {
     static final String SERDE_CONTEXT_KEY = "serdeCtx";
 

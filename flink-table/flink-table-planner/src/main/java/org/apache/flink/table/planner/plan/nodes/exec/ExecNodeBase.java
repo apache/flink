@@ -19,12 +19,11 @@
 package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.config.OptimizerConfigOptions;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecExchange;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
@@ -124,9 +123,15 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     @Override
-    public Transformation<T> translateToPlan(Planner planner) {
+    public final Transformation<T> translateToPlan(Planner planner) {
         if (transformation == null) {
-            transformation = translateToPlanInternal((PlannerBase) planner);
+            transformation =
+                    translateToPlanInternal(
+                            (PlannerBase) planner,
+                            new ExecNodeConfig(
+                                    ((PlannerBase) planner).getConfiguration(),
+                                    ((PlannerBase) planner).getTableConfig(),
+                                    new Configuration()));
             if (this instanceof SingleTransformationTranslator) {
                 if (inputsContainSingleton()) {
                     transformation.setParallelism(1);
@@ -137,26 +142,30 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return transformation;
     }
 
-    /** Internal method, translates this node into a Flink operator. */
-    protected abstract Transformation<T> translateToPlanInternal(PlannerBase planner);
+    /**
+     * Internal method, translates this node into a Flink operator.
+     *
+     * @param planner The planner.
+     * @param config per-{@link ExecNode} configuration that contains the merged configuration from
+     *     various layers which all the nodes implementing this method should use, instead of
+     *     retrieving configuration from the {@code planner}. For more details check {@link
+     *     ExecNodeConfig}.
+     */
+    protected abstract Transformation<T> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config);
 
     @Override
     public void accept(ExecNodeVisitor visitor) {
         visitor.visit(this);
     }
 
-    /** Whether there is singleton exchange node as input. */
+    /** Whether singleton distribution is required. */
     protected boolean inputsContainSingleton() {
-        return getInputEdges().stream()
-                .map(ExecEdge::getSource)
+        return getInputProperties().stream()
                 .anyMatch(
-                        i ->
-                                i instanceof CommonExecExchange
-                                        && i.getInputProperties()
-                                                        .get(0)
-                                                        .getRequiredDistribution()
-                                                        .getType()
-                                                == InputProperty.DistributionType.SINGLETON);
+                        p ->
+                                p.getRequiredDistribution().getType()
+                                        == InputProperty.DistributionType.SINGLETON);
     }
 
     @JsonIgnore
@@ -168,16 +177,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return context.generateUid(operatorName);
     }
 
-    protected String createTransformationName(TableConfig config) {
-        return createTransformationName(config.getConfiguration());
-    }
-
     protected String createTransformationName(ReadableConfig config) {
         return createFormattedTransformationName(getDescription(), getSimplifiedName(), config);
-    }
-
-    protected String createTransformationDescription(TableConfig config) {
-        return createTransformationDescription(config.getConfiguration());
     }
 
     protected String createTransformationDescription(ReadableConfig config) {
@@ -185,13 +186,9 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     protected TransformationMetadata createTransformationMeta(
-            String operatorName, TableConfig config) {
-        return createTransformationMeta(operatorName, config.getConfiguration());
-    }
-
-    protected TransformationMetadata createTransformationMeta(
             String operatorName, ReadableConfig config) {
-        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())
+                || config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
             return new TransformationMetadata(
                     createTransformationName(config), createTransformationDescription(config));
         } else {
@@ -207,7 +204,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             String operatorName, String detailName, String simplifiedName, ReadableConfig config) {
         final String name = createFormattedTransformationName(detailName, simplifiedName, config);
         final String desc = createFormattedTransformationDescription(detailName, config);
-        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())
+                || config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
             return new TransformationMetadata(name, desc);
         } else {
             // Only classes supporting metadata util need to set the uid
@@ -217,7 +215,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     protected String createFormattedTransformationDescription(
             String description, ReadableConfig config) {
-        if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+        if (config.get(ExecutionConfigOptions.TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
             return String.format("[%d]:%s", getId(), description);
         }
         return description;
@@ -225,7 +223,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
 
     protected String createFormattedTransformationName(
             String detailName, String simplifiedName, ReadableConfig config) {
-        if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
+        if (config.get(ExecutionConfigOptions.TABLE_EXEC_SIMPLIFY_OPERATOR_NAME_ENABLED)) {
             return String.format("%s[%d]", simplifiedName, getId());
         }
         return detailName;

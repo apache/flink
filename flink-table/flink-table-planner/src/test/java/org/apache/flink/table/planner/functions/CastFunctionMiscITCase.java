@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.annotation.DataTypeHint;
 import org.apache.flink.table.api.DataTypes;
@@ -29,6 +30,8 @@ import org.apache.flink.types.Row;
 import org.junit.runners.Parameterized;
 
 import java.nio.ByteBuffer;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -38,12 +41,17 @@ import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.BYTES;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.MAP;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
+import static org.apache.flink.table.api.DataTypes.TIME;
+import static org.apache.flink.table.api.DataTypes.TINYINT;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.row;
+import static org.apache.flink.util.CollectionUtil.entry;
+import static org.apache.flink.util.CollectionUtil.map;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST} regarding {@link DataTypes#ROW}. */
 public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
@@ -206,7 +214,71 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                         .testSqlResult(
                                 "CAST(CAST(x'68656C6C6F2063617374' AS BINARY(10)) AS VARCHAR)",
                                 "68656c6c6f2063617374",
-                                STRING().notNull()));
+                                STRING().notNull()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast STRUCTURED to STRING")
+                        .onFieldsWithData(123456, "Flink")
+                        .andDataTypes(INT(), STRING())
+                        .withFunction(StructuredTypeConstructor.class)
+                        .testTableApiResult(
+                                call("StructuredTypeConstructor", row($("f0"), $("f1")))
+                                        .cast(STRING()),
+                                "(i=123456, s=Flink)",
+                                STRING()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast MULTISET to STRING")
+                        .onFieldsWithData(map(entry("a", 1), entry("b", 2)))
+                        .andDataTypes(MAP(STRING(), INT()))
+                        .withFunction(JsonFunctionsITCase.CreateMultiset.class)
+                        .testTableApiResult(
+                                call("CreateMultiset", $("f0")).cast(STRING()),
+                                "{a=1, b=2}",
+                                STRING()),
+                TestSpec.forFunction(BuiltInFunctionDefinitions.CAST, "cast RAW to STRING")
+                        .onFieldsWithData("2020-11-11T18:08:01.123")
+                        .andDataTypes(STRING())
+                        .withFunction(LocalDateTimeToRaw.class)
+                        .testTableApiResult(
+                                call("LocalDateTimeToRaw", $("f0")).cast(STRING()),
+                                "2020-11-11T18:08:01.123",
+                                STRING()),
+                TestSpec.forFunction(
+                                BuiltInFunctionDefinitions.TRY_CAST, "try cast from STRING to TIME")
+                        .onFieldsWithData("Flink", "12:34:56")
+                        .andDataTypes(STRING(), STRING())
+                        .testResult(
+                                $("f0").tryCast(TIME()),
+                                "TRY_CAST(f0 AS TIME)",
+                                null,
+                                TIME().nullable())
+                        .testResult(
+                                $("f1").tryCast(TIME()),
+                                "TRY_CAST(f1 AS TIME)",
+                                LocalTime.of(12, 34, 56, 0),
+                                TIME().nullable()),
+                TestSpec.forFunction(
+                                BuiltInFunctionDefinitions.TRY_CAST,
+                                "try cast from TIME NOT NULL to STRING NOT NULL")
+                        .onFieldsWithData(LocalTime.parse("12:34:56"))
+                        .andDataTypes(TIME().notNull())
+                        .testResult(
+                                $("f0").tryCast(STRING()),
+                                "TRY_CAST(f0 AS STRING)",
+                                "12:34:56",
+                                STRING().nullable()),
+                TestSpec.forFunction(
+                                BuiltInFunctionDefinitions.TRY_CAST,
+                                "try cast from ROW<INT, STRING> to ROW<TINYINT, TIME>")
+                        .onFieldsWithData(Row.of(1, "abc"), Row.of(1, "12:34:56"))
+                        .andDataTypes(ROW(INT(), STRING()), ROW(INT(), STRING()))
+                        .testResult(
+                                $("f0").tryCast(ROW(TINYINT(), TIME())),
+                                "TRY_CAST(f0 AS ROW(f0 TINYINT, f1 TIME))",
+                                null,
+                                ROW(TINYINT(), TIME()).nullable())
+                        .testResult(
+                                $("f1").tryCast(ROW(TINYINT(), TIME())),
+                                "TRY_CAST(f1 AS ROW(f0 TINYINT, f1 TIME))",
+                                Row.of((byte) 1, LocalTime.of(12, 34, 56, 0)),
+                                ROW(TINYINT(), TIME()).nullable()));
     }
 
     // --------------------------------------------------------------------------------------------
@@ -269,6 +341,17 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
                 b.putChar(c);
             }
             return b.array();
+        }
+    }
+
+    /** Test Raw with custom class. */
+    public static class LocalDateTimeToRaw extends ScalarFunction {
+
+        public @DataTypeHint(
+                value = "RAW",
+                bridgedTo = LocalDateTime.class,
+                rawSerializer = LocalDateTimeSerializer.class) LocalDateTime eval(String str) {
+            return LocalDateTime.parse(str);
         }
     }
 }

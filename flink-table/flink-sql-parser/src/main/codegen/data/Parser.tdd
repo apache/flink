@@ -39,6 +39,7 @@
     "org.apache.flink.sql.parser.ddl.SqlAlterView"
     "org.apache.flink.sql.parser.ddl.SqlAlterViewAs"
     "org.apache.flink.sql.parser.ddl.SqlAlterViewRename"
+    "org.apache.flink.sql.parser.ddl.SqlCompilePlan"
     "org.apache.flink.sql.parser.ddl.SqlCreateCatalog"
     "org.apache.flink.sql.parser.ddl.SqlCreateDatabase"
     "org.apache.flink.sql.parser.ddl.SqlCreateFunction"
@@ -66,11 +67,13 @@
     "org.apache.flink.sql.parser.dml.RichSqlInsert"
     "org.apache.flink.sql.parser.dml.RichSqlInsertKeyword"
     "org.apache.flink.sql.parser.dml.SqlBeginStatementSet"
+    "org.apache.flink.sql.parser.dml.SqlCompileAndExecutePlan"
     "org.apache.flink.sql.parser.dml.SqlEndStatementSet"
+    "org.apache.flink.sql.parser.dml.SqlExecute"
+    "org.apache.flink.sql.parser.dml.SqlExecutePlan"
     "org.apache.flink.sql.parser.dml.SqlStatementSet"
     "org.apache.flink.sql.parser.dql.SqlDescribeCatalog"
     "org.apache.flink.sql.parser.dql.SqlDescribeDatabase"
-    "org.apache.flink.sql.parser.dml.SqlExecute"
     "org.apache.flink.sql.parser.dql.SqlRichExplain"
     "org.apache.flink.sql.parser.dql.SqlLoadModule"
     "org.apache.flink.sql.parser.dql.SqlShowCatalogs"
@@ -88,6 +91,7 @@
     "org.apache.flink.sql.parser.dql.SqlShowViews"
     "org.apache.flink.sql.parser.dql.SqlRichDescribeTable"
     "org.apache.flink.sql.parser.dql.SqlUnloadModule"
+    "org.apache.flink.sql.parser.expr.SqlUnresolvedTryCastFunction"
     "org.apache.flink.sql.parser.type.ExtendedSqlCollectionTypeNameSpec"
     "org.apache.flink.sql.parser.type.ExtendedSqlRowTypeNameSpec"
     "org.apache.flink.sql.parser.type.SqlMapTypeNameSpec"
@@ -114,6 +118,7 @@
     "CHANGELOG_MODE"
     "COMMENT"
     "COMPACT"
+    "COMPILE"
     "COLUMNS"
     "DATABASES"
     "ENFORCED"
@@ -145,6 +150,7 @@
     "WATERMARK"
     "WATERMARKS"
     "TIMESTAMP_LTZ"
+    "TRY_CAST"
   ]
 
   # List of keywords from "keywords" section that are not reserved.
@@ -189,6 +195,7 @@
     "COMMAND_FUNCTION_CODE"
     "COMMITTED"
     "COMPACT"
+    "COMPILE"
     "CONDITIONAL"
     "CONDITION_NUMBER"
     "CONNECTION"
@@ -422,7 +429,6 @@
     "SQL_VARBINARY"
     "SQL_VARCHAR"
     "STATE"
-    "STATEMENT"
     "STRUCTURE"
     "STYLE"
     "SUBCLASS_ORIGIN"
@@ -485,6 +491,7 @@
     "OVERWRITING"
     "PARTITIONED"
     "PARTITIONS"
+    "TRY_CAST"
     "VIRTUAL"
   ]
 
@@ -522,6 +529,9 @@
     "SqlUnloadModule()"
     "SqlUseModules()"
     "SqlRichExplain()"
+    "SqlCompileAndExecutePlan()"
+    "SqlCompilePlan()"
+    "SqlExecutePlan()"
     "SqlExecute()"
     "SqlAddJar()"
     "SqlRemoveJar()"
@@ -551,6 +561,7 @@
   # Return type of method implementation should be "SqlNode".
   # Example: DateFunctionCall().
   builtinFunctionCallMethods: [
+    "TryCastFunctionCall()"
   ]
 
   # List of methods for parsing extensions to "ALTER <scope>" calls.

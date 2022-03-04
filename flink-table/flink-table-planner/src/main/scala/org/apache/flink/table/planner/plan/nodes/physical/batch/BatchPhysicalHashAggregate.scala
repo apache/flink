@@ -142,6 +142,11 @@ class BatchPhysicalHashAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (grouping.length == 0) {
+      InputProperty.SINGLETON_DISTRIBUTION
+    } else {
+      InputProperty.hashDistribution(grouping)
+    }
     new BatchExecHashAggregate(
       grouping,
       auxGrouping,
@@ -149,7 +154,10 @@ class BatchPhysicalHashAggregate(
       FlinkTypeFactory.toLogicalRowType(aggInputRowType),
       isMerge,
       true, // isFinal is always true
-      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
+      InputProperty.builder()
+        .requiredDistribution(requiredDistribution)
+        .damBehavior(InputProperty.DamBehavior.END_INPUT)
+        .build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

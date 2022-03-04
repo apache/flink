@@ -18,17 +18,17 @@
 package org.apache.flink.connector.firehose.sink;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.connector.base.sink.AsyncSinkBase;
+import org.apache.flink.connector.base.sink.writer.BufferedRequestState;
 import org.apache.flink.connector.base.sink.writer.ElementConverter;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.util.Preconditions;
 
 import software.amazon.awssdk.services.firehose.model.Record;
 
+import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
+import java.util.Collections;
 import java.util.Properties;
 
 /**
@@ -92,8 +92,8 @@ public class KinesisFirehoseSink<InputT> extends AsyncSinkBase<InputT, Record> {
     }
 
     @Override
-    public SinkWriter<InputT, Void, Collection<Record>> createWriter(
-            InitContext context, List<Collection<Record>> states) {
+    public StatefulSinkWriter<InputT, BufferedRequestState<Record>> createWriter(
+            InitContext context) throws IOException {
         return new KinesisFirehoseSinkWriter<>(
                 getElementConverter(),
                 context,
@@ -105,11 +105,31 @@ public class KinesisFirehoseSink<InputT> extends AsyncSinkBase<InputT, Record> {
                 getMaxRecordSizeInBytes(),
                 failOnError,
                 deliveryStreamName,
-                firehoseClientProperties);
+                firehoseClientProperties,
+                Collections.emptyList());
     }
 
     @Override
-    public Optional<SimpleVersionedSerializer<Collection<Record>>> getWriterStateSerializer() {
-        return Optional.empty();
+    public StatefulSinkWriter<InputT, BufferedRequestState<Record>> restoreWriter(
+            InitContext context, Collection<BufferedRequestState<Record>> recoveredState)
+            throws IOException {
+        return new KinesisFirehoseSinkWriter<>(
+                getElementConverter(),
+                context,
+                getMaxBatchSize(),
+                getMaxInFlightRequests(),
+                getMaxBufferedRequests(),
+                getMaxBatchSizeInBytes(),
+                getMaxTimeInBufferMS(),
+                getMaxRecordSizeInBytes(),
+                failOnError,
+                deliveryStreamName,
+                firehoseClientProperties,
+                recoveredState);
+    }
+
+    @Override
+    public SimpleVersionedSerializer<BufferedRequestState<Record>> getWriterStateSerializer() {
+        return new KinesisFirehoseStateSerializer();
     }
 }

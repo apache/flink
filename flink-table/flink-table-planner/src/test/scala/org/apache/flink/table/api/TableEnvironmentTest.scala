@@ -21,6 +21,7 @@ package org.apache.flink.table.api
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
@@ -30,22 +31,20 @@ import org.apache.flink.table.module.ModuleEntry
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory._
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
 import org.apache.flink.table.planner.runtime.stream.table.FunctionITCase.SimpleScalarFunction
-import org.apache.flink.table.planner.utils.TableTestUtil.replaceNodeIdInOperator
-import org.apache.flink.table.planner.utils.TableTestUtil.replaceStageId
-import org.apache.flink.table.planner.utils.TableTestUtil.replaceStreamNodeId
+import org.apache.flink.table.planner.utils.TableTestUtil.{replaceNodeIdInOperator, replaceStageId, replaceStreamNodeId}
 import org.apache.flink.table.planner.utils.{TableTestUtil, TestTableSourceSinks}
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
-
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
+import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
 import _root_.java.util
+
 import _root_.scala.collection.JavaConverters._
 
 class TableEnvironmentTest {
@@ -688,6 +687,52 @@ class TableEnvironmentTest {
     checkData(
       util.Arrays.asList(Row.of("tbl1")).iterator(),
       tableResult2.collect())
+  }
+
+  @Test
+  def testExecuteSqlWithEnhancedShowTables(): Unit = {
+    val createCatalogResult = tableEnv.executeSql(
+      "CREATE CATALOG catalog1 WITH('type'='generic_in_memory')")
+    assertEquals(ResultKind.SUCCESS, createCatalogResult.getResultKind)
+
+    val createDbResult = tableEnv.executeSql(
+      "CREATE database catalog1.db1")
+    assertEquals(ResultKind.SUCCESS, createDbResult.getResultKind)
+
+    val createTableStmt =
+      """
+        |CREATE TABLE catalog1.db1.person (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE TABLE catalog1.db1.dim (
+        |  a bigint
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult2 = tableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val tableResult3 = tableEnv.executeSql("SHOW TABLES FROM catalog1.db1 like 'p_r%'")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    assertEquals(
+      ResolvedSchema.of(Column.physical("table name", DataTypes.STRING())),
+      tableResult3.getResolvedSchema)
+    checkData(
+      util.Arrays.asList(Row.of("person")).iterator(),
+      tableResult3.collect())
   }
 
   @Test
@@ -1366,6 +1411,14 @@ class TableEnvironmentTest {
     testUnsupportedExplain("explain plan as json for select * from MyTable")
   }
 
+  private def testUnsupportedExplain(explain: String): Unit = {
+    assertThatThrownBy(() => tableEnv.executeSql(explain))
+      .satisfiesAnyOf(
+        anyCauseMatches(classOf[TableException], "Only default behavior is supported now"),
+        anyCauseMatches(classOf[SqlParserException])
+      )
+  }
+
   @Test
   def testExplainSqlWithSelect(): Unit = {
     val createTableStmt =
@@ -1536,21 +1589,6 @@ class TableEnvironmentTest {
       "explain changelog_mode, estimated_cost, json_execution_plan " +
         "insert into MySink select a, b from MyTable where a > 10",
       "/explain/testExecuteSqlWithExplainDetailsInsert.out")
-  }
-
-  private def testUnsupportedExplain(explain: String): Unit = {
-    try {
-      tableEnv.executeSql(explain)
-      fail("This should not happen")
-    } catch {
-      case e: TableException =>
-        assertTrue(e.getMessage.contains("Only default behavior is supported now"))
-      case e: SqlParserException =>
-        assertTrue(e.getMessage
-            .contains("Was expecting:\n    \"FOR\" ..."))
-      case e =>
-        fail("This should not happen, " + e.getMessage)
-    }
   }
 
   @Test

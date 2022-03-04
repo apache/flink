@@ -21,8 +21,10 @@ package org.apache.flink.table.api;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.WritableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
@@ -61,11 +63,12 @@ import static java.time.ZoneId.SHORT_IDS;
  * <p>Note: Because options are read at different point in time when performing operations, it is
  * recommended to set configuration options early after instantiating a table environment.
  *
+ * @see TableConfigOptions
  * @see ExecutionConfigOptions
  * @see OptimizerConfigOptions
  */
 @PublicEvolving
-public class TableConfig {
+public class TableConfig implements WritableConfig {
     /** Defines if all fields need to be checked for NULL first. */
     private Boolean nullCheck = true;
 
@@ -80,6 +83,43 @@ public class TableConfig {
 
     /** A configuration object to hold all key/value configuration. */
     private final Configuration configuration = new Configuration();
+
+    /**
+     * Sets a value for the given {@link ConfigOption}.
+     *
+     * <p>This method should be preferred over {@link #set(String, String)} as it is type-safe,
+     * avoids unnecessary parsing of the value, and provides inline documentation.
+     *
+     * <p>Note: Scala users might need to convert the value into a boxed type. E.g. by using {@code
+     * Int.box(1)} or {@code Boolean.box(false)}.
+     *
+     * @see TableConfigOptions
+     * @see ExecutionConfigOptions
+     * @see OptimizerConfigOptions
+     */
+    @Override
+    public <T> TableConfig set(ConfigOption<T> option, T value) {
+        configuration.set(option, value);
+        return this;
+    }
+
+    /**
+     * Sets a string-based value for the given string-based key.
+     *
+     * <p>The value will be parsed by the framework on access.
+     *
+     * <p>This method exists for convenience when configuring a session with string-based
+     * properties. Use {@link #set(ConfigOption, Object)} for more type-safety and inline
+     * documentation.
+     *
+     * @see TableConfigOptions
+     * @see ExecutionConfigOptions
+     * @see OptimizerConfigOptions
+     */
+    public TableConfig set(String key, String value) {
+        configuration.setString(key, value);
+        return this;
+    }
 
     /** Gives direct access to the underlying key-value map for advanced configuration. */
     public Configuration getConfiguration() {
@@ -105,8 +145,7 @@ public class TableConfig {
 
     /** Sets the current SQL dialect to parse a SQL query. Flink's SQL behavior by default. */
     public void setSqlDialect(SqlDialect sqlDialect) {
-        getConfiguration()
-                .setString(TableConfigOptions.TABLE_SQL_DIALECT, sqlDialect.name().toLowerCase());
+        set(TableConfigOptions.TABLE_SQL_DIALECT, sqlDialect.name().toLowerCase());
     }
 
     /**
@@ -134,8 +173,8 @@ public class TableConfig {
      *
      * <pre>{@code
      * TableEnvironment tEnv = ...
-     * TableConfig config = tEnv.getConfig
-     * config.setLocalTimeZone(ZoneOffset.ofHours(2));
+     * TableConfig tableConfig = tEnv.getConfig
+     * tableConfig.setLocalTimeZone(ZoneOffset.ofHours(2));
      * tEnv("CREATE TABLE testTable (id BIGINT, tmstmp TIMESTAMP WITH LOCAL TIME ZONE)");
      * tEnv("INSERT INTO testTable VALUES ((1, '2000-01-01 2:00:00'), (2, TIMESTAMP '2000-01-01 2:00:00'))");
      * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+2
@@ -154,7 +193,7 @@ public class TableConfig {
      * <p>If we change the local time zone and query the same table:
      *
      * <pre>{@code
-     * config.setLocalTimeZone(ZoneOffset.ofHours(0));
+     * tableConfig.setLocalTimeZone(ZoneOffset.ofHours(0));
      * tEnv("SELECT * FROM testTable"); // query with local time zone set to UTC+0
      * }</pre>
      *
@@ -352,8 +391,8 @@ public class TableConfig {
      *
      * <pre>{@code
      * Map<String, String> params = ...
-     * TableConfig config = tEnv.getConfig;
-     * config.getConfiguration().set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
+     * TableConfig tableConfig = tEnv.getConfig;
+     * config.set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
      * }</pre>
      */
     @Experimental
@@ -364,7 +403,7 @@ public class TableConfig {
                         .map(HashMap::new)
                         .orElseGet(HashMap::new);
         params.put(key, value);
-        getConfiguration().set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
+        set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
     }
 
     public static TableConfig getDefault() {

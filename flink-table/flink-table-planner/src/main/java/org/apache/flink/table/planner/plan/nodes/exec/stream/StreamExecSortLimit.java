@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -43,6 +44,7 @@ import java.util.List;
 @ExecNodeMetadata(
         name = "stream-exec-sort-limit",
         version = 1,
+        consumedOptions = {"table.exec.state.ttl", "table.exec.rank.topn-cache-size"},
         producedTransformations = StreamExecRank.RANK_TRANSFORMATION,
         minPlanVersion = FlinkVersion.v1_15,
         minStateVersion = FlinkVersion.v1_15)
@@ -100,11 +102,12 @@ public class StreamExecSortLimit extends StreamExecRank {
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         if (limitEnd == Long.MAX_VALUE) {
             throw new TableException(
                     "FETCH is missed, which on streaming table is not supported currently.");
         }
-        return super.translateToPlanInternal(planner);
+        return super.translateToPlanInternal(planner, config);
     }
 }

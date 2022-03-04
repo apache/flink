@@ -23,10 +23,8 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.graph.StreamGraph
-import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, TableConfigOptions}
-import org.apache.flink.table.api.internal.CompiledPlanInternal
 import org.apache.flink.table.catalog.ManagedTableListener.isManagedTable
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.connector.sink.DynamicTableSink
@@ -45,10 +43,9 @@ import org.apache.flink.table.planner.delegation.ParserFactory.DefaultParserCont
 import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
-import org.apache.flink.table.planner.plan.ExecNodeGraphCompiledPlan
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
 import org.apache.flink.table.planner.plan.nodes.exec.processor.{ExecNodeGraphProcessor, ProcessorContext}
-import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
+import org.apache.flink.table.planner.plan.nodes.exec.serde.SerdeContext
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNodeGraph, ExecNodeGraphGenerator}
 import org.apache.flink.table.planner.plan.nodes.physical.FlinkPhysicalRel
 import org.apache.flink.table.planner.plan.optimize.Optimizer
@@ -61,8 +58,6 @@ import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toS
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader
-
 import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
 import org.apache.calcite.plan.{RelTrait, RelTraitDef}
 import org.apache.calcite.rel.RelNode
@@ -70,7 +65,6 @@ import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableModify
 import org.apache.calcite.tools.FrameworkConfig
 
-import java.io.{File, IOException}
 import java.lang.{Long => JLong}
 import java.util
 import java.util.{Collections, TimeZone}
@@ -86,7 +80,7 @@ import scala.collection.mutable
   * @param executor        instance of [[Executor]], needed to extract
   *                        [[StreamExecutionEnvironment]] for
   *                        [[org.apache.flink.table.sources.StreamTableSource.getDataStream]]
-  * @param config          mutable configuration passed from corresponding [[TableEnvironment]]
+  * @param tableConfig     mutable configuration passed from corresponding [[TableEnvironment]]
   * @param moduleManager   manager for modules
   * @param functionCatalog catalog of functions
   * @param catalogManager  manager of catalog meta objects such as tables, views, databases etc.
@@ -95,7 +89,7 @@ import scala.collection.mutable
   */
 abstract class PlannerBase(
     executor: Executor,
-    config: TableConfig,
+    tableConfig: TableConfig,
     val moduleManager: ModuleManager,
     val functionCatalog: FunctionCatalog,
     val catalogManager: CatalogManager,
@@ -108,15 +102,15 @@ abstract class PlannerBase(
   private var parser: Parser = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
 
-  private val plannerConfiguration: ReadableConfig = new PlannerConfiguration(
-    config.getConfiguration,
+  private val plannerConfiguration: ReadableConfig = new PlannerConfig(
+    tableConfig.getConfiguration,
     executor.getConfiguration)
 
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
     new PlannerContext(
       !isStreamingMode,
-      config,
+      tableConfig,
       moduleManager,
       functionCatalog,
       catalogManager,
@@ -148,7 +142,7 @@ abstract class PlannerBase(
   /** Returns specific query [[Optimizer]] depends on the concrete type of this TableEnvironment. */
   protected def getOptimizer: Optimizer
 
-  def getTableConfig: TableConfig = config
+  def getTableConfig: TableConfig = tableConfig
 
   def getFlinkContext: FlinkContext = plannerContext.getFlinkContext
 
@@ -349,7 +343,7 @@ abstract class PlannerBase(
     val shuttle = new SameRelObjectShuttle()
     val relsWithoutSameObj = optimizedRelNodes.map(_.accept(shuttle))
     // reuse subplan
-    val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, config)
+    val reusedPlan = SubplanReuser.reuseDuplicatedSubplan(relsWithoutSameObj, tableConfig)
     // convert FlinkPhysicalRel DAG to ExecNodeGraph
     val generator = new ExecNodeGraphGenerator()
     val execGraph = generator.generate(reusedPlan.map(_.asInstanceOf[FlinkPhysicalRel]))
@@ -472,30 +466,6 @@ abstract class PlannerBase(
     }
   }
 
-  override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
-    val ctx = createSerdeContext
-    val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
-    val execNodeGraph = planReference match {
-      case filePlanReference: FilePlanReference =>
-        objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
-      case contentPlanReference: ContentPlanReference =>
-        objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
-      case resourcePlanReference: ResourcePlanReference => {
-        val url = resourcePlanReference.getClassLoader
-          .getResource(resourcePlanReference.getResourcePath)
-        if (url == null) {
-          throw new IOException(
-            "Cannot load the plan reference from classpath: " + planReference);
-        }
-        objectReader.readValue(new File(url.toURI), classOf[ExecNodeGraph])
-      }
-      case _ => throw new IllegalStateException(
-        "Unknown PlanReference. This is a bug, please contact the developers")
-    }
-
-    new ExecNodeGraphCompiledPlan(ctx, execNodeGraph)
-  }
-
   protected def createSerdeContext: SerdeContext = {
     val planner = createFlinkPlanner
     new SerdeContext(
@@ -512,21 +482,14 @@ abstract class PlannerBase(
    * the configuration before planner do optimization with [[ModifyOperation]] or other works.
    */
   protected def validateAndOverrideConfiguration(): Unit = {
-    val configuration = config.getConfiguration
-    if (!configuration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
-      throw new IllegalArgumentException(
-        "Mismatch between configured planner and actual planner. " +
-          "Currently, the 'table.planner' can only be set when instantiating the " +
-          "table environment. Subsequent changes are not supported. " +
-          "Please instantiate a new TableEnvironment if necessary.");
-    }
+    val configuration = tableConfig.getConfiguration
 
     // Add query start time to TableConfig, these config are used internally,
     // these configs will be used by temporal functions like CURRENT_TIMESTAMP,LOCALTIMESTAMP.
     val epochTime :JLong = System.currentTimeMillis()
     configuration.set(TABLE_QUERY_START_EPOCH_TIME, epochTime)
     val localTime :JLong =  epochTime +
-      TimeZone.getTimeZone(config.getLocalTimeZone).getOffset(epochTime)
+      TimeZone.getTimeZone(tableConfig.getLocalTimeZone).getOffset(epochTime)
     configuration.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
 
     getExecEnv.configure(
@@ -545,7 +508,7 @@ abstract class PlannerBase(
    * Cleanup all internal configuration after plan translation finished.
    */
   protected def cleanupInternalConfigurations(): Unit = {
-    val configuration = config.getConfiguration
+    val configuration = tableConfig.getConfiguration
     configuration.removeConfig(TABLE_QUERY_START_EPOCH_TIME)
     configuration.removeConfig(TABLE_QUERY_START_LOCAL_TIME)
   }
@@ -587,7 +550,7 @@ abstract class PlannerBase(
     val transformations = translateToPlan(execGraph)
     cleanupInternalConfigurations()
 
-    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
+    val streamGraph = executor.createPipeline(transformations, tableConfig.getConfiguration, null)
       .asInstanceOf[StreamGraph]
 
     (sinkRelNodes, optimizedRelNodes, execGraph, streamGraph)

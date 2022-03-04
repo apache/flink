@@ -213,7 +213,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   /**
     * @return Comment to be added as a header comment on the generated class
     */
-  def getClassHeaderComment(): String = {
+  def getClassHeaderComment: String = {
     s"""
     |/*
     | * ${reusableHeaderComments.mkString("\n * ")}
@@ -419,22 +419,31 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       case _ => className[ObjectHashSet[_]]
     }
 
-    addReusableMember(
-      s"final $setTypeTerm $fieldTerm = new $setTypeTerm(${elements.size});")
+    val addElementsCode = elements.map { element =>
+      s"""
+         |${element.code}
+         |if (${element.nullTerm}) {
+         |  $fieldTerm.addNull();
+         |} else {
+         |  $fieldTerm.add(${element.resultTerm});
+         |}
+         |""".stripMargin
+    }.mkString("\n")
+    val setBuildingFunctionName = newName("buildSet")
+    val setBuildingFunctionCode =
+      s"""
+         |private void $setBuildingFunctionName() {
+         |  $addElementsCode
+         |  $fieldTerm.optimize();
+         |}
+         |""".stripMargin
 
-    elements.foreach { element =>
-      val content =
-        s"""
-           |${element.code}
-           |if (${element.nullTerm}) {
-           |  $fieldTerm.addNull();
-           |} else {
-           |  $fieldTerm.add(${element.resultTerm});
-           |}
-           |""".stripMargin
-      reusableInitStatements.add(content)
-    }
-    reusableInitStatements.add(s"$fieldTerm.optimize();")
+    addReusableMember(
+      s"""
+         |final $setTypeTerm $fieldTerm = new $setTypeTerm(${elements.size});
+         |$setBuildingFunctionCode
+         |""".stripMargin)
+    reusableInitStatements.add(s"$setBuildingFunctionName();")
 
     fieldTerm
   }
@@ -848,9 +857,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     * @param constant constant expression
     * @return generated expression with the fieldTerm and nullTerm
     */
-  def addReusableConstant(
-      constant: GeneratedExpression,
-      nullCheck: Boolean): GeneratedExpression = {
+  def addReusableConstant(constant: GeneratedExpression): GeneratedExpression = {
     require(constant.literal, "Literal expected")
 
     val fieldTerm = newName("constant")
@@ -968,7 +975,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 }
 
 object CodeGeneratorContext {
-  def apply(config: TableConfig): CodeGeneratorContext = {
-    new CodeGeneratorContext(config)
+  def apply(tableConfig: TableConfig): CodeGeneratorContext = {
+    new CodeGeneratorContext(tableConfig)
   }
 }

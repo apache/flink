@@ -26,19 +26,16 @@
               "rowtimeAttribute" : "c",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "-",
-                    "kind" : "MINUS",
-                    "syntax" : "SPECIAL"
-                  },
+                  "kind" : "CALL",
+                  "syntax" : "SPECIAL",
+                  "internalName" : "$-$1",
                   "operands" : [ {
                     "kind" : "INPUT_REF",
                     "inputIndex" : 2,
                     "type" : "TIMESTAMP(3)"
                   }, {
                     "kind" : "LITERAL",
-                    "value" : 5000,
+                    "value" : "5000",
                     "type" : "INTERVAL SECOND(6) NOT NULL"
                   } ],
                   "type" : "TIMESTAMP(3)"
@@ -59,19 +56,16 @@
       "abilities" : [ {
         "type" : "WatermarkPushDown",
         "watermarkExpr" : {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : "-",
-            "kind" : "MINUS",
-            "syntax" : "SPECIAL"
-          },
+          "kind" : "CALL",
+          "syntax" : "SPECIAL",
+          "internalName" : "$-$1",
           "operands" : [ {
             "kind" : "INPUT_REF",
             "inputIndex" : 2,
             "type" : "TIMESTAMP(3)"
           }, {
             "kind" : "LITERAL",
-            "value" : 5000,
+            "value" : "5000",
             "type" : "INTERVAL SECOND(6) NOT NULL"
           } ],
           "type" : "TIMESTAMP(3)"

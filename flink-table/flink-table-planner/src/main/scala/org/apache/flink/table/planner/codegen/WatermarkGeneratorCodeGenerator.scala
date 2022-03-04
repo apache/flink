@@ -42,7 +42,7 @@ import java.util
 object WatermarkGeneratorCodeGenerator {
 
   def generateWatermarkGenerator(
-      config: TableConfig,
+      tableConfig: TableConfig,
       inputType: RowType,
       watermarkExpr: RexNode,
       contextTerm: Option[String] = None): GeneratedWatermarkGenerator = {
@@ -56,9 +56,9 @@ object WatermarkGeneratorCodeGenerator {
     }
     val funcName = newName("WatermarkGenerator")
     val ctx = if (contextTerm.isDefined) {
-      new WatermarkGeneratorFunctionContext(config, contextTerm.get)
+      new WatermarkGeneratorFunctionContext(tableConfig, contextTerm.get)
     } else {
-      CodeGeneratorContext(config)
+      CodeGeneratorContext(tableConfig)
     }
     val generator = new ExprCodeGenerator(ctx, false)
       .bindInput(inputType, inputTerm = "row")

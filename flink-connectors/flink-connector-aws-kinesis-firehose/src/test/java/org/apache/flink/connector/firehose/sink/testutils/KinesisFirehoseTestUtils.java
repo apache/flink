@@ -19,6 +19,11 @@ package org.apache.flink.connector.firehose.sink.testutils;
 
 import org.apache.flink.connector.aws.util.AWSAsyncSinkUtil;
 import org.apache.flink.connector.firehose.sink.KinesisFirehoseConfigConstants;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
 import software.amazon.awssdk.http.async.SdkAsyncHttpClient;
 import software.amazon.awssdk.services.firehose.FirehoseAsyncClient;
@@ -26,9 +31,12 @@ import software.amazon.awssdk.services.firehose.model.CreateDeliveryStreamReques
 import software.amazon.awssdk.services.firehose.model.CreateDeliveryStreamResponse;
 import software.amazon.awssdk.services.firehose.model.DeliveryStreamType;
 import software.amazon.awssdk.services.firehose.model.ExtendedS3DestinationConfiguration;
+import software.amazon.awssdk.utils.ImmutableMap;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -39,7 +47,9 @@ import static org.apache.flink.connector.aws.testutils.AWSServicesTestUtils.crea
  */
 public class KinesisFirehoseTestUtils {
 
-    public static FirehoseAsyncClient getFirehoseClient(
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
+    public static FirehoseAsyncClient createFirehoseClient(
             String endpoint, SdkAsyncHttpClient httpClient) throws URISyntaxException {
         return AWSAsyncSinkUtil.createAwsAsyncClient(
                 createConfig(endpoint),
@@ -72,5 +82,23 @@ public class KinesisFirehoseTestUtils {
         CompletableFuture<CreateDeliveryStreamResponse> deliveryStream =
                 firehoseAsyncClient.createDeliveryStream(request);
         deliveryStream.get();
+    }
+
+    public static DataStream<String> getSampleDataGenerator(
+            StreamExecutionEnvironment env, int endValue) {
+        ObjectMapper mapper = new ObjectMapper();
+        return env.fromSequence(1, endValue)
+                .map(Object::toString)
+                .returns(String.class)
+                .map(data -> mapper.writeValueAsString(ImmutableMap.of("data", data)));
+    }
+
+    public static List<String> getSampleData(int endValue) throws JsonProcessingException {
+        List<String> expectedElements = new ArrayList<>();
+        for (int i = 1; i <= endValue; i++) {
+            expectedElements.add(
+                    MAPPER.writeValueAsString(ImmutableMap.of("data", String.valueOf(i))));
+        }
+        return expectedElements;
     }
 }

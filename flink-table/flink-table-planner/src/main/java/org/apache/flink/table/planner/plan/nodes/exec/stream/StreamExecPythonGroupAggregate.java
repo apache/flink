@@ -18,22 +18,20 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
-import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -47,7 +45,6 @@ import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.slf4j.Logger;
@@ -62,34 +59,21 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stream {@link ExecNode} for Python unbounded group aggregate. */
-@ExecNodeMetadata(
-        name = "stream-exec-python-group-aggregate",
-        version = 1,
-        producedTransformations = StreamExecPythonGroupAggregate.GROUP_AGGREGATE_TRANSFORMATION,
-        minPlanVersion = FlinkVersion.v1_15,
-        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
 
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecPythonGroupAggregate.class);
 
-    public static final String GROUP_AGGREGATE_TRANSFORMATION = "group-aggregate";
-
     private static final String PYTHON_STREAM_AGGREAGTE_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.aggregate.PythonStreamGroupAggregateOperator";
 
-    @JsonProperty(FIELD_NAME_GROUPING)
     private final int[] grouping;
 
-    @JsonProperty(FIELD_NAME_AGG_CALLS)
     private final AggregateCall[] aggCalls;
 
-    @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS)
     private final boolean[] aggCallNeedRetractions;
 
-    @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE)
     private final boolean generateUpdateBefore;
 
-    @JsonProperty(FIELD_NAME_NEED_RETRACTION)
     private final boolean needRetraction;
 
     public StreamExecPythonGroupAggregate(
@@ -116,16 +100,16 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
 
     @JsonCreator
     public StreamExecPythonGroupAggregate(
-            @JsonProperty(FIELD_NAME_ID) int id,
-            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
-            @JsonProperty(FIELD_NAME_GROUPING) int[] grouping,
-            @JsonProperty(FIELD_NAME_AGG_CALLS) AggregateCall[] aggCalls,
-            @JsonProperty(FIELD_NAME_AGG_CALL_NEED_RETRACTIONS) boolean[] aggCallNeedRetractions,
-            @JsonProperty(FIELD_NAME_GENERATE_UPDATE_BEFORE) boolean generateUpdateBefore,
-            @JsonProperty(FIELD_NAME_NEED_RETRACTION) boolean needRetraction,
-            @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
-            @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
-            @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
+            int id,
+            ExecNodeContext context,
+            int[] grouping,
+            AggregateCall[] aggCalls,
+            boolean[] aggCallNeedRetractions,
+            boolean generateUpdateBefore,
+            boolean needRetraction,
+            List<InputProperty> inputProperties,
+            RowType outputType,
+            String description) {
         super(id, context, inputProperties, outputType, description);
         this.grouping = checkNotNull(grouping);
         this.aggCalls = checkNotNull(aggCalls);
@@ -137,10 +121,10 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        TableConfig tableConfig = planner.getTableConfig();
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
 
-        if (grouping.length > 0 && tableConfig.getMinIdleStateRetentionTime() < 0) {
+        if (grouping.length > 0 && config.getStateRetentionTime() < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval "
@@ -166,28 +150,30 @@ public class StreamExecPythonGroupAggregate extends StreamExecAggregateBase {
                 CommonPythonUtil.extractPythonAggregateFunctionInfos(aggInfoList, aggCalls);
         PythonAggregateFunctionInfo[] pythonFunctionInfos = aggInfosAndDataViewSpecs.f0;
         DataViewSpec[][] dataViewSpecs = aggInfosAndDataViewSpecs.f1;
-        Configuration config = CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
+        Configuration pythonConfig =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
         final OneInputStreamOperator<RowData, RowData> operator =
                 getPythonAggregateFunctionOperator(
-                        config,
+                        pythonConfig,
                         inputRowType,
                         InternalTypeInfo.of(getOutputType()).toRowType(),
                         pythonFunctionInfos,
                         dataViewSpecs,
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
+                        config.getStateRetentionTime(),
+                        config.getMaxIdleStateRetentionTime(),
                         inputCountIndex,
                         countStarInserted);
         // partitioned aggregation
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        createTransformationMeta(GROUP_AGGREGATE_TRANSFORMATION, config),
+                        createTransformationName(config),
+                        createTransformationDescription(config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
 
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
 

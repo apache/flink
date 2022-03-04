@@ -31,7 +31,7 @@ under the License.
 	</parent>
 
 	<artifactId>flink-connector-aws-kinesis-firehose</artifactId>
-	<name>Flink : Connectors : AWS Kinesis Data Firehose</name>
+	<name>Flink : Connectors : Amazon Kinesis Data Firehose</name>
 	<properties>
 		<aws.sdk.version>2.17.52</aws.sdk.version>
 	</properties>
@@ -76,6 +76,13 @@ under the License.
 			<version>${aws.sdk.version}</version>
 		</dependency>
 
+        <!--Table Api Dependencies-->
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- Test dependencies -->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
@@ -95,6 +102,21 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-connector-base</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-common</artifactId>
+			<version>${project.version}</version>
+			<type>test-jar</type>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>

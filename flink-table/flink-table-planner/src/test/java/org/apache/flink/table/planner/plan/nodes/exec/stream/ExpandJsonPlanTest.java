@@ -40,15 +40,10 @@ public class ExpandJsonPlanTest extends TableTestBase {
         util = streamTestUtil(TableConfig.getDefault());
         tEnv = util.getTableEnv();
         tEnv.getConfig()
-                .getConfiguration()
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-                        AggregatePhaseStrategy.ONE_PHASE.name());
-        tEnv.getConfig()
-                .getConfiguration()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
-        tEnv.getConfig()
-                .getConfiguration()
+                        AggregatePhaseStrategy.ONE_PHASE.name())
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
                 .set(IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED(), false);
 
         String srcTableDdl =

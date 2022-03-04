@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation;
 import org.apache.flink.table.catalog.ContextResolvedTable;
-import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.SerializerProvider;
@@ -30,14 +30,19 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 
 import java.io.IOException;
 
-/** JSON serializer for {@link ContextResolvedTable}. */
-class ContextResolvedTableJsonSerializer extends StdSerializer<ContextResolvedTable> {
+/**
+ * JSON serializer for {@link ContextResolvedTable}.
+ *
+ * @see ContextResolvedTableJsonDeserializer for the reverse operation
+ */
+@Internal
+final class ContextResolvedTableJsonSerializer extends StdSerializer<ContextResolvedTable> {
     private static final long serialVersionUID = 1L;
 
-    public static final String FIELD_NAME_IDENTIFIER = "identifier";
-    public static final String FIELD_NAME_CATALOG_TABLE = "resolvedTable";
+    static final String FIELD_NAME_IDENTIFIER = "identifier";
+    static final String FIELD_NAME_CATALOG_TABLE = "resolvedTable";
 
-    public ContextResolvedTableJsonSerializer() {
+    ContextResolvedTableJsonSerializer() {
         super(ContextResolvedTable.class);
     }
 
@@ -52,42 +57,39 @@ class ContextResolvedTableJsonSerializer extends StdSerializer<ContextResolvedTa
                         .getConfiguration()
                         .get(TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS);
 
-        if (contextResolvedTable.isAnonymous()
-                && planCompilationOption == CatalogPlanCompilation.IDENTIFIER) {
-            throw cannotSerializeAnonymousTable(contextResolvedTable.getIdentifier());
-        }
-
         jsonGenerator.writeStartObject();
 
-        if (!contextResolvedTable.isAnonymous()) {
-            // Serialize object identifier
-            jsonGenerator.writeObjectField(
-                    FIELD_NAME_IDENTIFIER, contextResolvedTable.getIdentifier());
-        }
-
-        if ((contextResolvedTable.isPermanent() || contextResolvedTable.isAnonymous())
-                && planCompilationOption != CatalogPlanCompilation.IDENTIFIER) {
+        if (contextResolvedTable.isAnonymous()) {
+            // For anonymous tables, we always write everything
             jsonGenerator.writeFieldName(FIELD_NAME_CATALOG_TABLE);
             ResolvedCatalogTableJsonSerializer.serialize(
                     contextResolvedTable.getResolvedTable(),
-                    planCompilationOption == CatalogPlanCompilation.ALL,
+                    true,
                     jsonGenerator,
                     serializerProvider);
+        } else {
+            // Serialize object identifier
+            jsonGenerator.writeObjectField(
+                    FIELD_NAME_IDENTIFIER, contextResolvedTable.getIdentifier());
+            if (contextResolvedTable.isPermanent()
+                    && planCompilationOption != CatalogPlanCompilation.IDENTIFIER) {
+                jsonGenerator.writeFieldName(FIELD_NAME_CATALOG_TABLE);
+                try {
+                    ResolvedCatalogTableJsonSerializer.serialize(
+                            contextResolvedTable.getResolvedTable(),
+                            planCompilationOption == CatalogPlanCompilation.ALL,
+                            jsonGenerator,
+                            serializerProvider);
+                } catch (ValidationException e) {
+                    throw new ValidationException(
+                            String.format(
+                                    "Error when trying to serialize table '%s'.",
+                                    contextResolvedTable.getIdentifier()),
+                            e);
+                }
+            }
         }
 
         jsonGenerator.writeEndObject();
-    }
-
-    static ValidationException cannotSerializeAnonymousTable(ObjectIdentifier objectIdentifier) {
-        return new ValidationException(
-                String.format(
-                        "Cannot serialize anonymous table '%s', as the option '%s' == '%s' forces to serialize only the table identifier, "
-                                + "but the anonymous table identifier cannot be serialized. "
-                                + "Either modify the table to be temporary or permanent, or regenerate the plan with '%s' != '%s'.",
-                        objectIdentifier,
-                        TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS.key(),
-                        CatalogPlanCompilation.IDENTIFIER.name(),
-                        TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS.key(),
-                        CatalogPlanCompilation.IDENTIFIER.name()));
     }
 }

@@ -168,12 +168,6 @@ class SinkWriterOperatorTest {
         testHarness.processElement(1, 1);
         testHarness.endInput();
         assertBasicOutput(testHarness.getOutput(), 1, Long.MAX_VALUE);
-
-        // Not flush new records during snapshot barrier
-        testHarness.processElement(2, 2);
-        testHarness.prepareSnapshotPreBarrier(1);
-        assertThat(testHarness.getOutput()).hasSize(2);
-        testHarness.close();
     }
 
     @ParameterizedTest
@@ -214,6 +208,8 @@ class SinkWriterOperatorTest {
 
         // this will flush out the committables that were restored
         restoredTestHarness.endInput();
+        final long checkpointId = 2;
+        restoredTestHarness.prepareSnapshotPreBarrier(checkpointId);
 
         if (stateful) {
             assertBasicOutput(restoredTestHarness.getOutput(), 2, Long.MAX_VALUE);
@@ -263,6 +259,7 @@ class SinkWriterOperatorTest {
 
         // this will flush out the committables that were restored from previous sink
         compatibleWriterOperator.endInput();
+        compatibleWriterOperator.prepareSnapshotPreBarrier(1);
 
         OperatorSubtaskState operatorStateWithoutPreviousState =
                 compatibleWriterOperator.snapshot(1L, 1L);
@@ -288,9 +285,41 @@ class SinkWriterOperatorTest {
 
         // this will flush out the committables that were restored
         restoredSinkOperator.endInput();
+        restoredSinkOperator.prepareSnapshotPreBarrier(2);
 
         assertEmitted(expectedOutput2, restoredSinkOperator.getOutput());
         restoredSinkOperator.close();
+    }
+
+    @ParameterizedTest
+    @ValueSource(booleans = {true, false})
+    void testHandleEndInputInStreamingMode(boolean isCheckpointingEnabled) throws Exception {
+        final TestSink.DefaultSinkWriter<Integer> sinkWriter = new TestSink.DefaultSinkWriter<>();
+        final OneInputStreamOperatorTestHarness<Integer, CommittableMessage<Integer>> testHarness =
+                new OneInputStreamOperatorTestHarness<>(
+                        new SinkWriterOperatorFactory<>(
+                                TestSink.newBuilder()
+                                        .setWriter(sinkWriter)
+                                        .setDefaultCommitter()
+                                        .build()
+                                        .asV2()));
+        testHarness.open();
+        testHarness.processElement(1, 1);
+
+        assertThat(testHarness.getOutput()).isEmpty();
+        final String record = "(1,1," + Long.MIN_VALUE + ")";
+        assertThat(sinkWriter.elements).containsOnly(record);
+
+        testHarness.endInput();
+
+        if (isCheckpointingEnabled) {
+            testHarness.prepareSnapshotPreBarrier(1);
+        }
+
+        assertEmitted(Collections.singletonList(record), testHarness.getOutput());
+        assertThat(sinkWriter.elements).isEmpty();
+
+        testHarness.close();
     }
 
     @SuppressWarnings("unchecked")
