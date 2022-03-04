@@ -167,8 +167,13 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
     @Override
     public Set<JobResult> getDirtyResultsInternal() throws IOException {
+        final FileStatus[] statuses = fileSystem.listStatus(this.basePath);
+
+        Preconditions.checkState(
+                statuses != null,
+                "The base directory of the JobResultStore isn't accessible. No dirty JobResults can be restored.");
+
         final Set<JobResult> dirtyResults = new HashSet<>();
-        FileStatus[] statuses = fileSystem.listStatus(this.basePath);
         for (FileStatus s : statuses) {
             if (!s.isDir()) {
                 if (hasValidDirtyJobResultStoreEntryExtension(s.getPath().getName())) {
