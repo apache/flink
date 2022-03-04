@@ -696,11 +696,6 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         val right = operands.tail
         generateIn(ctx, left, right)
 
-      case NOT_IN =>
-        val left = operands.head
-        val right = operands.tail
-        generateNot(ctx, generateIn(ctx, left, right))
-
       // casting
       case CAST =>
         generateCast(ctx, operands.head, resultType, nullOnFailure = ctx.tableConfig
