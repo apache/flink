@@ -26,7 +26,8 @@ from pyflink.common.serializer import TypeSerializer
 from pyflink.datastream.functions import RuntimeContext, InternalWindowFunction
 from pyflink.metrics import MetricGroup
 from pyflink.common.typeinfo import Types
-from pyflink.datastream.state import StateDescriptor, State, ValueStateDescriptor, ValueState, ReducingStateDescriptor
+from pyflink.datastream.state import StateDescriptor, State, ValueStateDescriptor, \
+    ValueState, ReducingStateDescriptor
 
 __all__ = ['Window',
            'TimeWindow',
@@ -573,9 +574,12 @@ class EventTimeTrigger(Trigger[T, TimeWindow]):
     def on_merge(self,
                  window: TimeWindow,
                  ctx: 'Trigger.OnMergeContext') -> None:
-        windowMaxTimestamp = window.max_timestamp()
-        if windowMaxTimestamp >= ctx.get_current_watermark():
-            ctx.register_event_time_timer(windowMaxTimestamp)
+        window_max_timestamp = window.max_timestamp()
+        if window_max_timestamp > ctx.get_current_watermark():
+            ctx.register_event_time_timer(window_max_timestamp)
+
+    def can_merge(self) -> bool:
+        return True
 
     def clear(self,
               window: TimeWindow,
@@ -611,9 +615,12 @@ class ProcessingTimeTrigger(Trigger[T, TimeWindow]):
     def on_merge(self,
                  window: W,
                  ctx: 'Trigger.OnMergeContext') -> None:
-        windowMaxTimestamp = window.max_timestamp()
-        if windowMaxTimestamp > ctx.get_current_processing_time():
-            ctx.register_processing_time_timer(windowMaxTimestamp)
+        window_max_timestamp = window.max_timestamp()
+        if window_max_timestamp > ctx.get_current_processing_time():
+            ctx.register_processing_time_timer(window_max_timestamp)
+
+    def can_merge(self) -> bool:
+        return True
 
     def clear(self,
               window: W,
@@ -626,9 +633,9 @@ class CountTrigger(Trigger[T, CountWindow]):
     A Trigger that fires once the count of elements in a pane reaches the given count.
     """
     def __init__(self, window_size: int):
-        self._window_size = int(window_size)
+        self._window_size = window_size
         self._count_state_descriptor = ReducingStateDescriptor(
-            "trigger_counter", lambda a, b: a + b, Types.BIG_INT())
+            "trigger_counter", lambda a, b: a + b, Types.LONG())
 
     def on_element(self,
                    element: T,
@@ -661,6 +668,9 @@ class CountTrigger(Trigger[T, CountWindow]):
 
     def on_merge(self, window: CountWindow, ctx: Trigger.OnMergeContext) -> None:
         ctx.merge_partitioned_state(self._count_state_descriptor)
+
+    def can_merge(self) -> bool:
+        return True
 
     def clear(self, window: CountWindow, ctx: Trigger.TriggerContext) -> None:
         state = ctx.get_partitioned_state(self._count_state_descriptor)
@@ -804,19 +814,23 @@ class SlidingWindowAssigner(WindowAssigner[T, TimeWindow]):
         context: 'WindowAssigner.WindowAssignerContext') -> Collection[W]:
         if self._is_event_time is False:
             current_processing_time = context.get_current_processing_time()
-            last_start = TimeWindow.get_window_start_with_offset(current_processing_time, self._offset, self._slide)
+            last_start = TimeWindow.get_window_start_with_offset(
+                current_processing_time, self._offset, self._slide)
             windows = [TimeWindow(start, start + self._size)
-                       for start in range(last_start, current_processing_time - self._size, -self._slide)]
+                       for start in range(last_start,
+                                          current_processing_time - self._size, -self._slide)]
             return windows
         else:
             if timestamp > MIN_LONG_VALUE:
-                last_start = TimeWindow.get_window_start_with_offset(timestamp, self._offset, self._slide)
+                last_start = TimeWindow.get_window_start_with_offset(timestamp,
+                                                                     self._offset, self._slide)
                 windows = [TimeWindow(start, start + self._size)
                            for start in range(last_start, timestamp - self._size, -self._slide)]
                 return windows
             else:
                 raise Exception("Record has MIN_LONG_VALUE timestamp (= no timestamp marker). "
-                                + "Is the time characteristic set to 'ProcessingTime', or did you forget to call "
+                                + "Is the time characteristic set to 'ProcessingTime', "
+                                  "or did you forget to call "
                                 + "'data_stream.assign_timestamps_and_watermarks(...)'?")
 
     def get_default_trigger(self, env) -> Trigger[T, W]:
@@ -939,7 +953,9 @@ class DynamicSessionWindowAssigner(MergingWindowAssigner[T, TimeWindow]):
         WindowAssigner that windows elements into sessions based on the timestamp. Windows cannot
         overlap.
         """
-    def __init__(self, session_window_time_gap_extractor: SessionWindowTimeGapExtractor, is_event_time: bool):
+    def __init__(self,
+                 session_window_time_gap_extractor: SessionWindowTimeGapExtractor,
+                 is_event_time: bool):
         self._session_window_time_gap_extractor = session_window_time_gap_extractor
         self._is_event_time = is_event_time
 
@@ -1148,7 +1164,8 @@ class EventTimeSessionWindows():
     @staticmethod
     def with_gap(size: Time):
         """
-        Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on the element timestamp.
+        Creates a new SessionWindows WindowAssigner that assigns elements to sessions
+        based on the element timestamp.
         Params:
         :param size: The session timeout, i.e. the time gap between sessions
         :return: The policy.
@@ -1158,9 +1175,11 @@ class EventTimeSessionWindows():
     @staticmethod
     def with_dynamic_gap(session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
         """
-        Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on the element timestamp.
+        Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on
+        the element timestamp.
         Params:
-        :param session_window_time_gap_extractor: The extractor to use to extract the time gap from the input elements
+        :param session_window_time_gap_extractor: The extractor to use to extract the time gap
+        from the input elements
         :return: The policy.
         """
         return DynamicSessionWindowAssigner(session_window_time_gap_extractor, True)
@@ -1168,11 +1187,13 @@ class EventTimeSessionWindows():
 
 class DynamicProcessingTimeSessionWindows():
     """
-    A WindowAssigner that windows elements into sessions based on the current processing time. Windows cannot overlap.
+    A WindowAssigner that windows elements into sessions based on the current processing time.
+    Windows cannot overlap.
     For example, in order to window into windows with a dynamic time gap:
     in = ...
     keyed = in.keyBy(...)
-    windowed = keyed.window(DynamicProcessingTimeSessionWindows.withDynamicGap({@link SessionWindowTimeGapExtractor }))
+    windowed = keyed.window(DynamicProcessingTimeSessionWindows.withDynamicGap({@link
+    SessionWindowTimeGapExtractor }))
     Type parameters:
     <T> – The type of the input elements
     """
@@ -1180,9 +1201,11 @@ class DynamicProcessingTimeSessionWindows():
     @staticmethod
     def with_dynamic_gap(session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
         """
-        Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on the element timestamp.
+        Creates a new SessionWindows WindowAssigner that assigns elements to sessions based
+        on the element timestamp.
         Params:
-        :param session_window_time_gap_extractor: The extractor to use to extract the time gap from the input elements
+        :param session_window_time_gap_extractor: The extractor to use to extract the time
+        gap from the input elements
         :return: The policy.
         """
         return DynamicSessionWindowAssigner(session_window_time_gap_extractor, False)
@@ -1190,20 +1213,24 @@ class DynamicProcessingTimeSessionWindows():
 
 class DynamicEventTimeSessionWindows():
     """
-    A WindowAssigner that windows elements into sessions based on the timestamp of the elements. Windows cannot overlap.
+    A WindowAssigner that windows elements into sessions based on the timestamp of the elements.
+    Windows cannot overlap.
     For example, in order to window into windows with a dynamic time gap:
     in = ...
     keyed = in.keyBy(...)
-    windowed = keyed.window(DynamicEventTimeSessionWindows.withDynamicGap({@link SessionWindowTimeGapExtractor }))
+    windowed = keyed.window(DynamicEventTimeSessionWindows.withDynamicGap({@link
+    SessionWindowTimeGapExtractor }))
     Type parameters:
     <T> – The type of the input elements
     """
     @staticmethod
     def with_dynamic_gap(session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
         """
-        Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on the element timestamp.
+        Creates a new SessionWindows WindowAssigner that assigns elements to sessions
+        based on the element timestamp.
         Params:
-        :param session_window_time_gap_extractor: The extractor to use to extract the time gap from the input elements
+        :param session_window_time_gap_extractor: The extractor to use to extract the
+        time gap from the input elements
         :return: The policy.
         """
         return DynamicSessionWindowAssigner(session_window_time_gap_extractor, True)
