@@ -102,4 +102,8 @@ public class MetricNames {
 
     // FLIP-182 (watermark alignment)
     public static final String WATERMARK_ALIGNMENT_DRIFT = "watermarkAlignmentDrift";
+
+    public static final String MAILBOX_THROUGHPUT = "mailboxMailsPerSecond";
+    public static final String MAILBOX_LATENCY = "mailboxLatencyMs";
+    public static final String MAILBOX_SIZE = "mailboxQueueSize";
 }
