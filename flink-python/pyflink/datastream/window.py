@@ -53,8 +53,6 @@ def mod_inverse(x: int) -> int:
     inverse *= 2 - x * inverse
     return inverse
 
-MAX_LONG_VALUE = sys.maxsize
-MIN_LONG_VALUE = -MAX_LONG_VALUE - 1
 
 class Window(ABC):
     """
@@ -212,6 +210,9 @@ W2 = TypeVar('W2')
 IN = TypeVar('IN')
 OUT = TypeVar('OUT')
 KEY = TypeVar('KEY')
+
+MAX_LONG_VALUE = sys.maxsize
+MIN_LONG_VALUE = -MAX_LONG_VALUE - 1
 
 class TriggerResult(Enum):
     """
@@ -1193,7 +1194,6 @@ class DynamicProcessingTimeSessionWindows():
     Type parameters:
     <T> – The type of the input elements
     """
-
     @staticmethod
     def with_dynamic_gap(session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
         """
