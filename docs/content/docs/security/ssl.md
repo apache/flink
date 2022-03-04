@@ -1,5 +1,5 @@
 ---
-title: "Encryption and Authentication using SSL"
+title: "Encryption and Authentication using SSL/TLS"
 weight: 3
 type: docs
 aliases:
@@ -25,7 +25,7 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Encryption and Authentication using SSL
+# Encryption and Authentication using SSL/TLS for Cluster Components
 
 Flink supports mutual authentication (when two parties authenticate each other at the same time) and 
 encryption of network communication with SSL for internal and external communication. 
@@ -38,7 +38,7 @@ will go through steps such as generating certificates, setting up TrustStores an
 configuring cipher suites.
 
 For how-tos and tips for different deployment environments (i.e. standalone clusters, Kubernetes, YARN),
-check out the section on [Incorporating Security Features in a Running Cluster](#).
+check out the section on [Incorporating Security Features in a Running Cluster]({{< ref "docs/security/running-cluster" >}}).
 
 ## Internal and External Communication 
 

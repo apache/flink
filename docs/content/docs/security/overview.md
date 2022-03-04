@@ -34,17 +34,19 @@ the client and server. The TLS protocol is the successor to SSL. Flink enforces 
 you can also switch back to SSL.
 {{< /hint >}}
 
+## What needs to be secured in Flink?
+
 When we talk about security for Flink, we generally make a distinction between securing the internal 
-communication within the Flink cluster (i.e. between the Taskmanagers, between the Taskmanagers and 
-the Jobmanager) and securing the external communication between the cluster and the outside world.
+communication within the Flink cluster (i.e. between the TaskManagers, between the TaskManagers and 
+the JobManager) and securing the external communication between the cluster and the outside world.
 
 Internally, [Netty](https://netty.io) is used for the TCP connections used for data exchange among 
-the Taskmanagers, and Akka is used for RPC between the Jobmanager and the Taskmanagers.
+the TaskManagers, and [Akka](https://akka.io) is used for RPC between the JobManager and the TaskManagers.
 
 Externally, HTTP is used for pretty much everything, except that some external services used as sources 
 or sinks may use some other network protocol.
 
-## What is supported?
+## What is supported by Flink?
 
 Security enhancement features by the Flink community make it easy to access secured data, protect 
 associated credentials, and increase overall security in a Flink cluster. The following security 
@@ -62,15 +64,24 @@ Flink is to have defaults that work out-of-the-box, without any configuration. T
 clusters are supported, as well as a mix of authenticated, unauthenticated, encrypted and unencrypted 
 clients. 
 
+## Where are its flaws? How should they be addressed?
+
+Web UI unsecure
+not secure by default
+
+## What needs to be solved outside of Flink?
+
+connectors
+
 ## How to use this section 
 
-The guides in this section explain how to configure and use these security features. 
+The guides in this section explain how to configure and use these security features and will cover 
+the following topics:
 
-We are going to look at the following topics:
-
+- Using Kerberos for authentication
 - Using SSL to secure internal communication
 - Using SSL to secure external communication
-- Using Kerberos for authentication
 
-We’ll describe the new features, including Kerberos-based access to HDFS and Kafka, transport security (TLS), 
-and service-level authorization which protects your Flink cluster from unauthorized access.
+You will learn about the new features, including Kerberos-based access to HDFS and Kafka, transport 
+security (SSL/TLS), and service-level authorization which protects your Flink cluster from unauthorized 
+access.
