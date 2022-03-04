@@ -118,7 +118,7 @@ tEnv.executeSql("SHOW CURRENT DATABASE").print();
 // create a table
 tEnv.executeSql("CREATE TABLE my_table (...) WITH (...)");
 // show tables
-tEnv.executeSql("SHOW TABLES FROM default_database LIKE 'm%'").print();
+tEnv.executeSql("SHOW TABLES").print();
 // +------------+
 // | table name |
 // +------------+
@@ -222,7 +222,7 @@ tEnv.executeSql("SHOW DATABASES").print()
 // create a table
 tEnv.executeSql("CREATE TABLE my_table (...) WITH (...)")
 // show tables
-tEnv.executeSql("SHOW TABLES FROM default_database LIKE 'm%'").print()
+tEnv.executeSql("SHOW TABLES").print()
 // +------------+
 // | table name |
 // +------------+
@@ -324,7 +324,7 @@ table_env.execute_sql("SHOW DATABASES").print()
 # create a table
 table_env.execute_sql("CREATE TABLE my_table (...) WITH (...)")
 # show tables
-table_env.execute_sql("SHOW TABLES FROM default_database LIKE 'm%'").print()
+table_env.execute_sql("SHOW TABLES").print()
 # +------------+
 # | table name |
 # +------------+
@@ -414,7 +414,7 @@ default_database
 Flink SQL> CREATE TABLE my_table (...) WITH (...);
 [INFO] Table has been created.
 
-Flink SQL> SHOW TABLES FROM default_database LIKE 'm%';
+Flink SQL> SHOW TABLES;
 my_table
 
 Flink SQL> SHOW CREATE TABLE my_table;
@@ -523,7 +523,7 @@ Show current database.
 SHOW TABLES [ ( FROM | IN ) [catalog_name.]database_name ] [ [NOT] LIKE <sql_like_pattern> ]
 ```
 
-Show all the tables for an optionally specified database. If no database is specified then the tables are returned from the current database. Additionally, the output of this statement may be filtered by an optional matching pattern.
+Show all tables for an optionally specified database. If no database is specified then the tables are returned from the current database. Additionally, the output of this statement may be filtered by an optional matching pattern.
 
 **LIKE**
 Show all tables with given table name and optional `LIKE` clause, whose name is whether similar to the `<sql_like_pattern>`.
