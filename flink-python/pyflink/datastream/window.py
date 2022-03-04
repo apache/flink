@@ -39,9 +39,6 @@ __all__ = ['Window',
            'TimeWindowSerializer',
            'CountWindowSerializer']
 
-MAX_LONG_VALUE = sys.maxsize
-
-
 def long_to_int_with_bit_mixing(x: int) -> int:
     x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9
     x = (x ^ (x >> 27)) * 0x94d049bb133111eb
@@ -56,6 +53,8 @@ def mod_inverse(x: int) -> int:
     inverse *= 2 - x * inverse
     return inverse
 
+MAX_LONG_VALUE = sys.maxsize
+MIN_LONG_VALUE = -MAX_LONG_VALUE - 1
 
 class Window(ABC):
     """
@@ -213,9 +212,6 @@ W2 = TypeVar('W2')
 IN = TypeVar('IN')
 OUT = TypeVar('OUT')
 KEY = TypeVar('KEY')
-
-MAX_LONG_VALUE = sys.maxsize
-MIN_LONG_VALUE = -MAX_LONG_VALUE - 1
 
 class TriggerResult(Enum):
     """
