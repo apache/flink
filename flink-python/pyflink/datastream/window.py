@@ -906,8 +906,11 @@ class SessionWindowAssigner(MergingWindowAssigner[T, TimeWindow]):
         WindowAssigner that windows elements into sessions based on the timestamp. Windows cannot
         overlap.
         """
-    def __init__(self, session_gap: Time, is_event_time: bool):
-        self._session_gap = session_gap.to_milliseconds()
+    def __init__(self, session_gap: int, is_event_time: bool):
+        if session_gap <= 0:
+            raise Exception("SessionWindowAssigner parameters must satisfy 0 < size")
+
+        self._session_gap = session_gap
         self._is_event_time = is_event_time
 
     def merge_windows(self,
@@ -973,6 +976,8 @@ class DynamicSessionWindowAssigner(MergingWindowAssigner[T, TimeWindow]):
         if self._is_event_time is False:
             timestamp = context.get_current_processing_time()
         self._session_gap = self._session_window_time_gap_extractor.extract(element)
+        if self._session_gap <= 0:
+            raise Exception("Dynamic session time gap must satisfy 0 < gap")
 
         return [TimeWindow(timestamp, timestamp + self._session_gap)]
 
@@ -989,7 +994,7 @@ class DynamicSessionWindowAssigner(MergingWindowAssigner[T, TimeWindow]):
         return self._is_event_time
 
     def __repr__(self):
-        return "SessionWindowAssigner(%s, %s)" % (self._session_gap, self._is_event_time)
+        return "DynamicSessionWindowAssigner(%s, %s)" % (self._session_gap, self._is_event_time)
 
 
 class TumblingProcessingTimeWindows():
