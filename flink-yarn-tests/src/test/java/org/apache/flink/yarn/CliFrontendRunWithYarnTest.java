@@ -29,11 +29,12 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.yarn.cli.FlinkYarnSessionCli;
 
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.File;
 
 import static org.apache.flink.client.cli.CliFrontendRunTest.verifyCliFrontend;
 import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
@@ -43,22 +44,20 @@ import static org.apache.flink.yarn.util.TestUtils.getTestJarPath;
  *
  * @see org.apache.flink.client.cli.CliFrontendRunTest
  */
-public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
+class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
 
-    @Rule public TemporaryFolder tmp = new TemporaryFolder();
-
-    @BeforeClass
-    public static void init() {
+    @BeforeAll
+    static void init() {
         CliFrontendTestUtils.pipeSystemOutToNull();
     }
 
-    @AfterClass
-    public static void shutdown() {
+    @AfterAll
+    static void shutdown() {
         CliFrontendTestUtils.restoreSystemOut();
     }
 
     @Test
-    public void testRun() throws Exception {
+    void testRun(@TempDir File tempDir) throws Exception {
         String testJarPath = getTestJarPath("BatchWordCount.jar").getAbsolutePath();
 
         Configuration configuration = new Configuration();
@@ -73,7 +72,7 @@ public class CliFrontendRunWithYarnTest extends CliFrontendTestBase {
                 new FlinkYarnSessionCli(
                         configuration,
                         testServiceLoader,
-                        tmp.getRoot().getAbsolutePath(),
+                        tempDir.getAbsolutePath(),
                         "y",
                         "yarn",
                         true);

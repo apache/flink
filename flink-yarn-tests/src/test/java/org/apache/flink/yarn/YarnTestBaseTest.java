@@ -18,16 +18,17 @@
 
 package org.apache.flink.yarn;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.regex.Pattern;
 
+import static org.assertj.core.api.Fail.fail;
+
 /** Tests for {@link YarnTestBase}. */
-public class YarnTestBaseTest {
+class YarnTestBaseTest {
 
     @Test
-    public void ensureWhitelistEntryMatches() {
+    void ensureWhitelistEntryMatches() {
         ensureWhitelistEntryMatch("465 java.lang.InterruptedException: sleep interrupted");
         ensureWhitelistEntryMatch(
                 "2020-09-19 22:06:19,458 WARN  akka.remote.ReliableDeliverySupervisor                       [] - Association with remote system [akka.tcp://flink@e466f3e261f3:42352] has failed, address is now gated for [50] ms. Reason: [Association failed with [akka.tcp://flink@e466f3e261f3:42352]] Caused by: [java.net.ConnectException: Connection refused: e466f3e261f3/192.168.224.2:42352]");
@@ -41,6 +42,6 @@ public class YarnTestBaseTest {
                 return;
             }
         }
-        Assert.fail("The following string didn't match any whitelisted patterns '" + probe + "'");
+        fail("The following string didn't match any whitelisted patterns '" + probe + "'");
     }
 }
