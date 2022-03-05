@@ -64,7 +64,8 @@ public class OraclePreparedStatementTest {
     @Test
     public void testDeleteStatement() {
         String deleteStmt = dialect.getDeleteStatement(tableName, keyFields);
-        assertEquals("DELETE FROM tbl WHERE id = :{id} AND __field_3__ = :{__field_3__}", deleteStmt);
+        assertEquals(
+                "DELETE FROM tbl WHERE id = :{id} AND __field_3__ = :{__field_3__}", deleteStmt);
         NamedStatementMatcher.parsedSql("DELETE FROM tbl WHERE id = ? AND __field_3__ = ?")
                 .parameter("id", singletonList(1))
                 .parameter("__field_3__", singletonList(2))
@@ -75,7 +76,8 @@ public class OraclePreparedStatementTest {
     public void testRowExistsStatement() {
         String rowExistStmt = dialect.getRowExistsStatement(tableName, keyFields);
         assertEquals(
-                "SELECT 1 FROM tbl WHERE id = :{id} AND __field_3__ = :{__field_3__}", rowExistStmt);
+                "SELECT 1 FROM tbl WHERE id = :{id} AND __field_3__ = :{__field_3__}",
+                rowExistStmt);
         NamedStatementMatcher.parsedSql("SELECT 1 FROM tbl WHERE id = ? AND __field_3__ = ?")
                 .parameter("id", singletonList(1))
                 .parameter("__field_3__", singletonList(2))
