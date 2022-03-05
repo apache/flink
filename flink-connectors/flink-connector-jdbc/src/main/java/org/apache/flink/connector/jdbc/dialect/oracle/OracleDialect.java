@@ -21,6 +21,7 @@ package org.apache.flink.connector.jdbc.dialect.oracle;
 import org.apache.flink.connector.jdbc.converter.JdbcRowConverter;
 import org.apache.flink.connector.jdbc.dialect.AbstractDialect;
 import org.apache.flink.connector.jdbc.internal.converter.OracleRowConverter;
+import org.apache.flink.connector.jdbc.statement.FieldNamedPreparedStatement;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -76,7 +77,7 @@ class OracleDialect extends AbstractDialect {
 
         String sourceFields =
                 Arrays.stream(fieldNames)
-                        .map(f -> ":" + f + " " + quoteIdentifier(f))
+                        .map(FieldNamedPreparedStatement::wrapNamedParameter)
                         .collect(Collectors.joining(", "));
 
         String onClause =
