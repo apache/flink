@@ -1487,9 +1487,8 @@ Note that the metrics are only available via reporters.
       <td>
         The current drift from the minimal watermark emitted by all sources/tasks/splits that belong
         to the same watermark group.
-
-        Note: Available only when watermark alignment is enabled and the first common watermark is
-        announced. You can configure the update interval in the WatermarkStrategy.
+        <p><strong>Note:</strong> Available only when watermark alignment is enabled and the first common watermark is
+        announced. You can configure the update interval in the WatermarkStrategy.</p>
       </td>
       <td>Gauge</td>
     </tr>
