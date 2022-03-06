@@ -172,6 +172,9 @@ public class DefaultMultipleComponentLeaderElectionService
         }
 
         multipleComponentLeaderElectionDriver.deleteLeaderInformation(componentId);
+        if (leaderElectionEventHandlers.size() == 0) {
+            multipleComponentLeaderElectionDriver.close();
+        }
     }
 
     @Override
