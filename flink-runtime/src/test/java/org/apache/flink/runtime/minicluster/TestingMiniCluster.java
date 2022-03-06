@@ -30,6 +30,7 @@ import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.metrics.MetricRegistry;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.webmonitor.retriever.MetricQueryServiceRetriever;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import javax.annotation.Nullable;
 
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
 
@@ -140,7 +142,6 @@ public class TestingMiniCluster extends MiniCluster {
             createDispatcherResourceManagerComponents(
                     Configuration configuration,
                     RpcServiceFactory rpcServiceFactory,
-                    HighAvailabilityServices haServices,
                     BlobServer blobServer,
                     HeartbeatServices heartbeatServices,
                     MetricRegistry metricRegistry,
@@ -154,19 +155,48 @@ public class TestingMiniCluster extends MiniCluster {
                 new ArrayList<>(numberDispatcherResourceManagerComponents);
 
         for (int i = 0; i < numberDispatcherResourceManagerComponents; i++) {
-            result.add(
+            // FLINK-24038 relies on the fact that there is only one leader election instance per
+            // JVM that is freed when the JobManager stops. This is simulated in the
+            // TestingMiniCluster by providing individual HighAvailabilityServices per
+            // DispatcherResourceManagerComponent to allow running more-than-once JobManager tests
+            final HighAvailabilityServices thisHaServices =
+                    createHighAvailabilityServices(configuration, getIOExecutor());
+            final DispatcherResourceManagerComponent dispatcherResourceManagerComponent =
                     dispatcherResourceManagerComponentFactory.create(
                             configuration,
                             ResourceID.generate(),
                             getIOExecutor(),
                             rpcServiceFactory.createRpcService(),
-                            haServices,
+                            thisHaServices,
                             blobServer,
                             heartbeatServices,
                             metricRegistry,
                             new MemoryExecutionGraphInfoStore(),
                             metricQueryServiceRetriever,
-                            fatalErrorHandler));
+                            fatalErrorHandler);
+
+            final CompletableFuture<Void> shutDownFuture =
+                    dispatcherResourceManagerComponent
+                            .getShutDownFuture()
+                            .thenCompose(
+                                    applicationStatus ->
+                                            dispatcherResourceManagerComponent.stopApplication(
+                                                    applicationStatus, null))
+                            .thenRun(
+                                    () -> {
+                                        try {
+                                            // The individual HighAvailabilityServices have to be
+                                            // closed explicitly to trigger the revocation of the
+                                            // leadership when shutting down the JobManager
+                                            thisHaServices.close();
+                                        } catch (Exception ex) {
+                                            throw new CompletionException(
+                                                    "HighAvailabilityServices were not expected to fail but did",
+                                                    ex);
+                                        }
+                                    });
+            FutureUtils.assertNoException(shutDownFuture);
+            result.add(dispatcherResourceManagerComponent);
         }
 
         return result;
