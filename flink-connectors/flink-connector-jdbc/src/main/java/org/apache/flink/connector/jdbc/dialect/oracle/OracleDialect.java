@@ -77,7 +77,7 @@ class OracleDialect extends AbstractDialect {
 
         String sourceFields =
                 Arrays.stream(fieldNames)
-                        .map(FieldNamedPreparedStatement::wrapNamedParameter)
+                        .map(f -> ":" + f + " " + FieldNamedPreparedStatement.wrapNamedParameter(f))
                         .collect(Collectors.joining(", "));
 
         String onClause =
