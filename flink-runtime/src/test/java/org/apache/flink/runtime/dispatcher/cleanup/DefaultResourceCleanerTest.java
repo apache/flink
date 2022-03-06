@@ -22,11 +22,13 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.core.testutils.FlinkAssertions;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.RetryStrategy;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -42,6 +44,7 @@ import static org.apache.flink.core.testutils.FlinkAssertions.STREAM_THROWABLE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@code DefaultResourceCleanerTest} tests {@link DefaultResourceCleaner}. */
+@ExtendWith(TestLoggerExtension.class)
 public class DefaultResourceCleanerTest {
 
     // runs with retry utilizes the ComponentMainThreadExecutor which adds concurrency despite using
