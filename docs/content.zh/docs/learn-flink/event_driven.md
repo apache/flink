@@ -1,6 +1,6 @@
 ---
 title: 事件驱动应用
-weight: 5
+weight: 6
 type: docs
 ---
 <!--

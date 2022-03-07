@@ -1,6 +1,6 @@
 ---
 title: 容错处理
-weight: 6
+weight: 7
 type: docs
 ---
 <!--
