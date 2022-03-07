@@ -48,7 +48,7 @@ export class SubmitComponent implements OnInit, OnDestroy {
   public validateForm: FormGroup;
   public planVisible = false;
 
-  @ViewChild(DagreComponent, { static: true }) private readonly dagreComponent: DagreComponent;
+  @ViewChild(DagreComponent, { static: false }) private readonly dagreComponent?: DagreComponent;
 
   private readonly destroy$ = new Subject<void>();
 
@@ -147,7 +147,15 @@ export class SubmitComponent implements OnInit, OnDestroy {
       )
       .subscribe(data => {
         this.planVisible = true;
-        this.dagreComponent.flush(data.nodes, data.links, true);
+        this.cdr.detectChanges();
+        // dagreComponent only renders after planVisible is set to true
+        if (this.dagreComponent) {
+          this.dagreComponent.flush(data.nodes, data.links, true).then();
+        } else {
+          setTimeout(() => {
+            this.dagreComponent?.flush(data.nodes, data.links, true).then();
+          });
+        }
       });
   }
 
