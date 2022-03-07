@@ -1302,6 +1302,26 @@ public class WindowOperatorTest {
         assertor.assertOutputEqualsSorted(
                 "Output was not correct.", expectedOutput, testHarness.getOutput());
 
+        /*
+         * use lateTrigger when the window appears for the first time and
+         * the maxTimestamp < watermark < maxTimestap + allowLatency.
+         */
+        testHarness.processWatermark(new Watermark(10000));
+        testHarness.processElement(insertRecord("key2", 1, 6222L));
+        testHarness.processElement(insertRecord("key2", 1, 7222L));
+        expectedOutput.add(new Watermark(10000));
+        expectedOutput.add(
+                insertRecord(
+                        "key2", 1L, 1L, localMills(6000L), localMills(9000L), localMills(8999L)));
+        expectedOutput.add(
+                updateBeforeRecord(
+                        "key2", 1L, 1L, localMills(6000L), localMills(9000L), localMills(8999L)));
+        expectedOutput.add(
+                updateAfterRecord(
+                        "key2", 2L, 2L, localMills(6000L), localMills(9000L), localMills(8999L)));
+        assertor.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
         // late arrival, but too late, drop
         testHarness.processElement(insertRecord("key2", 1, 2877L));
         testHarness.processElement(insertRecord("key1", 1, 2899L));
@@ -1312,6 +1332,92 @@ public class WindowOperatorTest {
 
         // we close once in the rest...
         assertEquals("Close was not called.", 2, closeCalled.get());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void testEventTimeTumblingWindowsWithLateFiringUseAfterFirstElementPeriodic()
+            throws Exception {
+        closeCalled.set(0);
+
+        WindowOperator operator =
+                WindowOperatorBuilder.builder()
+                        .withInputFields(inputFieldTypes)
+                        .withShiftTimezone(shiftTimeZone)
+                        .tumble(Duration.ofSeconds(3))
+                        .withEventTime(2)
+                        .triggering(
+                                EventTimeTriggers.afterEndOfWindow()
+                                        .withEarlyFirings(
+                                                ProcessingTimeTriggers.every(Duration.ofSeconds(1)))
+                                        .withLateFirings(
+                                                ProcessingTimeTriggers.every(
+                                                        Duration.ofSeconds(1))))
+                        .withAllowedLateness(Duration.ofSeconds(3))
+                        .produceUpdates()
+                        .aggregate(
+                                new SumAndCountAggTimeWindow(),
+                                equaliser,
+                                accTypes,
+                                aggResultTypes,
+                                windowTypes)
+                        .build();
+
+        OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
+                createTestHarness(operator);
+
+        ConcurrentLinkedQueue<Object> expectedOutput = new ConcurrentLinkedQueue<>();
+
+        testHarness.open();
+        testHarness.setProcessingTime(0L);
+
+        // add elements out-of-order
+        testHarness.processElement(insertRecord("key2", 1, 3999L));
+        testHarness.processElement(insertRecord("key2", 1, 3000L));
+
+        testHarness.setProcessingTime(1L);
+        testHarness.processElement(insertRecord("key1", 1, 20L));
+        testHarness.processElement(insertRecord("key1", 1, 0L));
+        testHarness.processElement(insertRecord("key1", 1, 999L));
+
+        testHarness.processElement(insertRecord("key2", 1, 1998L));
+        testHarness.processElement(insertRecord("key2", 1, 1999L));
+        testHarness.processElement(insertRecord("key2", 1, 1000L));
+
+        testHarness.setProcessingTime(1000);
+        expectedOutput.add(
+                insertRecord(
+                        "key2", 2L, 2L, localMills(3000L), localMills(6000L), localMills(5999L)));
+        testHarness.processWatermark(new Watermark(999));
+        expectedOutput.add(new Watermark(999));
+
+        assertor.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        testHarness.setProcessingTime(1001);
+        expectedOutput.add(
+                insertRecord("key1", 3L, 3L, localMills(0L), localMills(3000L), localMills(2999L)));
+        expectedOutput.add(
+                insertRecord("key2", 3L, 3L, localMills(0L), localMills(3000L), localMills(2999L)));
+        assertor.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        /*
+         * use lateTrigger when the window appears for the first time and
+         * the maxTimestamp < watermark < maxTimestap + allowLatency.
+         */
+        testHarness.processWatermark(new Watermark(10000));
+        testHarness.processElement(insertRecord("key2", 1, 6222L));
+        testHarness.processElement(insertRecord("key2", 1, 7222L));
+        testHarness.setProcessingTime(2001);
+        expectedOutput.add(new Watermark(10000));
+        expectedOutput.add(
+                insertRecord(
+                        "key2", 2L, 2L, localMills(6000L), localMills(9000L), localMills(8999L)));
+        assertor.assertOutputEqualsSorted(
+                "Output was not correct.", expectedOutput, testHarness.getOutput());
+
+        testHarness.close();
     }
 
     @Test

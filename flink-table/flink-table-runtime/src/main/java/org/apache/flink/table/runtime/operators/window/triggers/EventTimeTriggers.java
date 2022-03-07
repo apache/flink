@@ -177,7 +177,10 @@ public class EventTimeTriggers {
                     // if there is no late trigger then we fire on every late element
                     // This also covers the case of recovery after a failure
                     // where the currentWatermark will be Long.MIN_VALUE
-                    return true;
+                    if (hasFired == null) {
+                        ctx.getPartitionedState(hasFiredOnTimeStateDesc).update(true);
+                    }
+                    return lateTrigger == null || lateTrigger.onElement(element, timestamp, window);
                 } else {
                     // we are in the early phase
                     ctx.registerEventTimeTimer(triggerTime(window));
