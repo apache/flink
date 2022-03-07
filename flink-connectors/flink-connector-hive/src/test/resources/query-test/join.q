@@ -24,6 +24,12 @@ select * from foo left semi join bar on foo.y=bar.i;
 
 [+I[1, 1], +I[2, 2]]
 
+select count(1) from (select x from foo where x = 1) foo1 left semi join (select i from bar where i = 1) bar2 on 1 = 1;
+[+I[1]]
+
+select * from foo left semi join bar on (foo.x + bar.i > 4);
+[+I[3, 3], +I[4, 4], +I[5, 5]]
+
 select * from (select a.value, a.* from (select * from src) a join (select * from src) b on a.key = b.key) t;
 
 [+I[val1, 1, val1], +I[val2, 2, val2], +I[val3, 3, val3]]
