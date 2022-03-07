@@ -105,7 +105,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         .orElseThrow(
                                 () ->
                                         new IllegalStateException(
-                                                "The DefaultScheduler requires a SlotPool."));
+                                                "The AdaptiveBatchScheduler requires a SlotPool."));
 
         final SlotSelectionStrategy slotSelectionStrategy =
                 SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
