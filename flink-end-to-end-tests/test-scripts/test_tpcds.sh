@@ -67,7 +67,7 @@ elif [ "${SCHEDULER}" == "AdaptiveBatch" ]; then
     set_config_key "taskmanager.numberOfTaskSlots" "8"
     set_config_key "parallelism.default" "-1"
     set_config_key "jobmanager.adaptive-batch-scheduler.max-parallelism" "8"
-    set_config_key "jobmanager.adaptive-batch-scheduler.data-volume-per-task" "6m"
+    set_config_key "jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task" "6m"
 else
     echo "ERROR: Scheduler ${SCHEDULER} is unsupported for tpcds test. Aborting..."
     exit 1
