@@ -109,16 +109,16 @@ class LikeCallGen extends CallGenerator {
             val middleMatcher = MIDDLE_PATTERN.matcher(newPattern)
 
             if (noneMatcher.matches()) {
-              val reusePattern = ctx.addReusableStringConstants(newPattern)
+              val reusePattern = ctx.addReusableEscapedStringConstant(newPattern)
               s"${terms.head}.equals($reusePattern)"
             } else if (beginMatcher.matches()) {
-              val field = ctx.addReusableStringConstants(beginMatcher.group(1))
+              val field = ctx.addReusableEscapedStringConstant(beginMatcher.group(1))
               s"${terms.head}.startsWith($field)"
             } else if (endMatcher.matches()) {
-              val field = ctx.addReusableStringConstants(endMatcher.group(1))
+              val field = ctx.addReusableEscapedStringConstant(endMatcher.group(1))
               s"${terms.head}.endsWith($field)"
             } else if (middleMatcher.matches()) {
-              val field = ctx.addReusableStringConstants(middleMatcher.group(1))
+              val field = ctx.addReusableEscapedStringConstant(middleMatcher.group(1))
               s"${terms.head}.contains($field)"
             } else {
               val field = className[SqlLikeChainChecker]

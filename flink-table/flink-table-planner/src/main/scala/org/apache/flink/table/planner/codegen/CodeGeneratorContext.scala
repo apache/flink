@@ -886,8 +886,11 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 
   /**
     * Adds a reusable string constant to the member area of the generated class.
+    *
+    * The string must be already escaped with
+    * [[org.apache.flink.table.utils.EncodingUtils.escapeJava()]].
     */
-  def addReusableStringConstants(value: String): String = {
+  def addReusableEscapedStringConstant(value: String): String = {
     reusableStringConstants.get(value) match {
       case Some(field) => field
       case None =>
