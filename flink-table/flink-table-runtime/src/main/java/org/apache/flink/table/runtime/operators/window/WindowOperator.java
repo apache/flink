@@ -23,6 +23,7 @@ import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.metrics.Counter;
@@ -164,6 +165,8 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
 
     protected transient InternalValueState<K, W, RowData> previousState;
 
+    protected transient InternalValueState<K, W, Boolean> windowResultHasFinallyFlushed;
+
     private transient TriggerContext triggerContext;
 
     // ------------------------------------------------------------------------
@@ -261,6 +264,13 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         this.windowState =
                 (InternalValueState<K, W, RowData>)
                         getOrCreateKeyedState(windowSerializer, windowStateDescriptor);
+
+        ValueStateDescriptor<Boolean> windowResultHasFinallyFlushedStateDescriptor =
+                new ValueStateDescriptor<>("window-flushed", Types.BOOLEAN);
+        this.windowResultHasFinallyFlushed =
+                (InternalValueState<K, W, Boolean>)
+                        getOrCreateKeyedState(
+                                windowSerializer, windowResultHasFinallyFlushedStateDescriptor);
 
         if (produceUpdates) {
             LogicalType[] valueTypes = ArrayUtils.addAll(aggResultTypes, windowPropertyTypes);
@@ -366,8 +376,11 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         for (W window : actualWindows) {
             isElementDropped = false;
             triggerContext.window = window;
+            windowResultHasFinallyFlushed.setCurrentNamespace(window);
+            windowResultHasFinallyFlushed.update(false);
             boolean triggerResult = triggerContext.onElement(inputRow, timestamp);
             if (triggerResult) {
+                windowResultHasFinallyFlushed.update(true);
                 emitWindowResult(window);
             }
             // register a clean up timer for the window
@@ -385,12 +398,22 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         setCurrentKey(timer.getKey());
 
         triggerContext.window = timer.getNamespace();
+        windowResultHasFinallyFlushed.setCurrentNamespace(triggerContext.window);
         if (triggerContext.onEventTime(timer.getTimestamp())) {
             // fire
+            windowResultHasFinallyFlushed.update(true);
             emitWindowResult(triggerContext.window);
         }
 
         if (windowAssigner.isEventTime()) {
+            boolean isCleanupTime =
+                    timer.getTimestamp()
+                            == toEpochMillsForTimer(
+                                    cleanupTime(triggerContext.window), shiftTimeZone);
+            if (!windowResultHasFinallyFlushed.value() && isCleanupTime) {
+                windowResultHasFinallyFlushed.clear();
+                emitWindowResult(triggerContext.window);
+            }
             windowFunction.cleanWindowIfNeeded(triggerContext.window, timer.getTimestamp());
         }
     }
@@ -400,12 +423,22 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         setCurrentKey(timer.getKey());
 
         triggerContext.window = timer.getNamespace();
+        windowResultHasFinallyFlushed.setCurrentNamespace(triggerContext.window);
         if (triggerContext.onProcessingTime(timer.getTimestamp())) {
             // fire
+            windowResultHasFinallyFlushed.update(true);
             emitWindowResult(triggerContext.window);
         }
 
         if (!windowAssigner.isEventTime()) {
+            boolean isCleanupTime =
+                    timer.getTimestamp()
+                            == toEpochMillsForTimer(
+                                    cleanupTime(triggerContext.window), shiftTimeZone);
+            if (!windowResultHasFinallyFlushed.value() && isCleanupTime) {
+                windowResultHasFinallyFlushed.clear();
+                emitWindowResult(triggerContext.window);
+            }
             windowFunction.cleanWindowIfNeeded(triggerContext.window, timer.getTimestamp());
         }
     }
