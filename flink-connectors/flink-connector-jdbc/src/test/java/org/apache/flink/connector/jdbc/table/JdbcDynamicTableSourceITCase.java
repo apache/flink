@@ -167,7 +167,7 @@ public class JdbcDynamicTableSourceITCase extends AbstractTestBase {
                         + "',"
                         + "  'table-name'='"
                         + INPUT_TABLE
-                        + "'"
+                        + "',"
                         + "  'scan.partition.column'='id',"
                         + "  'scan.partition.num'='2',"
                         + "  'scan.partition.lower-bound'='0',"
