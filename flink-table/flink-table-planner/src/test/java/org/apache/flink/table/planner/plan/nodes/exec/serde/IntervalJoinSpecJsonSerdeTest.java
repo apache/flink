@@ -23,12 +23,15 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.io.IOException;
 
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
 
 /** Tests for {@link IntervalJoinSpec} serialization and deserialization. */
+@Execution(ExecutionMode.CONCURRENT)
 public class IntervalJoinSpecJsonSerdeTest {
 
     @Test
