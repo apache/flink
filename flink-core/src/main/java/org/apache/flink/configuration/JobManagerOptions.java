@@ -531,7 +531,9 @@ public class JobManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s",
+                                            "The lower bound of allowed parallelism to set adaptively if %s has been set to %s. "
+                                                    + "Currently, this option should be configured as a power of 2, "
+                                                    + "otherwise it will also be rounded up to a power of 2 automatically.",
                                             code(SCHEDULER.key()),
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
@@ -547,7 +549,9 @@ public class JobManagerOptions {
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s",
+                                            "The upper bound of allowed parallelism to set adaptively if %s has been set to %s. "
+                                                    + "Currently, this option should be configured as a power of 2, "
+                                                    + "otherwise it will also be rounded down to a power of 2 automatically.",
                                             code(SCHEDULER.key()),
                                             code(SchedulerType.AdaptiveBatch.name()))
                                     .build());
@@ -556,16 +560,21 @@ public class JobManagerOptions {
         Documentation.Sections.EXPERT_SCHEDULING,
         Documentation.Sections.ALL_JOB_MANAGER
     })
-    public static final ConfigOption<MemorySize> ADAPTIVE_BATCH_SCHEDULER_DATA_VOLUME_PER_TASK =
-            key("jobmanager.adaptive-batch-scheduler.data-volume-per-task")
+    public static final ConfigOption<MemorySize> ADAPTIVE_BATCH_SCHEDULER_AVG_DATA_VOLUME_PER_TASK =
+            key("jobmanager.adaptive-batch-scheduler.avg-data-volume-per-task")
                     .memoryType()
                     .defaultValue(MemorySize.ofMebiBytes(1024))
                     .withDescription(
                             Description.builder()
                                     .text(
-                                            "The size of data volume to expect each task instance to process if %s has been set to %s",
+                                            "The average size of data volume to expect each task instance to process if %s has been set to %s. "
+                                                    + "Note that since the parallelism of the vertices is adjusted to a power of 2, "
+                                                    + "the actual average size will be 0.75~1.5 times this value. "
+                                                    + "It is also important to note that when data skew occurs or the decided parallelism reaches the %s (due to too much data), "
+                                                    + "the data actually processed by some tasks may far exceed this value.",
                                             code(SCHEDULER.key()),
-                                            code(SchedulerType.AdaptiveBatch.name()))
+                                            code(SchedulerType.AdaptiveBatch.name()),
+                                            code(ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM.key()))
                                     .build());
 
     @Documentation.Section({
