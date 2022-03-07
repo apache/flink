@@ -381,7 +381,11 @@ class AbstractStreamGroupAggregateOperation(StatefulTableOperation):
                     row = input_data[1]
                 self.group_agg_function.process_element(row)
             else:
-                self.group_agg_function.on_timer(input_data[3])
+                if has_cython:
+                    timer = InternalRow(input_data[3]._values, input_data[3].get_row_kind().value)
+                else:
+                    timer = input_data[3]
+                self.group_agg_function.on_timer(timer)
         return self.group_agg_function.finish_bundle()
 
     @abc.abstractmethod
