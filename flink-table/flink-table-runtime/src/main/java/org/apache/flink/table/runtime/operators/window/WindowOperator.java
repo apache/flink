@@ -385,7 +385,10 @@ public abstract class WindowOperator<K, W extends Window> extends AbstractStream
         setCurrentKey(timer.getKey());
 
         triggerContext.window = timer.getNamespace();
-        if (triggerContext.onEventTime(timer.getTimestamp())) {
+        boolean isCleanupTimer =
+                toEpochMillsForTimer(cleanupTime(triggerContext.window), shiftTimeZone)
+                        == timer.getTimestamp();
+        if (isCleanupTimer || triggerContext.onEventTime(timer.getTimestamp())) {
             // fire
             emitWindowResult(triggerContext.window);
         }
