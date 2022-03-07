@@ -34,7 +34,9 @@ import org.apache.flink.runtime.metrics.MetricNames;
 public class InternalSinkWriterMetricGroup extends ProxyMetricGroup<MetricGroup>
         implements SinkWriterMetricGroup {
 
-    private final Counter numRecordsOutErrors;
+    // deprecated, use numRecordsSendErrors instead.
+    @Deprecated private final Counter numRecordsOutErrors;
+    private final Counter numRecordsSendErrors;
     private final Counter numRecordsWritten;
     private final Counter numBytesWritten;
     private final OperatorIOMetricGroup operatorIOMetricGroup;
@@ -43,6 +45,7 @@ public class InternalSinkWriterMetricGroup extends ProxyMetricGroup<MetricGroup>
             MetricGroup parentMetricGroup, OperatorIOMetricGroup operatorIOMetricGroup) {
         super(parentMetricGroup);
         numRecordsOutErrors = parentMetricGroup.counter(MetricNames.NUM_RECORDS_OUT_ERRORS);
+        numRecordsSendErrors = parentMetricGroup.counter(MetricNames.NUM_RECORDS_SEND_ERRORS);
         numRecordsWritten = parentMetricGroup.counter(MetricNames.NUM_RECORDS_SEND);
         numBytesWritten = parentMetricGroup.counter(MetricNames.NUM_BYTES_SEND);
         this.operatorIOMetricGroup = operatorIOMetricGroup;
@@ -70,9 +73,15 @@ public class InternalSinkWriterMetricGroup extends ProxyMetricGroup<MetricGroup>
         return operatorIOMetricGroup;
     }
 
+    @Deprecated
     @Override
     public Counter getNumRecordsOutErrorsCounter() {
         return numRecordsOutErrors;
+    }
+
+    @Override
+    public Counter getNumRecordsSendErrorsCounter() {
+        return numRecordsSendErrors;
     }
 
     @Override

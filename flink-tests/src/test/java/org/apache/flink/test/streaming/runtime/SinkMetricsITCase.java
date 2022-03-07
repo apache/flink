@@ -149,6 +149,9 @@ public class SinkMetricsITCase extends TestLogger {
             assertThat(
                     metrics.get(MetricNames.NUM_RECORDS_OUT_ERRORS),
                     isCounter(equalTo((processedRecordsPerSubtask + 1) / 2)));
+            assertThat(
+                    metrics.get(MetricNames.NUM_RECORDS_SEND_ERRORS),
+                    isCounter(equalTo((processedRecordsPerSubtask + 1) / 2)));
             // check if the latest send time is fetched
             assertThat(
                     metrics.get(MetricNames.CURRENT_SEND_TIME),
@@ -179,6 +182,7 @@ public class SinkMetricsITCase extends TestLogger {
             metricGroup.getNumRecordsSendCounter().inc();
             if (element % 2 == 0) {
                 metricGroup.getNumRecordsOutErrorsCounter().inc();
+                metricGroup.getNumRecordsSendErrorsCounter().inc();
             }
             metricGroup.getNumBytesSendCounter().inc(RECORD_SIZE_IN_BYTES);
         }
