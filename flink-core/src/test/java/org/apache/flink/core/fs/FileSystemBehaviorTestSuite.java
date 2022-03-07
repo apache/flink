@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.util.Random;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -96,6 +98,92 @@ public abstract class FileSystemBehaviorTestSuite {
     public void testHomeAndWorkDir() {
         assertEquals(fs.getUri().getScheme(), fs.getWorkingDirectory().toUri().getScheme());
         assertEquals(fs.getUri().getScheme(), fs.getHomeDirectory().toUri().getScheme());
+    }
+    // --- exists
+
+    @Test
+    public void testFileExists() throws IOException {
+        final Path filePath = createRandomFileInDirectory(basePath);
+        assertTrue(fs.exists(filePath));
+    }
+
+    @Test
+    public void testFileDoesNotExist() throws IOException {
+        assertFalse(fs.exists(new Path(basePath, randomName())));
+    }
+
+    // --- delete
+
+    @Test
+    public void testExistingFileDeletion() throws IOException {
+        testSuccessfulDeletion(createRandomFileInDirectory(basePath), false);
+    }
+
+    @Test
+    public void testExistingFileRecursiveDeletion() throws IOException {
+        testSuccessfulDeletion(createRandomFileInDirectory(basePath), true);
+    }
+
+    @Test
+    public void testNotExistingFileDeletion() throws IOException {
+        testSuccessfulDeletion(new Path(basePath, randomName()), false);
+    }
+
+    @Test
+    public void testNotExistingFileRecursiveDeletion() throws IOException {
+        testSuccessfulDeletion(new Path(basePath, randomName()), true);
+    }
+
+    @Test
+    public void testExistingEmptyDirectoryDeletion() throws IOException {
+        final Path path = new Path(basePath, randomName());
+        fs.mkdirs(path);
+        testSuccessfulDeletion(path, false);
+    }
+
+    @Test
+    public void testExistingEmptyDirectoryRecursiveDeletion() throws IOException {
+        final Path path = new Path(basePath, randomName());
+        fs.mkdirs(path);
+        testSuccessfulDeletion(path, true);
+    }
+
+    private void testSuccessfulDeletion(Path path, boolean recursionEnabled) throws IOException {
+        fs.delete(path, recursionEnabled);
+        assertFalse(fs.exists(path));
+    }
+
+    @Test
+    public void testExistingNonEmptyDirectoryDeletion() throws IOException {
+        final Path directoryPath = new Path(basePath, randomName());
+        final Path filePath = createRandomFileInDirectory(directoryPath);
+
+        assertThrows(IOException.class, () -> fs.delete(directoryPath, false));
+        assertTrue(fs.exists(directoryPath));
+        assertTrue(fs.exists(filePath));
+    }
+
+    @Test
+    public void testExistingNonEmptyDirectoryRecursiveDeletion() throws IOException {
+        final Path directoryPath = new Path(basePath, randomName());
+        final Path filePath = createRandomFileInDirectory(directoryPath);
+
+        fs.delete(directoryPath, true);
+        assertFalse(fs.exists(directoryPath));
+        assertFalse(fs.exists(filePath));
+    }
+
+    @Test
+    public void testExistingNonEmptyDirectoryWithSubDirRecursiveDeletion() throws IOException {
+        final Path level1SubDirWithFile = new Path(basePath, randomName());
+        final Path fileInLevel1Subdir = createRandomFileInDirectory(level1SubDirWithFile);
+        final Path level2SubDirWithFile = new Path(level1SubDirWithFile, randomName());
+        final Path fileInLevel2Subdir = createRandomFileInDirectory(level2SubDirWithFile);
+
+        testSuccessfulDeletion(level1SubDirWithFile, true);
+        assertFalse(fs.exists(fileInLevel1Subdir));
+        assertFalse(fs.exists(level2SubDirWithFile));
+        assertFalse(fs.exists(fileInLevel2Subdir));
     }
 
     // --- mkdirs
@@ -189,9 +277,12 @@ public abstract class FileSystemBehaviorTestSuite {
         }
     }
 
-    private void createRandomFileInDirectory(Path directory) throws IOException {
+    private Path createRandomFileInDirectory(Path directory) throws IOException {
         fs.mkdirs(directory);
-        createFile(new Path(directory, randomName()));
+        final Path filePath = new Path(directory, randomName());
+        createFile(filePath);
+
+        return filePath;
     }
 
     private void assumeNotObjectStore() {
