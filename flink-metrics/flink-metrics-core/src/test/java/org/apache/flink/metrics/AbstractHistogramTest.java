@@ -18,15 +18,14 @@
 
 package org.apache.flink.metrics;
 
-import org.apache.flink.util.TestLogger;
-
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.offset;
 
 /**
  * Abstract base class for testing {@link Histogram} and {@link HistogramStatistics}
  * implementations.
  */
-public class AbstractHistogramTest extends TestLogger {
+public class AbstractHistogramTest {
     protected void testHistogram(int size, Histogram histogram) {
         HistogramStatistics statistics;
 
@@ -34,28 +33,28 @@ public class AbstractHistogramTest extends TestLogger {
             histogram.update(i);
 
             statistics = histogram.getStatistics();
-            assertEquals(i + 1, histogram.getCount());
-            assertEquals(histogram.getCount(), statistics.size());
-            assertEquals(i, statistics.getMax());
-            assertEquals(0, statistics.getMin());
+            assertThat(histogram.getCount()).isEqualTo(i + 1);
+            assertThat(statistics.size()).isEqualTo(histogram.getCount());
+            assertThat(statistics.getMax()).isEqualTo(i);
+            assertThat(statistics.getMin()).isEqualTo(0);
         }
 
         statistics = histogram.getStatistics();
-        assertEquals(size, statistics.size());
-        assertEquals((size - 1) / 2.0, statistics.getQuantile(0.5), 0.001);
+        assertThat(statistics.size()).isEqualTo(size);
+        assertThat(statistics.getQuantile(0.5)).isCloseTo((size - 1) / 2.0, offset(0.001));
 
         for (int i = size; i < 2 * size; i++) {
             histogram.update(i);
 
             statistics = histogram.getStatistics();
-            assertEquals(i + 1, histogram.getCount());
-            assertEquals(size, statistics.size());
-            assertEquals(i, statistics.getMax());
-            assertEquals(i + 1 - size, statistics.getMin());
+            assertThat(histogram.getCount()).isEqualTo(i + 1);
+            assertThat(statistics.size()).isEqualTo(size);
+            assertThat(statistics.getMax()).isEqualTo(i);
+            assertThat(statistics.getMin()).isEqualTo(i + 1 - size);
         }
 
         statistics = histogram.getStatistics();
-        assertEquals(size, statistics.size());
-        assertEquals(size + (size - 1) / 2.0, statistics.getQuantile(0.5), 0.001);
+        assertThat(statistics.size()).isEqualTo(size);
+        assertThat(statistics.getQuantile(0.5)).isCloseTo(size + (size - 1) / 2.0, offset(0.001));
     }
 }
