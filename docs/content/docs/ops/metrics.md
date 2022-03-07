@@ -1616,7 +1616,15 @@ Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}
   <tbody>
     <tr>
       <th rowspan="1">Operator</th>
-      <td>numRecordsOutErrors</td>
+      <td>numRecordsOutErrors (deprecated, please use numRecordsSendErrors)</td>
+      <td>Number of rejected record writes.</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsSendErrors</td>
       <td>Number of rejected record writes.</td>
       <td>Counter</td>
     </tr>
