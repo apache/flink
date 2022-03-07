@@ -60,7 +60,7 @@ class SelectivityEstimatorTest {
   val (name_idx, amount_idx, price_idx, flag_idx, partition_idx,
   date_idx, time_idx, timestamp_idx) = (0, 1, 2, 3, 4, 5, 6, 7)
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
+  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory()
   var rexBuilder = new FlinkRexBuilder(typeFactory)
   val relDataType: RelDataType = typeFactory.createStructType(
     allFieldTypes.map(typeFactory.createSqlType).asJava,

@@ -56,7 +56,7 @@ class AggCallSelectivityEstimatorTest {
   private val allFieldTypes = Seq(VARCHAR, INTEGER, DOUBLE)
   val (name_idx, amount_idx, price_idx) = (0, 1, 2)
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
+  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory()
   var rexBuilder = new FlinkRexBuilder(typeFactory)
   val relDataType: RelDataType = typeFactory.createStructType(
     allFieldTypes.map(typeFactory.createSqlType),

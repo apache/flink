@@ -28,7 +28,7 @@ import org.apache.calcite.sql.`type`.{SqlTypeName, SqlTypeUtil}
 /**
   * Custom type system for Flink.
   */
-class FlinkTypeSystem extends RelDataTypeSystemImpl {
+class FlinkTypeSystem private extends RelDataTypeSystemImpl {
 
   // set the maximum precision of a NUMERIC or DECIMAL type to DecimalType.MAX_PRECISION.
   override def getMaxNumericPrecision: Int = DecimalType.MAX_PRECISION
@@ -167,6 +167,7 @@ class FlinkTypeSystem extends RelDataTypeSystemImpl {
 }
 
 object FlinkTypeSystem {
+  val INSTANCE = new FlinkTypeSystem
 
   val DECIMAL_SYSTEM_DEFAULT = new DecimalType(DecimalType.MAX_PRECISION, 18)
 }
