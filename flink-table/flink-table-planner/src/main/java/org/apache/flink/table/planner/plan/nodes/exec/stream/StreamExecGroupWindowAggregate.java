@@ -26,7 +26,6 @@ import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.EqualiserCodeGenerator;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
@@ -214,7 +213,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
         if (isRowtimeAttribute(window.timeAttribute())) {
             inputTimeFieldIndex =
                     timeFieldIndex(
-                            FlinkTypeFactory.INSTANCE().buildRelNodeRowType(inputRowType),
+                            planner.getTypeFactory().buildRelNodeRowType(inputRowType),
                             planner.getRelBuilder(),
                             window.timeAttribute());
             if (inputTimeFieldIndex < 0) {
@@ -236,6 +235,7 @@ public class StreamExecGroupWindowAggregate extends StreamExecAggregateBase {
         Arrays.fill(aggCallNeedRetractions, needRetraction);
         final AggregateInfoList aggInfoList =
                 transformToStreamAggregateInfoList(
+                        planner.getTypeFactory(),
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,

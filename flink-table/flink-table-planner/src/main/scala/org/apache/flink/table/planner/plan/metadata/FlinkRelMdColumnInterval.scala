@@ -26,18 +26,20 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ColumnIntervalUtil, FlinkRelOptUtil, RankUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, VariableRankRange}
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.volcano.RelSubset
+import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core._
 import org.apache.calcite.rel.metadata._
-import org.apache.calcite.rel.{RelNode, SingleRel}
 import org.apache.calcite.rex._
+import org.apache.calcite.sql.{SqlBinaryOperator, SqlKind}
 import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.`type`.SqlTypeName
-import org.apache.calcite.sql.{SqlBinaryOperator, SqlKind}
 import org.apache.calcite.util.Util
 
 import java.math.{BigDecimal => JBigDecimal}
@@ -565,7 +567,10 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           inputType: RelDataType,
           isBounded: Boolean): AggregateCall = {
         val outputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
-          aggCalls, inputType, isBounded)
+          unwrapTypeFactory(input),
+          aggCalls,
+          inputType,
+          isBounded)
         if (outputIndexToAggCallIndexMap.containsKey(index)) {
           val realIndex = outputIndexToAggCallIndexMap.get(index)
           aggCalls(realIndex)
@@ -580,7 +585,10 @@ class FlinkRelMdColumnInterval private extends MetadataHandler[ColumnInterval] {
           inputRowType: RelDataType,
           isBounded: Boolean): Integer = {
         val outputIndexToAggCallIndexMap = AggregateUtil.getOutputIndexToAggCallIndexMap(
-          globalAggCalls, inputRowType, isBounded)
+          unwrapTypeFactory(input),
+          globalAggCalls,
+          inputRowType,
+          isBounded)
 
         outputIndexToAggCallIndexMap.foreach {
           case (k, v) => if (v == index) {

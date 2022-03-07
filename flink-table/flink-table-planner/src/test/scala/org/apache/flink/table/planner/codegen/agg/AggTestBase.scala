@@ -21,9 +21,9 @@ package org.apache.flink.table.planner.codegen.agg
 import org.apache.flink.api.common.functions.RuntimeContext
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
+import org.apache.flink.table.api.{DataTypes, EnvironmentSettings}
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
-import org.apache.flink.table.api.{DataTypes, EnvironmentSettings}
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext
 import org.apache.flink.table.planner.delegation.PlannerBase
@@ -33,17 +33,17 @@ import org.apache.flink.table.runtime.context.ExecutionContext
 import org.apache.flink.table.runtime.dataview.DataViewSpec
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
-import org.powermock.api.mockito.PowerMockito.{mock, when}
 
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
+import org.powermock.api.mockito.PowerMockito.{mock, when}
 
 /**
   * Agg test base to mock agg information and etc.
   */
 abstract class AggTestBase(isBatchMode: Boolean) {
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
+  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE)
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment)
   private val tEnv = if (isBatchMode) {
     val settings = EnvironmentSettings.newInstance().inBatchMode().build()

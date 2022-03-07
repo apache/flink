@@ -165,6 +165,7 @@ public class StreamExecWindowAggregate extends StreamExecWindowAggregateBase {
         // through whether the current fired window is empty, see SliceSharedWindowAggProcessor.
         final AggregateInfoList aggInfoList =
                 AggregateUtil.deriveStreamWindowAggregateInfoList(
+                        planner.getTypeFactory(),
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         windowing.getWindow(),

@@ -355,6 +355,7 @@ public final class DynamicSourceUtils {
                         !isBatchMode,
                         contextResolvedTable,
                         ShortcutUtils.unwrapContext(relBuilder),
+                        ShortcutUtils.unwrapTypeFactory(relBuilder),
                         new SourceAbilitySpec[0]);
 
         final LogicalTableScan scan =

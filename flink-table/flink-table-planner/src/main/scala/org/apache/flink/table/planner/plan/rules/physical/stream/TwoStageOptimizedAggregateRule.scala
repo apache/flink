@@ -27,11 +27,11 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule._
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils}
 import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapTableConfig, unwrapTypeFactory}
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
 
-import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
+import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.rel.RelNode
 
 import java.util
@@ -71,7 +71,8 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
       agg.grouping.length, agg.aggCalls, needRetraction, monotonicity)
 
     val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
-      FlinkTypeFactory.toLogicalRowType( agg.getInput.getRowType),
+      unwrapTypeFactory(agg),
+      FlinkTypeFactory.toLogicalRowType(agg.getInput.getRowType),
       agg.aggCalls,
       needRetractionArray,
       needRetraction,

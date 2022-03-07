@@ -17,10 +17,10 @@
  */
 package org.apache.flink.table.planner.plan.utils
 
-import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelDataTypeFieldImpl}
-import org.apache.calcite.rex.{RexBuilder, RexInputRef, RexNode, RexProgram, RexProgramBuilder}
+import org.apache.calcite.rex._
 
 import scala.collection.JavaConversions._
 import scala.collection.mutable.ListBuffer
@@ -59,10 +59,10 @@ object CorrelateUtil {
 
   def projectCorrelateOutputType(
       originalType: RelDataType,
-      projectableFieldSet: Set[Int]): (RelDataType, ListBuffer[Int]) = {
+      projectableFieldSet: Set[Int],
+      typeFactory: FlinkTypeFactory): (RelDataType, ListBuffer[Int]) = {
     val selects =  new ListBuffer[Int]
     // generate new output type that removed unused column(s) for Correlate
-    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
     val typeBuilder = typeFactory.builder
     val reserveFieldTypes = originalType.getFieldList.zipWithIndex.filter {
       // filter unused fields
@@ -76,7 +76,7 @@ object CorrelateUtil {
           newIdx, // shift to new index
           f.getType)
     }
-    if (reserveFieldTypes.size == 0) {
+    if (reserveFieldTypes.isEmpty) {
       // downside operator only cares records number, so we must output at least one column.
       // typical case: 'select count(*)' be pushed down here (count(0), count(1) ... as well)
       // we choose the last column to output(columns from left input more likely to be bigger).

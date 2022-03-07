@@ -20,18 +20,16 @@ package org.apache.flink.table.planner.plan.schema
 
 import org.apache.flink.table.catalog.ContextResolvedTable
 import org.apache.flink.table.connector.source.DynamicTableSource
-import org.apache.flink.table.planner.calcite.FlinkContext
+import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.planner.connectors.DynamicSourceUtils
 import org.apache.flink.table.planner.plan.abilities.source.{SourceAbilityContext, SourceAbilitySpec}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.plan.RelOptSchema
 import org.apache.calcite.rel.`type`.RelDataType
 
 import java.util
-import java.util.Collections
 
 /**
  * A [[FlinkPreparingTableBase]] implementation which defines the context variables
@@ -56,6 +54,7 @@ class TableSourceTable(
     val isStreamingMode: Boolean,
     val contextResolvedTable: ContextResolvedTable,
     val flinkContext: FlinkContext,
+    val flinkTypeFactory: FlinkTypeFactory,
     val abilitySpecs: Array[SourceAbilitySpec] = Array.empty)
   extends FlinkPreparingTableBase(
     relOptSchema,
@@ -73,7 +72,8 @@ class TableSourceTable(
         tableSource)
 
       for (spec <- abilitySpecs) {
-        val sourceAbilityContext = new SourceAbilityContext(flinkContext, newProducedType)
+        val sourceAbilityContext = new SourceAbilityContext(
+          flinkContext, flinkTypeFactory, newProducedType)
 
         builder.add(spec.getDigests(sourceAbilityContext))
         newProducedType = spec.getProducedType.orElse(newProducedType)
@@ -101,6 +101,7 @@ class TableSourceTable(
       isStreamingMode,
       contextResolvedTable,
       flinkContext,
+      flinkTypeFactory,
       abilitySpecs ++ newAbilitySpecs
     )
   }
@@ -124,6 +125,7 @@ class TableSourceTable(
       isStreamingMode,
       contextResolvedTable,
       flinkContext,
+      flinkTypeFactory,
       abilitySpecs ++ newAbilitySpecs)
   }
 
@@ -142,6 +144,7 @@ class TableSourceTable(
       isStreamingMode,
       contextResolvedTable,
       flinkContext,
+      flinkTypeFactory,
       abilitySpecs)
   }
 }

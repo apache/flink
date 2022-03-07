@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.sources
 
 import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException, WatermarkSpec}
-import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.expressions.{CallExpression, Expression, ResolvedExpression, ResolvedFieldReference}
+import org.apache.flink.table.expressions.ApiExpressionUtils.{typeLiteral, valueLiteral}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
@@ -30,8 +30,8 @@ import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTyp
 import org.apache.flink.table.sources._
 import org.apache.flink.table.sources.tsextractors.{TimestampExtractor, TimestampExtractorUtils}
 import org.apache.flink.table.types.DataType
-import org.apache.flink.table.types.logical.RowType.RowField
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.RowType.RowField
 
 import org.apache.calcite.plan.RelOptCluster
 import org.apache.calcite.rel.RelNode
@@ -202,7 +202,7 @@ object TableSourceUtil {
     */
   def getRowtimeAttributeDescriptor(
       tableSource: TableSource[_],
-      rowType: RelDataType): Option[RowtimeAttributeDescriptor] = {
+      rowType: RowType): Option[RowtimeAttributeDescriptor] = {
 
     tableSource match {
       case r: DefinedRowtimeAttributes =>

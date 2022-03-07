@@ -92,7 +92,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 public class PlannerContext {
 
-    private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
+    private final RelDataTypeSystem typeSystem = FlinkTypeSystem.INSTANCE;
     private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
     private final SqlExprToRexConverterFactory rexConverterFactory =
             new DefaultSqlExprToRexConverterFactory();

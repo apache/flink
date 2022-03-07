@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.{JDouble, JLong}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.PlannerMocks
-import org.apache.flink.table.planner.{JDouble, JLong}
 import org.apache.flink.util.Preconditions
 
 import com.google.common.collect.ImmutableList
@@ -33,15 +33,14 @@ import org.apache.calcite.rel.core.{Aggregate, AggregateCall, TableScan}
 import org.apache.calcite.rel.logical.LogicalAggregate
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQueryBase}
 import org.apache.calcite.rex.{RexInputRef, RexLiteral, RexNode}
+import org.apache.calcite.sql.{SqlAggFunction, SqlOperator}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.sql.{SqlAggFunction, SqlOperator}
 import org.apache.calcite.util.ImmutableBitSet
-
-import org.junit.Assert._
 import org.junit.{Before, BeforeClass, Test}
+import org.junit.Assert._
 
 import java.math.BigDecimal
 import java.util
@@ -56,7 +55,7 @@ class AggCallSelectivityEstimatorTest {
   private val allFieldTypes = Seq(VARCHAR, INTEGER, DOUBLE)
   val (name_idx, amount_idx, price_idx) = (0, 1, 2)
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
+  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory()
   var rexBuilder = new FlinkRexBuilder(typeFactory)
   val relDataType: RelDataType = typeFactory.createStructType(
     allFieldTypes.map(typeFactory.createSqlType),

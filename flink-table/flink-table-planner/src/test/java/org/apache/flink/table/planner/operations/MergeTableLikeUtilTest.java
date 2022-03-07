@@ -67,7 +67,7 @@ public class MergeTableLikeUtilTest {
 
     @Rule public ExpectedException thrown = ExpectedException.none();
 
-    private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(new FlinkTypeSystem());
+    private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
     private final SqlValidator sqlValidator =
             PlannerMocks.create().getPlanner().getOrCreateSqlValidator();
     private final MergeTableLikeUtil util = new MergeTableLikeUtil(sqlValidator, SqlNode::toString);

@@ -113,6 +113,7 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
 
         final AggregateInfoList aggInfos =
                 AggregateUtil.transformToBatchAggregateInfoList(
+                        planner.getTypeFactory(),
                         aggInputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         null, // aggCallNeedRetractions

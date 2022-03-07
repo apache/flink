@@ -24,7 +24,6 @@ import org.apache.flink.table.connector.source.abilities.SupportsFilterPushDown;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.resolver.ExpressionResolver;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.utils.FlinkRexUtil;
 import org.apache.flink.table.planner.plan.utils.RexNodeToExpressionConverter;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -78,7 +77,7 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
         if (tableSource instanceof SupportsFilterPushDown) {
             RexNodeToExpressionConverter converter =
                     new RexNodeToExpressionConverter(
-                            new RexBuilder(FlinkTypeFactory.INSTANCE()),
+                            new RexBuilder(context.getTypeFactory()),
                             context.getSourceRowType().getFieldNames().toArray(new String[0]),
                             context.getFunctionCatalog(),
                             context.getCatalogManager(),

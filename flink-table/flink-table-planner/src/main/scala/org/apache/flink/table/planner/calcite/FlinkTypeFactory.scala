@@ -31,7 +31,6 @@ import org.apache.calcite.sql.`type`.{BasicSqlType, MapSqlType, SqlTypeName}
 import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util.ConversionUtil
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, NothingTypeInfo, TypeInformation}
-import org.apache.flink.api.java.typeutils.TypeExtractor
 import org.apache.flink.table.api.{DataTypes, TableException, TableSchema, ValidationException}
 import org.apache.flink.table.calcite.ExtendedRelTypeFactory
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
@@ -51,7 +50,7 @@ import scala.collection.mutable
   * Flink specific type factory that represents the interface between Flink's [[LogicalType]]
   * and Calcite's [[RelDataType]].
   */
-class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
+class FlinkTypeFactory(typeSystem: RelDataTypeSystem = FlinkTypeSystem.INSTANCE)
   extends JavaTypeFactoryImpl(typeSystem)
   with ExtendedRelTypeFactory {
 
@@ -471,7 +470,6 @@ class FlinkTypeFactory(typeSystem: RelDataTypeSystem)
 }
 
 object FlinkTypeFactory {
-  val INSTANCE = new FlinkTypeFactory(new FlinkTypeSystem)
 
   def isTimeIndicatorType(t: LogicalType): Boolean = t match {
     case t: TimestampType

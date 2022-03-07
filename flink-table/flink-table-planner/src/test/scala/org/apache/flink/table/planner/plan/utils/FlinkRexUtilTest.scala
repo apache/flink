@@ -32,7 +32,7 @@ import java.math.BigDecimal
 import java.util.Collections
 
 class FlinkRexUtilTest {
-  private val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
+  private val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE)
   private val rexBuilder = new FlinkRexBuilder(typeFactory)
   private val varcharType = typeFactory.createSqlType(VARCHAR)
   private val intType = typeFactory.createSqlType(INTEGER)

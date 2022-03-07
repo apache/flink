@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.plan.metadata.MockMetaTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
@@ -29,7 +29,6 @@ import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableScan
 import org.apache.calcite.rex.RexBuilder
-
 import org.junit.Before
 
 import java.util
@@ -63,7 +62,7 @@ class RelNodeTestBase {
   def buildLogicalTableScan(
       fieldNames: Array[String],
       fieldTypes: Array[LogicalType]): LogicalTableScan = {
-    val flinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val flinkTypeFactory = new FlinkTypeFactory()
     val rowType = flinkTypeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
     val table = new MockMetaTable(rowType, FlinkStatistic.UNKNOWN)
     LogicalTableScan.create(cluster, table, new util.ArrayList[RelHint]())

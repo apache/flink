@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.serde;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.catalog.CatalogManager;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema;
 import org.apache.flink.table.planner.delegation.ParserImpl;
 import org.apache.flink.table.planner.delegation.PlannerContext;
@@ -80,7 +79,7 @@ class JsonSerdeTestUtil {
                 new ParserImpl(null, null, plannerContext::createCalciteParser, null),
                 plannerContext.getFlinkContext(),
                 classLoader,
-                FlinkTypeFactory.INSTANCE(),
+                plannerContext.getTypeFactory(),
                 plannerContext.createFrameworkConfig().getOperatorTable());
     }
 

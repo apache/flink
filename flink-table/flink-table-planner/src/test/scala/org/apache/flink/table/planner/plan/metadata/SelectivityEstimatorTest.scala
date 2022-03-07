@@ -19,17 +19,14 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
+import org.apache.flink.table.planner.{JDouble, JLong}
+import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
-import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.PlannerMocks
-import org.apache.flink.table.planner.{JDouble, JLong}
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.jdbc.CalciteSchema
-import org.apache.calcite.plan.ConventionTraitDef
-import org.apache.calcite.rel.RelCollationTraitDef
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.TableScan
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQueryBase}
@@ -38,10 +35,9 @@ import org.apache.calcite.sql.SqlOperator
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.util.{DateString, TimeString, TimestampString}
-
-import org.junit.Assert._
+import org.apache.calcite.util.{DateString, TimestampString, TimeString}
 import org.junit.{Before, BeforeClass, Test}
+import org.junit.Assert._
 
 import java.math.BigDecimal
 import java.sql.{Date, Time, Timestamp}
@@ -60,7 +56,7 @@ class SelectivityEstimatorTest {
   val (name_idx, amount_idx, price_idx, flag_idx, partition_idx,
   date_idx, time_idx, timestamp_idx) = (0, 1, 2, 3, 4, 5, 6, 7)
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
+  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory()
   var rexBuilder = new FlinkRexBuilder(typeFactory)
   val relDataType: RelDataType = typeFactory.createStructType(
     allFieldTypes.map(typeFactory.createSqlType).asJava,

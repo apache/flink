@@ -33,7 +33,6 @@ import org.apache.flink.table.expressions.ValueLiteralExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -211,7 +210,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         if (isRowtimeAttribute(window.timeAttribute())) {
             inputTimeFieldIndex =
                     timeFieldIndex(
-                            FlinkTypeFactory.INSTANCE().buildRelNodeRowType(inputRowType),
+                            planner.getTypeFactory().buildRelNodeRowType(inputRowType),
                             planner.getRelBuilder(),
                             window.timeAttribute());
             if (inputTimeFieldIndex < 0) {
@@ -244,6 +243,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
             Arrays.fill(aggCallNeedRetractions, needRetraction);
             final AggregateInfoList aggInfoList =
                     transformToStreamAggregateInfoList(
+                            planner.getTypeFactory(),
                             inputRowType,
                             JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                             aggCallNeedRetractions,

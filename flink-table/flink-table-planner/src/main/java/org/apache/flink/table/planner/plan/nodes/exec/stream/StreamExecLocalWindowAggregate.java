@@ -149,6 +149,7 @@ public class StreamExecLocalWindowAggregate extends StreamExecWindowAggregateBas
 
         final AggregateInfoList aggInfoList =
                 AggregateUtil.deriveStreamWindowAggregateInfoList(
+                        planner.getTypeFactory(),
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         windowing.getWindow(),

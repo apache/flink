@@ -26,6 +26,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.data.writer.BinaryRowWriter;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
@@ -67,7 +68,7 @@ public class CodeSplitTest {
     public void testJoinCondition() {
         int numFields = 200;
 
-        FlinkTypeFactory typeFactory = FlinkTypeFactory.INSTANCE();
+        FlinkTypeFactory typeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
         RexBuilder builder = new RexBuilder(typeFactory);
         RelDataType intType = typeFactory.createFieldTypeFromLogicalType(new IntType());
         RexNode[] conditions = new RexNode[numFields];

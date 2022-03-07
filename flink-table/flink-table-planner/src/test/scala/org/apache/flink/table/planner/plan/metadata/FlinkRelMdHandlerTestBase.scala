@@ -20,8 +20,8 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.{TableConfig, TableException}
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.expressions._
+import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunctionHelper}
 import org.apache.flink.table.operations.TableSourceQueryOperation
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
@@ -40,8 +40,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, IntermediateRelTable, TableSourceTable}
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.planner.utils.{PlannerMocks, Top3}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType, VariableRankRange}
 import org.apache.flink.table.types.AtomicDataType
@@ -59,14 +59,13 @@ import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery, RelMetadataQueryBase}
 import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.SqlTypeName._
-import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
-import org.apache.calcite.sql.fun.SqlStdOperatorTable._
-import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
-import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.sql.{SqlAggFunction, SqlWindow}
+import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
+import org.apache.calcite.sql.`type`.SqlTypeName._
+import org.apache.calcite.sql.fun.{SqlCountAggFunction, SqlStdOperatorTable}
+import org.apache.calcite.sql.fun.SqlStdOperatorTable._
+import org.apache.calcite.sql.parser.SqlParserPos
 import org.apache.calcite.util._
-
 import org.junit.{Before, BeforeClass}
 
 import java.math.BigDecimal
@@ -1536,6 +1535,7 @@ class FlinkRelMdHandlerTestBase {
       cluster, batchPhysicalTraits.replace(hash01), batchCalc, hash01)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
+        typeFactory,
         FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
         flinkLogicalWindowAgg.getAggCallList)
     val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
@@ -1675,6 +1675,7 @@ class FlinkRelMdHandlerTestBase {
       cluster, batchPhysicalTraits.replace(hash1), batchCalc, hash1)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
+        typeFactory,
         FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
         flinkLogicalWindowAgg.getAggCallList)
     val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
@@ -1817,6 +1818,7 @@ class FlinkRelMdHandlerTestBase {
     val aggCallsWithoutAuxGroup = flinkLogicalWindowAggWithAuxGroup.getAggCallList.drop(1)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
+        typeFactory,
         FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
         aggCallsWithoutAuxGroup)
     val aggCallToAggFunction = aggCallsWithoutAuxGroup.zip(aggregates)

@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.typeutils;
 import org.apache.flink.api.common.typeutils.base.LocalDateTimeSerializer;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.calcite.FlinkTypeSystem;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BinaryType;
@@ -69,7 +70,7 @@ public class LogicalRelDataTypeConverterTest {
     @ParameterizedTest
     @MethodSource("testConversion")
     public void testConversion(LogicalType logicalType) throws IOException {
-        final RelDataTypeFactory typeFactory = FlinkTypeFactory.INSTANCE();
+        final RelDataTypeFactory typeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
         final DataTypeFactoryMock dataTypeFactory = new DataTypeFactoryMock();
         final RelDataType relDataType =
                 LogicalRelDataTypeConverter.toRelDataType(logicalType, typeFactory);

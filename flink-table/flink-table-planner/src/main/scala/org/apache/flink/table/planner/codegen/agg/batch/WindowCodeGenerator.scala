@@ -23,16 +23,15 @@ import org.apache.flink.table.api.DataTypes
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
-import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.expressions.{Expression, ValueLiteralExpression}
+import org.apache.flink.table.expressions.ExpressionUtils.extractValue
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.table.planner.JLong
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{BINARY_ROW, TIMESTAMP_DATA, boxedTypeTermForType, newName}
-import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
-import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
-import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.codegen._
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{boxedTypeTermForType, newName, BINARY_ROW, TIMESTAMP_DATA}
+import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
+import org.apache.flink.table.planner.codegen.GenerateUtils.generateFieldAccess
+import org.apache.flink.table.planner.codegen.OperatorCodeGenerator.generateCollect
 import org.apache.flink.table.planner.codegen.agg.batch.AggCodeGenHelper.{buildAggregateArgsMapping, genAggregateByFlatAggregateBuffer, genFlatAggBufferExprs, genInitFlatAggregateBuffer}
 import org.apache.flink.table.planner.codegen.agg.batch.WindowCodeGenerator.{asLong, isTimeIntervalLiteral}
 import org.apache.flink.table.planner.expressions.CallExpressionResolver
@@ -40,12 +39,13 @@ import org.apache.flink.table.planner.expressions.ExpressionBuilder._
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList, AggregateUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.window.TimeWindow
 import org.apache.flink.table.runtime.operators.window.grouping.{HeapWindowsGrouping, WindowsGrouping}
 import org.apache.flink.table.runtime.util.RowIterator
-import org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.types.logical.LogicalTypeRoot.INTERVAL_DAY_TIME
 import org.apache.flink.table.utils.DateTimeUtils
 
 import org.apache.calcite.rel.core.AggregateCall
@@ -69,7 +69,7 @@ abstract class WindowCodeGenerator(
     val isFinal: Boolean) {
 
   protected lazy val builder: RelBuilder = relBuilder.values(
-    FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType))
+    unwrapTypeFactory(relBuilder).buildRelNodeRowType(inputRowType))
 
   protected lazy val aggInfos: Array[AggregateInfo] = aggInfoList.aggInfos
 
@@ -673,7 +673,7 @@ abstract class WindowCodeGenerator(
       literal(index * slideSize))
     exprCodegen.generateExpression(new CallExpressionResolver(relBuilder).resolve(expr).accept(
       new ExpressionConverter(
-        relBuilder.values(FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType)))))
+        relBuilder.values(unwrapTypeFactory(relBuilder).buildRelNodeRowType(inputRowType)))))
   }
 
   def getGrouping: Array[Int] = grouping
