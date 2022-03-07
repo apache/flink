@@ -1720,7 +1720,7 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition TRY_CAST =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("tryCast")
+                    .name("TRY_CAST")
                     .kind(SCALAR)
                     .inputTypeStrategy(SpecificInputTypeStrategies.CAST)
                     .outputTypeStrategy(forceNullable(TypeStrategies.argument(1)))
