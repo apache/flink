@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.exec.spec;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.source.LookupTableSource;
 import org.apache.flink.table.planner.calcite.FlinkContext;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.plan.abilities.source.SourceAbilitySpec;
 import org.apache.flink.table.planner.plan.schema.TableSourceTable;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
@@ -78,13 +79,14 @@ public class TemporalTableSourceSpec {
     }
 
     @JsonIgnore
-    public RelOptTable getTemporalTable(FlinkContext flinkContext) {
+    public RelOptTable getTemporalTable(
+            FlinkContext flinkContext, FlinkTypeFactory flinkTypeFactory) {
         if (null != temporalTable) {
             return temporalTable;
         }
         if (null != tableSourceSpec && null != outputType) {
             LookupTableSource lookupTableSource =
-                    tableSourceSpec.getLookupTableSource(flinkContext);
+                    tableSourceSpec.getLookupTableSource(flinkContext, flinkTypeFactory);
             SourceAbilitySpec[] sourceAbilitySpecs = null;
             if (null != tableSourceSpec.getSourceAbilities()) {
                 sourceAbilitySpecs =
@@ -98,6 +100,7 @@ public class TemporalTableSourceSpec {
                     true,
                     tableSourceSpec.getContextResolvedTable(),
                     flinkContext,
+                    flinkTypeFactory,
                     sourceAbilitySpecs);
         }
         throw new TableException("Can not obtain temporalTable correctly!");

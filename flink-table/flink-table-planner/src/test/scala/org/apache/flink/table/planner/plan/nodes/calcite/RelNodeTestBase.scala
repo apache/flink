@@ -63,7 +63,7 @@ class RelNodeTestBase {
   def buildLogicalTableScan(
       fieldNames: Array[String],
       fieldTypes: Array[LogicalType]): LogicalTableScan = {
-    val flinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val flinkTypeFactory = new FlinkTypeFactory()
     val rowType = flinkTypeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
     val table = new MockMetaTable(rowType, FlinkStatistic.UNKNOWN)
     LogicalTableScan.create(cluster, table, new util.ArrayList[RelHint]())

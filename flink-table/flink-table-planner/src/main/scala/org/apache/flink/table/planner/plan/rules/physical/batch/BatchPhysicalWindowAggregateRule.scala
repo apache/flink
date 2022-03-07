@@ -31,6 +31,8 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalHa
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
+import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.logical.{BigIntType, IntType, LogicalType}
@@ -102,7 +104,8 @@ class BatchPhysicalWindowAggregateRule
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
 
     val (_, aggBufferTypes, aggregates) = AggregateUtil.transformToBatchAggregateFunctions(
-      FlinkTypeFactory.toLogicalRowType(input.getRowType), aggCallsWithoutAuxGroupCalls)
+      FlinkTypeFactory.toLogicalRowType(input.getRowType),
+      aggCallsWithoutAuxGroupCalls)
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggregates)
     val internalAggBufferTypes = aggBufferTypes.map(_.map(fromDataTypeToLogicalType))
 

@@ -57,7 +57,7 @@ import org.apache.flink.table.types.utils.DataTypeUtils
 import org.apache.calcite.rel.`type`._
 import org.apache.calcite.rel.core.Aggregate.AggCallBinding
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
-import org.apache.calcite.sql.`type`.SqlTypeUtil
+import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName, SqlTypeUtil}
 import org.apache.calcite.sql.fun._
 import org.apache.calcite.sql.validate.SqlMonotonicity
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind, SqlRankFunction}
@@ -511,7 +511,7 @@ object AggregateUtil extends Enumeration {
         function.getTypeFactory,
         function,
         SqlTypeUtil.projectTypes(
-          FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType),
+          function.getTypeFactory.buildRelNodeRowType(inputRowType),
           argIndexes.map(Int.box).toList),
         0,
         false),
@@ -712,16 +712,14 @@ object AggregateUtil extends Enumeration {
     }
 
     // count(*) not exist in aggregateCalls, insert a count(*) in it.
-    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
     if (indexOfCountStar.isEmpty) {
-
       val count1 = AggregateCall.create(
         SqlStdOperatorTable.COUNT,
         false,
         false,
         new util.ArrayList[Integer](),
         -1,
-        typeFactory.createFieldTypeFromLogicalType(new BigIntType()),
+        new BasicSqlType(FlinkTypeSystem.INSTANCE, SqlTypeName.BIGINT),
         "_$count1$_")
 
       indexOfCountStar = Some(aggregateCalls.length)

@@ -43,7 +43,7 @@ import org.apache.calcite.tools.RelBuilder
   */
 abstract class AggTestBase(isBatchMode: Boolean) {
 
-  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem())
+  val typeFactory: FlinkTypeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE)
   val env = new ScalaStreamExecEnv(new LocalStreamEnvironment)
   private val tEnv = if (isBatchMode) {
     val settings = EnvironmentSettings.newInstance().inBatchMode().build()

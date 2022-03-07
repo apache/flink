@@ -40,6 +40,8 @@ import org.apache.flink.table.planner.expressions.ExpressionBuilder._
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, AggregateInfoList, AggregateUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.window.TimeWindow
 import org.apache.flink.table.runtime.operators.window.grouping.{HeapWindowsGrouping, WindowsGrouping}
@@ -69,7 +71,7 @@ abstract class WindowCodeGenerator(
     val isFinal: Boolean) {
 
   protected lazy val builder: RelBuilder = relBuilder.values(
-    FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType))
+    unwrapTypeFactory(relBuilder).buildRelNodeRowType(inputRowType))
 
   protected lazy val aggInfos: Array[AggregateInfo] = aggInfoList.aggInfos
 
@@ -673,7 +675,7 @@ abstract class WindowCodeGenerator(
       literal(index * slideSize))
     exprCodegen.generateExpression(new CallExpressionResolver(relBuilder).resolve(expr).accept(
       new ExpressionConverter(
-        relBuilder.values(FlinkTypeFactory.INSTANCE.buildRelNodeRowType(inputRowType)))))
+        relBuilder.values(unwrapTypeFactory(relBuilder).buildRelNodeRowType(inputRowType)))))
   }
 
   def getGrouping: Array[Int] = grouping

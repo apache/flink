@@ -272,7 +272,7 @@ object MetadataTestUtil {
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
-    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val typeFactory = new FlinkTypeFactory()
     val rowType = typeFactory.buildRelNodeRowType(
       Seq("a", "c", "d"),
       Seq(new BigIntType(false), new DoubleType(), new VarCharType(false, 100)))
@@ -314,7 +314,7 @@ object MetadataTestUtil {
       Collections.emptyList(),
       UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")))
 
-    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val typeFactory = new FlinkTypeFactory()
     val rowType = typeFactory.buildRelNodeRowType(
       Seq("a", "b", "c", "d"),
       Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
@@ -342,7 +342,7 @@ object MetadataTestUtil {
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
-    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val typeFactory = new FlinkTypeFactory()
     val rowType = typeFactory.buildRelNodeRowType(
       Seq("a", "b", "c", "d"),
       Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
@@ -370,7 +370,7 @@ object MetadataTestUtil {
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
-    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val typeFactory = new FlinkTypeFactory()
     val rowType = typeFactory.buildRelNodeRowType(
       Seq("a", "b", "c", "d"),
       Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
@@ -396,7 +396,7 @@ object MetadataTestUtil {
 
     val catalogTable = getCatalogTable(resolvedSchema)
 
-    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val typeFactory = new FlinkTypeFactory()
     val rowType = typeFactory.buildRelNodeRowType(
       Seq("a"),
       Seq(new BigIntType(false)))
@@ -441,7 +441,7 @@ object MetadataTestUtil {
       fieldNames: Array[String],
       fieldTypes: Array[LogicalType],
       statistic: FlinkStatistic): Table = {
-    val flinkTypeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val flinkTypeFactory = new FlinkTypeFactory()
     val rowType = flinkTypeFactory.buildRelNodeRowType(fieldNames, fieldTypes)
     new MockMetaTable(rowType, statistic)
   }
@@ -489,7 +489,8 @@ class MockTableSourceTable(
     tableSource,
     isStreamingMode,
     contextResolvedTable,
-    flinkContext)
+    flinkContext,
+    new FlinkTypeFactory())
   with Table {
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = rowType
 

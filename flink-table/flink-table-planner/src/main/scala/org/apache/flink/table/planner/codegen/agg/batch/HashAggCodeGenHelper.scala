@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.expressions.DeclarativeExpressionResolver.
 import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregateFunction
 import org.apache.flink.table.planner.plan.utils.{AggregateInfo, SortUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.generated.{NormalizedKeyComputer, RecordComparator}
 import org.apache.flink.table.runtime.operators.aggregate.BytesHashMapSpillMemorySegmentPool
 import org.apache.flink.table.runtime.operators.sort.BufferedKVExternalSorter

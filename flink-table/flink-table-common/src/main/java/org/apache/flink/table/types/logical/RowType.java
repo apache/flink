@@ -180,7 +180,7 @@ public final class RowType extends LogicalType {
 
     public int getFieldIndex(String fieldName) {
         for (int i = 0; i < fields.size(); i++) {
-            if (fields.get(i).getName().equals(fieldName)) {
+            if (fields.get(i).getName().equalsIgnoreCase(fieldName)) {
                 return i;
             }
         }

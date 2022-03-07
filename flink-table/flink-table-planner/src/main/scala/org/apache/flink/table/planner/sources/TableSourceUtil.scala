@@ -202,7 +202,7 @@ object TableSourceUtil {
     */
   def getRowtimeAttributeDescriptor(
       tableSource: TableSource[_],
-      rowType: RelDataType): Option[RowtimeAttributeDescriptor] = {
+      rowType: RowType): Option[RowtimeAttributeDescriptor] = {
 
     tableSource match {
       case r: DefinedRowtimeAttributes =>

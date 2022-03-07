@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.codegen.ExpressionReducer
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalRank
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalDeduplicate
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankRange, RankType, VariableRankRange}
 
 import org.apache.calcite.plan.RelOptUtil
