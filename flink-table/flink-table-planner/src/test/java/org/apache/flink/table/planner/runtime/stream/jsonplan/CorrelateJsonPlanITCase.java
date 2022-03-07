@@ -99,7 +99,9 @@ public class CorrelateJsonPlanITCase extends JsonPlanTestBase {
                 "STRING_SPLIT", new JavaUserDefinedTableFunctions.StringSplit());
         createTestValuesSinkTable("MySink", "a STRING", "b STRING");
         String query =
-                "insert into MySink SELECT a, v FROM MyTable, lateral table(STRING_SPLIT(a, ',')) as T(v) where cast(v as int) > 0";
+                "insert into MySink "
+                        + "SELECT a, v FROM MyTable, lateral table(STRING_SPLIT(a, ',')) as T(v) "
+                        + "where try_cast(v as int) > 0";
         compileSqlAndExecutePlan(query).await();
         List<String> expected = Arrays.asList("+I[1,1,hi, 1]", "+I[1,1,hi, 1]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));

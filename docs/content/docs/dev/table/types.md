@@ -1553,7 +1553,7 @@ regardless of whether the function used is `CAST` or `TRY_CAST`.
 ### Legacy casting
 
 Pre Flink 1.15 casting behaviour can be enabled by setting `table.exec.legacy-cast-behaviour` to `enabled`.
-In Flink 1.15 this flag is enabled by default.
+In Flink 1.15 this flag is disabled by default.
 
 In particular, this will:
 
@@ -1562,7 +1562,7 @@ In particular, this will:
 * Formatting of some casting to `CHAR`/`VARCHAR`/`STRING` produces slightly different results.
 
 {{< hint warning >}}
-We **discourage** the use of this flag and we **strongly suggest** for new projects to disable this flag and use the new casting behaviour.
+We **discourage** the use of this flag and we **strongly suggest** for new projects to keep this flag disabled and use the new casting behaviour.
 This flag will be removed in the next Flink versions.
 {{< /hint >}}
 
