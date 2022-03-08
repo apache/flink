@@ -53,6 +53,7 @@ import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.factories.TestManagedTableFactory;
 import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
+import org.apache.flink.table.operations.DescribeTableOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
@@ -1687,6 +1688,29 @@ public class SqlToOperationConverterTest {
         assertThat(operation2).isInstanceOf(ResetOperation.class);
         assertThat(((ResetOperation) operation2).getKey()).isPresent();
         assertThat(((ResetOperation) operation2).getKey()).hasValue("test-key");
+    }
+
+    @Test
+    public void testDescribeTableOnManagedNonPartitionedTable() throws Exception {
+        prepareManagedTable(false);
+        final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse("describe extended tb1", planner, parser);
+        assertThat(operation).isInstanceOf(DescribeTableOperation.class);
+        DescribeTableOperation describeTableOperation = (DescribeTableOperation) operation;
+        assertThat(describeTableOperation.isExtended()).isTrue();
+        assertThat(describeTableOperation.getPartitionSpec()).isEmpty();
+    }
+
+    @Test
+    public void testDescribeTableOnManagedPartitionedTable() throws Exception {
+        prepareManagedTable(true);
+        final FlinkPlannerImpl planner = getPlannerBySqlDialect(SqlDialect.DEFAULT);
+        final CalciteParser parser = getParserBySqlDialect(SqlDialect.DEFAULT);
+        Operation operation = parse("describe extended tb1 partition (b = 'c')", planner, parser);
+        DescribeTableOperation describeTableOperation = (DescribeTableOperation) operation;
+        assertThat(describeTableOperation.isExtended()).isTrue();
+        assertThat(describeTableOperation.getPartitionSpec().get("b").equals("c"));
     }
 
     // ~ Tool Methods ----------------------------------------------------------

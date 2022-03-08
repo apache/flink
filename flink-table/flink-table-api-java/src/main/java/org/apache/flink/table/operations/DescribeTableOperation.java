@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.table.catalog.CatalogPartitionSpec;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 
 import java.util.Collections;
@@ -26,16 +27,25 @@ import java.util.Map;
 
 /**
  * Operation to describe a DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier
- * statement.
+ * [PARTITION partitionSpec] statement.
  */
 public class DescribeTableOperation implements Operation {
 
     private final ObjectIdentifier sqlIdentifier;
     private final boolean isExtended;
+    private final CatalogPartitionSpec partitionSpec;
 
     public DescribeTableOperation(ObjectIdentifier sqlIdentifier, boolean isExtended) {
+        this(sqlIdentifier, isExtended, null);
+    }
+
+    public DescribeTableOperation(
+            ObjectIdentifier sqlIdentifier,
+            boolean isExtended,
+            CatalogPartitionSpec partitionSpec) {
         this.sqlIdentifier = sqlIdentifier;
         this.isExtended = isExtended;
+        this.partitionSpec = partitionSpec;
     }
 
     public ObjectIdentifier getSqlIdentifier() {
@@ -46,11 +56,20 @@ public class DescribeTableOperation implements Operation {
         return isExtended;
     }
 
+    public Map<String, String> getPartitionSpec() {
+        return partitionSpec == null
+                ? Collections.emptyMap()
+                : new LinkedHashMap<>(partitionSpec.getPartitionSpec());
+    }
+
     @Override
     public String asSummaryString() {
         Map<String, Object> params = new LinkedHashMap<>();
         params.put("identifier", sqlIdentifier);
         params.put("isExtended", isExtended);
+        if (partitionSpec != null) {
+            params.put("partition", OperationUtils.formatPartitionSpec(partitionSpec));
+        }
         return OperationUtils.formatWithChildren(
                 "DESCRIBE", params, Collections.emptyList(), Operation::asSummaryString);
     }

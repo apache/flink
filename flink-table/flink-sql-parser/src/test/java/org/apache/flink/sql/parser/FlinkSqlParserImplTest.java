@@ -244,11 +244,15 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     public void testDescribeTable() {
         sql("describe tbl").ok("DESCRIBE `TBL`");
         sql("describe catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");
-        sql("describe extended db1").ok("DESCRIBE EXTENDED `DB1`");
+        sql("describe extended tbl").ok("DESCRIBE EXTENDED `TBL`");
+        sql("describe extended tbl partition(dt = 'a')")
+                .ok("DESCRIBE EXTENDED `TBL` PARTITION (`DT` = 'a')");
 
         sql("desc tbl").ok("DESCRIBE `TBL`");
         sql("desc catalog1.db1.tbl").ok("DESCRIBE `CATALOG1`.`DB1`.`TBL`");
-        sql("desc extended db1").ok("DESCRIBE EXTENDED `DB1`");
+        sql("desc extended tbl").ok("DESCRIBE EXTENDED `TBL`");
+        sql("desc extended tbl partition(dt = 'a')")
+                .ok("DESCRIBE EXTENDED `TBL` PARTITION (`DT` = 'a')");
     }
 
     @Test

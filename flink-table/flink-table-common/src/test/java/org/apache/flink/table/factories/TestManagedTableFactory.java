@@ -20,6 +20,7 @@ package org.apache.flink.table.factories;
 
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
+import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
@@ -66,10 +67,22 @@ public class TestManagedTableFactory
                     ObjectIdentifier, AtomicReference<Map<CatalogPartitionSpec, List<Path>>>>
             MANAGED_TABLE_FILE_ENTRIES = new ConcurrentHashMap<>();
 
-    private static final ConfigOption<String> CHANGELOG_MODE =
+    public static final ConfigOption<String> CHANGELOG_MODE =
             ConfigOptions.key("changelog-mode")
                     .stringType()
                     .defaultValue("I"); // all available "I,UA,UB,D"
+
+    public static final ConfigOption<Integer> BUCKET =
+            ConfigOptions.key("bucket")
+                    .intType()
+                    .defaultValue(1)
+                    .withDescription("Bucket number for file store.");
+
+    public static final ConfigOption<MemorySize> MANIFEST_TARGET_FILE_SIZE =
+            ConfigOptions.key("manifest.target-file-size")
+                    .memoryType()
+                    .defaultValue(MemorySize.ofMebiBytes(8))
+                    .withDescription("Suggested file size of a manifest file.");
 
     private static final ConfigOption<String> COMPACT_FILE_BASE_PATH =
             ConfigOptions.key("compact.file-base-path").stringType().defaultValue("/foo/bar/dir/");
@@ -86,7 +99,10 @@ public class TestManagedTableFactory
 
     @Override
     public Set<ConfigOption<?>> optionalOptions() {
-        return Collections.emptySet();
+        HashSet<ConfigOption<?>> configOptions = new HashSet<>();
+        configOptions.add(BUCKET);
+        configOptions.add(MANIFEST_TARGET_FILE_SIZE);
+        return configOptions;
     }
 
     @Override
