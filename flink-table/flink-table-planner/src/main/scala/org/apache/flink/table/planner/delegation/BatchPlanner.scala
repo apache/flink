@@ -22,10 +22,9 @@ import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.table.api.config.OptimizerConfigOptions
-import org.apache.flink.table.api.internal.CompiledPlanInternal
 import org.apache.flink.table.api.{ExplainDetail, PlanReference, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
-import org.apache.flink.table.delegation.Executor
+import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{ModifyOperation, Operation}
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
@@ -77,7 +76,7 @@ class BatchPlanner(
   }
 
   override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
-    validateAndOverrideConfiguration()
+    beforeTranslation()
     val planner = createDummyPlanner()
 
     val transformations = execGraph.getRootNodes.map {
@@ -86,7 +85,7 @@ class BatchPlanner(
         throw new TableException("Cannot generate BoundedStream due to an invalid logical plan. " +
             "This is a bug and should not happen. Please file an issue.")
     }
-    cleanupInternalConfigurations()
+    afterTranslation()
     transformations
   }
 
@@ -135,25 +134,26 @@ class BatchPlanner(
     new BatchPlanner(executor, tableConfig, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
+  override def loadPlan(planReference: PlanReference): InternalPlan = {
     throw new UnsupportedOperationException(
       "The compiled plan feature is not supported in batch mode.")
   }
 
-  override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlanInternal =
+  override def compilePlan(
+     modifyOperations: util.List[ModifyOperation]): InternalPlan =
     throw new UnsupportedOperationException(
       "The compiled plan feature is not supported in batch mode.")
 
-  override def translatePlan(plan: CompiledPlanInternal): util.List[Transformation[_]] =
+  override def translatePlan(plan: InternalPlan): util.List[Transformation[_]] =
     throw new UnsupportedOperationException(
       "The compiled plan feature is not supported in batch mode.")
 
-  override def explainPlan(plan: CompiledPlanInternal, extraDetails: ExplainDetail*): String =
+  override def explainPlan(plan: InternalPlan, extraDetails: ExplainDetail*): String =
     throw new UnsupportedOperationException(
       "The compiled plan feature is not supported in batch mode.")
 
-  override def validateAndOverrideConfiguration(): Unit = {
-    super.validateAndOverrideConfiguration()
+  override def beforeTranslation(): Unit = {
+    super.beforeTranslation()
     val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
     if (runtimeMode != RuntimeExecutionMode.BATCH) {
       throw new IllegalArgumentException(

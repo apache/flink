@@ -225,7 +225,10 @@ class BatchingStateChangeUploader implements StateChangeUploader {
                 return;
             }
             uploadBatchSizes.update(tasks.size());
-            retryingExecutor.execute(retryPolicy, () -> delegate.upload(tasks));
+            retryingExecutor.execute(
+                    retryPolicy,
+                    () -> delegate.upload(tasks),
+                    t -> tasks.forEach(task -> task.fail(t)));
         } catch (Throwable t) {
             tasks.forEach(task -> task.fail(t));
             if (findThrowable(t, IOException.class).isPresent()) {
@@ -271,14 +274,14 @@ class BatchingStateChangeUploader implements StateChangeUploader {
                     try {
                         releaseCapacity(size);
                     } finally {
-                        uploadTask.successCallback.accept(result);
+                        uploadTask.complete(result);
                     }
                 },
                 (result, error) -> {
                     try {
                         releaseCapacity(size);
                     } finally {
-                        uploadTask.failureCallback.accept(result, error);
+                        uploadTask.fail(error);
                     }
                 });
     }

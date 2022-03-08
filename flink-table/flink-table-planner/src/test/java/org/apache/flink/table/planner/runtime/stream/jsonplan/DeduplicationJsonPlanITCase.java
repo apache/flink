@@ -70,7 +70,7 @@ public class DeduplicationJsonPlanITCase extends JsonPlanTestBase {
                                 + "WHERE row_num = 1 \n");
         tableEnv.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 1);
         checkTransformationUids(compiledPlan);
-        tableEnv.executePlan(compiledPlan).await();
+        compiledPlan.execute().await();
 
         assertResult(
                 Arrays.asList("+I[1, terry, pen, 1000]", "+I[4, bob, apple, 4000]"),

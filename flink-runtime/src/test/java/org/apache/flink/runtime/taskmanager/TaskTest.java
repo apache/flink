@@ -59,6 +59,8 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
 
@@ -111,6 +113,11 @@ public class TaskTest extends TestLogger {
     public void setup() {
         awaitLatch = new OneShotLatch();
         triggerLatch = new OneShotLatch();
+        // Logging is only for debugging FLINK-15550.
+        log.info(
+                "Preparing trigger latch, {}, isTriggered = {}",
+                triggerLatch,
+                triggerLatch.isTriggered());
 
         shuffleEnvironment = new NettyShuffleEnvironmentBuilder().build();
         wasCleanedUp = false;
@@ -652,6 +659,7 @@ public class TaskTest extends TestLogger {
         awaitLatch.await();
 
         task.failExternally(new Exception("external"));
+        assertFalse(triggerLatch.isTriggered());
         assertEquals(ExecutionState.FAILED, task.getExecutionState());
 
         // Either we cause the CancelTaskException or the TaskCanceler
@@ -1453,13 +1461,23 @@ public class TaskTest extends TestLogger {
 
     /** {@link AbstractInvokable} which throws {@link CancelTaskException} on invoke. */
     public static final class InvokableWithCancelTaskExceptionInInvoke extends AbstractInvokable {
+        static final Logger LOG = LoggerFactory.getLogger(InvokableWithExceptionOnTrigger.class);
+
         public InvokableWithCancelTaskExceptionInInvoke(Environment environment) {
             super(environment);
         }
 
         @Override
         public void invoke() {
-            awaitTriggerLatch();
+            // Logging and try-catch block are only for debugging FLINK-15550.
+            LOG.info("Await for {}, isTriggered = {}", triggerLatch, triggerLatch.isTriggered());
+            try {
+                awaitTriggerLatch();
+            } catch (Throwable ex) {
+                LOG.error("Fail on awaiting trigger latch", ex);
+
+                throw ex;
+            }
 
             throw new CancelTaskException();
         }

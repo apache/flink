@@ -35,12 +35,10 @@ import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
-import org.apache.kafka.common.serialization.VoidDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.DockerClientFactory;
@@ -495,18 +493,5 @@ public class KafkaTestEnvironmentImpl extends KafkaTestEnvironment {
         }
         pausedBroker.remove(brokerId);
         LOG.info("Broker {} is resumed", brokerId);
-    }
-
-    private KafkaConsumer<Void, Void> createTempConsumer() {
-        Properties consumerProps = new Properties();
-        consumerProps.putAll(getStandardProperties());
-        consumerProps.setProperty(
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                VoidDeserializer.class.getCanonicalName());
-        consumerProps.setProperty(
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                VoidDeserializer.class.getCanonicalName());
-        consumerProps.setProperty(ConsumerConfig.ALLOW_AUTO_CREATE_TOPICS_CONFIG, "false");
-        return new KafkaConsumer<>(consumerProps);
     }
 }

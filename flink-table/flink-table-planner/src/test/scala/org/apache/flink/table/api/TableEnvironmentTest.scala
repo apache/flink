@@ -18,15 +18,18 @@
 
 package org.apache.flink.table.api
 
+import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, ExecutionOptions}
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment, _}
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
 import org.apache.flink.table.catalog._
 import org.apache.flink.table.factories.{TableFactoryUtil, TableSourceFactoryContextImpl}
+import org.apache.flink.table.functions.TestGenericUDF
 import org.apache.flink.table.module.ModuleEntry
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory._
 import org.apache.flink.table.planner.runtime.stream.sql.FunctionITCase.TestUDF
@@ -39,7 +42,7 @@ import org.apache.flink.types.Row
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
-import org.junit.Assert.{assertEquals, assertFalse, assertTrue}
+import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
@@ -687,6 +690,52 @@ class TableEnvironmentTest {
     checkData(
       util.Arrays.asList(Row.of("tbl1")).iterator(),
       tableResult2.collect())
+  }
+
+  @Test
+  def testExecuteSqlWithEnhancedShowTables(): Unit = {
+    val createCatalogResult = tableEnv.executeSql(
+      "CREATE CATALOG catalog1 WITH('type'='generic_in_memory')")
+    assertEquals(ResultKind.SUCCESS, createCatalogResult.getResultKind)
+
+    val createDbResult = tableEnv.executeSql(
+      "CREATE database catalog1.db1")
+    assertEquals(ResultKind.SUCCESS, createDbResult.getResultKind)
+
+    val createTableStmt =
+      """
+        |CREATE TABLE catalog1.db1.person (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult1 = tableEnv.executeSql(createTableStmt)
+    assertEquals(ResultKind.SUCCESS, tableResult1.getResultKind)
+
+    val createTableStmt2 =
+      """
+        |CREATE TABLE catalog1.db1.dim (
+        |  a bigint
+        |) with (
+        |  'connector' = 'COLLECTION',
+        |  'is-bounded' = 'false'
+        |)
+      """.stripMargin
+    val tableResult2 = tableEnv.executeSql(createTableStmt2)
+    assertEquals(ResultKind.SUCCESS, tableResult2.getResultKind)
+
+    val tableResult3 = tableEnv.executeSql("SHOW TABLES FROM catalog1.db1 like 'p_r%'")
+    assertEquals(ResultKind.SUCCESS_WITH_CONTENT, tableResult3.getResultKind)
+    assertEquals(
+      ResolvedSchema.of(Column.physical("table name", DataTypes.STRING())),
+      tableResult3.getResolvedSchema)
+    checkData(
+      util.Arrays.asList(Row.of("person")).iterator(),
+      tableResult3.collect())
   }
 
   @Test
@@ -1673,6 +1722,99 @@ class TableEnvironmentTest {
       tableResult6.collect())
   }
 
+  @Test
+  def testTemporaryOperationListener(): Unit = {
+    val listener = new ListenerCatalog("listener_cat")
+    val currentCat = tableEnv.getCurrentCatalog
+    tableEnv.registerCatalog(listener.getName, listener)
+    // test temporary table
+    tableEnv.executeSql("create temporary table tbl1 (x int)")
+    assertEquals(0, listener.numTempTable)
+    tableEnv.executeSql(s"create temporary table ${listener.getName}.`default`.tbl1 (x int)")
+    assertEquals(1, listener.numTempTable)
+    val tableResult = tableEnv.asInstanceOf[TableEnvironmentInternal].getCatalogManager
+      .getTable(ObjectIdentifier.of(listener.getName, "default", "tbl1"))
+    assertTrue(tableResult.isPresent)
+    assertEquals(listener.tableComment, tableResult.get().getTable[CatalogBaseTable].getComment)
+    tableEnv.executeSql("drop temporary table tbl1")
+    assertEquals(1, listener.numTempTable)
+    tableEnv.executeSql(s"drop temporary table ${listener.getName}.`default`.tbl1")
+    assertEquals(0, listener.numTempTable)
+    tableEnv.useCatalog(listener.getName)
+    tableEnv.executeSql("create temporary table tbl1 (x int)")
+    assertEquals(1, listener.numTempTable)
+    tableEnv.executeSql("drop temporary table tbl1")
+    assertEquals(0, listener.numTempTable)
+    tableEnv.useCatalog(currentCat)
+
+    // test temporary view
+    tableEnv.executeSql("create temporary view v1 as select 1")
+    assertEquals(0, listener.numTempTable)
+    tableEnv.executeSql(s"create temporary view ${listener.getName}.`default`.v1 as select 1")
+    assertEquals(1, listener.numTempTable)
+    val viewResult = tableEnv.asInstanceOf[TableEnvironmentInternal].getCatalogManager
+      .getTable(ObjectIdentifier.of(listener.getName, "default", "v1"))
+    assertTrue(viewResult.isPresent)
+    assertEquals(listener.tableComment, viewResult.get().getTable[CatalogBaseTable].getComment)
+    tableEnv.executeSql("drop temporary view v1")
+    assertEquals(1, listener.numTempTable)
+    tableEnv.executeSql(s"drop temporary view ${listener.getName}.`default`.v1")
+    assertEquals(0, listener.numTempTable)
+    tableEnv.useCatalog(listener.getName)
+    tableEnv.executeSql("create temporary view v1 as select 1")
+    assertEquals(1, listener.numTempTable)
+    tableEnv.executeSql("drop temporary view  v1")
+    assertEquals(0, listener.numTempTable)
+    tableEnv.useCatalog(currentCat)
+
+    // test temporary function
+    val clzName = "foo.class.name"
+    try {
+      tableEnv.executeSql(s"create temporary function func1 as '${clzName}'")
+      fail("Creating a temporary function with invalid class should fail")
+    } catch {
+      case _: Exception => //expected
+    }
+    assertEquals(0, listener.numTempFunc)
+    tableEnv.executeSql(
+      s"create temporary function ${listener.getName}.`default`.func1 as '${clzName}'")
+    assertEquals(1, listener.numTempFunc)
+    tableEnv.executeSql("drop temporary function if exists func1")
+    assertEquals(1, listener.numTempFunc)
+    tableEnv.executeSql(s"drop temporary function ${listener.getName}.`default`.func1")
+    assertEquals(0, listener.numTempFunc)
+    tableEnv.useCatalog(listener.getName)
+    tableEnv.executeSql(s"create temporary function func1 as '${clzName}'")
+    assertEquals(1, listener.numTempFunc)
+    tableEnv.executeSql("drop temporary function func1")
+    assertEquals(0, listener.numTempFunc)
+    tableEnv.useCatalog(currentCat)
+
+    listener.close()
+  }
+
+  @Test
+  def testSetExecutionMode(): Unit = {
+    tableEnv.executeSql(
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint
+        |) WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    )
+
+    tableEnv.getConfig.set(ExecutionOptions.RUNTIME_MODE, RuntimeExecutionMode.BATCH)
+
+    assertThatThrownBy(() => tableEnv.explainSql("select * from MyTable"))
+      .isInstanceOf(classOf[IllegalArgumentException])
+      .hasMessageContaining("Mismatch between configured runtime mode and actual runtime mode. " +
+        "Currently, the 'execution.runtime-mode' can only be set when instantiating the " +
+        "table environment. Subsequent changes are not supported. " +
+        "Please instantiate a new TableEnvironment if necessary.")
+  }
+
   private def checkData(expected: util.Iterator[Row], actual: util.Iterator[Row]): Unit = {
     while (expected.hasNext && actual.hasNext) {
       assertEquals(expected.next(), actual.next())
@@ -1745,4 +1887,37 @@ class TableEnvironmentTest {
     assertEquals(replaceStageId(expected), replaceStageId(actual))
     assertFalse(it.hasNext)
   }
+
+  class ListenerCatalog(name: String)
+    extends GenericInMemoryCatalog(name) with TemporaryOperationListener {
+
+    val tableComment: String = "listener_comment"
+    val funcClzName: String = classOf[TestGenericUDF].getName
+
+    var numTempTable = 0
+    var numTempFunc = 0
+
+    override def onCreateTemporaryTable(tablePath: ObjectPath, table: CatalogBaseTable)
+    : CatalogBaseTable = {
+      numTempTable += 1
+      if (table.isInstanceOf[CatalogTable]) {
+        new CatalogTableImpl(table.getSchema, table.getOptions, tableComment)
+      } else {
+        val view = table.asInstanceOf[CatalogView]
+        new CatalogViewImpl(view.getOriginalQuery, view.getExpandedQuery,
+          view.getSchema, view.getOptions, tableComment)
+      }
+    }
+
+    override def onDropTemporaryTable(tablePath: ObjectPath): Unit = numTempTable -= 1
+
+    override def onCreateTemporaryFunction(functionPath: ObjectPath, function: CatalogFunction)
+    : CatalogFunction = {
+      numTempFunc += 1
+      new CatalogFunctionImpl(funcClzName, function.getFunctionLanguage)
+    }
+
+    override def onDropTemporaryFunction(functionPath: ObjectPath): Unit = numTempFunc -= 1
+  }
+
 }

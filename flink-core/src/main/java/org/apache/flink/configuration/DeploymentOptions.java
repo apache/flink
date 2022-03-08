@@ -112,6 +112,9 @@ public class DeploymentOptions {
                     .defaultValue(true)
                     .withDescription(
                             "Determines whether configurations in the user program are "
-                                    + "allowed when running with Application mode. Has no effect for other "
-                                    + "deployment modes.");
+                                    + "allowed. Depending on your deployment mode failing the job "
+                                    + "might have different affects. Either your client that is "
+                                    + "trying to submit the job to an external cluster (session "
+                                    + "cluster deployment) throws the exception or the Job "
+                                    + "manager (application mode deployment).");
 }

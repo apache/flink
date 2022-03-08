@@ -28,20 +28,27 @@ import org.apache.flink.core.execution.PipelineExecutorServiceLoader;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
+import org.apache.flink.util.function.ThrowingConsumer;
 
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class StreamContextEnvironmentTest {
 
-    @Test
-    void testDisallowJobConfigurationChanges() {
+    @ParameterizedTest
+    @MethodSource("provideExecutors")
+    void testDisallowJobConfigurationChanges(
+            ThrowingConsumer<StreamExecutionEnvironment, Exception> executor) {
         final Configuration clusterConfiguration = new Configuration();
         clusterConfiguration.set(DeploymentOptions.ALLOW_CLIENT_JOB_CONFIGURATIONS, false);
         clusterConfiguration.set(DeploymentOptions.TARGET, "local");
@@ -74,12 +81,19 @@ class StreamContextEnvironmentTest {
         environment.configure(jobConfiguration);
 
         environment.fromCollection(Collections.singleton(1)).addSink(new DiscardingSink<>());
-        assertThatThrownBy(environment::execute)
+        assertThatThrownBy(() -> executor.accept(environment))
                 .isInstanceOf(MutatedConfigurationException.class)
                 .hasMessageContainingAll(
-                        ExecutionOptions.RUNTIME_MODE.key(), ExecutionOptions.SORT_INPUTS.key(),
+                        ExecutionOptions.RUNTIME_MODE.key(),
+                        ExecutionOptions.SORT_INPUTS.key(),
                         CheckpointConfig.class.getSimpleName(),
-                                ExecutionConfig.class.getSimpleName());
+                        ExecutionConfig.class.getSimpleName());
+    }
+
+    private static List<ThrowingConsumer<StreamExecutionEnvironment, Exception>>
+            provideExecutors() {
+        return Arrays.asList(
+                StreamExecutionEnvironment::execute, StreamExecutionEnvironment::executeAsync);
     }
 
     private static class MockExecutorServiceLoader implements PipelineExecutorServiceLoader {

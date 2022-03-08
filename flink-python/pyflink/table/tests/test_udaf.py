@@ -506,6 +506,28 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                                          ["hello.hello2", "", "hello,hello2", "hello"]],
                                         columns=['a', 'b', 'c', 'd']))
 
+    def test_clean_state(self):
+        self.t_env.register_function("my_count", CountAggregateFunction())
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "1")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.state.cache-size", "0")
+        self.t_env.get_config().get_configuration().set_string(
+            "table.exec.state.ttl", "2ms")
+
+        self.t_env.execute_sql("""
+            CREATE TABLE test_source (
+                a BIGINT
+            ) WITH (
+              'connector' = 'datagen',
+              'number-of-rows' = '5',
+              'rows-per-second' = '1'
+            )
+        """)
+        t = self.t_env.from_path('test_source')
+        t.select("my_count(a) as a").to_pandas()
+
     def test_tumbling_group_window_over_time(self):
         # create source file path
         tmp_dir = self.tempdir

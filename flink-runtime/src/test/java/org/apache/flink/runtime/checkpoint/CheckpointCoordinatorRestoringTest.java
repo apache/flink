@@ -773,7 +773,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                         Collections.<MasterState>emptyList(),
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation());
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
 
         // set up the coordinator and validate the initial state
         SharedStateRegistry sharedStateRegistry =
@@ -1089,7 +1090,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                         Collections.emptyList(),
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation());
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
         completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 completedCheckpoint, new CheckpointsCleaner(), () -> {});
 
@@ -1131,7 +1133,8 @@ public class CheckpointCoordinatorRestoringTest extends TestLogger {
                         Collections.emptyList(),
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation());
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
         completedCheckpointStore.addCheckpointAndSubsumeOldestOne(
                 completedCheckpoint, new CheckpointsCleaner(), () -> {});
 

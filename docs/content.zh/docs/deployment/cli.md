@@ -121,6 +121,8 @@ You can resume your program from this savepoint with the run command.
 The savepoint folder is optional and needs to be specified if 
 [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) isn't set.
 
+Lastly, you can optionally provide what should be the [binary format]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) of the savepoint.
+
 The path to the savepoint can be used later on to [restart the Flink job](#starting-a-job-from-a-savepoint).
 
 #### Disposing a Savepoint
@@ -182,6 +184,8 @@ records to process after the savepoint taken while stopping.
 Use the `--drain` flag if you want to terminate the job permanently.
 If you want to resume the job at a later point in time, then do not drain the pipeline because it could lead to incorrect results when the job is resumed.
 {{< /hint >}}
+
+Lastly, you can optionally provide what should be the [binary format]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) of the savepoint.
 
 #### Cancelling a Job Ungracefully
 

@@ -31,6 +31,7 @@ import org.apache.flink.cep.pattern.Pattern;
 import org.apache.flink.cep.pattern.Quantifier;
 import org.apache.flink.cep.pattern.conditions.BooleanConditions;
 import org.apache.flink.cep.pattern.conditions.IterativeCondition;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.table.api.TableConfig;
@@ -52,7 +53,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTran
 import org.apache.flink.table.planner.plan.nodes.exec.spec.MatchSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
-import org.apache.flink.table.planner.plan.nodes.exec.utils.TransformationMetadata;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.RexDefaultVisitor;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
@@ -150,7 +150,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         final EventComparator<RowData> eventComparator =
                 createEventComparator(config, inputRowType);
         final Transformation<RowData> timestampedInputTransform =
-                translateOrder(inputTransform, inputRowType);
+                translateOrder(inputTransform, inputRowType, config);
 
         final Tuple2<Pattern<RowData, RowData>, List<String>> cepPatternAndNames =
                 translatePattern(
@@ -266,7 +266,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     }
 
     private Transformation<RowData> translateOrder(
-            Transformation<RowData> inputTransform, RowType inputRowType) {
+            Transformation<RowData> inputTransform, RowType inputRowType, ReadableConfig config) {
         SortSpec.SortFieldSpec timeOrderField = matchSpec.getOrderKeys().getFieldSpec(0);
         int timeOrderFieldIdx = timeOrderField.getFieldIndex();
         LogicalType timeOrderFieldType = inputRowType.getTypeAt(timeOrderFieldIdx);
@@ -277,12 +277,13 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
             Transformation<RowData> transform =
                     ExecNodeUtil.createOneInputTransformation(
                             inputTransform,
-                            new TransformationMetadata(
-                                    createTransformationUid(TIMESTAMP_INSERTER_TRANSFORMATION),
-                                    "StreamRecordTimestampInserter",
+                            createTransformationMeta(
+                                    TIMESTAMP_INSERTER_TRANSFORMATION,
                                     String.format(
                                             "StreamRecordTimestampInserter(rowtime field: %s)",
-                                            timeOrderFieldIdx)),
+                                            timeOrderFieldIdx),
+                                    "StreamRecordTimestampInserter",
+                                    config),
                             new StreamRecordTimestampInserter(timeOrderFieldIdx, precision),
                             inputTransform.getOutputType(),
                             inputTransform.getParallelism());

@@ -21,10 +21,8 @@ package org.apache.flink.table.delegation;
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.dag.Transformation;
-import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.PlanReference;
-import org.apache.flink.table.api.internal.CompiledPlanInternal;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
@@ -93,14 +91,14 @@ public interface Planner {
     // --- Plan compilation and restore
 
     @Experimental
-    CompiledPlan loadPlan(PlanReference planReference) throws IOException;
+    InternalPlan loadPlan(PlanReference planReference) throws IOException;
 
     @Experimental
-    CompiledPlanInternal compilePlan(List<ModifyOperation> modifyOperations);
+    InternalPlan compilePlan(List<ModifyOperation> modifyOperations);
 
     @Experimental
-    List<Transformation<?>> translatePlan(CompiledPlanInternal plan);
+    List<Transformation<?>> translatePlan(InternalPlan plan);
 
     @Experimental
-    String explainPlan(CompiledPlanInternal plan, ExplainDetail... extraDetails);
+    String explainPlan(InternalPlan plan, ExplainDetail... extraDetails);
 }

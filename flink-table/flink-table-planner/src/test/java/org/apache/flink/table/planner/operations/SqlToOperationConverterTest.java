@@ -61,6 +61,7 @@ import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowModulesOperation;
+import org.apache.flink.table.operations.ShowTablesOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
 import org.apache.flink.table.operations.SourceQueryOperation;
 import org.apache.flink.table.operations.StatementSetOperation;
@@ -385,6 +386,34 @@ public class SqlToOperationConverterTest {
 
         assertThat(showModulesOperation.requireFull()).isFalse();
         assertThat(showModulesOperation.asSummaryString()).isEqualTo("SHOW MODULES");
+    }
+
+    @Test
+    public void testShowTables() {
+        final String sql = "SHOW TABLES from cat1.db1 not like 't%'";
+        Operation operation = parse(sql, SqlDialect.DEFAULT);
+        assert operation instanceof ShowTablesOperation;
+
+        ShowTablesOperation showTablesOperation = (ShowTablesOperation) operation;
+        assertThat(showTablesOperation.getCatalogName()).isEqualTo("cat1");
+        assertThat(showTablesOperation.getDatabaseName()).isEqualTo("db1");
+        assertThat(showTablesOperation.getPreposition()).isEqualTo("FROM");
+        assertThat(showTablesOperation.isUseLike()).isTrue();
+        assertThat(showTablesOperation.isNotLike()).isTrue();
+
+        final String sql2 = "SHOW TABLES in db2";
+        showTablesOperation = (ShowTablesOperation) parse(sql2, SqlDialect.DEFAULT);
+        assertThat(showTablesOperation.getCatalogName()).isEqualTo("builtin");
+        assertThat(showTablesOperation.getDatabaseName()).isEqualTo("db2");
+        assertThat(showTablesOperation.getPreposition()).isEqualTo("IN");
+        assertThat(showTablesOperation.isUseLike()).isFalse();
+        assertThat(showTablesOperation.isNotLike()).isFalse();
+
+        final String sql3 = "SHOW TABLES";
+        showTablesOperation = (ShowTablesOperation) parse(sql3, SqlDialect.DEFAULT);
+        assertThat(showTablesOperation.getCatalogName()).isNull();
+        assertThat(showTablesOperation.getDatabaseName()).isNull();
+        assertThat(showTablesOperation.getPreposition()).isNull();
     }
 
     @Test

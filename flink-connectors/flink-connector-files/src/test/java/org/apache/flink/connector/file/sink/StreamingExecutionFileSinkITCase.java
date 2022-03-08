@@ -82,7 +82,6 @@ public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
         env.configure(config, getClass().getClassLoader());
 
         env.enableCheckpointing(10, CheckpointingMode.EXACTLY_ONCE);
-        configureEnvironment(env);
 
         if (triggerFailover) {
             env.setRestartStrategy(RestartStrategies.fixedDelayRestart(1, Time.milliseconds(100)));
@@ -98,8 +97,6 @@ public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
         StreamGraph streamGraph = env.getStreamGraph();
         return streamGraph.getJobGraph();
     }
-
-    protected void configureEnvironment(StreamExecutionEnvironment env) {}
 
     // ------------------------ Streaming mode user functions ----------------------------------
 

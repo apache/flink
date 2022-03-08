@@ -125,7 +125,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
             if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_ON)) {
                 if (!conf.contains(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG)) {
                     conf.set(StateChangelogOptions.ENABLE_STATE_CHANGE_LOG, true);
-                    miniCluster.overrideRestoreModeForRandomizedChangelogStateBackend();
+                    miniCluster.overrideRestoreModeForChangelogStateBackend();
                 }
             } else if (STATE_CHANGE_LOG_CONFIG.equalsIgnoreCase(STATE_CHANGE_LOG_CONFIG_RAND)) {
                 boolean enabled =
@@ -140,7 +140,7 @@ public class TestStreamEnvironment extends StreamExecutionEnvironment {
                             Duration.ofSeconds(5),
                             Duration.ofSeconds(
                                     Long.MAX_VALUE / 1000 /* max allowed by Duration.toMillis */));
-                    miniCluster.overrideRestoreModeForRandomizedChangelogStateBackend();
+                    miniCluster.overrideRestoreModeForChangelogStateBackend();
                 }
             }
         }

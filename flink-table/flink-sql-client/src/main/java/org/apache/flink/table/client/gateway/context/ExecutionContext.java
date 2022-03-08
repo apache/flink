@@ -101,11 +101,6 @@ public class ExecutionContext {
         // checks the value of RUNTIME_MODE
         EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(flinkConfig);
 
-        if (!settings.isBlinkPlanner()) {
-            throw new TableException(
-                    "The old planner is not supported anymore. Please update to new default planner.");
-        }
-
         TableConfig tableConfig = new TableConfig();
         tableConfig.addConfiguration(flinkConfig);
 

@@ -59,24 +59,16 @@ public class CheckpointsCleaner implements Serializable, AutoCloseableAsync {
             boolean shouldDiscard,
             Runnable postCleanAction,
             Executor executor) {
-        cleanup(
-                checkpoint,
-                () -> {
-                    if (shouldDiscard) {
-                        checkpoint.discard();
-                    }
-                },
-                postCleanAction,
-                executor);
+        Checkpoint.DiscardObject discardObject =
+                shouldDiscard ? checkpoint.markAsDiscarded() : Checkpoint.NOOP_DISCARD_OBJECT;
+
+        cleanup(checkpoint, discardObject::discard, postCleanAction, executor);
     }
 
     public void cleanCheckpointOnFailedStoring(
             CompletedCheckpoint completedCheckpoint, Executor executor) {
-        cleanup(
-                completedCheckpoint,
-                completedCheckpoint::discardOnFailedStoring,
-                () -> {},
-                executor);
+        Checkpoint.DiscardObject discardObject = completedCheckpoint.markAsDiscarded();
+        cleanup(completedCheckpoint, discardObject::discard, () -> {}, executor);
     }
 
     private void cleanup(

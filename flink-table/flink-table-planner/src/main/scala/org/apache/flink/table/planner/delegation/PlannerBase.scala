@@ -55,6 +55,7 @@ import org.apache.flink.table.planner.sinks.DataStreamTableSink
 import org.apache.flink.table.planner.sinks.TableSinkUtils.{inferSinkPhysicalSchema, validateLogicalPhysicalTypesCompatible, validateTableSink}
 import org.apache.flink.table.planner.utils.InternalConfigOptions.{TABLE_QUERY_START_EPOCH_TIME, TABLE_QUERY_START_LOCAL_TIME}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.{toJava, toScala}
+import org.apache.flink.table.runtime.generated.CompileUtils
 import org.apache.flink.table.sinks.TableSink
 import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter
 
@@ -183,7 +184,7 @@ abstract class PlannerBase(
 
   override def translate(
       modifyOperations: util.List[ModifyOperation]): util.List[Transformation[_]] = {
-    validateAndOverrideConfiguration()
+    beforeTranslation()
     if (modifyOperations.isEmpty) {
       return List.empty[Transformation[_]]
     }
@@ -192,7 +193,7 @@ abstract class PlannerBase(
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
     val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
+    afterTranslation()
     transformations
   }
 
@@ -477,19 +478,8 @@ abstract class PlannerBase(
     )
   }
 
-  /**
-   * Different planner has different rules. Validate the planner and runtime mode is consistent with
-   * the configuration before planner do optimization with [[ModifyOperation]] or other works.
-   */
-  protected def validateAndOverrideConfiguration(): Unit = {
+  protected def beforeTranslation(): Unit = {
     val configuration = tableConfig.getConfiguration
-    if (!configuration.get(TableConfigOptions.TABLE_PLANNER).equals(PlannerType.BLINK)) {
-      throw new IllegalArgumentException(
-        "Mismatch between configured planner and actual planner. " +
-          "Currently, the 'table.planner' can only be set when instantiating the " +
-          "table environment. Subsequent changes are not supported. " +
-          "Please instantiate a new TableEnvironment if necessary.");
-    }
 
     // Add query start time to TableConfig, these config are used internally,
     // these configs will be used by temporal functions like CURRENT_TIMESTAMP,LOCALTIMESTAMP.
@@ -511,13 +501,14 @@ abstract class PlannerBase(
     }
   }
 
-  /**
-   * Cleanup all internal configuration after plan translation finished.
-   */
-  protected def cleanupInternalConfigurations(): Unit = {
+  protected def afterTranslation(): Unit = {
+    // Cleanup all internal configuration after plan translation finished.
     val configuration = tableConfig.getConfiguration
     configuration.removeConfig(TABLE_QUERY_START_EPOCH_TIME)
     configuration.removeConfig(TABLE_QUERY_START_LOCAL_TIME)
+
+    // Clean caches that might have filled up during optimization
+    CompileUtils.cleanUp()
   }
 
   /**
@@ -526,7 +517,7 @@ abstract class PlannerBase(
   private[flink] def getExplainGraphs(operations: util.List[Operation]
       ): (mutable.Buffer[RelNode], Seq[RelNode], ExecNodeGraph, StreamGraph) = {
     require(operations.nonEmpty, "operations should not be empty")
-    validateAndOverrideConfiguration()
+    beforeTranslation()
     val sinkRelNodes = operations.map {
       case queryOperation: QueryOperation =>
         val relNode = getRelBuilder.queryOperation(queryOperation).build()
@@ -555,7 +546,7 @@ abstract class PlannerBase(
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
 
     val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
+    afterTranslation()
 
     val streamGraph = executor.createPipeline(transformations, tableConfig.getConfiguration, null)
       .asInstanceOf[StreamGraph]

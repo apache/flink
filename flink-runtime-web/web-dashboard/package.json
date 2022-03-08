@@ -64,7 +64,7 @@
     "husky": "^7.0.4",
     "jasmine-core": "^4.0.0",
     "jasmine-spec-reporter": "^7.0.0",
-    "karma": "~6.3.7",
+    "karma": "~6.3.14",
     "karma-chrome-launcher": "~3.1.0",
     "karma-coverage": "^2.1.0",
     "karma-jasmine": "~4.0.1",

@@ -12,7 +12,7 @@
             <td><h5>execution.allow-client-job-configurations</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
-            <td>Determines whether configurations in the user program are allowed when running with Application mode. Has no effect for other deployment modes.</td>
+            <td>Determines whether configurations in the user program are allowed. Depending on your deployment mode failing the job might have different affects. Either your client that is trying to submit the job to an external cluster (session cluster deployment) throws the exception or the Job manager (application mode deployment).</td>
         </tr>
         <tr>
             <td><h5>execution.attached</h5></td>
