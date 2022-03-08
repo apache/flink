@@ -145,7 +145,7 @@ interface StateChangeUploadScheduler extends AutoCloseable {
         public long getSize() {
             long size = 0;
             for (StateChangeSet set : changeSets) {
-                size = set.getSize();
+                size += set.getSize();
             }
             return size;
         }
