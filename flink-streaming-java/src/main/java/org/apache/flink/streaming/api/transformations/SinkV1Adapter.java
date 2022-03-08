@@ -440,6 +440,10 @@ public class SinkV1Adapter<InputT, CommT, WriterStateT, GlobalCommT> implements 
         @Override
         public void commit(Collection<CommitRequest<CommT>> committables)
                 throws IOException, InterruptedException {
+            if (committables.isEmpty()) {
+                return;
+            }
+
             List<CommT> rawCommittables =
                     committables.stream()
                             .map(CommitRequest::getCommittable)
