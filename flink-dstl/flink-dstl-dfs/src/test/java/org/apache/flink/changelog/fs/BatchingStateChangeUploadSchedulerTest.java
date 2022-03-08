@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -298,7 +299,13 @@ public class BatchingStateChangeUploadSchedulerTest {
                 new CompletableFuture<>();
         TestScenario test =
                 (uploader, probe) -> {
-                    List<StateChangeSet> changes1 = getChanges(sizeLimit + 1);
+                    List<StateChangeSet> changes1 =
+                            // explicitly create multiple StateChangeSet
+                            // to validate size computation in UploadTask.getSize
+                            Stream.concat(
+                                            getChanges(sizeLimit / 2).stream(),
+                                            getChanges(sizeLimit / 2).stream())
+                                    .collect(Collectors.toList());
                     assertTrue(uploader.getAvailabilityProvider().isAvailable());
                     assertTrue(uploader.getAvailabilityProvider().isApproximatelyAvailable());
                     upload(uploader, changes1);
