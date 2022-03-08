@@ -33,15 +33,17 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.RecordOrEventCollectingResultPartitionWriter;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.source.event.AddSplitEvent;
@@ -72,7 +74,6 @@ import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_TERMINATE;
 import static org.apache.flink.streaming.util.TestHarnessUtil.assertOutputEquals;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -123,13 +124,13 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
             final CheckpointOptions checkpointOptions =
                     new CheckpointOptions(
-                            CheckpointType.SAVEPOINT_TERMINATE,
+                            SavepointType.terminate(SavepointFormatType.CANONICAL),
                             CheckpointStorageLocationReference.getDefault());
             triggerCheckpointWaitForFinish(testHarness, checkpointId, checkpointOptions);
 
             Queue<Object> expectedOutput = new LinkedList<>();
             expectedOutput.add(Watermark.MAX_WATERMARK);
-            expectedOutput.add(EndOfData.INSTANCE);
+            expectedOutput.add(new EndOfData(StopMode.DRAIN));
             expectedOutput.add(
                     new CheckpointBarrier(checkpointId, checkpointId, checkpointOptions));
 
@@ -145,7 +146,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
             Queue<Object> expectedOutput = new LinkedList<>();
             expectedOutput.add(Watermark.MAX_WATERMARK);
-            expectedOutput.add(EndOfData.INSTANCE);
+            expectedOutput.add(new EndOfData(StopMode.DRAIN));
             assertThat(testHarness.getOutput().toArray(), equalTo(expectedOutput.toArray()));
         }
     }
@@ -203,8 +204,8 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
                                         output,
                                         new StreamElementSerializer<>(IntSerializer.INSTANCE)) {
                                     @Override
-                                    public void notifyEndOfData() throws IOException {
-                                        broadcastEvent(EndOfData.INSTANCE, false);
+                                    public void notifyEndOfData(StopMode mode) throws IOException {
+                                        broadcastEvent(new EndOfData(mode), false);
                                     }
                                 })
                         .setupOperatorChain(sourceOperatorFactory)
@@ -214,7 +215,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
             testHarness.getStreamTask().invoke();
             testHarness.processAll();
-            assertThat(output, contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
+            assertThat(output, contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN)));
 
             LifeCycleMonitorSourceReader sourceReader =
                     (LifeCycleMonitorSourceReader)
@@ -262,7 +263,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
                     testHarness.streamTask.triggerCheckpointAsync(
                             new CheckpointMetaData(2, 2),
                             CheckpointOptions.alignedNoTimeout(
-                                    SAVEPOINT_TERMINATE,
+                                    SavepointType.terminate(SavepointFormatType.CANONICAL),
                                     CheckpointStorageLocationReference.getDefault()));
             checkpointCompleted.whenComplete(
                     (ignored, exception) ->

@@ -92,7 +92,7 @@ public class StickyAllocationAndLocalRecoveryTestJob {
                         Integer.MAX_VALUE, pt.getInt("restartDelay", 0)));
         if (pt.getBoolean("externalizedCheckpoints", false)) {
             env.getCheckpointConfig()
-                    .enableExternalizedCheckpoints(
+                    .setExternalizedCheckpointCleanup(
                             CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         }
 

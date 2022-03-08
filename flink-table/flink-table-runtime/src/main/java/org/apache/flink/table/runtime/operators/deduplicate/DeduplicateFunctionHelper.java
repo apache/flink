@@ -134,7 +134,7 @@ public class DeduplicateFunctionHelper {
             // DELETE or UPDATER_BEFORE
             if (preRow != null) {
                 // always set to DELETE because this row has been removed
-                // even the the input is UPDATE_BEFORE, there may no UPDATE_AFTER after it.
+                // even the input is UPDATE_BEFORE, there may no UPDATE_AFTER after it.
                 preRow.setRowKind(RowKind.DELETE);
                 // output the preRow instead of currentRow,
                 // because preRow always contains the full content.

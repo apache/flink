@@ -102,7 +102,7 @@ LogicalProject(f0=[$0], f1=[$1], f2=[$2], f00=[$4], f10=[$5], f20=[$6])
 Calc(select=[f0, f1, f2, f00, f10, f20])
 +- Join(joinType=[LeftOuterJoin], where=[=($f3, f00)], select=[f0, f1, f2, $f3, f00, f10, f20], leftInputSpec=[NoUniqueKey], rightInputSpec=[NoUniqueKey])
    :- Exchange(distribution=[hash[$f3]])
-   :  +- Calc(select=[f0, f1, f2, COALESCE(f0, _UTF-16LE'-') AS $f3])
+   :  +- Calc(select=[f0, f1, f2, COALESCE(f0, '-') AS $f3])
    :     +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
    +- Exchange(distribution=[hash[f0]])
       +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
@@ -122,7 +122,7 @@ LogicalProject(f0=[$0], f1=[$1], f2=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[f0, f1, f2], where=[=(COALESCE(f0, f1), _UTF-16LE'abc':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+Calc(select=[f0, f1, f2], where=[=(COALESCE(f0, f1), 'abc')])
 +- TableSourceScan(table=[[default_catalog, default_database, T]], fields=[f0, f1, f2])
 ]]>
     </Resource>

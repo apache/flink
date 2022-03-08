@@ -25,8 +25,8 @@ import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.io.disk.InputViewIterator;
+import org.apache.flink.runtime.state.CheckpointStateOutputStream;
 import org.apache.flink.runtime.state.CheckpointStorageWorkerView;
-import org.apache.flink.runtime.state.CheckpointStreamFactory;
 import org.apache.flink.runtime.state.JavaSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -69,7 +69,7 @@ public abstract class GenericWriteAheadSink<IN> extends AbstractStreamOperator<I
     private final CheckpointCommitter committer;
     protected final TypeSerializer<IN> serializer;
 
-    private transient CheckpointStreamFactory.CheckpointStateOutputStream out;
+    private transient CheckpointStateOutputStream out;
     private transient CheckpointStorageWorkerView checkpointStorage;
 
     private transient ListState<PendingCheckpoint> checkpointedState;

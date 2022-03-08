@@ -357,8 +357,10 @@ string:
     description: Returns the reversed string. Returns NULL if string is NULL.
   - sql: SPLIT_INDEX(string1, string2, integer1)
     description: Splits string1 by the delimiter string2, returns the integerth (zero-based) string of the split strings. Returns NULL if integer is negative. Returns NULL if any of arguments is NULL.
-  - sql: STR_TO_MAP(string1[, string2, string3]])
-    description: Returns a map after splitting the string1 into key/value pairs using delimiters. string2 is the pair delimiter, default is ','. And string3 is the key-value delimiter, default is '='.
+  - sql: STR_TO_MAP(string1[, string2, string3])
+    description: |
+      Returns a map after splitting the string1 into key/value pairs using delimiters. string2 is the pair delimiter, default is ','. And string3 is the key-value delimiter, default is '='.
+      Both pair delimiter and key-value delimiter are treated as regular expressions. So special characters (e.g. `<([{\^-=$!|]})?*+.>`) need to be properly escaped before using as a delimiter literally.
   - sql: SUBSTR(string[, integer1[, integer2]])
     description: Returns a substring of string starting from position integer1 with length integer2 (to the end by default).
 
@@ -559,7 +561,10 @@ conditional:
 conversion:
   - sql: CAST(value AS type)
     table: ANY.cast(TYPE)
-    description: Returns a new value being cast to type type. E.g., CAST('42' AS INT) returns 42; CAST(NULL AS VARCHAR) returns NULL of type VARCHAR.
+    description: Returns a new value being cast to type type. A CAST error throws an exception and fails the job. When performing a cast operation that may fail, like STRING to INT, one should rather use TRY_CAST, in order to handle errors. If "table.exec.legacy-cast-behaviour" is enabled, CAST behaves like TRY_CAST. E.g., CAST('42' AS INT) returns 42; CAST(NULL AS STRING) returns NULL of type STRING; CAST('non-number' AS INT) throws an exception and fails the job.
+  - sql: TRY_CAST(value AS type)
+    table: ANY.tryCast(TYPE)
+    description: Like CAST, but in case of error, returns NULL rather than failing the job. E.g., TRY_CAST('42' AS INT) returns 42; TRY_CAST(NULL AS STRING) returns NULL of type STRING; TRY_CAST('non-number' AS INT) returns NULL of type INT; COALESCE(TRY_CAST('non-number' AS INT), 0) returns 0 of type INT.
   - sql: |
      TYPEOF(input)
      TYPEOF(input, force_serializable)
@@ -895,7 +900,7 @@ hashfunctions:
     description: Returns the MD5 hash of string as a string of 32 hexadecimal digits; returns NULL if string is NULL.
   - sql: SHA1(string)
     table: STRING.sha1()
-    description: Returns the SHA-224 hash of string as a string of 56 hexadecimal digits; returns NULL if string is NULL.
+    description: Returns the SHA-1 hash of string as a string of 40 hexadecimal digits; returns NULL if string is NULL.
   - sql: SHA224(string)
     table: STRING.sha224()
     description: Returns the SHA-224 hash of string as a string of 56 hexadecimal digits; returns NULL if string is NULL.

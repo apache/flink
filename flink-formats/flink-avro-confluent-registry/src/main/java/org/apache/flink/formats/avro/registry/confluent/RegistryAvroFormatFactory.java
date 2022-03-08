@@ -31,6 +31,7 @@ import org.apache.flink.formats.avro.RowDataToAvroConverters;
 import org.apache.flink.formats.avro.typeutils.AvroSchemaConverter;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
@@ -51,6 +52,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_CREDENTIALS_SOURCE;
 import static org.apache.flink.formats.avro.registry.confluent.AvroConfluentFormatOptions.BASIC_AUTH_USER_INFO;
@@ -88,7 +91,7 @@ public class RegistryAvroFormatFactory
                     DynamicTableSource.Context context,
                     DataType producedDataType,
                     int[][] projections) {
-                producedDataType = DataType.projectFields(producedDataType, projections);
+                producedDataType = Projection.of(projections).project(producedDataType);
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
                 final TypeInformation<RowData> rowDataTypeInfo =
                         context.createTypeInformation(producedDataType);
@@ -172,6 +175,23 @@ public class RegistryAvroFormatFactory
         options.add(BEARER_AUTH_CREDENTIALS_SOURCE);
         options.add(BEARER_AUTH_TOKEN);
         return options;
+    }
+
+    @Override
+    public Set<ConfigOption<?>> forwardOptions() {
+        return Stream.of(
+                        URL,
+                        SUBJECT,
+                        PROPERTIES,
+                        SSL_KEYSTORE_LOCATION,
+                        SSL_KEYSTORE_PASSWORD,
+                        SSL_TRUSTSTORE_LOCATION,
+                        SSL_TRUSTSTORE_PASSWORD,
+                        BASIC_AUTH_CREDENTIALS_SOURCE,
+                        BASIC_AUTH_USER_INFO,
+                        BEARER_AUTH_CREDENTIALS_SOURCE,
+                        BEARER_AUTH_TOKEN)
+                .collect(Collectors.toSet());
     }
 
     public static @Nullable Map<String, String> buildOptionalPropertiesMap(

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.metrics.groups.TaskIOMetricGroup;
 
@@ -61,7 +62,7 @@ public class MockResultPartitionWriter implements ResultPartitionWriter {
     public void broadcastEvent(AbstractEvent event, boolean isPriorityEvent) throws IOException {}
 
     @Override
-    public void notifyEndOfData() throws IOException {}
+    public void notifyEndOfData(StopMode mode) throws IOException {}
 
     @Override
     public CompletableFuture<Void> getAllDataProcessedFuture() {

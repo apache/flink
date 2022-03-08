@@ -169,6 +169,11 @@ This file is based on the checkstyle file of Apache Beam.
 			<property name="illegalPattern" value="true"/>
 			<property name="message" value="Use com.fasterxml.jackson instead of jettison."/>
 		</module>
+		<module name="Regexp">
+			<property name="format" value="org\.testcontainers\.shaded"/>
+			<property name="illegalPattern" value="true"/>
+			<property name="message" value="Use utilities from appropriate library instead of org.testcontainers."/>
+		</module>
 
 		<!-- Enforce Java-style array declarations -->
 		<module name="ArrayTypeStyle"/>

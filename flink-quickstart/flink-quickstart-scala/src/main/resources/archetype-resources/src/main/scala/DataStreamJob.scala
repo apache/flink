@@ -42,7 +42,7 @@ object DataStreamJob {
      * Here, you can start creating your execution plan for Flink.
      *
      * Start with getting some data from the environment, like
-     * 	env.fromSequece(1, 10);
+     * 	env.fromSequence(1, 10);
      *
      * then, transform the resulting DataStream<Long> using operations
      * like
@@ -58,7 +58,7 @@ object DataStreamJob {
      *
      */
 
-    // Execute program, begining computation.
+    // Execute program, beginning computation.
     env.execute("Flink Scala API Skeleton")
   }
 }

@@ -31,7 +31,7 @@ under the License.
 本页面列出了目前 Flink SQL 所支持的所有语句：
 
 - [SELECT (Queries)]({{< ref "docs/dev/table/sql/queries/overview" >}})
-- [CREATE TABLE, DATABASE, VIEW, FUNCTION]({{< ref "docs/dev/table/sql/create" >}})
+- [CREATE TABLE, CATALOG, DATABASE, VIEW, FUNCTION]({{< ref "docs/dev/table/sql/create" >}})
 - [DROP TABLE, DATABASE, VIEW, FUNCTION]({{< ref "docs/dev/table/sql/drop" >}})
 - [ALTER TABLE, DATABASE, FUNCTION]({{< ref "docs/dev/table/sql/alter" >}})
 - [INSERT]({{< ref "docs/dev/table/sql/insert" >}})

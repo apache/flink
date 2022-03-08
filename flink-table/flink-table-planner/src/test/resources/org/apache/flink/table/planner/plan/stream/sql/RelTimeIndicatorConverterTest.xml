@@ -55,7 +55,7 @@ LogicalProject(EXPR$0=[$1])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[long], select=[long, MIN(rowtime) AS EXPR$0])
    +- Exchange(distribution=[hash[long]])
-      +- Calc(select=[long, CAST(rowtime) AS rowtime])
+      +- Calc(select=[long, CAST(rowtime AS TIMESTAMP(3)) AS rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
@@ -73,7 +73,7 @@ LogicalProject(rowtime=[$0])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[rowtime], where=[(CAST(rowtime) > 1990-12-02 12:11:11:TIMESTAMP(3))])
+Calc(select=[rowtime], where=[(CAST(rowtime AS TIMESTAMP(3)) > 1990-12-02 12:11:11)])
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
@@ -117,7 +117,7 @@ LogicalProject(EXPR$0=[$1])
 Calc(select=[EXPR$0])
 +- GroupAggregate(groupBy=[rowtime], select=[rowtime, COUNT(long) AS EXPR$0])
    +- Exchange(distribution=[hash[rowtime]])
-      +- Calc(select=[CAST(rowtime) AS rowtime, long])
+      +- Calc(select=[CAST(rowtime AS TIMESTAMP(3)) AS rowtime, long])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>
@@ -140,7 +140,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fie
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[long, CAST(EXPR$1) AS sum])(reuse_id=[1])
+Calc(select=[long, CAST(EXPR$1 AS BIGINT) AS sum])(reuse_id=[1])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, proctime, 10000)], select=[long, SUM(int) AS EXPR$1])
    +- Exchange(distribution=[hash[long]])
       +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[long, int, proctime])
@@ -221,7 +221,7 @@ LogicalProject(rowtime=[FLOOR($0, FLAG(DAY))])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[FLOOR(CAST(rowtime), FLAG(DAY)) AS rowtime], where=[(long > 0)])
+Calc(select=[FLOOR(CAST(rowtime AS TIMESTAMP(3)), DAY) AS rowtime], where=[(long > 0)])
 +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>
@@ -244,7 +244,7 @@ LogicalProject(rowtime=[$0], proctime=[$3], s=[$4])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[rowtime, PROCTIME_MATERIALIZE(proctime) AS proctime, f0 AS s])
-+- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3), PROCTIME_MATERIALIZE($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime),PROCTIME_MATERIALIZE($cor0.proctime),_UTF-16LE''))], select=[rowtime,long,int,proctime,f0], rowType=[RecordType(TIMESTAMP(3) *ROWTIME* rowtime, BIGINT long, INTEGER int, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) f0)], joinType=[INNER])
++- Correlate(invocation=[tableFunc(CAST($cor0.rowtime):TIMESTAMP(3), PROCTIME_MATERIALIZE($cor0.proctime), _UTF-16LE'')], correlate=[table(tableFunc(CAST($cor0.rowtime AS TIMESTAMP(3)),PROCTIME_MATERIALIZE($cor0.proctime),''))], select=[rowtime,long,int,proctime,f0], rowType=[RecordType(TIMESTAMP(3) *ROWTIME* rowtime, BIGINT long, INTEGER int, TIMESTAMP_LTZ(3) *PROCTIME* proctime, VARCHAR(2147483647) f0)], joinType=[INNER])
    +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[rowtime, long, int, proctime])
 ]]>
     </Resource>
@@ -269,7 +269,7 @@ LogicalProject(EXPR$0=[$2], long=[$0])
 Calc(select=[EXPR$0, long])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 100)], select=[long, MIN(rowtime) AS EXPR$0])
    +- Exchange(distribution=[hash[long]])
-      +- Calc(select=[CAST(rowtime) AS rowtime, long, int])
+      +- Calc(select=[CAST(rowtime AS TIMESTAMP(3)) AS rowtime, long, int])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>
@@ -342,10 +342,10 @@ LogicalProject(EXPR$0=[$2], long=[$0])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[EXPR$0, long], where=[(EXTRACT(FLAG(QUARTER), w$end) = 1:BIGINT)])
+Calc(select=[EXPR$0, long], where=[(EXTRACT(QUARTER, w$end) = 1)])
 +- GroupWindowAggregate(groupBy=[long], window=[TumblingGroupWindow('w$, rowtime, 1000)], properties=[w$start, w$end, w$rowtime, w$proctime], select=[long, MIN(rowtime) AS EXPR$0, start('w$) AS w$start, end('w$) AS w$end, rowtime('w$) AS w$rowtime, proctime('w$) AS w$proctime])
    +- Exchange(distribution=[hash[long]])
-      +- Calc(select=[CAST(rowtime) AS rowtime, long, int])
+      +- Calc(select=[CAST(rowtime AS TIMESTAMP(3)) AS rowtime, long, int])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable1]], fields=[rowtime, long, int])
 ]]>
     </Resource>

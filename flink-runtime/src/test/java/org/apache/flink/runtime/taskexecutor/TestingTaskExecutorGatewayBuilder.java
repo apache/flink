@@ -36,7 +36,7 @@ import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.TaskThreadInfoResponse;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
-import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.QuadFunction;

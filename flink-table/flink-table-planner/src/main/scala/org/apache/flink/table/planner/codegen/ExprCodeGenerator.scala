@@ -18,8 +18,13 @@
 
 package org.apache.flink.table.planner.codegen
 
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
+import org.apache.calcite.sql.{SqlKind, SqlOperator}
+import org.apache.calcite.util.{Sarg, TimestampString}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
@@ -42,17 +47,13 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTem
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
-import org.apache.calcite.sql.{SqlKind, SqlOperator}
-import org.apache.calcite.util.{Sarg, TimestampString}
 
 import scala.collection.JavaConversions._
 
 /**
-  * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
-  * It can also generate type conversion codes for the result converter.
-  */
+ * This code generator is mainly responsible for generating codes for a given calcite [[RexNode]].
+ * It can also generate type conversion codes for the result converter.
+ */
 class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   extends RexVisitor[GeneratedExpression] {
 
@@ -418,15 +419,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       case _ =>
         literal.getValue3
     }
-    // Make sure to convert avatica time types to flink internal types
-    val convertedValue = value match {
-      case tu: org.apache.calcite.avatica.util.TimeUnit =>
-        org.apache.flink.table.utils.DateTimeUtils.TimeUnit.valueOf(tu.name())
-      case tur: org.apache.calcite.avatica.util.TimeUnitRange =>
-        org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange.valueOf(tur.name())
-      case _ => value
-    }
-    generateLiteral(ctx, resultType, convertedValue)
+    generateLiteral(ctx, resultType, value)
   }
 
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = {
@@ -710,8 +703,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       // casting
       case CAST =>
-        val operand = operands.head
-        generateCast(ctx, operand, resultType)
+        generateCast(ctx, operands.head, resultType, nullOnFailure = ctx.tableConfig
+          .getConfiguration.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR).isEnabled)
+
+      case TRY_CAST =>
+        generateCast(ctx, operands.head, resultType, nullOnFailure = true)
 
       // Reinterpret
       case REINTERPRET =>
@@ -816,6 +812,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
 
       case bsf: BridgingSqlFunction =>
         bsf.getDefinition match {
+
           case BuiltInFunctionDefinitions.CURRENT_WATERMARK =>
             generateWatermark(ctx, contextTerm, resultType)
 
@@ -838,6 +835,11 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
             val left = operands.head
             val right = operands(1)
             generateBinaryArithmeticOperator(ctx, "+", resultType, left, right)
+
+          case BuiltInFunctionDefinitions.AGG_DECIMAL_MINUS =>
+            val left = operands.head
+            val right = operands(1)
+            generateBinaryArithmeticOperator(ctx, "-", resultType, left, right)
 
           case _ =>
             new BridgingSqlFunctionCallGen(call).generate(ctx, operands, resultType)

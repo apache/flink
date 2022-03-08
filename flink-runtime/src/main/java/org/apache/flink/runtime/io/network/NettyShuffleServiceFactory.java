@@ -108,13 +108,41 @@ public class NettyShuffleServiceFactory
             ResultPartitionManager resultPartitionManager,
             MetricGroup metricGroup,
             Executor ioExecutor) {
+        NettyConfig nettyConfig = config.nettyConfig();
+        ConnectionManager connectionManager =
+                nettyConfig != null
+                        ? new NettyConnectionManager(
+                                resultPartitionManager,
+                                taskEventPublisher,
+                                nettyConfig,
+                                config.getMaxNumberOfConnections(),
+                                config.isConnectionReuseEnabled())
+                        : new LocalConnectionManager();
+        return createNettyShuffleEnvironment(
+                config,
+                taskExecutorResourceId,
+                taskEventPublisher,
+                resultPartitionManager,
+                connectionManager,
+                metricGroup,
+                ioExecutor);
+    }
+
+    @VisibleForTesting
+    public static NettyShuffleEnvironment createNettyShuffleEnvironment(
+            NettyShuffleEnvironmentConfiguration config,
+            ResourceID taskExecutorResourceId,
+            TaskEventPublisher taskEventPublisher,
+            ResultPartitionManager resultPartitionManager,
+            ConnectionManager connectionManager,
+            MetricGroup metricGroup,
+            Executor ioExecutor) {
         checkNotNull(config);
         checkNotNull(taskExecutorResourceId);
         checkNotNull(taskEventPublisher);
         checkNotNull(resultPartitionManager);
         checkNotNull(metricGroup);
-
-        NettyConfig nettyConfig = config.nettyConfig();
+        checkNotNull(connectionManager);
 
         FileChannelManager fileChannelManager =
                 new FileChannelManagerImpl(config.getTempDirs(), DIR_NAME_PREFIX);
@@ -126,12 +154,6 @@ public class NettyShuffleServiceFactory
                             .map(File::getAbsolutePath)
                             .collect(Collectors.joining("\n\t")));
         }
-
-        ConnectionManager connectionManager =
-                nettyConfig != null
-                        ? new NettyConnectionManager(
-                                resultPartitionManager, taskEventPublisher, nettyConfig)
-                        : new LocalConnectionManager();
 
         NetworkBufferPool networkBufferPool =
                 new NetworkBufferPool(

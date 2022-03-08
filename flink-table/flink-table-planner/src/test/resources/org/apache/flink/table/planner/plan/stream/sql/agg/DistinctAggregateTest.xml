@@ -39,7 +39,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2], EXPR$2=[SUM
       <![CDATA[
 GroupAggregate(groupBy=[a], select=[a, COUNT(DISTINCT b) FILTER $f2 AS EXPR$1, SUM(b) FILTER $f3 AS EXPR$2, SUM(b) FILTER $f2 AS EXPR$3])
 +- Exchange(distribution=[hash[a]])
-   +- Calc(select=[a, b, (b <> 2:BIGINT) IS TRUE AS $f2, (b <> 5:BIGINT) IS TRUE AS $f3])
+   +- Calc(select=[a, b, (b <> 2) IS TRUE AS $f2, (b <> 5) IS TRUE AS $f3])
       +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -69,7 +69,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1) FILTER $2], EXPR$2=[SUM
 GlobalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 count$0) AS EXPR$1, SUM(sum$1) AS EXPR$2, SUM(sum$2) AS EXPR$3])
 +- Exchange(distribution=[hash[a]])
    +- LocalGroupAggregate(groupBy=[a], select=[a, COUNT(distinct$0 b) FILTER $f2 AS count$0, SUM(b) FILTER $f3 AS sum$1, SUM(b) FILTER $f2 AS sum$2, DISTINCT(b) AS distinct$0])
-      +- Calc(select=[a, b, (b <> 2:BIGINT) IS TRUE AS $f2, (b <> 5:BIGINT) IS TRUE AS $f3])
+      +- Calc(select=[a, b, (b <> 2) IS TRUE AS $f2, (b <> 5) IS TRUE AS $f3])
          +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
             +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -100,7 +100,7 @@ GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($
 +- Exchange(distribution=[hash[a]])
    +- GroupAggregate(groupBy=[a, $f4], partialFinalType=[PARTIAL], select=[a, $f4, COUNT(DISTINCT b) FILTER $f2 AS $f2, SUM(b) FILTER $f3 AS $f3, SUM(b) FILTER $f2 AS $f4_0])
       +- Exchange(distribution=[hash[a, $f4]])
-         +- Calc(select=[a, b, (b <> 2:BIGINT) IS TRUE AS $f2, (b <> 5:BIGINT) IS TRUE AS $f3, MOD(HASH_CODE(b), 1024) AS $f4])
+         +- Calc(select=[a, b, (b <> 2) IS TRUE AS $f2, (b <> 5) IS TRUE AS $f3, MOD(HASH_CODE(b), 1024) AS $f4])
             +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -133,7 +133,7 @@ GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RET
       +- GlobalGroupAggregate(groupBy=[a, $f4], partialFinalType=[PARTIAL], select=[a, $f4, COUNT(distinct$0 count$0) AS $f2, SUM(sum$1) AS $f3, SUM(sum$2) AS $f4_0])
          +- Exchange(distribution=[hash[a, $f4]])
             +- LocalGroupAggregate(groupBy=[a, $f4], partialFinalType=[PARTIAL], select=[a, $f4, COUNT(distinct$0 b) FILTER $f2 AS count$0, SUM(b) FILTER $f3 AS sum$1, SUM(b) FILTER $f2 AS sum$2, DISTINCT(b) AS distinct$0])
-               +- Calc(select=[a, b, (b <> 2:BIGINT) IS TRUE AS $f2, (b <> 5:BIGINT) IS TRUE AS $f3, MOD(HASH_CODE(b), 1024) AS $f4])
+               +- Calc(select=[a, b, (b <> 2) IS TRUE AS $f2, (b <> 5) IS TRUE AS $f3, MOD(HASH_CODE(b), 1024) AS $f4])
                   +- MiniBatchAssigner(interval=[1000ms], mode=[ProcTime])
                      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -954,7 +954,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)], EXP
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, $f1, $f2, IF(($f4 = 0:BIGINT), null:BIGINT, ($f3 / $f4)) AS $f3])
+Calc(select=[a, $f1, $f2, IF(($f4 = 0), null:BIGINT, ($f3 / $f4)) AS $f3])
 +- GroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2_0) AS $f1, SUM_RETRACT($f3) AS $f2, $SUM0_RETRACT($f4) AS $f3, $SUM0_RETRACT($f5) AS $f4])
    +- Exchange(distribution=[hash[a]])
       +- GroupAggregate(groupBy=[a, $f2], partialFinalType=[PARTIAL], select=[a, $f2, COUNT(DISTINCT b) AS $f2_0, SUM(b) AS $f3, $SUM0(b) AS $f4, COUNT(b) AS $f5])
@@ -978,7 +978,7 @@ LogicalAggregate(group=[{0}], EXPR$1=[COUNT(DISTINCT $1)], EXPR$2=[SUM($1)], EXP
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, $f1, $f2, IF(($f4 = 0:BIGINT), null:BIGINT, ($f3 / $f4)) AS $f3])
+Calc(select=[a, $f1, $f2, IF(($f4 = 0), null:BIGINT, ($f3 / $f4)) AS $f3])
 +- GlobalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT(sum$0) AS $f1, SUM_RETRACT((sum$1, count$2)) AS $f2, $SUM0_RETRACT(sum$3) AS $f3, $SUM0_RETRACT(sum$4) AS $f4])
    +- Exchange(distribution=[hash[a]])
       +- LocalGroupAggregate(groupBy=[a], partialFinalType=[FINAL], select=[a, $SUM0_RETRACT($f2_0) AS sum$0, SUM_RETRACT($f3) AS (sum$1, count$2), $SUM0_RETRACT($f4) AS sum$3, $SUM0_RETRACT($f5) AS sum$4, COUNT_RETRACT(*) AS count1$5])

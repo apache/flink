@@ -34,7 +34,7 @@ import java.util.Optional;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-/** Describe the name and the the different resource components of a slot sharing group. */
+/** Describe the name and the different resource components of a slot sharing group. */
 @PublicEvolving
 public class SlotSharingGroup implements Serializable {
     private static final long serialVersionUID = 1L;

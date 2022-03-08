@@ -254,7 +254,7 @@ We provide a first-party plugin for GPU resources. The plugin leverages a discov
 be accessed from the resource *information* via the property "index". We provide a default discovery script that can be used to discover
 NVIDIA GPUs. You can also provide your custom script.
 
-We provide [an example](https://github.com/apache/flink/blob/{{ site.github_branch }}/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/gpu/MatrixVectorMul.java)
+We provide {{< gh_link file="/flink-examples/flink-examples-streaming/src/main/java/org/apache/flink/streaming/examples/gpu/MatrixVectorMul.java" name="an example" >}}
 which shows how to use the GPUs to do matrix-vector multiplication in Flink.
 
 {{< hint info >}}

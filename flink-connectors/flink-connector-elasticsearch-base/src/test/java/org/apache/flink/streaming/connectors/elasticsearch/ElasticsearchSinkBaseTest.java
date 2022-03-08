@@ -667,6 +667,12 @@ public class ElasticsearchSinkBaseTest {
         }
 
         @Override
+        public void configureBulkProcessorFlushInterval(
+                BulkProcessor.Builder builder, long flushIntervalMillis) {
+            // no need for this in the test cases here
+        }
+
+        @Override
         public void configureBulkProcessorBackoff(
                 BulkProcessor.Builder builder,
                 @Nullable ElasticsearchSinkBase.BulkFlushBackoffPolicy flushBackoffPolicy) {

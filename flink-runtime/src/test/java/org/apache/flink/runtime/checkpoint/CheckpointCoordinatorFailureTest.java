@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.metrics.groups.UnregisteredMetricsGroup;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTestingUtils.CheckpointCoordinatorBuilder;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.checkpoint.channel.ResultSubpartitionInfo;
@@ -34,20 +35,22 @@ import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.ResultSubpartitionStateHandle;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.Executors;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static java.util.Collections.emptyList;
+import static org.apache.flink.runtime.checkpoint.CheckpointCoordinatorTest.assertStatsMetrics;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -61,8 +64,6 @@ import static org.mockito.Mockito.when;
 
 /** Tests for failure of checkpoint coordinator. */
 public class CheckpointCoordinatorFailureTest extends TestLogger {
-
-    @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
 
     /**
      * Tests that a failure while storing a completed checkpoint in the completed checkpoint store
@@ -205,6 +206,8 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
         final CompletedCheckpointStore completedCheckpointStore =
                 new FailingCompletedCheckpointStore(failure);
 
+        CheckpointStatsTracker statsTracker =
+                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
         final AtomicInteger cleanupCallCount = new AtomicInteger(0);
         final CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
@@ -227,14 +230,27 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
                                 })
                         .setCompletedCheckpointStore(completedCheckpointStore)
                         .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointStatsTracker(statsTracker)
                         .build();
-        checkpointCoordinator.triggerSavepoint(tmpFolder.newFolder().getAbsolutePath());
+        checkpointCoordinator.triggerCheckpoint(false);
         manuallyTriggeredScheduledExecutor.triggerAll();
-
+        CheckpointMetrics expectedReportedMetrics =
+                new CheckpointMetricsBuilder()
+                        .setTotalBytesPersisted(18)
+                        .setBytesPersistedOfThisCheckpoint(18)
+                        .setBytesProcessedDuringAlignment(19)
+                        .setAsyncDurationMillis(20)
+                        .setAlignmentDurationNanos(123 * 1_000_000)
+                        .setCheckpointStartDelayNanos(567 * 1_000_000)
+                        .build();
         try {
             checkpointCoordinator.receiveAcknowledgeMessage(
                     new AcknowledgeCheckpoint(
-                            graph.getJobID(), attemptId, checkpointIDCounter.getLast()),
+                            graph.getJobID(),
+                            attemptId,
+                            checkpointIDCounter.getLast(),
+                            expectedReportedMetrics,
+                            new TaskStateSnapshot()),
                     "unknown location");
             fail("CheckpointException should have been thrown.");
         } catch (CheckpointException e) {
@@ -243,19 +259,33 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
                     is(CheckpointFailureReason.FINALIZE_CHECKPOINT_FAILURE));
         }
 
+        AbstractCheckpointStats actualStats =
+                statsTracker
+                        .createSnapshot()
+                        .getHistory()
+                        .getCheckpointById(checkpointIDCounter.getLast());
+
+        assertEquals(checkpointIDCounter.getLast(), actualStats.getCheckpointId());
+        assertEquals(CheckpointStatsStatus.FAILED, actualStats.getStatus());
+        assertStatsMetrics(vertex.getJobvertexId(), 0, expectedReportedMetrics, actualStats);
+
         assertThat(cleanupCallCount.get(), is(expectedCleanupCalls));
     }
 
-    private static final class FailingCompletedCheckpointStore implements CompletedCheckpointStore {
+    private static final class FailingCompletedCheckpointStore
+            extends AbstractCompleteCheckpointStore {
 
         private final Exception addCheckpointFailure;
 
         public FailingCompletedCheckpointStore(Exception addCheckpointFailure) {
+            super(
+                    SharedStateRegistry.DEFAULT_FACTORY.create(
+                            Executors.directExecutor(), emptyList()));
             this.addCheckpointFailure = addCheckpointFailure;
         }
 
         @Override
-        public void addCheckpoint(
+        public CompletedCheckpoint addCheckpointAndSubsumeOldestOne(
                 CompletedCheckpoint checkpoint,
                 CheckpointsCleaner checkpointsCleaner,
                 Runnable postCleanup)
@@ -276,7 +306,7 @@ public class CheckpointCoordinatorFailureTest extends TestLogger {
 
         @Override
         public List<CompletedCheckpoint> getAllCheckpoints() throws Exception {
-            throw new UnsupportedOperationException("Not implemented.");
+            return Collections.emptyList();
         }
 
         @Override

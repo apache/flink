@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
+import org.apache.flink.table.delegation.StreamExecutorFactory;
 
 import java.util.Collections;
 import java.util.Set;
@@ -40,13 +41,14 @@ import java.util.Set;
  * #create(StreamExecutionEnvironment)}.
  */
 @Internal
-public final class DefaultExecutorFactory implements ExecutorFactory {
+public final class DefaultExecutorFactory implements StreamExecutorFactory {
 
     @Override
     public Executor create(Configuration configuration) {
         return create(StreamExecutionEnvironment.getExecutionEnvironment(configuration));
     }
 
+    @Override
     public Executor create(StreamExecutionEnvironment executionEnvironment) {
         return new DefaultExecutor(executionEnvironment);
     }

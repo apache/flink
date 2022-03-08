@@ -28,13 +28,10 @@ import org.apache.flink.streaming.connectors.kafka.internals.KeyedSerializationS
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.serialization.KeyedSerializationSchema;
-import org.apache.flink.testutils.junit.RetryOnFailure;
-import org.apache.flink.testutils.junit.RetryRule;
 
-import kafka.server.KafkaServer;
 import org.apache.kafka.common.errors.ProducerFencedException;
 import org.junit.Before;
-import org.junit.Rule;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -62,11 +59,7 @@ import static org.junit.Assert.fail;
  * <p>Do not run this class in the same junit execution with other tests in your IDE. This may lead
  * leaking threads.
  */
-// This test is known to be unstable due to the test setup.
-@RetryOnFailure(times = 2)
 public class FlinkKafkaProducerITCase extends KafkaTestBase {
-
-    @Rule public final RetryRule retryRule = new RetryRule();
 
     protected String transactionalId;
     protected Properties extraProperties;
@@ -181,6 +174,7 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
 
     /** This test hangs when running it in your IDE. */
     @Test
+    @Ignore
     public void testFlinkKafkaProducerFailBeforeNotify() throws Exception {
         String topic = "flink-kafka-producer-fail-before-notify";
 
@@ -768,32 +762,8 @@ public class FlinkKafkaProducerITCase extends KafkaTestBase {
     // -----------------------------------------------------------------------------------------------------------------
 
     // shut down a Kafka broker
-    private void failBroker(int brokerId) {
-        KafkaServer toShutDown = null;
-        for (KafkaServer server : kafkaServer.getBrokers()) {
-
-            if (kafkaServer.getBrokerId(server) == brokerId) {
-                toShutDown = server;
-                break;
-            }
-        }
-
-        if (toShutDown == null) {
-            StringBuilder listOfBrokers = new StringBuilder();
-            for (KafkaServer server : kafkaServer.getBrokers()) {
-                listOfBrokers.append(kafkaServer.getBrokerId(server));
-                listOfBrokers.append(" ; ");
-            }
-
-            throw new IllegalArgumentException(
-                    "Cannot find broker to shut down: "
-                            + brokerId
-                            + " ; available brokers: "
-                            + listOfBrokers.toString());
-        } else {
-            toShutDown.shutdown();
-            toShutDown.awaitShutdown();
-        }
+    private void failBroker(int brokerId) throws Exception {
+        kafkaServer.stopBroker(brokerId);
     }
 
     private void closeIgnoringProducerFenced(AutoCloseable autoCloseable) throws Exception {

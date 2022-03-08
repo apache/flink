@@ -25,7 +25,6 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec.Wind
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecIntervalJoin
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
 import org.apache.flink.table.planner.plan.utils.PythonUtil.containsPythonCall
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil.preferExpressionFormat
 
@@ -82,8 +81,12 @@ class StreamPhysicalIntervalJoin(
       .input("right", right)
       .item("joinType", joinSpec.getJoinType)
       .item("windowBounds", windowBoundsDesc)
-      .item("where", FlinkRexUtil.getExpressionString(
-          originalCondition, getRowType.getFieldNames.toList, None, preferExpressionFormat(pw)))
+      .item("where", getExpressionString(
+        originalCondition,
+        getRowType.getFieldNames.toList,
+        None,
+        preferExpressionFormat(pw),
+        pw.getDetailLevel))
       .item("select", getRowType.getFieldNames.mkString(", "))
   }
 

@@ -42,15 +42,12 @@ Connectors provide code for interfacing with various third-party systems. Curren
  * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (sink)
  * [Amazon Kinesis Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
  * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
- * [FileSystem (Hadoop included) - Streaming only sink]({{< ref "docs/connectors/datastream/streamfile_sink" >}}) (sink)
- * [FileSystem (Hadoop included) - Streaming and Batch sink]({{< ref "docs/connectors/datastream/file_sink" >}}) (sink)
- * [FileSystem (Hadoop included) - Batch source] ({{< ref "docs/connectors/datastream/formats" >}}) (source)
+ * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (sink)
  * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
  * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
  * [Hybrid Source]({{< ref "docs/connectors/datastream/hybridsource" >}}) (source)
  * [Apache NiFi]({{< ref "docs/connectors/datastream/nifi" >}}) (source/sink)
  * [Apache Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source)
- * [Twitter Streaming API]({{< ref "docs/connectors/datastream/twitter" >}}) (source)
  * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (sink)
 
 Keep in mind that to use one of these connectors in an application, additional third party

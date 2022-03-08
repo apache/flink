@@ -38,7 +38,6 @@ import java.io.EOFException;
 import java.time.ZoneId;
 import java.util.Iterator;
 
-import static org.apache.flink.table.runtime.util.StateConfigUtil.isStateImmutableInStateBackend;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.isWindowFired;
 
 /**
@@ -161,7 +160,7 @@ public final class RecordsWindowBuffer implements WindowBuffer {
             RecordsCombiner combiner =
                     factory.createRecordsCombiner(
                             runtimeContext, timerService, stateBackend, windowState, isEventTime);
-            boolean requiresCopy = !isStateImmutableInStateBackend(stateBackend);
+            boolean requiresCopy = !stateBackend.isSafeToReuseKVState();
             return new RecordsWindowBuffer(
                     operatorOwner,
                     memoryManager,

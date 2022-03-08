@@ -31,11 +31,11 @@ public class DateLocalDateConverter
 
     @Override
     public Integer toInternal(java.time.LocalDate external) {
-        return DateTimeUtils.localDateToUnixDate(external);
+        return DateTimeUtils.toInternal(external);
     }
 
     @Override
     public java.time.LocalDate toExternal(Integer internal) {
-        return DateTimeUtils.unixDateToLocalDate(internal);
+        return DateTimeUtils.toLocalDate(internal);
     }
 }

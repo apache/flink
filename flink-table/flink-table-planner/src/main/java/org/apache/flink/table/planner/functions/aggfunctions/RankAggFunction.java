@@ -38,7 +38,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
 /** built-in rank aggregate function. */
 public class RankAggFunction extends RankLikeAggFunctionBase {
 
-    private UnresolvedReferenceExpression currNumber = unresolvedRef("currNumber");
+    private final UnresolvedReferenceExpression currNumber = unresolvedRef("currNumber");
 
     public RankAggFunction(LogicalType[] orderKeyTypes) {
         super(orderKeyTypes);

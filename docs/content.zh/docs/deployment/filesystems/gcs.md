@@ -3,7 +3,7 @@ title: Google Cloud Storage
 weight: 3
 type: docs
 aliases:
-  - /deployment/filesystems/gcs.html
+  - /zh/deployment/filesystems/gcs.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -68,7 +68,7 @@ You must include the following jars in Flink's `lib` directory to connect Flink 
 </dependency>
 ```
 
-We have tested with `flink-shared-hadoop2-uber` version >= `2.8.3-1.8.3`.
+We have tested with `flink-shared-hadoop2-uber` version >= `2.8.5-1.8.3`.
 You can track the latest version of the [gcs-connector hadoop 2](https://storage.googleapis.com/hadoop-lib/gcs/gcs-connector-latest-hadoop2.jar).
 
 ### Authentication to access GCS

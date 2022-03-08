@@ -168,7 +168,7 @@ public class HiveTableSqlFunction extends TableSqlFunction {
             case TIME:
                 return LocalTime.ofNanoOfDay(((TimeString) value).getMillisOfDay() * 1000_000);
             case TIMESTAMP:
-                return DateTimeUtils.unixTimestampToLocalDateTime(
+                return DateTimeUtils.toLocalDateTime(
                         ((TimestampString) value).getMillisSinceEpoch());
             default:
                 throw new RuntimeException("Not support type: " + type);

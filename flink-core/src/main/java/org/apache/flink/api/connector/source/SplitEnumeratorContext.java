@@ -101,7 +101,7 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
      *
      * <p>It is important to make sure that the callable does not modify any shared state,
      * especially the states that will be a part of the {@link SplitEnumerator#snapshotState(long)}.
-     * Otherwise the there might be unexpected behavior.
+     * Otherwise, there might be unexpected behavior.
      *
      * <p>Note that an exception thrown from the handler would result in failing the job.
      *
@@ -118,7 +118,7 @@ public interface SplitEnumeratorContext<SplitT extends SourceSplit> {
      *
      * <p>It is important to make sure that the callable does not modify any shared state,
      * especially the states that will be a part of the {@link SplitEnumerator#snapshotState(long)}.
-     * Otherwise the there might be unexpected behavior.
+     * Otherwise, there might be unexpected behavior.
      *
      * <p>Note that an exception thrown from the handler would result in failing the job.
      *

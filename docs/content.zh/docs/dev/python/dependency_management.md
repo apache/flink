@@ -302,7 +302,7 @@ import org.apache.flink.table.api.TableEnvironment;
 
 TableEnvironment tEnv = TableEnvironment.create(
     EnvironmentSettings.inBatchMode());
-tEnv.getConfig().getConfiguration().set(CoreOptions.DEFAULT_PARALLELISM, 1);
+tEnv.getConfig().set(CoreOptions.DEFAULT_PARALLELISM, 1);
 
 // register the Python UDF
 tEnv.executeSql("create temporary system function add_one as 'add_one.add_one' language python");

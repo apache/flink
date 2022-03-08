@@ -24,7 +24,8 @@ import org.apache.flink.runtime.executiongraph.ExecutionVertex;
 
 import java.util.concurrent.CompletableFuture;
 
-class DefaultExecutionVertexOperations implements ExecutionVertexOperations {
+/** Default implementation of {@link ExecutionVertexOperations}. */
+public class DefaultExecutionVertexOperations implements ExecutionVertexOperations {
 
     @Override
     public void deploy(final ExecutionVertex executionVertex) throws JobException {

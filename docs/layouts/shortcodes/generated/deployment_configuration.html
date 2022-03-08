@@ -9,6 +9,12 @@
     </thead>
     <tbody>
         <tr>
+            <td><h5>execution.allow-client-job-configurations</h5></td>
+            <td style="word-wrap: break-word;">true</td>
+            <td>Boolean</td>
+            <td>Determines whether configurations in the user program are allowed. Depending on your deployment mode failing the job might have different affects. Either your client that is trying to submit the job to an external cluster (session cluster deployment) throws the exception or the Job manager (application mode deployment).</td>
+        </tr>
+        <tr>
             <td><h5>execution.attached</h5></td>
             <td style="word-wrap: break-word;">false</td>
             <td>Boolean</td>
@@ -33,10 +39,16 @@
             <td>If the job is submitted in attached mode, perform a best-effort cluster shutdown when the CLI is terminated abruptly, e.g., in response to a user interrupt, such as typing Ctrl + C.</td>
         </tr>
         <tr>
+            <td><h5>execution.submit-failed-job-on-application-error</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>If a failed job should be submitted (in the application mode) when there is an error in the application driver before an actual job submission. This is intended for providing a clean way of reporting failures back to the user and is especially useful in combination with 'execution.shutdown-on-application-finish'. This option only works when the single job submission is enforced ('high-availability' is enabled). Please note that this is an experimental option and may be changed in the future.</td>
+        </tr>
+        <tr>
             <td><h5>execution.target</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>The deployment target for the execution. This can take one of the following values when calling <code class="highlighter-rouge">bin/flink run</code>:<ul><li>remote</li><li>local</li><li>yarn-per-job</li><li>yarn-session</li><li>kubernetes-session</li></ul>And one of the following values when calling <code class="highlighter-rouge">bin/flink run-application</code>:<ul><li>yarn-application</li><li>kubernetes-application</li></ul></td>
+            <td>The deployment target for the execution. This can take one of the following values when calling <code class="highlighter-rouge">bin/flink run</code>:<ul><li>remote</li><li>local</li><li>yarn-per-job (deprecated)</li><li>yarn-session</li><li>kubernetes-session</li></ul>And one of the following values when calling <code class="highlighter-rouge">bin/flink run-application</code>:<ul><li>yarn-application</li><li>kubernetes-application</li></ul></td>
         </tr>
     </tbody>
 </table>

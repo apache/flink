@@ -37,8 +37,7 @@ abstract class ProcTimeDeduplicateFunctionTestBase {
 
     Time minTime = Time.milliseconds(10);
     InternalTypeInfo<RowData> inputRowType =
-            InternalTypeInfo.ofFields(
-                    new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(), new IntType());
+            InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new BigIntType(), new IntType());
 
     int rowKeyIdx = 1;
     RowDataKeySelector rowKeySelector =

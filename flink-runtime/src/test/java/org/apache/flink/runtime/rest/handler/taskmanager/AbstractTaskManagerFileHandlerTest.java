@@ -20,7 +20,6 @@ package org.apache.flink.runtime.rest.handler.taskmanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.blob.BlobServer;
 import org.apache.flink.runtime.blob.TransientBlobKey;
@@ -118,10 +117,9 @@ public class AbstractTaskManagerFileHandlerTest extends TestLogger {
     @BeforeClass
     public static void setup() throws IOException, HandlerRequestException {
         final Configuration configuration = new Configuration();
-        configuration.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        blobServer = new BlobServer(configuration, new VoidBlobStore());
+        blobServer =
+                new BlobServer(configuration, temporaryFolder.newFolder(), new VoidBlobStore());
 
         handlerRequest =
                 HandlerRequest.resolveParametersAndCreate(

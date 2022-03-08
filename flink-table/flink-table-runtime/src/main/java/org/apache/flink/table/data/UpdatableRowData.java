@@ -17,23 +17,27 @@
 
 package org.apache.flink.table.data;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.data.binary.TypedSetters;
 import org.apache.flink.types.RowKind;
+
+import java.util.BitSet;
 
 /**
  * An implementation of {@link RowData} which is backed by a {@link RowData} and an updated Java
  * object array.
  */
+@Internal
 public final class UpdatableRowData implements RowData, TypedSetters {
 
-    private RowData row;
+    private final RowData row;
     private final Object[] fields;
-    private final boolean[] updated;
+    private final BitSet updated;
 
     public UpdatableRowData(RowData row, int arity) {
         this.row = row;
         this.fields = new Object[arity];
-        this.updated = new boolean[arity];
+        this.updated = new BitSet(arity);
     }
 
     public RowData getRow() {
@@ -57,83 +61,83 @@ public final class UpdatableRowData implements RowData, TypedSetters {
 
     @Override
     public boolean isNullAt(int pos) {
-        return updated[pos] ? this.fields[pos] == null : row.isNullAt(pos);
+        return updated.get(pos) ? this.fields[pos] == null : row.isNullAt(pos);
     }
 
     @Override
     public boolean getBoolean(int pos) {
-        return updated[pos] ? (boolean) fields[pos] : row.getBoolean(pos);
+        return updated.get(pos) ? (boolean) fields[pos] : row.getBoolean(pos);
     }
 
     @Override
     public byte getByte(int pos) {
-        return updated[pos] ? (byte) fields[pos] : row.getByte(pos);
+        return updated.get(pos) ? (byte) fields[pos] : row.getByte(pos);
     }
 
     @Override
     public short getShort(int pos) {
-        return updated[pos] ? (short) fields[pos] : row.getShort(pos);
+        return updated.get(pos) ? (short) fields[pos] : row.getShort(pos);
     }
 
     @Override
     public int getInt(int pos) {
-        return updated[pos] ? (int) fields[pos] : row.getInt(pos);
+        return updated.get(pos) ? (int) fields[pos] : row.getInt(pos);
     }
 
     @Override
     public long getLong(int pos) {
-        return updated[pos] ? (long) fields[pos] : row.getLong(pos);
+        return updated.get(pos) ? (long) fields[pos] : row.getLong(pos);
     }
 
     @Override
     public float getFloat(int pos) {
-        return updated[pos] ? (float) fields[pos] : row.getFloat(pos);
+        return updated.get(pos) ? (float) fields[pos] : row.getFloat(pos);
     }
 
     @Override
     public double getDouble(int pos) {
-        return updated[pos] ? (double) fields[pos] : row.getDouble(pos);
+        return updated.get(pos) ? (double) fields[pos] : row.getDouble(pos);
     }
 
     @Override
     public byte[] getBinary(int pos) {
-        return updated[pos] ? (byte[]) fields[pos] : row.getBinary(pos);
+        return updated.get(pos) ? (byte[]) fields[pos] : row.getBinary(pos);
     }
 
     @Override
     public StringData getString(int pos) {
-        return updated[pos] ? (StringData) fields[pos] : row.getString(pos);
+        return updated.get(pos) ? (StringData) fields[pos] : row.getString(pos);
     }
 
     @Override
     public DecimalData getDecimal(int pos, int precision, int scale) {
-        return updated[pos] ? (DecimalData) fields[pos] : row.getDecimal(pos, precision, scale);
+        return updated.get(pos) ? (DecimalData) fields[pos] : row.getDecimal(pos, precision, scale);
     }
 
     @Override
     public TimestampData getTimestamp(int pos, int precision) {
-        return updated[pos] ? (TimestampData) fields[pos] : row.getTimestamp(pos, precision);
+        return updated.get(pos) ? (TimestampData) fields[pos] : row.getTimestamp(pos, precision);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public <T> RawValueData<T> getRawValue(int pos) {
-        return updated[pos] ? (RawValueData<T>) fields[pos] : row.getRawValue(pos);
+        return updated.get(pos) ? (RawValueData<T>) fields[pos] : row.getRawValue(pos);
     }
 
     @Override
     public RowData getRow(int pos, int numFields) {
-        return updated[pos] ? (RowData) fields[pos] : row.getRow(pos, numFields);
+        return updated.get(pos) ? (RowData) fields[pos] : row.getRow(pos, numFields);
     }
 
     @Override
     public ArrayData getArray(int pos) {
-        return updated[pos] ? (ArrayData) fields[pos] : row.getArray(pos);
+        return updated.get(pos) ? (ArrayData) fields[pos] : row.getArray(pos);
     }
 
     @Override
     public MapData getMap(int pos) {
-        return updated[pos] ? (MapData) fields[pos] : row.getMap(pos);
+        return updated.get(pos) ? (MapData) fields[pos] : row.getMap(pos);
     }
 
     @Override
@@ -187,7 +191,7 @@ public final class UpdatableRowData implements RowData, TypedSetters {
     }
 
     public void setField(int pos, Object value) {
-        updated[pos] = true;
+        updated.set(pos);
         fields[pos] = value;
     }
 }

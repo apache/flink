@@ -79,3 +79,17 @@ The HA data will be kept until the respective job either succeeds, is cancelled 
 Once this happens, all the HA data, including the metadata stored in the HA services, will be deleted.  
 
 {{< top >}}
+
+## JobResultStore
+
+In order to preserve a job's scheduling status across failover events and prevent erroneous
+re-execution of globally terminated (i.e. finished, cancelled or failed) jobs, Flink persists
+status of terminated jobs to a filesystem using the JobResultStore.
+The JobResultStore allows job results to outlive a finished job, and can be used by
+Flink components involved in the recovery of a highly-available cluster in order to
+determine whether a job should be subject to recovery.
+
+The JobResultStore has sensible defaults for its behaviour, such as result storage
+location, but these can be [configured]({{< ref "docs/deployment/config#high-availability" >}}).
+
+{{< top >}}

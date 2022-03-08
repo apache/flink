@@ -131,6 +131,17 @@ under the License.
 				</pluginManagement>
 			</build>
 		</profile>
+		<profile>
+			<id>use-alibaba-mirror</id>
+			<activation>
+				<property>
+					<name>use-alibaba-mirror</name>
+				</property>
+			</activation>
+			<properties>
+				<npm.proxy>--registry http://172.17.0.1:8888/repository/npm/</npm.proxy>
+			</properties>
+		</profile>
 	</profiles>
 
 	<build>
@@ -261,8 +272,8 @@ under the License.
 							<goal>install-node-and-npm</goal>
 						</goals>
 						<configuration>
-							<nodeVersion>v12.14.1</nodeVersion>
-							<npmVersion>6.13.4</npmVersion>
+							<nodeVersion>v16.13.2</nodeVersion>
+							<npmVersion>8.1.2</npmVersion>
 						</configuration>
 					</execution>
 					<execution>
@@ -271,7 +282,7 @@ under the License.
 							<goal>npm</goal>
 						</goals>
 						<configuration>
-							<arguments>ci --cache-max=0 --no-save</arguments>
+							<arguments>ci --cache-max=0 --no-save ${npm.proxy}</arguments>
 							<environmentVariables>
 								<HUSKY_SKIP_INSTALL>true</HUSKY_SKIP_INSTALL>
 							</environmentVariables>

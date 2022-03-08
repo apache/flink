@@ -18,6 +18,7 @@
 
 package org.apache.flink.tests.util.pulsar.cases;
 
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.connector.pulsar.source.PulsarSource;
@@ -27,29 +28,34 @@ import org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils;
 import org.apache.flink.connector.pulsar.testutils.PulsarPartitionDataWriter;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestContext;
 import org.apache.flink.connector.pulsar.testutils.PulsarTestEnvironment;
-import org.apache.flink.connectors.test.common.external.SourceSplitDataWriter;
+import org.apache.flink.connector.testframe.external.ExternalSystemSplitDataWriter;
+import org.apache.flink.connector.testframe.external.source.TestingSourceSettings;
 
 import org.apache.pulsar.client.api.RegexSubscriptionMode;
 import org.apache.pulsar.client.api.SubscriptionType;
 
+import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.connector.pulsar.source.reader.deserializer.PulsarDeserializationSchema.pulsarSchema;
-import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_ADMIN_URL;
-import static org.apache.flink.connector.pulsar.testutils.runtime.container.PulsarContainerRuntime.PULSAR_SERVICE_URL;
 import static org.apache.pulsar.client.api.Schema.STRING;
 
 /** We would consuming from test splits by using {@link SubscriptionType#Shared} subscription. */
 public class SharedSubscriptionContext extends PulsarTestContext<String> {
-    private static final long serialVersionUID = -2798707923661295245L;
 
     private int index = 0;
 
     private final List<PulsarPartitionDataWriter> writers = new ArrayList<>();
 
     public SharedSubscriptionContext(PulsarTestEnvironment environment) {
-        super(environment);
+        this(environment, Collections.emptyList());
+    }
+
+    public SharedSubscriptionContext(
+            PulsarTestEnvironment environment, List<URL> connectorJarPaths) {
+        super(environment, connectorJarPaths);
     }
 
     @Override
@@ -58,16 +64,16 @@ public class SharedSubscriptionContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public Source<String, ?, ?> createSource(Boundedness boundedness) {
+    public Source<String, ?, ?> createSource(TestingSourceSettings sourceSettings) {
         PulsarSourceBuilder<String> builder =
                 PulsarSource.builder()
                         .setDeserializationSchema(pulsarSchema(STRING))
-                        .setServiceUrl(PULSAR_SERVICE_URL)
-                        .setAdminUrl(PULSAR_ADMIN_URL)
+                        .setServiceUrl(operator.serviceUrl())
+                        .setAdminUrl(operator.adminUrl())
                         .setTopicPattern("pulsar-[0-9]+-shared", RegexSubscriptionMode.AllTopics)
                         .setSubscriptionType(SubscriptionType.Shared)
                         .setSubscriptionName("pulsar-shared");
-        if (boundedness == Boundedness.BOUNDED) {
+        if (sourceSettings.getBoundedness() == Boundedness.BOUNDED) {
             // Using latest stop cursor for making sure the source could be stopped.
             builder.setBoundedStopCursor(StopCursor.latest());
         }
@@ -76,7 +82,8 @@ public class SharedSubscriptionContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public SourceSplitDataWriter<String> createSourceSplitDataWriter() {
+    public ExternalSystemSplitDataWriter<String> createSourceSplitDataWriter(
+            TestingSourceSettings sourceSettings) {
         String topicName = "pulsar-" + index + "-shared";
         operator.createTopic(topicName, 1);
         index++;
@@ -89,8 +96,14 @@ public class SharedSubscriptionContext extends PulsarTestContext<String> {
     }
 
     @Override
-    public List<String> generateTestData(int splitIndex, long seed) {
+    public List<String> generateTestData(
+            TestingSourceSettings sourceSettings, int splitIndex, long seed) {
         return generateStringTestData(splitIndex, seed);
+    }
+
+    @Override
+    public TypeInformation<String> getProducedType() {
+        return TypeInformation.of(String.class);
     }
 
     @Override

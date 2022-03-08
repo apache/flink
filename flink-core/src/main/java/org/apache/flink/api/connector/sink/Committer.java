@@ -19,7 +19,7 @@
 
 package org.apache.flink.api.connector.sink;
 
-import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.PublicEvolving;
 
 import java.io.IOException;
 import java.util.List;
@@ -28,16 +28,19 @@ import java.util.List;
  * The {@code Committer} is responsible for committing the data staged by the sink.
  *
  * @param <CommT> The type of information needed to commit the staged data
+ * @deprecated Please use {@link org.apache.flink.api.connector.sink2.Committer}.
  */
-@Experimental
+@Deprecated
+@PublicEvolving
 public interface Committer<CommT> extends AutoCloseable {
 
     /**
-     * Commit the given list of {@link CommT}.
+     * Commits the given list of {@link CommT} and returns a list of {@link CommT} that need to be
+     * re-committed. The elements of the return list must be a subset of the input list, so that
+     * successful committables can be inferred.
      *
      * @param committables A list of information needed to commit data staged by the sink.
-     * @return A list of {@link CommT} needed to re-commit, which is needed in case we implement a
-     *     "commit-with-retry" pattern.
+     * @return a list of {@link CommT} that need to be re-committed.
      * @throws IOException if the commit operation fail and do not want to retry any more.
      */
     List<CommT> commit(List<CommT> committables) throws IOException, InterruptedException;

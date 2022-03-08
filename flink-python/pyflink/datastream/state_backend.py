@@ -319,9 +319,9 @@ class EmbeddedRocksDBStateBackend(StateBackend):
         they must be specified through a factory.
 
         The options created by the factory here are applied on top of the pre-defined
-        options profile selected via :func:`set_predefined_options`.
-        If the pre-defined options profile is the default (:data:`PredefinedOptions.DEFAULT`),
-        then the factory fully controls the RocksDB options.
+        options profile selected via :func:`set_predefined_options`  and user-configured
+        options from configuration set through flink-conf.yaml with keys in
+        ``RocksDBConfigurableOptions``.
 
         :param options_factory_class_name: The fully-qualified class name of the options
                                            factory in Java that lazily creates the RocksDB options.

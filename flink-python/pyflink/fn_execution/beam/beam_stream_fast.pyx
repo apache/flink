@@ -23,7 +23,7 @@
 from libc.stdlib cimport realloc
 from libc.string cimport memcpy
 
-from apache_beam.runners.worker.data_plane import PeriodicThread
+from pyflink.fn_execution.utils.operation_utils import PeriodicThread
 
 cdef class BeamInputStream(LengthPrefixInputStream):
     def __cinit__(self, input_stream, size):

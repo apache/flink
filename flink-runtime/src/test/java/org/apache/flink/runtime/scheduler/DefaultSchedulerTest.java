@@ -19,11 +19,14 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.WebOptions;
 import org.apache.flink.core.testutils.ScheduledTask;
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
@@ -33,6 +36,7 @@ import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.hooks.TestMasterHook;
+import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutorServiceAdapter;
 import org.apache.flink.runtime.execution.ExecutionState;
@@ -60,6 +64,15 @@ import org.apache.flink.runtime.jobgraph.tasks.AbstractInvokable;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
 import org.apache.flink.runtime.jobmaster.LogicalSlot;
 import org.apache.flink.runtime.jobmaster.TestingLogicalSlotBuilder;
+import org.apache.flink.runtime.jobmaster.slotpool.DeclarativeSlotPoolBridgeBuilder;
+import org.apache.flink.runtime.jobmaster.slotpool.LocationPreferenceSlotSelectionStrategy;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProvider;
+import org.apache.flink.runtime.jobmaster.slotpool.PhysicalSlotProviderImpl;
+import org.apache.flink.runtime.jobmaster.slotpool.SlotPool;
+import org.apache.flink.runtime.metrics.MetricRegistry;
+import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
+import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
+import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerTest;
 import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntryMatcher;
 import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
@@ -74,6 +87,7 @@ import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.testtasks.NoOpInvokable;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -88,11 +102,13 @@ import org.hamcrest.collection.IsIterableContainingInOrder;
 import org.hamcrest.collection.IsIterableWithSize;
 import org.hamcrest.core.Is;
 import org.junit.After;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -112,6 +128,8 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
+import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.acknowledgePendingCheckpoint;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.getCheckpointCoordinator;
@@ -1378,6 +1396,88 @@ public class DefaultSchedulerTest extends TestLogger {
     }
 
     @Test
+    public void testStatusMetrics() throws Exception {
+        // running time acts as a stand-in for generic status time metrics
+        final CompletableFuture<Gauge<Long>> runningTimeMetricFuture = new CompletableFuture<>();
+        final MetricRegistry metricRegistry =
+                TestingMetricRegistry.builder()
+                        .setRegisterConsumer(
+                                (metric, name, group) -> {
+                                    switch (name) {
+                                        case "runningTimeTotal":
+                                            runningTimeMetricFuture.complete((Gauge<Long>) metric);
+                                            break;
+                                    }
+                                })
+                        .build();
+
+        final JobGraph jobGraph = singleNonParallelJobVertexJobGraph();
+        final JobVertex onlyJobVertex = getOnlyJobVertex(jobGraph);
+
+        final Configuration configuration = new Configuration();
+        configuration.set(
+                MetricOptions.JOB_STATUS_METRICS,
+                Arrays.asList(MetricOptions.JobStatusMetrics.TOTAL_TIME));
+
+        final ComponentMainThreadExecutor singleThreadMainThreadExecutor =
+                ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
+                        scheduledExecutorService);
+
+        final Time slotTimeout = Time.milliseconds(5L);
+        final SlotPool slotPool =
+                new DeclarativeSlotPoolBridgeBuilder()
+                        .setBatchSlotTimeout(slotTimeout)
+                        .buildAndStart(singleThreadMainThreadExecutor);
+        final PhysicalSlotProvider slotProvider =
+                new PhysicalSlotProviderImpl(
+                        LocationPreferenceSlotSelectionStrategy.createDefault(), slotPool);
+
+        final DefaultScheduler scheduler =
+                createSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .setJobManagerJobMetricGroup(
+                                JobManagerMetricGroup.createJobManagerMetricGroup(
+                                                metricRegistry, "localhost")
+                                        .addJob(new JobID(), "jobName"))
+                        .setExecutionSlotAllocatorFactory(
+                                SchedulerTestingUtils.newSlotSharingExecutionSlotAllocatorFactory(
+                                        slotProvider, slotTimeout))
+                        .build();
+
+        final AdaptiveSchedulerTest.SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new AdaptiveSchedulerTest.SubmissionBufferingTaskManagerGateway(1);
+
+        taskManagerGateway.setCancelConsumer(
+                executionAttemptId -> {
+                    singleThreadMainThreadExecutor.execute(
+                            () ->
+                                    scheduler.updateTaskExecutionState(
+                                            new TaskExecutionState(
+                                                    executionAttemptId, ExecutionState.CANCELED)));
+                });
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+
+                    offerSlots(
+                            slotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1)),
+                            taskManagerGateway);
+                });
+
+        // wait for the first task submission
+        taskManagerGateway.waitForSubmissions(1, Duration.ofSeconds(5));
+
+        // sleep a bit to ensure uptime is > 0
+        Thread.sleep(10L);
+
+        final Gauge<Long> runningTimeGauge = runningTimeMetricFuture.get();
+        Assert.assertThat(runningTimeGauge.getValue(), greaterThan(0L));
+    }
+
+    @Test
     public void testDeploymentWaitForProducedPartitionRegistration() {
         shuffleMaster.setAutoCompleteRegistration(false);
 
@@ -1684,12 +1784,10 @@ public class DefaultSchedulerTest extends TestLogger {
 
     private DefaultScheduler createSchedulerAndStartScheduling(
             final JobGraph jobGraph, final ComponentMainThreadExecutor mainThreadExecutor) {
-        final SchedulingStrategyFactory schedulingStrategyFactory =
-                new PipelinedRegionSchedulingStrategy.Factory();
 
         try {
             final DefaultScheduler scheduler =
-                    createScheduler(jobGraph, mainThreadExecutor, schedulingStrategyFactory);
+                    createSchedulerBuilder(jobGraph, mainThreadExecutor).build();
             mainThreadExecutor.execute(scheduler::startScheduling);
             return scheduler;
         } catch (Exception e) {
@@ -1702,11 +1800,9 @@ public class DefaultSchedulerTest extends TestLogger {
             final ComponentMainThreadExecutor mainThreadExecutor,
             final SchedulingStrategyFactory schedulingStrategyFactory)
             throws Exception {
-        return createScheduler(
-                jobGraph,
-                mainThreadExecutor,
-                schedulingStrategyFactory,
-                new RestartPipelinedRegionFailoverStrategy.Factory());
+        return createSchedulerBuilder(jobGraph, mainThreadExecutor)
+                .setSchedulingStrategyFactory(schedulingStrategyFactory)
+                .build();
     }
 
     private DefaultScheduler createScheduler(
@@ -1715,12 +1811,10 @@ public class DefaultSchedulerTest extends TestLogger {
             final SchedulingStrategyFactory schedulingStrategyFactory,
             final FailoverStrategy.Factory failoverStrategyFactory)
             throws Exception {
-        return createScheduler(
-                jobGraph,
-                mainThreadExecutor,
-                schedulingStrategyFactory,
-                failoverStrategyFactory,
-                taskRestartExecutor);
+        return createSchedulerBuilder(jobGraph, mainThreadExecutor)
+                .setSchedulingStrategyFactory(schedulingStrategyFactory)
+                .setFailoverStrategyFactory(failoverStrategyFactory)
+                .build();
     }
 
     private DefaultScheduler createScheduler(
@@ -1730,22 +1824,31 @@ public class DefaultSchedulerTest extends TestLogger {
             final FailoverStrategy.Factory failoverStrategyFactory,
             final ScheduledExecutor delayExecutor)
             throws Exception {
+        return createSchedulerBuilder(jobGraph, mainThreadExecutor)
+                .setDelayExecutor(delayExecutor)
+                .setSchedulingStrategyFactory(schedulingStrategyFactory)
+                .setFailoverStrategyFactory(failoverStrategyFactory)
+                .build();
+    }
+
+    private SchedulerTestingUtils.DefaultSchedulerBuilder createSchedulerBuilder(
+            final JobGraph jobGraph, final ComponentMainThreadExecutor mainThreadExecutor)
+            throws Exception {
         return SchedulerTestingUtils.newSchedulerBuilder(jobGraph, mainThreadExecutor)
                 .setLogger(log)
                 .setIoExecutor(executor)
                 .setJobMasterConfiguration(configuration)
                 .setFutureExecutor(scheduledExecutorService)
-                .setDelayExecutor(delayExecutor)
-                .setSchedulingStrategyFactory(schedulingStrategyFactory)
-                .setFailoverStrategyFactory(failoverStrategyFactory)
+                .setDelayExecutor(taskRestartExecutor)
+                .setSchedulingStrategyFactory(new PipelinedRegionSchedulingStrategy.Factory())
+                .setFailoverStrategyFactory(new RestartPipelinedRegionFailoverStrategy.Factory())
                 .setRestartBackoffTimeStrategy(testRestartBackoffTimeStrategy)
                 .setExecutionVertexOperations(testExecutionVertexOperations)
                 .setExecutionVertexVersioner(executionVertexVersioner)
                 .setExecutionSlotAllocatorFactory(executionSlotAllocatorFactory)
                 .setShuffleMaster(shuffleMaster)
                 .setPartitionTracker(partitionTracker)
-                .setRpcTimeout(timeout)
-                .build();
+                .setRpcTimeout(timeout);
     }
 
     /**

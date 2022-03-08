@@ -36,6 +36,7 @@ import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 import org.apache.flink.util.OutputTag;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
@@ -101,8 +102,8 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
         try {
             recordWriter.emit(serializationDelegate);
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e.getMessage(), e);
         }
     }
 
@@ -117,8 +118,8 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
         try {
             recordWriter.broadcastEmit(serializationDelegate);
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e.getMessage(), e);
         }
     }
 
@@ -129,8 +130,8 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
             serializationDelegate.setInstance(watermarkStatus);
             try {
                 recordWriter.broadcastEmit(serializationDelegate);
-            } catch (Exception e) {
-                throw new RuntimeException(e.getMessage(), e);
+            } catch (IOException e) {
+                throw new UncheckedIOException(e.getMessage(), e);
             }
         }
     }
@@ -141,8 +142,8 @@ public class RecordWriterOutput<OUT> implements WatermarkGaugeExposingOutput<Str
 
         try {
             recordWriter.randomEmit(serializationDelegate);
-        } catch (Exception e) {
-            throw new RuntimeException(e.getMessage(), e);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e.getMessage(), e);
         }
     }
 

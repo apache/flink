@@ -85,7 +85,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** The future default scheduler. */
 public class DefaultScheduler extends SchedulerBase implements SchedulerOperations {
 
-    private final Logger log;
+    protected final Logger log;
 
     private final ClassLoader userCodeLoader;
 
@@ -95,7 +95,7 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
 
     private final ScheduledExecutor delayExecutor;
 
-    private final SchedulingStrategy schedulingStrategy;
+    protected final SchedulingStrategy schedulingStrategy;
 
     private final ExecutionVertexOperations executionVertexOperations;
 
@@ -136,13 +136,63 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
             final ShuffleMaster<?> shuffleMaster,
             final Time rpcTimeout)
             throws Exception {
+        this(
+                log,
+                jobGraph,
+                ioExecutor,
+                jobMasterConfiguration,
+                startUpAction,
+                delayExecutor,
+                userCodeLoader,
+                checkpointsCleaner,
+                checkpointRecoveryFactory,
+                jobManagerJobMetricGroup,
+                schedulingStrategyFactory,
+                failoverStrategyFactory,
+                restartBackoffTimeStrategy,
+                executionVertexOperations,
+                executionVertexVersioner,
+                executionSlotAllocatorFactory,
+                initializationTimestamp,
+                mainThreadExecutor,
+                jobStatusListener,
+                executionGraphFactory,
+                shuffleMaster,
+                rpcTimeout,
+                computeVertexParallelismStore(jobGraph));
+    }
+
+    protected DefaultScheduler(
+            final Logger log,
+            final JobGraph jobGraph,
+            final Executor ioExecutor,
+            final Configuration jobMasterConfiguration,
+            final Consumer<ComponentMainThreadExecutor> startUpAction,
+            final ScheduledExecutor delayExecutor,
+            final ClassLoader userCodeLoader,
+            final CheckpointsCleaner checkpointsCleaner,
+            final CheckpointRecoveryFactory checkpointRecoveryFactory,
+            final JobManagerJobMetricGroup jobManagerJobMetricGroup,
+            final SchedulingStrategyFactory schedulingStrategyFactory,
+            final FailoverStrategy.Factory failoverStrategyFactory,
+            final RestartBackoffTimeStrategy restartBackoffTimeStrategy,
+            final ExecutionVertexOperations executionVertexOperations,
+            final ExecutionVertexVersioner executionVertexVersioner,
+            final ExecutionSlotAllocatorFactory executionSlotAllocatorFactory,
+            long initializationTimestamp,
+            final ComponentMainThreadExecutor mainThreadExecutor,
+            final JobStatusListener jobStatusListener,
+            final ExecutionGraphFactory executionGraphFactory,
+            final ShuffleMaster<?> shuffleMaster,
+            final Time rpcTimeout,
+            final VertexParallelismStore vertexParallelismStore)
+            throws Exception {
 
         super(
                 log,
                 jobGraph,
                 ioExecutor,
                 jobMasterConfiguration,
-                userCodeLoader,
                 checkpointsCleaner,
                 checkpointRecoveryFactory,
                 jobManagerJobMetricGroup,
@@ -150,7 +200,8 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 initializationTimestamp,
                 mainThreadExecutor,
                 jobStatusListener,
-                executionGraphFactory);
+                executionGraphFactory,
+                vertexParallelismStore);
 
         this.log = log;
 
@@ -171,8 +222,6 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
                 failoverStrategy,
                 jobGraph.getName(),
                 jobGraph.getJobID());
-
-        enrichResourceProfile();
 
         this.executionFailureHandler =
                 new ExecutionFailureHandler(
@@ -681,8 +730,9 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         }
 
         @Override
-        public AllocationID getPriorAllocationId(final ExecutionVertexID executionVertexId) {
-            return getExecutionVertex(executionVertexId).getLatestPriorAllocation();
+        public Optional<AllocationID> findPriorAllocationId(
+                final ExecutionVertexID executionVertexId) {
+            return getExecutionVertex(executionVertexId).findLatestPriorAllocation();
         }
 
         @Override
@@ -721,14 +771,5 @@ public class DefaultScheduler extends SchedulerBase implements SchedulerOperatio
         public Set<AllocationID> getReservedAllocations() {
             return reservedAllocationRefCounters.keySet();
         }
-    }
-
-    private void enrichResourceProfile() {
-        Set<SlotSharingGroup> ssgs = new HashSet<>();
-        getJobGraph().getVertices().forEach(jv -> ssgs.add(jv.getSlotSharingGroup()));
-        ssgs.forEach(
-                ssg ->
-                        SsgNetworkMemoryCalculationUtils.enrichNetworkMemory(
-                                ssg, this::getExecutionJobVertex, shuffleMaster));
     }
 }

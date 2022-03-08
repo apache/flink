@@ -35,6 +35,7 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.StateBackendOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -239,7 +240,8 @@ public class RescalingITCase extends TestLogger {
             CollectionSink.clearElementsSet();
 
             waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
-            CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
+            CompletableFuture<String> savepointPathFuture =
+                    client.triggerSavepoint(jobID, null, SavepointFormatType.CANONICAL);
 
             final String savepointPath =
                     savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
@@ -321,7 +323,8 @@ public class RescalingITCase extends TestLogger {
             // wait until the operator handles some data
             StateSourceBase.workStartedLatch.await();
 
-            CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
+            CompletableFuture<String> savepointPathFuture =
+                    client.triggerSavepoint(jobID, null, SavepointFormatType.CANONICAL);
 
             final String savepointPath =
                     savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
@@ -419,7 +422,8 @@ public class RescalingITCase extends TestLogger {
             CollectionSink.clearElementsSet();
 
             waitForAllTaskRunning(cluster.getMiniCluster(), jobGraph.getJobID(), false);
-            CompletableFuture<String> savepointPathFuture = client.triggerSavepoint(jobID, null);
+            CompletableFuture<String> savepointPathFuture =
+                    client.triggerSavepoint(jobID, null, SavepointFormatType.CANONICAL);
 
             final String savepointPath =
                     savepointPathFuture.get(deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS);
@@ -548,7 +552,9 @@ public class RescalingITCase extends TestLogger {
 
             CompletableFuture<String> savepointPathFuture =
                     FutureUtils.retryWithDelay(
-                            () -> client.triggerSavepoint(jobID, null),
+                            () ->
+                                    client.triggerSavepoint(
+                                            jobID, null, SavepointFormatType.CANONICAL),
                             (int) deadline.timeLeft().getSeconds() / 10,
                             Time.seconds(10),
                             (throwable) -> true,
@@ -617,7 +623,6 @@ public class RescalingITCase extends TestLogger {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(parallelism);
         env.getConfig().setMaxParallelism(maxParallelism);
-        env.enableCheckpointing(Long.MAX_VALUE);
         env.setRestartStrategy(RestartStrategies.noRestart());
 
         StateSourceBase.workStartedLatch = new CountDownLatch(parallelism);

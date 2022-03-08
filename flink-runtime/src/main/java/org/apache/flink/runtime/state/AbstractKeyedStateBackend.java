@@ -20,13 +20,13 @@ package org.apache.flink.runtime.state;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.ExecutionConfig;
-import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.api.common.state.InternalCheckpointListener;
 import org.apache.flink.api.common.state.State;
 import org.apache.flink.api.common.state.StateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -52,7 +52,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  */
 public abstract class AbstractKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
-                CheckpointListener,
+                InternalCheckpointListener,
                 TestableKeyedStateBackend<K>,
                 InternalKeyContext<K> {
 
@@ -163,6 +163,9 @@ public abstract class AbstractKeyedStateBackend<K>
             return UncompressedStreamCompressionDecorator.INSTANCE;
         }
     }
+
+    @Override
+    public void notifyCheckpointSubsumed(long checkpointId) throws Exception {}
 
     /**
      * Closes the state backend, releasing all internal resources, but does not delete any
@@ -380,7 +383,7 @@ public abstract class AbstractKeyedStateBackend<K>
     }
 
     // TODO remove this once heap-based timers are working with RocksDB incremental snapshots!
-    public boolean requiresLegacySynchronousTimerSnapshots(CheckpointType checkpointType) {
+    public boolean requiresLegacySynchronousTimerSnapshots(SnapshotType checkpointType) {
         return false;
     }
 

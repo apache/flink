@@ -1,6 +1,6 @@
 ---
 title: Raw
-weight: 10
+weight: 11
 type: docs
 aliases:
   - /zh/dev/table/connectors/formats/raw.html

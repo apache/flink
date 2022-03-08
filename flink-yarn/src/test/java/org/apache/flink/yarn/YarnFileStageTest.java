@@ -21,6 +21,8 @@ package org.apache.flink.yarn;
 import org.apache.flink.util.OperatingSystem;
 import org.apache.flink.util.TestLogger;
 
+import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
+
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocatedFileStatus;
@@ -45,6 +47,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -141,6 +145,17 @@ public class YarnFileStageTest extends TestLogger {
         final Path targetDir = targetFileSystem.getWorkingDirectory();
 
         testCopySingleFileFromLocal(
+                targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder);
+    }
+
+    /** Verifies that a symbolic path is properly copied. */
+    @Test
+    public void testCopySymbolicPathFromLocal()
+            throws IOException, URISyntaxException, InterruptedException {
+        final FileSystem targetFileSystem = hdfsRootPath.getFileSystem(hadoopConfig);
+        final Path targetDir = targetFileSystem.getWorkingDirectory();
+
+        testCopySymbolicPathFromLocal(
                 targetFileSystem, targetDir, LOCAL_RESOURCE_DIRECTORY, tempFolder);
     }
 
@@ -317,6 +332,79 @@ public class YarnFileStageTest extends TestLogger {
                                             .get(
                                                     new Path(localResourceDirectory, localFile)
                                                             .toString())
+                                            .getResource())
+                            .getParent();
+            verifyDirectoryRecursive(targetFileSystem, workDir, srcFiles);
+        } finally {
+            targetFileSystem.delete(targetDir, true);
+        }
+    }
+
+    /**
+     * Verifies that a symbolic path is properly uploaded.
+     *
+     * @param targetFileSystem file system of the target path
+     * @param targetDir target path (URI like <tt>hdfs://...</tt>)
+     * @param localResourceDirectory the directory that localResource are uploaded to
+     * @param temporaryFolder JUnit temporary folder rule to create the source directory with
+     * @throws IOException if error occurs when accessing the file system
+     * @throws URISyntaxException if the format of url has errors when converting a given url to
+     *     hadoop path
+     */
+    private static void testCopySymbolicPathFromLocal(
+            FileSystem targetFileSystem,
+            Path targetDir,
+            String localResourceDirectory,
+            TemporaryFolder temporaryFolder)
+            throws IOException, InterruptedException, URISyntaxException {
+
+        final File srcDir = temporaryFolder.newFolder();
+        final String srcPath = srcDir.getAbsolutePath();
+
+        final String localSymbolicFile = "local.lnk";
+
+        final HashMap<String /* (relative) path */, /* contents */ String> srcFiles =
+                new HashMap<>(4);
+        srcFiles.put("1", "Hello file");
+        srcFiles.put("nested/local.jar", "Local Jar Content");
+
+        generateFilesInDirectory(srcDir, srcFiles);
+
+        Files.createSymbolicLink(
+                Paths.get(srcPath, localSymbolicFile), Paths.get(srcPath, "nested"));
+
+        try {
+            final List<Path> remotePaths = new ArrayList<>();
+
+            final ApplicationId applicationId = ApplicationId.newInstance(0, 0);
+            final YarnApplicationFileUploader uploader =
+                    YarnApplicationFileUploader.from(
+                            targetFileSystem,
+                            targetDir,
+                            Collections.emptyList(),
+                            applicationId,
+                            DFSConfigKeys.DFS_REPLICATION_DEFAULT);
+
+            final List<String> classpath =
+                    uploader.registerMultipleLocalResources(
+                            Lists.newArrayList(
+                                    new Path(srcPath, localSymbolicFile), new Path(srcPath, "1")),
+                            localResourceDirectory,
+                            LocalResourceType.FILE);
+
+            // resource directories go first
+            assertThat(
+                    classpath,
+                    containsInAnyOrder(
+                            new Path(localResourceDirectory).toString(),
+                            new Path(localResourceDirectory, "nested/local.jar").toString()));
+
+            final Map<String, LocalResource> localResources =
+                    uploader.getRegisteredLocalResources();
+            final Path workDir =
+                    ConverterUtils.getPathFromYarnURL(
+                                    localResources
+                                            .get(new Path(localResourceDirectory, "1").toString())
                                             .getResource())
                             .getParent();
             verifyDirectoryRecursive(targetFileSystem, workDir, srcFiles);

@@ -18,9 +18,14 @@
 
 package org.apache.flink.runtime.entrypoint;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigConstants;
+import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.parser.CommandLineParser;
 import org.apache.flink.runtime.entrypoint.parser.ParserResultFactory;
 import org.apache.flink.runtime.util.ClusterUncaughtExceptionHandler;
@@ -33,6 +38,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Optional;
 
 /** Utility class for {@link org.apache.flink.runtime.entrypoint.ClusterEntrypoint}. */
@@ -127,5 +133,112 @@ public final class ClusterEntrypointUtils {
         Thread.setDefaultUncaughtExceptionHandler(
                 new ClusterUncaughtExceptionHandler(
                         config.get(ClusterOptions.UNCAUGHT_EXCEPTION_HANDLING)));
+    }
+
+    /**
+     * Creates the working directory for the TaskManager process. This method ensures that the
+     * working directory exists.
+     *
+     * @param configuration to extract the required settings from
+     * @param envelopedResourceId identifying the TaskManager process
+     * @return working directory
+     * @throws IOException if the working directory could not be created
+     */
+    public static DeterminismEnvelope<WorkingDirectory> createTaskManagerWorkingDirectory(
+            Configuration configuration, DeterminismEnvelope<ResourceID> envelopedResourceId)
+            throws IOException {
+        return envelopedResourceId.map(
+                resourceId ->
+                        WorkingDirectory.create(
+                                generateTaskManagerWorkingDirectoryFile(
+                                        configuration, resourceId)));
+    }
+
+    /**
+     * Generates the working directory {@link File} for the TaskManager process. This method does
+     * not ensure that the working directory exists.
+     *
+     * @param configuration to extract the required settings from
+     * @param resourceId identifying the TaskManager process
+     * @return working directory file
+     */
+    @VisibleForTesting
+    public static File generateTaskManagerWorkingDirectoryFile(
+            Configuration configuration, ResourceID resourceId) {
+        return generateWorkingDirectoryFile(
+                configuration,
+                Optional.of(ClusterOptions.TASK_MANAGER_PROCESS_WORKING_DIR_BASE),
+                "tm_" + resourceId);
+    }
+
+    /**
+     * Generates the working directory {@link File} for the JobManager process. This method does not
+     * ensure that the working directory exists.
+     *
+     * @param configuration to extract the required settings from
+     * @param resourceId identifying the JobManager process
+     * @return working directory file
+     */
+    @VisibleForTesting
+    public static File generateJobManagerWorkingDirectoryFile(
+            Configuration configuration, ResourceID resourceId) {
+        return generateWorkingDirectoryFile(
+                configuration,
+                Optional.of(ClusterOptions.JOB_MANAGER_PROCESS_WORKING_DIR_BASE),
+                "jm_" + resourceId);
+    }
+
+    /**
+     * Generate the working directory from the given configuration. If a working dir option is
+     * specified, then this config option will be read first. At last, {@link CoreOptions#TMP_DIRS}
+     * will be used to extract the working directory base from.
+     *
+     * @param configuration to extract the working directory from
+     * @param workingDirOption optional working dir option
+     * @param workingDirectoryName name of the working directory to create
+     * @return working directory
+     */
+    public static File generateWorkingDirectoryFile(
+            Configuration configuration,
+            Optional<ConfigOption<String>> workingDirOption,
+            String workingDirectoryName) {
+        final Optional<String> optionalWorkingDirectory =
+                workingDirOption.flatMap(configuration::getOptional);
+
+        final File workingDirectoryBase =
+                optionalWorkingDirectory
+                        .map(File::new)
+                        .orElseGet(
+                                () -> {
+                                    final File tempDirectory =
+                                            ConfigurationUtils.getRandomTempDirectory(
+                                                    configuration);
+
+                                    LOG.debug(
+                                            "Picked {} randomly from the configured temporary directories to be used as working directory base.",
+                                            tempDirectory);
+
+                                    return tempDirectory;
+                                });
+
+        return new File(workingDirectoryBase, workingDirectoryName);
+    }
+
+    /**
+     * Creates the working directory for the JobManager process. This method ensures that the
+     * working diretory exists.
+     *
+     * @param configuration to extract the required settings from
+     * @param envelopedResourceId identifying the TaskManager process
+     * @return working directory
+     * @throws IOException if the working directory could not be created
+     */
+    public static DeterminismEnvelope<WorkingDirectory> createJobManagerWorkingDirectory(
+            Configuration configuration, DeterminismEnvelope<ResourceID> envelopedResourceId)
+            throws IOException {
+        return envelopedResourceId.map(
+                resourceId ->
+                        WorkingDirectory.create(
+                                generateJobManagerWorkingDirectoryFile(configuration, resourceId)));
     }
 }

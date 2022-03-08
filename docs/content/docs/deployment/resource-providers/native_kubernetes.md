@@ -126,14 +126,6 @@ $ ./bin/flink cancel --target kubernetes-application -Dkubernetes.cluster-id=my-
 
 You can override configurations set in `conf/flink-conf.yaml` by passing key-value pairs `-Dkey=value` to `bin/flink`.
 
-### Per-Job Mode
-
-{{< hint info >}}
-For high-level intuition behind the per-job mode, please refer to the [deployment mode overview]({{< ref "docs/deployment/overview#per-job-mode" >}}).
-{{< /hint >}}
-
-Flink on Kubernetes does not support Per-Job Cluster Mode.
-
 ### Session Mode
 
 {{< hint info >}}
@@ -545,7 +537,7 @@ metadata:
 spec:
   initContainers:
     - name: artifacts-fetcher
-      image: artifacts-fetcher:latest
+      image: busybox:latest
       # Use wget or other tools to get user jars from remote storage
       command: [ 'wget', 'https://path/of/StateMachineExample.jar', '-O', '/flink-artifact/myjob.jar' ]
       volumeMounts:
@@ -583,5 +575,13 @@ spec:
     - name: flink-logs
       emptyDir: { }
 ```
+
+### User jars & Classpath
+
+When deploying Flink natively on Kubernetes, the following jars will be recognized as user-jars and included into user classpath:
+- Session Mode: The JAR file specified in startup command.
+- Application Mode: The JAR file specified in startup command and all JAR files in Flink's `usrlib` folder.
+
+Please refer to the [Debugging Classloading Docs]({{< ref "docs/ops/debugging/debugging_classloading" >}}#overview-of-classloading-in-flink) for details.
 
 {{< top >}}

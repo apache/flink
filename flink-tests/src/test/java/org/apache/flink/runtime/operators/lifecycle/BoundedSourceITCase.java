@@ -36,7 +36,6 @@ import static org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders
 import static org.apache.flink.runtime.operators.lifecycle.graph.TestJobBuilders.SIMPLE_GRAPH_BUILDER;
 import static org.apache.flink.runtime.operators.lifecycle.validation.TestJobDataFlowValidator.checkDataFlow;
 import static org.apache.flink.runtime.operators.lifecycle.validation.TestOperatorLifecycleValidator.checkOperatorsLifecycle;
-import static org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH;
 
 /**
  * A test suite to check that the operator methods are called according to contract when sources are
@@ -63,19 +62,19 @@ public class BoundedSourceITCase extends AbstractTestBase {
         TestJobWithDescription testJob =
                 graphBuilder.build(
                         sharedObjects,
-                        cfg -> cfg.setBoolean(ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true),
+                        cfg -> {},
                         env ->
                                 env.getCheckpointConfig()
                                         .setCheckpointStorage(
                                                 TEMPORARY_FOLDER.newFolder().toURI()));
 
-        TestJobExecutor.execute(testJob, miniClusterResource)
+        TestJobExecutor.execute(testJob, MINI_CLUSTER_RESOURCE)
                 .waitForEvent(CheckpointCompletedEvent.class)
                 .sendBroadcastCommand(FINISH_SOURCES, ALL_SUBTASKS)
                 .waitForTermination()
                 .assertFinishedSuccessfully();
 
         checkOperatorsLifecycle(testJob, new DrainingValidator(), new FinishingValidator());
-        checkDataFlow(testJob);
+        checkDataFlow(testJob, true);
     }
 }

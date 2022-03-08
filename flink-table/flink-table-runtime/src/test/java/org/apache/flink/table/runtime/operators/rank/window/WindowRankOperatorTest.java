@@ -106,8 +106,7 @@ public class WindowRankOperatorTest {
 
     private static final RowDataHarnessAssertor ASSERTER =
             new RowDataHarnessAssertor(
-                    OUTPUT_TYPES,
-                    new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
+                    OUTPUT_TYPES, new GenericRowRecordSortComparator(0, VarCharType.STRING_TYPE));
 
     private static final LogicalType[] OUTPUT_TYPES_WITHOUT_RANK_NUMBER =
             new LogicalType[] {new VarCharType(Integer.MAX_VALUE), new IntType(), new BigIntType()};
@@ -118,7 +117,7 @@ public class WindowRankOperatorTest {
     private static final RowDataHarnessAssertor ASSERTER_WITHOUT_RANK_NUMBER =
             new RowDataHarnessAssertor(
                     OUTPUT_TYPES_WITHOUT_RANK_NUMBER,
-                    new GenericRowRecordSortComparator(0, new VarCharType(VarCharType.MAX_LENGTH)));
+                    new GenericRowRecordSortComparator(0, VarCharType.STRING_TYPE));
 
     private static final ZoneId UTC_ZONE_ID = ZoneId.of("UTC");
     private static final ZoneId SHANGHAI_ZONE_ID = ZoneId.of("Asia/Shanghai");

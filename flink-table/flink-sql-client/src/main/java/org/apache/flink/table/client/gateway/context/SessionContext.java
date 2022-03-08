@@ -342,7 +342,7 @@ public class SessionContext {
                 new ArrayList<>(jarsInConfig),
                 URL::toString);
 
-        // TODO: update the the classloader in CatalogManager.
+        // TODO: update the classloader in CatalogManager.
         classLoader =
                 ClientUtils.buildUserCodeClassLoader(
                         new ArrayList<>(newDependencies),

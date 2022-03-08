@@ -17,17 +17,17 @@ limitations under the License.
 -->
 <Root>
   <TestCase name="testFallbackToRegularJoin">
-		<Resource name="sql">
-			<![CDATA[
+    <Resource name="sql">
+      <![CDATA[
 SELECT t1.a FROM MyTable t1 WHERE t1.a IN (
  SELECT t2.a FROM MyTable2 t2
    WHERE t1.b = t2.b AND t1.rowtime between t2.rowtime and t2.rowtime + INTERVAL '5' MINUTE
    GROUP BY t2.a
 )
     ]]>
-		</Resource>
-		<Resource name="ast">
-			<![CDATA[
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
 LogicalProject(a=[$0])
 +- LogicalFilter(condition=[IN($0, {
 LogicalAggregate(group=[{0}])
@@ -37,13 +37,13 @@ LogicalAggregate(group=[{0}])
 })], variablesSet=[[$cor0]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
-		</Resource>
-		<Resource name="optimized exec plan">
-			<![CDATA[
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
 Calc(select=[a])
 +- Join(joinType=[InnerJoin], where=[((b = b0) AND (rowtime = rowtime0) AND (a = a0))], select=[a, b, rowtime, a0, b0, rowtime0], leftInputSpec=[NoUniqueKey], rightInputSpec=[JoinKeyContainsUniqueKey])
    :- Exchange(distribution=[hash[b, rowtime, a]])
-   :  +- Calc(select=[a, b, CAST(rowtime) AS rowtime])
+   :  +- Calc(select=[a, b, CAST(rowtime AS TIMESTAMP(3)) AS rowtime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])(reuse_id=[1])
    +- Exchange(distribution=[hash[b0, rowtime0, a]])
       +- GroupAggregate(groupBy=[a, b0, rowtime0], select=[a, b0, rowtime0])
@@ -51,16 +51,16 @@ Calc(select=[a])
             +- Calc(select=[a, b0, rowtime0])
                +- Join(joinType=[InnerJoin], where=[((b0 = b) AND (rowtime0 >= rowtime) AND (rowtime0 <= (rowtime + 300000:INTERVAL MINUTE)))], select=[a, b, rowtime, b0, rowtime0], leftInputSpec=[NoUniqueKey], rightInputSpec=[HasUniqueKey])
                   :- Exchange(distribution=[hash[b]])
-                  :  +- Calc(select=[a, b, CAST(rowtime) AS rowtime])
+                  :  +- Calc(select=[a, b, CAST(rowtime AS TIMESTAMP(3)) AS rowtime])
                   :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
                   +- Exchange(distribution=[hash[b]])
                      +- GroupAggregate(groupBy=[b, rowtime], select=[b, rowtime])
                         +- Exchange(distribution=[hash[b, rowtime]])
-                           +- Calc(select=[b, CAST(rowtime) AS rowtime])
+                           +- Calc(select=[b, CAST(rowtime AS TIMESTAMP(3)) AS rowtime])
                               +- Reused(reference_id=[1])
 ]]>
-		</Resource>
-	</TestCase>
+    </Resource>
+  </TestCase>
   <TestCase name="testInteravalDiffTimeIndicator">
     <Resource name="sql">
       <![CDATA[
@@ -86,7 +86,7 @@ Calc(select=[a0 AS a])
    :  +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime, CAST(rowtime) AS rowtime])
+      +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime, CAST(rowtime AS TIMESTAMP(3)) AS rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>
@@ -116,7 +116,7 @@ Calc(select=[a0 AS a])
    :  +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime])
    :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable]], fields=[a, b, c, proctime, rowtime])
    +- Exchange(distribution=[hash[a]])
-      +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime, CAST(rowtime) AS rowtime])
+      +- Calc(select=[a, PROCTIME_MATERIALIZE(proctime) AS proctime, CAST(rowtime AS TIMESTAMP(3)) AS rowtime])
          +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[a, b, c, proctime, rowtime])
 ]]>
     </Resource>

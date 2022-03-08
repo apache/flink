@@ -28,14 +28,14 @@ import org.apache.flink.table.types.logical.VarCharType;
 /** Base Test for all subclass of {@link TimeIntervalJoin}. */
 abstract class TimeIntervalStreamJoinTestBase {
     InternalTypeInfo<RowData> rowType =
-            InternalTypeInfo.ofFields(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH));
+            InternalTypeInfo.ofFields(new BigIntType(), VarCharType.STRING_TYPE);
 
     private InternalTypeInfo<RowData> outputRowType =
             InternalTypeInfo.ofFields(
                     new BigIntType(),
-                    new VarCharType(VarCharType.MAX_LENGTH),
+                    VarCharType.STRING_TYPE,
                     new BigIntType(),
-                    new VarCharType(VarCharType.MAX_LENGTH));
+                    VarCharType.STRING_TYPE);
     RowDataHarnessAssertor assertor = new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
 
     protected String funcCode =

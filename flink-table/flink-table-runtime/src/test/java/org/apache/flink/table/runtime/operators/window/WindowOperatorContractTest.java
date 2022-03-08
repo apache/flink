@@ -195,8 +195,7 @@ public class WindowOperatorContractTest {
                     long allowedLateness)
                     throws Exception {
 
-        LogicalType[] inputTypes =
-                new LogicalType[] {new VarCharType(VarCharType.MAX_LENGTH), new IntType()};
+        LogicalType[] inputTypes = new LogicalType[] {VarCharType.STRING_TYPE, new IntType()};
         RowDataKeySelector keySelector =
                 HandwrittenSelectorUtil.getRowDataSelector(new int[] {0}, inputTypes);
         TypeInformation<RowData> keyType = keySelector.getProducedType();

@@ -18,13 +18,16 @@
 
 package org.apache.flink.table.operations;
 
+import org.apache.flink.annotation.Internal;
+
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 /** Operation to describe an EXPLAIN statement. */
-public class ExplainOperation implements Operation {
+@Internal
+public final class ExplainOperation implements Operation {
     private final Operation child;
     private final Set<String> explainDetails;
 

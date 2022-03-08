@@ -45,17 +45,26 @@ public interface CastRule<IN, OUT> {
     CastExecutor<IN, OUT> create(
             Context context, LogicalType inputLogicalType, LogicalType targetLogicalType);
 
-    boolean canFail();
+    /** Returns true if the {@link CastExecutor} can fail at runtime. */
+    boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType);
 
     /** Casting context. */
     interface Context {
+        @Deprecated
+        boolean legacyBehaviour();
+
         ZoneId getSessionZoneId();
 
         ClassLoader getClassLoader();
 
         /** Create a casting context. */
-        static Context create(ZoneId zoneId, ClassLoader classLoader) {
+        static Context create(boolean legacyBehaviour, ZoneId zoneId, ClassLoader classLoader) {
             return new Context() {
+                @Override
+                public boolean legacyBehaviour() {
+                    return legacyBehaviour;
+                }
+
                 @Override
                 public ZoneId getSessionZoneId() {
                     return zoneId;

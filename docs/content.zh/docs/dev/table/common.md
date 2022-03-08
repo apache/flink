@@ -86,16 +86,16 @@ tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datag
   .build())
 
 // Create a sink table (using SQL DDL)
-tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable");
+tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable")
 
 // Create a Table object from a Table API query
-val table1 = tableEnv.from("SourceTable");
+val table1 = tableEnv.from("SourceTable")
 
 // Create a Table object from a SQL query
-val table2 = tableEnv.sqlQuery("SELECT * FROM SourceTable");
+val table2 = tableEnv.sqlQuery("SELECT * FROM SourceTable")
 
 // Emit a Table API result Table to a TableSink, same for SQL result
-val tableResult = table1.executeInsert("SinkTable");
+val tableResult = table1.executeInsert("SinkTable")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -379,11 +379,11 @@ tableEnv.createTemporaryView("other_catalog.other_database.exampleView", table);
 {{< tab "Scala" >}}
 ```scala
 // get a TableEnvironment
-val tEnv: TableEnvironment = ...;
+val tEnv: TableEnvironment = ...
 tEnv.useCatalog("custom_catalog")
 tEnv.useDatabase("custom_database")
 
-val table: Table = ...;
+val table: Table = ...
 
 // register the view named 'exampleView' in the catalog named 'custom_catalog'
 // in the database named 'custom_database' 

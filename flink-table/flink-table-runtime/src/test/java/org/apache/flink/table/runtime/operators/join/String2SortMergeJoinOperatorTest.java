@@ -60,15 +60,13 @@ public class String2SortMergeJoinOperatorTest {
 
     private boolean leftIsSmall;
     InternalTypeInfo<RowData> typeInfo =
-            InternalTypeInfo.ofFields(
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new VarCharType(VarCharType.MAX_LENGTH));
+            InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, VarCharType.STRING_TYPE);
     private InternalTypeInfo<RowData> joinedInfo =
             InternalTypeInfo.ofFields(
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new VarCharType(VarCharType.MAX_LENGTH));
+                    VarCharType.STRING_TYPE,
+                    VarCharType.STRING_TYPE,
+                    VarCharType.STRING_TYPE,
+                    VarCharType.STRING_TYPE);
 
     public String2SortMergeJoinOperatorTest(boolean leftIsSmall) {
         this.leftIsSmall = leftIsSmall;

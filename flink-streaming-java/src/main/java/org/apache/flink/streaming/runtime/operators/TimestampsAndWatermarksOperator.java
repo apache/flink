@@ -28,9 +28,9 @@ import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
-import org.apache.flink.streaming.runtime.tasks.ProcessingTimeCallback;
 import org.apache.flink.streaming.runtime.watermarkstatus.WatermarkStatus;
 
+import static org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**

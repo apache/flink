@@ -33,7 +33,7 @@ import scala.collection.Seq
 class UnionITCase extends BatchTestBase {
 
   val type6 = InternalTypeInfo.ofFields(
-    new IntType(), new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH))
+    new IntType(), new BigIntType(), VarCharType.STRING_TYPE)
 
   val data6 = Seq(
     binaryRow(type6.toRowFieldTypes, 1, 1L, fromString("Hi")),
@@ -48,8 +48,7 @@ class UnionITCase extends BatchTestBase {
     registerCollection("Table3", smallData3, type3, "a, b, c", nullablesOfSmallData3)
     registerCollection("Table5", data5, type5, "d, e, f, g, h", nullablesOfData5)
     registerCollection("Table6", data6, type6, "a, b, c", Array(false, false, false))
-    tEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
+    tEnv.getConfig.set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
   }
 
   @Test
@@ -113,10 +112,9 @@ class UnionITCase extends BatchTestBase {
     */
   @Test
   def testJoinAfterDifferentTypeUnionAll(): Unit = {
-    tEnv.getConfig.getConfiguration.setLong(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, -1)
-    tEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
+    tEnv.getConfig
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD, Long.box(-1))
+      .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     checkResult(
       "SELECT a, c, g FROM (SELECT t1.a, t1.b, t1.c FROM Table3 t1 UNION ALL" +
           "(SELECT a, b, c FROM Table3 ORDER BY a, b, c)), Table5 WHERE b = e",

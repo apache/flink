@@ -23,13 +23,14 @@ import org.apache.flink.api.connector.source.SourceEvent;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.PendingSplitsCheckpoint;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
+import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionContext;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.table.catalog.ObjectPath;
-import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
 
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.mapred.JobConf;
@@ -77,6 +78,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
             Collection<List<String>> seenPartitionsSinceOffset,
             FileSplitAssigner splitAssigner,
             long discoveryInterval,
+            ReadableConfig flinkConf,
             JobConf jobConf,
             ObjectPath tablePath,
             ContinuousPartitionFetcher<Partition, T> fetcher,
@@ -93,6 +95,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
                         currentReadOffset,
                         seenPartitionsSinceOffset,
                         tablePath,
+                        flinkConf,
                         jobConf,
                         fetcher,
                         fetcherContext);
@@ -185,6 +188,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
         private final Set<List<String>> seenPartitionsSinceOffset;
 
         private final ObjectPath tablePath;
+        private final ReadableConfig flinkConf;
         private final JobConf jobConf;
         private final ContinuousPartitionFetcher<Partition, T> fetcher;
         private final HiveContinuousPartitionContext<Partition, T> fetcherContext;
@@ -193,12 +197,14 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
                 T currentReadOffset,
                 Collection<List<String>> seenPartitionsSinceOffset,
                 ObjectPath tablePath,
+                ReadableConfig flinkConf,
                 JobConf jobConf,
                 ContinuousPartitionFetcher<Partition, T> fetcher,
                 HiveContinuousPartitionContext<Partition, T> fetcherContext) {
             this.currentReadOffset = currentReadOffset;
             this.seenPartitionsSinceOffset = new HashSet<>(seenPartitionsSinceOffset);
             this.tablePath = tablePath;
+            this.flinkConf = flinkConf;
             this.jobConf = jobConf;
             this.fetcher = fetcher;
             this.fetcherContext = fetcherContext;
@@ -238,6 +244,7 @@ public class ContinuousHiveSplitEnumerator<T extends Comparable<T>>
                                     0,
                                     Collections.singletonList(
                                             fetcherContext.toHiveTablePartition(partition)),
+                                    flinkConf,
                                     jobConf));
                 }
             }

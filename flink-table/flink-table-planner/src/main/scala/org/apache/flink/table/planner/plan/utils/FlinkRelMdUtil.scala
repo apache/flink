@@ -21,9 +21,9 @@ package org.apache.flink.table.planner.plan.utils
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.planner.JDouble
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGroupAggregateBase, BatchPhysicalLocalHashWindowAggregate, BatchPhysicalLocalSortWindowAggregate, BatchPhysicalWindowAggregateBase}
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRange}
 import org.apache.flink.table.runtime.operators.sort.BinaryIndexedSortable
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer.LENGTH_SIZE_IN_BYTES
@@ -196,7 +196,7 @@ object FlinkRelMdUtil {
   def makeNamePropertiesSelectivityRexNode(
       winAgg: SingleRel,
       fullGrouping: Array[Int],
-      namedProperties: Seq[PlannerNamedWindowProperty],
+      namedProperties: Seq[NamedWindowProperty],
       predicate: RexNode): RexNode = {
     if (predicate == null || predicate.isAlwaysTrue || namedProperties.isEmpty) {
       return predicate

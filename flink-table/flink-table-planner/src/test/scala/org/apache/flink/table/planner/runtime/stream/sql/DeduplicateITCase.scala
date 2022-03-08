@@ -22,13 +22,14 @@ import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.functions.timestamps.AscendingTimestampExtractor
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.factories.TestValuesTableFactory
-import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecDeduplicate
 import org.apache.flink.table.planner.runtime.utils.StreamingWithMiniBatchTestBase.{MiniBatchMode, MiniBatchOn}
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils._
 import org.apache.flink.table.utils.LegacyRowResource
 import org.apache.flink.types.Row
+
 import org.junit.Assert._
 import org.junit.{Assume, Rule, Test}
 import org.junit.runner.RunWith
@@ -192,8 +193,9 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   @Test
   def testFirstRowWithoutAllChangelogOnRowtime(): Unit = {
     Assume.assumeTrue("Without all change log only for minibatch.", miniBatch == MiniBatchOn)
-    tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecDeduplicate.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES, true)
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED,
+      Boolean.box(true))
     val t = env.fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())
@@ -299,8 +301,9 @@ class DeduplicateITCase(miniBatch: MiniBatchMode, mode: StateBackendMode)
   @Test
   def testLastRowWithoutAllChangelogOnRowtime(): Unit = {
     Assume.assumeTrue("Without all change log only for minibatch.", miniBatch == MiniBatchOn)
-    tEnv.getConfig.getConfiguration.setBoolean(
-      StreamExecDeduplicate.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES, true)
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_DEDUPLICATE_MINIBATCH_COMPACT_CHANGES_ENABLED,
+      Boolean.box(true))
     val t = env.fromCollection(rowtimeTestData)
       .assignTimestampsAndWatermarks(new RowtimeExtractor)
       .toTable(tEnv, 'a, 'b, 'c, 'rowtime.rowtime())

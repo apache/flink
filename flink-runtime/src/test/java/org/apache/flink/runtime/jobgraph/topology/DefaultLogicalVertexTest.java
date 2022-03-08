@@ -20,6 +20,7 @@ package org.apache.flink.runtime.jobgraph.topology;
 
 import org.apache.flink.runtime.jobgraph.IntermediateDataSet;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
+import org.apache.flink.runtime.jobgraph.JobEdge;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.util.IterableUtils;
@@ -36,7 +37,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
-import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.BLOCKING;
 import static org.apache.flink.runtime.io.network.partition.ResultPartitionType.PIPELINED;
 import static org.apache.flink.runtime.jobgraph.DistributionPattern.ALL_TO_ALL;
 import static org.apache.flink.runtime.jobgraph.topology.DefaultLogicalResultTest.assertResultsEquals;
@@ -46,62 +46,63 @@ import static org.junit.Assert.assertNotNull;
 /** Unit tests for {@link DefaultLogicalVertex}. */
 public class DefaultLogicalVertexTest extends TestLogger {
 
-    private JobVertex jobVertex;
+    private JobVertex upstreamJobVertex;
 
-    private DefaultLogicalVertex logicalVertex;
+    private DefaultLogicalVertex upstreamLogicalVertex;
+
+    private JobVertex downstreamJobVertex;
+
+    private DefaultLogicalVertex downstreamLogicalVertex;
 
     private Map<IntermediateDataSetID, IntermediateDataSet> resultMap;
 
-    private Set<IntermediateDataSet> consumedResults;
-
-    private Set<IntermediateDataSet> producedResults;
+    private Set<IntermediateDataSet> results;
 
     @Before
     public void setUp() throws Exception {
         buildVerticesAndResults();
 
-        logicalVertex =
+        upstreamLogicalVertex =
                 new DefaultLogicalVertex(
-                        jobVertex,
+                        upstreamJobVertex,
+                        rid -> new DefaultLogicalResult(resultMap.get(rid), vid -> null));
+
+        downstreamLogicalVertex =
+                new DefaultLogicalVertex(
+                        downstreamJobVertex,
                         rid -> new DefaultLogicalResult(resultMap.get(rid), vid -> null));
     }
 
     @Test
     public void testConstructor() {
-        assertVertexInfoEquals(jobVertex, logicalVertex);
+        assertVertexInfoEquals(upstreamJobVertex, upstreamLogicalVertex);
+        assertVertexInfoEquals(downstreamJobVertex, downstreamLogicalVertex);
     }
 
     @Test
     public void testGetConsumedResults() {
-        assertResultsEquals(consumedResults, logicalVertex.getConsumedResults());
+        assertResultsEquals(results, downstreamLogicalVertex.getConsumedResults());
     }
 
     @Test
     public void testGetProducedResults() {
-        assertResultsEquals(producedResults, logicalVertex.getProducedResults());
+        assertResultsEquals(results, upstreamLogicalVertex.getProducedResults());
     }
 
     private void buildVerticesAndResults() {
         resultMap = new HashMap<>();
-        producedResults = new HashSet<>();
-        consumedResults = new HashSet<>();
+        results = new HashSet<>();
 
         final int parallelism = 3;
-        jobVertex = createNoOpVertex(parallelism);
+        upstreamJobVertex = createNoOpVertex(parallelism);
+        downstreamJobVertex = createNoOpVertex(parallelism);
 
         for (int i = 0; i < 5; i++) {
-            final IntermediateDataSet producedDataSet =
-                    jobVertex.createAndAddResultDataSet(BLOCKING);
-            producedResults.add(producedDataSet);
-            resultMap.put(producedDataSet.getId(), producedDataSet);
-        }
-
-        final JobVertex upStreamJobVertex = createNoOpVertex(parallelism);
-        for (int i = 0; i < 5; i++) {
-            final IntermediateDataSet consumedDataSet =
-                    upStreamJobVertex.createAndAddResultDataSet(PIPELINED);
-            jobVertex.connectDataSetAsInput(consumedDataSet, ALL_TO_ALL);
-            consumedResults.add(consumedDataSet);
+            final JobEdge edge =
+                    downstreamJobVertex.connectNewDataSetAsInput(
+                            upstreamJobVertex, ALL_TO_ALL, PIPELINED);
+            final IntermediateDataSet consumedDataSet = edge.getSource();
+            results.add(consumedDataSet);
             resultMap.put(consumedDataSet.getId(), consumedDataSet);
         }
     }

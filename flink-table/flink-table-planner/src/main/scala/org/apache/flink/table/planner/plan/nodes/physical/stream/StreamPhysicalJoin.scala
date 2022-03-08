@@ -20,14 +20,14 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecJoin
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
 import org.apache.flink.table.planner.plan.utils.JoinUtil
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 
 import org.apache.calcite.plan._
-import org.apache.calcite.rel.core.{Exchange, Join, JoinRelType}
+import org.apache.calcite.rel.core.{Join, JoinRelType}
 import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelNode, RelWriter}
 import org.apache.calcite.rex.RexNode

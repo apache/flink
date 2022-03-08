@@ -19,7 +19,9 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.operators.MailboxExecutor;
+import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.core.testutils.OneShotLatch;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.operators.testutils.MockEnvironment;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.BoundedOneInput;
@@ -133,7 +135,7 @@ public class StreamOperatorWrapperTest extends TestLogger {
     @Test
     public void testFinish() throws Exception {
         output.clear();
-        operatorWrappers.get(0).finish(containingTask.getActionExecutor());
+        operatorWrappers.get(0).finish(containingTask.getActionExecutor(), StopMode.DRAIN);
 
         List<Object> expected = new ArrayList<>();
         for (int i = 0; i < operatorWrappers.size(); i++) {
@@ -172,7 +174,7 @@ public class StreamOperatorWrapperTest extends TestLogger {
                         true);
 
         try {
-            operatorWrapper.finish(containingTask.getActionExecutor());
+            operatorWrapper.finish(containingTask.getActionExecutor(), StopMode.DRAIN);
             fail("should throw an exception");
         } catch (Throwable t) {
             Optional<Throwable> optional =

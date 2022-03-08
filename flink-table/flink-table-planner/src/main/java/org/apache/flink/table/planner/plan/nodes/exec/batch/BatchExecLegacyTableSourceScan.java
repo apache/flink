@@ -28,6 +28,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLegacyTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
@@ -57,12 +59,20 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
             List<String> qualifiedName,
             RowType outputType,
             String description) {
-        super(tableSource, qualifiedName, outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecLegacyTableSourceScan.class),
+                tableSource,
+                qualifiedName,
+                outputType,
+                description);
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final Transformation<RowData> transformation = super.translateToPlanInternal(planner);
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        final Transformation<RowData> transformation =
+                super.translateToPlanInternal(planner, config);
         // the boundedness has been checked via the stream table source already, so we can safely
         // declare all legacy transformations as bounded to make the stream graph generator happy
         ExecNodeUtil.makeLegacySourceTransformationsBounded(transformation);
@@ -72,7 +82,8 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
     @SuppressWarnings("unchecked")
     @Override
     protected Transformation<RowData> createConversionTransformationIfNeeded(
-            PlannerBase planner,
+            StreamExecutionEnvironment streamExecEnv,
+            ExecNodeConfig config,
             Transformation<?> sourceTransform,
             @Nullable RexNode rowtimeExpression) {
         final int[] fieldIndexes = computeIndexMapping(false);
@@ -80,16 +91,19 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
             // the produced type may not carry the correct precision user defined in DDL, because
             // it may be converted from legacy type. Fix precision using logical schema from DDL.
             // code generation requires the correct precision of input fields.
-            DataType fixedProducedDataType =
+            final DataType fixedProducedDataType =
                     TableSourceUtil.fixPrecisionForProducedDataType(
                             tableSource, (RowType) getOutputType());
             return ScanUtil.convertToInternalRow(
-                    new CodeGeneratorContext(planner.getTableConfig()),
+                    new CodeGeneratorContext(config.getTableConfig()),
                     (Transformation<Object>) sourceTransform,
                     fieldIndexes,
                     fixedProducedDataType,
                     (RowType) getOutputType(),
                     qualifiedName,
+                    (detailName, simplifyName) ->
+                            createFormattedTransformationName(detailName, simplifyName, config),
+                    (description) -> createFormattedTransformationDescription(description, config),
                     JavaScalaConversionUtil.toScala(Optional.ofNullable(rowtimeExpression)),
                     "",
                     "");

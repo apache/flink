@@ -137,7 +137,7 @@ public class TimeWindow extends Window {
 
         @Override
         public TimeWindow createInstance() {
-            return null;
+            return new TimeWindow(0L, 1L);
         }
 
         @Override
@@ -152,7 +152,7 @@ public class TimeWindow extends Window {
 
         @Override
         public int getLength() {
-            return 0;
+            return Long.BYTES + Long.BYTES;
         }
 
         @Override

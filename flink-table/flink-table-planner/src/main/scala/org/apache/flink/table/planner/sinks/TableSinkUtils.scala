@@ -24,7 +24,7 @@ import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.table.api._
 import org.apache.flink.table.catalog.{CatalogTable, ObjectIdentifier}
 import org.apache.flink.table.data.RowData
-import org.apache.flink.table.operations.CatalogSinkModifyOperation
+import org.apache.flink.table.operations.SinkModifyOperation
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -56,7 +56,7 @@ object TableSinkUtils {
     * @param partitionKeys The partition keys of this table.
     */
   def validateTableSink(
-      sinkOperation: CatalogSinkModifyOperation,
+      sinkOperation: SinkModifyOperation,
       sinkIdentifier: ObjectIdentifier,
       sink: TableSink[_],
       partitionKeys: Seq[String]): Unit = {

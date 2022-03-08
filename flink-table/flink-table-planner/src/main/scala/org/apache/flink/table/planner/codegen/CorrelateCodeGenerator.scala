@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction
-import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.utils.{ExecNodeUtil, TransformationMetadata}
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
@@ -40,7 +40,7 @@ import org.apache.calcite.rex._
 object CorrelateCodeGenerator {
 
   def generateCorrelateTransformation(
-      config: TableConfig,
+      tableConfig: TableConfig,
       operatorCtx: CodeGeneratorContext,
       inputTransformation: Transformation[RowData],
       inputType: RowType,
@@ -51,8 +51,8 @@ object CorrelateCodeGenerator {
       parallelism: Int,
       retainHeader: Boolean,
       opName: String,
-      transformationName: String)
-    : Transformation[RowData] = {
+      transformationMeta: TransformationMetadata)
+  : Transformation[RowData] = {
 
     // according to the SQL standard, every scalar function should also be a table function
     // but we don't allow that for now
@@ -74,7 +74,7 @@ object CorrelateCodeGenerator {
 
     val substituteStreamOperator = generateOperator(
       operatorCtx,
-      config,
+      tableConfig,
       inputType,
       condition.map(_.accept(changeInputRefIndexShuttle)),
       outputType,
@@ -85,7 +85,7 @@ object CorrelateCodeGenerator {
 
     ExecNodeUtil.createOneInputTransformation(
       inputTransformation,
-      transformationName,
+      transformationMeta,
       substituteStreamOperator,
       InternalTypeInfo.of(outputType),
       parallelism,
@@ -97,7 +97,7 @@ object CorrelateCodeGenerator {
     */
   private[flink] def generateOperator[T <: Function](
       ctx: CodeGeneratorContext,
-      config: TableConfig,
+      tableConfig: TableConfig,
       inputType: RowType,
       condition: Option[RexNode],
       returnType: RowType,
@@ -114,7 +114,7 @@ object CorrelateCodeGenerator {
     // 1.1 compile correlate collector
     val correlateCollectorTerm = generateCorrelateCollector(
       ctx,
-      config,
+      tableConfig,
       inputType,
       functionResultType,
       returnType,
@@ -181,7 +181,7 @@ object CorrelateCodeGenerator {
    */
   private def generateCorrelateCollector(
       ctx: CodeGeneratorContext,
-      config: TableConfig,
+      tableConfig: TableConfig,
       inputType: RowType,
       functionResultType: RowType,
       resultType: RowType,
@@ -193,7 +193,7 @@ object CorrelateCodeGenerator {
     val inputTerm = CodeGenUtils.DEFAULT_INPUT1_TERM
     val udtfInputTerm = CodeGenUtils.DEFAULT_INPUT2_TERM
 
-    val collectorCtx = CodeGeneratorContext(config)
+    val collectorCtx = CodeGeneratorContext(tableConfig)
 
     val body = {
       // completely output left input + right

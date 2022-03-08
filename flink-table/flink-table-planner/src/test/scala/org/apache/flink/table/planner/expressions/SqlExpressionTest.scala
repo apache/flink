@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
-import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
 import org.apache.flink.types.Row
 
@@ -39,211 +38,54 @@ class SqlExpressionTest extends ExpressionTestBase {
 
   @Test
   def testComparisonFunctions(): Unit = {
-    testSqlApi("1 = 1", "true")
-    testSqlApi("1 <> 1", "false")
-    testSqlApi("5 > 2", "true")
-    testSqlApi("2 >= 2", "true")
-    testSqlApi("5 < 2", "false")
-    testSqlApi("2 <= 2", "true")
-    testSqlApi("x'0c' <= x'0b'", "false")
-    testSqlApi("x'0c' > x'0b'", "true")
-    testSqlApi("x'0c' = x'0c'", "true")
-    testSqlApi("x'0c' <> x'0c'", "false")
-    testSqlApi("1 IS NULL", "false")
-    testSqlApi("1 IS NOT NULL", "true")
-    testSqlApi("NULLIF(1,1) IS DISTINCT FROM NULLIF(1,1)", "false")
-    testSqlApi("NULLIF(1,1) IS NOT DISTINCT FROM NULLIF(1,1)", "true")
-    testSqlApi("NULLIF(1,1) IS NOT DISTINCT FROM NULLIF(1,1)", "true")
-    testSqlApi("12 BETWEEN 11 AND 13", "true")
-    testSqlApi("12 BETWEEN ASYMMETRIC 13 AND 11", "false")
-    testSqlApi("12 BETWEEN SYMMETRIC 13 AND 11", "true")
-    testSqlApi("12 NOT BETWEEN 11 AND 13", "false")
-    testSqlApi("12 NOT BETWEEN ASYMMETRIC 13 AND 11", "true")
-    testSqlApi("12 NOT BETWEEN SYMMETRIC 13 AND 11", "false")
-    testSqlApi("'TEST' LIKE '%EST'", "true")
-    testSqlApi("'%EST' LIKE '.%EST' ESCAPE '.'", "true")
-    testSqlApi("'TEST' NOT LIKE '%EST'", "false")
-    testSqlApi("'%EST' NOT LIKE '.%EST' ESCAPE '.'", "false")
-    testSqlApi("'TEST' SIMILAR TO '.EST'", "true")
-    //testSqlApi("'TEST' SIMILAR TO ':.EST' ESCAPE ':'", "true") // TODO
-    testSqlApi("'TEST' NOT SIMILAR TO '.EST'", "false")
-    //testSqlApi("'TEST' NOT SIMILAR TO ':.EST' ESCAPE ':'", "false") // TODO
-    testSqlApi("'TEST' IN ('west', 'TEST', 'rest')", "true")
-    testSqlApi("'TEST' IN ('west', 'rest')", "false")
-    testSqlApi("'TEST' NOT IN ('west', 'TEST', 'rest')", "false")
-    testSqlApi("'TEST' NOT IN ('west', 'rest')", "true")
+    testSqlApi("1 = 1", "TRUE")
+    testSqlApi("1 <> 1", "FALSE")
+    testSqlApi("5 > 2", "TRUE")
+    testSqlApi("2 >= 2", "TRUE")
+    testSqlApi("5 < 2", "FALSE")
+    testSqlApi("2 <= 2", "TRUE")
+    testSqlApi("x'0c' <= x'0b'", "FALSE")
+    testSqlApi("x'0c' > x'0b'", "TRUE")
+    testSqlApi("x'0c' = x'0c'", "TRUE")
+    testSqlApi("x'0c' <> x'0c'", "FALSE")
+    testSqlApi("1 IS NULL", "FALSE")
+    testSqlApi("1 IS NOT NULL", "TRUE")
+    testSqlApi("NULLIF(1,1) IS DISTINCT FROM NULLIF(1,1)", "FALSE")
+    testSqlApi("NULLIF(1,1) IS NOT DISTINCT FROM NULLIF(1,1)", "TRUE")
+    testSqlApi("NULLIF(1,1) IS NOT DISTINCT FROM NULLIF(1,1)", "TRUE")
+    testSqlApi("12 BETWEEN 11 AND 13", "TRUE")
+    testSqlApi("12 BETWEEN ASYMMETRIC 13 AND 11", "FALSE")
+    testSqlApi("12 BETWEEN SYMMETRIC 13 AND 11", "TRUE")
+    testSqlApi("12 NOT BETWEEN 11 AND 13", "FALSE")
+    testSqlApi("12 NOT BETWEEN ASYMMETRIC 13 AND 11", "TRUE")
+    testSqlApi("12 NOT BETWEEN SYMMETRIC 13 AND 11", "FALSE")
+    testSqlApi("'TEST' LIKE '%EST'", "TRUE")
+    testSqlApi("'%EST' LIKE '.%EST' ESCAPE '.'", "TRUE")
+    testSqlApi("'TEST' NOT LIKE '%EST'", "FALSE")
+    testSqlApi("'%EST' NOT LIKE '.%EST' ESCAPE '.'", "FALSE")
+    testSqlApi("'TEST' SIMILAR TO '.EST'", "TRUE")
+    //testSqlApi("'TEST' SIMILAR TO ':.EST' ESCAPE ':'", "TRUE") // TODO
+    testSqlApi("'TEST' NOT SIMILAR TO '.EST'", "FALSE")
+    //testSqlApi("'TEST' NOT SIMILAR TO ':.EST' ESCAPE ':'", "FALSE") // TODO
+    testSqlApi("'TEST' IN ('west', 'TEST', 'rest')", "TRUE")
+    testSqlApi("'TEST' IN ('west', 'rest')", "FALSE")
+    testSqlApi("'TEST' NOT IN ('west', 'TEST', 'rest')", "FALSE")
+    testSqlApi("'TEST' NOT IN ('west', 'rest')", "TRUE")
 
     // sub-query functions are not listed here
   }
 
   @Test
-  def testValidImplicitTypeConversion: Unit = {
-    // implicit type conversion between tinyint and others
-    testSqlApi("cast(1 as tinyint) = cast(1 as smallint)","true")
-    testSqlApi("cast(1 as tinyint) = cast(1 as int)","true")
-    testSqlApi("cast(1 as tinyint) = cast(1 as bigint)","true")
-    testSqlApi("cast(1 as tinyint) = cast(1 as decimal)","true")
-    testSqlApi("cast(1 as tinyint) = cast(1 as float)","true")
-    testSqlApi("cast(1 as tinyint) = cast(1 as double)","true")
-    testSqlApi("cast(1 as tinyint) = cast(2 as int)","false")
-    testSqlApi("cast(1 as tinyint) = cast(2 as bigint)","false")
-    testSqlApi("cast(1 as tinyint) = cast(2 as decimal)","false")
-    testSqlApi("cast(1 as tinyint) = cast(2.1 as float)","false")
-    testSqlApi("cast(1 as tinyint) = cast(2.1 as double)","false")
-
-    // implicit type conversion between smallint and others
-    testSqlApi("cast(1 as smallint) = cast(1 as int)","true")
-    testSqlApi("cast(1 as smallint) = cast(1 as bigint)","true")
-    testSqlApi("cast(1 as smallint) = cast(1 as decimal)","true")
-    testSqlApi("cast(1 as smallint) = cast(1 as float)","true")
-    testSqlApi("cast(1 as smallint) = cast(1 as double)","true")
-    testSqlApi("cast(1 as smallint) = cast(2 as int)","false")
-    testSqlApi("cast(1 as smallint) = cast(2 as bigint)","false")
-    testSqlApi("cast(1 as smallint) = cast(2 as decimal)","false")
-    testSqlApi("cast(1 as smallint) = cast(2.1 as float)","false")
-    testSqlApi("cast(1 as smallint) = cast(2.1 as double)","false")
-
-    // implicit type conversion between int and others
-    testSqlApi("cast(1 as int) = cast(1 as bigint)","true")
-    testSqlApi("cast(1 as int) = cast(1 as decimal)","true")
-    testSqlApi("cast(1 as int) = cast(1 as float)","true")
-    testSqlApi("cast(1 as int) = cast(1 as double)","true")
-    testSqlApi("cast(1 as int) = cast(2 as bigint)","false")
-    testSqlApi("cast(1 as int) = cast(2 as decimal)","false")
-    testSqlApi("cast(1 as int) = cast(2.1 as float)","false")
-    testSqlApi("cast(1 as int) = cast(2.1 as double)","false")
-
-    // implicit type conversion between bigint and others
-    testSqlApi("cast(1 as bigint) = cast(1 as decimal)","true")
-    testSqlApi("cast(1 as bigint) = cast(1 as float)","true")
-    testSqlApi("cast(1 as bigint) = cast(1 as double)","true")
-    testSqlApi("cast(1 as bigint) = cast(2 as decimal)","false")
-    testSqlApi("cast(1 as bigint) = cast(2.1 as float)","false")
-    testSqlApi("cast(1 as bigint) = cast(2.1 as double)","false")
-
-    // implicit type conversion between decimal and others
-    testSqlApi("cast(1 as decimal) = cast(1 as float)","true")
-    testSqlApi("cast(1 as decimal) = cast(1 as double)","true")
-    testSqlApi("cast(1 as decimal) = cast(2.1 as float)","false")
-    testSqlApi("cast(1 as decimal) = cast(2.1 as double)","false")
-
-    // implicit type conversion between float and others
-    testSqlApi("cast(1 as float) = cast(1 as double)","true")
-    testSqlApi("cast(1 as float) = cast(2.1 as double)","false")
-
-    // implicit type conversion between date and varchar
-    testSqlApi("cast('2001-01-01' as date) = cast('2001-01-01' as varchar)","true")
-    testSqlApi("cast('2001-01-01' as date) = cast('2001-01-02' as varchar)","false")
-
-    // implicit type conversion between date and char
-    testSqlApi("cast('2001-01-01' as date) = cast('2001-01-01' as char)","true")
-    testSqlApi("cast('2001-01-01' as date) = cast('2001-01-02' as char)","false")
-
-    // implicit type conversion between time and char
-    testSqlApi("cast('00:00:00.000000000' as time) = cast('00:00:00.000000000' as varchar)","true")
-    testSqlApi("cast('00:00:00.000000000' as time) = cast('00:00:01.000000000' as varchar)","false")
-
-    // implicit type conversion between time and char
-    testSqlApi("cast('2001-01-01 12:12:12.123' as timestamp)" +
-      " = cast('2001-01-01 12:12:12.1230' as varchar)","true")
-    testSqlApi("cast('1990-10-14 12:12:12.123' as timestamp)" +
-      " = cast('1990-10-15 12:12:12.123' as varchar)","false")
-  }
-
-  @Test
-  def testInValidImplicitTypeConversion: Unit = {
-    val typeChar = "CHAR"
-    val typeVarChar = "VARCHAR"
-
-    val typeTinyInt = "TINYINT"
-    val typeSmallInt = "SMALLINT"
-    val typeInt = "INTEGER"
-    val typeBigInt = "BIGINT"
-    val typeDecimal = "DECIMAL"
-    val typeFloat = "FLOAT"
-    val typeDouble = "DOUBLE"
-
-    // implicit type conversion between char and others
-    testInvalidImplicitConversionTypes(
-      "'1' = cast(1 as tinyint)",
-      List(typeChar,typeTinyInt))
-
-    testInvalidImplicitConversionTypes(
-      "'1' = cast(1 as smallint)",
-      List(typeChar,typeSmallInt))
-
-    testInvalidImplicitConversionTypes(
-      "'1' = cast(1 as int)",
-      List(typeChar,typeInt))
-
-    testInvalidImplicitConversionTypes(
-      "'1' = cast(1 as bigint)",
-      List(typeChar,typeBigInt))
-
-    testInvalidImplicitConversionTypes(
-      "'1.1' = cast(1.1 as decimal(2, 1))",
-      List(typeChar,typeDecimal))
-
-    testInvalidImplicitConversionTypes(
-      "'1.1' = cast(1.1 as float)",
-      List(typeChar,typeFloat))
-
-    testInvalidImplicitConversionTypes(
-      "'1.1' = cast(1.1 as double)",
-      List(typeChar,typeDouble))
-
-    // implicit type conversion between varchar and others
-    testInvalidImplicitConversionTypes(
-      "cast('1' as varchar) = cast(1 as tinyint)",
-      List(typeVarChar,typeTinyInt))
-
-    testInvalidImplicitConversionTypes(
-      "cast('1' as varchar) = cast(1 as smallint)",
-      List(typeVarChar,typeSmallInt))
-
-    testInvalidImplicitConversionTypes(
-
-      "cast('1' as varchar) = cast(1 as int)",
-      List(typeVarChar,typeInt))
-
-    testInvalidImplicitConversionTypes(
-      "cast('1' as varchar) = cast(1 as bigint)",
-      List(typeVarChar,typeBigInt))
-
-    testInvalidImplicitConversionTypes(
-      "cast('1.1' as varchar) = cast(1.1 as decimal(2, 1))",
-      List(typeVarChar,typeDecimal))
-
-    testInvalidImplicitConversionTypes(
-      "cast('1.1' as varchar) = cast(1.1 as float)",
-      List(typeVarChar,typeFloat))
-
-    testInvalidImplicitConversionTypes(
-      "cast('1.1' as varchar) = cast(1.1 as double)",
-      List(typeVarChar,typeDouble))
-  }
-
-  private def testInvalidImplicitConversionTypes(sql: String, types: List[String]): Unit ={
-    val expectedExceptionMessage =
-      "implicit type conversion between " +
-      s"${types(0)}" +
-      s" and " +
-      s"${types(1)}" +
-      s" is not supported now"
-    testExpectedSqlException(sql, expectedExceptionMessage, classOf[CodeGenException])
-  }
-
-  @Test
   def testLogicalFunctions(): Unit = {
-    testSqlApi("TRUE OR FALSE", "true")
-    testSqlApi("TRUE AND FALSE", "false")
-    testSqlApi("NOT TRUE", "false")
-    testSqlApi("TRUE IS FALSE", "false")
-    testSqlApi("TRUE IS NOT FALSE", "true")
-    testSqlApi("TRUE IS TRUE", "true")
-    testSqlApi("TRUE IS NOT TRUE", "false")
-    testSqlApi("NULLIF(TRUE,TRUE) IS UNKNOWN", "true")
-    testSqlApi("NULLIF(TRUE,TRUE) IS NOT UNKNOWN", "false")
+    testSqlApi("TRUE OR FALSE", "TRUE")
+    testSqlApi("TRUE AND FALSE", "FALSE")
+    testSqlApi("NOT TRUE", "FALSE")
+    testSqlApi("TRUE IS FALSE", "FALSE")
+    testSqlApi("TRUE IS NOT FALSE", "TRUE")
+    testSqlApi("TRUE IS TRUE", "TRUE")
+    testSqlApi("TRUE IS NOT TRUE", "FALSE")
+    testSqlApi("NULLIF(TRUE,TRUE) IS UNKNOWN", "TRUE")
+    testSqlApi("NULLIF(TRUE,TRUE) IS NOT UNKNOWN", "FALSE")
   }
 
   @Test
@@ -355,7 +197,7 @@ class SqlExpressionTest extends ExpressionTestBase {
   def testConditionalFunctions(): Unit = {
     testSqlApi("CASE 2 WHEN 1, 2 THEN 2 ELSE 3 END", "2")
     testSqlApi("CASE WHEN 1 = 2 THEN 2 WHEN 1 = 1 THEN 3 ELSE 3 END", "3")
-    testSqlApi("NULLIF(1, 1)", "null")
+    testSqlApi("NULLIF(1, 1)", "NULL")
     testSqlApi("COALESCE(NULL, 5)", "5")
   }
 
@@ -369,10 +211,10 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("ROW('hello world', 12)", "(hello world, 12)")
     testSqlApi("('hello world', 12)", "(hello world, 12)")
     testSqlApi("('foo', ('bar', 12))", "(foo, (bar, 12))")
-    testSqlApi("ARRAY[TRUE, FALSE][2]", "false")
-    testSqlApi("ARRAY[TRUE, TRUE]", "[true, true]")
+    testSqlApi("ARRAY[TRUE, FALSE][2]", "FALSE")
+    testSqlApi("ARRAY[TRUE, TRUE]", "[TRUE, TRUE]")
     testSqlApi("MAP['k1', 'v1', 'k2', 'v2']['k2']", "v2")
-    testSqlApi("MAP['k1', CAST(true AS VARCHAR(256)), 'k2', 'foo']['k1']", "true")
+    testSqlApi("MAP['k1', CAST(true AS VARCHAR(256)), 'k2', 'foo']['k1']", "TRUE")
   }
 
   @Test
@@ -390,7 +232,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("QUARTER(DATE '2016-04-12')", "2")
     testSqlApi(
       "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
-      "true")
+      "TRUE")
   }
 
   @Test
@@ -440,13 +282,13 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("SHA2('test',512)", "ee26b0dd4af7e749aa1a8ee3c10ae9923f618980772e473f8819a5d4940e0" +
       "db27ac185f8a0e1d5f84f88bc887fd67b143732c304cc5fa9ad8e6f57f50028a8ff")
 
-    testSqlApi("MD5(CAST(NULL AS VARCHAR))", "null")
-    testSqlApi("SHA1(CAST(NULL AS VARCHAR))", "null")
-    testSqlApi("SHA224(CAST(NULL AS VARCHAR))", "null")
-    testSqlApi("SHA256(CAST(NULL AS VARCHAR))", "null")
-    testSqlApi("SHA384(CAST(NULL AS VARCHAR))", "null")
-    testSqlApi("SHA512(CAST(NULL AS VARCHAR))", "null")
-    testSqlApi("SHA2(CAST(NULL AS VARCHAR), 256)", "null")
+    testSqlApi("MD5(CAST(NULL AS VARCHAR))", "NULL")
+    testSqlApi("SHA1(CAST(NULL AS VARCHAR))", "NULL")
+    testSqlApi("SHA224(CAST(NULL AS VARCHAR))", "NULL")
+    testSqlApi("SHA256(CAST(NULL AS VARCHAR))", "NULL")
+    testSqlApi("SHA384(CAST(NULL AS VARCHAR))", "NULL")
+    testSqlApi("SHA512(CAST(NULL AS VARCHAR))", "NULL")
+    testSqlApi("SHA2(CAST(NULL AS VARCHAR), 256)", "NULL")
   }
 
   @Test

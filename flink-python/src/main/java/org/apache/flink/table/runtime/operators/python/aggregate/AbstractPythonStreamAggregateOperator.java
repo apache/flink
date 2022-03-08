@@ -32,16 +32,14 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.utils.ProtoUtils;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonEnv;
-import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
-import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.operators.python.AbstractOneInputPythonFunctionOperator;
 import org.apache.flink.table.runtime.operators.python.utils.StreamRecordRowDataWrappingCollector;
 import org.apache.flink.table.runtime.runners.python.beam.BeamTablePythonFunctionRunner;
-import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.runtime.typeutils.PythonTypeUtils;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -68,7 +66,7 @@ public abstract class AbstractPythonStreamAggregateOperator
 
     private final PythonAggregateFunctionInfo[] aggregateFunctions;
 
-    private final DataViewUtils.DataViewSpec[][] dataViewSpecs;
+    private final DataViewSpec[][] dataViewSpecs;
 
     /** The input logical type. */
     protected final RowType inputType;
@@ -127,7 +125,7 @@ public abstract class AbstractPythonStreamAggregateOperator
             RowType inputType,
             RowType outputType,
             PythonAggregateFunctionInfo[] aggregateFunctions,
-            DataViewUtils.DataViewSpec[][] dataViewSpecs,
+            DataViewSpec[][] dataViewSpecs,
             int[] grouping,
             int indexOfCountStar,
             boolean generateUpdateBefore) {
@@ -224,9 +222,7 @@ public abstract class AbstractPythonStreamAggregateOperator
     }
 
     protected RowType getKeyType() {
-        RowDataKeySelector selector =
-                KeySelectorUtil.getRowDataSelector(grouping, InternalTypeInfo.of(inputType));
-        return selector.getProducedType().toRowType();
+        return (RowType) Projection.of(grouping).project(inputType);
     }
 
     TypeSerializer getWindowSerializer() {
@@ -249,7 +245,7 @@ public abstract class AbstractPythonStreamAggregateOperator
         builder.setMapStateReadCacheSize(mapStateReadCacheSize);
         builder.setMapStateWriteCacheSize(mapStateWriteCacheSize);
         for (int i = 0; i < aggregateFunctions.length; i++) {
-            DataViewUtils.DataViewSpec[] specs = null;
+            DataViewSpec[] specs = null;
             if (i < dataViewSpecs.length) {
                 specs = dataViewSpecs[i];
             }

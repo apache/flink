@@ -18,6 +18,9 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
+
+import java.util.Collection;
 import java.util.concurrent.Executor;
 
 /** Simple factory to produce {@link SharedStateRegistry} objects. */
@@ -26,8 +29,10 @@ public interface SharedStateRegistryFactory {
     /**
      * Factory method for {@link SharedStateRegistry}.
      *
+     * @param checkpoints whose shared state will be registered.
      * @param deleteExecutor executor used to run (async) deletes.
      * @return a SharedStateRegistry object
      */
-    SharedStateRegistry create(Executor deleteExecutor);
+    SharedStateRegistry create(
+            Executor deleteExecutor, Collection<CompletedCheckpoint> checkpoints);
 }

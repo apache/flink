@@ -18,15 +18,21 @@
 
 package org.apache.flink.table.planner.functions.casting;
 
+import org.apache.flink.table.data.StringData;
+import org.apache.flink.table.data.binary.BinaryStringDataUtil;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
+import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.BINARY_STRING_DATA_FROM_STRING;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.EMPTY_STR_LITERAL;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.accessStaticField;
 import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.stringConcat;
+import static org.apache.flink.table.planner.functions.casting.CastRuleUtils.ternaryOperator;
+import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 
 /** {@link LogicalTypeRoot#BOOLEAN} to {@link LogicalTypeFamily#CHARACTER_STRING} cast rule. */
-class BooleanToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> {
+class BooleanToStringCastRule extends AbstractExpressionCodeGeneratorCastRule<Boolean, StringData> {
 
     static final BooleanToStringCastRule INSTANCE = new BooleanToStringCastRule();
 
@@ -34,16 +40,23 @@ class BooleanToStringCastRule extends AbstractCharacterFamilyTargetRule<Object> 
         super(
                 CastRulePredicate.builder()
                         .input(LogicalTypeRoot.BOOLEAN)
-                        .target(LogicalTypeFamily.CHARACTER_STRING)
+                        .target(STRING_TYPE)
                         .build());
     }
 
     @Override
-    public String generateStringExpression(
+    public String generateExpression(
             CodeGeneratorCastRule.Context context,
             String inputTerm,
             LogicalType inputLogicalType,
             LogicalType targetLogicalType) {
-        return stringConcat(EMPTY_STR_LITERAL, inputTerm);
+        if (context.legacyBehaviour()) {
+            return CastRuleUtils.staticCall(
+                    BINARY_STRING_DATA_FROM_STRING(), stringConcat(EMPTY_STR_LITERAL, inputTerm));
+        }
+        return ternaryOperator(
+                inputTerm,
+                accessStaticField(BinaryStringDataUtil.class, "TRUE_STRING"),
+                accessStaticField(BinaryStringDataUtil.class, "FALSE_STRING"));
     }
 }

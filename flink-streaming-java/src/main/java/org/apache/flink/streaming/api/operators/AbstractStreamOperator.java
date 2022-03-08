@@ -434,7 +434,6 @@ public abstract class AbstractStreamOperator<OUT>
         return runtimeContext;
     }
 
-    @VisibleForTesting
     public <K> KeyedStateBackend<K> getKeyedStateBackend() {
         return stateHandler.getKeyedStateBackend();
     }

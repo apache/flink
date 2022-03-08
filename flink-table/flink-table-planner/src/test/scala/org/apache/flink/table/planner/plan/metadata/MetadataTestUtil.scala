@@ -20,7 +20,7 @@ package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, SqlTimeTypeInfo}
 import org.apache.flink.table.api.{DataTypes, TableConfig, TableException, TableSchema}
-import org.apache.flink.table.catalog.{CatalogTable, Column, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
+import org.apache.flink.table.catalog.{CatalogTable, Column, ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable, ResolvedSchema, UniqueConstraint}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.table.connector.source.{DynamicTableSource, ScanTableSource}
 import org.apache.flink.table.module.ModuleManager
@@ -58,6 +58,9 @@ object MetadataTestUtil {
     rootSchema.add("TemporalTable1", createTemporalTable1())
     rootSchema.add("TemporalTable2", createTemporalTable2())
     rootSchema.add("TemporalTable3", createTemporalTable3())
+    rootSchema.add("TableSourceTable1", createTableSourceTable1())
+    rootSchema.add("TableSourceTable2", createTableSourceTable2())
+    rootSchema.add("TableSourceTable3", createTableSourceTable3())
     rootSchema.add("projected_table_source_table", createProjectedTableSourceTable())
     rootSchema.add(
       "projected_table_source_table_with_partial_pk",
@@ -195,7 +198,7 @@ object MetadataTestUtil {
     val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
     val fieldTypes = Array[LogicalType](
       new BigIntType(),
-      new VarCharType(VarCharType.MAX_LENGTH),
+      VarCharType.STRING_TYPE,
       new IntType(),
       new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
@@ -214,7 +217,7 @@ object MetadataTestUtil {
     val fieldNames = Array("a", "b", "c", "proctime", "rowtime")
     val fieldTypes = Array[LogicalType](
       new BigIntType(),
-      new VarCharType(VarCharType.MAX_LENGTH),
+      VarCharType.STRING_TYPE,
       new IntType(),
       new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
@@ -235,7 +238,7 @@ object MetadataTestUtil {
     val fieldTypes = Array[LogicalType](
       new IntType(),
       new BigIntType(),
-      new VarCharType(VarCharType.MAX_LENGTH),
+      VarCharType.STRING_TYPE,
       new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
       new TimestampType(true, TimestampKind.ROWTIME, 3))
 
@@ -258,30 +261,16 @@ object MetadataTestUtil {
     null)
 
   private def createProjectedTableSourceTable(): Table = {
-    val catalogTable = CatalogTable.fromProperties(
-      Map(
-        "connector" -> "values",
-        "bounded" -> "true",
-        "schema.0.name" -> "a",
-        "schema.0.data-type" -> "BIGINT NOT NULL",
-        "schema.1.name" -> "b",
-        "schema.1.data-type" -> "INT",
-        "schema.2.name" -> "c",
-        "schema.2.data-type" -> "VARCHAR(2147483647)",
-        "schema.3.name" -> "d",
-        "schema.3.data-type" -> "BIGINT NOT NULL",
-        "schema.primary-key.name" -> "PK_1",
-        "schema.primary-key.columns" -> "a,d")
-    )
-
     val resolvedSchema = new ResolvedSchema(
       util.Arrays.asList(
         Column.physical("a", DataTypes.BIGINT().notNull()),
         Column.physical("b", DataTypes.INT()),
-        Column.physical("c", DataTypes.STRING()),
+        Column.physical("c", DataTypes.VARCHAR(2147483647)),
         Column.physical("d", DataTypes.BIGINT().notNull())),
       Collections.emptyList(),
       UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "d")))
+
+    val catalogTable = getCatalogTable(resolvedSchema)
 
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
     val rowType = typeFactory.buildRelNodeRowType(
@@ -289,28 +278,115 @@ object MetadataTestUtil {
       Seq(new BigIntType(false), new DoubleType(), new VarCharType(false, 100)))
 
     new MockTableSourceTable(
-      ObjectIdentifier.of("default_catalog", "default_database", "projected_table_source_table"),
       rowType,
       new TestTableSource(),
       true,
-      new ResolvedCatalogTable(catalogTable, resolvedSchema),
-      flinkContext
+      ContextResolvedTable.temporary(
+        ObjectIdentifier.of(
+          "default_catalog", "default_database", "projected_table_source_table"),
+        new ResolvedCatalogTable(catalogTable, resolvedSchema)),
+      flinkContext)
+  }
+
+  private def createTableSourceTable1(): Table = {
+    val catalogTable = CatalogTable.of(
+      org.apache.flink.table.api.Schema.newBuilder
+        .column("a", DataTypes.BIGINT.notNull)
+        .column("b", DataTypes.INT.notNull)
+        .column("c", DataTypes.VARCHAR(2147483647).notNull)
+        .column("d", DataTypes.BIGINT.notNull)
+        .primaryKeyNamed("PK_1", "a", "b")
+        .build,
+      null,
+      Collections.emptyList(),
+      Map(
+        "connector" -> "values",
+        "bounded" -> "true"
       )
+    )
+
+    val resolvedSchema = new ResolvedSchema(
+      util.Arrays.asList(
+        Column.physical("a", DataTypes.BIGINT().notNull()),
+        Column.physical("b", DataTypes.INT().notNull()),
+        Column.physical("c", DataTypes.STRING().notNull()),
+        Column.physical("d", DataTypes.BIGINT().notNull())),
+      Collections.emptyList(),
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")))
+
+    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val rowType = typeFactory.buildRelNodeRowType(
+      Seq("a", "b", "c", "d"),
+      Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
+
+    new MockTableSourceTable(
+      rowType,
+      new TestTableSource(),
+      true,
+      ContextResolvedTable.temporary(
+        ObjectIdentifier.of("default_catalog", "default_database", "TableSourceTable1"),
+        new ResolvedCatalogTable(catalogTable, resolvedSchema)
+      ),
+      flinkContext)
+  }
+
+  private def createTableSourceTable2(): Table = {
+    val resolvedSchema = new ResolvedSchema(
+      util.Arrays.asList(
+        Column.physical("a", DataTypes.BIGINT().notNull()),
+        Column.physical("b", DataTypes.INT().notNull()),
+        Column.physical("c", DataTypes.STRING().notNull()),
+        Column.physical("d", DataTypes.BIGINT().notNull())),
+      Collections.emptyList(),
+      UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("b")))
+
+    val catalogTable = getCatalogTable(resolvedSchema)
+
+    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val rowType = typeFactory.buildRelNodeRowType(
+      Seq("a", "b", "c", "d"),
+      Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
+
+    new MockTableSourceTable(
+      rowType,
+      new TestTableSource(),
+      true,
+      ContextResolvedTable.temporary(
+        ObjectIdentifier.of("default_catalog", "default_database", "TableSourceTable2"),
+        new ResolvedCatalogTable(catalogTable, resolvedSchema)
+      ),
+      flinkContext)
+  }
+
+  private def createTableSourceTable3(): Table = {
+    val resolvedSchema = new ResolvedSchema(
+      util.Arrays.asList(
+        Column.physical("a", DataTypes.BIGINT().notNull()),
+        Column.physical("b", DataTypes.INT().notNull()),
+        Column.physical("c", DataTypes.STRING().notNull()),
+        Column.physical("d", DataTypes.BIGINT().notNull())),
+      Collections.emptyList(),
+      null)
+
+    val catalogTable = getCatalogTable(resolvedSchema)
+
+    val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
+    val rowType = typeFactory.buildRelNodeRowType(
+      Seq("a", "b", "c", "d"),
+      Seq(new BigIntType(false), new IntType(), new VarCharType(false, 100), new BigIntType(false)))
+
+    new MockTableSourceTable(
+      rowType,
+      new TestTableSource(),
+      true,
+      ContextResolvedTable.temporary(
+        ObjectIdentifier.of("default_catalog", "default_database", "TableSourceTable3"),
+        new ResolvedCatalogTable(catalogTable, resolvedSchema)
+      ),
+      flinkContext)
   }
 
   private def createProjectedTableSourceTableWithPartialCompositePrimaryKey(): Table = {
-    val catalogTable = CatalogTable.fromProperties(
-      Map(
-        "connector" -> "values",
-        "bounded" -> "true",
-        "schema.0.name" -> "a",
-        "schema.0.data-type" -> "BIGINT NOT NULL",
-        "schema.1.name" -> "b",
-        "schema.1.data-type" -> "BIGINT NOT NULL",
-        "schema.primary-key.name" -> "PK_1",
-        "schema.primary-key.columns" -> "a,b")
-    )
-
     val resolvedSchema = new ResolvedSchema(
       util.Arrays.asList(
         Column.physical("a", DataTypes.BIGINT().notNull()),
@@ -318,21 +394,37 @@ object MetadataTestUtil {
       Collections.emptyList(),
       UniqueConstraint.primaryKey("PK_1", util.Arrays.asList("a", "b")))
 
+    val catalogTable = getCatalogTable(resolvedSchema)
+
     val typeFactory = new FlinkTypeFactory(new FlinkTypeSystem)
     val rowType = typeFactory.buildRelNodeRowType(
       Seq("a"),
       Seq(new BigIntType(false)))
 
     new MockTableSourceTable(
-      ObjectIdentifier.of(
-        "default_catalog",
-        "default_database",
-        "projected_table_source_table_with_partial_pk"),
       rowType,
       new TestTableSource(),
       true,
-      new ResolvedCatalogTable(catalogTable, resolvedSchema),
+      ContextResolvedTable.temporary(
+        ObjectIdentifier.of(
+          "default_catalog",
+          "default_database",
+          "projected_table_source_table_with_partial_pk"),
+        new ResolvedCatalogTable(catalogTable, resolvedSchema)
+      ),
       flinkContext)
+  }
+
+  private def getCatalogTable(resolvedSchema: ResolvedSchema) = {
+    CatalogTable.of(
+      org.apache.flink.table.api.Schema.newBuilder.fromResolvedSchema(resolvedSchema).build,
+      null,
+      Collections.emptyList(),
+      Map(
+        "connector" -> "values",
+        "bounded" -> "true"
+      )
+    )
   }
 
   private def getMetadataTable(
@@ -385,20 +477,18 @@ class TestTableSource extends ScanTableSource {
 }
 
 class MockTableSourceTable(
-    tableIdentifier: ObjectIdentifier,
     rowType: RelDataType,
     tableSource: DynamicTableSource,
     isStreamingMode: Boolean,
-    catalogTable: ResolvedCatalogTable,
+    contextResolvedTable: ContextResolvedTable,
     flinkContext: FlinkContext)
   extends TableSourceTable(
     null,
-    tableIdentifier,
     rowType,
     FlinkStatistic.UNKNOWN,
     tableSource,
     isStreamingMode,
-    catalogTable,
+    contextResolvedTable,
     flinkContext)
   with Table {
   override def getRowType(typeFactory: RelDataTypeFactory): RelDataType = rowType

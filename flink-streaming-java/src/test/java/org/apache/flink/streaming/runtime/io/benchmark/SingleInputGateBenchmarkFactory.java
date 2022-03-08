@@ -64,6 +64,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
             SingleInputGate inputGate,
             int index,
             NettyShuffleDescriptor inputChannelDescriptor,
+            int consumedSubpartitionIndex,
             SingleInputGateFactory.ChannelStatistics channelStatistics,
             InputChannelMetrics metrics) {
         ResultPartitionID partitionId = inputChannelDescriptor.getResultPartitionID();
@@ -72,6 +73,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
                     inputGate,
                     index,
                     partitionId,
+                    index,
                     partitionManager,
                     taskEventPublisher,
                     partitionRequestInitialBackoff,
@@ -82,6 +84,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
                     inputGate,
                     index,
                     partitionId,
+                    index,
                     inputChannelDescriptor.getConnectionId(),
                     connectionManager,
                     partitionRequestInitialBackoff,
@@ -103,6 +106,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
                 SingleInputGate inputGate,
                 int channelIndex,
                 ResultPartitionID partitionId,
+                int consumedSubpartitionIndex,
                 ResultPartitionManager partitionManager,
                 TaskEventPublisher taskEventPublisher,
                 int initialBackoff,
@@ -112,6 +116,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
                     inputGate,
                     channelIndex,
                     partitionId,
+                    consumedSubpartitionIndex,
                     partitionManager,
                     taskEventPublisher,
                     initialBackoff,
@@ -122,8 +127,8 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
         }
 
         @Override
-        public void requestSubpartition(int subpartitionIndex) throws IOException {
-            super.requestSubpartition(getChannelIndex());
+        public void requestSubpartition() throws IOException {
+            super.requestSubpartition();
         }
 
         @Override
@@ -152,6 +157,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
                 SingleInputGate inputGate,
                 int channelIndex,
                 ResultPartitionID partitionId,
+                int consumedSubpartitionIndex,
                 ConnectionID connectionId,
                 ConnectionManager connectionManager,
                 int initialBackOff,
@@ -162,6 +168,7 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
                     inputGate,
                     channelIndex,
                     partitionId,
+                    consumedSubpartitionIndex,
                     connectionId,
                     connectionManager,
                     initialBackOff,
@@ -173,9 +180,8 @@ public class SingleInputGateBenchmarkFactory extends SingleInputGateFactory {
         }
 
         @Override
-        public void requestSubpartition(int subpartitionIndex)
-                throws IOException, InterruptedException {
-            super.requestSubpartition(getChannelIndex());
+        public void requestSubpartition() throws IOException, InterruptedException {
+            super.requestSubpartition();
         }
 
         @Override

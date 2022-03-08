@@ -22,12 +22,17 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.runtime.checkpoint.Checkpoints;
+import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
+import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.StreamGraph;
 import org.apache.flink.util.ExceptionUtils;
 
+import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -94,11 +99,28 @@ public class TestUtils {
                 userCodeClassloader);
     }
 
+    public static CheckpointMetadata loadCheckpointMetadata(String savepointPath)
+            throws IOException {
+        CompletedCheckpointStorageLocation location =
+                AbstractFsCheckpointStorageAccess.resolveCheckpointPointer(savepointPath);
+
+        try (DataInputStream stream =
+                new DataInputStream(location.getMetadataHandle().openInputStream())) {
+            return Checkpoints.loadCheckpointMetadata(
+                    stream, Thread.currentThread().getContextClassLoader(), savepointPath);
+        }
+    }
+
     public static File getMostRecentCompletedCheckpoint(File checkpointDir) throws IOException {
+        return getMostRecentCompletedCheckpointMaybe(checkpointDir)
+                .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
+    }
+
+    public static Optional<File> getMostRecentCompletedCheckpointMaybe(File checkpointDir)
+            throws IOException {
         return Files.find(checkpointDir.toPath(), 2, TestUtils::isCompletedCheckpoint)
                 .max(Comparator.comparing(Path::toString))
-                .map(Path::toFile)
-                .orElseThrow(() -> new IllegalStateException("Cannot generate checkpoint"));
+                .map(Path::toFile);
     }
 
     private static boolean isCompletedCheckpoint(Path path, BasicFileAttributes attr) {

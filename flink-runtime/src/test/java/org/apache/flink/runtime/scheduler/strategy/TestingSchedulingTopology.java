@@ -25,6 +25,7 @@ import org.apache.flink.runtime.jobgraph.DistributionPattern;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
+import org.apache.flink.runtime.scheduler.SchedulingTopologyListener;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -77,6 +78,9 @@ public class TestingSchedulingTopology implements SchedulingTopology {
         }
         return resultPartition;
     }
+
+    @Override
+    public void registerSchedulingTopologyListener(SchedulingTopologyListener listener) {}
 
     @Override
     public Iterable<SchedulingPipelinedRegion> getAllPipelinedRegions() {
@@ -190,7 +194,7 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                         .withResultPartitionType(resultPartitionType)
                         .build();
 
-        resultPartition.addConsumer(consumer);
+        resultPartition.addConsumerGroup(Collections.singleton(consumer));
         resultPartition.setProducer(producer);
 
         producer.addProducedPartition(resultPartition);
@@ -300,7 +304,7 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                 resultPartition.setProducer(producer);
                 producer.addProducedPartition(resultPartition);
                 consumer.addConsumedPartition(resultPartition);
-                resultPartition.addConsumer(consumer);
+                resultPartition.addConsumerGroup(Collections.singleton(consumer));
                 resultPartitions.add(resultPartition);
             }
 
@@ -326,19 +330,6 @@ public class TestingSchedulingTopology implements SchedulingTopology {
             final List<TestingSchedulingResultPartition> resultPartitions = new ArrayList<>();
             final IntermediateDataSetID intermediateDataSetId = new IntermediateDataSetID();
 
-            ConsumerVertexGroup consumerVertexGroup =
-                    ConsumerVertexGroup.fromMultipleVertices(
-                            consumers.stream()
-                                    .map(TestingSchedulingExecutionVertex::getId)
-                                    .collect(Collectors.toList()));
-
-            Map<ExecutionVertexID, TestingSchedulingExecutionVertex> consumerVertexById =
-                    consumers.stream()
-                            .collect(
-                                    Collectors.toMap(
-                                            TestingSchedulingExecutionVertex::getId,
-                                            Function.identity()));
-
             TestingSchedulingResultPartition.Builder resultPartitionBuilder =
                     initTestingSchedulingResultPartitionBuilder()
                             .withIntermediateDataSetID(intermediateDataSetId)
@@ -353,7 +344,7 @@ public class TestingSchedulingTopology implements SchedulingTopology {
                 resultPartition.setProducer(producer);
                 producer.addProducedPartition(resultPartition);
 
-                resultPartition.addConsumerGroup(consumerVertexGroup, consumerVertexById);
+                resultPartition.addConsumerGroup(consumers);
                 resultPartitions.add(resultPartition);
             }
 

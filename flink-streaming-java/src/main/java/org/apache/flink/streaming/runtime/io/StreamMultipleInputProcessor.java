@@ -28,8 +28,6 @@ import org.apache.flink.util.ExceptionUtils;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-import static org.apache.flink.util.concurrent.FutureUtils.assertNoException;
-
 /** Input processor for {@link MultipleInputStreamOperator}. */
 @Internal
 public final class StreamMultipleInputProcessor implements StreamInputProcessor {
@@ -37,6 +35,8 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
     private final MultipleInputSelectionHandler inputSelectionHandler;
 
     private final StreamOneInputProcessor<?>[] inputProcessors;
+
+    private final MultipleFuturesAvailabilityHelper availabilityHelper;
     /** Always try to read from the first input. */
     private int lastReadInputIndex = 1;
 
@@ -47,6 +47,7 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
             StreamOneInputProcessor<?>[] inputProcessors) {
         this.inputSelectionHandler = inputSelectionHandler;
         this.inputProcessors = inputProcessors;
+        this.availabilityHelper = new MultipleFuturesAvailabilityHelper(inputProcessors.length);
     }
 
     @Override
@@ -55,17 +56,15 @@ public final class StreamMultipleInputProcessor implements StreamInputProcessor 
                 || inputSelectionHandler.areAllInputsFinished()) {
             return AVAILABLE;
         }
-        final CompletableFuture<?> anyInputAvailable = new CompletableFuture<>();
+
+        availabilityHelper.resetToUnAvailable();
         for (int i = 0; i < inputProcessors.length; i++) {
             if (!inputSelectionHandler.isInputFinished(i)
                     && inputSelectionHandler.isInputSelected(i)) {
-                assertNoException(
-                        inputProcessors[i]
-                                .getAvailableFuture()
-                                .thenRun(() -> anyInputAvailable.complete(null)));
+                availabilityHelper.anyOf(i, inputProcessors[i].getAvailableFuture());
             }
         }
-        return anyInputAvailable;
+        return availabilityHelper.getAvailableFuture();
     }
 
     @Override

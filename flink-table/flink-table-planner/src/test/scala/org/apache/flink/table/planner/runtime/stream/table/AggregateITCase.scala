@@ -415,7 +415,57 @@ class AggregateITCase(mode: StateBackendMode) extends StreamingWithStateTestBase
     results.addSink(sink).setParallelism(1)
     env.execute()
 
+    // Use the result precision/scale calculated for sum and don't override with the one calculated
+    // for plus(), which result in loosing a decimal digit.
     val expected = List("1.03520274,12345.03520274865300000000,12.34567890123456700000,2.22222222")
+    assertEquals(expected, sink.getRetractResults)
+  }
+
+  @Test
+  def testPrecisionForSum0AggregationOnDecimal(): Unit = {
+    val data = new mutable.MutableList[(Double, Double, Double, Double)]
+    data.+=((1.03520274, 12345.035202748654, 12.345678901234567, 1.11111111))
+    data.+=((0, 0, 0, 1.11111111))
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
+
+    val results = t
+      .select('a.cast(DECIMAL(32, 8)).sum0 as 'a,
+        'b.cast(DECIMAL(30, 20)).sum0 as 'b,
+        'c.cast(DECIMAL(25, 20)).sum0 as 'c,
+        'd.cast(DECIMAL(32, 8)).sum0 as 'd)
+      .toRetractStream[Row]
+
+    val sink = new TestingRetractSink
+    results.addSink(sink).setParallelism(1)
+    env.execute()
+
+    // Use the result precision/scale calculated for sum and don't override with the one calculated
+    // for plus()/minus(), which result in loosing a decimal digit.
+    val expected = List("1.03520274,12345.03520274865300000000,12.34567890123456700000,2.22222222")
+    assertEquals(expected, sink.getRetractResults)
+  }
+
+  @Test
+  def testPrecisionForAvgAggregationOnDecimal(): Unit = {
+    val data = new mutable.MutableList[(Double, Double, Double, Double)]
+    data.+=((1.03520274, 12345.035202748654, 12.345678901234567, 1.11111111))
+    data.+=((0, 0, 0, 2.22222222))
+    val t = failingDataSource(data).toTable(tEnv, 'a, 'b, 'c, 'd)
+
+    val results = t
+      .select('a.cast(DECIMAL(32, 8)).avg as 'a,
+        'b.cast(DECIMAL(30, 20)).avg as 'b,
+        'c.cast(DECIMAL(25, 20)).avg as 'c,
+        'd.cast(DECIMAL(32, 8)).avg as 'd)
+      .toRetractStream[Row]
+
+    val sink = new TestingRetractSink
+    results.addSink(sink).setParallelism(1)
+    env.execute()
+
+    // Use the result precision/scale calculated for AvgAggFunction's SumType and don't override
+    // with the one calculated for plus()/minus(), which result in loosing a decimal digit.
+    val expected = List("0.51760137,6172.51760137432650000000,6.17283945061728350000,1.66666667")
     assertEquals(expected, sink.getRetractResults)
   }
 }

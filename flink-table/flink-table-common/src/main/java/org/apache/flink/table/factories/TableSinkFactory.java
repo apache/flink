@@ -33,7 +33,10 @@ import java.util.Map;
  * string-based properties. See also {@link TableFactory} for more information.
  *
  * @param <T> type of records that the factory produces
+ * @deprecated This interface has been replaced by {@link DynamicTableSinkFactory}. The new
+ *     interface consumes internal data structures. See FLIP-95 for more information.
  */
+@Deprecated
 @PublicEvolving
 public interface TableSinkFactory<T> extends TableFactory {
 

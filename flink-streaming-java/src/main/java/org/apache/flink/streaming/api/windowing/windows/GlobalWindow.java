@@ -89,7 +89,7 @@ public class GlobalWindow extends Window {
 
         @Override
         public int getLength() {
-            return 0;
+            return Byte.BYTES;
         }
 
         @Override

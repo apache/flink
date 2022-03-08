@@ -33,16 +33,16 @@ Calc(select=[EXPR$0 AS a, b, EXPR$1 AS c])
 +- HashAggregate(isMerge=[true], groupBy=[b], select=[b, Final_SUM(sum$0) AS EXPR$0, Final_COUNT(count$1) AS EXPR$1])
    +- Exchange(distribution=[hash[b]])
       +- LocalHashAggregate(groupBy=[b], select=[b, Partial_SUM(a) AS sum$0, Partial_COUNT(c) AS count$1])
-         +- Calc(select=[a0 AS a, b0 AS b, c0 AS c])
-            +- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$211d2b2fa33c76ac8407a4e802c302c0($0, $1, $2, $3)], correlate=[table(ReplicateRows(sum_vcol_marker,a,b,c))], select=[sum_vcol_marker,a,b,c,a0,b0,c0], rowType=[RecordType(BIGINT sum_vcol_marker, INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER a0, BIGINT b0, VARCHAR(2147483647) c0)], joinType=[INNER])
+         +- Calc(select=[f0 AS a, f1 AS b, f2 AS c])
+            +- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2, $3)], correlate=[table($REPLICATE_ROWS$1(sum_vcol_marker,a,b,c))], select=[sum_vcol_marker,a,b,c,f0,f1,f2], rowType=[RecordType(BIGINT sum_vcol_marker, INTEGER a, BIGINT b, VARCHAR(2147483647) c, INTEGER f0, BIGINT f1, VARCHAR(2147483647) f2)], joinType=[INNER])
                +- Calc(select=[sum_vcol_marker, a, b, c], where=[(sum_vcol_marker > 0)])
                   +- HashAggregate(isMerge=[true], groupBy=[a, b, c], select=[a, b, c, Final_SUM(sum$0) AS sum_vcol_marker])
                      +- Exchange(distribution=[hash[a, b, c]])
                         +- LocalHashAggregate(groupBy=[a, b, c], select=[a, b, c, Partial_SUM(vcol_marker) AS sum$0])
                            +- Union(all=[true], union=[a, b, c, vcol_marker])
-                              :- Calc(select=[a, b, c, 1:BIGINT AS vcol_marker], where=[(a > 0)])
+                              :- Calc(select=[a, b, c, 1 AS vcol_marker], where=[(a > 0)])
                               :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-                              +- Calc(select=[a, b, c, -1:BIGINT AS vcol_marker], where=[(a > 0)])
+                              +- Calc(select=[a, b, c, -1 AS vcol_marker], where=[(a > 0)])
                                  +- LegacyTableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -91,7 +91,7 @@ HashJoin(joinType=[LeftSemiJoin], where=[(c = a1)], select=[a, b, c], build=[rig
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
 +- Exchange(distribution=[hash[a1]])
    +- LocalHashAggregate(groupBy=[a1], select=[a1])
-      +- Calc(select=[a AS a1], where=[(b = _UTF-16LE'two')])
+      +- Calc(select=[a AS a1], where=[(b = 'two')])
          +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -105,7 +105,7 @@ LogicalProject(b2=[AS(SEARCH($1, Sarg[1972-02-22 07:12:00.333:TIMESTAMP(3)]:TIME
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[SEARCH(b, Sarg[1972-02-22 07:12:00.333:TIMESTAMP(3)]:TIMESTAMP(3)) AS b2])
+Calc(select=[SEARCH(b, Sarg[1972-02-22 07:12:00.333]) AS b2])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -123,16 +123,16 @@ LogicalProject(b=[$1], c=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[b0 AS b, c0 AS c])
-+- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$4e806505a5bed6f7a784869a97856e7f($0, $1, $2)], correlate=[table(ReplicateRows(sum_vcol_marker,b,c))], select=[sum_vcol_marker,b,c,b0,c0], rowType=[RecordType(BIGINT sum_vcol_marker, BIGINT b, VARCHAR(2147483647) c, BIGINT b0, VARCHAR(2147483647) c0)], joinType=[INNER])
+Calc(select=[f0 AS b, f1 AS c])
++- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1, $2)], correlate=[table($REPLICATE_ROWS$1(sum_vcol_marker,b,c))], select=[sum_vcol_marker,b,c,f0,f1], rowType=[RecordType(BIGINT sum_vcol_marker, BIGINT b, VARCHAR(2147483647) c, BIGINT f0, VARCHAR(2147483647) f1)], joinType=[INNER])
    +- Calc(select=[sum_vcol_marker, b, c], where=[(sum_vcol_marker > 0)])
       +- HashAggregate(isMerge=[true], groupBy=[b, c], select=[b, c, Final_SUM(sum$0) AS sum_vcol_marker])
          +- Exchange(distribution=[hash[b, c]])
             +- LocalHashAggregate(groupBy=[b, c], select=[b, c, Partial_SUM(vcol_marker) AS sum$0])
                +- Union(all=[true], union=[b, c, vcol_marker])
-                  :- Calc(select=[b, c, 1:BIGINT AS vcol_marker])
+                  :- Calc(select=[b, c, 1 AS vcol_marker])
                   :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, left, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-                  +- Calc(select=[b, c, -1:BIGINT AS vcol_marker])
+                  +- Calc(select=[b, c, -1 AS vcol_marker])
                      +- LegacyTableSourceScan(table=[[default_catalog, default_database, right, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -152,7 +152,7 @@ LogicalUnion(all=[true])
 Union(all=[true], union=[a])
 :- Calc(select=[a])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
-+- Calc(select=[CASE((c > 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2)) AS _c0])
++- Calc(select=[CASE((c > 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)) AS _c0])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>

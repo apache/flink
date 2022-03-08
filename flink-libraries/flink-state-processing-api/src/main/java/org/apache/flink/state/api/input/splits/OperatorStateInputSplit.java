@@ -19,28 +19,28 @@
 package org.apache.flink.state.api.input.splits;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.io.InputSplit;
+import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.PrioritizedOperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.state.OperatorStateHandle;
 
 import javax.annotation.Nonnull;
 
 import java.util.Collections;
-import java.util.List;
 
 /** An input split containing state handles for operator state. */
 @Internal
-public final class OperatorStateInputSplit implements InputSplit {
+public final class OperatorStateInputSplit implements PrioritizedOperatorSubtaskStateInputSplit {
 
     private static final long serialVersionUID = -1892383531558135420L;
 
-    private final List<StateObjectCollection<OperatorStateHandle>> managedOperatorState;
+    private final StateObjectCollection<OperatorStateHandle> managedOperatorState;
 
     private final int splitNum;
 
     public OperatorStateInputSplit(
             StateObjectCollection<OperatorStateHandle> managedOperatorState, int splitNum) {
-        this.managedOperatorState = Collections.singletonList(managedOperatorState);
+        this.managedOperatorState = managedOperatorState;
         this.splitNum = splitNum;
     }
 
@@ -50,7 +50,17 @@ public final class OperatorStateInputSplit implements InputSplit {
     }
 
     @Nonnull
-    public List<StateObjectCollection<OperatorStateHandle>> getPrioritizedManagedOperatorState() {
+    public StateObjectCollection<OperatorStateHandle> getPrioritizedManagedOperatorState() {
         return this.managedOperatorState;
+    }
+
+    @Override
+    public PrioritizedOperatorSubtaskState getPrioritizedOperatorSubtaskState() {
+        final OperatorSubtaskState subtaskState =
+                OperatorSubtaskState.builder()
+                        .setManagedOperatorState(managedOperatorState)
+                        .build();
+        return new PrioritizedOperatorSubtaskState.Builder(subtaskState, Collections.emptyList())
+                .build();
     }
 }

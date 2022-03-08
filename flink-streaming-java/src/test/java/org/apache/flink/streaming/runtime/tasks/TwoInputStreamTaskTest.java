@@ -33,6 +33,7 @@ import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.metrics.MetricNames;
@@ -542,7 +543,8 @@ public class TwoInputStreamTaskTest {
             testHarness.processElement(Watermark.MAX_WATERMARK, 1);
             testHarness.waitForTaskCompletion();
             assertThat(
-                    testHarness.getOutput(), contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
+                    testHarness.getOutput(),
+                    contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN)));
         }
     }
 

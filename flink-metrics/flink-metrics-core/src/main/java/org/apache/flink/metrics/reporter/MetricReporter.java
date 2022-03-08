@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.reporter;
 
+import org.apache.flink.annotation.Public;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
@@ -31,6 +32,7 @@ import org.apache.flink.metrics.MetricGroup;
  *
  * <p>Reporters are neither required nor encouraged to support both instantiation paths.
  */
+@Public
 public interface MetricReporter {
 
     // ------------------------------------------------------------------------

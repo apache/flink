@@ -31,11 +31,11 @@ public class TimeLocalTimeConverter
 
     @Override
     public Integer toInternal(java.time.LocalTime external) {
-        return DateTimeUtils.localTimeToUnixDate(external);
+        return DateTimeUtils.toInternal(external);
     }
 
     @Override
     public java.time.LocalTime toExternal(Integer internal) {
-        return DateTimeUtils.unixTimeToLocalTime(internal);
+        return DateTimeUtils.toLocalTime(internal);
     }
 }

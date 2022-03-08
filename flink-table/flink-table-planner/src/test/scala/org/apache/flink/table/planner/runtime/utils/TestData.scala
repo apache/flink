@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory.changelog
 import org.apache.flink.table.planner.{JHashMap, JInt}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
-import org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.apache.flink.types.Row
 
 import java.lang.{Boolean => JBool, Long => JLong}
@@ -258,27 +258,27 @@ object TestData {
   val nullablesOfData3WithTimestamp = Array(true, true, true, true)
 
   lazy val data3WithTimestamp: Seq[Row] = Seq(
-    row(2, 2L, "Hello", unixTimestampToLocalDateTime(2000L)),
-    row(1, 1L, "Hi", unixTimestampToLocalDateTime(1000L)),
-    row(3, 2L, "Hello world", unixTimestampToLocalDateTime(3000L)),
-    row(4, 3L, "Hello world, how are you?", unixTimestampToLocalDateTime(4000L)),
-    row(5, 3L, "I am fine.", unixTimestampToLocalDateTime(5000L)),
-    row(6, 3L, "Luke Skywalker", unixTimestampToLocalDateTime(6000L)),
-    row(7, 4L, "Comment#1", unixTimestampToLocalDateTime(7000L)),
-    row(8, 4L, "Comment#2", unixTimestampToLocalDateTime(8000L)),
-    row(9, 4L, "Comment#3", unixTimestampToLocalDateTime(9000L)),
-    row(10, 4L, "Comment#4", unixTimestampToLocalDateTime(10000L)),
-    row(11, 5L, "Comment#5", unixTimestampToLocalDateTime(11000L)),
-    row(12, 5L, "Comment#6", unixTimestampToLocalDateTime(12000L)),
-    row(13, 5L, "Comment#7", unixTimestampToLocalDateTime(13000L)),
-    row(15, 5L, "Comment#9", unixTimestampToLocalDateTime(15000L)),
-    row(14, 5L, "Comment#8", unixTimestampToLocalDateTime(14000L)),
-    row(16, 6L, "Comment#10", unixTimestampToLocalDateTime(16000L)),
-    row(17, 6L, "Comment#11", unixTimestampToLocalDateTime(17000L)),
-    row(18, 6L, "Comment#12", unixTimestampToLocalDateTime(18000L)),
-    row(19, 6L, "Comment#13", unixTimestampToLocalDateTime(19000L)),
-    row(20, 6L, "Comment#14", unixTimestampToLocalDateTime(20000L)),
-    row(21, 6L, "Comment#15", unixTimestampToLocalDateTime(21000L))
+    row(2, 2L, "Hello", toLocalDateTime(2000L)),
+    row(1, 1L, "Hi", toLocalDateTime(1000L)),
+    row(3, 2L, "Hello world", toLocalDateTime(3000L)),
+    row(4, 3L, "Hello world, how are you?", toLocalDateTime(4000L)),
+    row(5, 3L, "I am fine.", toLocalDateTime(5000L)),
+    row(6, 3L, "Luke Skywalker", toLocalDateTime(6000L)),
+    row(7, 4L, "Comment#1", toLocalDateTime(7000L)),
+    row(8, 4L, "Comment#2", toLocalDateTime(8000L)),
+    row(9, 4L, "Comment#3", toLocalDateTime(9000L)),
+    row(10, 4L, "Comment#4", toLocalDateTime(10000L)),
+    row(11, 5L, "Comment#5", toLocalDateTime(11000L)),
+    row(12, 5L, "Comment#6", toLocalDateTime(12000L)),
+    row(13, 5L, "Comment#7", toLocalDateTime(13000L)),
+    row(15, 5L, "Comment#9", toLocalDateTime(15000L)),
+    row(14, 5L, "Comment#8", toLocalDateTime(14000L)),
+    row(16, 6L, "Comment#10", toLocalDateTime(16000L)),
+    row(17, 6L, "Comment#11", toLocalDateTime(17000L)),
+    row(18, 6L, "Comment#12", toLocalDateTime(18000L)),
+    row(19, 6L, "Comment#13", toLocalDateTime(19000L)),
+    row(20, 6L, "Comment#14", toLocalDateTime(20000L)),
+    row(21, 6L, "Comment#15", toLocalDateTime(21000L))
   )
 
   lazy val smallNestedTupleData: Seq[((Int, Int), String)] = {

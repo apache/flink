@@ -20,24 +20,21 @@ package org.apache.flink.metrics.influxdb;
 
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.util.TestMetricGroup;
-import org.apache.flink.util.TestLogger;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.hamcrest.Matchers.hasEntry;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.MapEntry.entry;
 
 /** Test for {@link MeasurementInfoProvider}. */
-public class MeasurementInfoProviderTest extends TestLogger {
+class MeasurementInfoProviderTest {
     private final MeasurementInfoProvider provider = new MeasurementInfoProvider();
 
     @Test
-    public void simpleTestGetMetricInfo() {
+    void simpleTestGetMetricInfo() {
         String logicalScope = "myService.Status.JVM.ClassLoader";
         Map<String, String> variables = new HashMap<>();
         variables.put("<A>", "a");
@@ -52,18 +49,18 @@ public class MeasurementInfoProviderTest extends TestLogger {
                         .build();
 
         MeasurementInfo info = provider.getMetricInfo(metricName, metricGroup);
-        assertNotNull(info);
-        assertEquals(
-                String.join("" + MeasurementInfoProvider.SCOPE_SEPARATOR, logicalScope, metricName),
-                info.getName());
-        assertThat(info.getTags(), hasEntry("A", "a"));
-        assertThat(info.getTags(), hasEntry("B", "b"));
-        assertThat(info.getTags(), hasEntry("C", "c"));
-        assertEquals(3, info.getTags().size());
+        assertThat(info).isNotNull();
+        assertThat(info.getName())
+                .isEqualTo(
+                        String.join(
+                                "" + MeasurementInfoProvider.SCOPE_SEPARATOR,
+                                logicalScope,
+                                metricName));
+        assertThat(info.getTags()).containsOnly(entry("A", "a"), entry("B", "b"), entry("C", "c"));
     }
 
     @Test
-    public void testNormalizingTags() {
+    void testNormalizingTags() {
         Map<String, String> variables = new HashMap<>();
         variables.put("<A\n>", "a\n");
 
@@ -71,6 +68,6 @@ public class MeasurementInfoProviderTest extends TestLogger {
                 TestMetricGroup.newBuilder().setVariables(variables).build();
 
         MeasurementInfo info = provider.getMetricInfo("m1", metricGroup);
-        assertThat(info.getTags(), hasEntry("A", "a"));
+        assertThat(info.getTags()).containsEntry("A", "a");
     }
 }

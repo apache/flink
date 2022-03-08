@@ -49,7 +49,9 @@ import java.util.function.Function;
 
 /** Table sink for {@link TableResult#collect()}. */
 @Internal
-final class CollectDynamicSink implements DynamicTableSink {
+public final class CollectDynamicSink implements DynamicTableSink {
+
+    private static final String COLLECT_TRANSFORMATION = "collect";
 
     private final ObjectIdentifier tableIdentifier;
     private final DataType consumedDataType;
@@ -57,6 +59,7 @@ final class CollectDynamicSink implements DynamicTableSink {
     private final Duration socketTimeout;
     private final ClassLoader classLoader;
     private final ZoneId sessionZoneId;
+    private final boolean legacyCastBehaviour;
 
     // mutable attributes
     private CollectResultIterator<RowData> iterator;
@@ -68,18 +71,21 @@ final class CollectDynamicSink implements DynamicTableSink {
             MemorySize maxBatchSize,
             Duration socketTimeout,
             ClassLoader classLoader,
-            ZoneId sessionZoneId) {
+            ZoneId sessionZoneId,
+            boolean legacyCastBehaviour) {
         this.tableIdentifier = tableIdentifier;
         this.consumedDataType = consumedDataType;
         this.maxBatchSize = maxBatchSize;
         this.socketTimeout = socketTimeout;
         this.classLoader = classLoader;
         this.sessionZoneId = sessionZoneId;
+        this.legacyCastBehaviour = legacyCastBehaviour;
     }
 
     public ResultProvider getSelectResultProvider() {
         return new CollectResultProvider(
-                new RowDataToStringConverterImpl(consumedDataType, sessionZoneId, classLoader));
+                new RowDataToStringConverterImpl(
+                        consumedDataType, sessionZoneId, classLoader, legacyCastBehaviour));
     }
 
     @Override
@@ -90,7 +96,7 @@ final class CollectDynamicSink implements DynamicTableSink {
     @Override
     public SinkRuntimeProvider getSinkRuntimeProvider(Context context) {
         return (DataStreamSinkProvider)
-                inputStream -> {
+                (providerContext, inputStream) -> {
                     final CheckpointConfig checkpointConfig =
                             inputStream.getExecutionEnvironment().getCheckpointConfig();
                     final ExecutionConfig config = inputStream.getExecutionConfig();
@@ -109,17 +115,18 @@ final class CollectDynamicSink implements DynamicTableSink {
                     final CollectSinkOperator<RowData> operator =
                             (CollectSinkOperator<RowData>) factory.getOperator();
 
-                    this.iterator =
+                    iterator =
                             new CollectResultIterator<>(
                                     operator.getOperatorIdFuture(),
                                     externalSerializer,
                                     accumulatorName,
                                     checkpointConfig);
-                    this.converter = context.createDataStructureConverter(consumedDataType);
-                    this.converter.open(RuntimeConverter.Context.create(classLoader));
+                    converter = context.createDataStructureConverter(consumedDataType);
+                    converter.open(RuntimeConverter.Context.create(classLoader));
 
                     final CollectStreamSink<RowData> sink =
                             new CollectStreamSink<>(inputStream, factory);
+                    providerContext.generateUid(COLLECT_TRANSFORMATION).ifPresent(sink::uid);
                     return sink.name("Collect table sink");
                 };
     }
@@ -132,7 +139,8 @@ final class CollectDynamicSink implements DynamicTableSink {
                 maxBatchSize,
                 socketTimeout,
                 classLoader,
-                sessionZoneId);
+                sessionZoneId,
+                legacyCastBehaviour);
     }
 
     @Override

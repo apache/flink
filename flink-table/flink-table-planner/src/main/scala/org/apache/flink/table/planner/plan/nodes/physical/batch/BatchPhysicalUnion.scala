@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecUnion
 import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelTraitSet}
-import org.apache.calcite.rel.RelDistribution.Type.{ANY, BROADCAST_DISTRIBUTED, HASH_DISTRIBUTED, RANDOM_DISTRIBUTED, RANGE_DISTRIBUTED, ROUND_ROBIN_DISTRIBUTED, SINGLETON}
+import org.apache.calcite.rel.RelDistribution.Type._
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{SetOp, Union}
 import org.apache.calcite.rel.{RelNode, RelWriter}

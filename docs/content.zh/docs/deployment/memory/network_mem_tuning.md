@@ -1,9 +1,9 @@
 ---
-title: "Network Buffer Tuning"
+title: "网络缓冲调优"
 weight: 100
 type: docs
 aliases:
-  - /deployment/memory/network_mem_tuning.html
+  - /zh/deployment/memory/network_mem_tuning.html
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one
@@ -24,147 +24,146 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Network memory tuning guide
+# 网络内存调优指南
 
-## Overview
+## 概述
 
-Each record in Flink is sent to the next subtask compounded with other records in a *network buffer*,
-the smallest unit for communication between subtasks. In order to maintain consistent high throughput,
-Flink uses *network buffer queues* (also known as *in-flight data*) on the input and output side of the transmission process. 
+Flink 中每条消息都会被放到*网络缓冲（network buffer）* 中，并以此为最小单位发送到下一个 subtask。
+为了维持连续的高吞吐，Flink 在传输过程的输入端和输出端使用了*网络缓冲队列*。
 
-Each subtask has an input queue waiting to consume data and an output queue
-waiting to send data to the next subtask. Having a larger amount of in-flight data means that Flink can provide higher and more resilient throughput in the pipeline.  This will, however, cause longer checkpoint times. 
+每个 subtask 都有一个输入队列来接收数据和一个输出队列来发送数据到下一个 subtask。
+在 pipeline 场景，拥有更多的中间缓存数据可以使 Flink 提供更高、更富有弹性的吞吐量，但是也会增加快照时间。
 
-Checkpoints in Flink can only finish once all the subtasks receive all of the injected checkpoint
-barriers. In [aligned checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing), those checkpoint barriers are traveling throughout the job graph along with
-the network buffers. The larger the amount of in-flight data, the longer the checkpoint barrier propagation time. In [unaligned checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#unaligned-checkpointing), the larger the amount of in-flight data, the larger the checkpoint size will be because all of the captured in-flight data has to be persisted as part of the checkpoint.
+只有所有的 subtask 都收到了全部注入的 checkpoint barrier 才能完成快照。
+在[对齐的 checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#checkpointing) 中，checkpoint barrier 会跟着网络缓冲数据在 job graph 中流动。
+缓冲数据越多，checkpoint barrier 流动的时间就越长。在[非对齐的 checkpoints]({{< ref "docs/concepts/stateful-stream-processing" >}}#unaligned-checkpointing) 中，缓冲数据越多，checkpoint 就会越大，因为这些数据都会被持久化到 checkpoint 中。
 
-## The Buffer Debloating Mechanism
+## 缓冲消胀机制（Buffer Debloating）
 
-Previously, the only way to configure the amount of in-flight data was to specify both the amount and the buffer size. However, ideal values can be difficult to choose since they are different for every
-deployment. The buffer debloating mechanism added in Flink 1.14 attempts to address this issue by automatically adjusting the amount of in-flight data to reasonable values.
+之前，配置缓冲数据量的唯一方法是指定缓冲区的数量和大小。然而，因为每次部署的不同很难配置一组完美的参数。
+Flink 1.14 新引入的缓冲消胀机制尝试通过自动调整缓冲数据量到一个合理值来解决这个问题。
 
-The buffer debloating feature calculates the maximum possible throughput for the subtask (in the scenario that it is always busy) and adjusts the amount of in-flight data such that the consumption time of those in-flight data will be equal to the configured value.
+缓冲消胀功能计算 subtask 可能达到的最大吞吐（始终保持繁忙状态时）并且通过调整缓冲数据量来使得数据的消费时间达到配置值。
 
-The buffer debloat mechanism can be enabled by setting the property `taskmanager.network.memory.buffer-debloat.enabled` to `true`. 
-The targeted time to consume the in-flight data can be configured by setting `taskmanager.network.memory.buffer-debloat.target` to `duration`.
-The default value of the debloat target should be good enough for most cases.
+可以通过设置 `taskmanager.network.memory.buffer-debloat.enabled` 为 `true` 来开启缓冲消胀机制。
+通过设置 `taskmanager.network.memory.buffer-debloat.target` 为 `duration` 类型的值来指定消费缓冲数据的目标时间。
+默认值应该能满足大多数场景。
 
-This feature uses past throughout data to predict the time required to consume the remaining
-in-flight data. If the predictions are incorrect, the debloating mechanism can fail in one of two ways:
-* There will not be enough buffered data to provide full throughput.
-* There will be too many buffered in-flight data which will negatively affect the aligned checkpoint barriers propagation time or the unaligned checkpoint size.
+这个功能使用过去的吞吐数据来预测消费剩余缓冲数据的时间。如果预测不准，缓冲消胀机制会导致以下问题：
+* 没有足够的缓存数据来提供全量吞吐。
+* 有太多缓冲数据对 checkpoint barrier 推进或者非对齐的 checkpoint 的大小造成不良影响。
 
-If you have a varying load in your Job (i.e. sudden spikes of incoming records, periodically
-firing windowed aggregations or joins), you might need to adjust the following settings:
+如果您的作业负载经常变化（即，突如其来的数据尖峰，定期的窗口聚合触发或者 join ），您可能需要调整以下设置：
 
-* `taskmanager.network.memory.buffer-debloat.period` - This is the minimum time period between buffer size recalculation. The shorter the period, the faster the reaction time of the debloating mechanism but the higher the CPU overhead for the necessary calculations.
+* `taskmanager.network.memory.buffer-debloat.period`：这是缓冲区大小重算的最小时间周期。周期越小，缓冲消胀机制的反应时间就越快，但是必要的计算会消耗更多的CPU。
 
-* `taskmanager.network.memory.buffer-debloat.samples` - This adjusts the number of samples over which throughput measurements are averaged out. The frequency of the collected samples can be adjusted via `taskmanager.network.memory.buffer-debloat.period`. The fewer the samples, the faster the reaction time of the debloating mechanism, but a higher chance of a sudden spike or drop of the throughput which can cause the buffer debloating mechanism to miscalculate the optimal amount of in-flight data.
+* `taskmanager.network.memory.buffer-debloat.samples`：调整用于计算平均吞吐量的采样数。采集样本的频率可以通过 `taskmanager.network.memory.buffer-debloat.period` 来设置。样本数越少，缓冲消胀机制的反应时间就越快，但是当吞吐量突然飙升或者下降时，缓冲消胀机制计算的最佳缓冲数据量会更容易出错。
 
-* `taskmanager.network.memory.buffer-debloat.threshold-percentages` - An optimization for preventing frequent buffer size changes (i.e. if the new size is not much different compared to the old size).
+* `taskmanager.network.memory.buffer-debloat.threshold-percentages`：防止缓冲区大小频繁改变的优化（比如，新的大小跟旧的大小相差不大）。
 
-Consult the [configuration]({{< ref "docs/deployment/config" >}}#full-taskmanageroptions) documentation for more details and additional parameters.
+更多详细和额外的参数配置，请参考[配置参数]({{< ref "docs/deployment/config" >}}#full-taskmanageroptions)。
 
-Here are [metrics]({{< ref "docs/ops/metrics" >}}#io) you can use to monitor the current buffer size:
-* `estimatedTimeToConsumeBuffersMs` - total time to consume data from all input channels
-* `debloatedBufferSize` - current buffer size
+您可以使用以下[指标]({{< ref "docs/ops/metrics" >}}#io)来监控当前的缓冲区大小：
+* `estimatedTimeToConsumeBuffersMs`：消费所有输入通道（input channel）中数据的总时间。
+* `debloatedBufferSize`：当前的缓冲区大小。
 
-### Limitations
+### 限制
 
-Currently, there are a few cases that are not handled automatically by the buffer debloating mechanism.
+当前，有一些场景还没有自动地被缓冲消胀机制处理。
 
-#### Large records
+#### 多个输入和合并
 
-If your record size exceeds the [minimum memory segment size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-min-segment-size), buffer debloating can potentially shrink the buffer size so much, that the network stack will require more than one buffer to transfer a single record. This can have adverse effects on the throughput, without actually reducing the amount of in-flight data. 
+当前，吞吐计算和缓冲消胀发生在 subtask 层面。
 
-#### Multiple inputs and unions
+如果您的 subtask 有很多不同的输入或者有一个合并的输入，缓冲消胀可能会导致低吞吐的输入有太多缓冲数据，而高吞吐输入的缓冲区数量可能太少而不够维持当前吞吐。当不同的输入吞吐差别比较大时，这种现象会更加的明显。我们推荐您在测试这个功能时重点关注这种 subtask。
 
-Currently, the throughput calculation and buffer debloating happen on the subtask level. 
+#### 缓冲区的尺寸和个数
 
-If your subtask has multiple different inputs or it has a single but unioned input, buffer debloating can cause the input of the low throughput to have too much buffered in-flight data, while the input of the high throughput might have buffers that are too small to sustain that throughput. This might be particularly visible if the different inputs have vastly different throughputs. We recommend paying special attention to such subtasks when testing this feature.
+当前，缓冲消胀仅在使用的缓冲区大小上设置上限。实际的缓冲区大小和个数保持不变。这意味着缓冲消胀机制不会减少作业的内存使用。您应该手动减少缓冲区的大小或者个数。
 
-#### Buffer size and number of buffers
+此外，如果您想减少缓冲数据量使其低于缓冲消胀当前允许的量，您可能需要手动的设置缓冲区的个数。
 
-Currently, buffer debloating only caps at the maximal used buffer size. The actual buffer size and the number of buffers remain unchanged. This means that the debloating mechanism cannot reduce the memory usage of your job. You would have to manually reduce either the amount or the size of the buffers. 
+#### High parallelism
 
-Furthermore, if you want to reduce the amount of buffered in-flight data below what buffer debloating currently allows, you might want to manually configure the number of buffers.
+Currently, the buffer debloating mechanism might not perform correctly with high parallelism (above ~200) using the default configuration.
+If you observe reduced throughput or higher than expected checkpointing times
+we suggest increasing the number of floating buffers (`taskmanager.network.memory.floating-buffers-per-gate`) from the default value to at least the number equal to the parallelism.
 
-## Network buffer lifecycle
+The actual value of parallelism from which the problem occurs is various from job to job but normally it should be more than a couple of hundreds.
+
+## 网络缓冲生命周期
  
-Flink has several local buffer pools - one for the output stream and one for each input gate. 
-Each of those pools is limited to at most 
+Flink 有多个本地缓冲区池 —— 每个输出和输入流对应一个。
+每个缓冲区池的大小被限制为
 
 `#channels * taskmanager.network.memory.buffers-per-channel + taskmanager.network.memory.floating-buffers-per-gate`
 
-The size of the buffer can be configured by setting `taskmanager.memory.segment-size`.
+缓冲区的大小可以通过 `taskmanager.memory.segment-size` 来设置。
 
-### Input network buffers
+### 输入网络缓冲
 
-Buffers in the input channel are divided into exclusive and floating buffers.  Exclusive buffers can be used by only one particular channel.  A channel can request additional floating buffers from a buffer pool shared across all channels belonging to the given input gate. The remaining floating buffers are optional and are acquired only if there are enough resources available.
+输入通道中的缓冲区被分为独占缓冲区（exclusive buffer）和流动缓冲区（floating buffer）。每个独占缓冲区只能被一个特定的通道使用。
+一个通道可以从输入流的共享缓冲区池中申请额外的流动缓冲区。剩余的流动缓冲区是可选的并且只有资源足够的时候才能获取。
 
-In the initialization phase:
-- Flink will try to acquire the configured amount of exclusive buffers for each channel
-- all exclusive buffers must be fulfilled or the job will fail with an exception
-- a single floating buffer has to be allocated for Flink to be able to make progress
+在初始阶段：
+- Flink 会为每一个输入通道获取配置数量的独占缓冲区。
+- 所有的独占缓冲区都必须被满足，否则作业会抛异常失败。
+- Flink 至少要有一个流动缓冲区才能运行。
 
-### Output network buffers
+### 输出网络缓冲
 
-Unlike the input buffer pool, the output buffer pool has only one type of buffer which it shares among all subpartitions.
+不像输入缓冲区池，输出缓冲区池只有一种类型的缓冲区被所有的 subpartitions 共享。
 
-In order to avoid excessive data skew, the number of buffers for each subpartition is limited by the `taskmanager.network.memory.max-buffers-per-channel` setting.
+为了避免过多的数据倾斜，每个 subpartition 的缓冲区数量可以通过 `taskmanager.network.memory.max-buffers-per-channel` 来限制。
 
-Like the input buffer pool, the configured amount of exclusive buffers and floating buffers is only treated as recommended values. If there are not enough buffers available, Flink can make progress with only a single exclusive buffer per output subpartition and zero floating buffers.
+不同于输入缓冲区池，这里配置的独占缓冲区和流动缓冲区只被当作推荐值。如果没有足够的缓冲区，每个输出 subpartition 可以只使用一个独占缓冲区而没有流动缓冲区。
 
-## The number of in-flight buffers 
+## 缓冲区的数量
 
-The default settings for exclusive buffers and floating buffers should be sufficient for the maximum throughput.  If the minimum of in-flight data needs to be set, the exclusive buffers can be set to `0` and the memory segment size can be decreased.
+独占缓冲区和流动缓冲区的默认配置应该足以应对最大吞吐。如果想要最小化缓冲数据量，那么可以将独占缓冲区设置为 `0`，同时减小内存段的大小。
 
-### Selecting the buffer size
+### 选择缓冲区的大小
 
-The buffer collects records in order to optimize network overhead when sending the data portion to the next subtask. The next subtask should receive all parts of the record before consuming it. 
+在往下游 subtask 发送数据部分时，缓冲区通过汇集 record 来优化网络开销。下游 subtask 应该在接收到完整的 record 后才开始处理它。
 
-If the buffer size is too small (i.e. less than one record), this can lead to low throughput since the overhead is still pretty large.  
+如果缓冲区太小（比如小于一条 record），会因为开销比较大而导致吞吐低。
 
-If the buffer size is too large, this can lead to: 
-- high memory usage
-- huge checkpoint data (for unaligned checkpoints)
-- long checkpoint time (for aligned checkpoints)
-- inefficient use of allocated memory with a small `execution.buffer-timeout` because flushed buffers would only be sent partially filled 
+如果缓冲区太大，会导致：
+- 内存使用高
+- 大量的 checkpoint 数据量（针对非对齐的 checkpoints）
+- 漫长的 checkpoint 时间（针对对齐的 checkpoints）
+- `execution.buffer-timeout` 较小时内存分配使用率会比较低，因为缓冲区还没被塞满数据就被发送下去了。
 
-### Selecting the buffer count
+### 选择缓冲区的数量
 
-The number of buffers is configured by the `taskmanager.network.memory.buffers-per-channel` and `taskmanager.network.memory.floating-buffers-per-gate` settings. 
+缓冲区的数量是通过 `taskmanager.network.memory.buffers-per-channel` 和 `taskmanager.network.memory.floating-buffers-per-gate` 来配置的。
 
-For best throughput, we recommend using the default values for the number of exclusive
-and floating buffers. If the amount of in-flight data is causing issues, enabling
-[buffer debloating]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#the-buffer-debloating-mechanism) is recommended. 
+为了最好的吞吐率，我们建议使用独占缓冲区和流动缓冲区的默认值(except you have one of [limit cases]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#limitations))。如果缓冲数据量存在问题，更建议打开[缓冲消胀]({{< ref "docs/deployment/memory/network_mem_tuning" >}}#the-buffer-debloating-mechanism)。
 
-You can tune the number of network buffers manually, but consider the following: 
+您可以人工地调整网络缓冲区的个数，但是需要注意：
 
-1. You should adjust the number of buffers according to your expected throughput (in `bytes/second`).
-Assigning credits and sending buffers takes some time (around two roundtrip messages between two nodes). The latency also depends on your network.
+1. 您应该根据期待的吞吐量（单位 `bytes/second`）来调整缓冲区的数量。协调数据传输量（大约两个节点之间的两个往返消息）。延迟也取决于您的网络。
 
-Using the buffer roundtrip time (around `1ms` in a healthy local network), [the buffer size]({{< ref "docs/deployment/config" >}}#taskmanager-memory-segment-size), and the expected throughput, you can calculate the number of buffers required to sustain the throughput by using this formula:
+使用 buffer 往返时间（大概 `1ms` 在正常的本地网络中），[缓冲区大小]({{< ref "docs/deployment/config" >}}#taskmanager-memory-segment-size)和期待的吞吐，您可以通过下面的公式计算维持吞吐所需要的缓冲区数量：
 ```
 number_of_buffers = expected_throughput * buffer_roundtrip / buffer_size
 ```
-For example, with an expected throughput of `320MB/s`, roundtrip latency of `1ms`, and the default memory segment size, 10 is the number of actively used buffers needed to achieve the expected throughput:
+比如，期待吞吐为 `320MB/s`，往返延迟为 `1ms`，内存段为默认大小，为了维持吞吐需要使用10个活跃的缓冲区：
 ```
 number_of_buffers = 320MB/s * 1ms / 32KB = 10
 ```
-2. The purpose of floating buffers is to handle data skew scenarios. Ideally, the number of floating buffers (default: 8) and the exclusive buffers (default: 2) that belong to that channel should be able to saturate the network throughput. But this is not always feasible or necessary. It is very rare that only a single channel among all the subtasks in the task manager is being used.
+2. 流动缓冲区的目的是为了处理数据倾斜。理想情况下，流动缓冲区的数量（默认8个）和每个通道独占缓冲区的数量（默认2个）能够使网络吞吐量饱和。但这并不总是可行和必要的。所有 subtask 中只有一个通道被使用也是非常罕见的。
 
-3. The purpose of exclusive buffers is to provide a fluent throughput. While one buffer is in transit, the other is being filled up. With high throughput setups, the number of exclusive buffers is the main factor that defines the amount of in-flight data Flink uses.
+3. 独占缓冲区的目的是提供一个流畅的吞吐量。当一个缓冲区在传输数据时，另一个缓冲区被填充。当吞吐量比较高时，独占缓冲区的数量是决定 Flink 中缓冲数据的主要因素。
 
-In the case of backpressure in low throughput setups, you should consider reducing the number of [exclusive buffers]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-buffers-per-channel).
+当低吞吐量下出现反压时，您应该考虑减少[独占缓冲区]({{< ref "docs/deployment/config" >}}#taskmanager-network-memory-buffers-per-channel)。
 
-## Summary
+## 总结
 
-Memory configuration tuning for the network in Flink can be simplified by enabling the buffer debloating mechanism. You may have to tune it. 
+可以通过开启缓冲消胀机制来简化 Flink 网络的内存配置调整。您也可能需要调整它。
 
-If this does not work, you can disable the buffer debloating mechanism and manually configure the memory segment size and the number of buffers. For this second scenario, we recommend:
-- using the default values for max throughput
-- reducing the memory segment size and/or number of exclusive buffers to speed up checkpointing and reduce the memory consumption of the network stack
+如果这不起作用，您可以关闭缓冲消胀机制并且人工地配置内存段的大小和缓冲区个数。针对第二种场景，我们推荐：
+- 使用默认值以获得最大吞吐
+- 减少内存段大小、独占缓冲区的数量来加快 checkpoint 并减少网络栈消耗的内存量
 
 {{< top >}}

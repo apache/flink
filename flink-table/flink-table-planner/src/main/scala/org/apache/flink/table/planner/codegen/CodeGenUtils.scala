@@ -54,6 +54,8 @@ object CodeGenUtils {
 
   // ------------------------------- DEFAULT TERMS ------------------------------------------
 
+  val DEFAULT_LEGACY_CAST_BEHAVIOUR = "legacyCastBehaviour"
+
   val DEFAULT_TIMEZONE_TERM = "timeZone"
 
   val DEFAULT_INPUT1_TERM = "in1"
@@ -345,15 +347,11 @@ object CodeGenUtils {
   def compareEnum(term: String, enum: Enum[_]): Boolean = term == qualifyEnum(enum)
 
   def getEnum(genExpr: GeneratedExpression): Enum[_] = {
-    val split = genExpr.resultTerm.split('.')
-    val value = split.last
-    val clazz = genExpr.resultType.asInstanceOf[TypeInformationRawType[_]]
-        .getTypeInformation.getTypeClass
-    enumValueOf(clazz, value)
+   genExpr
+     .literalValue
+     .map(_.asInstanceOf[Enum[_]])
+     .getOrElse(throw new CodeGenException("Enum literal expected."))
   }
-
-  def enumValueOf[T <: Enum[T]](cls: Class[_], stringValue: String): Enum[_] =
-    Enum.valueOf(cls.asInstanceOf[Class[T]], stringValue).asInstanceOf[Enum[_]]
 
   // --------------------------- Require Check ---------------------------------------
 
@@ -403,7 +401,9 @@ object CodeGenUtils {
       throw new CodeGenException("Integer expression type expected.")
     }
 
-  def udfFieldName(udf: UserDefinedFunction): String = s"function_${udf.functionIdentifier}"
+  def udfFieldName(udf: UserDefinedFunction): String = {
+    s"function_${udf.functionIdentifier.replace('.', '$')}"
+  }
 
   def genLogInfo(logTerm: String, format: String, argTerm: String): String =
     s"""$logTerm.info("$format", $argTerm);"""
@@ -701,16 +701,26 @@ object CodeGenUtils {
       fieldValTerm: String,
       writerTerm: String,
       fieldType: LogicalType): String =
-    binaryWriterWriteField(ctx, index.toString, fieldValTerm, writerTerm, fieldType)
+    binaryWriterWriteField(
+      t => ctx.addReusableTypeSerializer(t), index.toString, fieldValTerm, writerTerm, fieldType)
 
-  @tailrec
   def binaryWriterWriteField(
       ctx: CodeGeneratorContext,
       indexTerm: String,
       fieldValTerm: String,
       writerTerm: String,
+      t: LogicalType): String =
+    binaryWriterWriteField(
+      t => ctx.addReusableTypeSerializer(t), indexTerm, fieldValTerm, writerTerm, t)
+
+  @tailrec
+  def binaryWriterWriteField(
+      addSerializer: LogicalType => String,
+      indexTerm: String,
+      fieldValTerm: String,
+      writerTerm: String,
       t: LogicalType)
-    : String = t.getTypeRoot match {
+  : String = t.getTypeRoot match {
     // ordered by type root definition
     case CHAR | VARCHAR =>
       s"$writerTerm.writeString($indexTerm, $fieldValTerm)"
@@ -737,23 +747,23 @@ object CodeGenUtils {
     case TIMESTAMP_WITH_TIME_ZONE =>
       throw new UnsupportedOperationException("Unsupported type: " + t)
     case ARRAY =>
-      val ser = ctx.addReusableTypeSerializer(t)
+      val ser = addSerializer(t)
       s"$writerTerm.writeArray($indexTerm, $fieldValTerm, $ser)"
     case MULTISET | MAP =>
-      val ser = ctx.addReusableTypeSerializer(t)
+      val ser = addSerializer(t)
       s"$writerTerm.writeMap($indexTerm, $fieldValTerm, $ser)"
     case ROW | STRUCTURED_TYPE =>
-      val ser = ctx.addReusableTypeSerializer(t)
+      val ser = addSerializer(t)
       s"$writerTerm.writeRow($indexTerm, $fieldValTerm, $ser)"
     case DISTINCT_TYPE =>
       binaryWriterWriteField(
-        ctx,
+        addSerializer,
         indexTerm,
         fieldValTerm,
         writerTerm,
         t.asInstanceOf[DistinctType].getSourceType)
     case RAW =>
-      val ser = ctx.addReusableTypeSerializer(t)
+      val ser = addSerializer(t)
       s"$writerTerm.writeRawValue($indexTerm, $fieldValTerm, $ser)"
     case NULL | SYMBOL | UNRESOLVED =>
       throw new IllegalArgumentException("Illegal type: " + t);

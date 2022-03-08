@@ -30,9 +30,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link GlueSchemaRegistryAvroDeserializationSchema}. */
 public class GlueSchemaRegistryAvroDeserializationSchemaTest extends TestLogger {
@@ -53,22 +51,18 @@ public class GlueSchemaRegistryAvroDeserializationSchemaTest extends TestLogger 
     /** Test whether forGeneric method works. */
     @Test
     public void testForGeneric_withValidParams_succeeds() {
-        assertThat(
-                GlueSchemaRegistryAvroDeserializationSchema.forGeneric(userSchema, configs),
-                notNullValue());
-        assertThat(
-                GlueSchemaRegistryAvroDeserializationSchema.forGeneric(userSchema, configs),
-                instanceOf(GlueSchemaRegistryAvroDeserializationSchema.class));
+        assertThat(GlueSchemaRegistryAvroDeserializationSchema.forGeneric(userSchema, configs))
+                .isNotNull();
+        assertThat(GlueSchemaRegistryAvroDeserializationSchema.forGeneric(userSchema, configs))
+                .isInstanceOf(GlueSchemaRegistryAvroDeserializationSchema.class);
     }
 
     /** Test whether forSpecific method works. */
     @Test
     public void testForSpecific_withValidParams_succeeds() {
-        assertThat(
-                GlueSchemaRegistryAvroDeserializationSchema.forSpecific(User.class, configs),
-                notNullValue());
-        assertThat(
-                GlueSchemaRegistryAvroDeserializationSchema.forSpecific(User.class, configs),
-                instanceOf(GlueSchemaRegistryAvroDeserializationSchema.class));
+        assertThat(GlueSchemaRegistryAvroDeserializationSchema.forSpecific(User.class, configs))
+                .isNotNull();
+        assertThat(GlueSchemaRegistryAvroDeserializationSchema.forSpecific(User.class, configs))
+                .isInstanceOf(GlueSchemaRegistryAvroDeserializationSchema.class);
     }
 }

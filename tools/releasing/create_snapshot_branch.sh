@@ -17,12 +17,12 @@
 # limitations under the License.
 #
 
-if [ -z "${SHORT_RELEASE_VERSION}" ]; then
+if [ -z "${SHORT_RELEASE_VERSION:-}" ]; then
     echo "SHORT_RELEASE_VERSION was not set."
     exit 1
 fi
 
-if [ -z "${RELEASE_VERSION}" ]; then
+if [ -z "${RELEASE_VERSION:-}" ]; then
     echo "RELEASE_VERSION was not set."
     exit 1
 fi

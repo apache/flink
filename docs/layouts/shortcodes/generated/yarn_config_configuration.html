@@ -87,6 +87,12 @@
             <td>The number of virtual cores (vcores) used by YARN application master.</td>
         </tr>
         <tr>
+            <td><h5>yarn.classpath.include-user-jar</h5></td>
+            <td style="word-wrap: break-word;">ORDER</td>
+            <td><p>Enum</p></td>
+            <td>Defines whether user-jars are included in the system class path as well as their positioning in the path.<br /><br />Possible values:<ul><li>"DISABLED": Exclude user jars from the system class path</li><li>"FIRST": Position at the beginning</li><li>"LAST": Position at the end</li><li>"ORDER": Position based on the name of the jar</li></ul></td>
+        </tr>
+        <tr>
             <td><h5>yarn.containers.vcores</h5></td>
             <td style="word-wrap: break-word;">-1</td>
             <td>Integer</td>
@@ -115,12 +121,6 @@
             <td style="word-wrap: break-word;">5</td>
             <td>Integer</td>
             <td>Time between heartbeats with the ResourceManager in seconds.</td>
-        </tr>
-        <tr>
-            <td><h5>yarn.per-job-cluster.include-user-jar</h5></td>
-            <td style="word-wrap: break-word;">ORDER</td>
-            <td><p>Enum</p></td>
-            <td>Defines whether user-jars are included in the system class path for per-job-clusters as well as their positioning in the path.<br /><br />Possible values:<ul><li>"DISABLED": Exclude user jars from the system class path</li><li>"FIRST": Position at the beginning</li><li>"LAST": Position at the end</li><li>"ORDER": Position based on the name of the jar</li></ul></td>
         </tr>
         <tr>
             <td><h5>yarn.properties-file.location</h5></td>
@@ -175,6 +175,12 @@
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>A comma-separated list of tags to apply to the Flink YARN application.</td>
+        </tr>
+        <tr>
+            <td><h5>yarn.taskmanager.node-label</h5></td>
+            <td style="word-wrap: break-word;">(none)</td>
+            <td>String</td>
+            <td>Specify YARN node label for the Flink TaskManagers, it will override the yarn.application.node-label for TaskManagers if both are set.</td>
         </tr>
     </tbody>
 </table>

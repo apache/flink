@@ -28,6 +28,13 @@ planning to upgrade your Flink version to 1.14.
 
 ### Known issues
 
+#### State migration issues
+
+Some of our internal serializers i.e. RowSerializer, TwoPhaseCommitSinkFunction's serializer,
+LinkedListSerializer might prevent a successful job starts if state migration is necessary.
+The fix is tracked by [FLINK-24858](https://issues.apache.org/jira/browse/FLINK-24858). We recommend
+to immediately upgrade to 1.14.3 when migrating from 1.13.x.
+
 #### Memory leak with Pulsar connector on Java 11
 
 Netty, which the Pulsar client uses underneath, allocates memory differently on Java 11 and Java 8. On Java

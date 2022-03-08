@@ -43,14 +43,14 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   util.addDataStream[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
   util.addDataStream[(Int, Long, String)]("MyTable2", 'd, 'e, 'f)
 
-  val STRING = new VarCharType(VarCharType.MAX_LENGTH)
+  val STRING = VarCharType.STRING_TYPE
   val LONG = new BigIntType()
   val INT = new IntType()
 
   @Before
   def before(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4)
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(4))
   }
 
   @Test
@@ -76,7 +76,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   @Test
   def testExplainWithJoin(): Unit = {
     // TODO support other join operators when them are supported
-    util.tableEnv.getConfig.getConfiguration.setString(
+    util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin, NestedLoopJoin")
     util.verifyExplain("SELECT a, b, c, e, f FROM MyTable1, MyTable2 WHERE a = d", extraDetails: _*)
   }
@@ -119,7 +119,7 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
 
   @Test
   def testExplainMultipleInput(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setString(
+    util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
     val sql =
       """

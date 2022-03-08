@@ -49,6 +49,7 @@ import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.After;
@@ -273,9 +274,11 @@ public class JobMasterPartitionReleaseTest extends TestLogger {
 
             jobMasterGateway
                     .registerTaskManager(
-                            taskExecutorGateway.getAddress(),
-                            localTaskManagerUnresolvedLocation,
                             jobId,
+                            TaskManagerRegistrationInformation.create(
+                                    taskExecutorGateway.getAddress(),
+                                    localTaskManagerUnresolvedLocation,
+                                    TestingUtils.zeroUUID()),
                             testingTimeout)
                     .get();
 

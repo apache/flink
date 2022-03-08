@@ -28,7 +28,10 @@ import org.elasticsearch.action.update.UpdateRequest;
 /**
  * Users add multiple delete, index or update requests to a {@link RequestIndexer} to prepare them
  * for sending to an Elasticsearch cluster.
+ *
+ * @deprecated This has been deprecated and will be removed in the future.
  */
+@Deprecated
 @PublicEvolving
 public interface RequestIndexer {
 

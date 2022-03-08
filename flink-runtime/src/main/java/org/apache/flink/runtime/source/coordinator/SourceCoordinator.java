@@ -20,6 +20,8 @@ package org.apache.flink.runtime.source.coordinator;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.eventtime.Watermark;
+import org.apache.flink.api.common.eventtime.WatermarkAlignmentParams;
 import org.apache.flink.api.connector.source.ReaderInfo;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.connector.source.SourceEvent;
@@ -28,11 +30,14 @@ import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
 import org.apache.flink.runtime.operators.coordination.OperatorCoordinator;
 import org.apache.flink.runtime.operators.coordination.OperatorEvent;
 import org.apache.flink.runtime.source.event.ReaderRegistrationEvent;
+import org.apache.flink.runtime.source.event.ReportedWatermarkEvent;
 import org.apache.flink.runtime.source.event.RequestSplitEvent;
 import org.apache.flink.runtime.source.event.SourceEventWrapper;
+import org.apache.flink.runtime.source.event.WatermarkAlignmentEvent;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.TemporaryClassLoaderContext;
@@ -48,15 +53,21 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readAndVerifyCoordinatorSerdeVersion;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.readBytes;
 import static org.apache.flink.runtime.source.coordinator.SourceCoordinatorSerdeUtils.writeCoordinatorSerdeVersion;
+import static org.apache.flink.util.IOUtils.closeAll;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
@@ -75,19 +86,22 @@ import static org.apache.flink.util.Preconditions.checkState;
 @Internal
 public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         implements OperatorCoordinator {
-
     private static final Logger LOG = LoggerFactory.getLogger(SourceCoordinator.class);
+
+    private final WatermarkAggregator<Integer> combinedWatermark = new WatermarkAggregator<>();
+
+    private final WatermarkAlignmentParams watermarkAlignmentParams;
 
     /** The name of the operator this SourceCoordinator is associated with. */
     private final String operatorName;
-    /** A single-thread executor to handle all the changes to the coordinator. */
-    private final ExecutorService coordinatorExecutor;
     /** The Source that is associated with this SourceCoordinator. */
     private final Source<?, SplitT, EnumChkT> source;
     /** The serializer that handles the serde of the SplitEnumerator checkpoints. */
     private final SimpleVersionedSerializer<EnumChkT> enumCheckpointSerializer;
     /** The context containing the states of the coordinator. */
     private final SourceCoordinatorContext<SplitT> context;
+
+    private final CoordinatorStore coordinatorStore;
     /**
      * The split enumerator created from the associated Source. This one is created either during
      * resetting the coordinator to a checkpoint, or when the coordinator is started.
@@ -98,14 +112,68 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
 
     public SourceCoordinator(
             String operatorName,
-            ExecutorService coordinatorExecutor,
             Source<?, SplitT, EnumChkT> source,
-            SourceCoordinatorContext<SplitT> context) {
+            SourceCoordinatorContext<SplitT> context,
+            CoordinatorStore coordinatorStore) {
+        this(
+                operatorName,
+                source,
+                context,
+                coordinatorStore,
+                WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
+    }
+
+    public SourceCoordinator(
+            String operatorName,
+            Source<?, SplitT, EnumChkT> source,
+            SourceCoordinatorContext<SplitT> context,
+            CoordinatorStore coordinatorStore,
+            WatermarkAlignmentParams watermarkAlignmentParams) {
         this.operatorName = operatorName;
-        this.coordinatorExecutor = coordinatorExecutor;
         this.source = source;
         this.enumCheckpointSerializer = source.getEnumeratorCheckpointSerializer();
         this.context = context;
+        this.coordinatorStore = coordinatorStore;
+        this.watermarkAlignmentParams = watermarkAlignmentParams;
+
+        if (watermarkAlignmentParams.isEnabled()) {
+            coordinatorStore.putIfAbsent(
+                    watermarkAlignmentParams.getWatermarkGroup(), new WatermarkAggregator<>());
+            context.getCoordinatorExecutor()
+                    .scheduleAtFixedRate(
+                            this::announceCombinedWatermark,
+                            watermarkAlignmentParams.getUpdateInterval(),
+                            watermarkAlignmentParams.getUpdateInterval(),
+                            TimeUnit.MILLISECONDS);
+        }
+    }
+
+    @VisibleForTesting
+    void announceCombinedWatermark() {
+        checkState(
+                watermarkAlignmentParams != WatermarkAlignmentParams.WATERMARK_ALIGNMENT_DISABLED);
+
+        Watermark globalCombinedWatermark =
+                coordinatorStore.apply(
+                        watermarkAlignmentParams.getWatermarkGroup(),
+                        (value) -> {
+                            WatermarkAggregator aggregator = (WatermarkAggregator) value;
+                            return new Watermark(
+                                    aggregator.getAggregatedWatermark().getTimestamp());
+                        });
+
+        long maxAllowedWatermark =
+                globalCombinedWatermark.getTimestamp()
+                        + watermarkAlignmentParams.getMaxAllowedWatermarkDrift();
+        Set<Integer> subTaskIds = combinedWatermark.keySet();
+        LOG.info(
+                "Distributing maxAllowedWatermark={} to subTaskIds={}",
+                maxAllowedWatermark,
+                subTaskIds);
+        for (Integer subtaskId : subTaskIds) {
+            context.sendEventToSourceOperator(
+                    subtaskId, new WatermarkAlignmentEvent(maxAllowedWatermark));
+        }
     }
 
     @Override
@@ -116,7 +184,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         // 'start()' wasn't called and where 'start()' failed.
         started = true;
 
-        // there are two ways the coordinator can get created:
+        // there are two ways the SplitEnumerator can get created:
         //  (1) Source.restoreEnumerator(), in which case the 'resetToCheckpoint()' method creates
         // it
         //  (2) Source.createEnumerator, in which case it has not been created, yet, and we create
@@ -144,18 +212,8 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
     @Override
     public void close() throws Exception {
         LOG.info("Closing SourceCoordinator for source {}.", operatorName);
-        try {
-            if (started) {
-                context.close();
-                if (enumerator != null) {
-                    enumerator.close();
-                }
-            }
-        } finally {
-            coordinatorExecutor.shutdownNow();
-            // We do not expect this to actually block for long. At this point, there should
-            // be very few task running in the executor, if any.
-            coordinatorExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
+        if (started) {
+            closeAll(asList(context, enumerator), Throwable.class);
         }
         LOG.info("Source coordinator for source {} closed.", operatorName);
     }
@@ -189,6 +247,10 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
                                 subtask,
                                 registrationEvent.location());
                         handleReaderRegistrationEvent(registrationEvent);
+                    } else if (event instanceof ReportedWatermarkEvent) {
+                        handleReportedWatermark(
+                                subtask,
+                                new Watermark(((ReportedWatermarkEvent) event).getWatermark()));
                     } else {
                         throw new FlinkException("Unrecognized Operator Event: " + event);
                     }
@@ -338,7 +400,7 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
             return;
         }
 
-        coordinatorExecutor.execute(
+        context.runInCoordinatorThread(
                 () -> {
                     try {
                         action.run();
@@ -435,9 +497,62 @@ public class SourceCoordinator<SplitT extends SourceSplit, EnumChkT>
         enumerator.addReader(event.subtaskId());
     }
 
+    private void handleReportedWatermark(int subtask, Watermark watermark) {
+        LOG.debug("New reported watermark={} from subTaskId={}", watermark, subtask);
+
+        checkState(watermarkAlignmentParams.isEnabled());
+
+        combinedWatermark
+                .aggregate(subtask, watermark)
+                .ifPresent(
+                        newCombinedWatermark ->
+                                coordinatorStore.computeIfPresent(
+                                        watermarkAlignmentParams.getWatermarkGroup(),
+                                        (key, oldValue) -> {
+                                            WatermarkAggregator<String> watermarkAggregator =
+                                                    (WatermarkAggregator<String>) oldValue;
+                                            watermarkAggregator.aggregate(
+                                                    operatorName, newCombinedWatermark);
+                                            return watermarkAggregator;
+                                        }));
+    }
+
     private void ensureStarted() {
         if (!started) {
             throw new IllegalStateException("The coordinator has not started yet.");
+        }
+    }
+
+    private static class WatermarkAggregator<T> {
+        private final Map<T, Watermark> watermarks = new HashMap<>();
+        private Watermark aggregatedWatermark = new Watermark(Long.MIN_VALUE);
+
+        /**
+         * Update the {@link Watermark} for the given {@code key)}.
+         *
+         * @return the new updated combined {@link Watermark} if the value has changed. {@code
+         *     Optional.empty()} otherwise.
+         */
+        public Optional<Watermark> aggregate(T key, Watermark watermark) {
+            watermarks.put(key, watermark);
+            Watermark newMinimum =
+                    watermarks.values().stream()
+                            .min(Comparator.comparingLong(Watermark::getTimestamp))
+                            .orElseThrow(IllegalStateException::new);
+            if (newMinimum.equals(aggregatedWatermark)) {
+                return Optional.empty();
+            } else {
+                aggregatedWatermark = newMinimum;
+                return Optional.of(aggregatedWatermark);
+            }
+        }
+
+        public Set<T> keySet() {
+            return watermarks.keySet();
+        }
+
+        public Watermark getAggregatedWatermark() {
+            return aggregatedWatermark;
         }
     }
 }

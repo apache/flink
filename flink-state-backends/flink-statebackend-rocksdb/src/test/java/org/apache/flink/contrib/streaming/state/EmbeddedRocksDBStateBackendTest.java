@@ -34,6 +34,7 @@ import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendTestBase;
 import org.apache.flink.runtime.state.StateHandleID;
@@ -183,6 +184,11 @@ public class EmbeddedRocksDBStateBackendTest
 
     @Override
     protected boolean supportsAsynchronousSnapshots() {
+        return true;
+    }
+
+    @Override
+    protected boolean isSafeToReuseKVState() {
         return true;
     }
 
@@ -553,7 +559,7 @@ public class EmbeddedRocksDBStateBackendTest
                                 VoidNamespace.INSTANCE, VoidNamespaceSerializer.INSTANCE, kvId);
 
                 Queue<IncrementalRemoteKeyedStateHandle> previousStateHandles = new LinkedList<>();
-                SharedStateRegistry sharedStateRegistry = spy(new SharedStateRegistry());
+                SharedStateRegistry sharedStateRegistry = spy(new SharedStateRegistryImpl());
                 for (int checkpointId = 0; checkpointId < 3; ++checkpointId) {
 
                     reset(sharedStateRegistry);
@@ -579,14 +585,15 @@ public class EmbeddedRocksDBStateBackendTest
                     Map<StateHandleID, StreamStateHandle> sharedState =
                             new HashMap<>(stateHandle.getSharedState());
 
-                    stateHandle.registerSharedStates(sharedStateRegistry);
+                    stateHandle.registerSharedStates(sharedStateRegistry, checkpointId);
 
                     for (Map.Entry<StateHandleID, StreamStateHandle> e : sharedState.entrySet()) {
                         verify(sharedStateRegistry)
                                 .registerReference(
                                         stateHandle.createSharedStateRegistryKeyFromFileName(
                                                 e.getKey()),
-                                        e.getValue());
+                                        e.getValue(),
+                                        checkpointId);
                     }
 
                     previousStateHandles.add(stateHandle);
@@ -595,7 +602,7 @@ public class EmbeddedRocksDBStateBackendTest
                     // -----------------------------------------------------------------
 
                     if (previousStateHandles.size() > 1) {
-                        checkRemove(previousStateHandles.remove(), sharedStateRegistry);
+                        previousStateHandles.remove().discardState();
                     }
                 }
 
@@ -603,27 +610,12 @@ public class EmbeddedRocksDBStateBackendTest
 
                     reset(sharedStateRegistry);
 
-                    checkRemove(previousStateHandles.remove(), sharedStateRegistry);
+                    previousStateHandles.remove().discardState();
                 }
             } finally {
                 IOUtils.closeQuietly(backend);
                 backend.dispose();
             }
-        }
-    }
-
-    private void checkRemove(IncrementalRemoteKeyedStateHandle remove, SharedStateRegistry registry)
-            throws Exception {
-        for (StateHandleID id : remove.getSharedState().keySet()) {
-            verify(registry, times(0))
-                    .unregisterReference(remove.createSharedStateRegistryKeyFromFileName(id));
-        }
-
-        remove.discardState();
-
-        for (StateHandleID id : remove.getSharedState().keySet()) {
-            verify(registry)
-                    .unregisterReference(remove.createSharedStateRegistryKeyFromFileName(id));
         }
     }
 

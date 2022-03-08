@@ -91,6 +91,6 @@ abstract class AbstractNullAwareCodeGeneratorCastRule<IN, OUT>
             writer.appendBlock(castCodeBlock);
         }
 
-        return new CastCodeBlock(writer.toString(), returnTerm, nullTerm);
+        return CastCodeBlock.withCode(writer.toString(), returnTerm, nullTerm);
     }
 }

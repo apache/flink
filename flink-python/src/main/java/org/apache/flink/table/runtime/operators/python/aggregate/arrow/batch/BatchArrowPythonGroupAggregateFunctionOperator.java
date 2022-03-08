@@ -25,6 +25,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.types.logical.RowType;
 
 /** The Batch Arrow Python {@link AggregateFunction} Operator for Group Aggregation. */
@@ -38,18 +39,20 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType outputType,
-            int[] groupKey,
-            int[] groupingSet,
-            int[] udafInputOffsets) {
+            RowType udfInputType,
+            RowType udfOutputType,
+            GeneratedProjection inputGeneratedProjection,
+            GeneratedProjection groupKeyGeneratedProjection,
+            GeneratedProjection groupSetGeneratedProjection) {
         super(
                 config,
                 pandasAggFunctions,
                 inputType,
-                outputType,
-                groupKey,
-                groupingSet,
-                udafInputOffsets);
+                udfInputType,
+                udfOutputType,
+                inputGeneratedProjection,
+                groupKeyGeneratedProjection,
+                groupSetGeneratedProjection);
     }
 
     @Override
@@ -76,12 +79,6 @@ public class BatchArrowPythonGroupAggregateFunctionOperator
             lastGroupSet = groupSetProjection.apply(input).copy();
             forwardedInputQueue.add(lastGroupSet);
         }
-    }
-
-    @Override
-    public RowType createUserDefinedFunctionOutputType() {
-        return new RowType(
-                outputType.getFields().subList(groupingSet.length, outputType.getFieldCount()));
     }
 
     @Override

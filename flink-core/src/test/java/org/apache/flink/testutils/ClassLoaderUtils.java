@@ -34,21 +34,25 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 /** Utilities to create class loaders. */
 public class ClassLoaderUtils {
+
     public static URLClassLoader compileAndLoadJava(File root, String filename, String source)
             throws IOException {
         return withRoot(root).addClass(filename.replaceAll("\\.java", ""), source).build();
     }
 
-    private static URLClassLoader createClassLoader(File root) throws MalformedURLException {
-        return new URLClassLoader(
-                new URL[] {root.toURI().toURL()}, Thread.currentThread().getContextClassLoader());
+    private static URLClassLoader createClassLoader(File root, ClassLoader parent)
+            throws MalformedURLException {
+        return new URLClassLoader(new URL[] {root.toURI().toURL()}, parent);
     }
 
     private static void writeAndCompile(File root, String filename, String source)
@@ -76,7 +80,14 @@ public class ClassLoaderUtils {
 
     private static int compileClass(File sourceFile) {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
-        return compiler.run(null, null, null, "-proc:none", sourceFile.getPath());
+        return compiler.run(
+                null,
+                null,
+                null,
+                "-proc:none",
+                "-classpath",
+                sourceFile.getParent() + ":" + System.getProperty("java.class.path"),
+                sourceFile.getPath());
     }
 
     public static URL[] getClasspathURLs() {
@@ -96,16 +107,23 @@ public class ClassLoaderUtils {
         }
     }
 
+    /**
+     * Builder for a {@link ClassLoader} where you can add resources and compile java source code.
+     */
     public static class ClassLoaderBuilder {
 
         private final File root;
         private final Map<String, String> classes;
         private final Map<String, String> resources;
+        private final Map<String, List<String>> services;
+        private ClassLoader parent;
 
         private ClassLoaderBuilder(File root) {
             this.root = root;
-            this.classes = new HashMap<>();
-            this.resources = new HashMap<>();
+            this.classes = new LinkedHashMap<>();
+            this.resources = new LinkedHashMap<>();
+            this.services = new HashMap<>();
+            this.parent = Thread.currentThread().getContextClassLoader();
         }
 
         public ClassLoaderBuilder addResource(String targetPath, String resource) {
@@ -116,6 +134,11 @@ public class ClassLoaderUtils {
                         String.format("Resource with path %s already registered.", resource));
             }
 
+            return this;
+        }
+
+        public ClassLoaderBuilder addService(String serviceClass, String implClass) {
+            services.computeIfAbsent(serviceClass, k -> new ArrayList<>()).add(implClass);
             return this;
         }
 
@@ -130,22 +153,33 @@ public class ClassLoaderUtils {
             return this;
         }
 
+        public ClassLoaderBuilder withParentClassLoader(ClassLoader classLoader) {
+            this.parent = classLoader;
+            return this;
+        }
+
         public URLClassLoader build() throws IOException {
             for (Map.Entry<String, String> classInfo : classes.entrySet()) {
                 writeAndCompile(root, createFileName(classInfo.getKey()), classInfo.getValue());
             }
 
+            services.forEach(
+                    (serviceClass, serviceImpls) ->
+                            resources.putIfAbsent(
+                                    "META-INF/services/" + serviceClass,
+                                    String.join("\n", serviceImpls)));
             for (Map.Entry<String, String> resource : resources.entrySet()) {
                 writeSourceFile(root, resource.getKey(), resource.getValue());
             }
 
-            return createClassLoader(root);
+            return createClassLoader(root, parent);
         }
 
         private String createFileName(String className) {
             return className + ".java";
         }
     }
+
     // ------------------------------------------------------------------------
     //  Testing of objects not in the application class loader
     // ------------------------------------------------------------------------

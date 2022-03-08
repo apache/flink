@@ -432,7 +432,7 @@ Calc(select=[EXPR$0, EXPR$1, EXPR$2, EXPR$3, name])
 +- HashAggregate(isMerge=[true], groupBy=[name], select=[name, Final_MIN(min$0) AS EXPR$0, Final_MIN(min$1) AS EXPR$1, Final_MIN(min$2) AS EXPR$2, Final_COUNT(count$3) AS EXPR$3])
    +- Exchange(distribution=[hash[name]])
       +- LocalHashAggregate(groupBy=[name], select=[name, Partial_MIN(EXPR$0) FILTER $g_1 AS min$0, Partial_MIN(EXPR$1) FILTER $g_1 AS min$1, Partial_MIN(EXPR$2) FILTER $g_1 AS min$2, Partial_COUNT(id) FILTER $g_0 AS count$3])
-         +- Calc(select=[name, id, EXPR$0, EXPR$1, EXPR$2, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 0) AS $g_0, =(CASE(=($e, 0:BIGINT), 0:BIGINT, 1:BIGINT), 1) AS $g_1])
+         +- Calc(select=[name, id, EXPR$0, EXPR$1, EXPR$2, =(CASE(=($e, 0), 0, 1), 0) AS $g_0, =(CASE(=($e, 0), 0, 1), 1) AS $g_1])
             +- HashAggregate(isMerge=[true], groupBy=[name, id, $e], select=[name, id, $e, Final_MIN(min$0) AS EXPR$0, Final_MAX(max$1) AS EXPR$1, Final_SUM(sum$2) AS EXPR$2])
                +- Exchange(distribution=[hash[name, id, $e]])
                   +- LocalHashAggregate(groupBy=[name, id, $e], select=[name, id, $e, Partial_MIN(id_0) AS min$0, Partial_MAX(amount) AS max$1, Partial_SUM(price) AS sum$2])
@@ -458,7 +458,7 @@ LogicalProject(id=[$0], amount=[$2], EXPR$2=[CASE(>(COUNT($3) OVER (PARTITION BY
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[id, amount, CASE(>(w0$o0, 0:BIGINT), w0$o1, null:BIGINT) AS EXPR$2, name])
+Calc(select=[id, amount, CASE(>(w0$o0, 0), w0$o1, null:BIGINT) AS EXPR$2, name])
 +- OverAggregate(partitionBy=[name], window#0=[COUNT(price) AS w0$o0, $SUM0(price) AS w0$o1 RANG BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING], select=[id, name, amount, price, w0$o0, w0$o1])
    +- Sort(orderBy=[name ASC])
       +- Exchange(distribution=[hash[name]])

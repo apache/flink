@@ -116,7 +116,7 @@ public abstract class JarHandlerParameterTest<
                         jarDir.resolve("program-without-manifest.jar"));
 
         restfulGateway =
-                new TestingDispatcherGateway.Builder()
+                TestingDispatcherGateway.newBuilder()
                         .setBlobServerPort(BLOB_SERVER_RESOURCE.getBlobServerPort())
                         .setSubmitFunction(
                                 jobGraph -> {

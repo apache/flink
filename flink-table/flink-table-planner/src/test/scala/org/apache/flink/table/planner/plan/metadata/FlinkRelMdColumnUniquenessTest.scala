@@ -622,4 +622,51 @@ class FlinkRelMdColumnUniquenessTest extends FlinkRelMdHandlerTestBase {
     }
   }
 
+  @Test
+  def testAreColumnsUniqueOnTableSourceTable(): Unit = {
+    Array(
+      tableSourceTableLogicalScan,
+      tableSourceTableFlinkLogicalScan,
+      tableSourceTableBatchScan,
+      tableSourceTableStreamScan
+    )
+      .foreach { scan =>
+        assertTrue(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1, 2, 3)))
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(1, 2)))
+        assertTrue(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1)))
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0)))
+      }
+  }
+
+  @Test
+  def testAreColumnsUniqueOnTablePartiallyProjectedKey(): Unit = {
+    Array(
+      tablePartiallyProjectedKeyLogicalScan,
+      tablePartiallyProjectedKeyFlinkLogicalScan,
+      tablePartiallyProjectedKeyBatchScan,
+      tablePartiallyProjectedKeyStreamScan
+    )
+      .foreach { scan =>
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0)))
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1)))
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1, 2)))
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1, 2, 3)))
+      }
+  }
+
+  @Test
+  def testAreColumnsUniqueOntableSourceTableNonKeyNonKey(): Unit = {
+    Array(
+      tableSourceTableNonKeyLogicalScan,
+      tableSourceTableNonKeyFlinkLogicalScan,
+      tableSourceTableNonKeyBatchScan,
+      tableSourceTableNonKeyStreamScan
+    )
+      .foreach { scan =>
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0)))
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1)))
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1, 2)))
+        assertFalse(mq.areColumnsUnique(scan, ImmutableBitSet.of(0, 1, 2, 3)))
+      }
+  }
 }

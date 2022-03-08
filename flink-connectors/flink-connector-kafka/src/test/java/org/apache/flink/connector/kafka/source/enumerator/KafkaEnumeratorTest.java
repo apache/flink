@@ -26,13 +26,12 @@ import org.apache.flink.connector.kafka.source.enumerator.initializer.NoStopping
 import org.apache.flink.connector.kafka.source.enumerator.initializer.OffsetsInitializer;
 import org.apache.flink.connector.kafka.source.enumerator.subscriber.KafkaSubscriber;
 import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplit;
-import org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
 import org.apache.flink.mock.Whitebox;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.AfterClass;
@@ -313,15 +312,8 @@ public class KafkaEnumeratorTest {
                     defaultTimeoutMs,
                     Whitebox.getInternalState(adminClient, "defaultApiTimeoutMs"));
 
-            KafkaConsumer<?, ?> consumer =
-                    (KafkaConsumer<?, ?>) Whitebox.getInternalState(enumerator, "consumer");
-            assertNotNull(consumer);
-            clientId = (String) Whitebox.getInternalState(consumer, "clientId");
             assertNotNull(clientId);
             assertTrue(clientId.startsWith(clientIdPrefix));
-            assertEquals(
-                    (long) defaultTimeoutMs,
-                    Whitebox.getInternalState(consumer, "requestTimeoutMs"));
         }
     }
 

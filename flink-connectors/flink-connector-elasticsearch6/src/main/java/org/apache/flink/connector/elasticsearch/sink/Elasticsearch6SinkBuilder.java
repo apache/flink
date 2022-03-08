@@ -21,9 +21,14 @@ package org.apache.flink.connector.elasticsearch.sink;
 import org.apache.flink.annotation.PublicEvolving;
 
 import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.bulk.BackoffPolicy;
+import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.unit.ByteSizeUnit;
+import org.elasticsearch.common.unit.ByteSizeValue;
+import org.elasticsearch.common.unit.TimeValue;
 
 /**
  * Builder to construct an Elasticsearch 6 compatible {@link ElasticsearchSink}.
@@ -61,20 +66,66 @@ public class Elasticsearch6SinkBuilder<IN>
     }
 
     @Override
-    protected BulkRequestConsumerFactory getBulkRequestConsumer() {
-        return new BulkRequestConsumerFactory() { // This cannot be inlined as a lambda because the
-            // deserialization fails then
+    protected BulkProcessorBuilderFactory getBulkProcessorBuilderFactory() {
+        return new BulkProcessorBuilderFactory() {
             @Override
-            public BulkRequestFactory create(RestHighLevelClient client) {
-                return new BulkRequestFactory() { // This cannot be inlined as a lambda because the
-                    // deserialization fails then
-                    @Override
-                    public void accept(
-                            BulkRequest bulkRequest,
-                            ActionListener<BulkResponse> bulkResponseActionListener) {
-                        client.bulkAsync(bulkRequest, bulkResponseActionListener);
-                    }
-                };
+            public BulkProcessor.Builder apply(
+                    RestHighLevelClient client,
+                    BulkProcessorConfig bulkProcessorConfig,
+                    BulkProcessor.Listener listener) {
+
+                BulkProcessor.Builder builder =
+                        BulkProcessor.builder(
+                                new BulkRequestConsumerFactory() { // This cannot be inlined as a
+                                    // lambda because then
+                                    // deserialization fails
+                                    @Override
+                                    public void accept(
+                                            BulkRequest bulkRequest,
+                                            ActionListener<BulkResponse>
+                                                    bulkResponseActionListener) {
+                                        client.bulkAsync(bulkRequest, bulkResponseActionListener);
+                                    }
+                                },
+                                listener);
+
+                if (bulkProcessorConfig.getBulkFlushMaxActions() != -1) {
+                    builder.setBulkActions(bulkProcessorConfig.getBulkFlushMaxActions());
+                }
+
+                if (bulkProcessorConfig.getBulkFlushMaxMb() != -1) {
+                    builder.setBulkSize(
+                            new ByteSizeValue(
+                                    bulkProcessorConfig.getBulkFlushMaxMb(), ByteSizeUnit.MB));
+                }
+
+                if (bulkProcessorConfig.getBulkFlushInterval() != -1) {
+                    builder.setFlushInterval(
+                            new TimeValue(bulkProcessorConfig.getBulkFlushInterval()));
+                }
+
+                BackoffPolicy backoffPolicy;
+                final TimeValue backoffDelay =
+                        new TimeValue(bulkProcessorConfig.getBulkFlushBackOffDelay());
+                final int maxRetryCount = bulkProcessorConfig.getBulkFlushBackoffRetries();
+                switch (bulkProcessorConfig.getFlushBackoffType()) {
+                    case CONSTANT:
+                        backoffPolicy = BackoffPolicy.constantBackoff(backoffDelay, maxRetryCount);
+                        break;
+                    case EXPONENTIAL:
+                        backoffPolicy =
+                                BackoffPolicy.exponentialBackoff(backoffDelay, maxRetryCount);
+                        break;
+                    case NONE:
+                        backoffPolicy = BackoffPolicy.noBackoff();
+                        break;
+                    default:
+                        throw new IllegalArgumentException(
+                                "Received unknown backoff policy type "
+                                        + bulkProcessorConfig.getFlushBackoffType());
+                }
+                builder.setBackoffPolicy(backoffPolicy);
+                return builder;
             }
         };
     }

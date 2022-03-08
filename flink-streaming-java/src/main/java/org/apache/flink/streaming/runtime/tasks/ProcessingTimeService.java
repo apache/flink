@@ -30,21 +30,8 @@ import java.util.concurrent.TimeUnit;
  * <p>The access to the time via {@link #getCurrentProcessingTime()} is always available, regardless
  * of whether the timer service has been shut down.
  */
-public interface ProcessingTimeService {
-
-    /** Returns the current processing time. */
-    long getCurrentProcessingTime();
-
-    /**
-     * Registers a task to be executed when (processing) time is {@code timestamp}.
-     *
-     * @param timestamp Time when the task is to be executed (in processing time)
-     * @param target The task to be executed
-     * @return The future that represents the scheduled task. This always returns some future, even
-     *     if the timer was shut down
-     */
-    ScheduledFuture<?> registerTimer(long timestamp, ProcessingTimeCallback target);
-
+public interface ProcessingTimeService
+        extends org.apache.flink.api.common.operators.ProcessingTimeService {
     /**
      * Registers a task to be executed repeatedly at a fixed rate.
      *

@@ -29,8 +29,8 @@ under the License.
 
 The sections below describe how to import the Flink project into an IDE
 for the development of Flink itself. For writing Flink programs, please
-refer to the [Java API]({{< ref "docs/dev/datastream/project-configuration" >}})
-and the [Scala API]({{< ref "docs/dev/datastream/project-configuration" >}})
+refer to the [Java API]({{< ref "docs/dev/configuration/overview" >}})
+and the [Scala API]({{< ref "docs/dev/configuration/overview" >}})
 quickstart guides.
 
 {{< hint info >}}

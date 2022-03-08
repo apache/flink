@@ -93,8 +93,13 @@ public class TestingCheckpointStorageAccessCoordinatorView
     }
 
     @Override
-    public CheckpointStreamFactory.CheckpointStateOutputStream createTaskOwnedStateStream() {
+    public CheckpointStateOutputStream createTaskOwnedStateStream() {
         return new MemCheckpointStreamFactory.MemoryCheckpointOutputStream(Integer.MAX_VALUE);
+    }
+
+    @Override
+    public CheckpointStateToolset createTaskOwnedCheckpointStateToolset() {
+        return new NotDuplicatingCheckpointStateToolset();
     }
 
     // ------------------------------------------------------------------------

@@ -27,7 +27,6 @@ import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.sql.JoinType;
 import org.apache.calcite.sql.SqlBasicCall;
 import org.apache.calcite.sql.SqlFunction;
-import org.apache.calcite.sql.SqlInsert;
 import org.apache.calcite.sql.SqlJoin;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlLiteral;
@@ -125,18 +124,5 @@ public final class FlinkCalciteSqlValidator extends SqlValidatorImpl {
         // factory,
         // this makes it possible to ignore them in the validator and fall back to regular row types
         // see also SqlFunction#deriveType
-    }
-
-    @Override
-    public void validateInsert(SqlInsert insert) {
-        // TODO Seems like this validation breaks the SqlToOperationConverter,
-        //  we should investigate what happens inside this method invocation.
-        // super.validateInsert(insert);
-
-        // We don't support UPSERT INTO semantics (see FLINK-24225).
-        if (insert.isUpsert()) {
-            throw new ValidationException(
-                    "UPSERT INTO statement is not supported. Please use INSERT INTO instead.");
-        }
     }
 }

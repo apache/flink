@@ -87,7 +87,7 @@ class LegacyTableSinkValidationTest extends TableTestBase {
   def testValidateSink(): Unit = {
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
-      "Column types of query result and sink for registered table " +
+      "Column types of query result and sink for " +
       "'default_catalog.default_database.testSink' do not match.\n" +
       "Cause: Incompatible types for sink column 'd' at position 3.\n\n" +
       "Query schema: [a: INT, b: BIGINT, c: STRING, d: BIGINT]\n" +

@@ -19,9 +19,12 @@
 package org.apache.flink.contrib.streaming.state;
 
 import org.apache.flink.annotation.docs.Documentation;
+import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.description.Description;
+import org.apache.flink.configuration.description.TextElement;
 
 import static org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend.PriorityQueueStateType.ROCKSDB;
 import static org.apache.flink.contrib.streaming.state.PredefinedOptions.DEFAULT;
@@ -40,7 +43,14 @@ public class RocksDBOptions {
                     .noDefaultValue()
                     .withDeprecatedKeys("state.backend.rocksdb.checkpointdir")
                     .withDescription(
-                            "The local directory (on the TaskManager) where RocksDB puts its files.");
+                            Description.builder()
+                                    .text(
+                                            "The local directory (on the TaskManager) where RocksDB puts its files. Per default, it will be <WORKING_DIR>/tmp. See %s for more details.",
+                                            TextElement.code(
+                                                    ClusterOptions
+                                                            .TASK_MANAGER_PROCESS_WORKING_DIR_BASE
+                                                            .key()))
+                                    .build());
 
     /** Choice of timer service implementation. */
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
@@ -84,12 +94,11 @@ public class RocksDBOptions {
     public static final ConfigOption<String> OPTIONS_FACTORY =
             ConfigOptions.key("state.backend.rocksdb.options-factory")
                     .stringType()
-                    .defaultValue(DefaultConfigurableOptionsFactory.class.getName())
+                    .noDefaultValue()
                     .withDescription(
-                            String.format(
-                                    "The options factory class for RocksDB to create DBOptions and ColumnFamilyOptions. "
-                                            + "The default options factory is %s, and it would read the configured options which provided in 'RocksDBConfigurableOptions'.",
-                                    DefaultConfigurableOptionsFactory.class.getName()));
+                            "The options factory class for users to add customized options in DBOptions and ColumnFamilyOptions for RocksDB. "
+                                    + "If set, the RocksDB state backend will load the class and apply configs to DBOptions and ColumnFamilyOptions "
+                                    + "after loading ones from 'RocksDBConfigurableOptions' and pre-defined options.");
 
     @Documentation.Section(Documentation.Sections.STATE_BACKEND_ROCKSDB)
     public static final ConfigOption<Boolean> USE_MANAGED_MEMORY =

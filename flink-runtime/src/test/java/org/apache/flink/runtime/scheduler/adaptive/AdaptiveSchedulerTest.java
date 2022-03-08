@@ -22,11 +22,17 @@ import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.SchedulerExecutionMode;
+import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.CheckpointsCleaner;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpointStore;
+import org.apache.flink.runtime.checkpoint.StandaloneCheckpointIDCounter;
+import org.apache.flink.runtime.checkpoint.StandaloneCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointIDCounter;
 import org.apache.flink.runtime.checkpoint.TestingCheckpointRecoveryFactory;
 import org.apache.flink.runtime.checkpoint.TestingCompletedCheckpointStore;
@@ -37,15 +43,18 @@ import org.apache.flink.runtime.concurrent.ManuallyTriggeredComponentMainThreadE
 import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.execution.SuppressRestartsException;
+import org.apache.flink.runtime.executiongraph.ArchivedExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraphTest;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionJobVertex;
+import org.apache.flink.runtime.executiongraph.ArchivedExecutionVertex;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
+import org.apache.flink.runtime.executiongraph.JobStatusListener;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
+import org.apache.flink.runtime.executiongraph.failover.flip1.FixedDelayRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.NoRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.failover.flip1.TestRestartBackoffTimeStrategy;
 import org.apache.flink.runtime.executiongraph.metrics.DownTimeGauge;
-import org.apache.flink.runtime.executiongraph.metrics.RestartTimeGauge;
 import org.apache.flink.runtime.executiongraph.metrics.UpTimeGauge;
 import org.apache.flink.runtime.executiongraph.utils.SimpleAckingTaskManagerGateway;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
@@ -72,6 +81,8 @@ import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adaptive.allocator.TestingSlotAllocator;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.taskmanager.LocalTaskManagerLocation;
@@ -80,6 +91,7 @@ import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.IterableUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
@@ -93,30 +105,28 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.futureFailedWith;
 import static org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils.createNoOpVertex;
 import static org.apache.flink.runtime.jobgraph.JobGraphTestUtils.streamingJobGraph;
 import static org.apache.flink.runtime.jobmaster.slotpool.DefaultDeclarativeSlotPoolTest.createSlotOffersForResourceRequirements;
 import static org.apache.flink.runtime.jobmaster.slotpool.SlotPoolTestUtils.offerSlots;
 import static org.apache.flink.runtime.scheduler.SchedulerTestingUtils.enableCheckpointing;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for the {@link AdaptiveScheduler}. */
 public class AdaptiveSchedulerTest extends TestLogger {
@@ -137,12 +147,14 @@ public class AdaptiveSchedulerTest extends TestLogger {
             ComponentMainThreadExecutorServiceAdapter.forSingleThreadExecutor(
                     TEST_EXECUTOR_RESOURCE.getExecutor());
 
+    private final ClassLoader classLoader = ClassLoader.getSystemClassLoader();
+
     @Test
     public void testInitialState() throws Exception {
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
-        assertThat(scheduler.getState(), instanceOf(Created.class));
+        assertThat(scheduler.getState()).isInstanceOf(Created.class);
     }
 
     @Test
@@ -168,8 +180,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         final State state = scheduler.getState();
 
-        assertThat(scheduler.isState(state), is(true));
-        assertThat(scheduler.isState(new DummyState()), is(false));
+        assertThat(scheduler.isState(state)).isTrue();
+        assertThat(scheduler.isState(new DummyState())).isFalse();
     }
 
     @Test
@@ -179,7 +191,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         AtomicBoolean ran = new AtomicBoolean(false);
         scheduler.runIfState(scheduler.getState(), () -> ran.set(true));
-        assertThat(ran.get(), is(true));
+        assertThat(ran.get()).isTrue();
     }
 
     @Test
@@ -189,7 +201,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         AtomicBoolean ran = new AtomicBoolean(false);
         scheduler.runIfState(new DummyState(), () -> ran.set(true));
-        assertThat(ran.get(), is(false));
+        assertThat(ran.get()).isFalse();
     }
 
     @Test
@@ -202,7 +214,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final ResourceCounter resourceRequirement =
                 ResourceCounter.withResource(ResourceProfile.UNKNOWN, 1);
 
-        assertThat(scheduler.hasDesiredResources(resourceRequirement), is(false));
+        assertThat(scheduler.hasDesiredResources(resourceRequirement)).isFalse();
     }
 
     @Test
@@ -225,7 +237,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         offerSlots(
                 declarativeSlotPool, createSlotOffersForResourceRequirements(resourceRequirement));
 
-        assertThat(scheduler.hasDesiredResources(resourceRequirement), is(true));
+        assertThat(scheduler.hasDesiredResources(resourceRequirement)).isTrue();
     }
 
     @Test
@@ -251,7 +263,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         offerSlots(declarativeSlotPool, createSlotOffersForResourceRequirements(providedResources));
 
-        assertThat(scheduler.hasDesiredResources(requiredResources), is(true));
+        assertThat(scheduler.hasDesiredResources(requiredResources)).isTrue();
     }
 
     @Test
@@ -295,9 +307,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                 singleThreadMainThreadExecutor)
                         .join();
 
-        assertThat(
-                executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism(),
-                is(numAvailableSlots));
+        assertThat(executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism())
+                .isEqualTo(numAvailableSlots);
     }
 
     @Test
@@ -341,9 +352,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                 singleThreadMainThreadExecutor)
                         .join();
 
-        assertThat(
-                executionGraph.getStatusTimestamp(JobStatus.INITIALIZING),
-                is(initializationTimestamp));
+        assertThat(executionGraph.getStatusTimestamp(JobStatus.INITIALIZING))
+                .isEqualTo(initializationTimestamp);
     }
 
     @Test
@@ -361,7 +371,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .getArchivedExecutionGraph()
                         .getStatusTimestamp(JobStatus.INITIALIZING);
 
-        assertThat(initializationTimestamp, is(expectedInitializationTimestamp));
+        assertThat(initializationTimestamp).isEqualTo(expectedInitializationTimestamp);
     }
 
     @Test
@@ -381,7 +391,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                     throw exception;
                 });
 
-        assertThat(fatalErrorHandler.getException(), is(exception));
+        assertThat(fatalErrorHandler.getException()).isEqualTo(exception);
     }
 
     @Test
@@ -411,7 +421,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                 scheduledTask ->
                                         scheduledTask.getDelay(TimeUnit.MINUTES)
                                                 == resourceTimeout.toMinutes());
-        assertThat(b, is(true));
+        assertThat(b).isTrue();
     }
 
     @Test
@@ -473,7 +483,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // wait for the first task submission
         taskManagerGateway.waitForSubmissions(1, Duration.ofSeconds(5));
 
-        assertThat(numRestartsMetric.getValue(), is(0L));
+        assertThat(numRestartsMetric.getValue()).isEqualTo(0L);
 
         singleThreadMainThreadExecutor.execute(
                 () -> {
@@ -489,15 +499,15 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // wait for the second task submissions
         taskManagerGateway.waitForSubmissions(PARALLELISM, Duration.ofSeconds(5));
 
-        assertThat(numRestartsMetric.getValue(), is(1L));
+        assertThat(numRestartsMetric.getValue()).isEqualTo(1L);
     }
 
     @Test
     public void testStatusMetrics() throws Exception {
         final CompletableFuture<UpTimeGauge> upTimeMetricFuture = new CompletableFuture<>();
         final CompletableFuture<DownTimeGauge> downTimeMetricFuture = new CompletableFuture<>();
-        final CompletableFuture<RestartTimeGauge> restartTimeMetricFuture =
-                new CompletableFuture<>();
+        // restartingTime acts as a stand-in for generic status time metrics
+        final CompletableFuture<Gauge<Long>> restartTimeMetricFuture = new CompletableFuture<>();
         final MetricRegistry metricRegistry =
                 TestingMetricRegistry.builder()
                         .setRegisterConsumer(
@@ -509,9 +519,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                         case DownTimeGauge.METRIC_NAME:
                                             downTimeMetricFuture.complete((DownTimeGauge) metric);
                                             break;
-                                        case RestartTimeGauge.METRIC_NAME:
-                                            restartTimeMetricFuture.complete(
-                                                    (RestartTimeGauge) metric);
+                                        case "restartingTimeTotal":
+                                            restartTimeMetricFuture.complete((Gauge<Long>) metric);
                                             break;
                                     }
                                 })
@@ -525,6 +534,9 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.MIN_PARALLELISM_INCREASE, 1);
         configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(10L));
+        configuration.set(
+                MetricOptions.JOB_STATUS_METRICS,
+                Arrays.asList(MetricOptions.JobStatusMetrics.TOTAL_TIME));
 
         final AdaptiveScheduler scheduler =
                 new AdaptiveSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
@@ -538,7 +550,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         final UpTimeGauge upTimeGauge = upTimeMetricFuture.get();
         final DownTimeGauge downTimeGauge = downTimeMetricFuture.get();
-        final RestartTimeGauge restartTimeGauge = restartTimeMetricFuture.get();
+        final Gauge<Long> restartTimeGauge = restartTimeMetricFuture.get();
 
         final SubmissionBufferingTaskManagerGateway taskManagerGateway =
                 new SubmissionBufferingTaskManagerGateway(1 + PARALLELISM);
@@ -562,9 +574,9 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // sleep a bit to ensure uptime is > 0
         Thread.sleep(10L);
 
-        assertThat(upTimeGauge.getValue(), greaterThan(0L));
-        assertThat(downTimeGauge.getValue(), is(0L));
-        assertThat(restartTimeGauge.getValue(), is(0L));
+        assertThat(upTimeGauge.getValue()).isGreaterThan(0L);
+        assertThat(downTimeGauge.getValue()).isEqualTo(0L);
+        assertThat(restartTimeGauge.getValue()).isEqualTo(0L);
 
         singleThreadMainThreadExecutor.execute(
                 () -> {
@@ -582,9 +594,10 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // sleep a bit to ensure uptime is > 0
         Thread.sleep(10L);
 
-        assertThat(upTimeGauge.getValue(), greaterThan(0L));
-        assertThat(downTimeGauge.getValue(), is(0L));
-        assertThat(restartTimeGauge.getValue(), greaterThan(0L));
+        assertThat(upTimeGauge.getValue()).isGreaterThan(0L);
+        assertThat(downTimeGauge.getValue()).isEqualTo(0L);
+        // can be zero if the restart is very quick
+        assertThat(restartTimeGauge.getValue()).isGreaterThanOrEqualTo(0L);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -598,7 +611,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         scheduler.startScheduling();
 
-        assertThat(scheduler.getState(), instanceOf(WaitingForResources.class));
+        assertThat(scheduler.getState()).isInstanceOf(WaitingForResources.class);
     }
 
     @Test
@@ -615,9 +628,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         scheduler.startScheduling();
 
-        assertThat(
-                declarativeSlotPool.getResourceRequirements(),
-                contains(ResourceRequirement.create(ResourceProfile.UNKNOWN, PARALLELISM)));
+        assertThat(declarativeSlotPool.getResourceRequirements())
+                .contains(ResourceRequirement.create(ResourceProfile.UNKNOWN, PARALLELISM));
     }
 
     @Test
@@ -641,9 +653,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
         // should request the max possible resources
         final int expectedParallelism =
                 KeyGroupRangeAssignment.computeDefaultMaxParallelism(PARALLELISM);
-        assertThat(
-                declarativeSlotPool.getResourceRequirements(),
-                contains(ResourceRequirement.create(ResourceProfile.UNKNOWN, expectedParallelism)));
+        assertThat(declarativeSlotPool.getResourceRequirements())
+                .contains(ResourceRequirement.create(ResourceProfile.UNKNOWN, expectedParallelism));
     }
 
     /** Tests that the listener for new slots is properly set up. */
@@ -679,7 +690,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                             taskManagerGateway);
                 });
 
-        assertThat(startingStateFuture.get(), instanceOf(WaitingForResources.class));
+        assertThat(startingStateFuture.get()).isInstanceOf(WaitingForResources.class);
 
         // Wait for all tasks to be submitted
         taskManagerGateway.waitForSubmissions(PARALLELISM, Duration.ofSeconds(5));
@@ -690,8 +701,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                 singleThreadMainThreadExecutor)
                         .get();
 
-        assertThat(
-                executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism(), is(PARALLELISM));
+        assertThat(executionGraph.getJobVertex(JOB_VERTEX.getID()).getParallelism())
+                .isEqualTo(PARALLELISM);
     }
 
     @Test
@@ -704,7 +715,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         scheduler.goToFinished(archivedExecutionGraph);
 
-        assertThat(scheduler.getState(), instanceOf(Finished.class));
+        assertThat(scheduler.getState()).isInstanceOf(Finished.class);
     }
 
     @Test
@@ -718,21 +729,14 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .build();
 
         // sanity check
-        assertThat(
-                "Assumption about job status for Scheduler@Created is incorrect.",
-                scheduler.requestJobStatus(),
-                is(JobStatus.INITIALIZING));
+        assertThat(scheduler.requestJobStatus())
+                .withFailMessage("Assumption about job status for Scheduler@Created is incorrect.")
+                .isEqualTo(JobStatus.INITIALIZING);
 
         // transition into next state, for which the job state is still INITIALIZING
-        scheduler.goToWaitingForResources();
+        scheduler.transitionToState(new DummyState.Factory(JobStatus.INITIALIZING));
 
-        // sanity check
-        assertThat(
-                "Assumption about job status for Scheduler@WaitingForResources is incorrect.",
-                scheduler.requestJobStatus(),
-                is(JobStatus.INITIALIZING));
-
-        assertThat(numStatusUpdates.get(), is(0));
+        assertThat(numStatusUpdates.get()).isEqualTo(0);
     }
 
     @Test
@@ -744,6 +748,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final Configuration configuration = new Configuration();
         configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
 
+        final CompletableFuture<Void> jobCreatedNotification = new CompletableFuture<>();
         final CompletableFuture<Void> jobRunningNotification = new CompletableFuture<>();
         final CompletableFuture<Void> jobFinishedNotification = new CompletableFuture<>();
         final CompletableFuture<JobStatus> unexpectedJobStatusNotification =
@@ -754,6 +759,9 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .setJobStatusListener(
                                 (jobId, newJobStatus, timestamp) -> {
                                     switch (newJobStatus) {
+                                        case CREATED:
+                                            jobCreatedNotification.complete(null);
+                                            break;
                                         case RUNNING:
                                             jobRunningNotification.complete(null);
                                             break;
@@ -792,9 +800,10 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                         submittedTask.getExecutionAttemptId(),
                                         ExecutionState.FINISHED)));
 
+        jobCreatedNotification.get();
         jobRunningNotification.get();
         jobFinishedNotification.get();
-        assertThat(unexpectedJobStatusNotification.isDone(), is(false));
+        assertThat(unexpectedJobStatusNotification.isDone()).isFalse();
     }
 
     @Test
@@ -802,12 +811,15 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final CompletableFuture<JobStatus> completedCheckpointStoreShutdownFuture =
                 new CompletableFuture<>();
         final CompletedCheckpointStore completedCheckpointStore =
-                new TestingCompletedCheckpointStore(completedCheckpointStoreShutdownFuture);
+                TestingCompletedCheckpointStore
+                        .createStoreWithShutdownCheckAndNoCompletedCheckpoints(
+                                completedCheckpointStoreShutdownFuture);
 
         final CompletableFuture<JobStatus> checkpointIdCounterShutdownFuture =
                 new CompletableFuture<>();
         final CheckpointIDCounter checkpointIdCounter =
-                new TestingCheckpointIDCounter(checkpointIdCounterShutdownFuture);
+                TestingCheckpointIDCounter.createStoreWithShutdownCheckAndNoStartAction(
+                        checkpointIdCounterShutdownFuture);
 
         final JobGraph jobGraph = createJobGraph();
         // checkpointing components are only created if checkpointing is enabled
@@ -830,8 +842,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                     scheduler.closeAsync();
                 });
 
-        assertThat(completedCheckpointStoreShutdownFuture.get(), is(JobStatus.FAILED));
-        assertThat(checkpointIdCounterShutdownFuture.get(), is(JobStatus.FAILED));
+        assertThat(completedCheckpointStoreShutdownFuture.get()).isEqualTo(JobStatus.FAILED);
+        assertThat(checkpointIdCounterShutdownFuture.get()).isEqualTo(JobStatus.FAILED);
     }
 
     @Test
@@ -846,8 +858,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
         firstState.reset();
 
         scheduler.transitionToState(new DummyState.Factory());
-        assertThat(firstState.onLeaveCalled, is(true));
-        assertThat(firstState.onLeaveNewStateArgument.equals(DummyState.class), is(true));
+        assertThat(firstState.onLeaveCalled).isTrue();
+        assertThat(firstState.onLeaveNewStateArgument.equals(DummyState.class)).isTrue();
     }
 
     @Test
@@ -893,9 +905,9 @@ public class AdaptiveSchedulerTest extends TestLogger {
         ArchivedExecutionJobVertex archivedVertex = executionGraph.getJobVertex(vertex.getID());
 
         // ensure that the parallelism was submitted based on what is available
-        assertThat(archivedVertex.getParallelism(), is(1));
+        assertThat(archivedVertex.getParallelism()).isEqualTo(1);
         // and that the max parallelism was submitted based on what was configured
-        assertThat(archivedVertex.getMaxParallelism(), is(expectedMaxParallelism));
+        assertThat(archivedVertex.getMaxParallelism()).isEqualTo(expectedMaxParallelism);
 
         // offer the resources to run at full parallelism
         singleThreadMainThreadExecutor.execute(
@@ -917,9 +929,9 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 resubmittedExecutionGraph.getJobVertex(vertex.getID());
 
         // ensure that the parallelism was submitted based on what is available
-        assertThat(resubmittedArchivedVertex.getParallelism(), is(parallelism));
+        assertThat(resubmittedArchivedVertex.getParallelism()).isEqualTo(parallelism);
         // and that the max parallelism was submitted based on what was configured
-        assertThat(resubmittedArchivedVertex.getMaxParallelism(), is(expectedMaxParallelism));
+        assertThat(resubmittedArchivedVertex.getMaxParallelism()).isEqualTo(expectedMaxParallelism);
     }
 
     // ---------------------------------------------------------------------------------------------
@@ -933,7 +945,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .setRestartBackoffTimeStrategy(NoRestartBackoffTimeStrategy.INSTANCE)
                         .build();
 
-        assertThat(scheduler.howToHandleFailure(new Exception("test")).canRestart(), is(false));
+        assertThat(scheduler.howToHandleFailure(new Exception("test")).canRestart()).isFalse();
     }
 
     @Test
@@ -946,13 +958,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                         .setRestartBackoffTimeStrategy(restartBackoffTimeStrategy)
                         .build();
 
-        final Executing.FailureResult failureResult =
-                scheduler.howToHandleFailure(new Exception("test"));
+        final FailureResult failureResult = scheduler.howToHandleFailure(new Exception("test"));
 
-        assertThat(failureResult.canRestart(), is(true));
-        assertThat(
-                failureResult.getBackoffTime().toMillis(),
-                is(restartBackoffTimeStrategy.getBackoffTime()));
+        assertThat(failureResult.canRestart()).isTrue();
+        assertThat(failureResult.getBackoffTime().toMillis())
+                .isEqualTo(restartBackoffTimeStrategy.getBackoffTime());
     }
 
     @Test
@@ -961,10 +971,318 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         assertThat(
-                scheduler
-                        .howToHandleFailure(new SuppressRestartsException(new Exception("test")))
-                        .canRestart(),
-                is(false));
+                        scheduler
+                                .howToHandleFailure(
+                                        new SuppressRestartsException(new Exception("test")))
+                                .canRestart())
+                .isFalse();
+    }
+
+    static class RunFailedJobListener implements JobStatusListener {
+        OneShotLatch jobRunning;
+        OneShotLatch jobTerminal;
+
+        public RunFailedJobListener() {
+            this.jobRunning = new OneShotLatch();
+            this.jobTerminal = new OneShotLatch();
+        }
+
+        @Override
+        public void jobStatusChanges(JobID jobId, JobStatus newJobStatus, long timestamp) {
+            if (newJobStatus == JobStatus.RUNNING) {
+                jobRunning.trigger();
+                return;
+            }
+            boolean hasRestarted = jobRunning.isTriggered() && newJobStatus == JobStatus.CREATED;
+            if (newJobStatus == JobStatus.FAILED || hasRestarted) {
+                jobTerminal.trigger();
+            }
+        }
+
+        public void waitForRunning() throws InterruptedException {
+            jobRunning.await();
+        }
+
+        public void waitForTerminal() throws InterruptedException {
+            jobTerminal.await();
+        }
+    }
+
+    private Iterable<RootExceptionHistoryEntry> runExceptionHistoryTests(
+            BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic) throws Exception {
+        return runExceptionHistoryTests(testLogic, ignored -> {}, ignored -> {});
+    }
+
+    private Iterable<RootExceptionHistoryEntry> runExceptionHistoryTests(
+            BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic,
+            Consumer<AdaptiveSchedulerBuilder> setupScheduler)
+            throws Exception {
+        return runExceptionHistoryTests(testLogic, setupScheduler, ignored -> {});
+    }
+
+    private Iterable<RootExceptionHistoryEntry> runExceptionHistoryTests(
+            BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic,
+            Consumer<AdaptiveSchedulerBuilder> setupScheduler,
+            Consumer<JobGraph> setupJobGraph)
+            throws Exception {
+        final int numAvailableSlots = 4;
+        final JobGraph jobGraph = createJobGraph();
+        setupJobGraph.accept(jobGraph);
+        RunFailedJobListener listener = new RunFailedJobListener();
+        List<ExecutionAttemptID> cancelledTasks = new ArrayList<>();
+
+        final CompletedCheckpointStore completedCheckpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final CheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
+        final CheckpointsCleaner checkpointCleaner = new CheckpointsCleaner();
+        TestingCheckpointRecoveryFactory checkpointRecoveryFactory =
+                new TestingCheckpointRecoveryFactory(completedCheckpointStore, checkpointIDCounter);
+
+        final DefaultDeclarativeSlotPool declarativeSlotPool =
+                createDeclarativeSlotPool(jobGraph.getJobID());
+
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.RESOURCE_WAIT_TIMEOUT, Duration.ofMillis(1L));
+
+        AdaptiveSchedulerBuilder builder =
+                new AdaptiveSchedulerBuilder(jobGraph, singleThreadMainThreadExecutor)
+                        .setJobMasterConfiguration(configuration)
+                        .setDeclarativeSlotPool(declarativeSlotPool)
+                        .setCheckpointRecoveryFactory(checkpointRecoveryFactory)
+                        .setCheckpointCleaner(checkpointCleaner)
+                        .setJobStatusListener(listener);
+        setupScheduler.accept(builder);
+        final AdaptiveScheduler scheduler = builder.build();
+
+        final SubmissionBufferingTaskManagerGateway taskManagerGateway =
+                new SubmissionBufferingTaskManagerGateway(numAvailableSlots);
+        taskManagerGateway.setCancelConsumer(cancelledTasks::add);
+
+        singleThreadMainThreadExecutor.execute(
+                () -> {
+                    scheduler.startScheduling();
+                    offerSlots(
+                            declarativeSlotPool,
+                            createSlotOffersForResourceRequirements(
+                                    ResourceCounter.withResource(
+                                            ResourceProfile.UNKNOWN, numAvailableSlots)),
+                            taskManagerGateway);
+                });
+        listener.waitForRunning();
+
+        CompletableFuture<Iterable<ArchivedExecutionVertex>> vertexFuture =
+                new CompletableFuture<>();
+        singleThreadMainThreadExecutor.execute(
+                () ->
+                        vertexFuture.complete(
+                                scheduler
+                                        .requestJob()
+                                        .getArchivedExecutionGraph()
+                                        .getAllExecutionVertices()));
+        final Iterable<ArchivedExecutionVertex> executionVertices = vertexFuture.get();
+        final List<ExecutionAttemptID> attemptIds =
+                IterableUtils.toStream(executionVertices)
+                        .map(ArchivedExecutionVertex::getCurrentExecutionAttempt)
+                        .map(ArchivedExecution::getAttemptId)
+                        .collect(Collectors.toList());
+        CompletableFuture<Void> runTestLogicFuture =
+                CompletableFuture.runAsync(
+                        () -> testLogic.accept(scheduler, attemptIds),
+                        singleThreadMainThreadExecutor);
+        runTestLogicFuture.get();
+
+        Consumer<ExecutionAttemptID> canceller =
+                attemptId ->
+                        scheduler.updateTaskExecutionState(
+                                new TaskExecutionStateTransition(
+                                        new TaskExecutionState(
+                                                attemptId, ExecutionState.CANCELED, null)));
+        CompletableFuture<Void> cancelFuture =
+                CompletableFuture.runAsync(
+                        () -> cancelledTasks.forEach(canceller), singleThreadMainThreadExecutor);
+        cancelFuture.get();
+        listener.waitForTerminal();
+
+        return scheduler.requestJob().getExceptionHistory();
+    }
+
+    @Test
+    public void testExceptionHistoryWithGlobalFailure() throws Exception {
+        final Exception expectedException = new Exception("Expected Global Exception");
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> scheduler.handleGlobalFailure(expectedException);
+
+        final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
+                runExceptionHistoryTests(testLogic);
+
+        assertThat(actualExceptionHistory).hasSize(1);
+
+        final RootExceptionHistoryEntry failure = actualExceptionHistory.iterator().next();
+        assertThat(failure.getTaskManagerLocation()).isNull();
+        assertThat(failure.getFailingTaskName()).isNull();
+
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException);
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskFailure() throws Exception {
+        final Exception expectedException = new Exception("Expected Local Exception");
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> {
+                    final ExecutionAttemptID attemptId = attemptIds.get(1);
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId, ExecutionState.FAILED, expectedException)));
+                };
+
+        final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
+                runExceptionHistoryTests(testLogic);
+
+        assertThat(actualExceptionHistory).hasSize(1);
+
+        final RootExceptionHistoryEntry failure = actualExceptionHistory.iterator().next();
+
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException);
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskFailureWithRestart() throws Exception {
+        final Exception expectedException = new Exception("Expected Local Exception");
+        Consumer<AdaptiveSchedulerBuilder> setupScheduler =
+                builder ->
+                        builder.setRestartBackoffTimeStrategy(
+                                new FixedDelayRestartBackoffTimeStrategy
+                                                .FixedDelayRestartBackoffTimeStrategyFactory(1, 100)
+                                        .create());
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> {
+                    final ExecutionAttemptID attemptId = attemptIds.get(1);
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId, ExecutionState.FAILED, expectedException)));
+                };
+
+        final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
+                runExceptionHistoryTests(testLogic, setupScheduler);
+
+        assertThat(actualExceptionHistory).hasSize(1);
+
+        final RootExceptionHistoryEntry failure = actualExceptionHistory.iterator().next();
+
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException);
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskFailureFromStopWithSavepoint() throws Exception {
+        final Exception expectedException = new Exception("Expected Local Exception");
+        Consumer<JobGraph> setupJobGraph =
+                jobGraph ->
+                        jobGraph.setSnapshotSettings(
+                                new JobCheckpointingSettings(
+                                        CheckpointCoordinatorConfiguration.builder().build(),
+                                        null));
+        final CompletedCheckpointStore completedCheckpointStore =
+                new StandaloneCompletedCheckpointStore(1);
+        final CheckpointIDCounter checkpointIDCounter = new StandaloneCheckpointIDCounter();
+        final CheckpointsCleaner checkpointCleaner = new CheckpointsCleaner();
+        TestingCheckpointRecoveryFactory checkpointRecoveryFactory =
+                new TestingCheckpointRecoveryFactory(completedCheckpointStore, checkpointIDCounter);
+
+        Consumer<AdaptiveSchedulerBuilder> setupScheduler =
+                builder ->
+                        builder.setCheckpointRecoveryFactory(checkpointRecoveryFactory)
+                                .setCheckpointCleaner(checkpointCleaner);
+
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> {
+                    final ExecutionAttemptID attemptId = attemptIds.get(1);
+
+                    scheduler.stopWithSavepoint(
+                            "file:///tmp/target", true, SavepointFormatType.CANONICAL);
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId, ExecutionState.FAILED, expectedException)));
+                };
+
+        final Iterable<RootExceptionHistoryEntry> actualExceptionHistory =
+                runExceptionHistoryTests(testLogic, setupScheduler, setupJobGraph);
+
+        assertThat(actualExceptionHistory).hasSize(1);
+
+        final RootExceptionHistoryEntry failure = actualExceptionHistory.iterator().next();
+
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException);
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskConcurrentGlobalFailure() throws Exception {
+        final Exception expectedException1 = new Exception("Expected Global Exception 1");
+        final Exception expectedException2 = new Exception("Expected Global Exception 2");
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> {
+                    scheduler.handleGlobalFailure(expectedException1);
+                    scheduler.handleGlobalFailure(expectedException2);
+                };
+
+        final Iterable<RootExceptionHistoryEntry> entries = runExceptionHistoryTests(testLogic);
+        assertThat(entries).hasSize(1);
+        final RootExceptionHistoryEntry failure = entries.iterator().next();
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException1);
+        final Iterable<ExceptionHistoryEntry> concurrentExceptions =
+                failure.getConcurrentExceptions();
+        final List<Throwable> foundExceptions =
+                IterableUtils.toStream(concurrentExceptions)
+                        .map(ExceptionHistoryEntry::getException)
+                        .map(exception -> exception.deserializeError(classLoader))
+                        .collect(Collectors.toList());
+
+        assertThat(foundExceptions).containsExactly(expectedException2);
+    }
+
+    @Test
+    public void testExceptionHistoryWithTaskConcurrentFailure() throws Exception {
+        final Exception expectedException1 = new Exception("Expected Local Exception 1");
+        final Exception expectedException2 = new Exception("Expected Local Exception 2");
+        BiConsumer<AdaptiveScheduler, List<ExecutionAttemptID>> testLogic =
+                (scheduler, attemptIds) -> {
+                    final ExecutionAttemptID attemptId = attemptIds.remove(0);
+                    final ExecutionAttemptID attemptId2 = attemptIds.remove(0);
+
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId, ExecutionState.FAILED, expectedException1)));
+                    scheduler.updateTaskExecutionState(
+                            new TaskExecutionStateTransition(
+                                    new TaskExecutionState(
+                                            attemptId2,
+                                            ExecutionState.FAILED,
+                                            expectedException2)));
+                };
+
+        final Iterable<RootExceptionHistoryEntry> entries = runExceptionHistoryTests(testLogic);
+        assertThat(entries).hasSize(1);
+        final RootExceptionHistoryEntry failure = entries.iterator().next();
+        assertThat(failure.getException().deserializeError(classLoader))
+                .isEqualTo(expectedException1);
+        final Iterable<ExceptionHistoryEntry> concurrentExceptions =
+                failure.getConcurrentExceptions();
+        final List<Throwable> foundExceptions =
+                IterableUtils.toStream(concurrentExceptions)
+                        .map(ExceptionHistoryEntry::getException)
+                        .map(exception -> exception.deserializeError(classLoader))
+                        .collect(Collectors.toList());
+
+        // In the future, concurrent local failures should be stored.
+        assertThat(foundExceptions).isEmpty();
     }
 
     @Test(expected = IllegalStateException.class)
@@ -975,7 +1293,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
         final State state = scheduler.getState();
 
         // safeguard for this test
-        assertThat(state, instanceOf(Created.class));
+        assertThat(state).isInstanceOf(Created.class);
 
         scheduler.transitionToState(new Created.Factory(scheduler, log));
     }
@@ -990,8 +1308,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         assertThat(
-                scheduler.triggerSavepoint("some directory", false),
-                futureFailedWith(CheckpointException.class));
+                        scheduler.triggerSavepoint(
+                                "some directory", false, SavepointFormatType.CANONICAL))
+                .failsWithin(1, TimeUnit.MILLISECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(CheckpointException.class);
     }
 
     @Test
@@ -1000,8 +1321,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         assertThat(
-                scheduler.stopWithSavepoint("some directory", false),
-                futureFailedWith(CheckpointException.class));
+                        scheduler.triggerSavepoint(
+                                "some directory", false, SavepointFormatType.CANONICAL))
+                .failsWithin(1, TimeUnit.MILLISECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(CheckpointException.class);
     }
 
     @Test(expected = TaskNotRunningException.class)
@@ -1019,9 +1343,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(createJobGraph(), mainThreadExecutor).build();
 
         assertThat(
-                scheduler.deliverCoordinationRequestToCoordinator(
-                        new OperatorID(), new CoordinationRequest() {}),
-                futureFailedWith(FlinkException.class));
+                        scheduler.deliverCoordinationRequestToCoordinator(
+                                new OperatorID(), new CoordinationRequest() {}))
+                .failsWithin(1, TimeUnit.MILLISECONDS)
+                .withThrowableOfType(ExecutionException.class)
+                .withCauseInstanceOf(FlinkException.class);
     }
 
     @Test
@@ -1031,11 +1357,11 @@ public class AdaptiveSchedulerTest extends TestLogger {
                 new AdaptiveSchedulerBuilder(jobGraph, mainThreadExecutor).build();
 
         assertThat(
-                scheduler.updateTaskExecutionState(
-                        new TaskExecutionStateTransition(
-                                new TaskExecutionState(
-                                        new ExecutionAttemptID(), ExecutionState.FAILED))),
-                is(false));
+                        scheduler.updateTaskExecutionState(
+                                new TaskExecutionStateTransition(
+                                        new TaskExecutionState(
+                                                new ExecutionAttemptID(), ExecutionState.FAILED))))
+                .isFalse();
     }
 
     @Test(expected = IOException.class)
@@ -1074,7 +1400,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
                                 new StateTrackingMockExecutionGraph(),
                                 new CreatingExecutionGraphTest.TestingVertexParallelism()));
 
-        assertFalse(assignmentResult.isSuccess());
+        assertThat(assignmentResult.isSuccess()).isFalse();
     }
 
     @Test
@@ -1092,8 +1418,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
         for (JobVertex vertex : graph.getVertices()) {
             VertexParallelismInformation info = parallelismStore.getParallelismInfo(vertex.getID());
 
-            assertThat(info.getParallelism(), is(vertex.getParallelism()));
-            assertThat(info.getMaxParallelism(), is(vertex.getMaxParallelism()));
+            assertThat(info.getParallelism()).isEqualTo(vertex.getParallelism());
+            assertThat(info.getMaxParallelism()).isEqualTo(vertex.getMaxParallelism());
         }
     }
 
@@ -1110,8 +1436,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
         for (JobVertex vertex : graph.getVertices()) {
             VertexParallelismInformation info = parallelismStore.getParallelismInfo(vertex.getID());
 
-            assertThat(info.getParallelism(), is(vertex.getParallelism()));
-            assertThat(info.getMaxParallelism(), is(vertex.getMaxParallelism()));
+            assertThat(info.getParallelism()).isEqualTo(vertex.getParallelism());
+            assertThat(info.getMaxParallelism()).isEqualTo(vertex.getMaxParallelism());
         }
     }
 
@@ -1202,7 +1528,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
      * A {@link SimpleAckingTaskManagerGateway} that buffers all the task submissions into a
      * blocking queue, allowing one to wait for an arbitrary number of submissions.
      */
-    private static class SubmissionBufferingTaskManagerGateway
+    public static class SubmissionBufferingTaskManagerGateway
             extends SimpleAckingTaskManagerGateway {
         final BlockingQueue<TaskDeploymentDescriptor> submittedTasks;
 
@@ -1259,6 +1585,16 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
     static class DummyState implements State {
 
+        private final JobStatus jobStatus;
+
+        public DummyState() {
+            this(JobStatus.RUNNING);
+        }
+
+        public DummyState(JobStatus jobStatus) {
+            this.jobStatus = jobStatus;
+        }
+
         @Override
         public void cancel() {}
 
@@ -1267,7 +1603,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         @Override
         public JobStatus getJobStatus() {
-            return JobStatus.RUNNING;
+            return jobStatus;
         }
 
         @Override
@@ -1285,6 +1621,16 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
         private static class Factory implements StateFactory<DummyState> {
 
+            private final JobStatus jobStatus;
+
+            public Factory() {
+                this(JobStatus.RUNNING);
+            }
+
+            public Factory(JobStatus jobStatus) {
+                this.jobStatus = jobStatus;
+            }
+
             @Override
             public Class<DummyState> getStateClass() {
                 return DummyState.class;
@@ -1292,7 +1638,7 @@ public class AdaptiveSchedulerTest extends TestLogger {
 
             @Override
             public DummyState getState() {
-                return new DummyState();
+                return new DummyState(jobStatus);
             }
         }
     }

@@ -41,11 +41,11 @@ import java.nio.charset.StandardCharsets;
 import java.sql.Date;
 import java.time.LocalDate;
 
-import static org.apache.flink.table.utils.DateTimeUtils.dateToInternal;
+import static org.apache.flink.table.utils.DateTimeUtils.toInternal;
 
 /** This column vector is used to adapt hive's ColumnVector to Flink's ColumnVector. */
 public abstract class AbstractOrcColumnVector
-        implements org.apache.flink.table.data.vector.ColumnVector {
+        implements org.apache.flink.table.data.columnar.vector.ColumnVector {
 
     private ColumnVector vector;
 
@@ -58,7 +58,7 @@ public abstract class AbstractOrcColumnVector
         return !vector.noNulls && vector.isNull[vector.isRepeating ? 0 : i];
     }
 
-    public static org.apache.flink.table.data.vector.ColumnVector createFlinkVector(
+    public static org.apache.flink.table.data.columnar.vector.ColumnVector createFlinkVector(
             ColumnVector vector, LogicalType logicalType) {
         if (vector instanceof LongColumnVector) {
             if (logicalType.getTypeRoot() == LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE) {
@@ -87,8 +87,8 @@ public abstract class AbstractOrcColumnVector
     }
 
     /** Create flink vector by hive vector from constant. */
-    public static org.apache.flink.table.data.vector.ColumnVector createFlinkVectorFromConstant(
-            LogicalType type, Object value, int batchSize) {
+    public static org.apache.flink.table.data.columnar.vector.ColumnVector
+            createFlinkVectorFromConstant(LogicalType type, Object value, int batchSize) {
         return createFlinkVector(createHiveVectorFromConstant(type, value, batchSize), type);
     }
 
@@ -122,7 +122,7 @@ public abstract class AbstractOrcColumnVector
                 if (value instanceof LocalDate) {
                     value = Date.valueOf((LocalDate) value);
                 }
-                return createLongVector(batchSize, dateToInternal((Date) value));
+                return createLongVector(batchSize, toInternal((Date) value));
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 return TimestampUtil.createVectorFromConstant(batchSize, value);
             default:

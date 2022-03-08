@@ -48,6 +48,10 @@ import static org.apache.flink.table.data.binary.BinaryStringData.numBytesForFir
 /** Util for {@link BinaryStringData}. */
 public class BinaryStringDataUtil {
 
+    public static final BinaryStringData NULL_STRING = fromString("NULL");
+    public static final BinaryStringData TRUE_STRING = fromString("TRUE");
+    public static final BinaryStringData FALSE_STRING = fromString("FALSE");
+
     public static final BinaryStringData[] EMPTY_STRING_ARRAY = new BinaryStringData[0];
     private static final List<BinaryStringData> TRUE_STRINGS =
             Stream.of("t", "true", "y", "yes", "1")
@@ -582,7 +586,7 @@ public class BinaryStringDataUtil {
     }
 
     public static int toDate(BinaryStringData input) throws DateTimeException {
-        Integer date = DateTimeUtils.dateStringToUnixDate(input.toString());
+        Integer date = DateTimeUtils.parseDate(input.toString());
         if (date == null) {
             throw new DateTimeException("For input string: '" + input + "'.");
         }
@@ -591,7 +595,7 @@ public class BinaryStringDataUtil {
     }
 
     public static int toTime(BinaryStringData input) throws DateTimeException {
-        Integer date = DateTimeUtils.timeStringToUnixDate(input.toString());
+        Integer date = DateTimeUtils.parseTime(input.toString());
         if (date == null) {
             throw new DateTimeException("For input string: '" + input + "'.");
         }
@@ -599,23 +603,16 @@ public class BinaryStringDataUtil {
         return date;
     }
 
-    public static TimestampData toTimestamp(BinaryStringData input) throws DateTimeException {
-        TimestampData timestamp = DateTimeUtils.toTimestampData(input.toString());
-        if (timestamp == null) {
-            throw new DateTimeException("For input string: '" + input + "'.");
-        }
-
-        return timestamp;
+    /** Used by {@code CAST(x as TIMESTAMP)}. */
+    public static TimestampData toTimestamp(BinaryStringData input, int precision)
+            throws DateTimeException {
+        return DateTimeUtils.parseTimestampData(input.toString(), precision);
     }
 
-    public static TimestampData toTimestamp(BinaryStringData input, TimeZone timeZone)
-            throws DateTimeException {
-        Long timestamp = DateTimeUtils.toTimestamp(input.toString(), timeZone);
-        if (timestamp == null) {
-            throw new DateTimeException("For input string: '" + input + "'.");
-        }
-
-        return TimestampData.fromEpochMillis(timestamp);
+    /** Used by {@code CAST(x as TIMESTAMP_LTZ)}. */
+    public static TimestampData toTimestamp(
+            BinaryStringData input, int precision, TimeZone timeZone) throws DateTimeException {
+        return DateTimeUtils.parseTimestampData(input.toString(), precision, timeZone);
     }
 
     /**

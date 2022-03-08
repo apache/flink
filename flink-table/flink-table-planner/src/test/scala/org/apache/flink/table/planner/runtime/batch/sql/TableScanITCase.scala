@@ -25,7 +25,7 @@ import org.apache.flink.table.api.{TableSchema, Types}
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.{TestTableSourceWithTime, WithoutTimeAttributesTableSource}
-import org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 import org.junit.Test
 import java.lang.{Integer => JInt}
 
@@ -69,10 +69,10 @@ class TableScanITCase extends BatchTestBase {
   def testRowtimeTableSource(): Unit = {
     val tableName = "MyTable"
     val data = Seq(
-      row("Mary", unixTimestampToLocalDateTime(1L), new JInt(10)),
-      row("Bob", unixTimestampToLocalDateTime(2L), new JInt(20)),
-      row("Mary", unixTimestampToLocalDateTime(2L), new JInt(30)),
-      row("Liz", unixTimestampToLocalDateTime(2001L), new JInt(40)))
+      row("Mary", toLocalDateTime(1L), new JInt(10)),
+      row("Bob", toLocalDateTime(2L), new JInt(20)),
+      row("Mary", toLocalDateTime(2L), new JInt(30)),
+      row("Liz", toLocalDateTime(2001L), new JInt(40)))
 
     val fieldNames = Array("name", "rtime", "amount")
     val schema = new TableSchema(fieldNames, Array(Types.STRING, LOCAL_DATE_TIME, Types.INT))
@@ -86,10 +86,10 @@ class TableScanITCase extends BatchTestBase {
     checkResult(
       s"SELECT * FROM $tableName",
       Seq(
-        row("Mary", unixTimestampToLocalDateTime(1L), new JInt(10)),
-        row("Mary", unixTimestampToLocalDateTime(2L), new JInt(30)),
-        row("Bob", unixTimestampToLocalDateTime(2L), new JInt(20)),
-        row("Liz", unixTimestampToLocalDateTime(2001L), new JInt(40)))
+        row("Mary", toLocalDateTime(1L), new JInt(10)),
+        row("Mary", toLocalDateTime(2L), new JInt(30)),
+        row("Bob", toLocalDateTime(2L), new JInt(20)),
+        row("Liz", toLocalDateTime(2001L), new JInt(40)))
     )
   }
 

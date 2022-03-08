@@ -59,8 +59,10 @@ import java.util.OptionalInt;
  * @see OperatorTransformation
  * @see OneInputOperatorTransformation
  * @param <T> The input type of the transformation.
+ * @deprecated Use {@link StateBootstrapTransformation} instead.
  */
 @PublicEvolving
+@Deprecated
 @SuppressWarnings("WeakerAccess")
 public class BootstrapTransformation<T> {
 
@@ -140,7 +142,7 @@ public class BootstrapTransformation<T> {
      */
     DataSet<OperatorState> writeOperatorState(
             OperatorID operatorID,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
             Configuration config,
             int globalMaxParallelism,
             Path savepointPath) {
@@ -155,7 +157,7 @@ public class BootstrapTransformation<T> {
     @VisibleForTesting
     MapPartitionOperator<T, TaggedOperatorSubtaskState> writeOperatorSubtaskStates(
             OperatorID operatorID,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
             Path savepointPath,
             int localMaxParallelism) {
         return writeOperatorSubtaskStates(
@@ -164,7 +166,7 @@ public class BootstrapTransformation<T> {
 
     private MapPartitionOperator<T, TaggedOperatorSubtaskState> writeOperatorSubtaskStates(
             OperatorID operatorID,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
             Configuration additionalConfig,
             Path savepointPath,
             int localMaxParallelism) {
@@ -203,7 +205,7 @@ public class BootstrapTransformation<T> {
     @VisibleForTesting
     StreamConfig getConfig(
             OperatorID operatorID,
-            StateBackend stateBackend,
+            @Nullable StateBackend stateBackend,
             Configuration additionalConfig,
             StreamOperator<TaggedOperatorSubtaskState> operator) {
         // Eagerly perform a deep copy of the configuration, otherwise it will result in undefined

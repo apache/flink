@@ -37,7 +37,7 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
 /** built-in sum aggregate function. */
 public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 
-    protected UnresolvedReferenceExpression sum = unresolvedRef("sum");
+    private final UnresolvedReferenceExpression sum = unresolvedRef("sum");
 
     @Override
     public int operandCount() {
@@ -68,7 +68,7 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
                     ifThenElse(
                             isNull(operand(0)),
                             sum,
-                            ifThenElse(isNull(sum), operand(0), doPlus(sum, operand(0)))))
+                            ifThenElse(isNull(sum), operand(0), adjustedPlus(sum, operand(0)))))
         };
     }
 
@@ -84,11 +84,12 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
             /* sum = */ ifThenElse(
                     isNull(mergeOperand(sum)),
                     sum,
-                    ifThenElse(isNull(sum), mergeOperand(sum), doPlus(sum, mergeOperand(sum))))
+                    ifThenElse(
+                            isNull(sum), mergeOperand(sum), adjustedPlus(sum, mergeOperand(sum))))
         };
     }
 
-    protected UnresolvedCallExpression doPlus(
+    protected UnresolvedCallExpression adjustedPlus(
             UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
         return plus(arg1, arg2);
     }
@@ -149,24 +150,20 @@ public abstract class SumAggFunction extends DeclarativeAggregateFunction {
 
     /** Built-in Decimal Sum aggregate function. */
     public static class DecimalSumAggFunction extends SumAggFunction {
-        private DecimalType decimalType;
-        private DataType returnType;
+        private final DataType returnType;
 
         public DecimalSumAggFunction(DecimalType decimalType) {
-            this.decimalType = decimalType;
+            DecimalType sumType = (DecimalType) LogicalTypeMerging.findSumAggType(decimalType);
+            this.returnType = DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
         }
 
         @Override
         public DataType getResultType() {
-            if (returnType == null) {
-                DecimalType sumType = (DecimalType) LogicalTypeMerging.findSumAggType(decimalType);
-                returnType = DataTypes.DECIMAL(sumType.getPrecision(), sumType.getScale());
-            }
             return returnType;
         }
 
         @Override
-        protected UnresolvedCallExpression doPlus(
+        protected UnresolvedCallExpression adjustedPlus(
                 UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
             return aggDecimalPlus(arg1, arg2);
         }

@@ -30,9 +30,9 @@ import static org.junit.Assert.assertTrue;
 public class DataStreamSinkTest {
 
     @Test
-    public void throwExceptionWhenGettingTransformationWithNewSinkAPI() {
+    public void testGettingTransformationWithNewSinkAPI() {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        final Transformation<Integer> transformation =
+        final Transformation<?> transformation =
                 env.fromElements(1, 2).sinkTo(TestSink.newBuilder().build()).getTransformation();
         assertTrue(transformation instanceof SinkTransformation);
     }

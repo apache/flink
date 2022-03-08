@@ -30,7 +30,6 @@ class BulkProcessorConfig implements Serializable {
     private final FlushBackoffType flushBackoffType;
     private final int bulkFlushBackoffRetries;
     private final long bulkFlushBackOffDelay;
-    private final BulkRequestConsumerFactory bulkRequestConsumerFactory;
 
     BulkProcessorConfig(
             int bulkFlushMaxActions,
@@ -38,15 +37,13 @@ class BulkProcessorConfig implements Serializable {
             long bulkFlushInterval,
             FlushBackoffType flushBackoffType,
             int bulkFlushBackoffRetries,
-            long bulkFlushBackOffDelay,
-            BulkRequestConsumerFactory bulkRequestConsumerFactory) {
+            long bulkFlushBackOffDelay) {
         this.bulkFlushMaxActions = bulkFlushMaxActions;
         this.bulkFlushMaxMb = bulkFlushMaxMb;
         this.bulkFlushInterval = bulkFlushInterval;
         this.flushBackoffType = checkNotNull(flushBackoffType);
         this.bulkFlushBackoffRetries = bulkFlushBackoffRetries;
         this.bulkFlushBackOffDelay = bulkFlushBackOffDelay;
-        this.bulkRequestConsumerFactory = bulkRequestConsumerFactory;
     }
 
     public int getBulkFlushMaxActions() {
@@ -71,9 +68,5 @@ class BulkProcessorConfig implements Serializable {
 
     public long getBulkFlushBackOffDelay() {
         return bulkFlushBackOffDelay;
-    }
-
-    public BulkRequestConsumerFactory getBulkRequestConsumerFactory() {
-        return bulkRequestConsumerFactory;
     }
 }

@@ -373,10 +373,8 @@ public abstract class AbstractStreamOperatorV2<OUT>
         return runtimeContext;
     }
 
-    @SuppressWarnings("unchecked")
-    @VisibleForTesting
     public <K> KeyedStateBackend<K> getKeyedStateBackend() {
-        return (KeyedStateBackend<K>) stateHandler.getKeyedStateBackend();
+        return stateHandler.getKeyedStateBackend();
     }
 
     @VisibleForTesting

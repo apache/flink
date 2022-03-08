@@ -46,10 +46,7 @@ public class RowTimeSortOperatorTest {
     public void testSortOnTwoFields() throws Exception {
         InternalTypeInfo<RowData> inputRowType =
                 InternalTypeInfo.ofFields(
-                        new IntType(),
-                        new BigIntType(),
-                        new VarCharType(VarCharType.MAX_LENGTH),
-                        new IntType());
+                        new IntType(), new BigIntType(), VarCharType.STRING_TYPE, new IntType());
 
         // Note: RowTimeIdx must be 0 in product environment, the value is 1 here just for simplify
         // the testing
@@ -134,10 +131,7 @@ public class RowTimeSortOperatorTest {
     public void testOnlySortOnRowTime() throws Exception {
         InternalTypeInfo<RowData> inputRowType =
                 InternalTypeInfo.ofFields(
-                        new BigIntType(),
-                        new BigIntType(),
-                        new VarCharType(VarCharType.MAX_LENGTH),
-                        new IntType());
+                        new BigIntType(), new BigIntType(), VarCharType.STRING_TYPE, new IntType());
         int rowTimeIdx = 0;
         RowDataHarnessAssertor assertor =
                 new RowDataHarnessAssertor(inputRowType.toRowFieldTypes());

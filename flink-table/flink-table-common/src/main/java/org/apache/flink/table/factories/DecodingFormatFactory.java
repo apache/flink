@@ -39,7 +39,7 @@ import org.apache.flink.table.connector.source.ScanTableSource;
  * @param <I> runtime interface needed by the table source
  */
 @PublicEvolving
-public interface DecodingFormatFactory<I> extends Factory {
+public interface DecodingFormatFactory<I> extends FormatFactory {
 
     /**
      * Creates a format from the given context and format options.

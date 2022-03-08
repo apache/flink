@@ -94,6 +94,44 @@ class ChangelogModeInferenceTest extends TableTestBase {
         |  'changelog-mode' = 'I,UA,UB,D'
         |)
       """.stripMargin)
+
+    util.addTable(
+      """
+        |CREATE TABLE upsert_managed_table (
+        | id INT,
+        | col1 INT,
+        | col2 STRING,
+        | PRIMARY KEY(id) NOT ENFORCED
+        |) WITH (
+        |  'changelog-mode' = 'I,UA,D'
+        |)
+      """.stripMargin)
+
+    util.addTable(
+      """
+        |CREATE TABLE upsert_sink_table (
+        | id INT,
+        | col1 INT,
+        | col2 STRING,
+        | PRIMARY KEY(id) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'sink-changelog-mode-enforced' = 'I,UA,D'
+        |)
+      """.stripMargin)
+
+    util.addTable(
+      """
+        |CREATE TABLE all_change_sink_table (
+        | id INT,
+        | col1 INT,
+        | col2 STRING,
+        | PRIMARY KEY(id) NOT ENFORCED
+        |) WITH (
+        |  'connector' = 'values',
+        |  'sink-changelog-mode-enforced' = 'I,UA,UB,D'
+        |)
+      """.stripMargin)
   }
 
   @Test
@@ -244,5 +282,48 @@ class ChangelogModeInferenceTest extends TableTestBase {
         |INSERT INTO sink2 SELECT * FROM v1
         |""".stripMargin)
     util.verifyRelPlan(statementSet, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  @Test
+  def testEliminateChangelogNormalizedOnUpsertSink: Unit = {
+    upsertManagedTableWithChangelogNormalizeTestOnSink(isUpsert = true)
+  }
+
+  @Test
+  def testKeepChangelogNormalizedOnNonUpsertSink: Unit = {
+    upsertManagedTableWithChangelogNormalizeTestOnSink(isUpsert = false)
+  }
+
+  @Test
+  def testEliminateChangelogNormalizedOnUpsertJoin(): Unit = {
+    upsertManagedTableWithChangelogNormalizeTestOnJoin(isUpsert = true)
+  }
+
+  @Test
+  def testKeepChangelogNormalizedOnNonUpsertJoin(): Unit = {
+    upsertManagedTableWithChangelogNormalizeTestOnJoin(isUpsert = false)
+  }
+
+  private def upsertManagedTableWithChangelogNormalizeTestOnSink(isUpsert: Boolean): Unit = {
+    val sinkTableName = if (isUpsert) {
+      "upsert_sink_table"
+    } else {
+      "all_change_sink_table"
+    }
+    val sql = s"INSERT INTO $sinkTableName SELECT * FROM upsert_managed_table"
+    util.verifyRelPlanInsert(sql, ExplainDetail.CHANGELOG_MODE)
+  }
+
+  private def upsertManagedTableWithChangelogNormalizeTestOnJoin(isUpsert: Boolean): Unit = {
+    val sinkTableName = if (isUpsert) {
+      "upsert_sink_table"
+    } else {
+      "all_change_sink_table"
+    }
+    val sql = s"""
+                |INSERT INTO $sinkTableName SELECT a.* FROM upsert_managed_table a
+                |join upsert_managed_table b on a.id = b.id
+                |""".stripMargin
+    util.verifyRelPlanInsert(sql, ExplainDetail.CHANGELOG_MODE)
   }
 }

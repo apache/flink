@@ -30,6 +30,7 @@ import org.apache.flink.api.common.typeutils.base.ListSerializer;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.cep.EventComparator;
+import org.apache.flink.cep.configuration.SharedBufferCacheConfig;
 import org.apache.flink.cep.functions.PatternProcessFunction;
 import org.apache.flink.cep.functions.TimedOutPartialMatchHandler;
 import org.apache.flink.cep.nfa.NFA;
@@ -180,7 +181,11 @@ public class CepOperator<IN, KEY, OUT>
                                 new ValueStateDescriptor<>(
                                         NFA_STATE_NAME, new NFAStateSerializer()));
 
-        partialMatches = new SharedBuffer<>(context.getKeyedStateStore(), inputSerializer);
+        partialMatches =
+                new SharedBuffer<>(
+                        context.getKeyedStateStore(),
+                        inputSerializer,
+                        SharedBufferCacheConfig.of(getOperatorConfig().getConfiguration()));
 
         elementQueueState =
                 context.getKeyedStateStore()
@@ -218,6 +223,9 @@ public class CepOperator<IN, KEY, OUT>
         super.close();
         if (nfa != null) {
             nfa.close();
+        }
+        if (partialMatches != null) {
+            partialMatches.releaseCacheStatisticsTimer();
         }
     }
 

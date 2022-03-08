@@ -18,7 +18,6 @@
 package org.apache.flink.tests.scala;
 
 import org.apache.flink.tests.util.TestUtils;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.tests.util.flink.ClusterController;
 import org.apache.flink.tests.util.flink.FlinkResource;
 import org.apache.flink.tests.util.flink.FlinkResourceSetup;
@@ -29,7 +28,6 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
@@ -44,7 +42,6 @@ import java.util.function.Consumer;
  * Tests that Flink does not require Scala for jobs that do not use the Scala APIs. This covers both
  * pure Java jobs, and Scala jobs that use the Java APIs exclusively with Scala types.
  */
-@Category(value = {TravisGroup1.class})
 @RunWith(Parameterized.class)
 public class ScalaFreeITCase extends TestLogger {
 

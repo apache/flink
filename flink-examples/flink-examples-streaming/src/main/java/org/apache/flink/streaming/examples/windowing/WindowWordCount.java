@@ -23,7 +23,7 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.connector.file.sink.FileSink;
 import org.apache.flink.connector.file.src.FileSource;
-import org.apache.flink.connector.file.src.reader.TextLineFormat;
+import org.apache.flink.connector.file.src.reader.TextLineInputFormat;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy;
@@ -94,7 +94,7 @@ public class WindowWordCount {
             // Each file will be processed as plain text and split based on newlines.
             FileSource.FileSourceBuilder<String> builder =
                     FileSource.forRecordStreamFormat(
-                            new TextLineFormat(), params.getInputs().get());
+                            new TextLineInputFormat(), params.getInputs().get());
 
             // If a discovery interval is provided, the source will
             // continuously watch the given directories for new files.

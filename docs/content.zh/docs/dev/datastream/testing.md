@@ -220,23 +220,23 @@ class StatefulFlatMapFunctionTest extends FlatSpec with Matchers with BeforeAndA
     testHarness = new OneInputStreamOperatorTestHarness[Long, Long](new StreamFlatMap(statefulFlatMap))
 
     // optionally configured the execution environment
-    testHarness.getExecutionConfig().setAutoWatermarkInterval(50);
+    testHarness.getExecutionConfig().setAutoWatermarkInterval(50)
 
     // open the test harness (will also call open() on RichFunctions)
-    testHarness.open();
+    testHarness.open()
   }
 
   "StatefulFlatMap" should "do some fancy stuff with timers and state" in {
 
 
     //push (timestamped) elements into the operator (and hence user defined function)
-    testHarness.processElement(2, 100);
+    testHarness.processElement(2, 100)
 
     //trigger event time timers by advancing the event time of the operator with a watermark
-    testHarness.processWatermark(100);
+    testHarness.processWatermark(100)
 
     //trigger proccesign time timers by advancing the processing time of the operator directly
-    testHarness.setProcessingTime(100);
+    testHarness.setProcessingTime(100)
 
     //retrieve list of emitted records for assertions
     testHarness.getOutput should contain (3)
@@ -293,7 +293,7 @@ class StatefulFlatMapTest extends FlatSpec with Matchers with BeforeAndAfter {
     testHarness = new KeyedOneInputStreamOperatorTestHarness(new StreamFlatMap(statefulFlatMapFunction),new MyStringKeySelector(), Types.STRING())
 
     // open the test harness (will also call open() on RichFunctions)
-    testHarness.open();
+    testHarness.open()
   }
 
   //tests
@@ -485,7 +485,7 @@ public class ExampleIntegrationTest {
 class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndAfter {
 
   val flinkCluster = new MiniClusterWithClientResource(new MiniClusterResourceConfiguration.Builder()
-    .setNumberSlotsPerTaskManager(1)
+    .setNumberSlotsPerTaskManager(2)
     .setNumberTaskManagers(1)
     .build)
 
@@ -509,7 +509,7 @@ class StreamingJobIntegrationTest extends FlatSpec with Matchers with BeforeAndA
     CollectSink.values.clear()
 
     // create a stream of custom elements and apply transformations
-    env.fromElements(1, 21, 22)
+    env.fromElements(1L, 21L, 22L)
        .map(new IncrementMapFunction())
        .addSink(new CollectSink())
 

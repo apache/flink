@@ -19,6 +19,7 @@
 package org.apache.flink.formats.avro.glue.schema.registry;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.connector.aws.util.AWSGeneralUtil;
 import org.apache.flink.formats.avro.utils.MutableByteArrayInputStream;
 
 import com.amazonaws.services.schemaregistry.deserializers.GlueSchemaRegistryDeserializationFacade;
@@ -26,7 +27,7 @@ import com.amazonaws.services.schemaregistry.exception.AWSSchemaRegistryExceptio
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Parser;
 import org.apache.avro.SchemaParseException;
-import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
+import software.amazon.awssdk.auth.credentials.AwsCredentialsProvider;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -46,9 +47,11 @@ public class GlueSchemaRegistryInputStreamDeserializer {
      * @param configs configuration map
      */
     public GlueSchemaRegistryInputStreamDeserializer(Map<String, Object> configs) {
+        AwsCredentialsProvider credentialsProvider = AWSGeneralUtil.getCredentialsProvider(configs);
+
         this.glueSchemaRegistryDeserializationFacade =
                 GlueSchemaRegistryDeserializationFacade.builder()
-                        .credentialProvider(DefaultCredentialsProvider.builder().build())
+                        .credentialProvider(credentialsProvider)
                         .configs(configs)
                         .build();
     }

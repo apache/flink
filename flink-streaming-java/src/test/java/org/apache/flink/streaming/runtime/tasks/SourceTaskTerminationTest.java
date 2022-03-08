@@ -19,14 +19,16 @@
 package org.apache.flink.streaming.runtime.tasks;
 
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
@@ -40,7 +42,6 @@ import org.junit.Test;
 import java.util.Queue;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -98,8 +99,10 @@ public class SourceTaskTerminationTest extends TestLogger {
                                     new CheckpointMetaData(syncSavepointId, 900),
                                     new CheckpointOptions(
                                             shouldTerminate
-                                                    ? CheckpointType.SAVEPOINT_TERMINATE
-                                                    : CheckpointType.SAVEPOINT_SUSPEND,
+                                                    ? SavepointType.terminate(
+                                                            SavepointFormatType.CANONICAL)
+                                                    : SavepointType.suspend(
+                                                            SavepointFormatType.CANONICAL),
                                             CheckpointStorageLocationReference.getDefault()))
                             ::isDone);
 
@@ -107,9 +110,11 @@ public class SourceTaskTerminationTest extends TestLogger {
                 // if we are in TERMINATE mode, we expect the source task
                 // to emit MAX_WM before the SYNC_SAVEPOINT barrier.
                 verifyWatermark(srcTaskTestHarness.getOutput(), Watermark.MAX_WATERMARK);
-                verifyEvent(srcTaskTestHarness.getOutput(), EndOfData.INSTANCE);
             }
 
+            verifyEvent(
+                    srcTaskTestHarness.getOutput(),
+                    new EndOfData(shouldTerminate ? StopMode.DRAIN : StopMode.NO_DRAIN));
             verifyCheckpointBarrier(srcTaskTestHarness.getOutput(), syncSavepointId);
 
             waitForSynchronousSavepointIdToBeSet(srcTask);
@@ -118,9 +123,6 @@ public class SourceTaskTerminationTest extends TestLogger {
 
             srcTaskTestHarness.processUntil(
                     srcTask.notifyCheckpointCompleteAsync(syncSavepointId)::isDone);
-            if (!shouldTerminate) {
-                assertFalse(srcTask.getSynchronousSavepointId().isPresent());
-            }
 
             srcTaskTestHarness.waitForTaskCompletion();
         }

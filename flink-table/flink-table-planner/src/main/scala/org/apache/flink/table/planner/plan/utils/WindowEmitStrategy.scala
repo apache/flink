@@ -18,9 +18,10 @@
 package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.configuration.{ConfigOption, ReadableConfig}
+import org.apache.flink.table.api.TableException
+import org.apache.flink.table.api.config.ExecutionConfigOptions.IDLE_STATE_RETENTION
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SessionGroupWindow}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.isRowtimeAttribute
 import org.apache.flink.table.planner.{JBoolean, JLong}
@@ -140,20 +141,16 @@ class WindowEmitStrategy(
 }
 
 object WindowEmitStrategy {
-  def apply(tableConfig: TableConfig, window: LogicalWindow): WindowEmitStrategy = {
+  def apply(config: ReadableConfig, window: LogicalWindow): WindowEmitStrategy = {
     val isEventTime = isRowtimeAttribute(window.timeAttribute)
     val isSessionWindow = window.isInstanceOf[SessionGroupWindow]
 
-    val allowLateness = parseAllowLateness(isSessionWindow, tableConfig)
-    val enableEarlyFireDelay = tableConfig.getConfiguration.getBoolean(
-      TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED)
-    val earlyFireDelay: Duration = tableConfig.getConfiguration
-      .getOptional(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY)
+    val allowLateness = parseAllowLateness(isSessionWindow, config)
+    val enableEarlyFireDelay = config.get(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED)
+    val earlyFireDelay: Duration = config.getOptional(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY)
       .orElse(null)
-    val enableLateFireDelay = tableConfig.getConfiguration.getBoolean(
-      TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
-    val lateFireDelay: Duration = tableConfig.getConfiguration
-      .getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
+    val enableLateFireDelay = config.get(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
+    val lateFireDelay: Duration = config.getOptional(TABLE_EXEC_EMIT_LATE_FIRE_DELAY)
       .orElse(null)
       new WindowEmitStrategy(
       isEventTime,
@@ -167,11 +164,9 @@ object WindowEmitStrategy {
 
   private def parseAllowLateness(
       isSessionWindow: Boolean,
-      tableConfig: TableConfig): Long = {
-    val enableLateFireDelay = tableConfig.getConfiguration.getBoolean(
-      TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
-    val emitAllowLateness: Duration = tableConfig.getConfiguration
-      .getOptional(TABLE_EXEC_EMIT_ALLOW_LATENESS)
+      config: ReadableConfig): Long = {
+    val enableLateFireDelay = config.get(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)
+    val emitAllowLateness: Duration = config.getOptional(TABLE_EXEC_EMIT_ALLOW_LATENESS)
       .orElse(null)
     if (isSessionWindow) {
       // ignore allow lateness in session window because retraction is not supported
@@ -182,12 +177,12 @@ object WindowEmitStrategy {
     } else if (emitAllowLateness != null) {
       // return emit allow-lateness if it is set
       emitAllowLateness.toMillis
-    } else if (tableConfig.getMinIdleStateRetentionTime < 0) {
+    } else if (config.get(IDLE_STATE_RETENTION).toMillis < 0) {
       // min idle state retention time is not set, use 0L as default which means not allow lateness
       0L
     } else {
       // use min idle state retention time as allow lateness
-      tableConfig.getMinIdleStateRetentionTime
+      config.get(IDLE_STATE_RETENTION).toMillis
     }
   }
 
@@ -195,6 +190,7 @@ object WindowEmitStrategy {
   @Experimental
   val TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED: ConfigOption[JBoolean] =
   key("table.exec.emit.early-fire.enabled")
+      .booleanType()
       .defaultValue(Boolean.box(false))
       .withDescription("Specifies whether to enable early-fire emit." +
           "Early-fire is an emit strategy before watermark advanced to end of window.")
@@ -215,6 +211,7 @@ object WindowEmitStrategy {
   @Experimental
   val TABLE_EXEC_EMIT_LATE_FIRE_ENABLED: ConfigOption[JBoolean] =
   key("table.exec.emit.late-fire.enabled")
+      .booleanType()
       .defaultValue(Boolean.box(false))
       .withDescription("Specifies whether to enable late-fire emit. " +
           "Late-fire is an emit strategy after watermark advanced to end of window.")

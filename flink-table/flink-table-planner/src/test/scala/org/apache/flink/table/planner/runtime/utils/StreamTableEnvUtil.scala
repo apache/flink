@@ -21,7 +21,8 @@ package org.apache.flink.table.planner.runtime.utils
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.TableEnvironment
 import org.apache.flink.table.api.bridge.scala.StreamTableEnvironment
-import org.apache.flink.table.expressions.{Expression, ExpressionParser}
+import org.apache.flink.table.delegation.ExpressionParser
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.TableTestUtil
 
@@ -44,7 +45,7 @@ object StreamTableEnvUtil {
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
     val fields: Option[Array[Expression]] = fieldNames match {
-      case Some(names) => Some(names.map(ExpressionParser.parseExpression))
+      case Some(names) => Some(names.map(ExpressionParser.INSTANCE.parseExpression))
       case _ => None
     }
     TableTestUtil.createTemporaryView(tEnv, name, dataStream, fields, fieldNullables, statistic)

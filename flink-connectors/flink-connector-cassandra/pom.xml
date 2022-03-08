@@ -39,6 +39,7 @@ under the License.
 	<properties>
 		<cassandra.version>2.2.5</cassandra.version>
 		<driver.version>3.0.0</driver.version>
+		<guava.version>18.0</guava.version>
 	</properties>
 
 	<build>
@@ -49,7 +50,7 @@ under the License.
 				<configuration>
 					<reuseForks>true</reuseForks>
 					<forkCount>1</forkCount>
-					<argLine>-Xms256m -Xmx2800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit</argLine>
+					<argLine>-Xms256m -Xmx2800m -Dmvn.forkNumber=${surefire.forkNumber} -XX:-UseGCOverheadLimit -Duser.country=US -Duser.language=en</argLine>
 				</configuration>
 			</plugin>
 			<plugin>
@@ -130,12 +131,6 @@ under the License.
 			</exclusions>
 		</dependency>
 		<dependency>
-			<!-- Bump cassandra netty dependency -->
-			<groupId>io.netty</groupId>
-			<artifactId>netty-handler</artifactId>
-			<version>4.1.46.Final</version>
-		</dependency>
-		<dependency>
 			<groupId>com.datastax.cassandra</groupId>
 			<artifactId>cassandra-driver-mapping</artifactId>
 			<version>${driver.version}</version>
@@ -170,14 +165,6 @@ under the License.
 			<scope>provided</scope>
 			<optional>true</optional>
 		</dependency>
-		<!-- A planner dependency won't be necessary once FLIP-32 has been completed. -->
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
-			<version>${project.version}</version>
-			<scope>provided</scope>
-			<optional>true</optional>
-		</dependency>
 
 		<!-- Test dependencies -->
 
@@ -208,26 +195,29 @@ under the License.
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.cassandra</groupId>
-			<artifactId>cassandra-all</artifactId>
-			<version>${cassandra.version}</version>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
 			<scope>test</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>org.slf4j</groupId>
-					<artifactId>log4j-over-slf4j</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>ch.qos.logback</groupId>
-					<artifactId>logback-classic</artifactId>
-				</exclusion>
-			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.testcontainers</groupId>
+			<artifactId>cassandra</artifactId>
+			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<!-- Bump cassandra netty dependency -->
 			<groupId>io.netty</groupId>
 			<artifactId>netty-all</artifactId>
 			<version>4.1.46.Final</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- ArchUit test dependencies -->
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-architecture-tests-test</artifactId>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>

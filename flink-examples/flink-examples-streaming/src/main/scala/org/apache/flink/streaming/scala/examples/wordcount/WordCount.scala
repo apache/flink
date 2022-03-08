@@ -24,7 +24,7 @@ import org.apache.flink.api.common.serialization.SimpleStringEncoder
 import org.apache.flink.configuration.MemorySize
 import org.apache.flink.connector.file.sink.FileSink
 import org.apache.flink.connector.file.src.FileSource
-import org.apache.flink.connector.file.src.reader.TextLineFormat
+import org.apache.flink.connector.file.src.reader.TextLineInputFormat
 import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.DefaultRollingPolicy
 import org.apache.flink.streaming.api.scala._
 import org.apache.flink.streaming.examples.wordcount.util.WordCountData
@@ -104,7 +104,7 @@ object WordCount {
       case Some(input) =>
         // Create a new file source that will read files from a given set of directories.
         // Each file will be processed as plain text and split based on newlines.
-        val builder = FileSource.forRecordStreamFormat(new TextLineFormat, input:_*)
+        val builder = FileSource.forRecordStreamFormat(new TextLineInputFormat, input:_*)
         params.discoveryInterval.foreach { duration =>
           // If a discovery interval is provided, the source will
           // continuously watch the given directories for new files.

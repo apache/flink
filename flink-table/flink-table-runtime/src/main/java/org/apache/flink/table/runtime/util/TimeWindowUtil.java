@@ -19,7 +19,6 @@
 package org.apache.flink.table.runtime.util;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.LogicalType;
 
@@ -160,9 +159,9 @@ public class TimeWindowUtil {
      * Get the shifted timezone of window if the time attribute type is TIMESTAMP_LTZ, always
      * returns UTC timezone if the time attribute type is TIMESTAMP which means do not shift.
      */
-    public static ZoneId getShiftTimeZone(LogicalType timeAttributeType, TableConfig tableConfig) {
+    public static ZoneId getShiftTimeZone(LogicalType timeAttributeType, ZoneId zoneFromConfig) {
         boolean needShiftTimeZone = timeAttributeType instanceof LocalZonedTimestampType;
-        return needShiftTimeZone ? tableConfig.getLocalTimeZone() : UTC_ZONE_ID;
+        return needShiftTimeZone ? zoneFromConfig : UTC_ZONE_ID;
     }
 
     /**

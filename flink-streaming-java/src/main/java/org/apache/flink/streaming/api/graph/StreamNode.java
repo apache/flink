@@ -45,6 +45,7 @@ import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** Class representing the operators in the streaming programs, with all their properties. */
 @Internal
@@ -65,6 +66,7 @@ public class StreamNode {
     private final Set<ManagedMemoryUseCase> managedMemorySlotScopeUseCases = new HashSet<>();
     private long bufferTimeout;
     private final String operatorName;
+    private String operatorDescription;
     private @Nullable String slotSharingGroup;
     private @Nullable String coLocationGroup;
     private KeySelector<?, ?>[] statePartitioners = new KeySelector[0];
@@ -113,6 +115,7 @@ public class StreamNode {
             Class<? extends TaskInvokable> jobVertexClass) {
         this.id = id;
         this.operatorName = operatorName;
+        this.operatorDescription = operatorName;
         this.operatorFactory = operatorFactory;
         this.jobVertexClass = jobVertexClass;
         this.slotSharingGroup = slotSharingGroup;
@@ -120,6 +123,11 @@ public class StreamNode {
     }
 
     public void addInEdge(StreamEdge inEdge) {
+        checkState(
+                outEdges.stream().noneMatch(inEdge::equals),
+                "Adding not unique edge = %s to existing outEdges = %s",
+                inEdge,
+                inEdges);
         if (inEdge.getTargetId() != getId()) {
             throw new IllegalArgumentException("Destination id doesn't match the StreamNode id");
         } else {
@@ -128,6 +136,11 @@ public class StreamNode {
     }
 
     public void addOutEdge(StreamEdge outEdge) {
+        checkState(
+                outEdges.stream().noneMatch(outEdge::equals),
+                "Adding not unique edge = %s to existing outEdges = %s",
+                outEdge,
+                outEdges);
         if (outEdge.getSourceId() != getId()) {
             throw new IllegalArgumentException("Source id doesn't match the StreamNode id");
         } else {
@@ -240,6 +253,14 @@ public class StreamNode {
 
     public String getOperatorName() {
         return operatorName;
+    }
+
+    public String getOperatorDescription() {
+        return operatorDescription;
+    }
+
+    public void setOperatorDescription(String operatorDescription) {
+        this.operatorDescription = operatorDescription;
     }
 
     public void setSerializersIn(TypeSerializer<?>... typeSerializersIn) {

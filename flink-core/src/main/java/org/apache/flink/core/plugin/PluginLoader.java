@@ -31,6 +31,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.ServiceLoader;
 
@@ -151,7 +152,12 @@ public class PluginLoader implements AutoCloseable {
                 URL[] pluginResourceURLs,
                 ClassLoader flinkClassLoader,
                 String[] allowedFlinkPackages) {
-            super(pluginResourceURLs, flinkClassLoader, allowedFlinkPackages, new String[0]);
+            super(
+                    pluginResourceURLs,
+                    flinkClassLoader,
+                    allowedFlinkPackages,
+                    new String[0],
+                    Collections.emptyMap());
         }
     }
 }

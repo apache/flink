@@ -18,7 +18,6 @@
 package org.apache.flink.streaming.connectors.kinesis.util;
 
 import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider;
 import org.apache.flink.streaming.connectors.kinesis.model.StartingPosition;
 
 import com.amazonaws.auth.AWSCredentials;
@@ -40,11 +39,7 @@ import java.util.Date;
 import java.util.Properties;
 
 import static com.amazonaws.services.kinesis.model.ShardIteratorType.AT_TIMESTAMP;
-import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
-import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider.ASSUME_ROLE;
-import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider.AUTO;
-import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider.BASIC;
-import static org.apache.flink.streaming.connectors.kinesis.config.AWSConfigConstants.CredentialProvider.WEB_IDENTITY_TOKEN;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_CREDENTIALS_PROVIDER;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.DEFAULT_STREAM_TIMESTAMP_DATE_FORMAT;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_TIMESTAMP;
 import static org.apache.flink.streaming.connectors.kinesis.model.SentinelSequenceNumber.SENTINEL_AT_TIMESTAMP_SEQUENCE_NUM;
@@ -77,43 +72,6 @@ public class AWSUtilTest {
 
         AWSCredentialsProvider credentialsProvider = AWSUtil.getCredentialsProvider(testConfig);
         assertTrue(credentialsProvider instanceof WebIdentityTokenCredentialsProvider);
-    }
-
-    @Test
-    public void testGetCredentialsProviderTypeDefaultsAuto() {
-        assertEquals(
-                AUTO,
-                AWSUtil.getCredentialProviderType(new Properties(), AWS_CREDENTIALS_PROVIDER));
-    }
-
-    @Test
-    public void testGetCredentialsProviderTypeBasic() {
-        Properties testConfig = new Properties();
-        testConfig.setProperty(AWSConfigConstants.accessKeyId(AWS_CREDENTIALS_PROVIDER), "ak");
-        testConfig.setProperty(AWSConfigConstants.secretKey(AWS_CREDENTIALS_PROVIDER), "sk");
-
-        assertEquals(
-                BASIC, AWSUtil.getCredentialProviderType(testConfig, AWS_CREDENTIALS_PROVIDER));
-    }
-
-    @Test
-    public void testGetCredentialsProviderTypeWebIdentityToken() {
-        Properties testConfig = new Properties();
-        testConfig.setProperty(AWS_CREDENTIALS_PROVIDER, "WEB_IDENTITY_TOKEN");
-
-        CredentialProvider type =
-                AWSUtil.getCredentialProviderType(testConfig, AWS_CREDENTIALS_PROVIDER);
-        assertEquals(WEB_IDENTITY_TOKEN, type);
-    }
-
-    @Test
-    public void testGetCredentialsProviderTypeAssumeRole() {
-        Properties testConfig = new Properties();
-        testConfig.setProperty(AWS_CREDENTIALS_PROVIDER, "ASSUME_ROLE");
-
-        CredentialProvider type =
-                AWSUtil.getCredentialProviderType(testConfig, AWS_CREDENTIALS_PROVIDER);
-        assertEquals(ASSUME_ROLE, type);
     }
 
     @Test

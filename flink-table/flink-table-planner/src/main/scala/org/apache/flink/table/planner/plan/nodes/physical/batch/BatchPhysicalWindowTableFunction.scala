@@ -25,8 +25,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecWindowTable
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.RelNode
+import org.apache.calcite.rel.`type`.RelDataType
 
 import java.util
 

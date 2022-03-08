@@ -18,13 +18,13 @@
 
 package org.apache.flink.streaming.runtime.operators.windowing;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.TypeSerializerMatchers;
 import org.apache.flink.api.common.typeutils.TypeSerializerSchemaCompatibility;
 import org.apache.flink.api.common.typeutils.TypeSerializerUpgradeTestBase;
 import org.apache.flink.streaming.api.windowing.windows.GlobalWindow;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
-import org.apache.flink.testutils.migration.MigrationVersion;
 
 import org.hamcrest.Matcher;
 import org.junit.runner.RunWith;
@@ -50,17 +50,17 @@ public class WindowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<O
     public static Collection<TestSpecification<?, ?>> testSpecifications() throws Exception {
 
         ArrayList<TestSpecification<?, ?>> testSpecifications = new ArrayList<>();
-        for (MigrationVersion migrationVersion : MIGRATION_VERSIONS) {
+        for (FlinkVersion flinkVersion : MIGRATION_VERSIONS) {
             testSpecifications.add(
                     new TestSpecification<>(
                             "time-window-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             TimeWindowSerializerSetup.class,
                             TimeWindowSerializerVerifier.class));
             testSpecifications.add(
                     new TestSpecification<>(
                             "global-window-serializer",
-                            migrationVersion,
+                            flinkVersion,
                             GlobalWindowSerializerSetup.class,
                             GlobalWindowSerializerVerifier.class));
         }
@@ -105,7 +105,7 @@ public class WindowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<O
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<TimeWindow>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }
@@ -148,7 +148,7 @@ public class WindowSerializerUpgradeTest extends TypeSerializerUpgradeTestBase<O
 
         @Override
         public Matcher<TypeSerializerSchemaCompatibility<GlobalWindow>> schemaCompatibilityMatcher(
-                MigrationVersion version) {
+                FlinkVersion version) {
             return TypeSerializerMatchers.isCompatibleAsIs();
         }
     }

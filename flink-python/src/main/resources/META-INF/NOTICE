@@ -10,8 +10,8 @@ This project bundles the following dependencies under the Apache Software Licens
 - com.fasterxml.jackson.core:jackson-core:2.13.0
 - com.fasterxml.jackson.core:jackson-databind:2.13.0
 - com.google.flatbuffers:flatbuffers-java:1.9.0
-- io.netty:netty-buffer:4.1.46.Final
-- io.netty:netty-common:4.1.46.Final
+- io.netty:netty-buffer:4.1.70.Final
+- io.netty:netty-common:4.1.70.Final
 - joda-time:joda-time:2.5
 - org.apache.arrow:arrow-format:0.16.0
 - org.apache.arrow:arrow-memory:0.16.0
@@ -27,11 +27,12 @@ This project bundles the following dependencies under the Apache Software Licens
 - org.apache.beam:beam-vendor-sdks-java-extensions-protobuf:2.27.0
 - org.apache.beam:beam-vendor-guava-26_0-jre:0.1
 - org.apache.beam:beam-vendor-grpc-1_26_0:0.3
+- com.alibaba:pemja:0.1.2
 
 This project bundles the following dependencies under the BSD license.
 See bundled license files for details
 
-- net.sf.py4j:py4j:0.10.8.1
+- net.sf.py4j:py4j:0.10.9.3
 - com.google.protobuf:protobuf-java:3.17.3
 
 This project bundles the following dependencies under the MIT license. (https://opensource.org/licenses/MIT)

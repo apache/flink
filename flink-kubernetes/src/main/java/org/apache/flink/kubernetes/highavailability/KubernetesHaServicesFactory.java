@@ -19,10 +19,12 @@
 package org.apache.flink.kubernetes.highavailability;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.kubernetes.kubeclient.FlinkKubeClientFactory;
 import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
+import org.apache.flink.util.FatalExitExceptionHandler;
 
 import java.util.concurrent.Executor;
 
@@ -32,11 +34,26 @@ public class KubernetesHaServicesFactory implements HighAvailabilityServicesFact
     @Override
     public HighAvailabilityServices createHAServices(Configuration configuration, Executor executor)
             throws Exception {
-        return new KubernetesHaServices(
-                FlinkKubeClientFactory.getInstance()
-                        .fromConfiguration(configuration, "kubernetes-ha-services"),
-                executor,
-                configuration,
-                BlobUtils.createBlobStoreFromConfig(configuration));
+        final boolean useOldHaServices =
+                configuration.get(HighAvailabilityOptions.USE_OLD_HA_SERVICES);
+
+        if (useOldHaServices) {
+            return new KubernetesHaServices(
+                    FlinkKubeClientFactory.getInstance()
+                            .fromConfiguration(configuration, "kubernetes-ha-services"),
+                    executor,
+                    configuration,
+                    BlobUtils.createBlobStoreFromConfig(configuration));
+        } else {
+            return new KubernetesMultipleComponentLeaderElectionHaServices(
+                    FlinkKubeClientFactory.getInstance()
+                            .fromConfiguration(configuration, "kubernetes-ha-services"),
+                    executor,
+                    configuration,
+                    BlobUtils.createBlobStoreFromConfig(configuration),
+                    error ->
+                            FatalExitExceptionHandler.INSTANCE.uncaughtException(
+                                    Thread.currentThread(), error));
+        }
     }
 }

@@ -26,6 +26,7 @@ import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.DecodingFormat;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.format.ProjectableDecodingFormat;
@@ -82,7 +83,7 @@ public class DebeziumAvroFormatFactory
                     DynamicTableSource.Context context,
                     DataType producedDataType,
                     int[][] projections) {
-                producedDataType = DataType.projectFields(producedDataType, projections);
+                producedDataType = Projection.of(projections).project(producedDataType);
                 final RowType rowType = (RowType) producedDataType.getLogicalType();
                 final TypeInformation<RowData> producedTypeInfo =
                         context.createTypeInformation(producedDataType);

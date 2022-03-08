@@ -23,8 +23,7 @@ import org.apache.flink.table.planner.factories.TestValuesTableFactory
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.utils.LegacyRowResource
-import org.apache.flink.util.ExceptionUtils
-import org.junit.Assert.{assertEquals, assertTrue, fail}
+import org.junit.Assert.assertEquals
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
 
@@ -155,65 +154,6 @@ class TableSinkITCase extends BatchTestBase {
   }
 
   @Test
-  def testNotNullEnforcer(): Unit = {
-    innerTestNotNullEnforcer("SinkFunction")
-  }
-
-  @Test
-  def testDataStreamNotNullEnforcer(): Unit = {
-    innerTestNotNullEnforcer("DataStream")
-  }
-  def innerTestNotNullEnforcer(provider: String): Unit = {
-    val dataId = TestValuesTableFactory.registerData(nullData4)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE nullable_src (
-         |  category STRING,
-         |  shopId INT,
-         |  num INT
-         |) WITH (
-         |  'connector' = 'values',
-         |  'data-id' = '$dataId',
-         |  'bounded' = 'true'
-         |)
-         |""".stripMargin)
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE not_null_sink (
-         |  category STRING,
-         |  shopId INT,
-         |  num INT NOT NULL
-         |) WITH (
-         |  'connector' = 'values',
-         |  'sink-insert-only' = 'true',
-         |  'runtime-sink' = '$provider'
-         |)
-         |""".stripMargin)
-
-    // default should fail, because there are null values in the source
-    try {
-      tEnv.executeSql("INSERT INTO not_null_sink SELECT * FROM nullable_src").await()
-      fail("Execution should fail.")
-    } catch {
-      case t: Throwable =>
-        val exception = ExceptionUtils.findThrowableWithMessage(
-          t,
-          "Column 'num' is NOT NULL, however, a null value is being written into it. " +
-            "You can set job configuration 'table.exec.sink.not-null-enforcer'='drop' " +
-            "to suppress this exception and drop such records silently.")
-        assertTrue(exception.isPresent)
-    }
-
-    // enable drop enforcer to make the query can run
-    tEnv.getConfig.getConfiguration.setString("table.exec.sink.not-null-enforcer", "drop")
-    tEnv.executeSql("INSERT INTO not_null_sink SELECT * FROM nullable_src").await()
-
-    val result = TestValuesTableFactory.getResults("not_null_sink")
-    val expected = List("book,1,12", "book,4,11", "fruit,3,44")
-    assertEquals(expected.sorted, result.sorted)
-  }
-
-  @Test
   def testSinkWithPartitionAndComputedColumn(): Unit = {
     tEnv.executeSql(
       s"""
@@ -277,32 +217,6 @@ class TableSinkITCase extends BatchTestBase {
       "null,3.9")
     val result = TestValuesTableFactory.getResults("testSink")
     assertEquals(expected.sorted, result.sorted)
-  }
-
-  @Test
-  def testPartialInsertWithNotNullColumn(): Unit = {
-    tEnv.executeSql(
-      s"""
-         |CREATE TABLE testSink (
-         |  `a` INT NOT NULL,
-         |  `b` DOUBLE
-         |)
-         |WITH (
-         |  'connector' = 'values',
-         |  'sink-insert-only' = 'true'
-         |)
-         |""".stripMargin)
-
-    registerCollection("MyTable", simpleData2, simpleType2, "x, y", nullableOfSimpleData2)
-
-    expectedEx.expect(classOf[ValidationException])
-    expectedEx.expectMessage("Column 'a' has no default value and does not allow NULLs")
-
-    tEnv.executeSql(
-      s"""
-         |INSERT INTO testSink (b)
-         |SELECT sum(y) FROM MyTable GROUP BY x
-         |""".stripMargin).await()
   }
 
   @Test

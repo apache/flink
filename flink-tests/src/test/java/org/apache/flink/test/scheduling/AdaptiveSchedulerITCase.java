@@ -24,14 +24,20 @@ import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.SavepointFormatType;
+import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
+import org.apache.flink.runtime.rest.messages.JobExceptionsHeaders;
+import org.apache.flink.runtime.rest.messages.JobExceptionsInfoWithHistory;
+import org.apache.flink.runtime.rest.messages.job.JobExceptionsMessageParameters;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
-import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
@@ -57,6 +63,8 @@ import java.io.File;
 import java.time.Duration;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -81,14 +89,14 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
     private static Configuration getConfiguration() {
         final Configuration conf = new Configuration();
-
         conf.set(JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.Adaptive);
-
+        conf.set(HeartbeatManagerOptions.HEARTBEAT_INTERVAL, 1_000L);
+        conf.set(HeartbeatManagerOptions.HEARTBEAT_TIMEOUT, 5_000L);
         return conf;
     }
 
     @ClassRule
-    public static final MiniClusterResource MINI_CLUSTER_WITH_CLIENT_RESOURCE =
+    public static final MiniClusterWithClientResource MINI_CLUSTER_WITH_CLIENT_RESOURCE =
             new MiniClusterWithClientResource(
                     new MiniClusterResourceConfiguration.Builder()
                             .setConfiguration(configuration)
@@ -103,7 +111,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
     @After
     public void cancelRunningJobs() {
-        MINI_CLUSTER_WITH_CLIENT_RESOURCE.cancelAllJobs();
+        MINI_CLUSTER_WITH_CLIENT_RESOURCE.cancelAllJobsAndWaitUntilSlotsAreFreed();
     }
 
     /** Tests that the adaptive scheduler can recover stateful operators. */
@@ -124,7 +132,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     private enum StopWithSavepointTestBehavior {
         NO_FAILURE,
         FAIL_ON_CHECKPOINT,
-        FAIL_ON_STOP,
+        FAIL_ON_CHECKPOINT_COMPLETE,
         FAIL_ON_FIRST_CHECKPOINT_ONLY
     }
 
@@ -140,7 +148,11 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
         final File savepointDirectory = tempFolder.newFolder("savepoint");
         final String savepoint =
-                client.stopWithSavepoint(false, savepointDirectory.getAbsolutePath()).get();
+                client.stopWithSavepoint(
+                                false,
+                                savepointDirectory.getAbsolutePath(),
+                                SavepointFormatType.CANONICAL)
+                        .get();
         assertThat(savepoint, containsString(savepointDirectory.getAbsolutePath()));
         assertThat(client.getJobStatus().get(), is(JobStatus.FINISHED));
     }
@@ -157,7 +169,10 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
         DummySource.awaitRunning();
         try {
-            client.stopWithSavepoint(false, tempFolder.newFolder("savepoint").getAbsolutePath())
+            client.stopWithSavepoint(
+                            false,
+                            tempFolder.newFolder("savepoint").getAbsolutePath(),
+                            SavepointFormatType.CANONICAL)
                     .get();
             fail("Expect exception");
         } catch (ExecutionException e) {
@@ -172,7 +187,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
     @Test
     public void testStopWithSavepointFailOnStop() throws Exception {
         StreamExecutionEnvironment env =
-                getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_STOP);
+                getEnvWithSource(StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT_COMPLETE);
         env.setRestartStrategy(RestartStrategies.fixedDelayRestart(Integer.MAX_VALUE, 0L));
 
         DummySource.resetForParallelism(PARALLELISM);
@@ -181,7 +196,10 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
         DummySource.awaitRunning();
         try {
-            client.stopWithSavepoint(false, tempFolder.newFolder("savepoint").getAbsolutePath())
+            client.stopWithSavepoint(
+                            false,
+                            tempFolder.newFolder("savepoint").getAbsolutePath(),
+                            SavepointFormatType.CANONICAL)
                     .get();
             fail("Expect exception");
         } catch (ExecutionException e) {
@@ -210,7 +228,11 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         DummySource.resetForParallelism(PARALLELISM);
         final File savepointDirectory = tempFolder.newFolder("savepoint");
         try {
-            client.stopWithSavepoint(false, savepointDirectory.getAbsolutePath()).get();
+            client.stopWithSavepoint(
+                            false,
+                            savepointDirectory.getAbsolutePath(),
+                            SavepointFormatType.CANONICAL)
+                    .get();
             fail("Expect failure of operation");
         } catch (ExecutionException e) {
             assertThat(e, containsCause(FlinkException.class));
@@ -227,8 +249,43 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
         // trigger second savepoint
         final String savepoint =
-                client.stopWithSavepoint(false, savepointDirectory.getAbsolutePath()).get();
+                client.stopWithSavepoint(
+                                false,
+                                savepointDirectory.getAbsolutePath(),
+                                SavepointFormatType.CANONICAL)
+                        .get();
         assertThat(savepoint, containsString(savepointDirectory.getAbsolutePath()));
+    }
+
+    @Test
+    public void testExceptionHistoryIsRetrievableFromTheRestAPI() throws Exception {
+        final Deadline deadline = Deadline.fromNow(Duration.ofMinutes(1));
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.setParallelism(PARALLELISM);
+        env.enableCheckpointing(20L, CheckpointingMode.EXACTLY_ONCE);
+        env.addSource(new FailOnCompletedCheckpointSource()).addSink(new DiscardingSink<>());
+        final JobClient jobClient = env.executeAsync();
+        CommonTestUtils.waitUntilCondition(
+                () -> {
+                    final RestClusterClient<?> restClusterClient =
+                            MINI_CLUSTER_WITH_CLIENT_RESOURCE.getRestClusterClient();
+                    final JobExceptionsMessageParameters params =
+                            new JobExceptionsMessageParameters();
+                    params.jobPathParameter.resolve(jobClient.getJobID());
+                    final CompletableFuture<JobExceptionsInfoWithHistory> exceptionsFuture =
+                            restClusterClient.sendRequest(
+                                    JobExceptionsHeaders.getInstance(),
+                                    params,
+                                    EmptyRequestBody.getInstance());
+                    final JobExceptionsInfoWithHistory jobExceptionsInfoWithHistory =
+                            exceptionsFuture.get();
+                    return jobExceptionsInfoWithHistory.getExceptionHistory().getEntries().size()
+                            > 0;
+                },
+                deadline);
+        jobClient.cancel().get();
+        CommonTestUtils.waitForJobStatus(
+                jobClient, Collections.singletonList(JobStatus.CANCELED), deadline);
     }
 
     private boolean isDirectoryEmpty(File directory) {
@@ -257,7 +314,6 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         private final StopWithSavepointTestBehavior behavior;
         private volatile boolean running = true;
         private static volatile CountDownLatch instancesRunning;
-        private volatile boolean checkpointComplete = false;
 
         public DummySource(StopWithSavepointTestBehavior behavior) {
             this.behavior = behavior;
@@ -288,9 +344,6 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         @Override
         public void cancel() {
             running = false;
-            if (checkpointComplete && behavior == StopWithSavepointTestBehavior.FAIL_ON_STOP) {
-                throw new RuntimeException(behavior.name());
-            }
         }
 
         @Override
@@ -309,7 +362,9 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
         @Override
         public void notifyCheckpointComplete(long checkpointId) throws Exception {
-            checkpointComplete = true;
+            if (behavior == StopWithSavepointTestBehavior.FAIL_ON_CHECKPOINT_COMPLETE) {
+                throw new RuntimeException(behavior.name());
+            }
         }
     }
 
@@ -370,6 +425,33 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
             unionListState.clear();
             unionListState.add(true);
+        }
+    }
+
+    /** Simple source which fails every time checkpoint is completed. */
+    public static final class FailOnCompletedCheckpointSource
+            extends RichParallelSourceFunction<Integer> implements CheckpointListener {
+
+        private volatile boolean running = true;
+
+        @Override
+        public void run(SourceContext<Integer> ctx) throws Exception {
+            while (running) {
+                synchronized (ctx.getCheckpointLock()) {
+                    ctx.collect(getRuntimeContext().getIndexOfThisSubtask());
+                    Thread.sleep(5L);
+                }
+            }
+        }
+
+        @Override
+        public void cancel() {
+            running = false;
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            throw new RuntimeException("Test exception.");
         }
     }
 }

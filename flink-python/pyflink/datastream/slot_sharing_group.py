@@ -107,7 +107,7 @@ class MemorySize(object):
 
 class SlotSharingGroup(object):
     """
-    Describe the name and the the different resource components of a slot sharing group.
+    Describe the name and the different resource components of a slot sharing group.
     """
 
     def __init__(self, j_slot_sharing_group):

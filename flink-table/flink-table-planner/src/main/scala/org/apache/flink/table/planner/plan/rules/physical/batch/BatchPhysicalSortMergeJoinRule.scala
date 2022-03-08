@@ -150,6 +150,7 @@ object BatchPhysicalSortMergeJoinRule {
   @Experimental
   val TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED: ConfigOption[JBoolean] =
     key("table.optimizer.smj.remove-sort-enabled")
+        .booleanType()
         .defaultValue(JBoolean.FALSE)
         .withDescription("When true, the optimizer will try to remove redundant sort " +
             "for sort merge join. However that will increase optimization time. " +

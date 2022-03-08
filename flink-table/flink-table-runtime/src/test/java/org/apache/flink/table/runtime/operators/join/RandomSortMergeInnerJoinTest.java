@@ -261,13 +261,13 @@ public class RandomSortMergeInnerJoinTest {
             boolean input1First)
             throws Exception {
         InternalTypeInfo<RowData> typeInfo =
-                InternalTypeInfo.ofFields(new IntType(), new VarCharType(VarCharType.MAX_LENGTH));
+                InternalTypeInfo.ofFields(new IntType(), VarCharType.STRING_TYPE);
         InternalTypeInfo<RowData> joinedInfo =
                 InternalTypeInfo.ofFields(
                         new IntType(),
-                        new VarCharType(VarCharType.MAX_LENGTH),
+                        VarCharType.STRING_TYPE,
                         new IntType(),
-                        new VarCharType(VarCharType.MAX_LENGTH));
+                        VarCharType.STRING_TYPE);
         final TwoInputStreamTaskTestHarness<BinaryRowData, BinaryRowData, JoinedRowData>
                 testHarness =
                         new TwoInputStreamTaskTestHarness<>(

@@ -20,9 +20,9 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.utils.RelExplainUtil
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -41,7 +41,7 @@ abstract class BatchPhysicalWindowAggregateBase(
     val auxGrouping: Array[Int],
     aggCallToAggFunction: Seq[(AggregateCall, UserDefinedFunction)],
     val window: LogicalWindow,
-    val namedWindowProperties: Seq[PlannerNamedWindowProperty],
+    val namedWindowProperties: Seq[NamedWindowProperty],
     enableAssignPane: Boolean = true,
     val isMerge: Boolean,
     val isFinal: Boolean)

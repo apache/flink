@@ -87,7 +87,7 @@ It is recommended to add a star import to your table programs for having a fluen
 ```scala
 import org.apache.flink.table.api.DataTypes._
 
-val t: DataType = INTERVAL(DAY(), SECOND(3));
+val t: DataType = INTERVAL(DAY(), SECOND(3))
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -129,11 +129,11 @@ DataType t = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(int[].class);
 ```scala
 // tell the runtime to not produce or consume java.time.LocalDateTime instances
 // but java.sql.Timestamp
-val t: DataType = DataTypes.TIMESTAMP(3).bridgedTo(classOf[java.sql.Timestamp]);
+val t: DataType = DataTypes.TIMESTAMP(3).bridgedTo(classOf[java.sql.Timestamp])
 
 // tell the runtime to not produce or consume boxed integer arrays
 // but primitive int arrays
-val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[Array[Int]]);
+val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[Array[Int]])
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -1530,7 +1530,7 @@ information similar to `java.util.Map[java.lang.Object, java.lang.Object]`.
 | `java.time.LocalDateTime`   | `TIMESTAMP(9)`                      |
 | `java.time.OffsetDateTime`  | `TIMESTAMP(9) WITH TIME ZONE`       |
 | `java.time.Instant`         | `TIMESTAMP_LTZ(9)`                  |
-| `java.time.Duration`        | `INVERVAL SECOND(9)`                |
+| `java.time.Duration`        | `INTERVAL SECOND(9)`                |
 | `java.time.Period`          | `INTERVAL YEAR(4) TO MONTH`         |
 | `byte[]`                    | `BYTES`                             |
 | `T[]`                       | `ARRAY<T>`                          |
@@ -1577,7 +1577,7 @@ class User {
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
-```java
+```scala
 import org.apache.flink.table.annotation.DataTypeHint
 
 class User {

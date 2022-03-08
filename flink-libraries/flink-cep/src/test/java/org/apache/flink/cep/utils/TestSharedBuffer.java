@@ -30,6 +30,7 @@ import org.apache.flink.api.common.state.ReducingStateDescriptor;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.cep.configuration.SharedBufferCacheConfig;
 import org.apache.flink.cep.nfa.sharedbuffer.SharedBuffer;
 
 import java.io.IOException;
@@ -48,6 +49,14 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
 
     private TestSharedBuffer(MockKeyedStateStore stateStore, TypeSerializer<V> valueSerializer) {
         super(stateStore, valueSerializer);
+        this.keyedStateStore = stateStore;
+    }
+
+    private TestSharedBuffer(
+            MockKeyedStateStore stateStore,
+            TypeSerializer<V> valueSerializer,
+            SharedBufferCacheConfig sharedBufferCacheConfig) {
+        super(stateStore, valueSerializer, sharedBufferCacheConfig);
         this.keyedStateStore = stateStore;
     }
 
@@ -72,6 +81,12 @@ public class TestSharedBuffer<V> extends SharedBuffer<V> {
      */
     public static <T> TestSharedBuffer<T> createTestBuffer(TypeSerializer<T> typeSerializer) {
         return new TestSharedBuffer<>(new MockKeyedStateStore(), typeSerializer);
+    }
+
+    public static <T> TestSharedBuffer<T> createTestBuffer(
+            TypeSerializer<T> typeSerializer, SharedBufferCacheConfig sharedBufferCacheConfig) {
+        return new TestSharedBuffer<>(
+                new MockKeyedStateStore(), typeSerializer, sharedBufferCacheConfig);
     }
 
     private static class MockKeyedStateStore implements KeyedStateStore {

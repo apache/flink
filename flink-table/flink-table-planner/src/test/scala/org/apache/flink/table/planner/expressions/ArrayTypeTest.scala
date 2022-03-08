@@ -46,7 +46,7 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       array(true, true, true),
       "array(true, true, true)",
       "ARRAY[TRUE, TRUE, TRUE]",
-      "[true, true, true]")
+      "[TRUE, TRUE, TRUE]")
 
     // object literals
     testTableApi(array(BigDecimal(1), BigDecimal(1)), "array(1p, 1p)", "[1, 1]")
@@ -67,13 +67,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       array(nullOf(DataTypes.INT), 1),
       "array(Null(INT), 1)",
       "ARRAY[NULLIF(1,1), 1]",
-      "[null, 1]")
+      "[NULL, 1]")
 
     testAllApis(
       array(array(nullOf(DataTypes.INT), 1)),
       "array(array(Null(INT), 1))",
       "ARRAY[ARRAY[NULLIF(1,1), 1]]",
-      "[[null, 1]]")
+      "[[NULL, 1]]")
 
     // implicit conversion
     testTableApi(
@@ -160,7 +160,7 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       Array(Array(x = true)),
       "Array(Array(true))",
       "ARRAY[ARRAY[TRUE]]",
-      "[[true]]")
+      "[[TRUE]]")
 
     testAllApis(
       Array(Array(1, 2, 3), Array(3, 2, 1)),
@@ -178,13 +178,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       array('f0, 'f1),
       "array(f0, f1)",
       "ARRAY[f0, f1]",
-      "[null, 42]")
+      "[NULL, 42]")
 
     testAllApis(
       array('f0, 'f1),
       "array(f0, f1)",
       "ARRAY[f0, f1]",
-      "[null, 42]")
+      "[NULL, 42]")
 
     testAllApis(
       'f2,
@@ -202,13 +202,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       'f5,
       "f5",
       "f5",
-      "[[1, 2, 3], null]")
+      "[[1, 2, 3], NULL]")
 
     testAllApis(
       'f6,
       "f6",
       "f6",
-      "[1, null, null, 4]")
+      "[1, NULL, NULL, 4]")
 
     testAllApis(
       'f2,
@@ -244,13 +244,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       'f5.at(2).at(2),
       "f5.at(2).at(2)",
       "f5[2][2]",
-      "null")
+      "NULL")
 
     testAllApis(
       'f4.at(2).at(2),
       "f4.at(2).at(2)",
       "f4[2][2]",
-      "null")
+      "NULL")
 
     testAllApis(
       'f11.at(1),
@@ -272,7 +272,7 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       'f4.cardinality(),
       "f4.cardinality()",
       "CARDINALITY(f4)",
-      "null")
+      "NULL")
 
     testAllApis(
       'f11.cardinality(),
@@ -297,13 +297,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       'f10.element(),
       "f10.element()",
       "ELEMENT(f10)",
-      "null")
+      "NULL")
 
     testAllApis(
       'f4.element(),
       "f4.element()",
       "ELEMENT(f4)",
-      "null")
+      "NULL")
 
     testAllApis(
       'f11.element(),
@@ -316,55 +316,55 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       'f2 === 'f5.at(1),
       "f2 === f5.at(1)",
       "f2 = f5[1]",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f6 === array(1, 2, 3),
       "f6 === array(1, 2, 3)",
       "f6 = ARRAY[1, 2, 3]",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f2 !== 'f5.at(1),
       "f2 !== f5.at(1)",
       "f2 <> f5[1]",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f2 === 'f7,
       "f2 === f7",
       "f2 = f7",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f2 !== 'f7,
       "f2 !== f7",
       "f2 <> f7",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f11 === 'f11,
       "f11 === f11",
       "f11 = f11",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f11 === 'f9,
       "f11 === f9",
       "f11 = f9",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f11 !== 'f11,
       "f11 !== f11",
       "f11 <> f11",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f11 !== 'f9,
       "f11 !== f9",
       "f11 <> f9",
-      "false")
+      "FALSE")
   }
 
   @Test
@@ -397,13 +397,13 @@ class ArrayTypeTest extends ArrayTypeTestBase {
       'f2.at(4),
       "f2.at(4)",
       "f2[4]",
-      "null")
+      "NULL")
 
     // ARRAY<INT>
     testAllApis(
       'f11.at(3),
       "f11.at(3)",
       "f11[4]",
-      "null")
+      "NULL")
   }
 }

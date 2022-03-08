@@ -25,17 +25,24 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.PartitionSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.OverAggregateUtil;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
@@ -66,7 +73,13 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(overSpec, inputProperty, outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecPythonOverAggregate.class),
+                overSpec,
+                inputProperty,
+                outputType,
+                description);
         lowerBoundary = new ArrayList<>();
         upperBoundary = new ArrayList<>();
         aggCalls = new ArrayList<>();
@@ -75,7 +88,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -135,16 +149,17 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                 }
             }
         }
-        Configuration config =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
+        Configuration pythonConfig =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
                         inputTransform,
                         inputType,
                         InternalTypeInfo.of(getOutputType()).toRowType(),
                         isRangeWindows,
+                        pythonConfig,
                         config);
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         return transform;
@@ -155,7 +170,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             RowType inputRowType,
             RowType outputRowType,
             boolean[] isRangeWindows,
-            Configuration config) {
+            Configuration pythonConfig,
+            ExecNodeConfig config) {
         Tuple2<int[], PythonFunctionInfo[]> aggCallInfos =
                 CommonPythonUtil.extractPythonAggregateFunctionInfosFromAggregateCall(
                         aggCalls.toArray(new AggregateCall[0]));
@@ -164,14 +180,16 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonOverWindowAggregateFunctionOperator(
                         config,
+                        pythonConfig,
                         inputRowType,
                         outputRowType,
                         isRangeWindows,
                         pythonUdafInputOffsets,
                         pythonFunctionInfos);
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                createTransformationName(pythonConfig),
+                createTransformationDescription(pythonConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
@@ -179,7 +197,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
 
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonOverWindowAggregateFunctionOperator(
-            Configuration config,
+            ExecNodeConfig config,
+            Configuration pythonConfig,
             RowType inputRowType,
             RowType outputRowType,
             boolean[] isRangeWindows,
@@ -188,6 +207,18 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
         Class<?> clazz =
                 CommonPythonUtil.loadClass(
                         ARROW_PYTHON_OVER_WINDOW_AGGREGATE_FUNCTION_OPERATOR_NAME);
+
+        RowType udfInputType = (RowType) Projection.of(udafInputOffsets).project(inputRowType);
+        RowType udfOutputType =
+                (RowType)
+                        Projection.range(
+                                        inputRowType.getFieldCount(), outputRowType.getFieldCount())
+                                .project(outputRowType);
+
+        PartitionSpec partitionSpec = overSpec.getPartition();
+        List<OverSpec.GroupSpec> groups = overSpec.getGroups();
+        SortSpec sortSpec = groups.get(groups.size() - 1).getSort();
+
         try {
             Constructor<?> ctor =
                     clazz.getConstructor(
@@ -195,33 +226,51 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                             PythonFunctionInfo[].class,
                             RowType.class,
                             RowType.class,
+                            RowType.class,
                             long[].class,
                             long[].class,
                             boolean[].class,
                             int[].class,
-                            int[].class,
-                            int[].class,
-                            int[].class,
                             int.class,
-                            boolean.class);
-            PartitionSpec partitionSpec = overSpec.getPartition();
-            List<OverSpec.GroupSpec> groups = overSpec.getGroups();
-            SortSpec sortSpec = groups.get(groups.size() - 1).getSort();
+                            boolean.class,
+                            GeneratedProjection.class,
+                            GeneratedProjection.class,
+                            GeneratedProjection.class);
             return (OneInputStreamOperator<RowData, RowData>)
                     ctor.newInstance(
-                            config,
+                            pythonConfig,
                             pythonFunctionInfos,
                             inputRowType,
-                            outputRowType,
+                            udfInputType,
+                            udfOutputType,
                             lowerBoundary.stream().mapToLong(i -> i).toArray(),
                             upperBoundary.stream().mapToLong(i -> i).toArray(),
                             isRangeWindows,
                             aggWindowIndex.stream().mapToInt(i -> i).toArray(),
-                            partitionSpec.getFieldIndices(),
-                            partitionSpec.getFieldIndices(),
-                            udafInputOffsets,
                             sortSpec.getFieldIndices()[0],
-                            sortSpec.getAscendingOrders()[0]);
+                            sortSpec.getAscendingOrders()[0],
+                            ProjectionCodeGenerator.generateProjection(
+                                    CodeGeneratorContext.apply(config.getTableConfig()),
+                                    "UdafInputProjection",
+                                    inputRowType,
+                                    udfInputType,
+                                    udafInputOffsets),
+                            ProjectionCodeGenerator.generateProjection(
+                                    CodeGeneratorContext.apply(config.getTableConfig()),
+                                    "GroupKey",
+                                    inputRowType,
+                                    (RowType)
+                                            Projection.of(partitionSpec.getFieldIndices())
+                                                    .project(inputRowType),
+                                    partitionSpec.getFieldIndices()),
+                            ProjectionCodeGenerator.generateProjection(
+                                    CodeGeneratorContext.apply(config.getTableConfig()),
+                                    "GroupSet",
+                                    inputRowType,
+                                    (RowType)
+                                            Projection.of(partitionSpec.getFieldIndices())
+                                                    .project(inputRowType),
+                                    partitionSpec.getFieldIndices()));
         } catch (NoSuchMethodException
                 | InstantiationException
                 | IllegalAccessException

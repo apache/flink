@@ -46,17 +46,15 @@ abstract class TemporalTimeJoinOperatorTestBase {
             new GeneratedJoinCondition("TimeTemporalJoinCondition", funcCode, new Object[0]);
     protected InternalTypeInfo<RowData> rowType =
             InternalTypeInfo.ofFields(
-                    new BigIntType(),
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new VarCharType(VarCharType.MAX_LENGTH));
+                    new BigIntType(), VarCharType.STRING_TYPE, VarCharType.STRING_TYPE);
     protected InternalTypeInfo<RowData> outputRowType =
             InternalTypeInfo.ofFields(
                     new BigIntType(),
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new VarCharType(VarCharType.MAX_LENGTH),
+                    VarCharType.STRING_TYPE,
+                    VarCharType.STRING_TYPE,
                     new BigIntType(),
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new VarCharType(VarCharType.MAX_LENGTH));
+                    VarCharType.STRING_TYPE,
+                    VarCharType.STRING_TYPE);
     protected RowDataHarnessAssertor assertor =
             new RowDataHarnessAssertor(outputRowType.toRowFieldTypes());
     protected int keyIdx = 1;

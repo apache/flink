@@ -51,9 +51,6 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** Default implementation of {@link ResourceManagerService}. */
 public class ResourceManagerServiceImpl implements ResourceManagerService, LeaderContender {
 
-    public static final String ENABLE_MULTI_LEADER_SESSION_PROPERTY =
-            "flink.tests.enable-rm-multi-leader-session";
-
     private static final Logger LOG = LoggerFactory.getLogger(ResourceManagerServiceImpl.class);
 
     private final ResourceManagerFactory<?> resourceManagerFactory;
@@ -67,8 +64,6 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     private final CompletableFuture<Void> serviceTerminationFuture;
 
     private final Object lock = new Object();
-
-    private final boolean enableMultiLeaderSession;
 
     @GuardedBy("lock")
     private boolean running;
@@ -99,9 +94,6 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
         this.handleLeaderEventExecutor = Executors.newSingleThreadExecutor();
         this.serviceTerminationFuture = new CompletableFuture<>();
-
-        this.enableMultiLeaderSession =
-                System.getProperties().containsKey(ENABLE_MULTI_LEADER_SESSION_PROPERTY);
 
         this.running = false;
         this.leaderResourceManager = null;
@@ -136,18 +128,35 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     @Override
     public CompletableFuture<Void> deregisterApplication(
             final ApplicationStatus applicationStatus, final @Nullable String diagnostics) {
+
         synchronized (lock) {
-            if (running && leaderResourceManager != null) {
-                return leaderResourceManager
-                        .getSelfGateway(ResourceManagerGateway.class)
-                        .deregisterApplication(applicationStatus, diagnostics)
-                        .thenApply(ack -> null);
-            } else {
-                return FutureUtils.completedExceptionally(
-                        new FlinkException(
-                                "Cannot deregister application. Resource manager service is not available."));
+            if (!running || leaderResourceManager == null) {
+                return deregisterWithoutLeaderRm();
             }
+
+            final ResourceManager<?> currentLeaderRM = leaderResourceManager;
+            return currentLeaderRM
+                    .getStartedFuture()
+                    .thenCompose(
+                            ignore -> {
+                                synchronized (lock) {
+                                    if (isLeader(currentLeaderRM)) {
+                                        return currentLeaderRM
+                                                .getSelfGateway(ResourceManagerGateway.class)
+                                                .deregisterApplication(
+                                                        applicationStatus, diagnostics)
+                                                .thenApply(ack -> null);
+                                    } else {
+                                        return deregisterWithoutLeaderRm();
+                                    }
+                                }
+                            });
         }
+    }
+
+    private static CompletableFuture<Void> deregisterWithoutLeaderRm() {
+        LOG.warn("Cannot deregister application. Resource manager service is not available.");
+        return FutureUtils.completedVoidFuture();
     }
 
     @Override
@@ -217,7 +226,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
                         stopLeaderResourceManager();
 
-                        if (!enableMultiLeaderSession) {
+                        if (!resourceManagerFactory.supportMultiLeaderSession()) {
                             closeAsync();
                         }
                     }
@@ -242,8 +251,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
 
         this.leaderSessionID = newLeaderSessionID;
         this.leaderResourceManager =
-                resourceManagerFactory.createResourceManager(
-                        rmProcessContext, newLeaderSessionID, ResourceID.generate());
+                resourceManagerFactory.createResourceManager(rmProcessContext, newLeaderSessionID);
 
         final ResourceManager<?> newLeaderResourceManager = this.leaderResourceManager;
 
@@ -334,6 +342,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
     public static ResourceManagerServiceImpl create(
             ResourceManagerFactory<?> resourceManagerFactory,
             Configuration configuration,
+            ResourceID resourceId,
             RpcService rpcService,
             HighAvailabilityServices highAvailabilityServices,
             HeartbeatServices heartbeatServices,
@@ -349,6 +358,7 @@ public class ResourceManagerServiceImpl implements ResourceManagerService, Leade
                 resourceManagerFactory,
                 resourceManagerFactory.createResourceManagerProcessContext(
                         configuration,
+                        resourceId,
                         rpcService,
                         highAvailabilityServices,
                         heartbeatServices,

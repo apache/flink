@@ -255,7 +255,7 @@ public abstract class FileSystem {
                     .put("s3", "flink-s3-fs-presto")
                     .put("s3a", "flink-s3-fs-hadoop")
                     .put("s3p", "flink-s3-fs-presto")
-                    // mapr deliberately omitted for now (no dedicated plugin)
+                    .put("gs", "flink-gs-fs-hadoop")
                     .build();
 
     /** Exceptions for DIRECTLY_SUPPORTED_FILESYSTEM. */
@@ -316,7 +316,7 @@ public abstract class FileSystem {
      * @param pluginManager optional plugin manager that is used to initialized filesystems provided
      *     as plugins.
      */
-    public static void initialize(Configuration config, PluginManager pluginManager)
+    public static void initialize(Configuration config, @Nullable PluginManager pluginManager)
             throws IllegalConfigurationException {
 
         LOCK.lock();

@@ -25,8 +25,10 @@ import org.apache.flink.connector.file.src.ContinuousEnumerationSettings;
 import org.apache.flink.connector.file.src.assigners.FileSplitAssigner;
 import org.apache.flink.connector.file.src.assigners.SimpleSplitAssigner;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
-import org.apache.flink.connectors.hive.read.HiveBulkFormatAdapter;
+import org.apache.flink.connector.file.table.ContinuousPartitionFetcher;
+import org.apache.flink.connector.file.table.LimitableBulkFormat;
 import org.apache.flink.connectors.hive.read.HiveContinuousPartitionFetcher;
+import org.apache.flink.connectors.hive.read.HiveInputFormat;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
 import org.apache.flink.connectors.hive.util.HiveConfUtils;
 import org.apache.flink.connectors.hive.util.HivePartitionUtils;
@@ -41,9 +43,6 @@ import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.ContinuousPartitionFetcher;
-import org.apache.flink.table.filesystem.FileSystemConnectorOptions;
-import org.apache.flink.table.filesystem.LimitableBulkFormat;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
@@ -65,11 +64,11 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.connector.file.src.FileSource.DEFAULT_SPLIT_ASSIGNER;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_ENABLE;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
+import static org.apache.flink.connectors.hive.HiveOptions.STREAMING_SOURCE_PARTITION_ORDER;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.checkAcidTable;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_ENABLE;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_MONITOR_INTERVAL;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_INCLUDE;
-import static org.apache.flink.table.filesystem.FileSystemConnectorOptions.STREAMING_SOURCE_PARTITION_ORDER;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Builder to build {@link HiveSource} instances. */
@@ -175,12 +174,12 @@ public class HiveSourceBuilder {
             Preconditions.checkState(
                     partitions == null, "setPartitions shouldn't be called in streaming mode");
             if (partitionKeys.isEmpty()) {
-                FileSystemConnectorOptions.PartitionOrder partitionOrder =
+                HiveOptions.PartitionOrder partitionOrder =
                         configuration.get(STREAMING_SOURCE_PARTITION_ORDER);
-                if (partitionOrder != FileSystemConnectorOptions.PartitionOrder.CREATE_TIME) {
+                if (partitionOrder != HiveOptions.PartitionOrder.CREATE_TIME) {
                     throw new UnsupportedOperationException(
                             "Only '"
-                                    + FileSystemConnectorOptions.PartitionOrder.CREATE_TIME
+                                    + HiveOptions.PartitionOrder.CREATE_TIME
                                     + "' is supported for non partitioned table.");
                 }
                 // for non-partitioned table, we need to add the table to partitions because
@@ -232,10 +231,12 @@ public class HiveSourceBuilder {
                 new Path[1],
                 new HiveSourceFileEnumerator.Provider(
                         partitions != null ? partitions : Collections.emptyList(),
+                        flinkConf,
                         new JobConfWrapper(jobConf)),
                 splitAssigner,
                 bulkFormat,
                 continuousSourceSettings,
+                flinkConf,
                 jobConf,
                 tablePath,
                 partitionKeys,
@@ -310,7 +311,7 @@ public class HiveSourceBuilder {
 
     private BulkFormat<RowData, HiveSourceSplit> createDefaultBulkFormat() {
         return LimitableBulkFormat.create(
-                new HiveBulkFormatAdapter(
+                new HiveInputFormat(
                         new JobConfWrapper(jobConf),
                         partitionKeys,
                         fullSchema.getFieldNames(),

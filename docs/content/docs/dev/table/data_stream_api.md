@@ -467,6 +467,8 @@ import org.apache.flink.table.api.bridge.scala._
 {{< /tab >}}
 {{< /tabs >}}
 
+Please refer to the [configuration]({{< ref "docs/dev/configuration/overview" >}}) section for more information. 
+
 ### Configuration
 
 The `TableEnvironment` will adopt all configuration options from the passed `StreamExecutionEnvironment`.
@@ -596,13 +598,13 @@ pipeline or a statement set:
 
 ```java
 // execute with explicit sink
-tableEnv.from("InputTable").executeInsert("OutputTable")
+tableEnv.from("InputTable").insertInto("OutputTable").execute()
 
 tableEnv.executeSql("INSERT INTO OutputTable SELECT * FROM InputTable")
 
 tableEnv.createStatementSet()
-    .addInsert("OutputTable", tableEnv.from("InputTable"))
-    .addInsert("OutputTable2", tableEnv.from("InputTable"))
+    .add(tableEnv.from("InputTable").insertInto("OutputTable"))
+    .add(tableEnv.from("InputTable").insertInto("OutputTable2"))
     .execute()
 
 tableEnv.createStatementSet()
@@ -789,7 +791,7 @@ val table =
                     .column("uid", DataTypes.TINYINT())
                     .column("payload", DataTypes.STRING())
                     .build())
-            .build());
+            .build())
 
 // convert the Table to a DataStream and further transform the pipeline
 tableEnv.toDataStream(table)
@@ -1153,7 +1155,7 @@ table.printSchema();
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.api.scala._
-import java.time.Instant;
+import java.time.Instant
 
 // some example case class
 case class User(name: String, score: java.lang.Integer, event_time: java.time.Instant)
@@ -2560,12 +2562,12 @@ TableDescriptor sinkDescriptor = TableDescriptor.forConnector("print").build();
 
 // add a pure Table API pipeline
 Table tableFromSource = tableEnv.from(sourceDescriptor);
-statementSet.addInsert(sinkDescriptor, tableFromSource);
+statementSet.add(tableFromSource.insertInto(sinkDescriptor));
 
 // use table sinks for the DataStream API pipeline
 DataStream<Integer> dataStream = env.fromElements(1, 2, 3);
 Table tableFromStream = tableEnv.fromDataStream(dataStream);
-statementSet.addInsert(sinkDescriptor, tableFromStream);
+statementSet.add(tableFromStream.insertInto(sinkDescriptor));
 
 // attach both pipelines to StreamExecutionEnvironment
 // (the statement set will be cleared after calling this method)
@@ -2611,12 +2613,12 @@ val sinkDescriptor = TableDescriptor.forConnector("print").build
 
 // add a pure Table API pipeline
 val tableFromSource = tableEnv.from(sourceDescriptor)
-statementSet.addInsert(sinkDescriptor, tableFromSource)
+statementSet.add(tableFromSource.insertInto(sinkDescriptor))
 
 // use table sinks for the DataStream API pipeline
 val dataStream = env.fromElements(1, 2, 3)
 val tableFromStream = tableEnv.fromDataStream(dataStream)
-statementSet.addInsert(sinkDescriptor, tableFromStream)
+statementSet.add(tableFromStream.insertInto(sinkDescriptor))
 
 // attach both pipelines to StreamExecutionEnvironment
 // (the statement set will be cleared calling this method)
@@ -2788,7 +2790,7 @@ t_env = ... # type: StreamTableEnvironment
 
 stream = ... # type: DataStream of Types.TUPLE([Types.LONG(), Types.STRING()])
 
-table2 = t_env.from_data_stream(stream, col('my_long'), col('my_stram'))
+table2 = t_env.from_data_stream(stream, col('my_long'), col('my_stream'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -2856,7 +2858,7 @@ val table: Table = tableEnv.fromValues(
         DataTypes.FIELD("name", DataTypes.STRING()),
         DataTypes.FIELD("age", DataTypes.INT()),
     row("john", 35),
-    row("sarah", 32));
+    row("sarah", 32))
 
 // Convert the Table into an append DataStream of Row by specifying the class
 val dsRow: DataStream[Row] = tableEnv.toAppendStream[Row](table)
@@ -2898,7 +2900,7 @@ retract_stream = t_env.to_retract_stream(table, Types.ROW([Types.STRING(), Types
 {{< /tab >}}
 {{< /tabs >}}
 
-**Note:** A detailed discussion about dynamic tables and their properties is given in the [Dynamic Tables](streaming/dynamic_tables.html) document. 
+**Note:** A detailed discussion about dynamic tables and their properties is given in the [Dynamic Tables]({{< ref "docs/dev/table/concepts/dynamic_tables" >}}) document. 
 
 {{< hint warning >}}
 Once the Table is converted to a DataStream, please use the `StreamExecutionEnvironment.execute()` method to execute the DataStream program.

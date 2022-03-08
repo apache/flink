@@ -24,9 +24,12 @@ import org.apache.flink.table.api.bridge.java.StreamTableEnvironment
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.catalog.{Column, ResolvedSchema}
 import org.apache.flink.table.planner.utils.TestTableSourceSinks
+import org.apache.flink.test.util.AbstractTestBase
 import org.apache.flink.types.{Row, RowKind}
 import org.apache.flink.util.{CollectionUtil, TestLogger}
 
+import org.hamcrest.MatcherAssert.assertThat
+import org.hamcrest.Matchers.containsInAnyOrder
 import org.junit.Assert.{assertEquals, assertNotEquals, assertTrue}
 import org.junit.rules.{ExpectedException, TemporaryFolder}
 import org.junit.runner.RunWith
@@ -35,9 +38,10 @@ import org.junit.{Before, Rule, Test}
 
 import _root_.java.lang.{Long => JLong}
 import _root_.java.util
+import java.time.Instant
 
 @RunWith(classOf[Parameterized])
-class TableITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger {
+class TableITCase(tableEnvName: String, isStreaming: Boolean) extends AbstractTestBase {
 
   // used for accurate exception information checking.
   val expectedException: ExpectedException = ExpectedException.none()
@@ -165,6 +169,35 @@ class TableITCase(tableEnvName: String, isStreaming: Boolean) extends TestLogger
     assertEquals(expected, actual)
   }
 
+  @Test
+  def testCollectWithMultiRowtime(): Unit = {
+    tEnv.executeSql(
+      """
+        |CREATE TABLE MyTableWithRowtime1 (
+        |  ts AS TO_TIMESTAMP_LTZ(id, 3),
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' MINUTE)
+        |LIKE MyTable""".stripMargin)
+    tEnv.executeSql(
+      """
+        |CREATE TABLE MyTableWithRowtime2 (
+        |  ts AS TO_TIMESTAMP_LTZ(id, 3),
+        |  WATERMARK FOR ts AS ts - INTERVAL '1' MINUTE)
+        |LIKE MyTable""".stripMargin)
+
+    val tableResult = tEnv.executeSql(
+      """
+        |SELECT MyTableWithRowtime1.ts, MyTableWithRowtime2.ts
+        |FROM MyTableWithRowtime1, MyTableWithRowtime2
+        |WHERE
+        |  MyTableWithRowtime1.first = MyTableWithRowtime2.first AND
+        |  MyTableWithRowtime1.ts = MyTableWithRowtime2.ts""".stripMargin)
+
+    val expected = for (i <- 1 to 8) yield
+      Row.ofKind(RowKind.INSERT, Instant.ofEpochMilli(i), Instant.ofEpochMilli(i))
+
+    val actual = CollectionUtil.iteratorToList(tableResult.collect())
+    assertThat(actual, containsInAnyOrder(expected: _*))
+  }
 }
 
 object TableITCase {

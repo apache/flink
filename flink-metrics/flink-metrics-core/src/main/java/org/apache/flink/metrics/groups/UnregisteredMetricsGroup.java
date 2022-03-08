@@ -18,6 +18,7 @@
 
 package org.apache.flink.metrics.groups;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Gauge;
@@ -33,6 +34,7 @@ import java.util.Map;
  * A special {@link MetricGroup} that does not register any metrics at the metrics registry and any
  * reporters.
  */
+@Internal
 public class UnregisteredMetricsGroup implements MetricGroup {
 
     @Override

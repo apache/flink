@@ -29,27 +29,36 @@ under the License.
 		<relativePath>..</relativePath>
 	</parent>
 
-	<artifactId>flink-orc-nohive_${scala.binary.version}</artifactId>
+	<artifactId>flink-orc-nohive</artifactId>
 	<name>Flink : Formats : Orc nohive</name>
 
 	<packaging>jar</packaging>
 
 	<dependencies>
 
-		<!-- Core -->
+		<!-- Table ecosystem and filesystem connector -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-table-runtime_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-common</artifactId>
 			<version>${project.version}</version>
 			<scope>provided</scope>
+			<optional>true</optional>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-files</artifactId>
+			<version>${project.version}</version>
+			<scope>provided</scope>
+			<optional>true</optional>
 		</dependency>
 
 		<!-- Flink ORC -->
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-orc_${scala.binary.version}</artifactId>
+			<artifactId>flink-orc</artifactId>
 			<version>${project.version}</version>
 			<exclusions>
 				<exclusion>
@@ -78,7 +87,14 @@ under the License.
 
 		<dependency>
 			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-orc_${scala.binary.version}</artifactId>
+			<artifactId>flink-table-planner_${scala.binary.version}</artifactId>
+			<version>${project.version}</version>
+			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-orc</artifactId>
 			<version>${project.version}</version>
 			<type>test-jar</type>
 			<scope>test</scope>

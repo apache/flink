@@ -18,7 +18,7 @@
 package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.http.HttpHost;
 import org.junit.jupiter.api.DynamicTest;
@@ -75,6 +75,19 @@ abstract class ElasticsearchSinkBuilderBaseTest<B extends ElasticsearchSinkBuild
         assertThrows(
                 NullPointerException.class,
                 () -> createEmptyBuilder().setHosts(new HttpHost("localhost:3000")).build());
+    }
+
+    @Test
+    void testThrowIfSetInvalidTimeouts() {
+        assertThrows(
+                IllegalStateException.class,
+                () -> createEmptyBuilder().setConnectionRequestTimeout(-1).build());
+        assertThrows(
+                IllegalStateException.class,
+                () -> createEmptyBuilder().setConnectionTimeout(-1).build());
+        assertThrows(
+                IllegalStateException.class,
+                () -> createEmptyBuilder().setSocketTimeout(-1).build());
     }
 
     abstract B createEmptyBuilder();

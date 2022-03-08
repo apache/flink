@@ -31,6 +31,7 @@ import { JobService } from 'services';
 })
 export class JobOverviewDrawerDetailComponent implements OnInit, OnDestroy {
   public node: NodesItemCorrect | null;
+  public multilineNameCSS = '';
 
   private readonly destroy$ = new Subject<void>();
 
@@ -39,6 +40,12 @@ export class JobOverviewDrawerDetailComponent implements OnInit, OnDestroy {
   public ngOnInit(): void {
     this.jobService.selectedVertex$.pipe(takeUntil(this.destroy$)).subscribe(node => {
       this.node = node;
+      if (this.node != null && this.node.description != null) {
+        if (this.node.description.indexOf('<br/>') > 0) {
+          this.multilineNameCSS = 'name-multi-line';
+          this.node.description = this.node.description.replace(/<br\/>/g, '\n');
+        }
+      }
       this.cdr.markForCheck();
     });
   }

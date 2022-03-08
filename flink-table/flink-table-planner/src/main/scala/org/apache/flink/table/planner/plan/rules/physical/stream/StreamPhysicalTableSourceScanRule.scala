@@ -71,12 +71,13 @@ class StreamPhysicalTableSourceScanRule
       traitSet,
       scan.getHints,
       table)
+    val resolvedSchema = table.contextResolvedTable.getResolvedSchema
 
-    if (isUpsertSource(table.catalogTable, table.tableSource) ||
-        isSourceChangeEventsDuplicate(table.catalogTable, table.tableSource, config)) {
+    if (isUpsertSource(resolvedSchema, table.tableSource) ||
+        isSourceChangeEventsDuplicate(resolvedSchema, table.tableSource, config)) {
       // generate changelog normalize node
       // primary key has been validated in CatalogSourceTable
-      val primaryKey = table.catalogTable.getResolvedSchema.getPrimaryKey.get()
+      val primaryKey = resolvedSchema.getPrimaryKey.get()
       val keyFields = primaryKey.getColumns
       val inputFieldNames = newScan.getRowType.getFieldNames
       val primaryKeyIndices = ScanUtil.getPrimaryKeyIndices(inputFieldNames, keyFields)
@@ -90,7 +91,9 @@ class StreamPhysicalTableSourceScanRule
         scan.getCluster,
         traitSet,
         newInput,
-        primaryKeyIndices)
+        primaryKeyIndices,
+        table.contextResolvedTable
+      )
     } else {
       newScan
     }

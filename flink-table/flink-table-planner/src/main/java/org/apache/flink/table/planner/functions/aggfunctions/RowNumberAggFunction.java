@@ -30,7 +30,8 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.plus;
 
 /** built-in row_number aggregate function. */
 public class RowNumberAggFunction extends DeclarativeAggregateFunction {
-    private UnresolvedReferenceExpression sequence = unresolvedRef("seq");
+
+    private final UnresolvedReferenceExpression sequence = unresolvedRef("seq");
 
     @Override
     public int operandCount() {

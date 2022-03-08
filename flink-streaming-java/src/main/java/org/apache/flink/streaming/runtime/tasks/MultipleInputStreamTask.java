@@ -22,9 +22,12 @@ import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.partition.consumer.IndexedInputGate;
 import org.apache.flink.runtime.metrics.MetricNames;
 import org.apache.flink.streaming.api.graph.StreamConfig;
@@ -195,11 +198,15 @@ public class MultipleInputStreamTask<OUT>
         // EndOfPartitionEvent, we would not complement barriers for the
         // unfinished network inputs, and the checkpoint would be triggered
         // after received all the EndOfPartitionEvent.
-        if (options.getCheckpointType().shouldDrain()) {
-            return triggerStopWithSavepointWithDrainAsync(metadata, options);
+        if (isSynchronous(options.getCheckpointType())) {
+            return triggerStopWithSavepointAsync(metadata, options);
         } else {
             return triggerSourcesCheckpointAsync(metadata, options);
         }
+    }
+
+    private boolean isSynchronous(SnapshotType snapshotType) {
+        return snapshotType.isSavepoint() && ((SavepointType) snapshotType).isSynchronous();
     }
 
     private CompletableFuture<Boolean> triggerSourcesCheckpointAsync(
@@ -235,28 +242,28 @@ public class MultipleInputStreamTask<OUT>
         return resultFuture;
     }
 
-    private CompletableFuture<Boolean> triggerStopWithSavepointWithDrainAsync(
+    private CompletableFuture<Boolean> triggerStopWithSavepointAsync(
             CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
 
         CompletableFuture<Void> sourcesStopped = new CompletableFuture<>();
+        final StopMode stopMode =
+                ((SavepointType) checkpointOptions.getCheckpointType()).shouldDrain()
+                        ? StopMode.DRAIN
+                        : StopMode.NO_DRAIN;
         mainMailboxExecutor.execute(
                 () -> {
-                    setSynchronousSavepoint(checkpointMetaData.getCheckpointId(), true);
+                    setSynchronousSavepoint(checkpointMetaData.getCheckpointId());
                     FutureUtils.forward(
                             FutureUtils.waitForAll(
                                     operatorChain.getSourceTaskInputs().stream()
-                                            .map(s -> s.getOperator().stop())
+                                            .map(s -> s.getOperator().stop(stopMode))
                                             .collect(Collectors.toList())),
                             sourcesStopped);
                 },
                 "stop chained Flip-27 source for stop-with-savepoint --drain");
 
-        return assertTriggeringCheckpointExceptions(
-                sourcesStopped.thenCompose(
-                        ignore ->
-                                triggerSourcesCheckpointAsync(
-                                        checkpointMetaData, checkpointOptions)),
-                checkpointMetaData.getCheckpointId());
+        return sourcesStopped.thenCompose(
+                ignore -> triggerSourcesCheckpointAsync(checkpointMetaData, checkpointOptions));
     }
 
     private void checkPendingCheckpointCompletedFuturesSize() {

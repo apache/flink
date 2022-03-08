@@ -30,6 +30,7 @@ import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorStateRepartitioner;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
 import org.apache.flink.runtime.checkpoint.RoundRobinOperatorStateRepartitioner;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.StateAssignmentOperation;
 import org.apache.flink.runtime.checkpoint.StateObjectCollection;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
@@ -693,7 +694,7 @@ public class AbstractStreamOperatorTestHarness<OUT> implements AutoCloseable {
      * org.apache.flink.runtime.state.CheckpointStreamFactory)}.
      */
     public OperatorSnapshotFinalizer snapshotWithLocalState(
-            long checkpointId, long timestamp, CheckpointType checkpointType) throws Exception {
+            long checkpointId, long timestamp, SnapshotType checkpointType) throws Exception {
 
         CheckpointStorageLocationReference locationReference =
                 CheckpointStorageLocationReference.getDefault();

@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggre
 import org.apache.flink.table.planner.plan.nodes.physical.stream.StreamPhysicalGroupWindowAggregate
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
 import org.apache.calcite.rel.RelNode
@@ -71,7 +72,7 @@ class StreamPhysicalGroupWindowAggregateRule
     val providedTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput: RelNode = RelOptRule.convert(input, requiredTraitSet)
 
-    val config = cluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val config = ShortcutUtils.unwrapTableConfig(rel)
     val emitStrategy = WindowEmitStrategy(config, agg.getWindow)
 
     new StreamPhysicalGroupWindowAggregate(

@@ -337,8 +337,8 @@ public class TemporalRowTimeJoinOperator extends BaseTwoInputStreamOperatorWithS
      * <p>If left time is 6, the valid period should be [4, 7), data 4(+U) should be joined.
      *
      * <p>If left time is 10, the valid period should be [9, 12), but data 9(-D) is a DELETE message
-     * which means the the correspond version has no data in period [9, 12), data 9(-D) should not
-     * be correlated.
+     * which means the correspond version has no data in period [9, 12), data 9(-D) should not be
+     * correlated.
      *
      * @return found element or {@code Optional.empty} If such row was not found (either {@code
      *     rightRowsSorted} is empty or all {@code rightRowsSorted} are are newer).

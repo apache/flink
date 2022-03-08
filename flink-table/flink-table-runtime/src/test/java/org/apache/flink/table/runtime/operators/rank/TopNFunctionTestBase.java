@@ -58,8 +58,7 @@ abstract class TopNFunctionTestBase {
     long cacheSize = 10000L;
 
     InternalTypeInfo<RowData> inputRowType =
-            InternalTypeInfo.ofFields(
-                    new VarCharType(VarCharType.MAX_LENGTH), new BigIntType(), new IntType());
+            InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new BigIntType(), new IntType());
 
     static GeneratedRecordComparator generatedSortKeyComparator =
             new GeneratedRecordComparator("", "", new Object[0]) {
@@ -107,10 +106,7 @@ abstract class TopNFunctionTestBase {
 
     private InternalTypeInfo<RowData> outputTypeWithRowNumber =
             InternalTypeInfo.ofFields(
-                    new VarCharType(VarCharType.MAX_LENGTH),
-                    new BigIntType(),
-                    new IntType(),
-                    new BigIntType());
+                    VarCharType.STRING_TYPE, new BigIntType(), new IntType(), new BigIntType());
 
     RowDataHarnessAssertor assertorWithoutRowNumber =
             new RowDataHarnessAssertor(

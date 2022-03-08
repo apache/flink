@@ -29,6 +29,8 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
 import java.math.BigDecimal;
 
 import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.aggDecimalMinus;
+import static org.apache.flink.table.planner.expressions.ExpressionBuilder.aggDecimalPlus;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.cast;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.div;
 import static org.apache.flink.table.planner.expressions.ExpressionBuilder.equalTo;
@@ -43,8 +45,8 @@ import static org.apache.flink.table.planner.expressions.ExpressionBuilder.typeL
 /** built-in avg aggregate function. */
 public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
 
-    private UnresolvedReferenceExpression sum = unresolvedRef("sum");
-    private UnresolvedReferenceExpression count = unresolvedRef("count");
+    private final UnresolvedReferenceExpression sum = unresolvedRef("sum");
+    private final UnresolvedReferenceExpression count = unresolvedRef("count");
 
     public abstract DataType getSumType();
 
@@ -73,7 +75,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] accumulateExpressions() {
         return new Expression[] {
-            /* sum = */ adjustSumType(ifThenElse(isNull(operand(0)), sum, plus(sum, operand(0)))),
+            /* sum = */ ifThenElse(isNull(operand(0)), sum, adjustedPlus(sum, operand(0))),
             /* count = */ ifThenElse(isNull(operand(0)), count, plus(count, literal(1L))),
         };
     }
@@ -81,7 +83,7 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] retractExpressions() {
         return new Expression[] {
-            /* sum = */ adjustSumType(ifThenElse(isNull(operand(0)), sum, minus(sum, operand(0)))),
+            /* sum = */ ifThenElse(isNull(operand(0)), sum, adjustedMinus(sum, operand(0))),
             /* count = */ ifThenElse(isNull(operand(0)), count, minus(count, literal(1L))),
         };
     }
@@ -89,13 +91,9 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
     @Override
     public Expression[] mergeExpressions() {
         return new Expression[] {
-            /* sum = */ adjustSumType(plus(sum, mergeOperand(sum))),
+            /* sum = */ adjustedPlus(sum, mergeOperand(sum)),
             /* count = */ plus(count, mergeOperand(count))
         };
-    }
-
-    private UnresolvedCallExpression adjustSumType(UnresolvedCallExpression sumExpr) {
-        return cast(sumExpr, typeLiteral(getSumType()));
     }
 
     /** If all input are nulls, count will be 0 and we will get null after the division. */
@@ -104,6 +102,16 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
         Expression ifTrue = nullOf(getResultType());
         Expression ifFalse = cast(div(sum, count), typeLiteral(getResultType()));
         return ifThenElse(equalTo(count, literal(0L)), ifTrue, ifFalse);
+    }
+
+    protected UnresolvedCallExpression adjustedPlus(
+            UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
+        return plus(arg1, arg2);
+    }
+
+    protected UnresolvedCallExpression adjustedMinus(
+            UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
+        return minus(arg1, arg2);
     }
 
     /** Built-in Byte Avg aggregate function. */
@@ -203,27 +211,41 @@ public abstract class AvgAggFunction extends DeclarativeAggregateFunction {
     /** Built-in Decimal Avg aggregate function. */
     public static class DecimalAvgAggFunction extends AvgAggFunction {
 
-        private final DecimalType type;
+        private final DataType resultType;
+        private final DataType sumResultType;
 
         public DecimalAvgAggFunction(DecimalType type) {
-            this.type = type;
+            DecimalType t = (DecimalType) LogicalTypeMerging.findAvgAggType(type);
+            this.resultType = DataTypes.DECIMAL(t.getPrecision(), t.getScale());
+            t = (DecimalType) LogicalTypeMerging.findSumAggType(type);
+            this.sumResultType = DataTypes.DECIMAL(t.getPrecision(), t.getScale());
         }
 
         @Override
         public DataType getResultType() {
-            DecimalType t = (DecimalType) LogicalTypeMerging.findAvgAggType(type);
-            return DataTypes.DECIMAL(t.getPrecision(), t.getScale());
+            return resultType;
         }
 
         @Override
         public DataType getSumType() {
-            DecimalType t = (DecimalType) LogicalTypeMerging.findSumAggType(type);
-            return DataTypes.DECIMAL(t.getPrecision(), t.getScale());
+            return sumResultType;
         }
 
         @Override
         public Expression[] initialValuesExpressions() {
             return new Expression[] {literal(BigDecimal.ZERO, getSumType().notNull()), literal(0L)};
+        }
+
+        @Override
+        protected UnresolvedCallExpression adjustedPlus(
+                UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
+            return aggDecimalPlus(arg1, arg2);
+        }
+
+        @Override
+        protected UnresolvedCallExpression adjustedMinus(
+                UnresolvedReferenceExpression arg1, UnresolvedReferenceExpression arg2) {
+            return aggDecimalMinus(arg1, arg2);
         }
     }
 }

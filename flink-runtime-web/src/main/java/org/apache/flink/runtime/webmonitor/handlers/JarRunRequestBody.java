@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.webmonitor.handlers;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.rest.messages.RequestBody;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
@@ -35,6 +36,7 @@ import java.util.List;
 public class JarRunRequestBody extends JarRequestBody {
     private static final String FIELD_NAME_ALLOW_NON_RESTORED_STATE = "allowNonRestoredState";
     private static final String FIELD_NAME_SAVEPOINT_PATH = "savepointPath";
+    private static final String FIELD_NAME_SAVEPOINT_RESTORE_MODE = "restoreMode";
 
     @JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE)
     @Nullable
@@ -44,8 +46,12 @@ public class JarRunRequestBody extends JarRequestBody {
     @Nullable
     private String savepointPath;
 
+    @JsonProperty(FIELD_NAME_SAVEPOINT_RESTORE_MODE)
+    @Nullable
+    private RestoreMode restoreMode;
+
     public JarRunRequestBody() {
-        this(null, null, null, null, null, null, null);
+        this(null, null, null, null, null, null, null, null);
     }
 
     @JsonCreator
@@ -58,10 +64,12 @@ public class JarRunRequestBody extends JarRequestBody {
             @Nullable @JsonProperty(FIELD_NAME_JOB_ID) JobID jobId,
             @Nullable @JsonProperty(FIELD_NAME_ALLOW_NON_RESTORED_STATE)
                     Boolean allowNonRestoredState,
-            @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_PATH) String savepointPath) {
+            @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_PATH) String savepointPath,
+            @Nullable @JsonProperty(FIELD_NAME_SAVEPOINT_RESTORE_MODE) RestoreMode restoreMode) {
         super(entryClassName, programArguments, programArgumentsList, parallelism, jobId);
         this.allowNonRestoredState = allowNonRestoredState;
         this.savepointPath = savepointPath;
+        this.restoreMode = restoreMode;
     }
 
     @Nullable
@@ -74,5 +82,11 @@ public class JarRunRequestBody extends JarRequestBody {
     @JsonIgnore
     public String getSavepointPath() {
         return savepointPath;
+    }
+
+    @Nullable
+    @JsonIgnore
+    public RestoreMode getRestoreMode() {
+        return restoreMode;
     }
 }

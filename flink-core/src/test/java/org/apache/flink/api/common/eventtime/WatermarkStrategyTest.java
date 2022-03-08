@@ -33,6 +33,7 @@ import java.io.Serializable;
 import java.time.Duration;
 import java.util.Map;
 
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
@@ -145,6 +146,36 @@ public class WatermarkStrategyTest {
                 instanceOf(RecordTimestampAssigner.class));
         assertThat(
                 wmStrategy.createWatermarkGenerator(generatorContext()),
+                instanceOf(WatermarksWithIdleness.class));
+    }
+
+    @Test
+    public void testWithWatermarkAlignment() {
+        final String watermarkGroup = "group-1";
+        final Duration maxAllowedWatermarkDrift = Duration.ofMillis(200);
+        final WatermarkStrategy<String> strategy =
+                WatermarkStrategy.<String>forMonotonousTimestamps()
+                        .withWatermarkAlignment(watermarkGroup, maxAllowedWatermarkDrift)
+                        // we call a different builder method on top of watermark alignment
+                        // to make sure it can be properly mixed
+                        .withIdleness(Duration.ofMillis(200));
+
+        // ensure that the closure can be cleaned
+        ClosureCleaner.clean(strategy, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, true);
+
+        final WatermarkAlignmentParams alignmentParameters = strategy.getAlignmentParameters();
+        assertThat(alignmentParameters.getWatermarkGroup(), equalTo(watermarkGroup));
+        assertThat(
+                alignmentParameters.getMaxAllowedWatermarkDrift(),
+                equalTo(maxAllowedWatermarkDrift.toMillis()));
+        assertThat(
+                alignmentParameters.getUpdateInterval(),
+                equalTo(WatermarksWithWatermarkAlignment.DEFAULT_UPDATE_INTERVAL.toMillis()));
+        assertThat(
+                strategy.createTimestampAssigner(assignerContext()),
+                instanceOf(RecordTimestampAssigner.class));
+        assertThat(
+                strategy.createWatermarkGenerator(generatorContext()),
                 instanceOf(WatermarksWithIdleness.class));
     }
 

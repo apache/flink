@@ -24,10 +24,7 @@ import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.inference.utils.CallContextMock;
 import org.apache.flink.table.types.inference.utils.FunctionDefinitionMock;
 
-import org.junit.Assert;
-import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameter;
@@ -40,8 +37,9 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.hamcrest.CoreMatchers.equalTo;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.apache.flink.table.test.TableAssertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Base class for tests of {@link TypeStrategies}. */
 @RunWith(Parameterized.class)
@@ -49,18 +47,15 @@ public abstract class TypeStrategiesTestBase {
 
     @Parameter public TestSpec testSpec;
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     @Test
     public void testTypeStrategy() {
         if (testSpec.expectedErrorMessage != null) {
-            thrown.expect(ValidationException.class);
-            thrown.expectCause(
-                    containsCause(new ValidationException(testSpec.expectedErrorMessage)));
-        }
-        TypeInferenceUtil.Result result = runTypeInference();
-        if (testSpec.expectedDataType != null) {
-            Assert.assertThat(result.getOutputDataType(), equalTo(testSpec.expectedDataType));
+            assertThatThrownBy(this::runTypeInference)
+                    .satisfies(
+                            anyCauseMatches(
+                                    ValidationException.class, testSpec.expectedErrorMessage));
+        } else if (testSpec.expectedDataType != null) {
+            assertThat(runTypeInference().getOutputDataType()).isEqualTo(testSpec.expectedDataType);
         }
     }
 

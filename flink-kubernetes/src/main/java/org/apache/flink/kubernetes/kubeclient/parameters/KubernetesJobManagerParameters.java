@@ -125,6 +125,26 @@ public class KubernetesJobManagerParameters extends AbstractKubernetesParameters
         return flinkConfig.getDouble(KubernetesConfigOptions.JOB_MANAGER_CPU);
     }
 
+    public double getJobManagerCPULimitFactor() {
+        final double limitFactor =
+                flinkConfig.getDouble(KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT_FACTOR);
+        checkArgument(
+                limitFactor >= 1,
+                "%s should be greater or equal to 1.",
+                KubernetesConfigOptions.JOB_MANAGER_CPU_LIMIT_FACTOR.key());
+        return limitFactor;
+    }
+
+    public double getJobManagerMemoryLimitFactor() {
+        final double limitFactor =
+                flinkConfig.getDouble(KubernetesConfigOptions.JOB_MANAGER_MEMORY_LIMIT_FACTOR);
+        checkArgument(
+                limitFactor >= 1,
+                "%s should be greater or equal to 1.",
+                KubernetesConfigOptions.JOB_MANAGER_MEMORY_LIMIT_FACTOR.key());
+        return limitFactor;
+    }
+
     public int getRestPort() {
         return flinkConfig.getInteger(RestOptions.PORT);
     }

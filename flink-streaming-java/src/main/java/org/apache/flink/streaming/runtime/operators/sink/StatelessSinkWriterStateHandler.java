@@ -17,28 +17,30 @@
 
 package org.apache.flink.streaming.runtime.operators.sink;
 
+import org.apache.flink.api.connector.sink2.Sink;
+import org.apache.flink.api.connector.sink2.Sink.InitContext;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.runtime.state.StateInitializationContext;
-import org.apache.flink.util.function.FunctionWithException;
 
-import java.util.Collections;
-import java.util.List;
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** {@link SinkWriterStateHandler} for stateless sinks. */
-enum StatelessSinkWriterStateHandler implements SinkWriterStateHandler<Object> {
-    INSTANCE;
+final class StatelessSinkWriterStateHandler<InputT> implements SinkWriterStateHandler<InputT> {
 
-    @SuppressWarnings("unchecked")
-    static <WriterStateT> SinkWriterStateHandler<WriterStateT> getInstance() {
-        return (SinkWriterStateHandler<WriterStateT>) StatelessSinkWriterStateHandler.INSTANCE;
+    private final Sink<InputT> sink;
+
+    StatelessSinkWriterStateHandler(Sink<InputT> sink) {
+        this.sink = checkNotNull(sink);
     }
 
     @Override
-    public List<Object> initializeState(StateInitializationContext context) throws Exception {
-        return Collections.emptyList();
+    public SinkWriter<InputT> createWriter(
+            InitContext initContext, StateInitializationContext context) throws Exception {
+        return sink.createWriter(initContext);
     }
 
     @Override
-    public void snapshotState(
-            FunctionWithException<Long, List<Object>, Exception> stateExtractor, long checkpointId)
-            throws Exception {}
+    public void snapshotState(long checkpointId) throws Exception {
+        // no state to snapshot
+    }
 }

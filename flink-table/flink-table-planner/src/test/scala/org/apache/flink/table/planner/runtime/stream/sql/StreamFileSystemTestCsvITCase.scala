@@ -18,7 +18,11 @@
 
 package org.apache.flink.table.planner.runtime.stream.sql
 
-import org.apache.flink.types.Row
+import org.apache.flink.core.fs.Path
+import org.apache.flink.testutils.TestFileSystem
+
+import org.junit.After
+import org.junit.Assert.assertEquals
 
 import scala.collection.Seq
 
@@ -29,5 +33,16 @@ class StreamFileSystemTestCsvITCase extends StreamFileSystemITCaseBase {
 
   override def formatProperties(): Array[String] = {
     super.formatProperties() ++ Seq("'format' = 'testcsv'")
+  }
+
+  override def getScheme: String = "test"
+
+  @After
+  def close(): Unit = {
+    val path = new Path(resultPath)
+    assertEquals(
+      s"File $resultPath is not closed",
+      0,
+      TestFileSystem.getNumberOfUnclosedOutputStream(path))
   }
 }

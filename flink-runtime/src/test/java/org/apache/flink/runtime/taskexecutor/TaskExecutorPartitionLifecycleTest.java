@@ -23,8 +23,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.BlockerSync;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
@@ -66,7 +65,9 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskmanager.NoOpTaskManagerActions;
 import org.apache.flink.runtime.taskmanager.Task;
 import org.apache.flink.runtime.util.TestingFatalErrorHandler;
+import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.testutils.executor.TestExecutorResource;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.concurrent.Executors;
@@ -434,7 +435,9 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
 
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
-                        false, new File[] {tmp.newFolder()}, Executors.directExecutor());
+                        false,
+                        Reference.owned(new File[] {tmp.newFolder()}),
+                        Executors.directExecutor());
 
         final TaskManagerServices taskManagerServices =
                 new TaskManagerServicesBuilder()
@@ -449,7 +452,7 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
                         .setRegisterTaskManagerFunction(
-                                (s, location, ignored) ->
+                                (ignoredJobId, ignoredTaskManagerRegistrationInformation) ->
                                         CompletableFuture.completedFuture(
                                                 new JMTMRegistrationSuccess(ResourceID.generate())))
                         .setOfferSlotsFunction(
@@ -595,14 +598,15 @@ public class TaskExecutorPartitionLifecycleTest extends TestLogger {
                         configuration,
                         TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
                                 configuration),
-                        InetAddress.getLoopbackAddress().getHostAddress()),
+                        InetAddress.getLoopbackAddress().getHostAddress(),
+                        TestFileUtils.createTempDir()),
                 haServices,
                 taskManagerServices,
                 ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
                 new HeartbeatServices(10_000L, 30_000L),
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 null,
-                new BlobCacheService(configuration, new VoidBlobStore(), null),
+                NoOpTaskExecutorBlobService.INSTANCE,
                 new TestingFatalErrorHandler(),
                 partitionTracker);
     }

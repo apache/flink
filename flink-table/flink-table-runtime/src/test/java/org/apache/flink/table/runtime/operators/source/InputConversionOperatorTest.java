@@ -98,6 +98,20 @@ public class InputConversionOperatorTest {
         operator.processWatermark(new Watermark(1000));
     }
 
+    @Test(expected = NullPointerException.class)
+    public void testReceiveMaxWatermark() throws Exception {
+        final InputConversionOperator<Row> operator =
+                new InputConversionOperator<>(
+                        createConverter(DataTypes.ROW(DataTypes.FIELD("f", DataTypes.INT()))),
+                        false,
+                        false,
+                        false,
+                        true);
+
+        // would throw an exception because it always emits Watermark.MAX_WATERMARK
+        operator.processWatermark(Watermark.MAX_WATERMARK);
+    }
+
     private static DynamicTableSource.DataStructureConverter createConverter(DataType dataType) {
         final DataStructureConverter<Object, Object> converter =
                 DataStructureConverters.getConverter(dataType);

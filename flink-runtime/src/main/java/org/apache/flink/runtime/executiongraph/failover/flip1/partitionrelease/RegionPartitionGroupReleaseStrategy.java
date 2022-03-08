@@ -19,6 +19,8 @@
 
 package org.apache.flink.runtime.executiongraph.failover.flip1.partitionrelease;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.scheduler.SchedulingTopologyListener;
 import org.apache.flink.runtime.scheduler.strategy.ConsumedPartitionGroup;
 import org.apache.flink.runtime.scheduler.strategy.ExecutionVertexID;
 import org.apache.flink.runtime.scheduler.strategy.SchedulingExecutionVertex;
@@ -30,6 +32,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.apache.flink.util.Preconditions.checkState;
@@ -38,7 +42,8 @@ import static org.apache.flink.util.Preconditions.checkState;
  * Releases blocking intermediate result partitions that are incident to a {@link
  * SchedulingPipelinedRegion}, as soon as the region's execution vertices are finished.
  */
-public class RegionPartitionGroupReleaseStrategy implements PartitionGroupReleaseStrategy {
+public class RegionPartitionGroupReleaseStrategy
+        implements PartitionGroupReleaseStrategy, SchedulingTopologyListener {
 
     private final SchedulingTopology schedulingTopology;
 
@@ -53,19 +58,16 @@ public class RegionPartitionGroupReleaseStrategy implements PartitionGroupReleas
 
     public RegionPartitionGroupReleaseStrategy(final SchedulingTopology schedulingTopology) {
         this.schedulingTopology = checkNotNull(schedulingTopology);
-
-        initRegionExecutionViewByVertex();
-
-        initPartitionGroupConsumerRegions();
-
         this.consumerRegionGroupExecutionViewMaintainer =
-                new ConsumerRegionGroupExecutionViewMaintainer(
-                        partitionGroupConsumerRegions.values());
+                new ConsumerRegionGroupExecutionViewMaintainer();
+
+        schedulingTopology.registerSchedulingTopologyListener(this);
+        notifySchedulingTopologyUpdatedInternal(schedulingTopology.getAllPipelinedRegions());
     }
 
-    private void initRegionExecutionViewByVertex() {
-        for (SchedulingPipelinedRegion pipelinedRegion :
-                schedulingTopology.getAllPipelinedRegions()) {
+    private void initRegionExecutionViewByVertex(
+            Iterable<? extends SchedulingPipelinedRegion> newRegions) {
+        for (SchedulingPipelinedRegion pipelinedRegion : newRegions) {
             final PipelinedRegionExecutionView regionExecutionView =
                     new PipelinedRegionExecutionView(pipelinedRegion);
             for (SchedulingExecutionVertex executionVertexId : pipelinedRegion.getVertices()) {
@@ -74,16 +76,28 @@ public class RegionPartitionGroupReleaseStrategy implements PartitionGroupReleas
         }
     }
 
-    private void initPartitionGroupConsumerRegions() {
-        for (SchedulingPipelinedRegion region : schedulingTopology.getAllPipelinedRegions()) {
+    private Iterable<ConsumerRegionGroupExecutionView> initPartitionGroupConsumerRegions(
+            Iterable<? extends SchedulingPipelinedRegion> newRegions) {
+
+        final List<ConsumerRegionGroupExecutionView> newConsumerRegionGroups = new ArrayList<>();
+
+        for (SchedulingPipelinedRegion region : newRegions) {
             for (ConsumedPartitionGroup consumedPartitionGroup :
                     region.getAllBlockingConsumedPartitionGroups()) {
                 partitionGroupConsumerRegions
                         .computeIfAbsent(
-                                consumedPartitionGroup, g -> new ConsumerRegionGroupExecutionView())
+                                consumedPartitionGroup,
+                                g -> {
+                                    ConsumerRegionGroupExecutionView regionGroup =
+                                            new ConsumerRegionGroupExecutionView();
+                                    newConsumerRegionGroups.add(regionGroup);
+                                    return regionGroup;
+                                })
                         .add(region);
             }
         }
+
+        return newConsumerRegionGroups;
     }
 
     @Override
@@ -142,6 +156,36 @@ public class RegionPartitionGroupReleaseStrategy implements PartitionGroupReleas
         }
 
         return releasablePartitionGroups;
+    }
+
+    private void notifySchedulingTopologyUpdatedInternal(
+            Iterable<? extends SchedulingPipelinedRegion> newRegions) {
+        initRegionExecutionViewByVertex(newRegions);
+
+        Iterable<ConsumerRegionGroupExecutionView> newConsumerRegionGroups =
+                initPartitionGroupConsumerRegions(newRegions);
+
+        consumerRegionGroupExecutionViewMaintainer.notifyNewRegionGroupExecutionViews(
+                newConsumerRegionGroups);
+    }
+
+    @VisibleForTesting
+    public boolean isRegionOfVertexFinished(final ExecutionVertexID executionVertexId) {
+        final PipelinedRegionExecutionView regionExecutionView =
+                getPipelinedRegionExecutionViewForVertex(executionVertexId);
+        return regionExecutionView.isFinished();
+    }
+
+    @Override
+    public void notifySchedulingTopologyUpdated(
+            SchedulingTopology schedulingTopology, List<ExecutionVertexID> newExecutionVertices) {
+
+        final Set<SchedulingPipelinedRegion> newRegions =
+                newExecutionVertices.stream()
+                        .map(schedulingTopology::getPipelinedRegionOfVertex)
+                        .collect(Collectors.toSet());
+
+        notifySchedulingTopologyUpdatedInternal(newRegions);
     }
 
     /** Factory for {@link PartitionGroupReleaseStrategy}. */

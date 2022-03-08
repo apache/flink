@@ -84,7 +84,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[name, id, amount, price], where=[SEARCH(name, Sarg[_UTF-16LE'Alice':VARCHAR(5) CHARACTER SET "UTF-16LE", _UTF-16LE'Bob':VARCHAR(5) CHARACTER SET "UTF-16LE", _UTF-16LE'Dave':VARCHAR(5) CHARACTER SET "UTF-16LE"]:VARCHAR(5) CHARACTER SET "UTF-16LE")])
+FlinkLogicalCalc(select=[name, id, amount, price], where=[SEARCH(name, Sarg[_UTF-16LE'Alice', _UTF-16LE'Bob', _UTF-16LE'Dave'])])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
@@ -193,7 +193,7 @@ LogicalProject(name=[$0], event_time=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[name, event_time], where=[=(LOWER(name), _UTF-16LE'foo':VARCHAR(2147483647) CHARACTER SET "UTF-16LE")])
+FlinkLogicalCalc(select=[name, event_time], where=[=(LOWER(name), 'foo')])
 +- FlinkLogicalWatermarkAssigner(rowtime=[event_time], watermark=[-($1, 5000:INTERVAL SECOND)])
    +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, WithWatermark]], fields=[name, event_time])
 ]]>
@@ -342,7 +342,7 @@ LogicalProject(name=[$0], id=[$1], amount=[$2], price=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[name, id, amount, price], where=[AND(<(id, 100), >(CAST(amount), 10))])
+FlinkLogicalCalc(select=[name, id, amount, price], where=[AND(<(id, 100), >(CAST(amount AS BIGINT), 10))])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable, filter=[>(amount, 2)]]], fields=[name, id, amount, price])
 ]]>
     </Resource>
@@ -404,7 +404,7 @@ LogicalProject(a=[$0])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[CASE(>(amount, 0), name, null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE") AS a], where=[IS NOT NULL(CASE(>(amount, 0), name, null:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
+FlinkLogicalCalc(select=[CASE(>(amount, 0), name, null:VARCHAR(2147483647)) AS a], where=[IS NOT NULL(CASE(>(amount, 0), name, null:VARCHAR(2147483647)))])
 +- FlinkLogicalTableSourceScan(table=[[default_catalog, default_database, MyTable]], fields=[name, id, amount, price])
 ]]>
     </Resource>

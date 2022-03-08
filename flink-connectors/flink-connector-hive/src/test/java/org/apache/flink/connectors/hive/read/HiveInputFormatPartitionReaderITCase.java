@@ -17,6 +17,7 @@
 
 package org.apache.flink.connectors.hive.read;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connectors.hive.HiveTablePartition;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
@@ -61,6 +62,7 @@ public class HiveInputFormatPartitionReaderITCase {
         // create partition reader
         HiveInputFormatPartitionReader partitionReader =
                 new HiveInputFormatPartitionReader(
+                        new Configuration(),
                         new JobConf(hiveCatalog.getHiveConf()),
                         hiveCatalog.getHiveVersion(),
                         tablePath,

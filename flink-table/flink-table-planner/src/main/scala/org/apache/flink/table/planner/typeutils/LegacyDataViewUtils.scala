@@ -27,7 +27,7 @@ import org.apache.flink.table.data.binary.BinaryRawValueData
 import org.apache.flink.table.data.{GenericRowData, RowData}
 import org.apache.flink.table.dataview.{ListViewTypeInfo, MapViewTypeInfo}
 import org.apache.flink.table.functions.ImperativeAggregateFunction
-import org.apache.flink.table.planner.typeutils.DataViewUtils.{DataViewSpec, ListViewSpec, MapViewSpec}
+import org.apache.flink.table.runtime.dataview.{DataViewSpec, ListViewSpec, MapViewSpec}
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.{fromLogicalTypeToTypeInfo, fromTypeInfoToLogicalType}
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo
 import org.apache.flink.table.types.DataType

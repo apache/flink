@@ -26,6 +26,8 @@ import org.apache.flink.table.connector.source.ScanTableSource;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecTableSourceScan;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -41,12 +43,19 @@ public class BatchExecTableSourceScan extends CommonExecTableSourceScan
 
     public BatchExecTableSourceScan(
             DynamicTableSourceSpec tableSourceSpec, RowType outputType, String description) {
-        super(tableSourceSpec, getNewNodeId(), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecTableSourceScan.class),
+                tableSourceSpec,
+                outputType,
+                description);
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final Transformation<RowData> transformation = super.translateToPlanInternal(planner);
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        final Transformation<RowData> transformation =
+                super.translateToPlanInternal(planner, config);
         // the boundedness has been checked via the runtime provider already, so we can safely
         // declare all legacy transformations as bounded to make the stream graph generator happy
         ExecNodeUtil.makeLegacySourceTransformationsBounded(transformation);

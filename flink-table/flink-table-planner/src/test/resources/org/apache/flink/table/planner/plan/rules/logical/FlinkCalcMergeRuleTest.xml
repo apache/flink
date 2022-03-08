@@ -69,7 +69,7 @@ LogicalProject(a1=[$0], b2=[$1])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[random_udf(a) AS a1, random_udf(b) AS b2], where=[>(CAST(c), 10:BIGINT)])
+FlinkLogicalCalc(select=[random_udf(a) AS a1, random_udf(b) AS b2], where=[>(CAST(c AS BIGINT), 10)])
 +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -145,7 +145,7 @@ LogicalProject(a=[$0], c=[$2])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-FlinkLogicalCalc(select=[a, c], where=[>(CAST(c), 10:BIGINT)])
+FlinkLogicalCalc(select=[a, c], where=[>(CAST(c AS BIGINT), 10)])
 +- FlinkLogicalLegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

@@ -21,13 +21,13 @@ package org.apache.flink.table.planner.plan.batch.sql
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
-import org.apache.flink.table.planner.functions.aggfunctions.FirstValueAggFunction
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortMergeJoinRule
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED
 import org.apache.flink.table.planner.plan.utils.OperatorType
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.NonDeterministicUdf
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedTableFunctions.{NonDeterministicTableFunc, StringSplit}
 import org.apache.flink.table.planner.utils.TableTestBase
+import org.apache.flink.table.runtime.functions.aggregate.FirstValueAggFunction
 
 import org.junit.{Before, Test}
 

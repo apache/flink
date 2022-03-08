@@ -18,7 +18,11 @@
 
 package org.apache.flink.state.changelog;
 
+import org.apache.flink.api.common.state.StateTtlConfig;
+import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.state.CheckpointStorage;
 import org.apache.flink.runtime.state.CheckpointStreamFactory;
@@ -26,6 +30,7 @@ import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.FileStateBackendTest;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.TestTaskStateManager;
 import org.apache.flink.runtime.state.filesystem.FsStateBackend;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
@@ -87,6 +92,30 @@ public class ChangelogDelegateFileStateBackendTest extends FileStateBackendTest 
         CheckpointStreamFactory streamFactory = createStreamFactory();
 
         ChangelogStateBackendTestUtils.testMaterializedRestore(
+                getStateBackend(), StateTtlConfig.DISABLED, env, streamFactory);
+    }
+
+    @Test
+    public void testMaterializedRestoreWithWrappedState() throws Exception {
+        CheckpointStreamFactory streamFactory = createStreamFactory();
+
+        Configuration configuration = new Configuration();
+        configuration.set(StateBackendOptions.LATENCY_TRACK_ENABLED, true);
+        StateBackend stateBackend =
+                getStateBackend()
+                        .configure(configuration, Thread.currentThread().getContextClassLoader());
+        ChangelogStateBackendTestUtils.testMaterializedRestore(
+                stateBackend,
+                StateTtlConfig.newBuilder(Time.minutes(1)).build(),
+                env,
+                streamFactory);
+    }
+
+    @Test
+    public void testMaterializedRestorePriorityQueue() throws Exception {
+        CheckpointStreamFactory streamFactory = createStreamFactory();
+
+        ChangelogStateBackendTestUtils.testMaterializedRestoreForPriorityQueue(
                 getStateBackend(), env, streamFactory);
     }
 }

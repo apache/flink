@@ -18,7 +18,10 @@
 
 package org.apache.flink.runtime.state;
 
-import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
+import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
  * This class encapsulates the completed configuration for local recovery, i.e. the root directories
@@ -27,35 +30,29 @@ import javax.annotation.Nonnull;
  */
 public class LocalRecoveryConfig {
 
-    /** The local recovery mode. */
-    private final boolean localRecoveryEnabled;
-
     /** Encapsulates the root directories and the subtask-specific path. */
-    @Nonnull private final LocalRecoveryDirectoryProvider localStateDirectories;
+    @Nullable private final LocalRecoveryDirectoryProvider localStateDirectories;
 
-    public LocalRecoveryConfig(
-            boolean localRecoveryEnabled,
-            @Nonnull LocalRecoveryDirectoryProvider directoryProvider) {
-        this.localRecoveryEnabled = localRecoveryEnabled;
+    public LocalRecoveryConfig(@Nullable LocalRecoveryDirectoryProvider directoryProvider) {
         this.localStateDirectories = directoryProvider;
     }
 
     public boolean isLocalRecoveryEnabled() {
-        return localRecoveryEnabled;
+        return localStateDirectories != null;
     }
 
-    @Nonnull
-    public LocalRecoveryDirectoryProvider getLocalStateDirectoryProvider() {
-        return localStateDirectories;
+    public Optional<LocalRecoveryDirectoryProvider> getLocalStateDirectoryProvider() {
+        return Optional.ofNullable(localStateDirectories);
     }
 
     @Override
     public String toString() {
-        return "LocalRecoveryConfig{"
-                + "localRecoveryMode="
-                + localRecoveryEnabled
-                + ", localStateDirectories="
-                + localStateDirectories
-                + '}';
+        return "LocalRecoveryConfig{" + "localStateDirectories=" + localStateDirectories + '}';
+    }
+
+    public static Supplier<IllegalStateException> localRecoveryNotEnabled() {
+        return () ->
+                new IllegalStateException(
+                        "Getting a LocalRecoveryDirectoryProvider is only supported with the local recovery enabled. This is a bug and should be reported.");
     }
 }

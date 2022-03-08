@@ -90,6 +90,11 @@ abstract class AbstractChangelogState<K, N, V, S extends InternalKvState<K, N, V
         return delegatedState.getStateIncrementalVisitor(recommendedMaxNumberOfReturnedRecords);
     }
 
+    @Override
+    public void resetWritingMetaFlag() {
+        changeLogger.resetWritingMetaFlag();
+    }
+
     protected N getCurrentNamespace() throws NullPointerException {
         return checkNotNull(currentNamespace);
     }

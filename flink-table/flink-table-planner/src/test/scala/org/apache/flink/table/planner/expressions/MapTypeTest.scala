@@ -40,10 +40,10 @@ class MapTypeTest extends MapTypeTestBase {
 
   @Test
   def testItem(): Unit = {
-    testSqlApi("f0['map is null']", "null")
-    testSqlApi("f1['map is empty']", "null")
+    testSqlApi("f0['map is null']", "NULL")
+    testSqlApi("f1['map is empty']", "NULL")
     testSqlApi("f2['b']", "13")
-    testSqlApi("f3[1]", "null")
+    testSqlApi("f3[1]", "NULL")
     testSqlApi("f3[12]", "a")
     testSqlApi("f2[f3[12]]", "12")
   }
@@ -55,9 +55,9 @@ class MapTypeTest extends MapTypeTestBase {
 
     testAllApis(
       map(true, true),
-      "map(true, true)",
+      "map(TRUE, TRUE)",
       "map[TRUE, TRUE]",
-      "{true=true}")
+      "{TRUE=TRUE}")
 
     // object literals
     testTableApi(map(BigDecimal(1), BigDecimal(1)), "map(1p, 1p)", "{1=1}")
@@ -78,7 +78,7 @@ class MapTypeTest extends MapTypeTestBase {
       map(1, nullOf(DataTypes.INT)),
       "map(1, Null(INT))",
       "map[1, NULLIF(1,1)]",
-      "{1=null}")
+      "{1=NULL}")
 
     // explicit conversion
     testAllApis(
@@ -162,7 +162,7 @@ class MapTypeTest extends MapTypeTestBase {
       map('f1.at("a"), 'f5),
       "map(f1.at('a'), f5)",
       "MAP[f1['a'], f5]",
-      "{null=12}")
+      "{NULL=12}")
 
     testAllApis(
       'f1,
@@ -203,55 +203,55 @@ class MapTypeTest extends MapTypeTestBase {
       'f1 === 'f2,
       "f1 === f2",
       "f1 = f2",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f3 === 'f7,
       "f3 === f7",
       "f3 = f7",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f5 === 'f2.at("a"),
       "f5 === f2.at('a')",
       "f5 = f2['a']",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f8 === 'f9,
       "f8 === f9",
       "f8 = f9",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f10 === 'f11,
       "f10 === f11",
       "f10 = f11",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f8 !== 'f9,
       "f8 !== f9",
       "f8 <> f9",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f10 !== 'f11,
       "f10 !== f11",
       "f10 <> f11",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f0.at("map is null"),
       "f0.at('map is null')",
       "f0['map is null']",
-      "null")
+      "NULL")
 
     testAllApis(
       'f1.at("map is empty"),
       "f1.at('map is empty')",
       "f1['map is empty']",
-      "null")
+      "NULL")
 
     testAllApis(
       'f2.at("b"),
@@ -263,7 +263,7 @@ class MapTypeTest extends MapTypeTestBase {
       'f3.at(1),
       "f3.at(1)",
       "f3[1]",
-      "null")
+      "NULL")
 
     testAllApis(
       'f3.at(12),
@@ -281,25 +281,25 @@ class MapTypeTest extends MapTypeTestBase {
       'f2.at("a").isNotNull,
       "f2.at('a').isNotNull",
       "f2['a'] IS NOT NULL",
-      "true")
+      "TRUE")
 
     testAllApis(
       'f2.at("a").isNull,
       "f2.at('a').isNull",
       "f2['a'] IS NULL",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f2.at("c").isNotNull,
       "f2.at('c').isNotNull",
       "f2['c'] IS NOT NULL",
-      "false")
+      "FALSE")
 
     testAllApis(
       'f2.at("c").isNull,
       "f2.at('c').isNull",
       "f2['c'] IS NULL",
-      "true")
+      "TRUE")
   }
 
   @Test

@@ -23,9 +23,7 @@ import org.apache.flink.annotation.Internal;
 import org.elasticsearch.action.ActionListener;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
-import org.elasticsearch.client.RestHighLevelClient;
 
-import java.io.Serializable;
 import java.util.function.BiConsumer;
 
 /**
@@ -33,9 +31,5 @@ import java.util.function.BiConsumer;
  * across different Elasticsearch versions.
  */
 @Internal
-interface BulkRequestConsumerFactory extends Serializable {
-    BulkRequestFactory create(RestHighLevelClient client);
-
-    interface BulkRequestFactory
-            extends Serializable, BiConsumer<BulkRequest, ActionListener<BulkResponse>> {}
-}
+interface BulkRequestConsumerFactory
+        extends BiConsumer<BulkRequest, ActionListener<BulkResponse>> {}

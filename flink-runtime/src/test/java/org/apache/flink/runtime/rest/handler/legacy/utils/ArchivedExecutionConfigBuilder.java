@@ -49,7 +49,7 @@ public class ArchivedExecutionConfigBuilder {
         return this;
     }
 
-    public ArchivedExecutionConfigBuilder setMaxParallelism(int parallelism) {
+    public ArchivedExecutionConfigBuilder setMaxParallelism(int maxParallelism) {
         this.maxParallelism = maxParallelism;
         return this;
     }

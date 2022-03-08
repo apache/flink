@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecTemporalSort
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.{RelExplainUtil, SortUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}

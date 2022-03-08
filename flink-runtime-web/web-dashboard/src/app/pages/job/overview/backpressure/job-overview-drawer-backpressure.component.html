@@ -34,9 +34,7 @@
           <span *ngIf="backpressure['end-timestamp']">
             {{ now - backpressure['end-timestamp'] | humanizeDuration }} ago
           </span>
-          <span *ngIf="backpressure['status'] === 'deprecated'">
-            Sampling in progress...
-          </span>
+          <span *ngIf="backpressure['status'] === 'deprecated'">Sampling in progress...</span>
           <span *ngIf="!backpressure['end-timestamp'] && backpressure['status'] !== 'deprecated'">
             -
           </span>

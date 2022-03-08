@@ -103,7 +103,7 @@ public abstract class ArrowSourceFunctionTestBase {
                     public void collect(RowData element) {
                         if (numOfEmittedElements.get() == 2) {
                             latch.trigger();
-                            // fail the source function at the the second element
+                            // fail the source function at the second element
                             throw new RuntimeException("Fail the arrow source");
                         }
                         results.add(typeSerializer.copy(element));

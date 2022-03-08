@@ -36,10 +36,14 @@ import java.util.Map;
 
 /** A package private class to wrap {@link Deserializer}. */
 class KafkaValueOnlyDeserializerWrapper<T> implements KafkaRecordDeserializationSchema<T> {
+
     private static final long serialVersionUID = 5409547407386004054L;
+
     private static final Logger LOG =
             LoggerFactory.getLogger(KafkaValueOnlyDeserializerWrapper.class);
+
     private final Class<? extends Deserializer<T>> deserializerClass;
+
     private final Map<String, String> config;
 
     private transient Deserializer<T> deserializer;
@@ -62,8 +66,12 @@ class KafkaValueOnlyDeserializerWrapper<T> implements KafkaRecordDeserialization
                                     deserializerClass.getName(),
                                     Deserializer.class,
                                     getClass().getClassLoader());
+
             if (deserializer instanceof Configurable) {
                 ((Configurable) deserializer).configure(config);
+            } else {
+                // Always be false since this Deserializer is only used for value.
+                deserializer.configure(config, false);
             }
         } catch (Exception e) {
             throw new IOException(

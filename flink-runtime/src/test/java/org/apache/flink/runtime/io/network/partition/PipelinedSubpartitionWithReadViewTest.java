@@ -20,6 +20,7 @@ package org.apache.flink.runtime.io.network.partition;
 
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.RecordingChannelStateWriter;
 import org.apache.flink.runtime.event.AbstractEvent;
@@ -255,10 +256,11 @@ public class PipelinedSubpartitionWithReadViewTest {
         subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
         assertFalse(readView.getAvailabilityAndBacklog(0).isAvailable());
 
-        assertEquals(1, subpartition.getTotalNumberOfBuffers());
+        assertEquals(1, subpartition.getTotalNumberOfBuffersUnsafe());
         assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
         assertEquals(
-                0, subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
+                0,
+                subpartition.getTotalNumberOfBytesUnsafe()); // only updated when getting the buffer
 
         assertEquals(0, availablityListener.getNumNotifications());
 
@@ -266,7 +268,7 @@ public class PipelinedSubpartitionWithReadViewTest {
         assertNextBuffer(readView, BUFFER_SIZE, false, 0, false, true);
         assertEquals(
                 BUFFER_SIZE,
-                subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
+                subpartition.getTotalNumberOfBytesUnsafe()); // only updated when getting the buffer
         assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
         assertNoNextBuffer(readView);
         assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
@@ -275,17 +277,17 @@ public class PipelinedSubpartitionWithReadViewTest {
         subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
         assertFalse(readView.getAvailabilityAndBacklog(0).isAvailable());
 
-        assertEquals(2, subpartition.getTotalNumberOfBuffers());
+        assertEquals(2, subpartition.getTotalNumberOfBuffersUnsafe());
         assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
         assertEquals(
                 BUFFER_SIZE,
-                subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
+                subpartition.getTotalNumberOfBytesUnsafe()); // only updated when getting the buffer
         assertEquals(0, availablityListener.getNumNotifications());
 
         assertNextBuffer(readView, BUFFER_SIZE, false, 0, false, true);
         assertEquals(
                 2 * BUFFER_SIZE,
-                subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
+                subpartition.getTotalNumberOfBytesUnsafe()); // only updated when getting the buffer
         assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
         assertNoNextBuffer(readView);
         assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
@@ -300,41 +302,41 @@ public class PipelinedSubpartitionWithReadViewTest {
         subpartition.add(createFilledFinishedBufferConsumer(BUFFER_SIZE));
         assertFalse(readView.getAvailabilityAndBacklog(0).isAvailable());
 
-        assertEquals(5, subpartition.getTotalNumberOfBuffers());
+        assertEquals(5, subpartition.getTotalNumberOfBuffersUnsafe());
         assertEquals(
                 1, subpartition.getBuffersInBacklogUnsafe()); // two buffers (events don't count)
         assertEquals(
                 2 * BUFFER_SIZE,
-                subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
+                subpartition.getTotalNumberOfBytesUnsafe()); // only updated when getting the buffer
         assertEquals(1, availablityListener.getNumNotifications());
 
         // the first buffer
         assertNextBuffer(readView, BUFFER_SIZE, true, 0, true, true);
         assertEquals(
                 3 * BUFFER_SIZE,
-                subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
+                subpartition.getTotalNumberOfBytesUnsafe()); // only updated when getting the buffer
         assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
 
         // the event
         assertNextEvent(readView, BUFFER_SIZE, null, false, 0, false, true);
         assertEquals(
                 4 * BUFFER_SIZE,
-                subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
+                subpartition.getTotalNumberOfBytesUnsafe()); // only updated when getting the buffer
         assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
 
         // the remaining buffer
         assertNextBuffer(readView, BUFFER_SIZE, false, 0, false, true);
         assertEquals(
                 5 * BUFFER_SIZE,
-                subpartition.getTotalNumberOfBytes()); // only updated when getting the buffer
+                subpartition.getTotalNumberOfBytesUnsafe()); // only updated when getting the buffer
         assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
 
         // nothing more
         assertNoNextBuffer(readView);
         assertEquals(0, subpartition.getBuffersInBacklogUnsafe());
 
-        assertEquals(5, subpartition.getTotalNumberOfBuffers());
-        assertEquals(5 * BUFFER_SIZE, subpartition.getTotalNumberOfBytes());
+        assertEquals(5, subpartition.getTotalNumberOfBuffersUnsafe());
+        assertEquals(5 * BUFFER_SIZE, subpartition.getTotalNumberOfBytesUnsafe());
         assertEquals(1, availablityListener.getNumNotifications());
     }
 
@@ -363,6 +365,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 
         CheckpointOptions options =
                 CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
                         new CheckpointStorageLocationReference(new byte[] {0, 1, 2}));
         channelStateWriter.start(0, options);
         BufferConsumer barrierBuffer =
@@ -406,6 +409,7 @@ public class PipelinedSubpartitionWithReadViewTest {
 
         CheckpointOptions options =
                 CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
                         new CheckpointStorageLocationReference(new byte[] {0, 1, 2}));
         BufferConsumer barrierBuffer =
                 EventSerializer.toBufferConsumer(new CheckpointBarrier(0, 0, options), true);

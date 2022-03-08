@@ -25,32 +25,23 @@ specific language governing permissions and limitations
 under the License.
 -->
 
-# Working with State
+# 使用状态
 
-In this section you will learn about the APIs that Flink provides for writing
-stateful programs. Please take a look at [Stateful Stream
-Processing]({{< ref "docs/concepts/stateful-stream-processing" >}})
-to learn about the concepts behind stateful stream processing.
+本章节您将了解 Flink 用于编写有状态程序的 API。要了解有状态流处理背后的概念，请参阅[Stateful Stream
+Processing]({{< ref "docs/concepts/stateful-stream-processing" >}})。
 
 ## Keyed DataStream
 
-If you want to use keyed state, you first need to specify a key on a
-`DataStream` that should be used to partition the state (and also the records
-in the stream themselves). You can specify a key using `keyBy(KeySelector)`
-in Java/Scala API or `key_by(KeySelector)` in Python API on a `DataStream`.
-This will yield a `KeyedStream`, which then allows operations that use keyed state.
+如果你希望使用 keyed state，首先需要为`DataStream`指定 key（主键）。这个主键用于状态分区（也会给数据流中的记录本身分区）。
+你可以使用 `DataStream` 中 Java/Scala API 的 `keyBy(KeySelector)` 或者是 Python API 的 `key_by(KeySelector)` 来指定 key。
+它将生成 `KeyedStream`，接下来允许使用 keyed state 操作。
 
-A key selector function takes a single record as input and returns the key for
-that record. The key can be of any type and **must** be derived from
-deterministic computations.
+Key selector 函数接收单条记录作为输入，返回这条记录的 key。该 key 可以为任何类型，但是它的计算产生方式**必须**是具备确定性的。
 
-The data model of Flink is not based on key-value pairs. Therefore, you do not
-need to physically pack the data set types into keys and values. Keys are
-"virtual": they are defined as functions over the actual data to guide the
-grouping operator.
+Flink 的数据模型不基于 key-value 对，因此实际上将数据集在物理上封装成 key 和 value 是没有必要的。
+Key 是“虚拟”的。它们定义为基于实际数据的函数，用以操纵分组算子。
 
-The following example shows a key selector function that simply returns the
-field of an object:
+下面的例子展示了 key selector 函数。它仅返回了对象当中的字段。
 
 {{< tabs "9730828c-2f0f-48c8-9a5c-4ec415d0c492" >}}
 {{< tab "Java" >}}
@@ -85,15 +76,12 @@ keyed = words.key_by(lambda row: row[0])
 {{< /tab >}}
 {{< /tabs >}}
 
-#### Tuple Keys and Expression Keys
+#### Tuple Keys 和 Expression Keys
 
-Flink also has two alternative ways of defining keys: tuple keys and expression
-keys in the Java/Scala API(still not supported in the Python API). With this you can
-specify keys using tuple field indices or expressions
-for selecting fields of objects. We don't recommend using these today but you
-can refer to the Javadoc of DataStream to learn about them. Using a KeySelector
-function is strictly superior: with Java lambdas they are easy to use and they
-have potentially less overhead at runtime.
+Flink 也有两种不同定义 key 的方式：Java/Scala API（Python API 仍未支持） 的 Tuple key（通过字段索引指定的 key）和 Expression key（通过字段名称指定的 key）。
+借此你可以通过 tuple 字段索引，或者是选取对象字段的表达式来指定 key。
+如今我们不建议这样使用，但你可以参考 `DataStream` 的 Javadoc 来了解它们。 
+使用 KeySelector 函数显然是更好的。以几乎可以忽略的额外开销为代价，结合 Java Lambda 表达式，我们可以更方便得使用KeySelector。
 
 {{< top >}}
 
@@ -605,41 +593,27 @@ val counts: DataStream[(String, Int)] = stream
     })
 ```
 
-## Operator State
+## 算子状态 (Operator State)
 
-*Operator State* (or *non-keyed state*) is state that is bound to one
-parallel operator instance. The [Kafka Connector]({{< ref "docs/connectors/datastream/kafka" >}}) is a good motivating example for the use of
-Operator State in Flink. Each parallel instance of the Kafka consumer maintains
-a map of topic partitions and offsets as its Operator State.
+*算子状态*（或者*非 keyed 状态*）是绑定到一个并行算子实例的状态。[Kafka Connector]({{< ref "docs/connectors/datastream/kafka" >}}) 是 Flink 中使用算子状态一个很具有启发性的例子。Kafka consumer 每个并行实例维护了 topic partitions 和偏移量的 map 作为它的算子状态。
 
-The Operator State interfaces support redistributing state among parallel
-operator instances when the parallelism is changed. There are different schemes
-for doing this redistribution.
+当并行度改变的时候，算子状态支持将状态重新分发给各并行算子实例。处理重分发过程有多种不同的方案。
 
-In a typical stateful Flink Application you don't need operators state. It is
-mostly a special type of state that is used in source/sink implementations and
-scenarios where you don't have a key by which state can be partitioned.
+在典型的有状态 Flink 应用中你无需使用算子状态。它大都作为一种特殊类型的状态使用。用于实现 source/sink，以及无法对 state 进行分区而没有主键的这类场景中。
 
-**Notes:** Operator state is still not supported in Python DataStream API.
+**注意：** Python DataStream API 仍无法支持算子状态。
 
-## Broadcast State
+## 广播状态 (Broadcast State)
 
-*Broadcast State* is a special type of *Operator State*.  It was introduced to
-support use cases where records of one stream need to be broadcasted to all
-downstream tasks, where they are used to maintain the same state among all
-subtasks. This state can then be accessed while processing records of a second
-stream. As an example where broadcast state can emerge as a natural fit, one
-can imagine a low-throughput stream containing a set of rules which we want to
-evaluate against all elements coming from another stream. Having the above type
-of use cases in mind, broadcast state differs from the rest of operator states
-in that:
+*广播状态*是一种特殊的*算子状态*。引入它的目的在于支持一个流中的元素需要广播到所有下游任务的使用情形。在这些任务中广播状态用于保持所有子任务状态相同。
+该状态接下来可在第二个处理记录的数据流中访问。可以设想包含了一系列用于处理其他流中元素规则的低吞吐量数据流，这个例子自然而然地运用了广播状态。
+考虑到上述这类使用情形，广播状态和其他算子状态的不同之处在于：
 
- 1. it has a map format,
- 2. it is only available to specific operators that have as inputs a
-    *broadcasted* stream and a *non-broadcasted* one, and
- 3. such an operator can have *multiple broadcast states* with different names.
+ 1. 它具有 map 格式，
+ 2. 它仅在一些特殊的算子中可用。这些算子的输入为一个*广播*数据流和*非广播*数据流，
+ 3. 这类算子可以拥有不同命名的*多个广播状态* 。
 
-**Notes:** Broadcast state is still not supported in Python DataStream API.
+**注意：** Python DataStream API 仍无法支持广播状态。
 
 {{< top >}}
 

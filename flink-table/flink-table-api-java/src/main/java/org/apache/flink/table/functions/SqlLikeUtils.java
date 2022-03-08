@@ -46,9 +46,27 @@ public class SqlLikeUtils {
 
     private SqlLikeUtils() {}
 
-    /** SQL like function with escape. */
+    /** SQL {@code LIKE} function. */
+    public static boolean like(String s, String pattern) {
+        final String regex = sqlToRegexLike(pattern, null);
+        return Pattern.matches(regex, s);
+    }
+
+    /** SQL {@code LIKE} function with escape. */
     public static boolean like(String s, String pattern, String escape) {
         final String regex = sqlToRegexLike(pattern, escape);
+        return Pattern.matches(regex, s);
+    }
+
+    /** SQL {@code SIMILAR} function. */
+    public static boolean similar(String s, String pattern) {
+        final String regex = sqlToRegexSimilar(pattern, null);
+        return Pattern.matches(regex, s);
+    }
+
+    /** SQL {@code SIMILAR} function with escape. */
+    public static boolean similar(String s, String pattern, String escape) {
+        final String regex = sqlToRegexSimilar(pattern, escape);
         return Pattern.matches(regex, s);
     }
 
@@ -111,7 +129,7 @@ public class SqlLikeUtils {
             return;
         }
         if (SQL_SIMILAR_SPECIALS.indexOf(escapeChar) >= 0) {
-            // The the escape character is a special character
+            // The escape character is a special character
             // SQL 2003 Part 2 Section 8.6 General Rule 3.b
             for (int i = 0; i < sqlPattern.length(); i++) {
                 if (sqlPattern.charAt(i) == escapeChar) {
@@ -192,7 +210,7 @@ public class SqlLikeUtils {
     }
 
     /** Translates a SQL SIMILAR pattern to Java regex pattern, with optional escape string. */
-    static String sqlToRegexSimilar(String sqlPattern, CharSequence escapeStr) {
+    public static String sqlToRegexSimilar(String sqlPattern, CharSequence escapeStr) {
         final char escapeChar;
         if (escapeStr != null) {
             if (escapeStr.length() != 1) {
@@ -206,7 +224,7 @@ public class SqlLikeUtils {
     }
 
     /** Translates SQL SIMILAR pattern to Java regex pattern. */
-    static String sqlToRegexSimilar(String sqlPattern, char escapeChar) {
+    public static String sqlToRegexSimilar(String sqlPattern, char escapeChar) {
         similarEscapeRuleChecking(sqlPattern, escapeChar);
 
         boolean insideCharacterEnumeration = false;

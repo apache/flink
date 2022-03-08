@@ -21,6 +21,7 @@ package org.apache.flink.runtime.taskmanager;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.deployment.ResultPartitionDeploymentDescriptor;
 import org.apache.flink.runtime.event.AbstractEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.CheckpointedResultPartition;
@@ -149,8 +150,8 @@ public class ConsumableNotifyingResultPartitionWriterDecorator {
         }
 
         @Override
-        public void notifyEndOfData() throws IOException {
-            partitionWriter.notifyEndOfData();
+        public void notifyEndOfData(StopMode mode) throws IOException {
+            partitionWriter.notifyEndOfData(mode);
         }
 
         @Override

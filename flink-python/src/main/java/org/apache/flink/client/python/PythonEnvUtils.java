@@ -362,8 +362,8 @@ final class PythonEnvUtils {
         Thread thread =
                 new Thread(
                         () -> {
-                            try {
-                                int freePort = NetUtils.getAvailablePort();
+                            try (NetUtils.Port port = NetUtils.getAvailablePort()) {
+                                int freePort = port.getPort();
                                 GatewayServer server =
                                         new GatewayServer.GatewayServerBuilder()
                                                 .gateway(

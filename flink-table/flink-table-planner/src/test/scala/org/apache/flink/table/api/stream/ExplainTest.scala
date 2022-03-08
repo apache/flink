@@ -46,14 +46,14 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
   util.addDataStream[(Int, Long, String)]("MyTable1", 'a, 'b, 'c)
   util.addDataStream[(Int, Long, String)]("MyTable2", 'd, 'e, 'f)
 
-  val STRING = new VarCharType(VarCharType.MAX_LENGTH)
+  val STRING = VarCharType.STRING_TYPE
   val LONG = new BigIntType()
   val INT = new IntType()
 
   @Before
   def before(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setInteger(
-      ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 4)
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(4))
   }
 
   @Test
@@ -128,10 +128,12 @@ class ExplainTest(extended: Boolean) extends TableTestBase {
       "T2", 'id2, 'cnt, 'name, 'goods, 'rowtime.rowtime)
     util.addTableWithWatermark("T3", util.tableEnv.from("T1"), "rowtime", 0)
     util.addTableWithWatermark("T4", util.tableEnv.from("T2"), "rowtime", 0)
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.set(
-      ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(3))
+    util.tableEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig
+      .set(
+        ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY,
+        Duration.ofSeconds(3))
     val table = util.tableEnv.sqlQuery(
       """
         |SELECT id1, T3.rowtime AS ts, text

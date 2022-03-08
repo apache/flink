@@ -21,6 +21,7 @@ package org.apache.flink.runtime.testutils;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.HeartbeatManagerOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.RestOptions;
@@ -29,8 +30,11 @@ import org.apache.flink.configuration.UnmodifiableConfiguration;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
+import org.apache.flink.runtime.resourcemanager.ResourceOverview;
+import org.apache.flink.runtime.rpc.RpcSystem;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.Preconditions;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.concurrent.FutureUtils;
 
 import org.junit.rules.ExternalResource;
@@ -66,6 +70,12 @@ public class MiniClusterResource extends ExternalResource {
 
     private UnmodifiableConfiguration restClusterClientConfig;
 
+    private static final RpcSystem rpcSystem = RpcSystem.load();
+
+    static {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> rpcSystem.close()));
+    }
+
     public MiniClusterResource(
             final MiniClusterResourceConfiguration miniClusterResourceConfiguration) {
         this.miniClusterResourceConfiguration =
@@ -99,15 +109,29 @@ public class MiniClusterResource extends ExternalResource {
                         * miniClusterResourceConfiguration.getNumberTaskManagers();
     }
 
-    public void cancelAllJobs() {
-        try {
-            final Deadline jobCancellationDeadline =
-                    Deadline.fromNow(
-                            Duration.ofMillis(
-                                    miniClusterResourceConfiguration
-                                            .getShutdownTimeout()
-                                            .toMilliseconds()));
+    public void cancelAllJobsAndWaitUntilSlotsAreFreed() {
+        final long heartbeatTimeout =
+                miniCluster.getConfiguration().get(HeartbeatManagerOptions.HEARTBEAT_INTERVAL);
+        final long shutdownTimeout =
+                miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds();
+        Preconditions.checkState(
+                heartbeatTimeout < shutdownTimeout,
+                "Heartbeat timeout (%d) needs to be lower than the shutdown timeout (%d) in order to ensure reliable job cancellation and resource cleanup.",
+                heartbeatTimeout,
+                shutdownTimeout);
+        cancelAllJobs(true);
+    }
 
+    public void cancelAllJobs() {
+        cancelAllJobs(false);
+    }
+
+    private void cancelAllJobs(boolean waitUntilSlotsAreFreed) {
+        try {
+            final long shutdownTimeout =
+                    miniClusterResourceConfiguration.getShutdownTimeout().toMilliseconds();
+            final Deadline jobCancellationDeadline =
+                    Deadline.fromNow(Duration.ofMillis(shutdownTimeout));
             final List<CompletableFuture<Acknowledge>> jobCancellationFutures =
                     miniCluster.listJobs()
                             .get(
@@ -137,6 +161,17 @@ public class MiniClusterResource extends ExternalResource {
                         return unfinishedJobs == 0;
                     },
                     jobCancellationDeadline);
+
+            if (waitUntilSlotsAreFreed) {
+                CommonTestUtils.waitUntilCondition(
+                        () -> {
+                            final ResourceOverview resourceOverview =
+                                    miniCluster.getResourceOverview().get();
+                            return resourceOverview.getNumberRegisteredSlots()
+                                    == resourceOverview.getNumberFreeSlots();
+                        },
+                        jobCancellationDeadline);
+            }
         } catch (Exception e) {
             log.warn("Exception while shutting down remaining jobs.", e);
         }
@@ -204,7 +239,8 @@ public class MiniClusterResource extends ExternalResource {
                         .setHaServices(miniClusterResourceConfiguration.getHaServices())
                         .build();
 
-        miniCluster = new MiniCluster(miniClusterConfiguration);
+        miniCluster =
+                new MiniCluster(miniClusterConfiguration, () -> Reference.borrowed(rpcSystem));
 
         miniCluster.start();
 

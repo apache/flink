@@ -34,7 +34,7 @@ import java.util.Map;
 /** Base class for all Python DataStream operators. */
 @Internal
 public abstract class AbstractDataStreamPythonFunctionOperator<OUT>
-        extends AbstractPythonFunctionOperator<OUT> implements ResultTypeQueryable<OUT> {
+        extends AbstractExternalPythonFunctionOperator<OUT> implements ResultTypeQueryable<OUT> {
 
     private static final long serialVersionUID = 1L;
 

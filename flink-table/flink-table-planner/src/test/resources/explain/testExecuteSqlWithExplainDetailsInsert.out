@@ -24,9 +24,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[d, e])
     "parallelism" : 1
   }, {
     "id" : ,
-    "type" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
+    "type" : "SourceConversion[]",
     "pact" : "Operator",
-    "contents" : "SourceConversion(table=[default_catalog.default_database.MyTable, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
+    "contents" : "[]:SourceConversion(table=[default_catalog.default_database.MyTable, source: [CollectionTableSource(a, b, c)]], fields=[a, b, c])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -35,9 +35,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[d, e])
     } ]
   }, {
     "id" : ,
-    "type" : "Calc(select=[a, b], where=[(a > 10)])",
+    "type" : "Calc[]",
     "pact" : "Operator",
-    "contents" : "Calc(select=[a, b], where=[(a > 10)])",
+    "contents" : "[]:Calc(select=[a, b], where=[(a > 10)])",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,
@@ -46,9 +46,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`MySink`], fields=[d, e])
     } ]
   }, {
     "id" : ,
-    "type" : "SinkConversionToRow",
+    "type" : "SinkConversion[]",
     "pact" : "Operator",
-    "contents" : "SinkConversionToRow",
+    "contents" : "[]:SinkConversion To Row",
     "parallelism" : 1,
     "predecessors" : [ {
       "id" : ,

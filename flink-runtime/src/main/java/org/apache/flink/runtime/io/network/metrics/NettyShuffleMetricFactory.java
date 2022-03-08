@@ -18,7 +18,9 @@
 
 package org.apache.flink.runtime.io.network.metrics;
 
+import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.MetricGroup;
+import org.apache.flink.metrics.View;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -54,6 +56,8 @@ public class NettyShuffleMetricFactory {
     private static final String METRIC_USED_MEMORY_SEGMENT = "UsedMemorySegments";
     private static final String METRIC_USED_MEMORY = "UsedMemory";
 
+    private static final String METRIC_REQUESTED_MEMORY_USAGE = "RequestedMemoryUsage";
+
     // task level metric group structure: Shuffle.Netty.<Input|Output>.Buffers
 
     private static final String METRIC_GROUP_SHUFFLE = "Shuffle";
@@ -65,11 +69,13 @@ public class NettyShuffleMetricFactory {
     // task level output metrics: Shuffle.Netty.Output.*
 
     private static final String METRIC_OUTPUT_QUEUE_LENGTH = "outputQueueLength";
+    private static final String METRIC_OUTPUT_QUEUE_SIZE = "outputQueueSize";
     private static final String METRIC_OUTPUT_POOL_USAGE = "outPoolUsage";
 
     // task level input metrics: Shuffle.Netty.Input.*
 
     private static final String METRIC_INPUT_QUEUE_LENGTH = "inputQueueLength";
+    private static final String METRIC_INPUT_QUEUE_SIZE = "inputQueueSize";
     private static final String METRIC_INPUT_POOL_USAGE = "inPoolUsage";
     private static final String METRIC_INPUT_FLOATING_BUFFERS_USAGE = "inputFloatingBuffersUsage";
     private static final String METRIC_INPUT_EXCLUSIVE_BUFFERS_USAGE = "inputExclusiveBuffersUsage";
@@ -115,6 +121,9 @@ public class NettyShuffleMetricFactory {
         networkGroup.gauge(
                 METRIC_USED_MEMORY_SEGMENT, networkBufferPool::getNumberOfUsedMemorySegments);
         networkGroup.gauge(METRIC_USED_MEMORY, networkBufferPool::getUsedMemory);
+
+        networkGroup.gauge(
+                METRIC_REQUESTED_MEMORY_USAGE, new RequestedMemoryUsageMetric(networkBufferPool));
     }
 
     public static MetricGroup createShuffleIOOwnerMetricGroup(MetricGroup parentGroup) {
@@ -178,6 +187,7 @@ public class NettyShuffleMetricFactory {
             ResultPartitionMetrics.registerQueueLengthMetrics(outputGroup, resultPartitions);
         }
         buffersGroup.gauge(METRIC_OUTPUT_QUEUE_LENGTH, new OutputBuffersGauge(resultPartitions));
+        buffersGroup.gauge(METRIC_OUTPUT_QUEUE_SIZE, new OutputBuffersSizeGauge(resultPartitions));
         buffersGroup.gauge(
                 METRIC_OUTPUT_POOL_USAGE, new OutputBufferPoolUsageGauge(resultPartitions));
     }
@@ -201,6 +211,7 @@ public class NettyShuffleMetricFactory {
         }
 
         buffersGroup.gauge(METRIC_INPUT_QUEUE_LENGTH, new InputBuffersGauge(inputGates));
+        buffersGroup.gauge(METRIC_INPUT_QUEUE_SIZE, new InputBuffersSizeGauge(inputGates));
 
         FloatingBuffersUsageGauge floatingBuffersUsageGauge =
                 new FloatingBuffersUsageGauge(inputGates);
@@ -218,5 +229,27 @@ public class NettyShuffleMetricFactory {
             SingleInputGate[] inputGates, MetricGroup taskGroup) {
         taskGroup.gauge(
                 MetricNames.ESTIMATED_TIME_TO_CONSUME_BUFFERS, new TimeToConsumeGauge(inputGates));
+    }
+
+    /**
+     * This is a small hack. Instead of spawning a custom thread to monitor {@link
+     * NetworkBufferPool} usage, we are re-using {@link View#update()} method for this purpose.
+     */
+    private static class RequestedMemoryUsageMetric implements Gauge<Integer>, View {
+        private final NetworkBufferPool networkBufferPool;
+
+        public RequestedMemoryUsageMetric(NetworkBufferPool networkBufferPool) {
+            this.networkBufferPool = networkBufferPool;
+        }
+
+        @Override
+        public Integer getValue() {
+            return networkBufferPool.getRequestedSegmentsUsage();
+        }
+
+        @Override
+        public void update() {
+            networkBufferPool.maybeLogUsageWarning();
+        }
     }
 }

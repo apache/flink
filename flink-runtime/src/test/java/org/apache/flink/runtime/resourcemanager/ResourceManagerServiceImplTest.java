@@ -20,6 +20,8 @@ package org.apache.flink.runtime.resourcemanager;
 
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
@@ -38,7 +40,6 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Properties;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
@@ -69,8 +70,6 @@ public class ResourceManagerServiceImplTest extends TestLogger {
     private TestingLeaderElectionService leaderElectionService;
     private ResourceManagerServiceImpl resourceManagerService;
 
-    private Properties sysProps;
-
     @BeforeClass
     public static void setupClass() {
         rpcService = new TestingRpcService();
@@ -80,8 +79,6 @@ public class ResourceManagerServiceImplTest extends TestLogger {
 
     @Before
     public void setup() throws Exception {
-        sysProps = System.getProperties();
-        System.setProperty(ResourceManagerServiceImpl.ENABLE_MULTI_LEADER_SESSION_PROPERTY, "");
 
         fatalErrorHandler.clearError();
 
@@ -104,8 +101,6 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         if (fatalErrorHandler.hasExceptionOccurred()) {
             fatalErrorHandler.rethrowError();
         }
-
-        System.setProperties(sysProps);
     }
 
     @AfterClass
@@ -126,6 +121,7 @@ public class ResourceManagerServiceImplTest extends TestLogger {
                 ResourceManagerServiceImpl.create(
                         rmFactory,
                         new Configuration(),
+                        ResourceID.generate(),
                         rpcService,
                         haService,
                         heartbeatServices,
@@ -333,8 +329,9 @@ public class ResourceManagerServiceImplTest extends TestLogger {
     }
 
     @Test
-    public void revokeLeadership_terminateService_multiLeaderSessionDisabled() throws Exception {
-        System.clearProperty(ResourceManagerServiceImpl.ENABLE_MULTI_LEADER_SESSION_PROPERTY);
+    public void revokeLeadership_terminateService_multiLeaderSessionNotSupported()
+            throws Exception {
+        rmFactoryBuilder.setSupportMultiLeaderSession(false);
 
         createAndStartResourceManager();
 
@@ -450,6 +447,49 @@ public class ResourceManagerServiceImplTest extends TestLogger {
         finishRmTerminationFuture.complete(null);
 
         closeServiceFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+    }
+
+    @Test
+    public void deregisterApplication_leaderRmNotStarted() throws Exception {
+        final CompletableFuture<Void> startRmInitializationFuture = new CompletableFuture<>();
+        final CompletableFuture<Void> finishRmInitializationFuture = new CompletableFuture<>();
+
+        rmFactoryBuilder.setInitializeConsumer(
+                (ignore) -> {
+                    startRmInitializationFuture.complete(null);
+                    blockOnFuture(finishRmInitializationFuture);
+                });
+
+        createAndStartResourceManager();
+
+        // grant leadership
+        leaderElectionService.isLeader(UUID.randomUUID());
+
+        // make sure leader RM is created
+        startRmInitializationFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+
+        // deregister application
+        final CompletableFuture<Void> deregisterApplicationFuture =
+                resourceManagerService.deregisterApplication(ApplicationStatus.CANCELED, null);
+
+        // RM not fully started, future should not complete
+        assertNotComplete(deregisterApplicationFuture);
+
+        // finish starting RM
+        finishRmInitializationFuture.complete(null);
+
+        // should perform deregistration
+        deregisterApplicationFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
+    }
+
+    @Test
+    public void deregisterApplication_noLeaderRm() throws Exception {
+        createAndStartResourceManager();
+        final CompletableFuture<Void> deregisterApplicationFuture =
+                resourceManagerService.deregisterApplication(ApplicationStatus.CANCELED, null);
+
+        // should not report error
+        deregisterApplicationFuture.get(TIMEOUT.getSize(), TIMEOUT.getUnit());
     }
 
     private static void blockOnFuture(CompletableFuture<?> future) {

@@ -20,11 +20,11 @@ package org.apache.flink.runtime.jobmanager;
 
 import org.apache.flink.api.common.JobID;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCache;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
-import org.apache.flink.shaded.curator4.org.apache.curator.utils.ZKPaths;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.PathChildrenCache;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.cache.PathChildrenCacheListener;
+import org.apache.flink.shaded.curator5.org.apache.curator.utils.ZKPaths;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

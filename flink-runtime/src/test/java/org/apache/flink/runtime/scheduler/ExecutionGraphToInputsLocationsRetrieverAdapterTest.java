@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.scheduler;
 
+import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraphTestUtils;
 import org.apache.flink.runtime.executiongraph.ExecutionVertex;
@@ -112,6 +113,7 @@ public class ExecutionGraphToInputsLocationsRetrieverAdapterTest extends TestLog
                 new ExecutionGraphToInputsLocationsRetrieverAdapter(eg);
 
         final ExecutionVertex onlyExecutionVertex = eg.getAllExecutionVertices().iterator().next();
+        onlyExecutionVertex.getCurrentExecutionAttempt().transitionState(ExecutionState.SCHEDULED);
         onlyExecutionVertex.deployToSlot(testingLogicalSlot);
 
         ExecutionVertexID executionVertexId = new ExecutionVertexID(jobVertex.getID(), 0);

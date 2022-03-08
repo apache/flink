@@ -51,6 +51,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link LocalInputPreferredSlotSharingStrategy}. */
@@ -299,6 +300,57 @@ public class LocalInputPreferredSlotSharingStrategyTest extends TestLogger {
                     strategy.getExecutionSlotSharingGroup(ev1[i].getID()).getExecutionVertexIds(),
                     containsInAnyOrder(ev1[i].getID(), ev2[i].getID()));
         }
+    }
+
+    @Test
+    public void testGetExecutionSlotSharingGroupOfLateAttachedVertices() {
+
+        JobVertexID jobVertexID1 = new JobVertexID();
+        JobVertexID jobVertexID2 = new JobVertexID();
+        JobVertexID jobVertexID3 = new JobVertexID();
+
+        final SlotSharingGroup slotSharingGroup1 = new SlotSharingGroup();
+        slotSharingGroup1.addVertexToGroup(jobVertexID1);
+        slotSharingGroup1.addVertexToGroup(jobVertexID2);
+
+        final SlotSharingGroup slotSharingGroup2 = new SlotSharingGroup();
+        slotSharingGroup2.addVertexToGroup(jobVertexID3);
+
+        TestingSchedulingTopology topology = new TestingSchedulingTopology();
+
+        TestingSchedulingExecutionVertex ev1 = topology.newExecutionVertex(jobVertexID1, 0);
+        TestingSchedulingExecutionVertex ev2 = topology.newExecutionVertex(jobVertexID2, 0);
+        topology.connect(ev1, ev2);
+
+        final LocalInputPreferredSlotSharingStrategy strategy =
+                new LocalInputPreferredSlotSharingStrategy(
+                        topology,
+                        new HashSet<>(Arrays.asList(slotSharingGroup1, slotSharingGroup2)),
+                        Collections.emptySet());
+
+        assertThat(strategy.getExecutionSlotSharingGroups().size(), is(1));
+        assertThat(
+                strategy.getExecutionSlotSharingGroup(ev1.getId()).getExecutionVertexIds(),
+                containsInAnyOrder(ev1.getId(), ev2.getId()));
+        assertThat(
+                strategy.getExecutionSlotSharingGroup(ev2.getId()).getExecutionVertexIds(),
+                containsInAnyOrder(ev1.getId(), ev2.getId()));
+
+        // add new job vertices and notify scheduling topology updated
+        TestingSchedulingExecutionVertex ev3 = topology.newExecutionVertex(jobVertexID3, 0);
+        topology.connect(ev2, ev3, ResultPartitionType.BLOCKING);
+        strategy.notifySchedulingTopologyUpdated(topology, Collections.singletonList(ev3.getId()));
+
+        assertThat(strategy.getExecutionSlotSharingGroups().size(), is(2));
+        assertThat(
+                strategy.getExecutionSlotSharingGroup(ev1.getId()).getExecutionVertexIds(),
+                containsInAnyOrder(ev1.getId(), ev2.getId()));
+        assertThat(
+                strategy.getExecutionSlotSharingGroup(ev2.getId()).getExecutionVertexIds(),
+                containsInAnyOrder(ev1.getId(), ev2.getId()));
+        assertThat(
+                strategy.getExecutionSlotSharingGroup(ev3.getId()).getExecutionVertexIds(),
+                containsInAnyOrder(ev3.getId()));
     }
 
     private static JobVertex createJobVertex(

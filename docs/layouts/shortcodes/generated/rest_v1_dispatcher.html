@@ -869,6 +869,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "string"
       }
     },
+    "restoreMode" : {
+      "type" : "string",
+      "enum" : [ "CLAIM", "NO_CLAIM", "LEGACY" ]
+    },
     "savepointPath" : {
       "type" : "string"
     }
@@ -1028,6 +1032,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogInfo",
         "properties" : {
+          "mtime" : {
+            "type" : "integer"
+          },
           "name" : {
             "type" : "string"
           },
@@ -1102,6 +1109,78 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             <code>
 {
   "type" : "any"
+}            </code>
+          </pre>
+          </div>
+        </label>
+      </div>
+      </td>
+    </tr>
+  </tbody>
+</table>
+<table class="rest-api table table-bordered">
+  <tbody>
+    <tr>
+      <td class="text-left" colspan="2"><h5><strong>/jobmanager/thread-dump</strong></h5></td>
+    </tr>
+    <tr>
+      <td class="text-left" style="width: 20%">Verb: <code>GET</code></td>
+      <td class="text-left">Response code: <code>200 OK</code></td>
+    </tr>
+    <tr>
+      <td colspan="2">Returns the thread dump of the JobManager.</td>
+    </tr>
+    <tr>
+      <td colspan="2">
+      <div class="book-expand">
+        <label>
+          <div class="book-expand-head flex justify-between">
+            <span>Request</span>
+            &nbsp;            <span>▾</span>
+          </div>
+          <input type="checkbox" class="hidden">
+          <div class="book-expand-content markdown-inner">
+          <pre>
+            <code>
+{}            </code>
+          </pre>
+          </div>
+        </label>
+      </div>
+      </td>
+    </tr>
+    <tr>
+      <td colspan="2">
+      <div class="book-expand">
+        <label>
+          <div class="book-expand-head flex justify-between">
+            <span>Response</span>
+            &nbsp;            <span>▾</span>
+          </div>
+          <input type="checkbox" class="hidden">
+          <div class="book-expand-content markdown-inner">
+          <pre>
+            <code>
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ThreadDumpInfo",
+  "properties" : {
+    "threadInfos" : {
+      "type" : "array",
+      "items" : {
+        "type" : "object",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ThreadDumpInfo:ThreadInfo",
+        "properties" : {
+          "stringifiedThreadInfo" : {
+            "type" : "string"
+          },
+          "threadName" : {
+            "type" : "string"
+          }
+        }
+      }
+    }
+  }
 }            </code>
           </pre>
           </div>
@@ -1876,6 +1955,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
           "processed_data" : {
             "type" : "integer"
           },
+          "checkpointed_size" : {
+            "type" : "integer"
+          },
           "state_size" : {
             "type" : "integer"
           },
@@ -1941,6 +2023,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             "processed_data" : {
               "type" : "integer"
             },
+            "checkpointed_size" : {
+              "type" : "integer"
+            },
             "state_size" : {
               "type" : "integer"
             },
@@ -1976,6 +2061,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
                     "type" : "integer"
                   },
                   "processed_data" : {
+                    "type" : "integer"
+                  },
+                  "checkpointed_size" : {
                     "type" : "integer"
                   },
                   "state_size" : {
@@ -2032,6 +2120,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
               "type" : "integer"
             },
             "processed_data" : {
+              "type" : "integer"
+            },
+            "checkpointed_size" : {
               "type" : "integer"
             },
             "state_size" : {
@@ -2096,6 +2187,36 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "processed_data" : {
           "type" : "object",
           "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
+        },
+        "checkpointed_size" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto",
+          "properties" : {
+            "avg" : {
+              "type" : "integer"
+            },
+            "max" : {
+              "type" : "integer"
+            },
+            "min" : {
+              "type" : "integer"
+            },
+            "p50" : {
+              "type" : "number"
+            },
+            "p90" : {
+              "type" : "number"
+            },
+            "p95" : {
+              "type" : "number"
+            },
+            "p99" : {
+              "type" : "number"
+            },
+            "p999" : {
+              "type" : "number"
+            }
+          }
         },
         "state_size" : {
           "type" : "object",
@@ -2340,6 +2461,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "processed_data" : {
       "type" : "integer"
     },
+    "checkpointed_size" : {
+      "type" : "integer"
+    },
     "state_size" : {
       "type" : "integer"
     },
@@ -2375,6 +2499,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             "type" : "integer"
           },
           "processed_data" : {
+            "type" : "integer"
+          },
+          "checkpointed_size" : {
             "type" : "integer"
           },
           "state_size" : {
@@ -2483,6 +2610,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "processed_data" : {
       "type" : "integer"
     },
+    "checkpointed_size" : {
+      "type" : "integer"
+    },
     "state_size" : {
       "type" : "integer"
     },
@@ -2552,6 +2682,36 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "start_delay" : {
           "type" : "object",
           "$ref" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto"
+        },
+        "checkpointed_size" : {
+          "type" : "object",
+          "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:checkpoints:StatsSummaryDto",
+          "properties" : {
+            "avg" : {
+              "type" : "integer"
+            },
+            "max" : {
+              "type" : "integer"
+            },
+            "min" : {
+              "type" : "integer"
+            },
+            "p50" : {
+              "type" : "number"
+            },
+            "p90" : {
+              "type" : "number"
+            },
+            "p95" : {
+              "type" : "number"
+            },
+            "p99" : {
+              "type" : "number"
+            },
+            "p999" : {
+              "type" : "number"
+            }
+          }
         },
         "state_size" : {
           "type" : "object",
@@ -3258,6 +3418,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
     "cancel-job" : {
       "type" : "boolean"
     },
+    "formatType" : {
+      "type" : "string",
+      "enum" : [ "CANONICAL", "NATIVE" ]
+    },
     "target-directory" : {
       "type" : "string"
     },
@@ -3432,6 +3596,10 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
   "properties" : {
     "drain" : {
       "type" : "boolean"
+    },
+    "formatType" : {
+      "type" : "string",
+      "enum" : [ "CANONICAL", "NATIVE" ]
     },
     "targetDirectory" : {
       "type" : "string"
@@ -5729,6 +5897,9 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
         "type" : "object",
         "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:LogInfo",
         "properties" : {
+          "mtime" : {
+            "type" : "integer"
+          },
           "name" : {
             "type" : "string"
           },
@@ -5877,13 +6048,13 @@ Using 'curl' you can upload a jar via 'curl -X POST -H "Expect:" -F "jarfile=@pa
             <code>
 {
   "type" : "object",
-  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:ThreadDumpInfo",
+  "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ThreadDumpInfo",
   "properties" : {
     "threadInfos" : {
       "type" : "array",
       "items" : {
         "type" : "object",
-        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:taskmanager:ThreadDumpInfo:ThreadInfo",
+        "id" : "urn:jsonschema:org:apache:flink:runtime:rest:messages:ThreadDumpInfo:ThreadInfo",
         "properties" : {
           "stringifiedThreadInfo" : {
             "type" : "string"

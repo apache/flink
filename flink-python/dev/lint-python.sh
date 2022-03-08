@@ -588,9 +588,9 @@ function tox_check() {
 
     if [[ ${BUILD_REASON} = 'IndividualCI' ]]; then
         # Only run test in latest python version triggered by a Git push
-        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
+        $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini -e ${LATEST_PYTHON} --recreate 2>&1 | tee -a $LOG_FILE
     else
-        $TOX_PATH -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
+        $TOX_PATH -vv -c $FLINK_PYTHON_DIR/tox.ini --recreate 2>&1 | tee -a $LOG_FILE
     fi
 
     TOX_RESULT=$((grep -c "congratulations :)" "$LOG_FILE") 2>&1)

@@ -141,7 +141,7 @@ under the License.
 						</goals>
 						<configuration>
 							<outputDirectory>${project.build.directory}/sql-jars</outputDirectory>
-							<!-- List of currently provided SQL jars. 
+							<!-- List of currently provided SQL jars.
 								When extending this list please also add a dependency
 								for the respective module. -->
 							<artifactItems>

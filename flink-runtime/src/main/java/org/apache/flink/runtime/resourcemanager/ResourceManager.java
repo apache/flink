@@ -56,8 +56,8 @@ import org.apache.flink.runtime.resourcemanager.registration.WorkerRegistration;
 import org.apache.flink.runtime.resourcemanager.slotmanager.ResourceActions;
 import org.apache.flink.runtime.resourcemanager.slotmanager.SlotManager;
 import org.apache.flink.runtime.rest.messages.LogInfo;
+import org.apache.flink.runtime.rest.messages.ThreadDumpInfo;
 import org.apache.flink.runtime.rest.messages.taskmanager.TaskManagerInfo;
-import org.apache.flink.runtime.rest.messages.taskmanager.ThreadDumpInfo;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.FencedRpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -1409,10 +1409,6 @@ public abstract class ResourceManager<WorkerType extends ResourceIDRetrievable>
     // ------------------------------------------------------------------------
     //  Resource Management
     // ------------------------------------------------------------------------
-
-    protected int getNumberRequiredTaskManagers() {
-        return getRequiredResources().values().stream().reduce(0, Integer::sum);
-    }
 
     protected Map<WorkerResourceSpec, Integer> getRequiredResources() {
         return slotManager.getRequiredResources();

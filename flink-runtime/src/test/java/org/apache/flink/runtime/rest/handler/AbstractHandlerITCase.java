@@ -51,7 +51,7 @@ import static org.junit.Assert.fail;
 public class AbstractHandlerITCase extends TestLogger {
 
     private static final RestfulGateway mockRestfulGateway =
-            new TestingDispatcherGateway.Builder().build();
+            TestingDispatcherGateway.newBuilder().build();
 
     private static final GatewayRetriever<RestfulGateway> mockGatewayRetriever =
             () -> CompletableFuture.completedFuture(mockRestfulGateway);

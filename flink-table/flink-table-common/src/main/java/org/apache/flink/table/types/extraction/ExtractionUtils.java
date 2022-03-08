@@ -26,11 +26,11 @@ import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.StructuredType;
 
-import org.apache.flink.shaded.asm7.org.objectweb.asm.ClassReader;
-import org.apache.flink.shaded.asm7.org.objectweb.asm.ClassVisitor;
-import org.apache.flink.shaded.asm7.org.objectweb.asm.Label;
-import org.apache.flink.shaded.asm7.org.objectweb.asm.MethodVisitor;
-import org.apache.flink.shaded.asm7.org.objectweb.asm.Opcodes;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassReader;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.ClassVisitor;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.Label;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.MethodVisitor;
+import org.apache.flink.shaded.asm9.org.objectweb.asm.Opcodes;
 
 import javax.annotation.Nullable;
 
@@ -61,8 +61,8 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getConstructorDescriptor;
-import static org.apache.flink.shaded.asm7.org.objectweb.asm.Type.getMethodDescriptor;
+import static org.apache.flink.shaded.asm9.org.objectweb.asm.Type.getConstructorDescriptor;
+import static org.apache.flink.shaded.asm9.org.objectweb.asm.Type.getMethodDescriptor;
 
 /** Utilities for performing reflection tasks. */
 @Internal
@@ -768,7 +768,7 @@ public final class ExtractionUtils {
      */
     private static class ParameterExtractor extends ClassVisitor {
 
-        private static final int OPCODE = Opcodes.ASM7;
+        private static final int OPCODE = Opcodes.ASM9;
 
         private final String methodDescriptor;
 
@@ -972,6 +972,33 @@ public final class ExtractionUtils {
      */
     public static Class<?> wrapperToPrimitive(final Class<?> cls) {
         return wrapperPrimitiveMap.get(cls);
+    }
+
+    /** Helper map for {@link #classForName(String, boolean, ClassLoader)}. */
+    private static final Map<String, Class<?>> primitiveNameMap = new HashMap<>();
+
+    static {
+        primitiveNameMap.put("int", Integer.TYPE);
+        primitiveNameMap.put("boolean", Boolean.TYPE);
+        primitiveNameMap.put("float", Float.TYPE);
+        primitiveNameMap.put("long", Long.TYPE);
+        primitiveNameMap.put("short", Short.TYPE);
+        primitiveNameMap.put("byte", Byte.TYPE);
+        primitiveNameMap.put("double", Double.TYPE);
+        primitiveNameMap.put("char", Character.TYPE);
+        primitiveNameMap.put("void", Void.TYPE);
+    }
+
+    /**
+     * Similar to {@link Class#forName(String, boolean, ClassLoader)} but resolves primitive names
+     * as well.
+     */
+    public static Class<?> classForName(String name, boolean initialize, ClassLoader classLoader)
+            throws ClassNotFoundException {
+        if (primitiveNameMap.containsKey(name)) {
+            return primitiveNameMap.get(name);
+        }
+        return Class.forName(name, initialize, classLoader);
     }
 
     // --------------------------------------------------------------------------------------------

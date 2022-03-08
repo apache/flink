@@ -254,12 +254,13 @@ public class InputChannelTestUtils {
         private StubMemorySegmentProvider() {}
 
         @Override
-        public Collection<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest) {
+        public Collection<MemorySegment> requestUnpooledMemorySegments(
+                int numberOfSegmentsToRequest) {
             return Collections.emptyList();
         }
 
         @Override
-        public void recycleMemorySegments(Collection<MemorySegment> segments) {}
+        public void recycleUnpooledMemorySegments(Collection<MemorySegment> segments) {}
     }
 
     /** {@link MemorySegmentProvider} that provides unpooled {@link MemorySegment}s. */
@@ -271,12 +272,13 @@ public class InputChannelTestUtils {
         }
 
         @Override
-        public Collection<MemorySegment> requestMemorySegments(int numberOfSegmentsToRequest) {
+        public Collection<MemorySegment> requestUnpooledMemorySegments(
+                int numberOfSegmentsToRequest) {
             return Collections.singletonList(
                     MemorySegmentFactory.allocateUnpooledSegment(pageSize));
         }
 
         @Override
-        public void recycleMemorySegments(Collection<MemorySegment> segments) {}
+        public void recycleUnpooledMemorySegments(Collection<MemorySegment> segments) {}
     }
 }

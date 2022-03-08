@@ -34,7 +34,7 @@ under the License.
 
 Flink 中的 DataStream 程序是对数据流（例如过滤、更新状态、定义窗口、聚合）进行转换的常规程序。数据流的起始是从各种源（例如消息队列、套接字流、文件）创建的。结果通过 sink 返回，例如可以将数据写入文件或标准输出（例如命令行终端）。Flink 程序可以在各种上下文中运行，可以独立运行，也可以嵌入到其它程序中。任务执行可以运行在本地 JVM 中，也可以运行在多台机器的集群上。
 
-为了创建你自己的 Flink DataStream 程序，我们建议你从 [Flink 程序剖析](#anatomy-of-a-flink-program)开始，然后逐渐添加自己的 [stream transformation](({{< ref "docs/dev/datastream/operators/overview" >}}))。其余部分作为附加的算子和高级特性的参考。
+为了创建你自己的 Flink DataStream 程序，我们建议你从 [Flink 程序剖析](#anatomy-of-a-flink-program)开始，然后逐渐添加自己的 [stream transformation]({{< ref "docs/dev/datastream/operators/overview" >}})。其余部分作为附加的算子和高级特性的参考。
 
 <a name="what-is-a-datastream"></a>
 

@@ -20,7 +20,7 @@ package org.apache.flink.connector.pulsar.testutils;
 
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntime;
 import org.apache.flink.connector.pulsar.testutils.runtime.PulsarRuntimeOperator;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,7 +56,7 @@ public abstract class PulsarTestSuiteBase {
      * pulsar broker. Override this method when needs.
      */
     protected PulsarRuntime runtime() {
-        return PulsarRuntime.mock();
+        return PulsarRuntime.embedded();
     }
 
     /** Operate pulsar by acquiring a runtime operator. */

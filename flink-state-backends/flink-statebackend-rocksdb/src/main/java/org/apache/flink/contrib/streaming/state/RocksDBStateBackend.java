@@ -21,6 +21,7 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.metrics.MetricGroup;
@@ -279,6 +280,18 @@ public class RocksDBStateBackend extends AbstractManagedMemoryStateBackend
      */
     public StateBackend getCheckpointBackend() {
         return checkpointStreamBackend;
+    }
+
+    @Override
+    public boolean supportsNoClaimRestoreMode() {
+        // We are able to create CheckpointType#FULL_CHECKPOINT. (we might potentially reupload some
+        // shared files when taking incremental snapshots)
+        return true;
+    }
+
+    @Override
+    public boolean supportsSavepointFormat(SavepointFormatType formatType) {
+        return true;
     }
 
     // ------------------------------------------------------------------------

@@ -29,7 +29,6 @@ from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.aggregate_slow import DistinctViewDescriptor, RowKeySelector
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
     MergingWindowAssigner
 from pyflink.fn_execution.table.window_context import WindowContext, TriggerContext, K, W
@@ -289,7 +288,7 @@ class GroupWindowAggFunctionBase(Generic[K, W]):
     def __init__(self,
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunctionBase[W],
@@ -456,7 +455,7 @@ class GroupWindowAggFunction(GroupWindowAggFunctionBase[K, W]):
     def __init__(self,
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunction[W],

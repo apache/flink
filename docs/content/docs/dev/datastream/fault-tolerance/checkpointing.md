@@ -83,7 +83,7 @@ Other parameters for checkpointing include:
 
   - *unaligned checkpoints*: You can enable [unaligned checkpoints]({{< ref "docs/ops/state/checkpointing_under_backpressure" >}}#unaligned-checkpoints) to greatly reduce checkpointing times under backpressure. This only works for exactly-once checkpoints and with one concurrent checkpoint.
 
-  - *checkpoints with finished tasks*: You can enable an experimental feature to continue performing checkpoints even if parts of the DAG have finished processing all of their records. Before doing so, please read through some [important considerations](#checkpointing-with-parts-of-the-graph-finished).
+  - *checkpoints with finished tasks*: By default Flink will continue performing checkpoints even if parts of the DAG have finished processing all of their records. Please refer to [important considerations](#checkpointing-with-parts-of-the-graph-finished) for details.
 
 {{< tabs "4b9c6a74-8a45-4ad2-9e80-52fe44a85991" >}}
 {{< tab "Java" >}}
@@ -112,7 +112,7 @@ env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
 
 // enable externalized checkpoints which are retained
 // after job cancellation
-env.getCheckpointConfig().enableExternalizedCheckpoints(
+env.getCheckpointConfig().setExternalizedCheckpointCleanup(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
 // enables the unaligned checkpoints
@@ -153,7 +153,7 @@ env.getCheckpointConfig.setMaxConcurrentCheckpoints(1)
 
 // enable externalized checkpoints which are retained 
 // after job cancellation
-env.getCheckpointConfig().enableExternalizedCheckpoints(
+env.getCheckpointConfig().setExternalizedCheckpointCleanup(
     ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
 
 // enables the unaligned checkpoints
@@ -212,7 +212,7 @@ Some more parameters and/or defaults may be set via `conf/flink-conf.yaml` (see 
 ## Selecting Checkpoint Storage
 
 Flink's [checkpointing mechanism]({{< ref "docs/learn-flink/fault_tolerance" >}}) stores consistent snapshots
-of all the state in timers and stateful operators, including connectors, windows, and any [user-defined state](state.html).
+of all the state in timers and stateful operators, including connectors, windows, and any [user-defined state]({{< ref "docs/dev/datastream/fault-tolerance/state" >}}).
 Where the checkpoints are stored (e.g., JobManager memory, file system, database) depends on the configured
 **Checkpoint Storage**. 
 
@@ -230,19 +230,19 @@ Flink currently only provides processing guarantees for jobs without iterations.
 
 Please note that records in flight in the loop edges (and the state changes associated with them) will be lost during failure.
 
-## Checkpointing with parts of the graph finished *(BETA)*
+## Checkpointing with parts of the graph finished
 
 Starting from Flink 1.14 it is possible to continue performing checkpoints even if parts of the job
-graph have finished processing all data, which might happen if it contains bounded sources. This
-feature must be enabled via a feature flag:
+graph have finished processing all data, which might happen if it contains bounded sources. This feature
+is enabled by default since 1.15, and it could be disabled via a feature flag:
 
 ```java
 Configuration config = new Configuration();
-config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
+config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, false);
 StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment(config);
 ```
 
-Once the tasks/subtasks are finished, they do not contribute to the checkpoints any longer. This is an
+Once the tasks/subtasks are finished, they do not contribute to the checkpoints any longer. This is 
 an important consideration when implementing any custom operators or UDFs (User-Defined Functions).
 
 In order to support checkpointing with tasks that finished, we adjusted the [task lifecycle]({{<ref "docs/internals/task_lifecycle" >}}) 
@@ -260,15 +260,24 @@ exactly-once sinks and the `TwoPhaseCommitSinkFunction`.
 
 There is a special handling for `UnionListState`, which has often been used to implement a global
 view over offsets in an external system (i.e. storing current offsets of Kafka partitions). If we
-had discarded a state for a single subtask that had its `finish` method called, we would have lost
+had discarded a state for a single subtask that had its `close` method called, we would have lost
 the offsets for partitions that it had been assigned. In order to work around this problem, we let
 checkpoints succeed only if none or all subtasks that use `UnionListState` are finished.
 
 We have not seen `ListState` used in a similar way, but you should be aware that any state
-checkpointed after the `finish` method will be discarded and not be available after a restore.
+checkpointed after the `close` method will be discarded and not be available after a restore.
 
 Any operator that is prepared to be rescaled should work well with tasks that partially finish.
 Restoring from a checkpoint where only a subset of tasks finished is equivalent to restoring such a
-task with the number of new subtasks equal to the number of finished tasks.
+task with the number of new subtasks equal to the number of running tasks.
+
+### Waiting for the final checkpoint before task exit
+
+To ensure all the records could be committed for operators using the two-phase commit, 
+the tasks would wait for the final checkpoint completed successfully after all the operators finished. 
+It needs to be noted that this behavior would prolong the execution time of tasks. 
+If the checkpoint interval is long, the execution time would also be prolonged largely. 
+For the worst case, if the checkpoint interval is set to `Long.MAX_VALUE`, 
+the tasks would in fact be blocked forever since the final checkpoint would never happen.
 
 {{< top >}}

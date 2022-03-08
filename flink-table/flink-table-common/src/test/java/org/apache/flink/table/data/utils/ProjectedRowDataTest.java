@@ -20,12 +20,13 @@ package org.apache.flink.table.data.utils;
 
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.test.RowDataAssert;
 import org.apache.flink.types.RowKind;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.apache.flink.table.test.TableAssertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link ProjectedRowData}. */
 public class ProjectedRowDataTest {
@@ -36,31 +37,34 @@ public class ProjectedRowDataTest {
         final ProjectedRowData projectedRowData =
                 ProjectedRowData.from(
                         new int[][] {new int[] {2}, new int[] {0}, new int[] {1}, new int[] {4}});
+        final RowDataAssert rowAssert = assertThat(projectedRowData);
         projectedRowData.replaceRow(initialRow);
 
-        assertEquals(RowKind.INSERT, initialRow.getRowKind());
-        assertEquals(4, projectedRowData.getArity());
-        assertEquals(2L, projectedRowData.getLong(0));
-        assertEquals(0L, projectedRowData.getLong(1));
-        assertEquals(1L, projectedRowData.getLong(2));
-        assertEquals(4L, projectedRowData.getLong(3));
+        rowAssert.hasKind(RowKind.INSERT).hasArity(4);
+        rowAssert.getLong(0).isEqualTo(2);
+        rowAssert.getLong(1).isEqualTo(0);
+        rowAssert.getLong(2).isEqualTo(1);
+        rowAssert.getLong(3).isEqualTo(4);
 
         projectedRowData.replaceRow(GenericRowData.of(5L, 6L, 7L, 8L, 9L, 10L));
-        assertEquals(4, projectedRowData.getArity());
-        assertEquals(7L, projectedRowData.getLong(0));
-        assertEquals(5L, projectedRowData.getLong(1));
-        assertEquals(6L, projectedRowData.getLong(2));
-        assertEquals(9L, projectedRowData.getLong(3));
+        rowAssert.hasKind(RowKind.INSERT).hasArity(4);
+        rowAssert.getLong(0).isEqualTo(7);
+        rowAssert.getLong(1).isEqualTo(5);
+        rowAssert.getLong(2).isEqualTo(6);
+        rowAssert.getLong(3).isEqualTo(9);
     }
 
     @Test
     public void testProjectedRowsDoesntSupportNestedProjections() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        ProjectedRowData.from(
-                                new int[][] {
-                                    new int[] {2}, new int[] {0, 1}, new int[] {1}, new int[] {4}
-                                }));
+        assertThatThrownBy(
+                        () ->
+                                ProjectedRowData.from(
+                                        new int[][] {
+                                            new int[] {2},
+                                            new int[] {0, 1},
+                                            new int[] {1},
+                                            new int[] {4}
+                                        }))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 }

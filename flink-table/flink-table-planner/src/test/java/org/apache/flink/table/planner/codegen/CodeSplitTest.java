@@ -220,21 +220,13 @@ public class CodeSplitTest {
 
     private void runTest(Consumer<TableConfig> consumer) {
         TableConfig splitTableConfig = new TableConfig();
-        splitTableConfig
-                .getConfiguration()
-                .setInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, 4000);
-        splitTableConfig
-                .getConfiguration()
-                .setInteger(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, 10000);
+        splitTableConfig.set(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, 4000);
+        splitTableConfig.set(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, 10000);
         consumer.accept(splitTableConfig);
 
         TableConfig noSplitTableConfig = new TableConfig();
-        noSplitTableConfig
-                .getConfiguration()
-                .setInteger(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, Integer.MAX_VALUE);
-        noSplitTableConfig
-                .getConfiguration()
-                .setInteger(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, Integer.MAX_VALUE);
+        noSplitTableConfig.set(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, Integer.MAX_VALUE);
+        noSplitTableConfig.set(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, Integer.MAX_VALUE);
         PrintStream originalStdOut = System.out;
         try {
             // redirect stdout to a null output stream to silence compile error in CompileUtils

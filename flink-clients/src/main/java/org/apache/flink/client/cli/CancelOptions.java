@@ -18,9 +18,13 @@
 
 package org.apache.flink.client.cli;
 
+import org.apache.flink.configuration.ConfigurationUtils;
+import org.apache.flink.core.execution.SavepointFormatType;
+
 import org.apache.commons.cli.CommandLine;
 
 import static org.apache.flink.client.cli.CliFrontendParser.CANCEL_WITH_SAVEPOINT_OPTION;
+import static org.apache.flink.client.cli.CliFrontendParser.SAVEPOINT_FORMAT_OPTION;
 
 /** Command line options for the CANCEL command. */
 public class CancelOptions extends CommandLineOptions {
@@ -33,11 +37,21 @@ public class CancelOptions extends CommandLineOptions {
     /** Optional target directory for the savepoint. Overwrites cluster default. */
     private final String targetDirectory;
 
+    private final SavepointFormatType formatType;
+
     public CancelOptions(CommandLine line) {
         super(line);
         this.args = line.getArgs();
         this.withSavepoint = line.hasOption(CANCEL_WITH_SAVEPOINT_OPTION.getOpt());
         this.targetDirectory = line.getOptionValue(CANCEL_WITH_SAVEPOINT_OPTION.getOpt());
+        if (line.hasOption(SAVEPOINT_FORMAT_OPTION)) {
+            formatType =
+                    ConfigurationUtils.convertValue(
+                            line.getOptionValue(SAVEPOINT_FORMAT_OPTION),
+                            SavepointFormatType.class);
+        } else {
+            formatType = SavepointFormatType.DEFAULT;
+        }
     }
 
     public String[] getArgs() {
@@ -50,5 +64,9 @@ public class CancelOptions extends CommandLineOptions {
 
     public String getSavepointTargetDirectory() {
         return targetDirectory;
+    }
+
+    public SavepointFormatType getFormatType() {
+        return formatType;
     }
 }

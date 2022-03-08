@@ -116,7 +116,7 @@ $ ./bin/flink run -m localhost:8081 ./examples/streaming/TopSpeedWindowing.jar
 
 `jobmanager-job.yaml` 中的 `args` 属性必须指定用户作业的主类。也可以参考[如何设置 JobManager 参数]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#jobmanager-additional-command-line-arguments)来了解如何将额外的 `args` 传递给 `jobmanager-job.yaml` 配置中指定的 Flink 镜像。
 
-*job artifacts* 参数必须可以从 [资源定义示例](#application-cluster-resource-definitions) 中的 `job-artifacts-volume` 处获取。假如是在 minikube 集群中创建这些组件，那么定义示例中的 job-artifacts-volume 可以挂载为主机的本地目录。如果不使用 minikube 集群，那么可以使用 Kubernetes 集群中任何其它可用类型的 volume 来提供 *job artifacts*。此外，还可以构建一个已经包含 *job artifacts* 参数的[自定义镜像](({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization))。
+*job artifacts* 参数必须可以从 [资源定义示例](#application-cluster-resource-definitions) 中的 `job-artifacts-volume` 处获取。假如是在 minikube 集群中创建这些组件，那么定义示例中的 job-artifacts-volume 可以挂载为主机的本地目录。如果不使用 minikube 集群，那么可以使用 Kubernetes 集群中任何其它可用类型的 volume 来提供 *job artifacts*。此外，还可以构建一个已经包含 *job artifacts* 参数的[自定义镜像]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#advanced-customization)。
 
 在创建[通用集群组件](#common-cluster-resource-definitions)后，指定 [Application 集群资源定义](#application-cluster-resource-definitions)文件，执行 `kubectl` 命令来启动 Flink Application 集群：
 

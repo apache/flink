@@ -21,12 +21,14 @@ package org.apache.flink.runtime.scheduler.adaptive;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
-import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;
+
+import java.util.List;
 
 /** State which describes a failing job which is currently being canceled. */
 class Failing extends StateWithExecutionGraph {
@@ -38,8 +40,17 @@ class Failing extends StateWithExecutionGraph {
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
             Logger logger,
-            Throwable failureCause) {
-        super(context, executionGraph, executionGraphHandler, operatorCoordinatorHandler, logger);
+            Throwable failureCause,
+            ClassLoader userCodeClassLoader,
+            List<ExceptionHistoryEntry> failureCollection) {
+        super(
+                context,
+                executionGraph,
+                executionGraphHandler,
+                operatorCoordinatorHandler,
+                logger,
+                userCodeClassLoader,
+                failureCollection);
         this.context = context;
 
         getExecutionGraph().failJob(failureCause, System.currentTimeMillis());
@@ -53,21 +64,15 @@ class Failing extends StateWithExecutionGraph {
     @Override
     public void cancel() {
         context.goToCanceling(
-                getExecutionGraph(), getExecutionGraphHandler(), getOperatorCoordinatorHandler());
+                getExecutionGraph(),
+                getExecutionGraphHandler(),
+                getOperatorCoordinatorHandler(),
+                getFailures());
     }
 
     @Override
-    public void handleGlobalFailure(Throwable cause) {
-        getLogger()
-                .debug(
-                        "Ignored global failure because we are already failing the job {}.",
-                        getJobId(),
-                        cause);
-    }
-
-    @Override
-    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionStateTransition) {
-        return getExecutionGraph().updateState(taskExecutionStateTransition);
+    void onFailure(Throwable failure) {
+        // We've already failed the execution graph, so there is noting else we can do.
     }
 
     @Override
@@ -77,21 +82,7 @@ class Failing extends StateWithExecutionGraph {
     }
 
     /** Context of the {@link Failing} state. */
-    interface Context extends StateWithExecutionGraph.Context {
-
-        /**
-         * Transitions into the {@link Canceling} state.
-         *
-         * @param executionGraph executionGraph to pass to the {@link Canceling} state
-         * @param executionGraphHandler executionGraphHandler to pass to the {@link Canceling} state
-         * @param operatorCoordinatorHandler operatorCoordinatorHandler to pass to the {@link
-         *     Canceling} state
-         */
-        void goToCanceling(
-                ExecutionGraph executionGraph,
-                ExecutionGraphHandler executionGraphHandler,
-                OperatorCoordinatorHandler operatorCoordinatorHandler);
-    }
+    interface Context extends StateWithExecutionGraph.Context, StateTransitions.ToCancelling {}
 
     static class Factory implements StateFactory<Failing> {
 
@@ -101,6 +92,8 @@ class Failing extends StateWithExecutionGraph {
         private final ExecutionGraphHandler executionGraphHandler;
         private final OperatorCoordinatorHandler operatorCoordinatorHandler;
         private final Throwable failureCause;
+        private final ClassLoader userCodeClassLoader;
+        private final List<ExceptionHistoryEntry> failureCollection;
 
         public Factory(
                 Context context,
@@ -108,13 +101,17 @@ class Failing extends StateWithExecutionGraph {
                 ExecutionGraphHandler executionGraphHandler,
                 OperatorCoordinatorHandler operatorCoordinatorHandler,
                 Logger log,
-                Throwable failureCause) {
+                Throwable failureCause,
+                ClassLoader userCodeClassLoader,
+                List<ExceptionHistoryEntry> failureCollection) {
             this.context = context;
             this.log = log;
             this.executionGraph = executionGraph;
             this.executionGraphHandler = executionGraphHandler;
             this.operatorCoordinatorHandler = operatorCoordinatorHandler;
             this.failureCause = failureCause;
+            this.userCodeClassLoader = userCodeClassLoader;
+            this.failureCollection = failureCollection;
         }
 
         public Class<Failing> getStateClass() {
@@ -128,7 +125,9 @@ class Failing extends StateWithExecutionGraph {
                     executionGraphHandler,
                     operatorCoordinatorHandler,
                     log,
-                    failureCause);
+                    failureCause,
+                    userCodeClassLoader,
+                    failureCollection);
         }
     }
 }

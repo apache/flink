@@ -108,14 +108,6 @@ check_shaded_artifacts() {
 		return 1
 	fi
 
-	MAPR=`cat allClasses | grep '^com/mapr' | wc -l`
-	if [ "$MAPR" != "0" ]; then
-		echo "=============================================================================="
-		echo "Detected '$MAPR' MapR classes in the dist jar"
-		echo "=============================================================================="
-		return 1
-	fi
-
 	return 0
 }
 

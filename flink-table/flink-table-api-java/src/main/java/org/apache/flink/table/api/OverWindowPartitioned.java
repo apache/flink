@@ -19,8 +19,8 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionParser;
 
 import java.util.List;
 
@@ -49,7 +49,7 @@ public final class OverWindowPartitioned {
      */
     @Deprecated
     public OverWindowPartitionedOrdered orderBy(String orderBy) {
-        return this.orderBy(ExpressionParser.parseExpression(orderBy));
+        return this.orderBy(ExpressionParser.INSTANCE.parseExpression(orderBy));
     }
 
     /**

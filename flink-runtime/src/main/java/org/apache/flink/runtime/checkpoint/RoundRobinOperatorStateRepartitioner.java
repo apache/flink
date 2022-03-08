@@ -110,7 +110,7 @@ public class RoundRobinOperatorStateRepartitioner
     }
 
     /**
-     * Init the the list of StreamStateHandle -> OperatorStateHandle map with given
+     * Init the list of StreamStateHandle -> OperatorStateHandle map with given
      * parallelSubtaskStates when parallelism not changed.
      */
     private List<Map<StreamStateHandle, OperatorStateHandle>> initMergeMapList(

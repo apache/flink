@@ -20,6 +20,7 @@ package org.apache.flink.core.classloading;
 import org.apache.flink.configuration.CoreOptions;
 
 import java.net.URL;
+import java.util.Collections;
 
 /**
  * Loads all classes from the submodule jar, except for explicitly white-listed packages.
@@ -39,6 +40,7 @@ public class SubmoduleClassLoader extends ComponentClassLoader {
                 classpath,
                 parentClassLoader,
                 CoreOptions.PARENT_FIRST_LOGGING_PATTERNS,
-                new String[] {"org.apache.flink"});
+                new String[] {"org.apache.flink"},
+                Collections.emptyMap());
     }
 }

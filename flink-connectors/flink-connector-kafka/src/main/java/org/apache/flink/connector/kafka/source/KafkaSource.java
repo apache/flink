@@ -18,6 +18,8 @@
 
 package org.apache.flink.connector.kafka.source;
 
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -27,7 +29,6 @@ import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.api.connector.source.SplitEnumerator;
 import org.apache.flink.api.connector.source.SplitEnumeratorContext;
-import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.api.java.typeutils.ResultTypeQueryable;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -48,6 +49,8 @@ import org.apache.flink.connector.kafka.source.split.KafkaPartitionSplitSerializ
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.util.UserCodeClassLoader;
+
+import org.apache.kafka.clients.consumer.ConsumerRecord;
 
 import javax.annotation.Nullable;
 
@@ -77,6 +80,7 @@ import java.util.function.Supplier;
  *
  * @param <OUT> the output type of the source.
  */
+@PublicEvolving
 public class KafkaSource<OUT>
         implements Source<OUT, KafkaPartitionSplit, KafkaSourceEnumState>,
                 ResultTypeQueryable<OUT> {
@@ -121,6 +125,7 @@ public class KafkaSource<OUT>
         return this.boundedness;
     }
 
+    @Internal
     @Override
     public SourceReader<OUT, KafkaPartitionSplit> createReader(SourceReaderContext readerContext)
             throws Exception {
@@ -131,8 +136,8 @@ public class KafkaSource<OUT>
     SourceReader<OUT, KafkaPartitionSplit> createReader(
             SourceReaderContext readerContext, Consumer<Collection<String>> splitFinishedHook)
             throws Exception {
-        FutureCompletingBlockingQueue<RecordsWithSplitIds<Tuple3<OUT, Long, Long>>> elementsQueue =
-                new FutureCompletingBlockingQueue<>();
+        FutureCompletingBlockingQueue<RecordsWithSplitIds<ConsumerRecord<byte[], byte[]>>>
+                elementsQueue = new FutureCompletingBlockingQueue<>();
         deserializationSchema.open(
                 new DeserializationSchema.InitializationContext() {
                     @Override
@@ -148,18 +153,13 @@ public class KafkaSource<OUT>
         final KafkaSourceReaderMetrics kafkaSourceReaderMetrics =
                 new KafkaSourceReaderMetrics(readerContext.metricGroup());
 
-        Supplier<KafkaPartitionSplitReader<OUT>> splitReaderSupplier =
-                () ->
-                        new KafkaPartitionSplitReader<>(
-                                props,
-                                deserializationSchema,
-                                readerContext,
-                                kafkaSourceReaderMetrics);
-        KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>();
+        Supplier<KafkaPartitionSplitReader> splitReaderSupplier =
+                () -> new KafkaPartitionSplitReader(props, readerContext, kafkaSourceReaderMetrics);
+        KafkaRecordEmitter<OUT> recordEmitter = new KafkaRecordEmitter<>(deserializationSchema);
 
         return new KafkaSourceReader<>(
                 elementsQueue,
-                new KafkaSourceFetcherManager<>(
+                new KafkaSourceFetcherManager(
                         elementsQueue, splitReaderSupplier::get, splitFinishedHook),
                 recordEmitter,
                 toConfiguration(props),
@@ -167,6 +167,7 @@ public class KafkaSource<OUT>
                 kafkaSourceReaderMetrics);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> createEnumerator(
             SplitEnumeratorContext<KafkaPartitionSplit> enumContext) {
@@ -179,6 +180,7 @@ public class KafkaSource<OUT>
                 boundedness);
     }
 
+    @Internal
     @Override
     public SplitEnumerator<KafkaPartitionSplit, KafkaSourceEnumState> restoreEnumerator(
             SplitEnumeratorContext<KafkaPartitionSplit> enumContext,
@@ -194,11 +196,13 @@ public class KafkaSource<OUT>
                 checkpoint.assignedPartitions());
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<KafkaPartitionSplit> getSplitSerializer() {
         return new KafkaPartitionSplitSerializer();
     }
 
+    @Internal
     @Override
     public SimpleVersionedSerializer<KafkaSourceEnumState> getEnumeratorCheckpointSerializer() {
         return new KafkaSourceEnumStateSerializer();

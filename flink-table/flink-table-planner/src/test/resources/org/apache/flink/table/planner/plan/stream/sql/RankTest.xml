@@ -190,7 +190,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c, 1:BIGINT AS w0$o0])
+Calc(select=[a, b, c, 1 AS w0$o0])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[a], orderBy=[b DESC], select=[a, b, c])
    +- Exchange(distribution=[hash[a]])
       +- Calc(select=[a, b, c])
@@ -327,7 +327,7 @@ LogicalProject(rn1=[CAST($5):INTEGER NOT NULL], rn2=[CAST($6):INTEGER NOT NULL])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CAST(w0$o0) AS rn1, CAST(w0$o0_0) AS rn2])
+Calc(select=[CAST(w0$o0 AS INTEGER) AS rn1, CAST(w0$o0_0 AS INTEGER) AS rn2])
 +- Rank(strategy=[UpdateFastStrategy[0,2,3]], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=200], partitionBy=[a], orderBy=[b DESC], select=[a, b, c, w0$o0, w0$o0_0])
    +- Exchange(distribution=[hash[a]])
       +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100], partitionBy=[a, c], orderBy=[b DESC], select=[a, b, c, w0$o0])
@@ -453,7 +453,7 @@ LogicalProject(url=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', $0)], download
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[CONCAT(_UTF-16LE'http://txmov2.a.yximgs.com', uri) AS url, reqcount AS download_count, start_time AS timestamp])
+Calc(select=[CONCAT('http://txmov2.a.yximgs.com', uri) AS url, reqcount AS download_count, start_time AS timestamp])
 +- Rank(strategy=[RetractStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=100000], partitionBy=[start_time], orderBy=[reqcount DESC], select=[uri, reqcount, start_time])
    +- Exchange(distribution=[hash[start_time]])
       +- Calc(select=[uri, reqcount, start_time])
@@ -994,7 +994,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], row_num=[$3])
     </Resource>
     <Resource name="optimized rel plan">
       <![CDATA[
-Calc(select=[a, b, c, 10:BIGINT AS $3], changelogMode=[I,UA,D])
+Calc(select=[a, b, c, 10 AS $3], changelogMode=[I,UA,D])
 +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=10, rankEnd=10], partitionBy=[a], orderBy=[b DESC], select=[a, b, c], changelogMode=[I,UA,D])
    +- Exchange(distribution=[hash[a]], changelogMode=[I])
       +- Calc(select=[a, b, c], changelogMode=[I])

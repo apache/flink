@@ -18,6 +18,7 @@
 package org.apache.flink.glue.schema.registry.test;
 
 import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.connectors.kinesis.testutils.KinesaliteContainer;
 import org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroDeserializationSchema;
 import org.apache.flink.formats.avro.glue.schema.registry.GlueSchemaRegistryAvroSerializationSchema;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -25,8 +26,6 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisConsumer;
 import org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer;
 import org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants;
-import org.apache.flink.streaming.connectors.kinesis.testutils.KinesaliteContainer;
-import org.apache.flink.tests.util.categories.TravisGroup1;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.TestLogger;
 
@@ -35,15 +34,17 @@ import com.amazonaws.services.schemaregistry.utils.AvroRecordType;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
-import org.junit.Assert;
+import org.junit.After;
 import org.junit.Assume;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
 import org.testcontainers.containers.Network;
 import org.testcontainers.utility.DockerImageName;
+import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
+import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.core.SdkSystemSetting;
 
 import java.io.IOException;
 import java.net.URL;
@@ -55,10 +56,12 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_ACCESS_KEY_ID;
+import static org.apache.flink.connector.aws.config.AWSConfigConstants.AWS_SECRET_ACCESS_KEY;
 import static org.apache.flink.streaming.connectors.kinesis.config.ConsumerConfigConstants.STREAM_INITIAL_POSITION;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** End-to-end test for Glue Schema Registry AVRO format using Kinesalite. */
-@Category(value = {TravisGroup1.class})
 public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
     private static final String INPUT_STREAM = "gsr_avro_input_stream";
     private static final String OUTPUT_STREAM = "gsr_avro_output_stream";
@@ -88,11 +91,22 @@ public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
                 "Secret key not configured, skipping test...",
                 !StringUtils.isNullOrWhitespaceOnly(SECRET_KEY));
 
+        StaticCredentialsProvider gsrCredentialsProvider =
+                StaticCredentialsProvider.create(
+                        AwsBasicCredentials.create(ACCESS_KEY, SECRET_KEY));
+
         Properties properties = KINESALITE.getContainerProperties();
 
-        kinesisClient = new GSRKinesisPubsubClient(properties);
+        kinesisClient = new GSRKinesisPubsubClient(properties, gsrCredentialsProvider);
         kinesisClient.createStream(INPUT_STREAM, 2, properties);
         kinesisClient.createStream(OUTPUT_STREAM, 2, properties);
+
+        System.setProperty(SdkSystemSetting.CBOR_ENABLED.property(), "false");
+    }
+
+    @After
+    public void teardown() {
+        System.clearProperty(SdkSystemSetting.CBOR_ENABLED.property());
     }
 
     @Test
@@ -119,11 +133,7 @@ public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
         }
         log.info("results: {}", results);
 
-        Assert.assertEquals(
-                "Results received from '" + OUTPUT_STREAM + "': " + results,
-                messages.size(),
-                results.size());
-        Assert.assertTrue(messages.containsAll(results));
+        assertThat(results).containsExactlyInAnyOrderElementsOf(messages);
     }
 
     private FlinkKinesisConsumer<GenericRecord> createSource() throws Exception {
@@ -131,13 +141,10 @@ public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
         properties.setProperty(
                 STREAM_INITIAL_POSITION,
                 ConsumerConfigConstants.InitialPosition.TRIM_HORIZON.name());
-        FlinkKinesisConsumer<GenericRecord> consumer =
-                new FlinkKinesisConsumer<>(
-                        INPUT_STREAM,
-                        GlueSchemaRegistryAvroDeserializationSchema.forGeneric(
-                                getSchema(), getConfigs()),
-                        properties);
-        return consumer;
+        return new FlinkKinesisConsumer<>(
+                INPUT_STREAM,
+                GlueSchemaRegistryAvroDeserializationSchema.forGeneric(getSchema(), getConfigs()),
+                properties);
     }
 
     private FlinkKinesisProducer<GenericRecord> createSink() throws Exception {
@@ -152,7 +159,7 @@ public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
     }
 
     private Properties getProducerProperties() throws Exception {
-        Properties producerProperties = new Properties(KINESALITE.getContainerProperties());
+        Properties producerProperties = KINESALITE.getContainerProperties();
         // producer needs region even when URL is specified
         producerProperties.put(ConsumerConfigConstants.AWS_REGION, "ca-central-1");
         // test driver does not deaggregate
@@ -179,7 +186,9 @@ public class GlueSchemaRegistryAvroKinesisITCase extends TestLogger {
     }
 
     private Map<String, Object> getConfigs() {
-        Map<String, Object> configs = new HashMap();
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(AWS_ACCESS_KEY_ID, ACCESS_KEY);
+        configs.put(AWS_SECRET_ACCESS_KEY, SECRET_KEY);
         configs.put(AWSSchemaRegistryConstants.AWS_REGION, "ca-central-1");
         configs.put(AWSSchemaRegistryConstants.SCHEMA_AUTO_REGISTRATION_SETTING, true);
         configs.put(

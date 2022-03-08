@@ -21,7 +21,7 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecPythonGroupAggregate
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
@@ -150,11 +150,19 @@ class BatchPhysicalPythonGroupAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (grouping.length == 0) {
+      InputProperty.SINGLETON_DISTRIBUTION
+    } else {
+      InputProperty.hashDistribution(grouping)
+    }
     new BatchExecPythonGroupAggregate(
       grouping,
       grouping ++ auxGrouping,
       aggCalls.toArray,
-      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
+      InputProperty.builder()
+        .requiredDistribution(requiredDistribution)
+        .damBehavior(InputProperty.DamBehavior.END_INPUT)
+        .build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

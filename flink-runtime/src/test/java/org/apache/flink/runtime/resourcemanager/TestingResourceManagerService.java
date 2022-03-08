@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
+import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
 import org.apache.flink.runtime.heartbeat.TestingHeartbeatServices;
 import org.apache.flink.runtime.highavailability.TestingHighAvailabilityServices;
@@ -184,6 +185,7 @@ public class TestingResourceManagerService implements ResourceManagerService {
                     ResourceManagerServiceImpl.create(
                             StandaloneResourceManagerFactory.getInstance(),
                             new Configuration(),
+                            ResourceID.generate(),
                             rpcService,
                             haServices,
                             new TestingHeartbeatServices(),

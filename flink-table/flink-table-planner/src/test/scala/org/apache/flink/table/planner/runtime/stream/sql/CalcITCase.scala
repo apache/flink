@@ -152,8 +152,8 @@ class CalcITCase extends StreamingTestBase {
     tEnv.registerTable("MyTableRow", t)
 
     val outputType = InternalTypeInfo.ofFields(
-      new VarCharType(VarCharType.MAX_LENGTH),
-      new VarCharType(VarCharType.MAX_LENGTH),
+      VarCharType.STRING_TYPE,
+      VarCharType.STRING_TYPE,
       new IntType())
 
     val result = tEnv.sqlQuery(sqlQuery).toAppendStream[RowData]
@@ -493,7 +493,7 @@ class CalcITCase extends StreamingTestBase {
     val tableId = TestValuesTableFactory.registerData(rows)
 
     // We need a fixed timezone to make sure this test can run on machines across the world
-    tEnv.getConfig.getConfiguration.setString("table.local-time-zone", "Europe/Berlin")
+    tEnv.getConfig.set("table.local-time-zone", "Europe/Berlin")
 
     tEnv.executeSql(s"""
                        |CREATE TABLE T (

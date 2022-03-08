@@ -443,7 +443,7 @@ public class KeyedStream<T, KEY> extends DataStream<T> {
      * Perform a join over a time interval.
      *
      * @param <T1> The type parameter of the elements in the first streams
-     * @param <T2> The The type parameter of the elements in the second stream
+     * @param <T2> The type parameter of the elements in the second stream
      */
     @PublicEvolving
     public static class IntervalJoin<T1, T2, KEY> {

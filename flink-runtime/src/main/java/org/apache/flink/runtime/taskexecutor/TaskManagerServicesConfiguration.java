@@ -29,13 +29,16 @@ import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 import org.apache.flink.runtime.registration.RetryingRegistrationConfiguration;
 import org.apache.flink.runtime.util.ConfigurationParserUtils;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Reference;
 
 import javax.annotation.Nullable;
 
+import java.io.File;
 import java.net.InetAddress;
 import java.util.Optional;
 
@@ -47,6 +50,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * metric registry.
  */
 public class TaskManagerServicesConfiguration {
+
+    private static final String LOCAL_STATE_SUB_DIRECTORY_ROOT = "localState_";
 
     private final Configuration configuration;
 
@@ -62,7 +67,7 @@ public class TaskManagerServicesConfiguration {
 
     private final String[] tmpDirPaths;
 
-    private final String[] localRecoveryStateRootDirectories;
+    private final Reference<File[]> localRecoveryStateDirectories;
 
     private final int numberOfSlots;
 
@@ -94,7 +99,7 @@ public class TaskManagerServicesConfiguration {
             int externalDataPort,
             boolean localCommunicationOnly,
             String[] tmpDirPaths,
-            String[] localRecoveryStateRootDirectories,
+            Reference<File[]> localRecoveryStateDirectories,
             boolean localRecoveryEnabled,
             @Nullable QueryableStateConfiguration queryableStateConfig,
             int numberOfSlots,
@@ -114,7 +119,7 @@ public class TaskManagerServicesConfiguration {
         this.externalDataPort = externalDataPort;
         this.localCommunicationOnly = localCommunicationOnly;
         this.tmpDirPaths = checkNotNull(tmpDirPaths);
-        this.localRecoveryStateRootDirectories = checkNotNull(localRecoveryStateRootDirectories);
+        this.localRecoveryStateDirectories = checkNotNull(localRecoveryStateDirectories);
         this.localRecoveryEnabled = checkNotNull(localRecoveryEnabled);
         this.queryableStateConfig = queryableStateConfig;
         this.numberOfSlots = checkNotNull(numberOfSlots);
@@ -168,8 +173,8 @@ public class TaskManagerServicesConfiguration {
         return tmpDirPaths;
     }
 
-    String[] getLocalRecoveryStateRootDirectories() {
-        return localRecoveryStateRootDirectories;
+    Reference<File[]> getLocalRecoveryStateDirectories() {
+        return localRecoveryStateDirectories;
     }
 
     boolean isLocalRecoveryEnabled() {
@@ -239,6 +244,8 @@ public class TaskManagerServicesConfiguration {
      *     accessible
      * @param localCommunicationOnly True if only local communication is possible. Use only in cases
      *     where only one task manager runs.
+     * @param taskExecutorResourceSpec resource specification of the TaskManager to start
+     * @param workingDirectory working directory of the TaskManager
      * @return configuration of task manager services used to create them
      */
     public static TaskManagerServicesConfiguration fromConfiguration(
@@ -246,13 +253,24 @@ public class TaskManagerServicesConfiguration {
             ResourceID resourceID,
             String externalAddress,
             boolean localCommunicationOnly,
-            TaskExecutorResourceSpec taskExecutorResourceSpec)
+            TaskExecutorResourceSpec taskExecutorResourceSpec,
+            WorkingDirectory workingDirectory)
             throws Exception {
-        final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
-        String[] localStateRootDir = ConfigurationUtils.parseLocalStateDirectories(configuration);
-        if (localStateRootDir.length == 0) {
-            // default to temp dirs.
-            localStateRootDir = tmpDirs;
+        String[] localStateRootDirs = ConfigurationUtils.parseLocalStateDirectories(configuration);
+        final Reference<File[]> localStateDirs;
+
+        if (localStateRootDirs.length == 0) {
+            localStateDirs =
+                    Reference.borrowed(new File[] {workingDirectory.getLocalStateDirectory()});
+        } else {
+            File[] createdLocalStateDirs = new File[localStateRootDirs.length];
+            final String localStateDirectoryName = LOCAL_STATE_SUB_DIRECTORY_ROOT + resourceID;
+
+            for (int i = 0; i < localStateRootDirs.length; i++) {
+                createdLocalStateDirs[i] = new File(localStateRootDirs[i], localStateDirectoryName);
+            }
+
+            localStateDirs = Reference.owned(createdLocalStateDirs);
         }
 
         boolean localRecoveryMode = configuration.getBoolean(CheckpointingOptions.LOCAL_RECOVERY);
@@ -282,6 +300,8 @@ public class TaskManagerServicesConfiguration {
 
         final int numIoThreads = ClusterEntrypointUtils.getPoolSize(configuration);
 
+        final String[] tmpDirs = ConfigurationUtils.parseTempDirectories(configuration);
+
         return new TaskManagerServicesConfiguration(
                 configuration,
                 resourceID,
@@ -290,7 +310,7 @@ public class TaskManagerServicesConfiguration {
                 externalDataPort,
                 localCommunicationOnly,
                 tmpDirs,
-                localStateRootDir,
+                localStateDirs,
                 localRecoveryMode,
                 queryableStateConfig,
                 ConfigurationParserUtils.getSlot(configuration),

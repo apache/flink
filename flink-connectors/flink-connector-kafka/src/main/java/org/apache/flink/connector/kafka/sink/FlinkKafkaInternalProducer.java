@@ -85,16 +85,16 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
     public void abortTransaction() throws ProducerFencedException {
         LOG.debug("abortTransaction {}", transactionalId);
         checkState(inTransaction, "Transaction was not started");
-        super.abortTransaction();
         inTransaction = false;
+        super.abortTransaction();
     }
 
     @Override
     public void commitTransaction() throws ProducerFencedException {
         LOG.debug("commitTransaction {}", transactionalId);
         checkState(inTransaction, "Transaction was not started");
-        super.commitTransaction();
         inTransaction = false;
+        super.commitTransaction();
     }
 
     public boolean isInTransaction() {
@@ -152,7 +152,9 @@ class FlinkKafkaInternalProducer<K, V> extends KafkaProducer<K, V> {
 
     public void setTransactionId(String transactionalId) {
         if (!transactionalId.equals(this.transactionalId)) {
-            checkState(!inTransaction);
+            checkState(
+                    !inTransaction,
+                    String.format("Another transaction %s is still open.", transactionalId));
             LOG.debug("Change transaction id from {} to {}", this.transactionalId, transactionalId);
             Object transactionManager = getTransactionManager();
             synchronized (transactionManager) {

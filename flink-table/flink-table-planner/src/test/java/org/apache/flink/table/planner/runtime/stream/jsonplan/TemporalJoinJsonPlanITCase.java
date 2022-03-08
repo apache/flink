@@ -76,30 +76,26 @@ public class TemporalJoinJsonPlanITCase extends JsonPlanTestBase {
     /** test process time inner join. * */
     @Test
     public void testJoinTemporalFunction() throws Exception {
-
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "INSERT INTO MySink "
                                 + "SELECT amount * r.rate "
                                 + "FROM Orders AS o,  "
                                 + "LATERAL TABLE (Rates(o.rowtime)) AS r "
-                                + "WHERE o.currency = r.currency ");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "WHERE o.currency = r.currency ")
+                .await();
         List<String> expected = Arrays.asList("+I[102]", "+I[228]", "+I[348]", "+I[50]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }
 
     @Test
     public void testTemporalTableJoin() throws Exception {
-
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "INSERT INTO MySink "
                                 + "SELECT amount * r.rate "
                                 + "FROM Orders AS o  "
                                 + "JOIN RatesHistory  FOR SYSTEM_TIME AS OF o.rowtime AS r "
-                                + "ON o.currency = r.currency ");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "ON o.currency = r.currency ")
+                .await();
         List<String> expected = Arrays.asList("+I[102]", "+I[228]", "+I[348]", "+I[50]");
         assertResult(expected, TestValuesTableFactory.getResults("MySink"));
     }

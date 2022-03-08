@@ -28,7 +28,9 @@ import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionI
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionKind;
-import org.apache.flink.table.planner.typeutils.DataViewUtils;
+import org.apache.flink.table.runtime.dataview.DataViewSpec;
+import org.apache.flink.table.runtime.dataview.ListViewSpec;
+import org.apache.flink.table.runtime.dataview.MapViewSpec;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.Preconditions;
 
@@ -74,8 +76,7 @@ public enum ProtoUtils {
     }
 
     public static FlinkFnApi.UserDefinedAggregateFunction getUserDefinedAggregateFunctionProto(
-            PythonAggregateFunctionInfo pythonFunctionInfo,
-            DataViewUtils.DataViewSpec[] dataViewSpecs) {
+            PythonAggregateFunctionInfo pythonFunctionInfo, DataViewSpec[] dataViewSpecs) {
         FlinkFnApi.UserDefinedAggregateFunction.Builder builder =
                 FlinkFnApi.UserDefinedAggregateFunction.newBuilder();
         builder.setPayload(
@@ -94,12 +95,12 @@ public enum ProtoUtils {
             builder.addInputs(inputProto);
         }
         if (dataViewSpecs != null) {
-            for (DataViewUtils.DataViewSpec spec : dataViewSpecs) {
+            for (DataViewSpec spec : dataViewSpecs) {
                 FlinkFnApi.UserDefinedAggregateFunction.DataViewSpec.Builder specBuilder =
                         FlinkFnApi.UserDefinedAggregateFunction.DataViewSpec.newBuilder();
                 specBuilder.setName(spec.getStateId());
-                if (spec instanceof DataViewUtils.ListViewSpec) {
-                    DataViewUtils.ListViewSpec listViewSpec = (DataViewUtils.ListViewSpec) spec;
+                if (spec instanceof ListViewSpec) {
+                    ListViewSpec listViewSpec = (ListViewSpec) spec;
                     specBuilder.setListView(
                             FlinkFnApi.UserDefinedAggregateFunction.DataViewSpec.ListView
                                     .newBuilder()
@@ -109,7 +110,7 @@ public enum ProtoUtils {
                                                             .getElementDataType()
                                                             .getLogicalType())));
                 } else {
-                    DataViewUtils.MapViewSpec mapViewSpec = (DataViewUtils.MapViewSpec) spec;
+                    MapViewSpec mapViewSpec = (MapViewSpec) spec;
                     FlinkFnApi.UserDefinedAggregateFunction.DataViewSpec.MapView.Builder
                             mapViewBuilder =
                                     FlinkFnApi.UserDefinedAggregateFunction.DataViewSpec.MapView

@@ -168,7 +168,7 @@ val graph = new CycleGraph(env.getJavaEnv, vertexCount).generate()
 
 ## Echo Graph
 
-An [echo graph](http://mathworld.wolfram.com/EchoGraph.html) is a
+An echo graph is a
 [circulant graph](#circulant-graph) with `n` vertices defined by the width of a
 single range of offsets centered at `n/2`. A vertex is connected to 'far'
 vertices, which connect to 'near' vertices, which connect to 'far' vertices, ....

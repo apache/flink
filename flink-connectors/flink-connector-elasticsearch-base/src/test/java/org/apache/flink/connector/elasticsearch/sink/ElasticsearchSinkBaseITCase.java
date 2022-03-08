@@ -21,13 +21,11 @@ import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple2;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.DeliveryGuarantee;
-import org.apache.flink.connectors.test.common.junit.extensions.TestLoggerExtension;
 import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
 
@@ -172,9 +170,7 @@ abstract class ElasticsearchSinkBaseITCase {
                         .setDeliveryGuarantee(deliveryGuarantee)
                         .build();
 
-        final Configuration config = new Configuration();
-        config.set(ExecutionCheckpointingOptions.ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH, true);
-        final StreamExecutionEnvironment env = new LocalStreamEnvironment(config);
+        final StreamExecutionEnvironment env = new LocalStreamEnvironment();
         env.enableCheckpointing(100L);
         if (!allowRestarts) {
             env.setRestartStrategy(RestartStrategies.noRestart());

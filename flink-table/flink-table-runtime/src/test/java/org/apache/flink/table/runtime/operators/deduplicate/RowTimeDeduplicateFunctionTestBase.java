@@ -40,8 +40,7 @@ abstract class RowTimeDeduplicateFunctionTestBase {
     protected final long miniBatchSize = 4L;
     protected Time minTtlTime = Time.milliseconds(10);
     protected InternalTypeInfo inputRowType =
-            InternalTypeInfo.ofFields(
-                    new VarCharType(VarCharType.MAX_LENGTH), new IntType(), new BigIntType());
+            InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new IntType(), new BigIntType());
     protected TypeSerializer<RowData> serializer = inputRowType.toSerializer();
     protected int rowTimeIndex = 2;
     protected int rowKeyIndex = 0;

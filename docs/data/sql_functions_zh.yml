@@ -457,9 +457,10 @@ string:
     description: |
       通过分隔符 string2 拆分 string1，返回拆分字符串的第 integer（从零开始）个字符串。如果整数为负，则返回 `NULL`。
       如果有任一参数为 `NULL`，则返回 `NULL`。
-  - sql: STR_TO_MAP(string1[, string2, string3]])
+  - sql: STR_TO_MAP(string1[, string2, string3])
     description: |
       使用分隔符将 string1 拆分为键值对后返回一个 map。string2 是 pair 分隔符，默认为 ','。string3 是键值分隔符，默认为 '='。
+      pair 分隔符与键值分隔符均为正则表达式，当使用特殊字符作为分隔符时请提前进行转义，例如 `<([{\^-=$!|]})?*+.>`。
   - sql: SUBSTR(string[, integer1[, integer2]])
     description: 返回字符串的子字符串，从位置 integer1 开始，长度为 integer2（默认到末尾）。
 
@@ -1010,7 +1011,7 @@ hashfunctions:
     description: 以 32 个十六进制数字的字符串形式返回 string 的 MD5 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA1(string)
     table: STRING.sha1()
-    description: 以 56 个十六进制数字的字符串形式返回 string 的 SHA-224 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
+    description: 以 40 个十六进制数字的字符串形式返回 string 的 SHA-1 哈希值；如果字符串为 `NULL`，则返回 `NULL`。
   - sql: SHA224(string)
     table: STRING.sha224()
     description: 以 56 个十六进制数字的字符串形式返回 string 的 SHA-224 哈希值；如果字符串为 `NULL`，则返回 `NULL`。

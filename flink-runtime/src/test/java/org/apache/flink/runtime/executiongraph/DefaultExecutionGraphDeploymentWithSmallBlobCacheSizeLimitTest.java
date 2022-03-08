@@ -75,7 +75,7 @@ public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         // Always offload the serialized JobInformation, TaskInformation and cached
         // ShuffleDescriptors
         config.setInteger(BlobServerOptions.OFFLOAD_MINSIZE, 0);
-        blobServer = new BlobServer(config, new VoidBlobStore());
+        blobServer = new BlobServer(config, TEMPORARY_FOLDER.newFolder(), new VoidBlobStore());
         blobServer.start();
         blobWriter = blobServer;
 
@@ -84,7 +84,11 @@ public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
         BlobCacheSizeTracker blobCacheSizeTracker = new BlobCacheSizeTracker(1L);
         blobCache =
                 new PermanentBlobCache(
-                        config, new VoidBlobStore(), serverAddress, blobCacheSizeTracker);
+                        config,
+                        TEMPORARY_FOLDER.newFolder(),
+                        new VoidBlobStore(),
+                        serverAddress,
+                        blobCacheSizeTracker);
     }
 
     /**
@@ -126,9 +130,9 @@ public class DefaultExecutionGraphDeploymentWithSmallBlobCacheSizeLimitTest
                         new TestingLogicalSlotBuilder()
                                 .setTaskManagerGateway(taskManagerGateway)
                                 .createTestingLogicalSlot();
-                ev.getCurrentExecutionAttempt()
-                        .registerProducedPartitions(slot.getTaskManagerLocation(), true)
-                        .get();
+                final Execution execution = ev.getCurrentExecutionAttempt();
+                execution.transitionState(ExecutionState.SCHEDULED);
+                execution.registerProducedPartitions(slot.getTaskManagerLocation(), true).get();
                 ev.deployToSlot(slot);
                 assertEquals(ExecutionState.DEPLOYING, ev.getExecutionState());
 

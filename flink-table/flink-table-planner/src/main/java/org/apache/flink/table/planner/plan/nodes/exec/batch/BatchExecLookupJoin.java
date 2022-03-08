@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.batch;
 
 import org.apache.flink.table.data.RowData;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecLookupJoin;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.TemporalTableSourceSpec;
@@ -47,13 +48,14 @@ public class BatchExecLookupJoin extends CommonExecLookupJoin implements BatchEx
             RowType outputType,
             String description) {
         super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecLookupJoin.class),
                 joinType,
                 joinCondition,
                 temporalTableSourceSpec,
                 lookupKeys,
                 projectionOnTemporalTable,
                 filterOnTemporalTable,
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);

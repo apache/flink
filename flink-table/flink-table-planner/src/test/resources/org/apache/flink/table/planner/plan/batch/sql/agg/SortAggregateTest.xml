@@ -158,7 +158,7 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($
 SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2, Final_SUM(sum$4) AS EXPR$3])
 +- Exchange(distribution=[single])
    +- LocalSortAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3, Partial_SUM($f3) AS sum$4])
-      +- Calc(select=[CAST(1) AS a, b, c, c._1 AS $f3], where=[(a = 1)])
+      +- Calc(select=[CAST(1 AS INTEGER) AS a, b, c, c._1 AS $f3], where=[(a = 1)])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -179,7 +179,7 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($
       <![CDATA[
 SortAggregate(isMerge=[false], select=[AVG(a) AS EXPR$0, SUM(b) AS EXPR$1, COUNT(c) AS EXPR$2, SUM($f3) AS EXPR$3])
 +- Exchange(distribution=[single])
-   +- Calc(select=[CAST(1) AS a, b, c, c._1 AS $f3], where=[(a = 1)])
+   +- Calc(select=[CAST(1 AS INTEGER) AS a, b, c, c._1 AS $f3], where=[(a = 1)])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -201,7 +201,7 @@ LogicalAggregate(group=[{}], EXPR$0=[AVG($0)], EXPR$1=[SUM($1)], EXPR$2=[COUNT($
 SortAggregate(isMerge=[true], select=[Final_AVG(sum$0, count$1) AS EXPR$0, Final_SUM(sum$2) AS EXPR$1, Final_COUNT(count$3) AS EXPR$2, Final_SUM(sum$4) AS EXPR$3])
 +- Exchange(distribution=[single])
    +- LocalSortAggregate(select=[Partial_AVG(a) AS (sum$0, count$1), Partial_SUM(b) AS sum$2, Partial_COUNT(c) AS count$3, Partial_SUM($f3) AS sum$4])
-      +- Calc(select=[CAST(1) AS a, b, c, c._1 AS $f3], where=[(a = 1)])
+      +- Calc(select=[CAST(1 AS INTEGER) AS a, b, c, c._1 AS $f3], where=[(a = 1)])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable2, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -731,7 +731,7 @@ LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, EXPR$1, _UTF-16LE'test' AS c])
+Calc(select=[a, EXPR$1, 'test' AS c])
 +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MAX(max$0) AS EXPR$1])
    +- Sort(orderBy=[a ASC])
       +- Exchange(distribution=[hash[a]])
@@ -758,7 +758,7 @@ LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, EXPR$1, _UTF-16LE'test' AS c])
+Calc(select=[a, EXPR$1, 'test' AS c])
 +- SortAggregate(isMerge=[false], groupBy=[a], select=[a, MAX(b) AS EXPR$1])
    +- Sort(orderBy=[a ASC])
       +- Exchange(distribution=[hash[a]])
@@ -783,7 +783,7 @@ LogicalProject(a=[$0], EXPR$1=[$2], c=[$1])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, EXPR$1, _UTF-16LE'test' AS c])
+Calc(select=[a, EXPR$1, 'test' AS c])
 +- SortAggregate(isMerge=[true], groupBy=[a], select=[a, Final_MAX(max$0) AS EXPR$1])
    +- Sort(orderBy=[a ASC])
       +- Exchange(distribution=[hash[a]])

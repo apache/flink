@@ -57,8 +57,7 @@ import java.util.Optional;
 import java.util.function.Supplier;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TypeInferenceExtractor}. */
 @RunWith(Parameterized.class)
@@ -446,38 +445,33 @@ public class TypeInferenceExtractorTest {
     @Test
     public void testArgumentNames() {
         if (testSpec.expectedArgumentNames != null) {
-            assertThat(
-                    testSpec.typeInferenceExtraction.get().getNamedArguments(),
-                    equalTo(Optional.of(testSpec.expectedArgumentNames)));
+            assertThat(testSpec.typeInferenceExtraction.get().getNamedArguments())
+                    .isEqualTo(Optional.of(testSpec.expectedArgumentNames));
         } else if (testSpec.expectedErrorMessage == null) {
-            assertThat(
-                    testSpec.typeInferenceExtraction.get().getNamedArguments(),
-                    equalTo(Optional.empty()));
+            assertThat(testSpec.typeInferenceExtraction.get().getNamedArguments())
+                    .isEqualTo(Optional.empty());
         }
     }
 
     @Test
     public void testArgumentTypes() {
         if (testSpec.expectedArgumentTypes != null) {
-            assertThat(
-                    testSpec.typeInferenceExtraction.get().getTypedArguments(),
-                    equalTo(Optional.of(testSpec.expectedArgumentTypes)));
+            assertThat(testSpec.typeInferenceExtraction.get().getTypedArguments())
+                    .isEqualTo(Optional.of(testSpec.expectedArgumentTypes));
         } else if (testSpec.expectedErrorMessage == null) {
-            assertThat(
-                    testSpec.typeInferenceExtraction.get().getTypedArguments(),
-                    equalTo(Optional.empty()));
+            assertThat(testSpec.typeInferenceExtraction.get().getTypedArguments())
+                    .isEqualTo(Optional.empty());
         }
     }
 
     @Test
     public void testInputTypeStrategy() {
         if (!testSpec.expectedOutputStrategies.isEmpty()) {
-            assertThat(
-                    testSpec.typeInferenceExtraction.get().getInputTypeStrategy(),
-                    equalTo(
+            assertThat(testSpec.typeInferenceExtraction.get().getInputTypeStrategy())
+                    .isEqualTo(
                             testSpec.expectedOutputStrategies.keySet().stream()
                                     .reduce(InputTypeStrategies::or)
-                                    .orElseThrow(AssertionError::new)));
+                                    .orElseThrow(AssertionError::new));
         }
     }
 
@@ -485,20 +479,21 @@ public class TypeInferenceExtractorTest {
     public void testAccumulatorTypeStrategy() {
         if (!testSpec.expectedAccumulatorStrategies.isEmpty()) {
             assertThat(
-                    testSpec.typeInferenceExtraction.get().getAccumulatorTypeStrategy().isPresent(),
-                    equalTo(true));
-            assertThat(
-                    testSpec.typeInferenceExtraction.get().getAccumulatorTypeStrategy().get(),
-                    equalTo(TypeStrategies.mapping(testSpec.expectedAccumulatorStrategies)));
+                            testSpec.typeInferenceExtraction
+                                    .get()
+                                    .getAccumulatorTypeStrategy()
+                                    .isPresent())
+                    .isEqualTo(true);
+            assertThat(testSpec.typeInferenceExtraction.get().getAccumulatorTypeStrategy().get())
+                    .isEqualTo(TypeStrategies.mapping(testSpec.expectedAccumulatorStrategies));
         }
     }
 
     @Test
     public void testOutputTypeStrategy() {
         if (!testSpec.expectedOutputStrategies.isEmpty()) {
-            assertThat(
-                    testSpec.typeInferenceExtraction.get().getOutputTypeStrategy(),
-                    equalTo(TypeStrategies.mapping(testSpec.expectedOutputStrategies)));
+            assertThat(testSpec.typeInferenceExtraction.get().getOutputTypeStrategy())
+                    .isEqualTo(TypeStrategies.mapping(testSpec.expectedOutputStrategies));
         }
     }
 

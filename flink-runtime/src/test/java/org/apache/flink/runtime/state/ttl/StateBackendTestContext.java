@@ -32,6 +32,7 @@ import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.SharedStateRegistryImpl;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.internal.InternalKvState;
@@ -66,7 +67,7 @@ public abstract class StateBackendTestContext {
         this.stateBackend = Preconditions.checkNotNull(createStateBackend());
         this.checkpointOptions = CheckpointOptions.forCheckpointWithDefaultLocation();
         this.checkpointStreamFactory = createCheckpointStreamFactory();
-        this.sharedStateRegistry = new SharedStateRegistry();
+        this.sharedStateRegistry = new SharedStateRegistryImpl();
         this.snapshots = new ArrayList<>();
     }
 
@@ -149,7 +150,7 @@ public abstract class StateBackendTestContext {
         SnapshotResult<KeyedStateHandle> snapshotResult = triggerSnapshot().get();
         KeyedStateHandle jobManagerOwnedSnapshot = snapshotResult.getJobManagerOwnedSnapshot();
         if (jobManagerOwnedSnapshot != null) {
-            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry);
+            jobManagerOwnedSnapshot.registerSharedStates(sharedStateRegistry, 0L);
         }
         return jobManagerOwnedSnapshot;
     }

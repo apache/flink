@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.minicluster;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
@@ -30,9 +31,11 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ConfigurationUtils;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.IllegalConfigurationException;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.blob.BlobCacheService;
 import org.apache.flink.runtime.blob.BlobClient;
 import org.apache.flink.runtime.blob.BlobServer;
+import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
@@ -44,6 +47,7 @@ import org.apache.flink.runtime.dispatcher.MemoryExecutionGraphInfoStore;
 import org.apache.flink.runtime.dispatcher.TriggerSavepointMode;
 import org.apache.flink.runtime.entrypoint.ClusterEntrypointUtils;
 import org.apache.flink.runtime.entrypoint.ClusterInformation;
+import org.apache.flink.runtime.entrypoint.WorkingDirectory;
 import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponent;
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
@@ -57,6 +61,9 @@ import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServic
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.OperatorID;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
+import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
+import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -71,6 +78,7 @@ import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerGateway;
 import org.apache.flink.runtime.resourcemanager.ResourceManagerId;
+import org.apache.flink.runtime.resourcemanager.ResourceOverview;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -87,6 +95,8 @@ import org.apache.flink.util.AutoCloseableAsync;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
+import org.apache.flink.util.InstantiationUtil;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
@@ -118,6 +128,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -142,6 +153,7 @@ public class MiniCluster implements AutoCloseableAsync {
     private final TerminatingFatalErrorHandlerFactory
             taskManagerTerminatingFatalErrorHandlerFactory =
                     new TerminatingFatalErrorHandlerFactory();
+    private final Supplier<Reference<RpcSystem>> rpcSystemSupplier;
 
     private CompletableFuture<Void> terminationFuture;
 
@@ -197,11 +209,14 @@ public class MiniCluster implements AutoCloseableAsync {
     @GuardedBy("lock")
     private RpcServiceFactory taskManagerRpcServiceFactory;
 
+    @GuardedBy("lock")
+    private WorkingDirectory workingDirectory;
+
     /** Flag marking the mini cluster as started/running. */
     private volatile boolean running;
 
     @GuardedBy("lock")
-    private RpcSystem rpcSystem;
+    private Reference<RpcSystem> rpcSystem;
 
     // ------------------------------------------------------------------------
 
@@ -211,6 +226,15 @@ public class MiniCluster implements AutoCloseableAsync {
      * @param miniClusterConfiguration The configuration for the mini cluster
      */
     public MiniCluster(MiniClusterConfiguration miniClusterConfiguration) {
+        this(
+                miniClusterConfiguration,
+                () -> Reference.owned(RpcSystem.load(miniClusterConfiguration.getConfiguration())));
+    }
+
+    public MiniCluster(
+            MiniClusterConfiguration miniClusterConfiguration,
+            Supplier<Reference<RpcSystem>> rpcSystemSupplier) {
+
         this.miniClusterConfiguration =
                 checkNotNull(miniClusterConfiguration, "config may not be null");
         this.rpcServices =
@@ -228,6 +252,8 @@ public class MiniCluster implements AutoCloseableAsync {
         running = false;
 
         this.taskManagers = new ArrayList<>(miniClusterConfiguration.getNumTaskManagers());
+
+        this.rpcSystemSupplier = rpcSystemSupplier;
     }
 
     public CompletableFuture<URI> getRestAddress() {
@@ -279,15 +305,22 @@ public class MiniCluster implements AutoCloseableAsync {
                     miniClusterConfiguration.getRpcServiceSharing() == RpcServiceSharing.SHARED;
 
             try {
+                workingDirectory =
+                        WorkingDirectory.create(
+                                ClusterEntrypointUtils.generateWorkingDirectoryFile(
+                                        configuration,
+                                        Optional.empty(),
+                                        "minicluster_" + ResourceID.generate()));
+
                 initializeIOFormatClasses(configuration);
 
-                rpcSystem = RpcSystem.load(configuration);
+                rpcSystem = rpcSystemSupplier.get();
 
                 LOG.info("Starting Metrics Registry");
                 metricRegistry =
                         createMetricRegistry(
                                 configuration,
-                                rpcSystem.getMaximumMessageSizeInBytes(configuration));
+                                rpcSystem.deref().getMaximumMessageSizeInBytes(configuration));
 
                 // bring up all the RPC services
                 LOG.info("Starting RPC Service(s)");
@@ -297,13 +330,14 @@ public class MiniCluster implements AutoCloseableAsync {
 
                 if (useSingleRpcService) {
                     // we always need the 'commonRpcService' for auxiliary calls
-                    commonRpcService = createLocalRpcService(configuration, rpcSystem);
+                    commonRpcService = createLocalRpcService(configuration, rpcSystem.deref());
                     final CommonRpcServiceFactory commonRpcServiceFactory =
                             new CommonRpcServiceFactory(commonRpcService);
                     taskManagerRpcServiceFactory = commonRpcServiceFactory;
                     dispatcherResourceManagerComponentRpcServiceFactory = commonRpcServiceFactory;
                     metricQueryServiceRpcService =
-                            MetricUtils.startLocalMetricsRpcService(configuration, rpcSystem);
+                            MetricUtils.startLocalMetricsRpcService(
+                                    configuration, rpcSystem.deref());
                 } else {
 
                     // start a new service per component, possibly with custom bind addresses
@@ -326,23 +360,26 @@ public class MiniCluster implements AutoCloseableAsync {
                                     jobManagerExternalAddress,
                                     jobManagerExternalPortRange,
                                     jobManagerBindAddress,
-                                    rpcSystem);
+                                    rpcSystem.deref());
                     taskManagerRpcServiceFactory =
                             new DedicatedRpcServiceFactory(
                                     configuration,
                                     taskManagerExternalAddress,
                                     taskManagerExternalPortRange,
                                     taskManagerBindAddress,
-                                    rpcSystem);
+                                    rpcSystem.deref());
 
                     // we always need the 'commonRpcService' for auxiliary calls
                     // bind to the JobManager address with port 0
                     commonRpcService =
                             createRemoteRpcService(
-                                    configuration, jobManagerBindAddress, 0, rpcSystem);
+                                    configuration, jobManagerBindAddress, 0, rpcSystem.deref());
                     metricQueryServiceRpcService =
                             MetricUtils.startRemoteMetricsRpcService(
-                                    configuration, commonRpcService.getAddress(), rpcSystem);
+                                    configuration,
+                                    commonRpcService.getAddress(),
+                                    null,
+                                    rpcSystem.deref());
                 }
 
                 metricRegistry.startQueryService(metricQueryServiceRpcService, null);
@@ -360,14 +397,19 @@ public class MiniCluster implements AutoCloseableAsync {
                                 new ExecutorThreadFactory("mini-cluster-io"));
                 haServices = createHighAvailabilityServices(configuration, ioExecutor);
 
-                blobServer = new BlobServer(configuration, haServices.createBlobStore());
+                blobServer =
+                        BlobUtils.createBlobServer(
+                                configuration,
+                                Reference.borrowed(workingDirectory.getBlobStorageDirectory()),
+                                haServices.createBlobStore());
                 blobServer.start();
 
                 heartbeatServices = HeartbeatServices.fromConfiguration(configuration);
 
                 blobCacheService =
-                        new BlobCacheService(
+                        BlobUtils.createBlobCacheService(
                                 configuration,
+                                Reference.borrowed(workingDirectory.getBlobStorageDirectory()),
                                 haServices.createBlobStore(),
                                 new InetSocketAddress(
                                         InetAddress.getLocalHost(), blobServer.getPort()));
@@ -452,12 +494,13 @@ public class MiniCluster implements AutoCloseableAsync {
             final CompletableFuture<ApplicationStatus> shutDownFuture =
                     dispatcherResourceManagerComponent.getShutDownFuture();
             FutureUtils.assertNoException(
-                    shutDownFuture.thenRun(dispatcherResourceManagerComponent::closeAsync));
+                    shutDownFuture.thenCompose(
+                            applicationStatus ->
+                                    dispatcherResourceManagerComponent.stopApplication(
+                                            applicationStatus, null)));
             shutDownFutures.add(shutDownFuture);
         }
-
-        FutureUtils.assertNoException(
-                FutureUtils.completeAll(shutDownFutures).thenRun(this::closeAsync));
+        FutureUtils.completeAll(shutDownFutures).whenComplete((ignored, exception) -> closeAsync());
     }
 
     @VisibleForTesting
@@ -477,6 +520,7 @@ public class MiniCluster implements AutoCloseableAsync {
         return Collections.singleton(
                 dispatcherResourceManagerComponentFactory.create(
                         configuration,
+                        ResourceID.generate(),
                         ioExecutor,
                         rpcServiceFactory.createRpcService(),
                         haServices,
@@ -488,8 +532,8 @@ public class MiniCluster implements AutoCloseableAsync {
                         fatalErrorHandler));
     }
 
-    @Nonnull
-    DispatcherResourceManagerComponentFactory createDispatcherResourceManagerComponentFactory() {
+    protected DispatcherResourceManagerComponentFactory
+            createDispatcherResourceManagerComponentFactory() {
         return DefaultDispatcherResourceManagerComponentFactory.createSessionComponentFactory(
                 StandaloneResourceManagerFactory.getInstance());
     }
@@ -575,7 +619,11 @@ public class MiniCluster implements AutoCloseableAsync {
                                     remainingServicesTerminationFuture,
                                     () -> terminateExecutors(shutdownTimeoutMillis));
 
-                    executorsTerminationFuture.whenComplete(
+                    final CompletableFuture<Void> deleteDirectoriesFuture =
+                            FutureUtils.runAfterwards(
+                                    executorsTerminationFuture, this::deleteDirectories);
+
+                    deleteDirectoriesFuture.whenComplete(
                             (Void ignored, Throwable throwable) -> {
                                 if (throwable != null) {
                                     terminationFuture.completeExceptionally(
@@ -648,6 +696,7 @@ public class MiniCluster implements AutoCloseableAsync {
                             blobCacheService,
                             useLocalCommunication(),
                             ExternalResourceInfoProvider.NO_EXTERNAL_RESOURCES,
+                            workingDirectory.createSubWorkingDirectory("tm_" + taskManagers.size()),
                             taskManagerTerminatingFatalErrorHandlerFactory.create(
                                     taskManagers.size()));
 
@@ -664,6 +713,16 @@ public class MiniCluster implements AutoCloseableAsync {
     @VisibleForTesting
     public Configuration getConfiguration() {
         return miniClusterConfiguration.getConfiguration();
+    }
+
+    // HACK: temporary hack to make the changelog state backend tests work with forced
+    // full snapshots. This option should be removed once changelog state backend supports forced
+    // full snapshots
+    @Internal private boolean overrideRestoreModeForChangelogStateBackend;
+
+    @Internal
+    public void overrideRestoreModeForChangelogStateBackend() {
+        this.overrideRestoreModeForChangelogStateBackend = true;
     }
 
     @GuardedBy("lock")
@@ -738,12 +797,16 @@ public class MiniCluster implements AutoCloseableAsync {
     }
 
     public CompletableFuture<String> triggerSavepoint(
-            JobID jobId, String targetDirectory, boolean cancelJob) {
+            JobID jobId,
+            String targetDirectory,
+            boolean cancelJob,
+            SavepointFormatType formatType) {
         return runDispatcherCommand(
                 dispatcherGateway ->
                         dispatcherGateway.triggerSavepointAndGetLocation(
                                 jobId,
                                 targetDirectory,
+                                formatType,
                                 cancelJob
                                         ? TriggerSavepointMode.CANCEL_WITH_SAVEPOINT
                                         : TriggerSavepointMode.SAVEPOINT,
@@ -756,12 +819,16 @@ public class MiniCluster implements AutoCloseableAsync {
     }
 
     public CompletableFuture<String> stopWithSavepoint(
-            JobID jobId, String targetDirectory, boolean terminate) {
+            JobID jobId,
+            String targetDirectory,
+            boolean terminate,
+            SavepointFormatType formatType) {
         return runDispatcherCommand(
                 dispatcherGateway ->
                         dispatcherGateway.stopWithSavepointAndGetLocation(
                                 jobId,
                                 targetDirectory,
+                                formatType,
                                 terminate
                                         ? TriggerSavepointMode.TERMINATE_WITH_SAVEPOINT
                                         : TriggerSavepointMode.SUSPEND_WITH_SAVEPOINT,
@@ -788,10 +855,23 @@ public class MiniCluster implements AutoCloseableAsync {
                                 jobId, operatorId, serializedRequest, rpcTimeout));
     }
 
+    public CompletableFuture<ResourceOverview> getResourceOverview() {
+        return runResourceManagerCommand(
+                resourceManagerGateway ->
+                        resourceManagerGateway.requestResourceOverview(rpcTimeout));
+    }
+
     private <T> CompletableFuture<T> runDispatcherCommand(
             Function<DispatcherGateway, CompletableFuture<T>> dispatcherCommand) {
         return getDispatcherGatewayFuture()
                 .thenApply(dispatcherCommand)
+                .thenCompose(Function.identity());
+    }
+
+    private <T> CompletableFuture<T> runResourceManagerCommand(
+            Function<ResourceManagerGateway, CompletableFuture<T>> resourceManagerCommand) {
+        return getResourceManagerGatewayFuture()
+                .thenApply(resourceManagerCommand)
                 .thenCompose(Function.identity());
     }
 
@@ -858,21 +938,41 @@ public class MiniCluster implements AutoCloseableAsync {
     }
 
     public CompletableFuture<JobSubmissionResult> submitJob(JobGraph jobGraph) {
+        // When MiniCluster uses the local RPC, the provided JobGraph is passed directly to the
+        // Dispatcher. This means that any mutations to the JG can affect the Dispatcher behaviour,
+        // so we rather clone it to guard against this.
+        final JobGraph clonedJobGraph = cloneJobGraph(jobGraph);
+        checkRestoreModeForChangelogStateBackend(clonedJobGraph);
         final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture =
                 getDispatcherGatewayFuture();
         final CompletableFuture<InetSocketAddress> blobServerAddressFuture =
                 createBlobServerAddress(dispatcherGatewayFuture);
         final CompletableFuture<Void> jarUploadFuture =
-                uploadAndSetJobFiles(blobServerAddressFuture, jobGraph);
+                uploadAndSetJobFiles(blobServerAddressFuture, clonedJobGraph);
         final CompletableFuture<Acknowledge> acknowledgeCompletableFuture =
                 jarUploadFuture
                         .thenCombine(
                                 dispatcherGatewayFuture,
                                 (Void ack, DispatcherGateway dispatcherGateway) ->
-                                        dispatcherGateway.submitJob(jobGraph, rpcTimeout))
+                                        dispatcherGateway.submitJob(clonedJobGraph, rpcTimeout))
                         .thenCompose(Function.identity());
         return acknowledgeCompletableFuture.thenApply(
-                (Acknowledge ignored) -> new JobSubmissionResult(jobGraph.getJobID()));
+                (Acknowledge ignored) -> new JobSubmissionResult(clonedJobGraph.getJobID()));
+    }
+
+    // HACK: temporary hack to make the randomized changelog state backend tests work with forced
+    // full snapshots. This option should be removed once changelog state backend supports forced
+    // full snapshots
+    private void checkRestoreModeForChangelogStateBackend(JobGraph jobGraph) {
+        final SavepointRestoreSettings savepointRestoreSettings =
+                jobGraph.getSavepointRestoreSettings();
+        if (overrideRestoreModeForChangelogStateBackend
+                && savepointRestoreSettings.getRestoreMode() == RestoreMode.NO_CLAIM) {
+            final Configuration conf = new Configuration();
+            SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, conf);
+            conf.set(SavepointConfigOptions.RESTORE_MODE, RestoreMode.LEGACY);
+            jobGraph.setSavepointRestoreSettings(SavepointRestoreSettings.fromConfiguration(conf));
+        }
     }
 
     public CompletableFuture<JobResult> requestJobResult(JobID jobId) {
@@ -892,6 +992,13 @@ public class MiniCluster implements AutoCloseableAsync {
         synchronized (lock) {
             checkState(running, "MiniCluster is not yet running or has already been shut down.");
             return dispatcherGatewayRetriever.getFuture();
+        }
+    }
+
+    private CompletableFuture<ResourceManagerGateway> getResourceManagerGatewayFuture() {
+        synchronized (lock) {
+            checkState(running, "MiniCluster is not yet running or has already been shut down.");
+            return resourceManagerGatewayRetriever.getFuture();
         }
     }
 
@@ -1101,7 +1208,9 @@ public class MiniCluster implements AutoCloseableAsync {
             }
 
             try {
-                rpcSystem.close();
+                if (rpcSystem.isOwned()) {
+                    rpcSystem.deref().close();
+                }
             } catch (Exception e) {
                 exception = ExceptionUtils.firstOrSuppressed(e, exception);
             }
@@ -1141,6 +1250,22 @@ public class MiniCluster implements AutoCloseableAsync {
             } else {
                 return CompletableFuture.completedFuture(null);
             }
+        }
+    }
+
+    private void deleteDirectories() throws IOException {
+        synchronized (lock) {
+            if (workingDirectory != null) {
+                workingDirectory.delete();
+            }
+        }
+    }
+
+    private static JobGraph cloneJobGraph(JobGraph jobGraph) {
+        try {
+            return InstantiationUtil.clone(jobGraph);
+        } catch (ClassNotFoundException | IOException e) {
+            throw new IllegalStateException("Unable to clone the provided JobGraph.", e);
         }
     }
 

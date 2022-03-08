@@ -24,17 +24,20 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.configuration.IllegalConfigurationException;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.CloseableRegistry;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.query.TaskKvStateRegistry;
 import org.apache.flink.runtime.state.AbstractKeyedStateBackend;
+import org.apache.flink.runtime.state.CheckpointBoundKeyedStateHandle;
 import org.apache.flink.runtime.state.CheckpointableKeyedStateBackend;
 import org.apache.flink.runtime.state.ConfigurableStateBackend;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.OperatorStateBackend;
 import org.apache.flink.runtime.state.OperatorStateHandle;
+import org.apache.flink.runtime.state.SavepointKeyedStateHandle;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle.ChangelogStateBackendHandleImpl;
@@ -217,11 +220,12 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
         String subtaskName = env.getTaskInfo().getTaskNameWithSubtasks();
         ExecutionConfig executionConfig = env.getExecutionConfig();
 
+        Collection<ChangelogStateBackendHandle> stateBackendHandles = castHandles(stateHandles);
         ChangelogKeyedStateBackend<K> keyedStateBackend =
                 ChangelogBackendRestoreOperation.restore(
                         changelogStorage.createReader(),
                         env.getUserCodeClassLoader().asClassLoader(),
-                        castHandles(stateHandles),
+                        stateBackendHandles,
                         baseBackendBuilder,
                         (baseBackend, baseState) ->
                                 new ChangelogKeyedStateBackend(
@@ -265,14 +269,34 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
         }
         return stateHandles.stream()
                 .filter(Objects::nonNull)
-                .map(
-                        keyedStateHandle ->
-                                keyedStateHandle instanceof ChangelogStateBackendHandle
-                                        ? (ChangelogStateBackendHandle) keyedStateHandle
-                                        : new ChangelogStateBackendHandleImpl(
-                                                singletonList(keyedStateHandle),
-                                                emptyList(),
-                                                keyedStateHandle.getKeyGroupRange()))
+                .map(this::getChangelogStateBackendHandle)
                 .collect(Collectors.toList());
+    }
+
+    private ChangelogStateBackendHandle getChangelogStateBackendHandle(
+            KeyedStateHandle keyedStateHandle) {
+        if (keyedStateHandle instanceof ChangelogStateBackendHandle) {
+            return (ChangelogStateBackendHandle) keyedStateHandle;
+        } else if (keyedStateHandle instanceof SavepointKeyedStateHandle) {
+            return new ChangelogStateBackendHandleImpl(
+                    singletonList(keyedStateHandle),
+                    emptyList(),
+                    keyedStateHandle.getKeyGroupRange(),
+                    getMaterializationID(keyedStateHandle),
+                    0L);
+        } else {
+            throw new IllegalStateException(
+                    String.format(
+                            "Recovery not supported from %s with Changelog enabled. Consider taking a savepoint in %s format.",
+                            keyedStateHandle.getClass(), SavepointFormatType.CANONICAL));
+        }
+    }
+
+    private long getMaterializationID(KeyedStateHandle keyedStateHandle) {
+        if (keyedStateHandle instanceof CheckpointBoundKeyedStateHandle) {
+            return ((CheckpointBoundKeyedStateHandle) keyedStateHandle).getCheckpointId();
+        } else {
+            return 0L;
+        }
     }
 }

@@ -54,7 +54,7 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
     <Resource name="optimized rel plan">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c], changelogMode=[NONE])
-+- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%hello%')], changelogMode=[I])
++- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[b, cnt], changelogMode=[NONE])
@@ -63,9 +63,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink`], fields=[b,
       +- Exchange(distribution=[hash[b]], changelogMode=[I])
          +- Union(all=[true], union=[b, a], changelogMode=[I])
             :- Calc(select=[b, a], changelogMode=[I])
-            :  +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%hello%')], changelogMode=[I])
+            :  +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
             :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
-            +- Calc(select=[b, a], where=[LIKE(c, _UTF-16LE'%world%')], changelogMode=[I])
+            +- Calc(select=[b, a], where=[LIKE(c, '%world%')], changelogMode=[I])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, cnt], changelogMode=[NONE])
@@ -74,9 +74,9 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, 
       +- Exchange(distribution=[hash[b]], changelogMode=[I])
          +- Union(all=[true], union=[b, a], changelogMode=[I])
             :- Calc(select=[b, a], changelogMode=[I])
-            :  +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%hello%')], changelogMode=[I])
+            :  +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
             :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
-            +- Calc(select=[b, a], where=[LIKE(c, _UTF-16LE'%world%')], changelogMode=[I])
+            +- Calc(select=[b, a], where=[LIKE(c, '%world%')], changelogMode=[I])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
@@ -385,10 +385,10 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fields=[a
    :        +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
    :           +- Calc(select=[a, b, f0 AS c], changelogMode=[I])
    :              +- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER], changelogMode=[I])
-   :                 +- Calc(select=[a, -(b, MOD(b, 300)) AS b, c], where=[AND(>=(b, UNIX_TIMESTAMP(_UTF-16LE'${startTime}')), <>(c, _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))], changelogMode=[I])
+   :                 +- Calc(select=[a, -(b, MOD(b, 300)) AS b, c], where=[AND(>=(b, UNIX_TIMESTAMP('${startTime}')), <>(c, ''))], changelogMode=[I])
    :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
-   +- Calc(select=[a, CAST(total_c) AS total_c], where=[>(a, 50)], changelogMode=[I])
-      +- Calc(select=[a, 0 AS total_c], where=[>=(b, UNIX_TIMESTAMP(_UTF-16LE'${startTime}'))], changelogMode=[I])
+   +- Calc(select=[a, CAST(total_c AS BIGINT) AS total_c], where=[>(a, 50)], changelogMode=[I])
+      +- Calc(select=[a, 0 AS total_c], where=[>=(b, UNIX_TIMESTAMP('${startTime}'))], changelogMode=[I])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[a, total_c], changelogMode=[NONE])
@@ -399,10 +399,10 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[a
    :        +- Exchange(distribution=[hash[a, b]], changelogMode=[I])
    :           +- Calc(select=[a, b, f0 AS c], changelogMode=[I])
    :              +- Correlate(invocation=[split($cor0.c)], correlate=[table(split($cor0.c))], select=[a,b,c,f0], rowType=[RecordType(INTEGER a, BIGINT b, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER], changelogMode=[I])
-   :                 +- Calc(select=[a, -(b, MOD(b, 300)) AS b, c], where=[AND(>=(b, UNIX_TIMESTAMP(_UTF-16LE'${startTime}')), <>(c, _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))], changelogMode=[I])
+   :                 +- Calc(select=[a, -(b, MOD(b, 300)) AS b, c], where=[AND(>=(b, UNIX_TIMESTAMP('${startTime}')), <>(c, ''))], changelogMode=[I])
    :                    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
-   +- Calc(select=[a, CAST(total_c) AS total_c], where=[<(a, 50)], changelogMode=[I])
-      +- Calc(select=[a, 0 AS total_c], where=[>=(b, UNIX_TIMESTAMP(_UTF-16LE'${startTime}'))], changelogMode=[I])
+   +- Calc(select=[a, CAST(total_c AS BIGINT) AS total_c], where=[<(a, 50)], changelogMode=[I])
+      +- Calc(select=[a, 0 AS total_c], where=[>=(b, UNIX_TIMESTAMP('${startTime}'))], changelogMode=[I])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
@@ -719,16 +719,16 @@ LogicalLegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fiel
     <Resource name="optimized rel plan">
       <![CDATA[
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink`], fields=[a, b, c], changelogMode=[NONE])
-+- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%hello%')], changelogMode=[I])
++- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink1`], fields=[a, b, c], changelogMode=[NONE])
 +- Union(all=[true], union=[a, b, c], changelogMode=[I])
    :- Calc(select=[a, b, c], where=[>=(b, 5)], changelogMode=[I])
-   :  +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%hello%')], changelogMode=[I])
+   :  +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
    +- Calc(select=[a, b, c], where=[>=(b, 5)], changelogMode=[I])
-      +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%world%')], changelogMode=[I])
+      +- Calc(select=[a, b, c], where=[LIKE(c, '%world%')], changelogMode=[I])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[b, cnt], changelogMode=[NONE])
@@ -736,10 +736,10 @@ LegacySink(name=[`default_catalog`.`default_database`.`retractSink2`], fields=[b
    +- Exchange(distribution=[hash[b]], changelogMode=[I])
       +- Union(all=[true], union=[b, a], changelogMode=[I])
          :- Calc(select=[b, a], where=[<(b, 4)], changelogMode=[I])
-         :  +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%hello%')], changelogMode=[I])
+         :  +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
          :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
          +- Calc(select=[b, a], where=[<(b, 4)], changelogMode=[I])
-            +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%world%')], changelogMode=[I])
+            +- Calc(select=[a, b, c], where=[LIKE(c, '%world%')], changelogMode=[I])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 
 LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, cnt], changelogMode=[NONE])
@@ -747,10 +747,10 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, 
    +- Exchange(distribution=[hash[b]], changelogMode=[I])
       +- Union(all=[true], union=[b, a], changelogMode=[I])
          :- Calc(select=[b, a], where=[<(b, 4)], changelogMode=[I])
-         :  +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%hello%')], changelogMode=[I])
+         :  +- Calc(select=[a, b, c], where=[LIKE(c, '%hello%')], changelogMode=[I])
          :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
          +- Calc(select=[b, a], where=[<(b, 4)], changelogMode=[I])
-            +- Calc(select=[a, b, c], where=[LIKE(c, _UTF-16LE'%world%')], changelogMode=[I])
+            +- Calc(select=[a, b, c], where=[LIKE(c, '%world%')], changelogMode=[I])
                +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
 ]]>
     </Resource>
@@ -1025,7 +1025,7 @@ LegacySink(name=[`default_catalog`.`default_database`.`upsertSink`], fields=[b, 
    :- GroupAggregate(groupBy=[b, c], select=[b, c, SUM(a) AS a_sum], changelogMode=[I,UA])
    :  +- Exchange(distribution=[hash[b, c]], changelogMode=[I])
    :     +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c], changelogMode=[I])
-   +- Calc(select=[CAST(1:BIGINT) AS b, c, a_sum], changelogMode=[I,UA])
+   +- Calc(select=[CAST(1 AS BIGINT) AS b, c, a_sum], changelogMode=[I,UA])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(a) AS a_sum], changelogMode=[I,UA])
          +- Exchange(distribution=[hash[c]], changelogMode=[I])
             +- Calc(select=[c, a], changelogMode=[I])

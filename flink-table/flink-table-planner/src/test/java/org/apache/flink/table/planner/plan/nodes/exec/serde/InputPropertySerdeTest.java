@@ -41,7 +41,8 @@ public class InputPropertySerdeTest {
 
     @Test
     public void testExecEdgeSerde() throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
+        ObjectMapper mapper = JsonSerdeUtil.getObjectMapper();
+
         StringWriter writer = new StringWriter(100);
         try (JsonGenerator gen = mapper.getFactory().createGenerator(writer)) {
             gen.writeObject(inputProperty);

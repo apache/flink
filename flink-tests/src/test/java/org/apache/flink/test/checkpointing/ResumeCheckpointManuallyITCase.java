@@ -371,7 +371,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
         env.setStateBackend(backend);
         env.setParallelism(PARALLELISM);
         env.getCheckpointConfig()
-                .enableExternalizedCheckpoints(
+                .setExternalizedCheckpointCleanup(
                         CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 
         env.addSource(new NotifyingInfiniteTupleSource(10_000))

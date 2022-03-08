@@ -20,7 +20,6 @@ package org.apache.flink.table.delegation;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.factories.Factory;
 
 /**
@@ -32,14 +31,8 @@ import org.apache.flink.table.factories.Factory;
  * <p>Usually, there should only be one executor factory in the class path. However, advanced users
  * can implement a custom one for hooking into the submission process.
  *
- * <p><b>Important:</b> Implementations of this interface should also implement the method
- *
- * <pre>
- *   public Executor create(Configuration, StreamExecutionEnvironment);
- * </pre>
- *
- * <p>This method will be used when instantiating a {@link TableEnvironment} from one of the
- * bridging modules which enables conversion from/to {@code DataStream} API.
+ * <p><b>Important:</b> In order to support DataStream APIs, implementations of this interface must
+ * also implement {@code StreamExecutorFactory} from the {@code flink-table-api-bridge-base} module.
  */
 @Internal
 public interface ExecutorFactory extends Factory {

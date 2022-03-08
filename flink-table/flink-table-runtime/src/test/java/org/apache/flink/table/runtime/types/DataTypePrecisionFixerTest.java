@@ -82,7 +82,7 @@ public class DataTypePrecisionFixerTest {
                         .logicalType(new LocalZonedTimestampType(2))
                         .expect(DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE(2)),
                 TestSpecs.fix(Types.STRING)
-                        .logicalType(new VarCharType(VarCharType.MAX_LENGTH))
+                        .logicalType(VarCharType.STRING_TYPE)
                         .expect(DataTypes.STRING()),
 
                 // nested

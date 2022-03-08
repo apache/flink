@@ -90,27 +90,8 @@ under the License.
 		</dependency>
 	</dependencies>
 
-	<!-- ONLY run the tests when explicitly told to do so  -->
-	<properties>
-		<skipTests>true</skipTests>
-	</properties>
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-surefire-plugin</artifactId>
-				<configuration>
-					<skipTests>${skipTests}</skipTests>
-					<forkCount>1</forkCount> <!-- Enforce single test execution -->
-				</configuration>
-				<executions>
-					<execution>
-						<goals>
-							<goal>test</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
 			<!-- Disabling convergence check because there are multiple problems within the used pubsub dependencies -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

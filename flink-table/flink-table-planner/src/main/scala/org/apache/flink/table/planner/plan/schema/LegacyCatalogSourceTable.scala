@@ -100,7 +100,7 @@ class LegacyCatalogSourceTable[T](
 
     val tableSourceTable = new LegacyTableSourceTable[T](
       relOptSchema,
-      schemaTable.getTableIdentifier,
+      schemaTable.getContextResolvedTable.getIdentifier,
       actualRowType,
       statistic,
       tableSource,
@@ -179,15 +179,16 @@ class LegacyCatalogSourceTable[T](
     } else {
       catalogTable
     }
+    val identifier = schemaTable.getContextResolvedTable.getIdentifier
     val tableSource = TableFactoryUtil.findAndCreateTableSource(
-      schemaTable.getCatalog.orElse(null),
-      schemaTable.getTableIdentifier,
+      schemaTable.getContextResolvedTable.getCatalog.orElse(null),
+      identifier,
       tableToFind,
       conf,
       schemaTable.isTemporary)
 
     // validation
-    val tableName = schemaTable.getTableIdentifier.asSummaryString
+    val tableName = identifier.asSummaryString
     tableSource match {
       case ts: StreamTableSource[_] =>
         if (!schemaTable.isStreamingMode && !ts.isBounded) {

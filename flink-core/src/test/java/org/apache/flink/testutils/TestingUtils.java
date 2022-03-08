@@ -23,11 +23,13 @@ import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
 import java.time.Duration;
+import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 /** Convenience functions to test actor based components. */
 public class TestingUtils {
+    private static final UUID ZERO_UUID = new UUID(0L, 0L);
 
     public static final Duration TESTING_DURATION = Duration.ofMinutes(2L);
     public static final Time TIMEOUT = Time.minutes(1L);
@@ -37,6 +39,12 @@ public class TestingUtils {
 
     public static Time infiniteTime() {
         return Time.milliseconds(Integer.MAX_VALUE);
+    }
+
+    public static Duration infiniteDuration() {
+        // we cannot use Long.MAX_VALUE because the Duration stores it in nanosecond resolution and
+        // calculations will easily cause overflows --> 1 year should be long enough for "infinity"
+        return Duration.ofDays(365L);
     }
 
     public static synchronized ScheduledExecutorService defaultExecutor() {
@@ -49,5 +57,9 @@ public class TestingUtils {
 
     public static ScheduledExecutor defaultScheduledExecutor() {
         return new ScheduledExecutorServiceAdapter(defaultExecutor());
+    }
+
+    public static UUID zeroUUID() {
+        return ZERO_UUID;
     }
 }

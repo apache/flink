@@ -31,6 +31,7 @@ import org.apache.flink.api.java.io.DiscardingOutputFormat;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.NettyShuffleEnvironmentOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.core.plugin.PluginManager;
 import org.apache.flink.core.plugin.PluginUtils;
@@ -267,6 +268,7 @@ public class JobManagerHAProcessFailureRecoveryITCase extends TestLogger {
         config.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("4m"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MIN, MemorySize.parse("3200k"));
         config.set(TaskManagerOptions.NETWORK_MEMORY_MAX, MemorySize.parse("3200k"));
+        config.set(NettyShuffleEnvironmentOptions.NETWORK_SORT_SHUFFLE_MIN_BUFFERS, 16);
         config.setInteger(TaskManagerOptions.NUM_TASK_SLOTS, 2);
         config.set(TaskManagerOptions.TASK_HEAP_MEMORY, MemorySize.parse("128m"));
         config.set(TaskManagerOptions.CPU_CORES, 1.0);

@@ -26,6 +26,7 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.CollectionDataType;
 import org.apache.flink.table.types.DataType;
@@ -53,13 +54,10 @@ import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
@@ -79,62 +77,21 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeUtils.toInte
 public final class DataTypeUtils {
 
     /**
-     * Projects a (possibly nested) row data type by returning a new data type that only includes
-     * fields of the given index paths.
-     *
-     * <p>Note: Index paths allow for arbitrary deep nesting. For example, {@code [[0, 2, 1], ...]}
-     * specifies to include the 2nd field of the 3rd field of the 1st field in the top-level row.
-     * Sometimes, it may get name conflicts when extract fields from the row field. Considering the
-     * the path is unique to extract fields, it makes sense to use the path to the fields with
-     * delimiter `_` as the new name of the field. For example, the new name of the field `b` in the
-     * row `a` is `a_b` rather than `b`. But it may still gets name conflicts in some situation,
-     * such as the field `a_b` in the top level schema. In such situation, it will use the postfix
-     * in the format '_$%d' to resolve the name conflicts.
+     * @deprecated Use the {@link Projection} type
+     * @see Projection#project(DataType)
      */
+    @Deprecated
     public static DataType projectRow(DataType dataType, int[][] indexPaths) {
-        final List<RowField> updatedFields = new ArrayList<>();
-        final List<DataType> updatedChildren = new ArrayList<>();
-        Set<String> nameDomain = new HashSet<>();
-        int duplicateCount = 0;
-        for (int[] indexPath : indexPaths) {
-            DataType fieldType = dataType.getChildren().get(indexPath[0]);
-            LogicalType fieldLogicalType = fieldType.getLogicalType();
-            StringBuilder builder =
-                    new StringBuilder(
-                            ((RowType) dataType.getLogicalType())
-                                    .getFieldNames()
-                                    .get(indexPath[0]));
-            for (int index = 1; index < indexPath.length; index++) {
-                Preconditions.checkArgument(fieldLogicalType.is(ROW), "Row data type expected.");
-                RowType rowtype = ((RowType) fieldLogicalType);
-                builder.append("_").append(rowtype.getFieldNames().get(indexPath[index]));
-                fieldLogicalType = rowtype.getFields().get(indexPath[index]).getType();
-                fieldType = fieldType.getChildren().get(indexPath[index]);
-            }
-            String path = builder.toString();
-            while (nameDomain.contains(path)) {
-                path = builder.append("_$").append(duplicateCount++).toString();
-            }
-            updatedFields.add(new RowField(path, fieldLogicalType));
-            updatedChildren.add(fieldType);
-            nameDomain.add(path);
-        }
-        return new FieldsDataType(
-                new RowType(dataType.getLogicalType().isNullable(), updatedFields),
-                dataType.getConversionClass(),
-                updatedChildren);
+        return Projection.of(indexPaths).project(dataType);
     }
 
     /**
-     * Projects a (possibly nested) row data type by returning a new data type that only includes
-     * fields of the given indices.
-     *
-     * <p>Note: This method only projects (possibly nested) fields in the top-level row.
+     * @deprecated Use the {@link Projection} type
+     * @see Projection#project(DataType)
      */
-    public static DataType projectRow(DataType dataType, int[] indices) {
-        final int[][] indexPaths =
-                IntStream.of(indices).mapToObj(i -> new int[] {i}).toArray(int[][]::new);
-        return projectRow(dataType, indexPaths);
+    @Deprecated
+    public static DataType projectRow(DataType dataType, int[] indexPaths) {
+        return Projection.of(indexPaths).project(dataType);
     }
 
     /** Removes a string prefix from the fields of the given row data type. */
@@ -186,7 +143,18 @@ public final class DataTypeUtils {
 
     /** Checks whether a given data type is an internal data structure. */
     public static boolean isInternal(DataType dataType) {
-        final Class<?> clazz = primitiveToWrapper(dataType.getConversionClass());
+        return isInternal(dataType, true);
+    }
+
+    /** Checks whether a given data type is an internal data structure. */
+    public static boolean isInternal(DataType dataType, boolean autobox) {
+        final Class<?> clazz;
+        if (autobox) {
+            clazz = primitiveToWrapper(dataType.getConversionClass());
+        } else {
+            clazz = dataType.getConversionClass();
+        }
+
         return clazz == toInternalConversionClass(dataType.getLogicalType());
     }
 

@@ -50,7 +50,7 @@ public abstract class BytesMultiMapTestBase<K> extends BytesMapTestBase {
     static final LogicalType[] KEY_TYPES =
             new LogicalType[] {
                 new IntType(),
-                new VarCharType(VarCharType.MAX_LENGTH),
+                VarCharType.STRING_TYPE,
                 new DoubleType(),
                 new BigIntType(),
                 new BooleanType(),
@@ -60,7 +60,7 @@ public abstract class BytesMultiMapTestBase<K> extends BytesMapTestBase {
 
     static final LogicalType[] VALUE_TYPES =
             new LogicalType[] {
-                new VarCharType(VarCharType.MAX_LENGTH), new IntType(),
+                VarCharType.STRING_TYPE, new IntType(),
             };
 
     protected final PagedTypeSerializer<K> keySerializer;

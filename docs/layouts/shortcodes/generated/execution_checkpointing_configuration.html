@@ -16,15 +16,15 @@
         </tr>
         <tr>
             <td><h5>execution.checkpointing.checkpoints-after-tasks-finish.enabled</h5></td>
-            <td style="word-wrap: break-word;">false</td>
+            <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
             <td>Feature toggle for enabling checkpointing even if some of tasks have finished. Before you enable it, please take a look at <a href="{{.Site.BaseURL}}{{.Site.LanguagePrefix}}/docs/dev/datastream/fault-tolerance/checkpointing/#checkpointing-with-parts-of-the-graph-finished-beta">the important considerations</a> </td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.externalized-checkpoint-retention</h5></td>
-            <td style="word-wrap: break-word;">(none)</td>
+            <td style="word-wrap: break-word;">NO_EXTERNALIZED_CHECKPOINTS</td>
             <td><p>Enum</p></td>
-            <td>Externalized checkpoints write their meta data out to persistent storage and are not automatically cleaned up when the owning job fails or is suspended (terminating with job status <code class="highlighter-rouge">JobStatus#FAILED</code> or <code class="highlighter-rouge">JobStatus#SUSPENDED</code>. In this case, you have to manually clean up the checkpoint state, both the meta data and actual program state.<br /><br />The mode defines how an externalized checkpoint should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on cancellation you have to handle checkpoint clean up manually when you cancel the job as well (terminating with job status <code class="highlighter-rouge">JobStatus#CANCELED</code>).<br /><br />The target directory for externalized checkpoints is configured via <code class="highlighter-rouge">state.checkpoints.dir</code>.<br /><br />Possible values:<ul><li>"DELETE_ON_CANCELLATION"</li><li>"RETAIN_ON_CANCELLATION"</li></ul></td>
+            <td>Externalized checkpoints write their meta data out to persistent storage and are not automatically cleaned up when the owning job fails or is suspended (terminating with job status <code class="highlighter-rouge">JobStatus#FAILED</code> or <code class="highlighter-rouge">JobStatus#SUSPENDED</code>). In this case, you have to manually clean up the checkpoint state, both the meta data and actual program state.<br /><br />The mode defines how an externalized checkpoint should be cleaned up on job cancellation. If you choose to retain externalized checkpoints on cancellation you have to handle checkpoint clean up manually when you cancel the job as well (terminating with job status <code class="highlighter-rouge">JobStatus#CANCELED</code>).<br /><br />The target directory for externalized checkpoints is configured via <code class="highlighter-rouge">state.checkpoints.dir</code>.<br /><br />Possible values:<ul><li>"DELETE_ON_CANCELLATION": Checkpoint state is only kept when the owning job fails. It is deleted if the job is cancelled.</li><li>"RETAIN_ON_CANCELLATION": Checkpoint state is kept when the owning job is cancelled or fails.</li><li>"NO_EXTERNALIZED_CHECKPOINTS": Externalized checkpoints are disabled.</li></ul></td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.interval</h5></td>
@@ -66,7 +66,7 @@
             <td><h5>execution.checkpointing.tolerable-failed-checkpoints</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Integer</td>
-            <td>The tolerable checkpoint failure number. If set to 0, that means we do not tolerance any checkpoint failure.</td>
+            <td>The tolerable checkpoint consecutive failure number. If set to 0, that means we do not tolerance any checkpoint failure.</td>
         </tr>
         <tr>
             <td><h5>execution.checkpointing.unaligned</h5></td>

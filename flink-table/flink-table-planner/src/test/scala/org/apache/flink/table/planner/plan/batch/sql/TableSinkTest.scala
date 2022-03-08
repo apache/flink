@@ -135,4 +135,39 @@ class TableSinkTest extends TableTestBase {
 
     util.verifyExecPlan(stmtSet)
   }
+
+  @Test
+  def testManagedTableSinkWithDisableCheckpointing(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE sink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH(
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
+    
+    util.verifyAstPlan(stmtSet)
+  }
+
+  @Test
+  def testManagedTableSinkWithEnableCheckpointing(): Unit = {
+    util.getStreamEnv.enableCheckpointing(10)
+    util.addTable(
+      s"""
+         |CREATE TABLE sink (
+         |  `a` INT,
+         |  `b` BIGINT,
+         |  `c` STRING
+         |) WITH(
+         |)
+         |""".stripMargin)
+    val stmtSet = util.tableEnv.createStatementSet()
+    stmtSet.addInsertSql("INSERT INTO sink SELECT * FROM MyTable")
+
+    util.verifyAstPlan(stmtSet)
+  }
 }

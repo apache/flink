@@ -130,6 +130,11 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns>
         log(REMOVE_ELEMENT, dataSerializer, ns);
     }
 
+    @Override
+    public void resetWritingMetaFlag() {
+        metaDataWritten = false;
+    }
+
     protected void log(StateChangeOperation op, Ns ns) throws IOException {
         logMetaIfNeeded();
         stateChangelogWriter.append(keyContext.getCurrentKeyGroupIndex(), serialize(op, ns, null));

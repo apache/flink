@@ -81,8 +81,8 @@ this action individually as it works similarly to the `run` action in terms of t
 The `run` and `run-application` commands support passing additional configuration parameters via the
 `-D` argument. For example setting the [maximum parallelism]({{< ref "docs/deployment/config#pipeline-max-parallelism" >}}#application-mode) 
 for a job can be done by setting `-Dpipeline.max-parallelism=120`. This argument is very useful for
-configuring per-job or application mode clusters, because you can pass any configuration parameter 
-to the cluster, without changing the configuration file.
+configuring application mode clusters, because you can pass any configuration parameter 
+to the cluster without changing the configuration file.
 
 When submitting a job to an existing session cluster, only [execution configuration parameters]({{< ref "docs/deployment/config#execution" >}}) are supported.
 
@@ -118,6 +118,8 @@ You can resume your program from this savepoint with the run command.
 ```
 The savepoint folder is optional and needs to be specified if 
 [state.savepoints.dir]({{< ref "docs/deployment/config" >}}#state-savepoints-dir) isn't set.
+
+Lastly, you can optionally provide what should be the [binary format]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) of the savepoint.
 
 The path to the savepoint can be used later on to [restart the Flink job](#starting-a-job-from-a-savepoint).
 
@@ -181,6 +183,8 @@ Use the `--drain` flag if you want to terminate the job permanently.
 If you want to resume the job at a later point in time, then do not drain the pipeline because it could lead to incorrect results when the job is resumed.
 {{< /hint >}}
 
+Lastly, you can optionally provide what should be the [binary format]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) of the savepoint.
+
 #### Cancelling a Job Ungracefully
 
 Cancelling a job can be achieved through the `cancel` action:
@@ -240,6 +244,10 @@ $ ./bin/flink run \
       --allowNonRestoredState ...
 ```
 This is useful if your program dropped an operator that was part of the savepoint.
+
+You can also select the [restore mode]({{< ref "docs/ops/state/savepoints" >}}#restore-mode)
+which should be used for the savepoint. The mode controls who takes ownership of the files of
+the specified savepoint.
 
 {{< top >}}
 
@@ -331,12 +339,12 @@ The parameterization of a job submission differs based on the underlying framewo
 
 `bin/flink` offers a parameter `--target` to handle the different options. In addition to that, jobs 
 have to be submitted using either `run` (for [Session]({{< ref "docs/deployment/overview" >}}#session-mode) 
-and [Per-Job Mode]({{< ref "docs/deployment/overview" >}}#per-job-mode)) or `run-application` (for 
+and [Per-Job Mode (deprecated)]({{< ref "docs/deployment/overview" >}}#per-job-mode)) or `run-application` (for 
 [Application Mode]({{< ref "docs/deployment/overview" >}}#application-mode)). See the following summary of 
 parameter combinations: 
 * YARN
   * `./bin/flink run --target yarn-session`: Submission to an already running Flink on YARN cluster
-  * `./bin/flink run --target yarn-per-job`: Submission spinning up a Flink on YARN cluster in Per-Job Mode
+  * `./bin/flink run --target yarn-per-job`: Submission spinning up a Flink on YARN cluster in Per-Job Mode (deprecated)
   * `./bin/flink run-application --target yarn-application`: Submission spinning up Flink on YARN cluster in Application Mode
 * Kubernetes
   * `./bin/flink run --target kubernetes-session`: Submission to an already running Flink on Kubernetes cluster
@@ -440,7 +448,7 @@ related options. Here's an overview of all the Python related options for the ac
         <tr>
             <td><code class="highlighter-rouge">-py,--python</code></td>
             <td>
-                Python script with the program entry. The dependent resources can be configured
+                Python script with the program entry point. The dependent resources can be configured
                 with the <code class="highlighter-rouge">--pyFiles</code> option.
             </td>
         </tr>

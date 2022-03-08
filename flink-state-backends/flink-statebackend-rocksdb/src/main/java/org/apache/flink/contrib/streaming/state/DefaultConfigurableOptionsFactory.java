@@ -65,7 +65,14 @@ import static org.apache.flink.contrib.streaming.state.RocksDBConfigurableOption
  * An implementation of {@link ConfigurableRocksDBOptionsFactory} using options provided by {@link
  * RocksDBConfigurableOptions}. It acts as the default options factory within {@link
  * EmbeddedRocksDBStateBackend} if the user did not define a {@link RocksDBOptionsFactory}.
+ *
+ * <p>After FLINK-24046, we refactor the config procedure for RocksDB. User could use {@link
+ * ConfigurableRocksDBOptionsFactory} to apply some customized options. Besides this, we load the
+ * configurable options in {@link RocksDBResourceContainer} instead of {@link
+ * DefaultConfigurableOptionsFactory}. It is ignored for general case and still kept for backward
+ * compatibility if user still leverage this class. Thus, we mark this factory Deprecated.
  */
+@Deprecated
 public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOptionsFactory {
 
     private static final long serialVersionUID = 1L;
@@ -76,7 +83,7 @@ public class DefaultConfigurableOptionsFactory implements ConfigurableRocksDBOpt
     public DBOptions createDBOptions(
             DBOptions currentOptions, Collection<AutoCloseable> handlesToClose) {
         if (isOptionConfigured(MAX_BACKGROUND_THREADS)) {
-            currentOptions.setIncreaseParallelism(getMaxBackgroundThreads());
+            currentOptions.setMaxBackgroundJobs(getMaxBackgroundThreads());
         }
 
         if (isOptionConfigured(MAX_OPEN_FILES)) {

@@ -18,10 +18,10 @@
 
 package org.apache.flink.table.planner.plan.nodes.logical
 
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalWindowAggregate, WindowAggregate}
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan._
 import org.apache.calcite.rel.RelNode
@@ -43,7 +43,7 @@ class FlinkLogicalWindowAggregate(
     groupSet: ImmutableBitSet,
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[PlannerNamedWindowProperty])
+    namedProperties: Seq[NamedWindowProperty])
   extends WindowAggregate(cluster, traitSet, child, groupSet, aggCalls, window, namedProperties)
   with FlinkLogicalRel {
 

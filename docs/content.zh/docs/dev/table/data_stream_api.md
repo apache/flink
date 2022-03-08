@@ -789,7 +789,7 @@ val table =
                     .column("uid", DataTypes.TINYINT())
                     .column("payload", DataTypes.STRING())
                     .build())
-            .build());
+            .build())
 
 // convert the Table to a DataStream and further transform the pipeline
 tableEnv.toDataStream(table)
@@ -1153,7 +1153,7 @@ table.printSchema();
 {{< tab "Scala" >}}
 ```scala
 import org.apache.flink.api.scala._
-import java.time.Instant;
+import java.time.Instant
 
 // some example case class
 case class User(name: String, score: java.lang.Integer, event_time: java.time.Instant)
@@ -2791,7 +2791,7 @@ t_env = ... # type: StreamTableEnvironment
 
 stream = ... # type: DataStream of Types.TUPLE([Types.LONG(), Types.STRING()])
 
-table2 = t_env.from_data_stream(stream, col('my_long'), col('my_stram'))
+table2 = t_env.from_data_stream(stream, col('my_long'), col('my_stream'))
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -2864,7 +2864,7 @@ val table: Table = tableEnv.fromValues(
         DataTypes.FIELD("name", DataTypes.STRING()),
         DataTypes.FIELD("age", DataTypes.INT()),
     row("john", 35),
-    row("sarah", 32));
+    row("sarah", 32))
 
 // Convert the Table into an append DataStream of Row by specifying the class
 val dsRow: DataStream[Row] = tableEnv.toAppendStream[Row](table)
@@ -2882,7 +2882,7 @@ val retractStream: DataStream[(Boolean, Row)] = tableEnv.toRetractStream[Row](ta
 {{< /tab >}}
 {{< /tabs >}}
 
-**注意：** 文档[动态表](streaming/dynamic_tables.html)给出了有关动态表及其属性的详细讨论。
+**注意：** 文档[动态表]({{< ref "docs/dev/table/concepts/dynamic_tables" >}})给出了有关动态表及其属性的详细讨论。
 
 <span class="label label-danger">注意</span> **一旦 Table 被转化为 DataStream，必须使用 StreamExecutionEnvironment 的 execute 方法执行该 DataStream 作业。**
 

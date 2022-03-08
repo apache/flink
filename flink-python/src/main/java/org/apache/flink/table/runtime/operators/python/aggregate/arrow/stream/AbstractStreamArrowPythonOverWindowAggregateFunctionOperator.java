@@ -35,6 +35,7 @@ import org.apache.flink.streaming.api.operators.Triggerable;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.python.aggregate.arrow.AbstractArrowPythonAggregateFunctionOperator;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
@@ -78,12 +79,18 @@ public abstract class AbstractStreamArrowPythonOverWindowAggregateFunctionOperat
             Configuration config,
             PythonFunctionInfo[] pandasAggFunctions,
             RowType inputType,
-            RowType outputType,
+            RowType udfInputType,
+            RowType udfOutputType,
             int inputTimeFieldIndex,
             long lowerBoundary,
-            int[] groupingSet,
-            int[] udafInputOffsets) {
-        super(config, pandasAggFunctions, inputType, outputType, groupingSet, udafInputOffsets);
+            GeneratedProjection inputGeneratedProjection) {
+        super(
+                config,
+                pandasAggFunctions,
+                inputType,
+                udfInputType,
+                udfOutputType,
+                inputGeneratedProjection);
         this.inputTimeFieldIndex = inputTimeFieldIndex;
         this.lowerBoundary = lowerBoundary;
     }
@@ -113,14 +120,6 @@ public abstract class AbstractStreamArrowPythonOverWindowAggregateFunctionOperat
 
     @Override
     public void processElementInternal(RowData value) throws Exception {}
-
-    @Override
-    public RowType createUserDefinedFunctionOutputType() {
-        return new RowType(
-                outputType
-                        .getFields()
-                        .subList(inputType.getFieldCount(), outputType.getFieldCount()));
-    }
 
     void invokeCurrentBatch() throws Exception {
         if (currentBatchCount > 0) {

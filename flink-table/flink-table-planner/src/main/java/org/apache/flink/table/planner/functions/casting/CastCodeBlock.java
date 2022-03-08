@@ -36,10 +36,18 @@ public class CastCodeBlock {
     private final String returnTerm;
     private final String isNullTerm;
 
-    public CastCodeBlock(String code, String returnTerm, String isNullTerm) {
+    private CastCodeBlock(String code, String returnTerm, String isNullTerm) {
         this.code = code;
         this.returnTerm = returnTerm;
         this.isNullTerm = isNullTerm;
+    }
+
+    public static CastCodeBlock withoutCode(String returnTerm, String isNullTerm) {
+        return new CastCodeBlock("", returnTerm, isNullTerm);
+    }
+
+    public static CastCodeBlock withCode(String code, String returnTerm, String isNullTerm) {
+        return new CastCodeBlock(code, returnTerm, isNullTerm);
     }
 
     public String getCode() {

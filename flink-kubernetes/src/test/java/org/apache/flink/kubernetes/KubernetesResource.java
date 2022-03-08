@@ -36,6 +36,7 @@ import org.junit.rules.ExternalResource;
 public class KubernetesResource extends ExternalResource {
 
     private static final String CLUSTER_ID = "flink-itcase-cluster";
+    private static final int KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES = 100;
 
     private static String kubeConfigFile;
     private Configuration configuration;
@@ -56,6 +57,9 @@ public class KubernetesResource extends ExternalResource {
         configuration = new Configuration();
         configuration.set(KubernetesConfigOptions.KUBE_CONFIG_FILE, kubeConfigFile);
         configuration.setString(KubernetesConfigOptions.CLUSTER_ID, CLUSTER_ID);
+        configuration.set(
+                KubernetesConfigOptions.KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES,
+                KUBERNETES_TRANSACTIONAL_OPERATION_MAX_RETRIES);
         final FlinkKubeClientFactory kubeClientFactory = new FlinkKubeClientFactory();
         flinkKubeClient = kubeClientFactory.fromConfiguration(configuration, "testing");
     }

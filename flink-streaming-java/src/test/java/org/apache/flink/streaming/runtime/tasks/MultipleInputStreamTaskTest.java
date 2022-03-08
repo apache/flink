@@ -36,6 +36,7 @@ import org.apache.flink.api.connector.source.mocks.MockSource;
 import org.apache.flink.api.connector.source.mocks.MockSourceReader;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplit;
 import org.apache.flink.api.connector.source.mocks.MockSourceSplitSerializer;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.memory.DataInputView;
 import org.apache.flink.core.memory.DataOutputView;
 import org.apache.flink.metrics.Counter;
@@ -46,12 +47,14 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.network.api.CancelCheckpointMarker;
 import org.apache.flink.runtime.io.network.api.CheckpointBarrier;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.writer.ResultPartitionWriter;
 import org.apache.flink.runtime.io.network.partition.PartitionTestUtils;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -69,7 +72,6 @@ import org.apache.flink.runtime.source.event.NoMoreSplitsEvent;
 import org.apache.flink.runtime.state.CheckpointStorageLocationReference;
 import org.apache.flink.runtime.taskmanager.CheckpointResponder;
 import org.apache.flink.runtime.taskmanager.TestCheckpointResponder;
-import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.graph.StreamConfig;
 import org.apache.flink.streaming.api.operators.AbstractInput;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
@@ -120,7 +122,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-import static org.apache.flink.runtime.checkpoint.CheckpointType.SAVEPOINT_TERMINATE;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.processMailTillCheckpointSucceeds;
 import static org.apache.flink.streaming.runtime.tasks.StreamTaskFinalCheckpointsTest.triggerCheckpoint;
 import static org.apache.flink.util.Preconditions.checkArgument;
@@ -698,9 +699,9 @@ public class MultipleInputStreamTaskTest {
             // make source active once again, emit a watermark and go idle again.
             addSourceRecords(testHarness, 1, initialTime + 10);
 
+            expectedOutput.add(WatermarkStatus.ACTIVE); // activate source on new record
             expectedOutput.add(
                     new StreamRecord<>("" + (initialTime + 10), TimestampAssigner.NO_TIMESTAMP));
-            expectedOutput.add(WatermarkStatus.ACTIVE); // activate source on new watermark
             expectedOutput.add(new Watermark(initialTime + 10)); // forward W from source
             expectedOutput.add(WatermarkStatus.IDLE); // go idle after reading all records
             testHarness.processAll();
@@ -932,14 +933,18 @@ public class MultipleInputStreamTaskTest {
     @Test
     public void testTriggeringUnalignedCheckpointWithFinishedChannels() throws Exception {
         testTriggeringCheckpointWithFinishedChannels(
-                CheckpointOptions.unaligned(CheckpointStorageLocationReference.getDefault()));
+                CheckpointOptions.unaligned(
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault()));
     }
 
     @Test
     public void testTriggeringAlignedWithTimeoutCheckpointWithFinishedChannels() throws Exception {
         testTriggeringCheckpointWithFinishedChannels(
                 CheckpointOptions.alignedWithTimeout(
-                        CheckpointStorageLocationReference.getDefault(), 10L));
+                        CheckpointType.CHECKPOINT,
+                        CheckpointStorageLocationReference.getDefault(),
+                        10L));
     }
 
     private void testTriggeringCheckpointWithFinishedChannels(CheckpointOptions checkpointOptions)
@@ -967,11 +972,6 @@ public class MultipleInputStreamTaskTest {
                                         config.setUnalignedCheckpointsEnabled(
                                                 checkpointOptions.isUnalignedCheckpoint()
                                                         || checkpointOptions.isTimeoutable());
-                                        config.getConfiguration()
-                                                .set(
-                                                        ExecutionCheckpointingOptions
-                                                                .ENABLE_CHECKPOINTS_AFTER_TASKS_FINISH,
-                                                        true);
                                     })
                             .setupOperatorChain(new MapToStringMultipleInputOperatorFactory(3))
                             .finishForSingletonOperatorChain(StringSerializer.INSTANCE)
@@ -989,15 +989,15 @@ public class MultipleInputStreamTaskTest {
                 assertEquals(2, testHarness.getTaskStateManager().getReportedCheckpointId());
 
                 // Tests triggering checkpoint after some inputs have received EndOfPartition.
-                testHarness.processEvent(EndOfData.INSTANCE, 0, 0);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 0, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 0, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 4, checkpointOptions);
                 processMailTillCheckpointSucceeds(testHarness, checkpointFuture);
                 assertEquals(4, testHarness.getTaskStateManager().getReportedCheckpointId());
 
                 // Tests triggering checkpoint after all the inputs have received EndOfPartition.
-                testHarness.processEvent(EndOfData.INSTANCE, 1, 0);
-                testHarness.processEvent(EndOfData.INSTANCE, 2, 0);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 1, 0);
+                testHarness.processEvent(new EndOfData(StopMode.DRAIN), 2, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 1, 0);
                 testHarness.processEvent(EndOfPartitionEvent.INSTANCE, 2, 0);
                 checkpointFuture = triggerCheckpoint(testHarness, 6, checkpointOptions);
@@ -1058,7 +1058,8 @@ public class MultipleInputStreamTaskTest {
             testHarness.processElement(Watermark.MAX_WATERMARK, 2);
             testHarness.waitForTaskCompletion();
             assertThat(
-                    testHarness.getOutput(), contains(Watermark.MAX_WATERMARK, EndOfData.INSTANCE));
+                    testHarness.getOutput(),
+                    contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN)));
         }
     }
 
@@ -1107,7 +1108,7 @@ public class MultipleInputStreamTaskTest {
                     testHarness.streamTask.triggerCheckpointAsync(
                             new CheckpointMetaData(2, 2),
                             CheckpointOptions.alignedNoTimeout(
-                                    SAVEPOINT_TERMINATE,
+                                    SavepointType.terminate(SavepointFormatType.CANONICAL),
                                     CheckpointStorageLocationReference.getDefault()));
             checkpointCompleted.whenComplete(
                     (ignored, exception) ->

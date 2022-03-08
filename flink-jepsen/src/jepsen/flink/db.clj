@@ -108,7 +108,12 @@
     (teardown! [_ test node]
       (c/su
         (try
-          (doseq [db (reverse dbs)] (db/teardown! db test node))
+          (doseq [db (reverse dbs)]
+            (try
+              (db/teardown! db test node)
+              ;; jepsen also calls teardown at the start of the test
+              ;; neither our dbs nor jepsen-zookeeper handle the db not existing gracefully
+              (catch Exception e (error str "Exception while tearing down" (.getMessage e)))))
           (finally (fu/stop-all-supervised-services!)))))
     db/LogFiles
     (log-files [_ test node]

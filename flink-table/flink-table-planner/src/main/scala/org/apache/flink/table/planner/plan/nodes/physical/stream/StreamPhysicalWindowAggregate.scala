@@ -19,21 +19,19 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowStart}
 import org.apache.flink.table.planner.plan.logical.WindowingStrategy
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
-import org.apache.flink.table.planner.plan.utils.{AggregateInfoList, AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
-import org.apache.flink.table.types.logical.utils.LogicalTypeUtils
+import org.apache.flink.table.planner.plan.utils._
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
+
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
+import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
-import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
-import java.util.Collections
 
 import scala.collection.JavaConverters._
 
@@ -52,7 +50,7 @@ class StreamPhysicalWindowAggregate(
     val grouping: Array[Int],
     val aggCalls: Seq[AggregateCall],
     val windowing: WindowingStrategy,
-    val namedWindowProperties: Seq[PlannerNamedWindowProperty])
+    val namedWindowProperties: Seq[NamedWindowProperty])
   extends SingleRel(cluster, traitSet, inputRel)
   with StreamPhysicalRel {
 

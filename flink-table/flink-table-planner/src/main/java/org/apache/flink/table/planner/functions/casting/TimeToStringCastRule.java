@@ -24,6 +24,7 @@ import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
 
 import static org.apache.flink.table.planner.codegen.calls.BuiltInMethods.UNIX_TIME_TO_STRING;
+import static org.apache.flink.table.types.logical.VarCharType.STRING_TYPE;
 
 /**
  * {@link LogicalTypeRoot#TIME_WITHOUT_TIME_ZONE} to {@link LogicalTypeFamily#CHARACTER_STRING} cast
@@ -37,7 +38,7 @@ class TimeToStringCastRule extends AbstractCharacterFamilyTargetRule<Long> {
         super(
                 CastRulePredicate.builder()
                         .input(LogicalTypeRoot.TIME_WITHOUT_TIME_ZONE)
-                        .target(LogicalTypeFamily.CHARACTER_STRING)
+                        .target(STRING_TYPE)
                         .build());
     }
 

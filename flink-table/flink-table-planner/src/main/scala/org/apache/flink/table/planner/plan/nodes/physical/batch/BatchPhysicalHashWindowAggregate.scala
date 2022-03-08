@@ -20,10 +20,10 @@ package org.apache.flink.table.planner.plan.nodes.physical.batch
 
 import org.apache.flink.table.functions.UserDefinedFunction
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecHashWindowAggregate
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -47,7 +47,7 @@ class BatchPhysicalHashWindowAggregate(
     window: LogicalWindow,
     inputTimeFieldIndex: Int,
     inputTimeIsDate: Boolean,
-    namedWindowProperties: Seq[PlannerNamedWindowProperty],
+    namedWindowProperties: Seq[NamedWindowProperty],
     enableAssignPane: Boolean = false,
     isMerge: Boolean)
   extends BatchPhysicalHashWindowAggregateBase(
@@ -83,6 +83,11 @@ class BatchPhysicalHashWindowAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (grouping.length == 0) {
+      InputProperty.SINGLETON_DISTRIBUTION
+    } else {
+      InputProperty.hashDistribution(grouping)
+    }
     new BatchExecHashWindowAggregate(
       grouping,
       auxGrouping,
@@ -95,7 +100,10 @@ class BatchPhysicalHashWindowAggregate(
       enableAssignPane,
       isMerge,
       true, // isFinal is always true
-      InputProperty.builder().damBehavior(InputProperty.DamBehavior.END_INPUT).build(),
+      InputProperty.builder()
+        .requiredDistribution(requiredDistribution)
+        .damBehavior(InputProperty.DamBehavior.END_INPUT)
+        .build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

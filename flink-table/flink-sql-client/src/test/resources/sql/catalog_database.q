@@ -35,6 +35,7 @@ org.apache.flink.sql.parser.impl.ParseException: Encountered "." at line 1, colu
 Was expecting one of:
     <EOF>
     "WITH" ...
+    ";" ...
 
 !error
 
@@ -287,11 +288,11 @@ use catalog hivecatalog;
 [INFO] Execute statement succeed.
 !info
 
-create table MyTable1 (a int, b string);
+create table MyTable1 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
-create table MyTable2 (a int, b string);
+create table MyTable2 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
@@ -330,11 +331,11 @@ show views;
 !ok
 
 # test create with full qualified name
-create table c1.db1.MyTable3 (a int, b string);
+create table c1.db1.MyTable3 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
-create table c1.db1.MyTable4 (a int, b string);
+create table c1.db1.MyTable4 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
@@ -377,11 +378,11 @@ show views;
 !ok
 
 # test create with database name
-create table `default`.MyTable5 (a int, b string);
+create table `default`.MyTable5 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
-create table `default`.MyTable6 (a int, b string);
+create table `default`.MyTable6 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
@@ -489,7 +490,7 @@ SET 'sql-client.execution.result-mode' = 'changelog';
 [INFO] Session property has been set.
 !info
 
-create table MyTable7 (a int, b string);
+create table MyTable7 (a int, b string) with ('connector' = 'values');
 [INFO] Execute statement succeed.
 !info
 
@@ -520,4 +521,77 @@ show tables;
 |    MyView5 |
 +------------+
 2 rows in set
+!ok
+
+# ==========================================================================
+# test enhanced show tables
+# ==========================================================================
+
+create catalog catalog1 with ('type'='generic_in_memory');
+[INFO] Execute statement succeed.
+!info
+
+create database catalog1.db1;
+[INFO] Execute statement succeed.
+!info
+
+create table catalog1.db1.person (a int, b string) with ('connector' = 'datagen');
+[INFO] Execute statement succeed.
+!info
+
+create table catalog1.db1.dim (a int, b string) with ('connector' = 'datagen');
+[INFO] Execute statement succeed.
+!info
+
+create table catalog1.db1.address (a int, b string) with ('connector' = 'datagen');
+[INFO] Execute statement succeed.
+!info
+
+create view catalog1.db1.v_person as select * from catalog1.db1.person;
+[INFO] Execute statement succeed.
+!info
+
+show tables from catalog1.db1;
++------------+
+| table name |
++------------+
+|    address |
+|        dim |
+|     person |
+|   v_person |
++------------+
+4 rows in set
+!ok
+
+show tables from catalog1.db1 like '%person%';
++------------+
+| table name |
++------------+
+|     person |
+|   v_person |
++------------+
+2 rows in set
+!ok
+
+show tables in catalog1.db1 not like '%person%';
++------------+
+| table name |
++------------+
+|    address |
+|        dim |
++------------+
+2 rows in set
+!ok
+
+use catalog catalog1;
+[INFO] Execute statement succeed.
+!info
+
+show tables from db1 like 'p_r%';
++------------+
+| table name |
++------------+
+|     person |
++------------+
+1 row in set
 !ok

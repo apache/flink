@@ -36,13 +36,14 @@ import java.util.Optional;
 
 import static java.lang.String.format;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 /** Check that all data from the upstream reached the respective downstreams. */
 public class TestJobDataFlowValidator {
     private static final Logger LOG = LoggerFactory.getLogger(TestJobDataFlowValidator.class);
 
-    public static void checkDataFlow(TestJobWithDescription testJob) {
+    public static void checkDataFlow(TestJobWithDescription testJob, boolean withDrain) {
         Map<String, Map<Integer, OperatorFinishedEvent>> finishEvents = new HashMap<>();
         for (TestEvent ev : testJob.eventQueue.getAll()) {
             if (ev instanceof OperatorFinishedEvent) {
@@ -54,15 +55,24 @@ public class TestJobDataFlowValidator {
 
         for (JobVertex upstream : testJob.jobGraph.getVertices()) {
             for (IntermediateDataSet produced : upstream.getProducedDataSets()) {
-                for (JobEdge edge : produced.getConsumers()) {
-                    Optional<String> upstreamID = getTrackedOperatorID(upstream, true, testJob);
-                    Optional<String> downstreamID =
-                            getTrackedOperatorID(edge.getTarget(), false, testJob);
-                    if (upstreamID.isPresent() && downstreamID.isPresent()) {
-                        checkDataFlow(upstreamID.get(), downstreamID.get(), edge, finishEvents);
+                JobEdge edge = produced.getConsumer();
+                Optional<String> upstreamIDOptional = getTrackedOperatorID(upstream, true, testJob);
+                Optional<String> downstreamIDOptional =
+                        getTrackedOperatorID(edge.getTarget(), false, testJob);
+                if (upstreamIDOptional.isPresent() && downstreamIDOptional.isPresent()) {
+                    final String upstreamID = upstreamIDOptional.get();
+                    final String downstreamID = downstreamIDOptional.get();
+                    if (testJob.sources.contains(upstreamID)) {
+                        // TODO: if we add tests for FLIP-27 sources we might need to adjust
+                        // this condition
+                        LOG.debug(
+                                "Legacy sources do not have the finish() method and thus do not"
+                                        + " emit FinishEvent");
                     } else {
-                        LOG.debug("Ignoring edge (untracked operator): {}", edge);
+                        checkDataFlow(upstreamID, downstreamID, edge, finishEvents, withDrain);
                     }
+                } else {
+                    LOG.debug("Ignoring edge (untracked operator): {}", edge);
                 }
             }
         }
@@ -76,7 +86,8 @@ public class TestJobDataFlowValidator {
             String upstreamID,
             String downstreamID,
             JobEdge edge,
-            Map<String, Map<Integer, OperatorFinishedEvent>> finishEvents) {
+            Map<String, Map<Integer, OperatorFinishedEvent>> finishEvents,
+            boolean withDrain) {
         LOG.debug(
                 "Checking {} edge\n  from {} ({})\n  to {} ({})",
                 edge.getDistributionPattern(),
@@ -86,25 +97,27 @@ public class TestJobDataFlowValidator {
                 downstreamID);
 
         Map<Integer, OperatorFinishedEvent> downstreamFinishInfo =
-                getForOperator(downstreamID, finishEvents);
+                getForOperator(downstreamID, finishEvents, withDrain);
 
         Map<Integer, OperatorFinishedEvent> upstreamFinishInfo =
-                getForOperator(upstreamID, finishEvents);
+                getForOperator(upstreamID, finishEvents, withDrain);
 
-        upstreamFinishInfo.forEach(
-                (upstreamIndex, upstreamInfo) ->
-                        assertTrue(
-                                String.format(
-                                        "No downstream received %s from %s[%d]; received: %s",
-                                        upstreamInfo.lastSent,
-                                        upstreamID,
-                                        upstreamIndex,
-                                        downstreamFinishInfo),
-                                anySubtaskReceived(
-                                        upstreamID,
-                                        upstreamIndex,
-                                        upstreamInfo.lastSent,
-                                        downstreamFinishInfo.values())));
+        if (withDrain) {
+            upstreamFinishInfo.forEach(
+                    (upstreamIndex, upstreamInfo) ->
+                            assertTrue(
+                                    String.format(
+                                            "No downstream received %s from %s[%d]; received: %s",
+                                            upstreamInfo.lastSent,
+                                            upstreamID,
+                                            upstreamIndex,
+                                            downstreamFinishInfo),
+                                    anySubtaskReceived(
+                                            upstreamID,
+                                            upstreamIndex,
+                                            upstreamInfo.lastSent,
+                                            downstreamFinishInfo.values())));
+        }
     }
 
     private static boolean anySubtaskReceived(
@@ -118,13 +131,23 @@ public class TestJobDataFlowValidator {
     }
 
     private static Map<Integer, OperatorFinishedEvent> getForOperator(
-            String operatorId, Map<String, Map<Integer, OperatorFinishedEvent>> finishEvents) {
+            String operatorId,
+            Map<String, Map<Integer, OperatorFinishedEvent>> finishEvents,
+            boolean withDrain) {
         Map<Integer, OperatorFinishedEvent> events = finishEvents.get(operatorId);
-        assertNotNull(
-                format(
-                        "Operator finish info wasn't collected: %s (collected: %s)",
-                        operatorId, finishEvents),
-                events);
+        if (withDrain) {
+            assertNotNull(
+                    format(
+                            "Operator finish info wasn't collected with draining: %s (collected: %s)",
+                            operatorId, finishEvents),
+                    events);
+        } else {
+            assertNull(
+                    format(
+                            "Operator finish info was collected without draining: %s (collected: %s)",
+                            operatorId, finishEvents),
+                    events);
+        }
         return events;
     }
 

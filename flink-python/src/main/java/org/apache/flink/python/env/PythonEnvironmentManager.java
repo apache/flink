@@ -19,11 +19,10 @@
 package org.apache.flink.python.env;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.python.PythonFunctionRunner;
 
 /**
  * The base interface of python environment manager which is used to create the PythonEnvironment
- * object and the RetrievalToken.
+ * object used to execute Python functions.
  */
 @Internal
 public interface PythonEnvironmentManager extends AutoCloseable {
@@ -32,21 +31,10 @@ public interface PythonEnvironmentManager extends AutoCloseable {
     void open() throws Exception;
 
     /**
-     * Creates the PythonEnvironment object used in {@link PythonFunctionRunner}.
+     * Creates the PythonEnvironment object used to execute Python functions.
      *
-     * @return The PythonEnvironment object which represents the environment(process, docker, etc)
-     *     the python worker would run in.
+     * @return The PythonEnvironment object which represents the environment(embedded thread,
+     *     process, docker, etc) the python worker would run in.
      */
     PythonEnvironment createEnvironment() throws Exception;
-
-    /**
-     * Creates the RetrievalToken used in {@link PythonFunctionRunner}. It contains a list of files
-     * which need to transmit through ArtifactService provided by {@link PythonFunctionRunner}.
-     *
-     * @return The path of the RetrievalToken file.
-     */
-    String createRetrievalToken() throws Exception;
-
-    /** Returns the boot log of the Python Environment. */
-    String getBootLog() throws Exception;
 }

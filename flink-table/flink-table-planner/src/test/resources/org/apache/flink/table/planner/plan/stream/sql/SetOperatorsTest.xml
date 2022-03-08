@@ -58,8 +58,8 @@ LogicalIntersect(all=[true])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c0 AS c])
-+- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], correlate=[table(ReplicateRows($f0,c))], select=[$f0,c,c0], rowType=[RecordType(BIGINT $f0, VARCHAR(2147483647) c, VARCHAR(2147483647) c0)], joinType=[INNER])
+Calc(select=[f0 AS c])
++- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1)], correlate=[table($REPLICATE_ROWS$1($f0,c))], select=[$f0,c,f0], rowType=[RecordType(BIGINT $f0, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
    +- Calc(select=[IF((vcol_left_cnt > vcol_right_cnt), vcol_right_cnt, vcol_left_cnt) AS $f0, c], where=[((vcol_left_cnt >= 1) AND (vcol_right_cnt >= 1))])
       +- GroupAggregate(groupBy=[c], select=[c, COUNT(vcol_left_marker) AS vcol_left_cnt, COUNT(vcol_right_marker) AS vcol_right_cnt])
          +- Exchange(distribution=[hash[c]])
@@ -182,15 +182,15 @@ LogicalMinus(all=[true])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[c0 AS c])
-+- Correlate(invocation=[org$apache$flink$table$planner$functions$tablefunctions$ReplicateRows$a5a5fb35ffda8b52251be55e3ceaee69($0, $1)], correlate=[table(ReplicateRows(sum_vcol_marker,c))], select=[sum_vcol_marker,c,c0], rowType=[RecordType(BIGINT sum_vcol_marker, VARCHAR(2147483647) c, VARCHAR(2147483647) c0)], joinType=[INNER])
+Calc(select=[f0 AS c])
++- Correlate(invocation=[$REPLICATE_ROWS$1($0, $1)], correlate=[table($REPLICATE_ROWS$1(sum_vcol_marker,c))], select=[sum_vcol_marker,c,f0], rowType=[RecordType(BIGINT sum_vcol_marker, VARCHAR(2147483647) c, VARCHAR(2147483647) f0)], joinType=[INNER])
    +- Calc(select=[sum_vcol_marker, c], where=[(sum_vcol_marker > 0)])
       +- GroupAggregate(groupBy=[c], select=[c, SUM(vcol_marker) AS sum_vcol_marker])
          +- Exchange(distribution=[hash[c]])
             +- Union(all=[true], union=[c, vcol_marker])
-               :- Calc(select=[c, 1:BIGINT AS vcol_marker])
+               :- Calc(select=[c, 1 AS vcol_marker])
                :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, T1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
-               +- Calc(select=[f, -1:BIGINT AS vcol_marker])
+               +- Calc(select=[f, -1 AS vcol_marker])
                   +- LegacyTableSourceScan(table=[[default_catalog, default_database, T2, source: [TestTableSource(d, e, f)]]], fields=[d, e, f])
 ]]>
     </Resource>
@@ -280,7 +280,7 @@ LogicalUnion(all=[true])
 Union(all=[true], union=[a])
 :- Calc(select=[a])
 :  +- LegacyTableSourceScan(table=[[default_catalog, default_database, A, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])(reuse_id=[1])
-+- Calc(select=[CASE((c > 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) CHARACTER SET "UTF-16LE" _2)) AS EXPR$0])
++- Calc(select=[CASE((c > 0), b, null:RecordType:peek_no_expand(INTEGER _1, VARCHAR(2147483647) _2)) AS EXPR$0])
    +- Reused(reference_id=[1])
 ]]>
     </Resource>

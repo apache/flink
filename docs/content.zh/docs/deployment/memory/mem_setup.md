@@ -30,7 +30,7 @@ under the License.
 
 Apache Flink 基于 JVM 的高效处理能力，依赖于其对各组件内存用量的细致掌控。
 考虑到用户在 Flink 上运行的应用的多样性，尽管社区已经努力为所有配置项提供合理的默认值，仍无法满足所有情况下的需求。
-为了给用户生产提供最大化的价值， Flink 允许用户在整体上以及细粒度上对集群的内存分配进行调整。To optimize memory requirements, check the [network memory tuning guide]({{< ref "docs/deployment/memory/network_mem_tuning" >}}).
+为了给用户生产提供最大化的价值， Flink 允许用户在整体上以及细粒度上对集群的内存分配进行调整。为了优化内存需求，参考[网络内存调优指南]({{< ref "docs/deployment/memory/network_mem_tuning" >}})。
 
 本文接下来介绍的内存配置方法适用于 *1.10* 及以上版本的 TaskManager 进程和 *1.11* 及以上版本的 JobManager 进程。
 Flink 在 *1.10* 和 *1.11* 版本中对内存配置部分进行了较大幅度的改动，从早期版本升级的用户请参考[升级指南]({{< ref "docs/deployment/memory/mem_migration" >}})。

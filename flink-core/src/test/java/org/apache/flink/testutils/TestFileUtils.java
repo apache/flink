@@ -24,6 +24,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Files;
 
 public class TestFileUtils {
 
@@ -141,6 +142,12 @@ public class TestFileUtils {
 
     public static String randomFileName(String fileSuffix) {
         return FILE_PREFIX + ((int) (Math.random() * Integer.MAX_VALUE)) + fileSuffix;
+    }
+
+    public static File createTempDir() throws IOException {
+        final File tempDirectory = Files.createTempDirectory(FILE_PREFIX).toFile();
+        tempDirectory.deleteOnExit();
+        return tempDirectory;
     }
 
     // ------------------------------------------------------------------------

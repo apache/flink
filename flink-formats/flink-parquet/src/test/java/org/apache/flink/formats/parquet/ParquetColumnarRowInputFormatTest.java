@@ -21,11 +21,12 @@ package org.apache.flink.formats.parquet;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.reader.BulkFormat;
 import org.apache.flink.connector.file.src.util.CheckpointedPosition;
+import org.apache.flink.connector.file.table.PartitionFieldExtractor;
 import org.apache.flink.core.fs.FileStatus;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.filesystem.PartitionFieldExtractor;
+import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.BooleanType;
 import org.apache.flink.table.types.logical.DateType;
@@ -237,6 +238,7 @@ public class ParquetColumnarRowInputFormatTest {
                 new ParquetColumnarRowInputFormat(
                         new Configuration(),
                         RowType.of(fieldTypes, new String[] {"f7", "f2", "f4"}),
+                        null,
                         500,
                         false,
                         true);
@@ -278,6 +280,7 @@ public class ParquetColumnarRowInputFormatTest {
                         new Configuration(),
                         // f99 not exist in parquet file.
                         RowType.of(fieldTypes, new String[] {"f7", "f2", "f4", "f99"}),
+                        null,
                         500,
                         false,
                         true);
@@ -415,6 +418,7 @@ public class ParquetColumnarRowInputFormatTest {
                                     "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9",
                                     "f10", "f11", "f12", "f13", "f14"
                                 }),
+                        null,
                         500,
                         false,
                         true);
@@ -578,6 +582,7 @@ public class ParquetColumnarRowInputFormatTest {
                 ParquetColumnarRowInputFormat.createPartitionedFormat(
                         new Configuration(),
                         producedType,
+                        InternalTypeInfo.of(producedType),
                         partitionKeys,
                         PartitionFieldExtractor.forFileSystem("my_default_value"),
                         500,
@@ -618,7 +623,7 @@ public class ParquetColumnarRowInputFormatTest {
                         assertEquals(13, row.getFloat(8), 0);
                         assertEquals(6.6, row.getDouble(9), 0);
                         assertEquals(
-                                DateTimeUtils.dateToInternal(Date.valueOf("2020-11-23")),
+                                DateTimeUtils.toInternal(Date.valueOf("2020-11-23")),
                                 row.getInt(10));
                         assertEquals(
                                 LocalDateTime.of(1999, 1, 1, 1, 1),

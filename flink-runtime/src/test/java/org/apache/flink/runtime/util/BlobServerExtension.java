@@ -18,7 +18,6 @@
 
 package org.apache.flink.runtime.util;
 
-import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CustomExtension;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -46,10 +45,8 @@ public class BlobServerExtension implements CustomExtension {
         temporaryFolder.create();
 
         Configuration config = new Configuration();
-        config.setString(
-                BlobServerOptions.STORAGE_DIRECTORY, temporaryFolder.newFolder().getAbsolutePath());
 
-        blobServer = new BlobServer(config, new VoidBlobStore());
+        blobServer = new BlobServer(config, temporaryFolder.newFolder(), new VoidBlobStore());
         blobServer.start();
     }
 

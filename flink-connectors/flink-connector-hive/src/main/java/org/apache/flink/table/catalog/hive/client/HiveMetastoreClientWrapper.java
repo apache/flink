@@ -35,10 +35,16 @@ import org.apache.hadoop.hive.metastore.api.Function;
 import org.apache.hadoop.hive.metastore.api.InvalidInputException;
 import org.apache.hadoop.hive.metastore.api.InvalidObjectException;
 import org.apache.hadoop.hive.metastore.api.InvalidOperationException;
+import org.apache.hadoop.hive.metastore.api.LockRequest;
+import org.apache.hadoop.hive.metastore.api.LockResponse;
 import org.apache.hadoop.hive.metastore.api.MetaException;
+import org.apache.hadoop.hive.metastore.api.NoSuchLockException;
 import org.apache.hadoop.hive.metastore.api.NoSuchObjectException;
+import org.apache.hadoop.hive.metastore.api.NoSuchTxnException;
 import org.apache.hadoop.hive.metastore.api.Partition;
 import org.apache.hadoop.hive.metastore.api.Table;
+import org.apache.hadoop.hive.metastore.api.TxnAbortedException;
+import org.apache.hadoop.hive.metastore.api.TxnOpenException;
 import org.apache.hadoop.hive.metastore.api.UnknownDBException;
 import org.apache.hadoop.hive.metastore.partition.spec.PartitionSpecProxy;
 import org.apache.thrift.TException;
@@ -315,5 +321,19 @@ public class HiveMetastoreClientWrapper implements AutoCloseable {
             List<Byte> nnTraits) {
         hiveShim.createTableWithConstraints(
                 client, table, conf, pk, pkTraits, notNullCols, nnTraits);
+    }
+
+    public LockResponse checkLock(long lockid)
+            throws NoSuchTxnException, TxnAbortedException, NoSuchLockException, TException {
+        return client.checkLock(lockid);
+    }
+
+    public LockResponse lock(LockRequest request)
+            throws NoSuchTxnException, TxnAbortedException, TException {
+        return client.lock(request);
+    }
+
+    public void unlock(long lockid) throws NoSuchLockException, TxnOpenException, TException {
+        client.unlock(lockid);
     }
 }

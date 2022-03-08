@@ -43,7 +43,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * <p>For each channel, the consumption life cycle is as follows:
  *
  * <ol>
- *   <li>{@link #requestSubpartition(int)}
+ *   <li>{@link #requestSubpartition()}
  *   <li>{@link #getNextBuffer()}
  *   <li>{@link #releaseAllResources()}
  * </ol>
@@ -52,7 +52,11 @@ public abstract class InputChannel {
     /** The info of the input channel to identify it globally within a task. */
     protected final InputChannelInfo channelInfo;
 
+    /** The parent partition of the subpartition consumed by this channel. */
     protected final ResultPartitionID partitionId;
+
+    /** The index of the subpartition consumed by this channel. */
+    protected final int consumedSubpartitionIndex;
 
     protected final SingleInputGate inputGate;
 
@@ -79,6 +83,7 @@ public abstract class InputChannel {
             SingleInputGate inputGate,
             int channelIndex,
             ResultPartitionID partitionId,
+            int consumedSubpartitionIndex,
             int initialBackoff,
             int maxBackoff,
             Counter numBytesIn,
@@ -94,6 +99,9 @@ public abstract class InputChannel {
         this.inputGate = checkNotNull(inputGate);
         this.channelInfo = new InputChannelInfo(inputGate.getGateIndex(), channelIndex);
         this.partitionId = checkNotNull(partitionId);
+
+        checkArgument(consumedSubpartitionIndex >= 0);
+        this.consumedSubpartitionIndex = consumedSubpartitionIndex;
 
         this.initialBackoff = initial;
         this.maxBackoff = max;
@@ -122,6 +130,10 @@ public abstract class InputChannel {
 
     public ResultPartitionID getPartitionId() {
         return partitionId;
+    }
+
+    public int getConsumedSubpartitionIndex() {
+        return consumedSubpartitionIndex;
     }
 
     /**
@@ -163,13 +175,10 @@ public abstract class InputChannel {
     // ------------------------------------------------------------------------
 
     /**
-     * Requests the queue with the specified index of the source intermediate result partition.
-     *
-     * <p>The queue index to request depends on which sub task the channel belongs to and is
-     * specified by the consumer of this channel.
+     * Requests the subpartition specified by {@link #partitionId} and {@link
+     * #consumedSubpartitionIndex}.
      */
-    abstract void requestSubpartition(int subpartitionIndex)
-            throws IOException, InterruptedException;
+    abstract void requestSubpartition() throws IOException, InterruptedException;
 
     /**
      * Returns the next buffer from the consumed subpartition or {@code Optional.empty()} if there
@@ -295,6 +304,10 @@ public abstract class InputChannel {
     // ------------------------------------------------------------------------
 
     public int unsynchronizedGetNumberOfQueuedBuffers() {
+        return 0;
+    }
+
+    public long unsynchronizedGetSizeOfQueuedBuffers() {
         return 0;
     }
 

@@ -139,7 +139,8 @@ public class BufferManager implements BufferListener, BufferRecycler {
             return;
         }
 
-        Collection<MemorySegment> segments = globalPool.requestMemorySegments(numExclusiveBuffers);
+        Collection<MemorySegment> segments =
+                globalPool.requestUnpooledMemorySegments(numExclusiveBuffers);
         synchronized (bufferQueue) {
             // AvailableBufferQueue::addExclusiveBuffer may release the previously allocated
             // floating buffer, which requires the caller to recycle these released floating
@@ -213,7 +214,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
                 // Similar to notifyBufferAvailable(), make sure that we never add a buffer
                 // after channel released all buffers via releaseAllResources().
                 if (inputChannel.isReleased()) {
-                    globalPool.recycleMemorySegments(Collections.singletonList(segment));
+                    globalPool.recycleUnpooledMemorySegments(Collections.singletonList(segment));
                     return;
                 } else {
                     releasedFloatingBuffer =
@@ -280,7 +281,7 @@ public class BufferManager implements BufferListener, BufferRecycler {
         }
         try {
             if (exclusiveRecyclingSegments.size() > 0) {
-                globalPool.recycleMemorySegments(exclusiveRecyclingSegments);
+                globalPool.recycleUnpooledMemorySegments(exclusiveRecyclingSegments);
             }
         } catch (Exception e) {
             err = firstOrSuppressed(e, err);

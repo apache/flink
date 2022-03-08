@@ -19,6 +19,7 @@
 package org.apache.flink.table.runtime.operators.python.aggregate;
 
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.python.PythonOptions;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.watermark.Watermark;
@@ -27,21 +28,16 @@ import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty;
-import org.apache.flink.table.planner.expressions.PlannerWindowEnd;
-import org.apache.flink.table.planner.expressions.PlannerWindowReference;
-import org.apache.flink.table.planner.expressions.PlannerWindowStart;
-import org.apache.flink.table.planner.plan.logical.LogicalWindow;
-import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
+import org.apache.flink.table.runtime.groupwindow.WindowEnd;
+import org.apache.flink.table.runtime.groupwindow.WindowReference;
+import org.apache.flink.table.runtime.groupwindow.WindowStart;
 import org.apache.flink.table.runtime.operators.python.scalar.PythonScalarFunctionOperatorTestBase;
 import org.apache.flink.table.runtime.operators.window.assigners.SlidingWindowAssigner;
-import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.table.types.logical.VarCharType;
 
@@ -51,8 +47,6 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.concurrent.ConcurrentLinkedQueue;
-
-import static org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis;
 
 /**
  * Test for {@link PythonStreamGroupWindowAggregateOperator}. These test that:
@@ -298,18 +292,7 @@ public class PythonStreamGroupWindowAggregateOperatorTest
         SlidingWindowAssigner windowAssigner =
                 SlidingWindowAssigner.of(Duration.ofMillis(size), Duration.ofMillis(slide))
                         .withEventTime();
-        PlannerWindowReference windowRef = new PlannerWindowReference("w$", new TimestampType(3));
-        LogicalWindow window =
-                new SlidingGroupWindow(
-                        windowRef,
-                        new FieldReferenceExpression(
-                                "rowtime",
-                                new AtomicDataType(
-                                        new TimestampType(true, TimestampKind.ROWTIME, 3)),
-                                0,
-                                3),
-                        intervalOfMillis(size),
-                        intervalOfMillis(slide));
+        WindowReference windowRef = new WindowReference("w$", new TimestampType(3));
         return new PassThroughPythonStreamGroupWindowAggregateOperator(
                 config,
                 getInputType(),
@@ -327,11 +310,16 @@ public class PythonStreamGroupWindowAggregateOperatorTest
                 false,
                 3,
                 windowAssigner,
-                window,
+                FlinkFnApi.GroupWindow.WindowType.SLIDING_GROUP_WINDOW,
+                true,
+                true,
+                size,
+                slide,
                 0L,
-                new PlannerNamedWindowProperty[] {
-                    new PlannerNamedWindowProperty("start", new PlannerWindowStart(null)),
-                    new PlannerNamedWindowProperty("end", new PlannerWindowEnd(null))
+                0L,
+                new NamedWindowProperty[] {
+                    new NamedWindowProperty("start", new WindowStart(null)),
+                    new NamedWindowProperty("end", new WindowEnd(null))
                 },
                 UTC_ZONE_ID);
     }

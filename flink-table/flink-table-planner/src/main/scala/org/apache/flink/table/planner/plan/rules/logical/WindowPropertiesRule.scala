@@ -19,11 +19,11 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.{TableException, ValidationException}
-import org.apache.flink.table.planner.expressions.{PlannerNamedWindowProperty, PlannerProctimeAttribute, PlannerRowtimeAttribute, PlannerWindowEnd, PlannerWindowReference, PlannerWindowStart}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
+import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.types.logical.LogicalTypeRoot.TIMESTAMP_WITHOUT_TIME_ZONE
 
 import org.apache.calcite.plan.RelOptRule._
@@ -103,25 +103,25 @@ object WindowPropertiesRules {
     val windowType = getWindowType(w)
 
     val startEndProperties = Seq(
-     new PlannerNamedWindowProperty(
-        propertyName(w, "start"), new PlannerWindowStart(w.aliasAttribute)),
-      new PlannerNamedWindowProperty(
-        propertyName(w, "end"), new PlannerWindowEnd(w.aliasAttribute)))
+     new NamedWindowProperty(
+        propertyName(w, "start"), new WindowStart(w.aliasAttribute)),
+      new NamedWindowProperty(
+        propertyName(w, "end"), new WindowEnd(w.aliasAttribute)))
 
     // allow rowtime/proctime for rowtime windows and proctime for proctime windows
     val timeProperties = windowType match {
       case 'streamRowtime =>
         Seq(
-          new PlannerNamedWindowProperty(propertyName(w, "rowtime"),
-            new PlannerRowtimeAttribute(w.aliasAttribute)),
-          new PlannerNamedWindowProperty(propertyName(w, "proctime"),
-            new PlannerProctimeAttribute(w.aliasAttribute)))
+          new NamedWindowProperty(propertyName(w, "rowtime"),
+            new RowtimeAttribute(w.aliasAttribute)),
+          new NamedWindowProperty(propertyName(w, "proctime"),
+            new ProctimeAttribute(w.aliasAttribute)))
       case 'streamProctime =>
-        Seq(new PlannerNamedWindowProperty(propertyName(w, "proctime"),
-          new PlannerProctimeAttribute(w.aliasAttribute)))
+        Seq(new NamedWindowProperty(propertyName(w, "proctime"),
+          new ProctimeAttribute(w.aliasAttribute)))
       case 'batchRowtime =>
-        Seq(new PlannerNamedWindowProperty(propertyName(w, "rowtime"),
-          new PlannerRowtimeAttribute(w.aliasAttribute)))
+        Seq(new NamedWindowProperty(propertyName(w, "rowtime"),
+          new RowtimeAttribute(w.aliasAttribute)))
       case _ =>
         throw new TableException("Unknown window type encountered. Please report this bug.")
     }
@@ -163,7 +163,7 @@ object WindowPropertiesRules {
 
   /** Generates a property name for a window. */
   private def propertyName(window: LogicalWindow, name: String): String =
-    window.aliasAttribute.asInstanceOf[PlannerWindowReference].getName + name
+    window.aliasAttribute.asInstanceOf[WindowReference].getName + name
 
   /** Replace group auxiliaries with field references. */
   def replaceGroupAuxiliaries(

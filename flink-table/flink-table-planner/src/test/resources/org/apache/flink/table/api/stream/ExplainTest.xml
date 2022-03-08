@@ -465,13 +465,13 @@ IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
 +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3])
+      +- Calc(select=[id1, rowtime, text, '#' AS $f3])
          +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
 +- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3])
+      +- Calc(select=[id1, rowtime, text, '*' AS $f3])
          +- Reused(reference_id=[1])
 ]]>
     </Resource>
@@ -559,13 +559,13 @@ IntervalJoin(joinType=[InnerJoin], windowBounds=[isRowTime=true, leftLowerBound=
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink1`], fields=[a, b])
 +- GroupWindowAggregate(groupBy=[id1], window=[TumblingGroupWindow('w$, rowtime, 8000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, rowtime, text, _UTF-16LE'#' AS $f3])
+      +- Calc(select=[id1, rowtime, text, '#' AS $f3])
          +- Reused(reference_id=[1])
 
 LegacySink(name=[`default_catalog`.`default_database`.`appendSink2`], fields=[a, b])
 +- GroupWindowAggregate(groupBy=[id1], window=[SlidingGroupWindow('w$, rowtime, 6000, 12000)], select=[id1, LISTAGG(text, $f3) AS EXPR$1])
    +- Exchange(distribution=[hash[id1]])
-      +- Calc(select=[id1, rowtime, text, _UTF-16LE'*' AS $f3])
+      +- Calc(select=[id1, rowtime, text, '*' AS $f3])
          +- Reused(reference_id=[1])
 ]]>
     </Resource>

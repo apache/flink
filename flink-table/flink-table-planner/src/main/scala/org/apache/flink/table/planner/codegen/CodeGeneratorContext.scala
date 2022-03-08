@@ -51,6 +51,10 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   // holding a list of objects that could be used passed into generated class
   val references: mutable.ArrayBuffer[AnyRef] = new mutable.ArrayBuffer[AnyRef]()
 
+  // set of strings (lines) that will be concatenated into a single class header comment
+  private val reusableHeaderComments: mutable.LinkedHashSet[String] =
+    mutable.LinkedHashSet[String]()
+
   // set of member statements that will be added only once
   // we use a LinkedHashSet to keep the insertion order
   private val reusableMemberStatements: mutable.LinkedHashSet[String] =
@@ -143,6 +147,16 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 
   def nullCheck: Boolean = tableConfig.getNullCheck
 
+
+  /**
+    * Add a line comment to [[reusableHeaderComments]] list which will be concatenated
+    * into a single class header comment.
+    * @param comment The comment to add for class header
+    */
+  def addReusableHeaderComment(comment: String): Unit = {
+    reusableHeaderComments.add(comment)
+  }
+
   // ---------------------------------------------------------------------------------
   // Local Variables for Code Split
   // ---------------------------------------------------------------------------------
@@ -195,6 +209,17 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   // ---------------------------------------------------------------------------------
   // generate reuse code methods
   // ---------------------------------------------------------------------------------
+
+  /**
+    * @return Comment to be added as a header comment on the generated class
+    */
+  def getClassHeaderComment: String = {
+    s"""
+    |/*
+    | * ${reusableHeaderComments.mkString("\n * ")}
+    | */
+    """.stripMargin
+  }
 
   /**
     * @return code block of statements that need to be placed in the member area of the class
@@ -394,22 +419,31 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
       case _ => className[ObjectHashSet[_]]
     }
 
-    addReusableMember(
-      s"final $setTypeTerm $fieldTerm = new $setTypeTerm(${elements.size});")
+    val addElementsCode = elements.map { element =>
+      s"""
+         |${element.code}
+         |if (${element.nullTerm}) {
+         |  $fieldTerm.addNull();
+         |} else {
+         |  $fieldTerm.add(${element.resultTerm});
+         |}
+         |""".stripMargin
+    }.mkString("\n")
+    val setBuildingFunctionName = newName("buildSet")
+    val setBuildingFunctionCode =
+      s"""
+         |private void $setBuildingFunctionName() {
+         |  $addElementsCode
+         |  $fieldTerm.optimize();
+         |}
+         |""".stripMargin
 
-    elements.foreach { element =>
-      val content =
-        s"""
-           |${element.code}
-           |if (${element.nullTerm}) {
-           |  $fieldTerm.addNull();
-           |} else {
-           |  $fieldTerm.add(${element.resultTerm});
-           |}
-           |""".stripMargin
-      reusableInitStatements.add(content)
-    }
-    reusableInitStatements.add(s"$fieldTerm.optimize();")
+    addReusableMember(
+      s"""
+         |final $setTypeTerm $fieldTerm = new $setTypeTerm(${elements.size});
+         |$setBuildingFunctionCode
+         |""".stripMargin)
+    reusableInitStatements.add(s"$setBuildingFunctionName();")
 
     fieldTerm
   }
@@ -531,7 +565,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     // assignment
     val field =
     s"""
-       |$fieldTerm = $utilsName.getTimeInMills($localtimestamp.getMillisecond());
+       |$fieldTerm = $utilsName.timestampMillisToTime($localtimestamp.getMillisecond());
        |""".stripMargin
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -550,7 +584,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableMemberStatements.add(
       s"""
           |private static final int $fieldTerm =
-          | $utilsName.getTimeInMills($queryStartLocalTimestamp.getMillisecond());
+          | $utilsName.timestampMillisToTime($queryStartLocalTimestamp.getMillisecond());
           | """.stripMargin)
     fieldTerm
   }
@@ -568,7 +602,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableMemberStatements.add(s"private int $fieldTerm;")
 
     // assignment
-    val field = s"$fieldTerm = $utilsName.getDateInDays($timestamp.getMillisecond());"
+    val field = s"$fieldTerm = $utilsName.timestampMillisToDate($timestamp.getMillisecond());"
 
     reusablePerRecordStatements.add(field)
     fieldTerm
@@ -585,7 +619,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     reusableMemberStatements.add(
     s"""
        |private static final int $fieldTerm =
-       | $fieldTerm = $utilsName.getDateInDays($timestamp.getMillisecond());
+       | $fieldTerm = $utilsName.timestampMillisToDate($timestamp.getMillisecond());
        |""".stripMargin)
 
     fieldTerm
@@ -823,9 +857,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     * @param constant constant expression
     * @return generated expression with the fieldTerm and nullTerm
     */
-  def addReusableConstant(
-      constant: GeneratedExpression,
-      nullCheck: Boolean): GeneratedExpression = {
+  def addReusableConstant(constant: GeneratedExpression): GeneratedExpression = {
     require(constant.literal, "Literal expected")
 
     val fieldTerm = newName("constant")
@@ -943,7 +975,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 }
 
 object CodeGeneratorContext {
-  def apply(config: TableConfig): CodeGeneratorContext = {
-    new CodeGeneratorContext(config)
+  def apply(tableConfig: TableConfig): CodeGeneratorContext = {
+    new CodeGeneratorContext(tableConfig)
   }
 }

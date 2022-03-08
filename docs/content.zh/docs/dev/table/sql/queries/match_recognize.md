@@ -219,7 +219,7 @@ Define & Measures
 
 ### Aggregations
 
-Aggregations 可以在 `DEFINE` 和 `MEASURES` 子句中使用。支持[内置函数]({{< ref "docs/dev/table/functions/systemFunctions" >}})和[用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})。
+Aggregations 可以在 `DEFINE` 和 `MEASURES` 子句中使用。支持[内置函数]({{< ref "docs/dev/table/functions/systemfunctions" >}})和[用户自定义函数]({{< ref "docs/dev/table/functions/udfs" >}})。
 
 对相应匹配项的行子集可以使用 Aggregate functions。请查看[事件流导航](#pattern-navigation)部分以了解如何计算这些子集。
 
@@ -405,7 +405,7 @@ FROM Ticker
         AFTER MATCH SKIP PAST LAST ROW
         PATTERN (A B* C) WITHIN INTERVAL '1' HOUR
         DEFINE
-            B AS B.price > A.price - 10
+            B AS B.price > A.price - 10,
             C AS C.price < A.price - 10
     )
 ```
@@ -632,9 +632,7 @@ _Logical offsets_ 在映射到指定模式变量的事件启用导航。这可�
   <tbody>
   <tr>
     <td>
-```text
-LAST(variable.field, n)
-```
+      <code>LAST(variable.field, n)</code>
     </td>
     <td>
       <p>返回映射到变量最后 n 个元素的事件中的字段值。计数从映射的最后一个元素开始。</p>
@@ -642,9 +640,7 @@ LAST(variable.field, n)
   </tr>
   <tr>
     <td>
-```text
-FIRST(variable.field, n)
-```
+      <code>FIRST(variable.field, n)</code>
     </td>
     <td>
       <p>返回映射到变量的第 <i>n</i> 个元素的事件中的字段值。计数从映射的第一个元素开始。</p>

@@ -42,6 +42,8 @@ Dependencies
 
 {{< sql_download_table "avro-confluent" >}}
 
+For Maven, SBT, Gradle, or other build automation tools, please also ensure that Confluent's maven repository at `https://packages.confluent.io/maven/` is configured in your project's build files.
+
 How to create tables with Avro-Confluent format
 --------------
 
@@ -174,15 +176,17 @@ Format Options
       <tr>
         <th class="text-left" style="width: 25%">Option</th>
         <th class="text-center" style="width: 8%">Required</th>
+        <th class="text-center" style="width: 8%">Forwarded</th>
         <th class="text-center" style="width: 7%">Default</th>
         <th class="text-center" style="width: 10%">Type</th>
-        <th class="text-center" style="width: 50%">Description</th>
+        <th class="text-center" style="width: 42%">Description</th>
       </tr>
     </thead>
     <tbody>
         <tr>
             <td><h5>format</h5></td>
             <td>required</td>
+            <td>no</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Specify what format to use, here should be <code>'avro-confluent'</code>.</td>
@@ -190,6 +194,7 @@ Format Options
         <tr>
             <td><h5>avro-confluent.basic-auth.credentials-source</h5></td>
             <td>optional</td>
+            <td>yes</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Basic auth credentials source for Schema Registry</td>
@@ -197,6 +202,7 @@ Format Options
         <tr>
             <td><h5>avro-confluent.basic-auth.user-info</h5></td>
             <td>optional</td>
+            <td>yes</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Basic auth user info for schema registry</td>
@@ -204,6 +210,7 @@ Format Options
         <tr>
             <td><h5>avro-confluent.bearer-auth.credentials-source</h5></td>
             <td>optional</td>
+            <td>yes</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Bearer auth credentials source for Schema Registry</td>
@@ -211,6 +218,7 @@ Format Options
         <tr>
             <td><h5>avro-confluent.bearer-auth.token</h5></td>
             <td>optional</td>
+            <td>yes</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Bearer auth token for Schema Registry</td>
@@ -218,6 +226,7 @@ Format Options
         <tr>
             <td><h5>avro-confluent.properties</h5></td>
             <td>optional</td>
+            <td>yes</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>Map</td>
             <td>Properties map that is forwarded to the underlying Schema Registry. This is useful for options that are not officially exposed via Flink config options. However, note that Flink options have higher precedence.</td>
@@ -225,6 +234,7 @@ Format Options
         <tr>
             <td><h5>avro-confluent.ssl.keystore.location</h5></td>
             <td>optional</td>
+            <td>yes</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Location / File of SSL keystore</td>
@@ -232,6 +242,7 @@ Format Options
         <tr>
             <td><h5>avro-confluent.ssl.keystore.password</h5></td>
             <td>optional</td>
+            <td>yes</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Password for SSL keystore</td>
@@ -239,6 +250,7 @@ Format Options
         <tr>
             <td><h5>avro-confluent.ssl.truststore.location</h5></td>
             <td>optional</td>
+            <td>yes</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Location / File of SSL truststore</td>
@@ -246,6 +258,7 @@ Format Options
         <tr>
             <td><h5>avro-confluent.ssl.truststore.password</h5></td>
             <td>optional</td>
+            <td>yes</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>Password for SSL truststore</td>
@@ -253,6 +266,7 @@ Format Options
         <tr>
             <td><h5>avro-confluent.subject</h5></td>
             <td>optional</td>
+            <td>yes</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The Confluent Schema Registry subject under which to register the schema used by this format during serialization. By default, 'kafka' and 'upsert-kafka' connectors use '&lt;topic_name&gt;-value' or '&lt;topic_name&gt;-key' as the default subject name if this format is used as the value or key format. But for other connectors (e.g. 'filesystem'), the subject option is required when used as sink.</td>
@@ -260,6 +274,7 @@ Format Options
         <tr>
             <td><h5>avro-confluent.url</h5></td>
             <td>required</td>
+            <td>yes</td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
             <td>The URL of the Confluent Schema Registry to fetch/register schemas.</td>

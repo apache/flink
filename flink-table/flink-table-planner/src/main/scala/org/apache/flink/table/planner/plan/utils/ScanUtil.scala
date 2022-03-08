@@ -68,6 +68,8 @@ object ScanUtil {
       inputType: DataType,
       outputRowType: RowType,
       qualifiedName: util.List[String],
+      nameFormatter: (String, String) => String,
+      descriptionFormatter: String => String,
       rowtimeExpr: Option[RexNode] = None,
       beforeConvert: String = "",
       afterConvert: String = ""): Transformation[RowData] = {
@@ -115,9 +117,12 @@ object ScanUtil {
 
     val substituteStreamOperator = new CodeGenOperatorFactory[RowData](generatedOperator)
 
+    val description = descriptionFormatter(getOperatorDescription(qualifiedName, outputRowType))
+    val name = nameFormatter(description, "SourceConversion");
     ExecNodeUtil.createOneInputTransformation(
       input.asInstanceOf[Transformation[RowData]],
-      getOperatorName(qualifiedName, outputRowType),
+      name,
+      description,
       substituteStreamOperator,
       InternalTypeInfo.of(outputRowType),
       input.getParallelism,
@@ -127,7 +132,8 @@ object ScanUtil {
   /**
     * @param qualifiedName qualified name for table
     */
-  private[flink] def getOperatorName(qualifiedName: Seq[String], rowType: RowType): String = {
+  private[flink] def getOperatorDescription(
+      qualifiedName: Seq[String], rowType: RowType): String = {
     val tableQualifiedName = qualifiedName.mkString(".")
     val fieldNames = rowType.getFieldNames.mkString(", ")
     s"SourceConversion(table=[$tableQualifiedName], fields=[$fieldNames])"

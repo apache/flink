@@ -40,7 +40,7 @@ import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord
 public class StreamSortOperatorTest {
 
     private InternalTypeInfo<RowData> inputRowType =
-            InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType());
+            InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new IntType());
 
     private GeneratedRecordComparator sortKeyComparator =
             new GeneratedRecordComparator("", "", new Object[0]) {

@@ -50,14 +50,14 @@ import static org.junit.Assert.assertEquals;
 public class WindowJoinOperatorTest {
 
     private static final InternalTypeInfo<RowData> INPUT_ROW_TYPE =
-            InternalTypeInfo.ofFields(new BigIntType(), new VarCharType(VarCharType.MAX_LENGTH));
+            InternalTypeInfo.ofFields(new BigIntType(), VarCharType.STRING_TYPE);
 
     private static final InternalTypeInfo<RowData> OUTPUT_ROW_TYPE =
             InternalTypeInfo.ofFields(
                     new BigIntType(),
-                    new VarCharType(VarCharType.MAX_LENGTH),
+                    VarCharType.STRING_TYPE,
                     new BigIntType(),
-                    new VarCharType(VarCharType.MAX_LENGTH));
+                    VarCharType.STRING_TYPE);
 
     private static final RowDataHarnessAssertor ASSERTER =
             new RowDataHarnessAssertor(OUTPUT_ROW_TYPE.toRowFieldTypes());

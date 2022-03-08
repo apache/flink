@@ -52,6 +52,7 @@ import javax.annotation.Nonnull;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -301,8 +302,18 @@ public class AsyncWaitOperator<IN, OUT>
             queue.emitCompletedElement(timestampedCollector);
             // if there are more completed elements, emit them with subsequent mails
             if (queue.hasCompletedElements()) {
-                mailboxExecutor.execute(
-                        this::outputCompletedElement, "AsyncWaitOperator#outputCompletedElement");
+                try {
+                    mailboxExecutor.execute(
+                            this::outputCompletedElement,
+                            "AsyncWaitOperator#outputCompletedElement");
+                } catch (RejectedExecutionException mailboxClosedException) {
+                    // This exception can only happen if the operator is cancelled which means all
+                    // pending records can be safely ignored since they will be processed one more
+                    // time after recovery.
+                    LOG.debug(
+                            "Attempt to complete element is ignored since the mailbox rejected the execution.",
+                            mailboxClosedException);
+                }
             }
         }
     }

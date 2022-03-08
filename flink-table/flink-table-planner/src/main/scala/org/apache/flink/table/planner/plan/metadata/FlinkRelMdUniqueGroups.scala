@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.UniqueGroups
 import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAggregate}
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelMdUtil, RankUtil}
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.volcano.RelSubset
 import org.apache.calcite.rel.core._
@@ -275,7 +275,7 @@ class FlinkRelMdUniqueGroups private extends MetadataHandler[UniqueGroups] {
       windowAgg: SingleRel,
       grouping: Array[Int],
       auxGrouping: Array[Int],
-      namedProperties: Seq[PlannerNamedWindowProperty],
+      namedProperties: Seq[NamedWindowProperty],
       mq: RelMetadataQuery,
       columns: ImmutableBitSet): ImmutableBitSet = {
     val fieldCount = windowAgg.getRowType.getFieldCount

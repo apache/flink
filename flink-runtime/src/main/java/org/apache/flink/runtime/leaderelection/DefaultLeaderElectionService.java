@@ -81,6 +81,7 @@ public class DefaultLeaderElectionService
         Preconditions.checkState(leaderContender == null, "Contender was already set.");
 
         synchronized (lock) {
+            running = true;
             leaderContender = contender;
             leaderElectionDriver =
                     leaderElectionDriverFactory.createLeaderElectionDriver(
@@ -88,8 +89,6 @@ public class DefaultLeaderElectionService
                             new LeaderElectionFatalErrorHandler(),
                             leaderContender.getDescription());
             LOG.info("Starting DefaultLeaderElectionService with {}.", leaderElectionDriver);
-
-            running = true;
         }
     }
 
@@ -189,10 +188,10 @@ public class DefaultLeaderElectionService
 
     @Override
     @GuardedBy("lock")
-    public void onGrantLeadership() {
+    public void onGrantLeadership(UUID newLeaderSessionId) {
         synchronized (lock) {
             if (running) {
-                issuedLeaderSessionID = UUID.randomUUID();
+                issuedLeaderSessionID = newLeaderSessionId;
                 clearConfirmedLeaderInformation();
 
                 if (LOG.isDebugEnabled()) {

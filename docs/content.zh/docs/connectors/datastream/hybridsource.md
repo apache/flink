@@ -58,7 +58,7 @@ Each source covers an upfront known range and therefore the contained sources ca
 ```java
 long switchTimestamp = ...; // derive from file input paths
 FileSource<String> fileSource =
-  FileSource.forRecordStreamFormat(new TextLineFormat(), Path.fromLocalFile(testDir)).build();
+  FileSource.forRecordStreamFormat(new TextLineInputFormat(), Path.fromLocalFile(testDir)).build();
 KafkaSource<String> kafkaSource =
           KafkaSource.<String>builder()
                   .setStartingOffsets(OffsetsInitializer.timestamp(switchTimestamp + 1))

@@ -44,12 +44,12 @@ interface ExceptionHistoryItem {
   expand: boolean;
 }
 
-const stripConcurrentExceptions = function(rootException: RootExceptionInfo): ExceptionInfo {
+const stripConcurrentExceptions = function (rootException: RootExceptionInfo): ExceptionInfo {
   const { concurrentExceptions, ...mainException } = rootException;
   return mainException;
 };
 
-const markGlobalFailure = function(exception: ExceptionInfo): ExceptionInfo {
+const markGlobalFailure = function (exception: ExceptionInfo): ExceptionInfo {
   if (exception.taskName == null) {
     exception.taskName = '(global failure)';
   }

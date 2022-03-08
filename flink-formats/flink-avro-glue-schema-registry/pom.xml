@@ -34,9 +34,8 @@ under the License.
 	<packaging>jar</packaging>
 
 	<properties>
-		<glue.schema.registry.version>1.1.5</glue.schema.registry.version>
+		<glue.schema.registry.version>1.1.8</glue.schema.registry.version>
 		<aws.sdkv2.version>2.17.52</aws.sdkv2.version>
-		<netty.version>4.1.68.Final</netty.version>
 		<kotlin.version>1.3.50</kotlin.version>
 	</properties>
 
@@ -47,18 +46,6 @@ under the License.
 		<dependencies>
 			<!-- dependencies to solve enforcer check issue -->
 			<!-- can be removed once new version of Glue Schema Registry releases -->
-
-			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-handler</artifactId>
-				<version>${netty.version}</version>
-			</dependency>
-
-			<dependency>
-				<groupId>io.netty</groupId>
-				<artifactId>netty-codec-http</artifactId>
-				<version>${netty.version}</version>
-			</dependency>
 
 			<dependency>
 				<groupId>org.jetbrains.kotlin</groupId>
@@ -88,6 +75,12 @@ under the License.
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-avro</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-connector-aws-base</artifactId>
 			<version>${project.version}</version>
 		</dependency>
 

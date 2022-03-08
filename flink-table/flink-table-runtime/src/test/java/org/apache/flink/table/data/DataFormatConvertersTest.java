@@ -107,9 +107,9 @@ public class DataFormatConvertersTest {
                 new short[] {5, 1},
                 new byte[] {5, 1},
                 new char[] {5, 1},
-                DateTimeUtils.unixDateToLocalDate(5),
-                DateTimeUtils.unixTimeToLocalTime(11),
-                DateTimeUtils.unixTimestampToLocalDateTime(11),
+                DateTimeUtils.toLocalDate(5),
+                DateTimeUtils.toLocalTime(11),
+                DateTimeUtils.toLocalDateTime(11),
                 StringData.fromString("hahah")
             };
 
@@ -189,10 +189,10 @@ public class DataFormatConvertersTest {
         test(new RowTypeInfo(simpleTypes), new Row(simpleTypes.length));
         test(new RowTypeInfo(simpleTypes), Row.ofKind(RowKind.DELETE, simpleValues));
         test(
-                InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
+                InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new IntType()),
                 GenericRowData.of(StringData.fromString("hehe"), 111));
         test(
-                InternalTypeInfo.ofFields(new VarCharType(VarCharType.MAX_LENGTH), new IntType()),
+                InternalTypeInfo.ofFields(VarCharType.STRING_TYPE, new IntType()),
                 GenericRowData.of(null, null));
 
         test(new DecimalDataTypeInfo(10, 5), null);

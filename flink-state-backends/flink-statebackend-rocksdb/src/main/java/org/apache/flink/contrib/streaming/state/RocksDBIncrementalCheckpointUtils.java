@@ -31,6 +31,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.BiFunction;
 
@@ -46,28 +47,58 @@ public class RocksDBIncrementalCheckpointUtils {
     /**
      * Evaluates state handle's "score" regarding to the target range when choosing the best state
      * handle to init the initial db for recovery, if the overlap fraction is less than {@link
-     * #OVERLAP_FRACTION_THRESHOLD}, then just return -1 to mean the handle has not chance to be the
-     * initial handle.
+     * #OVERLAP_FRACTION_THRESHOLD}, then just return {@code Score.MIN} to mean the handle has no
+     * chance to be the initial handle.
      */
-    private static final BiFunction<KeyedStateHandle, KeyGroupRange, Double>
-            STATE_HANDLE_EVALUATOR =
-                    (stateHandle, targetKeyGroupRange) -> {
-                        final KeyGroupRange handleKeyGroupRange = stateHandle.getKeyGroupRange();
-                        final KeyGroupRange intersectGroup =
-                                handleKeyGroupRange.getIntersection(targetKeyGroupRange);
+    private static final BiFunction<KeyedStateHandle, KeyGroupRange, Score> STATE_HANDLE_EVALUATOR =
+            (stateHandle, targetKeyGroupRange) -> {
+                final KeyGroupRange handleKeyGroupRange = stateHandle.getKeyGroupRange();
+                final KeyGroupRange intersectGroup =
+                        handleKeyGroupRange.getIntersection(targetKeyGroupRange);
 
-                        final double overlapFraction =
-                                (double) intersectGroup.getNumberOfKeyGroups()
-                                        / handleKeyGroupRange.getNumberOfKeyGroups();
+                final double overlapFraction =
+                        (double) intersectGroup.getNumberOfKeyGroups()
+                                / handleKeyGroupRange.getNumberOfKeyGroups();
 
-                        if (overlapFraction < OVERLAP_FRACTION_THRESHOLD) {
-                            return -1.0;
-                        }
+                if (overlapFraction < OVERLAP_FRACTION_THRESHOLD) {
+                    return Score.MIN;
+                }
 
-                        return intersectGroup.getNumberOfKeyGroups()
-                                * overlapFraction
-                                * overlapFraction;
-                    };
+                return new Score(intersectGroup.getNumberOfKeyGroups(), overlapFraction);
+            };
+
+    /**
+     * Score of the state handle, intersect group range is compared first, and then compare the
+     * overlap fraction.
+     */
+    private static class Score implements Comparable<Score> {
+
+        public static final Score MIN = new Score(Integer.MIN_VALUE, -1.0);
+
+        private final int intersectGroupRange;
+
+        private final double overlapFraction;
+
+        public Score(int intersectGroupRange, double overlapFraction) {
+            this.intersectGroupRange = intersectGroupRange;
+            this.overlapFraction = overlapFraction;
+        }
+
+        public int getIntersectGroupRange() {
+            return intersectGroupRange;
+        }
+
+        public double getOverlapFraction() {
+            return overlapFraction;
+        }
+
+        @Override
+        public int compareTo(@Nonnull Score other) {
+            return Comparator.comparing(Score::getIntersectGroupRange)
+                    .thenComparing(Score::getOverlapFraction)
+                    .compare(this, other);
+        }
+    }
 
     /**
      * The method to clip the db instance according to the target key group range using the {@link
@@ -175,10 +206,10 @@ public class RocksDBIncrementalCheckpointUtils {
             @Nonnull KeyGroupRange targetKeyGroupRange) {
 
         KeyedStateHandle bestStateHandle = null;
-        double bestScore = 0;
+        Score bestScore = Score.MIN;
         for (KeyedStateHandle rawStateHandle : restoreStateHandles) {
-            double handleScore = STATE_HANDLE_EVALUATOR.apply(rawStateHandle, targetKeyGroupRange);
-            if (handleScore > bestScore) {
+            Score handleScore = STATE_HANDLE_EVALUATOR.apply(rawStateHandle, targetKeyGroupRange);
+            if (handleScore.compareTo(bestScore) > 0) {
                 bestStateHandle = rawStateHandle;
                 bestScore = handleScore;
             }

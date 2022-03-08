@@ -20,9 +20,13 @@ package org.apache.flink.runtime.highavailability.nonha.embedded;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.checkpoint.CheckpointRecoveryFactory;
+import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.EmbeddedCompletedCheckpointStore;
 import org.apache.flink.runtime.checkpoint.PerJobCheckpointRecoveryFactory;
+import org.apache.flink.runtime.state.SharedStateRegistry;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -36,16 +40,23 @@ public class EmbeddedHaServicesWithLeadershipControl extends EmbeddedHaServices
         this(
                 executor,
                 new PerJobCheckpointRecoveryFactory<EmbeddedCompletedCheckpointStore>(
-                        (maxCheckpoints, previous) -> {
+                        (maxCheckpoints, previous, stateRegistryFactory, ioExecutor) -> {
+                            List<CompletedCheckpoint> checkpoints =
+                                    previous != null
+                                            ? previous.getAllCheckpoints()
+                                            : Collections.emptyList();
+                            SharedStateRegistry stateRegistry =
+                                    stateRegistryFactory.create(ioExecutor, checkpoints);
                             if (previous != null) {
                                 if (!previous.getShutdownStatus().isPresent()) {
                                     throw new IllegalStateException(
                                             "Completed checkpoint store from previous run has not yet shutdown.");
                                 }
                                 return new EmbeddedCompletedCheckpointStore(
-                                        maxCheckpoints, previous.getAllCheckpoints());
+                                        maxCheckpoints, checkpoints, stateRegistry);
                             }
-                            return new EmbeddedCompletedCheckpointStore(maxCheckpoints);
+                            return new EmbeddedCompletedCheckpointStore(
+                                    maxCheckpoints, checkpoints, stateRegistry);
                         }));
     }
 

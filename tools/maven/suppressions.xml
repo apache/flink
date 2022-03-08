@@ -47,7 +47,7 @@ under the License.
 
 	    <!-- Have to use guava directly -->
 	    <suppress
-			files="OverConvertRule.java|InConverter.java"
+			files="OverConvertRule.java|InConverter.java|SymbolUtil.java|RexNodeJsonDeserializer.java|RexNodeJsonSerializer.java|RexNodeJsonSerdeTest.java"
 			checks="IllegalImport"/>
 		<!-- Cassandra connectors have to use guava directly -->
 		<suppress

@@ -41,7 +41,7 @@ Have a look at `test_batch_wordcount.sh` for a very basic test and
 to put new functionality in `common.sh` so that it can be reused by other tests.
 
 ### Adding a test case
-In order to add a new test case you need add it to either `test-scripts/run-nightly-tests.sh` and / or `test-scripts/run-pre-commit-tests.sh`. Templates on how to add tests can be found in those respective files.
+In order to add a new test case you need add it to `test-scripts/run-nightly-tests.sh`. Templates on how to add tests can be found in those respective files.
 
 _Note: If you want to parameterize your tests please do so by adding multiple test cases with parameters as arguments to the nightly / pre-commit test suites. This allows the test runner to do a cleanup in between each individual test and also to fail those tests individually._
 

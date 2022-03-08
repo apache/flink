@@ -25,21 +25,25 @@ import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
+import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
+import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
+import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
-
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexCall;
 import org.apache.calcite.rex.RexInputRef;
@@ -52,30 +56,25 @@ import java.util.List;
 import static org.apache.flink.util.Preconditions.checkArgument;
 
 /** Base {@link ExecNode} which matches along with join a Python user defined table function. */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
-
-    public static final String FIELD_NAME_JOIN_TYPE = "joinType";
-    public static final String FIELD_NAME_FUNCTION_CALL = "functionCall";
 
     private static final String PYTHON_TABLE_FUNCTION_OPERATOR_NAME =
             "org.apache.flink.table.runtime.operators.python.table.PythonTableFunctionOperator";
 
-    @JsonProperty(FIELD_NAME_JOIN_TYPE)
     private final FlinkJoinType joinType;
 
-    @JsonProperty(FIELD_NAME_FUNCTION_CALL)
     private final RexCall invocation;
 
     public CommonExecPythonCorrelate(
+            int id,
+            ExecNodeContext context,
             FlinkJoinType joinType,
             RexCall invocation,
-            int id,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.joinType = joinType;
         this.invocation = invocation;
@@ -83,22 +82,25 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
-        final Configuration config =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
+        final Configuration pythonConfig =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
-                createPythonOneInputTransformation(inputTransform, config);
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(config)) {
+                createPythonOneInputTransformation(inputTransform, config, pythonConfig);
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         return transform;
     }
 
     private OneInputTransformation<RowData, RowData> createPythonOneInputTransformation(
-            Transformation<RowData> inputTransform, Configuration config) {
+            Transformation<RowData> inputTransform,
+            ExecNodeConfig config,
+            Configuration pythonConfig) {
         Tuple2<int[], PythonFunctionInfo> extractResult = extractPythonTableFunctionInfo();
         int[] pythonUdtfInputOffsets = extractResult.f0;
         PythonFunctionInfo pythonFunctionInfo = extractResult.f1;
@@ -109,13 +111,15 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonTableFunctionOperator(
                         config,
+                        pythonConfig,
                         pythonOperatorInputRowType,
                         pythonOperatorOutputRowType,
                         pythonFunctionInfo,
                         pythonUdtfInputOffsets);
-        return new OneInputTransformation<>(
+        return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getDescription(),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 pythonOperator,
                 pythonOperatorOutputRowType,
                 inputTransform.getParallelism());
@@ -136,12 +140,22 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonTableFunctionOperator(
-            Configuration config,
+            ExecNodeConfig config,
+            Configuration pythonConfig,
             InternalTypeInfo<RowData> inputRowType,
             InternalTypeInfo<RowData> outputRowType,
             PythonFunctionInfo pythonFunctionInfo,
             int[] udtfInputOffsets) {
         Class clazz = CommonPythonUtil.loadClass(PYTHON_TABLE_FUNCTION_OPERATOR_NAME);
+
+        final RowType inputType = inputRowType.toRowType();
+        final RowType outputType = outputRowType.toRowType();
+        final RowType udfInputType = (RowType) Projection.of(udtfInputOffsets).project(inputType);
+        final RowType udfOutputType =
+                (RowType)
+                        Projection.range(inputType.getFieldCount(), outputType.getFieldCount())
+                                .project(outputType);
+
         try {
             Constructor ctor =
                     clazz.getConstructor(
@@ -149,16 +163,23 @@ public abstract class CommonExecPythonCorrelate extends ExecNodeBase<RowData>
                             PythonFunctionInfo.class,
                             RowType.class,
                             RowType.class,
-                            int[].class,
-                            FlinkJoinType.class);
+                            RowType.class,
+                            FlinkJoinType.class,
+                            GeneratedProjection.class);
             return (OneInputStreamOperator<RowData, RowData>)
                     ctor.newInstance(
-                            config,
+                            pythonConfig,
                             pythonFunctionInfo,
-                            inputRowType.toRowType(),
-                            outputRowType.toRowType(),
-                            udtfInputOffsets,
-                            joinType);
+                            inputType,
+                            udfInputType,
+                            udfOutputType,
+                            joinType,
+                            ProjectionCodeGenerator.generateProjection(
+                                    CodeGeneratorContext.apply(config.getTableConfig()),
+                                    "UdtfInputProjection",
+                                    inputType,
+                                    udfInputType,
+                                    udtfInputOffsets));
         } catch (Exception e) {
             throw new TableException("Python Table Function Operator constructed failed.", e);
         }

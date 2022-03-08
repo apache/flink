@@ -61,12 +61,22 @@ public class DefaultExecutionVertexTest extends TestLogger {
                         intermediateResultPartitionId,
                         new IntermediateDataSetID(),
                         BLOCKING,
-                        () -> ResultPartitionState.CREATED);
+                        () -> ResultPartitionState.CREATED,
+                        () -> {
+                            throw new UnsupportedOperationException();
+                        },
+                        () -> {
+                            throw new UnsupportedOperationException();
+                        });
         producerVertex =
                 new DefaultExecutionVertex(
                         new ExecutionVertexID(new JobVertexID(), 0),
                         Collections.singletonList(schedulingResultPartition),
-                        stateSupplier);
+                        stateSupplier,
+                        Collections.emptyList(),
+                        partitionID -> {
+                            throw new UnsupportedOperationException();
+                        });
         schedulingResultPartition.setProducer(producerVertex);
 
         List<ConsumedPartitionGroup> consumedPartitionGroups =

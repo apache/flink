@@ -72,8 +72,8 @@ class GroupWindowTableAggregateValidationTest extends TableTestBase {
     val table = util.addTableSource[(Long, Int, String)]('long, 'int, 'string, 'proctime.proctime)
 
     val tableConf = util.getTableEnv.getConfig
-    tableConf.getConfiguration.setBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, true)
-    tableConf.getConfiguration.set(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, Duration.ofMillis(10))
+    tableConf.set(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED, Boolean.box(true))
+    tableConf.set(TABLE_EXEC_EMIT_EARLY_FIRE_DELAY, Duration.ofMillis(10))
 
     val result = table
       .window(Tumble over 2.hours on 'proctime as 'w)

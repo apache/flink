@@ -69,7 +69,7 @@ class FlinkTypeFactoryTest {
     test(new NullType())
     test(new BooleanType())
     test(new TinyIntType())
-    test(new VarCharType(VarCharType.MAX_LENGTH))
+    test(VarCharType.STRING_TYPE)
     test(new DoubleType())
     test(new FloatType())
     test(new IntType())
@@ -82,8 +82,8 @@ class FlinkTypeFactoryTest {
     test(new LocalZonedTimestampType(3))
 
     test(new ArrayType(new DoubleType()))
-    test(new MapType(new DoubleType(), new VarCharType(VarCharType.MAX_LENGTH)))
-    test(RowType.of(new DoubleType(), new VarCharType(VarCharType.MAX_LENGTH)))
+    test(new MapType(new DoubleType(), VarCharType.STRING_TYPE))
+    test(RowType.of(new DoubleType(), VarCharType.STRING_TYPE))
     test(new RawType[DayOfWeek](
       classOf[DayOfWeek],
       new KryoSerializer[DayOfWeek](classOf[DayOfWeek], new ExecutionConfig)))

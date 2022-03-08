@@ -18,8 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import org.apache.flink.table.planner.expressions.PlannerNamedWindowProperty
 import org.apache.flink.table.planner.plan.logical.LogicalWindow
+import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.RelNode
@@ -36,7 +36,7 @@ final class LogicalWindowAggregate(
     groupSet: ImmutableBitSet,
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[PlannerNamedWindowProperty])
+    namedProperties: Seq[NamedWindowProperty])
   extends WindowAggregate(cluster, traitSet, child, groupSet, aggCalls, window, namedProperties) {
 
   override def copy(
@@ -55,7 +55,7 @@ final class LogicalWindowAggregate(
       namedProperties)
   }
 
-  def copy(namedProperties: Seq[PlannerNamedWindowProperty]): LogicalWindowAggregate = {
+  def copy(namedProperties: Seq[NamedWindowProperty]): LogicalWindowAggregate = {
     new LogicalWindowAggregate(
       cluster,
       traitSet,
@@ -71,7 +71,7 @@ object LogicalWindowAggregate {
 
   def create(
       window: LogicalWindow,
-      namedProperties: Seq[PlannerNamedWindowProperty],
+      namedProperties: Seq[NamedWindowProperty],
       agg: Aggregate): LogicalWindowAggregate = {
     require(agg.getGroupType == Group.SIMPLE)
     val cluster: RelOptCluster = agg.getCluster

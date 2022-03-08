@@ -26,11 +26,13 @@ import org.apache.flink.util.DockerImageVersions;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.AdminClient;
+import org.apache.kafka.clients.admin.ListConsumerGroupOffsetsResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.admin.TopicListing;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.junit.After;
@@ -52,6 +54,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /** Base class for Kafka Table IT Cases. */
@@ -140,6 +143,19 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
         }
     }
 
+    public Map<TopicPartition, OffsetAndMetadata> getConsumerOffset(String groupId) {
+        Map<String, Object> properties = new HashMap<>();
+        properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
+        try (AdminClient admin = AdminClient.create(properties)) {
+            ListConsumerGroupOffsetsResult result = admin.listConsumerGroupOffsets(groupId);
+            return result.partitionsToOffsetAndMetadata().get(20, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            throw new IllegalStateException(
+                    String.format("Fail to get consumer offsets with the group id [%s].", groupId),
+                    e);
+        }
+    }
+
     public void deleteTestTopic(String topic) {
         Map<String, Object> properties = new HashMap<>();
         properties.put(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, getBootstrapServers());
@@ -170,8 +186,7 @@ public abstract class KafkaTableTestBase extends AbstractTestBase {
     }
 
     private Map<String, TopicDescription> describeExternalTopics() {
-        final AdminClient adminClient = AdminClient.create(getStandardProps());
-        try {
+        try (final AdminClient adminClient = AdminClient.create(getStandardProps())) {
             final List<String> topics =
                     adminClient.listTopics().listings().get().stream()
                             .filter(listing -> !listing.isInternal())

@@ -33,10 +33,8 @@ import javax.annotation.Nullable;
 
 import java.io.Serializable;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -190,55 +188,6 @@ public abstract class DataType implements AbstractDataType<DataType>, Serializab
      */
     public static int getFieldCount(DataType dataType) {
         return getFieldDataTypes(dataType).size();
-    }
-
-    /**
-     * Projects a (possibly nested) row data type by returning a new data type that only includes
-     * fields of the given index paths.
-     *
-     * <p>Note: Index paths allow for arbitrary deep nesting. For example, {@code [[0, 2, 1], ...]}
-     * specifies to include the 2nd field of the 3rd field of the 1st field in the top-level row.
-     * Sometimes, name conflicts might occur when extracting fields from a row. Considering the path
-     * is unique to extract fields, it makes sense to use the path to the fields with delimiter `_`
-     * as the new name of the field. For example, the new name of the field `b` in the row `a` is
-     * `a_b` rather than `b`. However, name conflicts are still possible in some cases, e.g. if the
-     * field name is`a_b` in the top level row. In this case, the method will use a postfix in the
-     * format '_$%d' to resolve the name conflicts.
-     */
-    public static DataType projectFields(DataType dataType, int[][] indexPaths) {
-        return DataTypeUtils.projectRow(dataType, indexPaths);
-    }
-
-    /**
-     * Projects a (possibly nested) row data type by returning a new data type that only includes
-     * fields of the given indices.
-     *
-     * <p>Note: This method only projects (possibly nested) fields in the top-level row.
-     */
-    public static DataType projectFields(DataType dataType, int[] indexes) {
-        return DataTypeUtils.projectRow(dataType, indexes);
-    }
-
-    /**
-     * Exclude fields with the provided {@code indexes} from the {@code dataType}. This method
-     * behaves as the inverse method of {@link #projectFields(DataType, int[])}.
-     *
-     * <p>Note: This method only excludes (possibly nested) fields in the top-level row.
-     */
-    public static DataType excludeFields(DataType dataType, int[] indexes) {
-        // Convert indexes to set
-        final Set<Integer> indexesSet = new HashSet<>();
-        for (int index : indexes) {
-            indexesSet.add(index);
-        }
-
-        // Compute projection
-        final int[] projection =
-                IntStream.range(0, DataType.getFieldCount(dataType))
-                        .filter(i -> !indexesSet.contains(i))
-                        .toArray();
-
-        return DataType.projectFields(dataType, projection);
     }
 
     /**

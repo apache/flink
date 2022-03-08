@@ -21,8 +21,7 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.OneShotLatch;
-import org.apache.flink.runtime.blob.BlobCacheService;
-import org.apache.flink.runtime.blob.VoidBlobStore;
+import org.apache.flink.runtime.blob.NoOpTaskExecutorBlobService;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.clusterframework.types.SlotID;
@@ -49,6 +48,7 @@ import org.apache.flink.runtime.taskexecutor.slot.TaskSlotUtils;
 import org.apache.flink.runtime.taskmanager.LocalUnresolvedTaskManagerLocation;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
 import org.apache.flink.runtime.util.TestingFatalErrorHandlerResource;
+import org.apache.flink.testutils.TestFileUtils;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.FunctionUtils;
 
@@ -206,7 +206,8 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
                         configuration,
                         TaskExecutorResourceUtils.resourceSpecFromConfigForLocalExecution(
                                 configuration),
-                        InetAddress.getLoopbackAddress().getHostAddress()),
+                        InetAddress.getLoopbackAddress().getHostAddress(),
+                        TestFileUtils.createTempDir()),
                 haServices,
                 new TaskManagerServicesBuilder()
                         .setTaskSlotTable(TaskSlotUtils.createTaskSlotTable(1))
@@ -216,7 +217,7 @@ public class TaskExecutorSlotLifetimeTest extends TestLogger {
                 new TestingHeartbeatServices(),
                 UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup(),
                 null,
-                new BlobCacheService(configuration, new VoidBlobStore(), null),
+                NoOpTaskExecutorBlobService.INSTANCE,
                 testingFatalErrorHandlerResource.getFatalErrorHandler(),
                 new TestingTaskExecutorPartitionTracker());
     }

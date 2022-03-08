@@ -67,7 +67,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c]
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, c])
-+- Calc(select=[a, 1:BIGINT AS EXPR$1, c])
++- Calc(select=[a, 1 AS EXPR$1, c])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -86,7 +86,7 @@ LogicalSink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EX
     <Resource name="optimized exec plan">
       <![CDATA[
 Sink(table=[default_catalog.default_database.sink], fields=[a, EXPR$1, EXPR$2])
-+- Calc(select=[a, 1:BIGINT AS EXPR$1, 1:BIGINT AS EXPR$2])
++- Calc(select=[a, 1 AS EXPR$1, 1 AS EXPR$2])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

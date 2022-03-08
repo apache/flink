@@ -24,6 +24,7 @@ import org.apache.flink.util.TestLogger;
 
 import org.junit.Test;
 
+import java.io.File;
 import java.io.IOException;
 
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
@@ -50,7 +51,8 @@ public class BlobServerSSLTest extends TestLogger {
         config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
         config.setString(SecurityOptions.SSL_ALGORITHMS, "TLSv1,TLSv1.1");
 
-        try (final BlobServer ignored = new BlobServer(config, new VoidBlobStore())) {
+        try (final BlobServer ignored =
+                new BlobServer(config, new File("foobar"), new VoidBlobStore())) {
             fail();
         } catch (Exception e) {
             findThrowable(e, IOException.class);
@@ -69,7 +71,8 @@ public class BlobServerSSLTest extends TestLogger {
         config.setString(SecurityOptions.SSL_TRUSTSTORE, "invalid.keystore");
         config.setString(SecurityOptions.SSL_TRUSTSTORE_PASSWORD, "password");
 
-        try (final BlobServer ignored = new BlobServer(config, new VoidBlobStore())) {
+        try (final BlobServer ignored =
+                new BlobServer(config, new File("foobar"), new VoidBlobStore())) {
             fail();
         } catch (Exception e) {
             findThrowable(e, IOException.class);
@@ -83,7 +86,8 @@ public class BlobServerSSLTest extends TestLogger {
 
         config.setBoolean(SecurityOptions.SSL_INTERNAL_ENABLED, true);
 
-        try (final BlobServer ignored = new BlobServer(config, new VoidBlobStore())) {
+        try (final BlobServer ignored =
+                new BlobServer(config, new File("foobar"), new VoidBlobStore())) {
             fail();
         } catch (Exception e) {
             findThrowable(e, IOException.class);

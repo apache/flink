@@ -19,8 +19,8 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.expressions.Expression;
-import org.apache.flink.table.expressions.ExpressionParser;
 
 /**
  * Helper class for creating a tumbling window. Tumbling windows are consecutive, non-overlapping
@@ -53,7 +53,7 @@ public final class Tumble {
      */
     @Deprecated
     public static TumbleWithSize over(String size) {
-        return over(ExpressionParser.parseExpression(size));
+        return over(ExpressionParser.INSTANCE.parseExpression(size));
     }
 
     /**

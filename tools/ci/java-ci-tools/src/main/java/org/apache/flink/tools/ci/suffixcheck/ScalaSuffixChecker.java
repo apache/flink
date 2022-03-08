@@ -27,6 +27,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -52,7 +53,15 @@ public class ScalaSuffixChecker {
     // [INFO] +- org.scala-lang:scala-reflect:jar:2.11.12:test
     private static final Pattern scalaSuffixPattern = Pattern.compile("_2.1[0-9]");
 
-    private static final String AKKA_RPC_MODULE_NAME = "flink-rpc-akka";
+    private static final Set<String> EXCLUDED_MODULES =
+            new HashSet<>(
+                    Arrays.asList(
+                            // we ignore flink-rpc-akka because it is loaded through a separate
+                            // class loader
+                            "flink-rpc-akka",
+                            // we ignore flink-table-planner-loader because it loads the planner
+                            // through a different classpath
+                            "flink-table-planner-loader"));
 
     public static void main(String[] args) throws IOException {
         if (args.length < 2) {
@@ -95,9 +104,7 @@ public class ScalaSuffixChecker {
                 final Matcher matcher = moduleNamePattern.matcher(line);
                 if (matcher.matches()) {
                     final String moduleName = stripScalaSuffix(matcher.group(1));
-                    // we ignored flink-rpc-akka because it is loaded through a separate class
-                    // loader
-                    if (moduleName.equals(AKKA_RPC_MODULE_NAME)) {
+                    if (isExcluded(moduleName)) {
                         continue;
                     }
                     LOG.trace("Parsing module '{}'.", moduleName);
@@ -112,12 +119,12 @@ public class ScalaSuffixChecker {
                         final boolean isTestDependency = line.endsWith(":test");
                         // we ignored flink-rpc-akka because it is loaded through a separate class
                         // loader
-                        final boolean isFlinkAkkaRpc = line.contains(AKKA_RPC_MODULE_NAME);
+                        final boolean isExcluded = isExcluded(line);
                         LOG.trace("\tline:{}", line);
                         LOG.trace("\t\tdepends-on-scala:{}", dependsOnScala);
                         LOG.trace("\t\tis-test-dependency:{}", isTestDependency);
-                        LOG.trace("\t\tis-flink-rpc-akka:{}", isFlinkAkkaRpc);
-                        if (dependsOnScala && !isTestDependency && !isFlinkAkkaRpc) {
+                        LOG.trace("\t\tis-excluded:{}", isExcluded);
+                        if (dependsOnScala && !isTestDependency && !isExcluded) {
                             LOG.trace("\t\tOutbreak detected at {}!", moduleName);
                             infected = true;
                         }
@@ -240,6 +247,10 @@ public class ScalaSuffixChecker {
             }
         }
         return violations;
+    }
+
+    private static boolean isExcluded(String line) {
+        return EXCLUDED_MODULES.stream().anyMatch(line::contains);
     }
 
     private static class ParseResult {

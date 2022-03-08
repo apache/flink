@@ -98,7 +98,7 @@ This way, you will have a checkpoint around to resume from if your job fails.
 
 ```java
 CheckpointConfig config = env.getCheckpointConfig();
-config.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+config.setExternalizedCheckpointCleanup(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
 ```
 
 The `ExternalizedCheckpointCleanup` mode configures what happens with checkpoints when you cancel the job:
@@ -159,14 +159,14 @@ env.getCheckpointConfig().setCheckpointStorage(
 ### Difference to Savepoints
 
 Checkpoints have a few differences from [savepoints]({{< ref "docs/ops/state/savepoints" >}}). They
-- use a state backend specific (low-level) data format, may be incremental.
+- use a state backend specific (low-level) data format, may be incremental. (starting from Flink 1.15 savepoints can also use the backend [native]({{< ref "docs/ops/state/savepoints" >}}#savepoint-format) format.)
 - do not support Flink specific features like rescaling.
 
 ### Resuming from a retained checkpoint
 
 A job may be resumed from a checkpoint just as from a savepoint
 by using the checkpoint's meta data file instead (see the
-[savepoint restore guide]({{< ref "docs/deployment/cli" >}}#restore-a-savepoint)). Note that if the
+[savepoint restore guide]({{< ref "docs/ops/state/savepoints" >}}#resuming-from-savepoints)). Note that if the
 meta data file is not self-contained, the jobmanager needs to have access to
 the data files it refers to (see [Directory Structure](#directory-structure)
 above).

@@ -19,6 +19,7 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.eventtime.WatermarkStrategyTest.DummyMetricGroup;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
@@ -27,7 +28,6 @@ import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
 import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
-import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.memory.MemoryStateBackend;
 import org.apache.flink.runtime.state.testutils.TestCompletedCheckpointStorageLocation;
 import org.apache.flink.util.concurrent.Executors;
@@ -296,7 +296,8 @@ public class CheckpointCoordinatorMasterHooksTest {
                         masterHookStates,
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation());
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
                         .addJobVertex(new JobVertexID())
@@ -307,7 +308,8 @@ public class CheckpointCoordinatorMasterHooksTest {
         cc.addMasterHook(statelessHook);
         cc.addMasterHook(statefulHook2);
 
-        cc.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
+        cc.getCheckpointStore()
+                .addCheckpointAndSubsumeOldestOne(checkpoint, new CheckpointsCleaner(), () -> {});
         cc.restoreLatestCheckpointedStateToAll(Collections.emptySet(), false);
 
         verify(statefulHook1, times(1)).restoreCheckpoint(eq(checkpointId), eq(state1));
@@ -355,7 +357,8 @@ public class CheckpointCoordinatorMasterHooksTest {
                         masterHookStates,
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation());
+                        new TestCompletedCheckpointStorageLocation(),
+                        null);
 
         ExecutionGraph graph =
                 new CheckpointCoordinatorTestingUtils.CheckpointExecutionGraphBuilder()
@@ -366,7 +369,8 @@ public class CheckpointCoordinatorMasterHooksTest {
         cc.addMasterHook(statefulHook);
         cc.addMasterHook(statelessHook);
 
-        cc.getCheckpointStore().addCheckpoint(checkpoint, new CheckpointsCleaner(), () -> {});
+        cc.getCheckpointStore()
+                .addCheckpointAndSubsumeOldestOne(checkpoint, new CheckpointsCleaner(), () -> {});
 
         // since we have unmatched state, this should fail
         try {
@@ -486,14 +490,14 @@ public class CheckpointCoordinatorMasterHooksTest {
                 executor,
                 new CheckpointsCleaner(),
                 testingScheduledExecutor,
-                SharedStateRegistry.DEFAULT_FACTORY,
                 new CheckpointFailureManager(0, NoOpFailJobCall.INSTANCE),
                 new DefaultCheckpointPlanCalculator(
                         graph.getJobID(),
                         new ExecutionGraphCheckpointPlanCalculatorContext(graph),
                         graph.getVerticesTopologically(),
                         false),
-                new ExecutionAttemptMappingProvider(graph.getAllExecutionVertices()));
+                new ExecutionAttemptMappingProvider(graph.getAllExecutionVertices()),
+                new CheckpointStatsTracker(1, new DummyMetricGroup()));
     }
 
     private static <T> T mockGeneric(Class<?> clazz) {

@@ -18,6 +18,7 @@
 
 package org.apache.flink.hdfstests;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.io.FileInputFormat;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
@@ -40,7 +41,6 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.AbstractStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.OperatorSnapshotUtil;
-import org.apache.flink.testutils.migration.MigrationVersion;
 import org.apache.flink.util.OperatingSystem;
 
 import org.apache.commons.io.FileUtils;
@@ -71,35 +71,35 @@ public class ContinuousFileProcessingMigrationTest {
     private static final long INTERVAL = 100;
 
     @Parameterized.Parameters(name = "Migration Savepoint / Mod Time: {0}")
-    public static Collection<Tuple2<MigrationVersion, Long>> parameters() {
+    public static Collection<Tuple2<FlinkVersion, Long>> parameters() {
         return Arrays.asList(
-                Tuple2.of(MigrationVersion.v1_3, 1496532000000L),
-                Tuple2.of(MigrationVersion.v1_4, 1516897628000L),
-                Tuple2.of(MigrationVersion.v1_5, 1533639934000L),
-                Tuple2.of(MigrationVersion.v1_6, 1534696817000L),
-                Tuple2.of(MigrationVersion.v1_7, 1544024599000L),
-                Tuple2.of(MigrationVersion.v1_8, 1555215710000L),
-                Tuple2.of(MigrationVersion.v1_9, 1567499868000L),
-                Tuple2.of(MigrationVersion.v1_10, 1594559333000L),
-                Tuple2.of(MigrationVersion.v1_11, 1594561663000L),
-                Tuple2.of(MigrationVersion.v1_12, 1613720148000L),
-                Tuple2.of(MigrationVersion.v1_13, 1627550216000L),
-                Tuple2.of(MigrationVersion.v1_14, 1633938795000L));
+                Tuple2.of(FlinkVersion.v1_3, 1496532000000L),
+                Tuple2.of(FlinkVersion.v1_4, 1516897628000L),
+                Tuple2.of(FlinkVersion.v1_5, 1533639934000L),
+                Tuple2.of(FlinkVersion.v1_6, 1534696817000L),
+                Tuple2.of(FlinkVersion.v1_7, 1544024599000L),
+                Tuple2.of(FlinkVersion.v1_8, 1555215710000L),
+                Tuple2.of(FlinkVersion.v1_9, 1567499868000L),
+                Tuple2.of(FlinkVersion.v1_10, 1594559333000L),
+                Tuple2.of(FlinkVersion.v1_11, 1594561663000L),
+                Tuple2.of(FlinkVersion.v1_12, 1613720148000L),
+                Tuple2.of(FlinkVersion.v1_13, 1627550216000L),
+                Tuple2.of(FlinkVersion.v1_14, 1633938795000L));
     }
 
     /**
      * TODO change this to the corresponding savepoint version to be written (e.g. {@link
-     * MigrationVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
+     * FlinkVersion#v1_3} for 1.3) TODO and remove all @Ignore annotations on write*Snapshot()
      * methods to generate savepoints TODO Note: You should generate the savepoint based on the
      * release branch instead of the master.
      */
-    private final MigrationVersion flinkGenerateSavepointVersion = null;
+    private final FlinkVersion flinkGenerateSavepointVersion = null;
 
-    private final MigrationVersion testMigrateVersion;
+    private final FlinkVersion testMigrateVersion;
     private final Long expectedModTime;
 
     public ContinuousFileProcessingMigrationTest(
-            Tuple2<MigrationVersion, Long> migrationVersionAndModTime) {
+            Tuple2<FlinkVersion, Long> migrationVersionAndModTime) {
         this.testMigrateVersion = migrationVersionAndModTime.f0;
         this.expectedModTime = migrationVersionAndModTime.f1;
     }

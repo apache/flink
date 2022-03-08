@@ -25,6 +25,7 @@ import org.apache.flink.core.memory.DataOutputSerializer;
 import org.apache.flink.runtime.event.AbstractEvent;
 import org.apache.flink.runtime.io.network.api.EndOfData;
 import org.apache.flink.runtime.io.network.api.EndOfPartitionEvent;
+import org.apache.flink.runtime.io.network.api.StopMode;
 import org.apache.flink.runtime.io.network.api.serialization.EventSerializer;
 import org.apache.flink.runtime.io.network.api.writer.RecordWriter;
 import org.apache.flink.runtime.io.network.buffer.Buffer;
@@ -124,7 +125,8 @@ public class StreamTestSingleInputGate<T> {
                         } else if (input != null && input.isDataEnd()) {
                             return Optional.of(
                                     new BufferAndAvailability(
-                                            EventSerializer.toBuffer(EndOfData.INSTANCE, false),
+                                            EventSerializer.toBuffer(
+                                                    new EndOfData(StopMode.DRAIN), false),
                                             nextType,
                                             0,
                                             0));

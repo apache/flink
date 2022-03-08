@@ -21,7 +21,8 @@ package org.apache.flink.table.planner.functions.aggfunctions;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.StringData;
 import org.apache.flink.table.functions.AggregateFunction;
-import org.apache.flink.table.planner.functions.aggfunctions.ListAggWsWithRetractAggFunction.ListAggWsWithRetractAccumulator;
+import org.apache.flink.table.runtime.functions.aggregate.ListAggWsWithRetractAggFunction;
+import org.apache.flink.table.runtime.functions.aggregate.ListAggWsWithRetractAggFunction.ListAggWsWithRetractAccumulator;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.InvocationTargetException;

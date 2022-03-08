@@ -501,8 +501,7 @@ public class BinaryArrayDataTest {
         writer.writeRow(
                 0,
                 GenericRowData.of(fromString("1"), 1),
-                new RowDataSerializer(
-                        RowType.of(new VarCharType(VarCharType.MAX_LENGTH), new IntType())));
+                new RowDataSerializer(RowType.of(VarCharType.STRING_TYPE, new IntType())));
         writer.setNullAt(1);
         writer.complete();
 

@@ -34,7 +34,6 @@ from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTime
 from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
     PerWindowStateDataViewStore
-from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
 from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
     MergingWindowAssigner
 from pyflink.fn_execution.table.window_context import WindowContext, TriggerContext, K, W
@@ -329,7 +328,7 @@ cdef class GroupWindowAggFunctionBase:
     def __init__(self,
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunctionBase,
@@ -510,7 +509,7 @@ cdef class GroupWindowAggFunction(GroupWindowAggFunctionBase):
     def __init__(self,
                  allowed_lateness: int,
                  key_selector: RowKeySelector,
-                 state_backend: RemoteKeyedStateBackend,
+                 state_backend,
                  state_value_coder,
                  window_assigner: WindowAssigner[W],
                  window_aggregator: NamespaceAggsHandleFunction[W],

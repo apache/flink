@@ -20,7 +20,7 @@ package org.apache.flink.connector.elasticsearch.sink;
 
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
-import org.apache.flink.api.connector.sink.SinkWriter;
+import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.util.FlinkRuntimeException;
@@ -32,7 +32,6 @@ import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.elasticsearch.action.DocWriteRequest;
-import org.elasticsearch.action.bulk.BackoffPolicy;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
 import org.elasticsearch.action.bulk.BulkRequest;
@@ -43,21 +42,17 @@ import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
-import org.elasticsearch.common.unit.ByteSizeUnit;
-import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.common.unit.TimeValue;
 import org.elasticsearch.rest.RestStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.List;
 
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
+class ElasticsearchWriter<IN> implements SinkWriter<IN> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ElasticsearchWriter.class);
 
@@ -84,6 +79,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
      *     checkpoint
      * @param bulkProcessorConfig describing the flushing and failure handling of the used {@link
      *     BulkProcessor}
+     * @param bulkProcessorBuilderFactory configuring the {@link BulkProcessor}'s builder
      * @param networkClientConfig describing properties of the network connection used to connect to
      *     the elasticsearch cluster
      * @param metricGroup for the sink writer
@@ -94,6 +90,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
             ElasticsearchEmitter<? super IN> emitter,
             boolean flushOnCheckpoint,
             BulkProcessorConfig bulkProcessorConfig,
+            BulkProcessorBuilderFactory bulkProcessorBuilderFactory,
             NetworkClientConfig networkClientConfig,
             SinkWriterMetricGroup metricGroup,
             MailboxExecutor mailboxExecutor) {
@@ -105,12 +102,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
                         configureRestClientBuilder(
                                 RestClient.builder(hosts.toArray(new HttpHost[0])),
                                 networkClientConfig));
-        this.bulkProcessor =
-                configureBulkProcessor(
-                        BulkProcessor.builder(
-                                bulkProcessorConfig.getBulkRequestConsumerFactory().create(client),
-                                new BulkListener()),
-                        bulkProcessorConfig);
+        this.bulkProcessor = createBulkProcessor(bulkProcessorBuilderFactory, bulkProcessorConfig);
         this.requestIndexer = new DefaultRequestIndexer();
         checkNotNull(metricGroup);
         metricGroup.setCurrentSendTimeGauge(() -> ackTime - lastSendTime);
@@ -132,15 +124,14 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
     }
 
     @Override
-    public List<Void> prepareCommit(boolean flush) throws IOException, InterruptedException {
+    public void flush(boolean endOfInput) throws IOException, InterruptedException {
         checkpointInProgress = true;
-        while (pendingActions != 0 && (flushOnCheckpoint || flush)) {
+        while (pendingActions != 0 && (flushOnCheckpoint || endOfInput)) {
             bulkProcessor.flush();
             LOG.info("Waiting for the response of {} pending actions.", pendingActions);
             mailboxExecutor.yield();
         }
         checkpointInProgress = false;
-        return Collections.emptyList();
     }
 
     @VisibleForTesting
@@ -176,47 +167,38 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN, Void, Void> {
                     httpClientBuilder ->
                             httpClientBuilder.setDefaultCredentialsProvider(credentialsProvider));
         }
+        if (networkClientConfig.getConnectionRequestTimeout() != null
+                || networkClientConfig.getConnectionTimeout() != null
+                || networkClientConfig.getSocketTimeout() != null) {
+            builder.setRequestConfigCallback(
+                    requestConfigBuilder -> {
+                        if (networkClientConfig.getConnectionRequestTimeout() != null) {
+                            requestConfigBuilder.setConnectionRequestTimeout(
+                                    networkClientConfig.getConnectionRequestTimeout());
+                        }
+                        if (networkClientConfig.getConnectionTimeout() != null) {
+                            requestConfigBuilder.setConnectTimeout(
+                                    networkClientConfig.getConnectionTimeout());
+                        }
+                        if (networkClientConfig.getSocketTimeout() != null) {
+                            requestConfigBuilder.setSocketTimeout(
+                                    networkClientConfig.getSocketTimeout());
+                        }
+                        return requestConfigBuilder;
+                    });
+        }
         return builder;
     }
 
-    private static BulkProcessor configureBulkProcessor(
-            BulkProcessor.Builder builder, BulkProcessorConfig bulkProcessorConfig) {
+    private BulkProcessor createBulkProcessor(
+            BulkProcessorBuilderFactory bulkProcessorBuilderFactory,
+            BulkProcessorConfig bulkProcessorConfig) {
+
+        BulkProcessor.Builder builder =
+                bulkProcessorBuilderFactory.apply(client, bulkProcessorConfig, new BulkListener());
+
         // This makes flush() blocking
         builder.setConcurrentRequests(0);
-
-        if (bulkProcessorConfig.getBulkFlushMaxActions() != -1) {
-            builder.setBulkActions(bulkProcessorConfig.getBulkFlushMaxActions());
-        }
-
-        if (bulkProcessorConfig.getBulkFlushMaxMb() != -1) {
-            builder.setBulkSize(
-                    new ByteSizeValue(bulkProcessorConfig.getBulkFlushMaxMb(), ByteSizeUnit.MB));
-        }
-
-        if (bulkProcessorConfig.getBulkFlushInterval() != -1) {
-            builder.setFlushInterval(new TimeValue(bulkProcessorConfig.getBulkFlushInterval()));
-        }
-
-        BackoffPolicy backoffPolicy;
-        final TimeValue backoffDelay =
-                new TimeValue(bulkProcessorConfig.getBulkFlushBackOffDelay());
-        final int maxRetryCount = bulkProcessorConfig.getBulkFlushBackoffRetries();
-        switch (bulkProcessorConfig.getFlushBackoffType()) {
-            case CONSTANT:
-                backoffPolicy = BackoffPolicy.constantBackoff(backoffDelay, maxRetryCount);
-                break;
-            case EXPONENTIAL:
-                backoffPolicy = BackoffPolicy.exponentialBackoff(backoffDelay, maxRetryCount);
-                break;
-            case NONE:
-                backoffPolicy = BackoffPolicy.noBackoff();
-                break;
-            default:
-                throw new IllegalArgumentException(
-                        "Received unknown backoff policy type "
-                                + bulkProcessorConfig.getFlushBackoffType());
-        }
-        builder.setBackoffPolicy(backoffPolicy);
 
         return builder.build();
     }

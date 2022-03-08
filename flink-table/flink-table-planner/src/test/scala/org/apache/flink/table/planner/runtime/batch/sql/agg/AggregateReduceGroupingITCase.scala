@@ -25,7 +25,7 @@ import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase
 import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
-import org.apache.flink.table.utils.DateTimeUtils.unixTimestampToLocalDateTime
+import org.apache.flink.table.utils.DateTimeUtils.toLocalDateTime
 
 import org.junit.{Before, Test}
 
@@ -105,7 +105,7 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
     registerCollection("T6",
       (0 until 50000).map(
         i => row(i, 1L, if (i % 500 == 0) null else s"Hello$i", "Hello world", 10,
-          unixTimestampToLocalDateTime(i + 1531820000000L).toLocalDate)),
+          toLocalDateTime(i + 1531820000000L).toLocalDate)),
       new RowTypeInfo(Types.INT, Types.LONG, Types.STRING,
         Types.STRING, Types.INT, Types.LOCAL_DATE),
       "a6, b6, c6, d6, e6, f6",
@@ -113,12 +113,12 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
       FlinkStatistic.builder().uniqueKeys(Set(Set("a6").asJava).asJava).build()
     )
     // HashJoin is disabled due to translateToPlanInternal method is not implemented yet
-    tEnv.getConfig.getConfiguration.setString(TABLE_EXEC_DISABLED_OPERATORS, "HashJoin")
+    tEnv.getConfig.set(TABLE_EXEC_DISABLED_OPERATORS, "HashJoin")
   }
 
   @Test
   def testSingleAggOnTable_SortAgg(): Unit = {
-    tEnv.getConfig.getConfiguration.setString(TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
+    tEnv.getConfig.set(TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
     testSingleAggOnTable()
     checkResult("SELECT a6, b6, max(c6), count(d6), sum(e6) FROM T6 GROUP BY a6, b6",
       (0 until 50000).map(i => row(i, 1L, if (i % 500 == 0) null else s"Hello$i", 1L, 10))
@@ -127,19 +127,18 @@ class AggregateReduceGroupingITCase extends BatchTestBase {
 
   @Test
   def testSingleAggOnTable_HashAgg_WithLocalAgg(): Unit = {
-    tEnv.getConfig.getConfiguration.setString(TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
-    tEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
+    tEnv.getConfig.set(TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
+    tEnv.getConfig.set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
     // set smaller parallelism to avoid MemoryAllocationException
-    tEnv.getConfig.getConfiguration.setInteger(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, 2)
+    tEnv.getConfig.set(TABLE_EXEC_RESOURCE_DEFAULT_PARALLELISM, Int.box(2))
     testSingleAggOnTable()
   }
 
   @Test
   def testSingleAggOnTable_HashAgg_WithoutLocalAgg(): Unit = {
-    tEnv.getConfig.getConfiguration.setString(TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
-    tEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE")
+    tEnv.getConfig
+      .set(TABLE_EXEC_DISABLED_OPERATORS, "SortAgg")
+      .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "ONE_PHASE")
     testSingleAggOnTable()
   }
 

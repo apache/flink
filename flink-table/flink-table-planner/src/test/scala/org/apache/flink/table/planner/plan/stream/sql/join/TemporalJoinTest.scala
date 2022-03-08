@@ -17,8 +17,9 @@
  */
 package org.apache.flink.table.planner.plan.stream.sql.join
 
-import org.apache.flink.table.api.ValidationException
+import org.apache.flink.table.api.{ExplainDetail, ValidationException}
 import org.apache.flink.table.planner.utils.{StreamTableTestUtil, TableTestBase}
+
 import org.junit.Assert.{assertTrue, fail}
 import org.junit.{Before, Test}
 
@@ -517,6 +518,67 @@ class TemporalJoinTest extends TableTestBase {
       "Event-Time Temporal Table Join requires same rowtime type in left table and versioned" +
         " table, but the rowtime types are TIMESTAMP_LTZ(3) *ROWTIME* and TIMESTAMP(3) *ROWTIME*.",
       classOf[ValidationException])
+  }
+
+  @Test
+  def testEventTimeTemporalJoinToSinkWithPk(): Unit = {
+    val tEnv = util.tableEnv
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE orders_rowtime (
+         |  order_id BIGINT,
+         |  currency STRING,
+         |  currency_no STRING,
+         |  amount BIGINT,
+         |  order_time TIMESTAMP(3),
+         |  WATERMARK FOR order_time AS order_time,
+         |  PRIMARY KEY (order_id) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'changelog-mode' = 'I,UA,UB,D',
+         |  'data-id' = 'rowTimeOrderDataId'
+         |)
+         |""".stripMargin)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE versioned_currency_with_multi_key (
+         |  currency STRING,
+         |  currency_no STRING,
+         |  rate  BIGINT,
+         |  currency_time TIMESTAMP(3),
+         |  WATERMARK FOR currency_time AS currency_time - interval '10' SECOND,
+         |  PRIMARY KEY(currency, currency_no) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'changelog-mode' = 'I,UA,UB,D',
+         |  'data-id' = 'rowTimeCurrencyDataId'
+         |)
+         |""".stripMargin)
+    tEnv.executeSql(
+      s"""
+         |CREATE TABLE rowtime_default_sink (
+         |  order_id BIGINT,
+         |  currency STRING,
+         |  amount BIGINT,
+         |  l_time TIMESTAMP(3),
+         |  rate BIGINT,
+         |  r_time TIMESTAMP(3),
+         |  PRIMARY KEY(order_id) NOT ENFORCED
+         |) WITH (
+         |  'connector' = 'values',
+         |  'sink-insert-only' = 'false',
+         |  'changelog-mode' = 'I,UA,UB,D'
+         |)
+         |""".stripMargin)
+    val sql =
+      """
+        |INSERT INTO rowtime_default_sink
+        |  SELECT o.order_id, o.currency, o.amount, o.order_time, r.rate, r.currency_time
+        |  FROM orders_rowtime AS o JOIN versioned_currency_with_multi_key
+        |    FOR SYSTEM_TIME AS OF o.order_time as r
+        |      ON o.currency_no = r.currency_no AND o.currency = r.currency
+        |""".stripMargin
+    util.verifyExplainInsert(sql, ExplainDetail.CHANGELOG_MODE)
   }
 
   private def expectExceptionThrown(

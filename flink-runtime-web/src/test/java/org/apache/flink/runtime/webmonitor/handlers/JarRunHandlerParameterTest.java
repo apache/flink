@@ -28,6 +28,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.rest.handler.HandlerRequest;
 import org.apache.flink.runtime.rest.handler.RestHandlerException;
@@ -182,12 +183,13 @@ public class JarRunHandlerParameterTest
                 PARALLELISM,
                 null,
                 ALLOW_NON_RESTORED_STATE_QUERY,
-                RESTORE_PATH);
+                RESTORE_PATH,
+                RestoreMode.CLAIM);
     }
 
     @Override
     JarRunRequestBody getJarRequestBodyWithJobId(JobID jobId) {
-        return new JarRunRequestBody(null, null, null, null, jobId, null, null);
+        return new JarRunRequestBody(null, null, null, null, jobId, null, null, null);
     }
 
     @Test

@@ -18,14 +18,17 @@
 
 package org.apache.flink.util;
 
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 /** Tests for java collection utilities. */
+@ExtendWith(TestLoggerExtension.class)
 public class CollectionUtilTest {
 
     @Test
@@ -33,12 +36,20 @@ public class CollectionUtilTest {
         List<Integer> list = Arrays.asList(1, 2, 3, 4);
         Collection<List<Integer>> partitioned = CollectionUtil.partition(list, 4);
 
-        Assert.assertEquals(
-                "List partitioned into the an incorrect number of partitions",
-                4,
-                partitioned.size());
-        for (List<Integer> partition : partitioned) {
-            Assert.assertEquals("Unexpected number of elements in partition", 1, partition.size());
-        }
+        assertThat(partitioned)
+                .as("List partitioned into the an incorrect number of partitions")
+                .hasSize(4);
+        assertThat(partitioned).allSatisfy(partition -> assertThat(partition).hasSize(1));
+    }
+
+    @Test
+    public void testOfNullableWithNull() {
+        assertThat(CollectionUtil.ofNullable(null)).isEmpty();
+    }
+
+    @Test
+    public void testFromNullableWithObject() {
+        final Object element = new Object();
+        assertThat(CollectionUtil.ofNullable(element)).singleElement().isEqualTo(element);
     }
 }

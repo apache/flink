@@ -19,15 +19,13 @@ package org.apache.flink.table.planner.plan.utils
 
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.functions.UserDefinedFunction
-import org.apache.flink.table.planner.functions.aggfunctions.IncrSumAggFunction._
-import org.apache.flink.table.planner.functions.aggfunctions.IncrSumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SingleValueAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions.SumWithRetractAggFunction._
 import org.apache.flink.table.planner.functions.aggfunctions._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlAggFunction
 import org.apache.flink.table.planner.functions.sql.{SqlFirstLastValueAggFunction, SqlListAggFunction}
 import org.apache.flink.table.planner.functions.utils.AggSqlFunction
-import org.apache.flink.table.runtime.functions.aggregate.BuiltInAggregateFunction
+import org.apache.flink.table.runtime.functions.aggregate.{BuiltInAggregateFunction, CollectAggFunction, FirstValueAggFunction, FirstValueWithRetractAggFunction, JsonArrayAggFunction, JsonObjectAggFunction, LagAggFunction, LastValueAggFunction, LastValueWithRetractAggFunction, ListAggWithRetractAggFunction, ListAggWsWithRetractAggFunction, MaxWithRetractAggFunction, MinWithRetractAggFunction}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 
@@ -237,54 +235,6 @@ class AggFunctionFactory(
       case t =>
         throw new TableException(s"Sum0 aggregate function does not support type: ''$t''.\n" +
           s"Please re-check the data type.")
-    }
-  }
-
-  private def createIncrSumAggFunction(
-      argTypes: Array[LogicalType],
-      index: Int): UserDefinedFunction = {
-    if (aggCallNeedRetractions(index)) {
-      argTypes(0).getTypeRoot match {
-        case TINYINT =>
-          new ByteIncrSumWithRetractAggFunction
-        case SMALLINT =>
-          new ShortIncrSumWithRetractAggFunction
-        case INTEGER =>
-          new IntIncrSumWithRetractAggFunction
-        case BIGINT =>
-          new LongIncrSumWithRetractAggFunction
-        case FLOAT =>
-          new FloatIncrSumWithRetractAggFunction
-        case DOUBLE =>
-          new DoubleIncrSumWithRetractAggFunction
-        case DECIMAL =>
-          val d = argTypes(0).asInstanceOf[DecimalType]
-          new DecimalIncrSumWithRetractAggFunction(d)
-        case t =>
-          throw new TableException(s"IncrSum with retract aggregate function does not " +
-            s"support type: ''$t''.\nPlease re-check the data type.")
-      }
-    } else {
-      argTypes(0).getTypeRoot match {
-        case TINYINT =>
-          new ByteIncrSumAggFunction
-        case SMALLINT =>
-          new ShortIncrSumAggFunction
-        case INTEGER =>
-          new IntIncrSumAggFunction
-        case BIGINT =>
-          new LongIncrSumAggFunction
-        case FLOAT =>
-          new FloatIncrSumAggFunction
-        case DOUBLE =>
-          new DoubleIncrSumAggFunction
-        case DECIMAL =>
-          val d = argTypes(0).asInstanceOf[DecimalType]
-          new DecimalIncrSumAggFunction(d)
-        case t =>
-          throw new TableException(s"IncrSum aggregate function does not support type: ''$t''.\n" +
-            s"Please re-check the data type.")
-      }
     }
   }
 

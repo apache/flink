@@ -194,6 +194,9 @@ The following two parameters control the asynchronous operations:
 
 When an async I/O request times out, by default an exception is thrown and job is restarted.
 If you want to handle timeouts, you can override the `AsyncFunction#timeout` method.
+Make sure you call `ResultFuture.complete()` or `ResultFuture.completeExceptionally()` when overriding
+in order to indicate to Flink that the processing of this input record has completed. You can call 
+`ResultFuture.complete(Collections.emptyList())` if you do not want to emit any record when timeouts happen.
 
 
 ### Order of Results

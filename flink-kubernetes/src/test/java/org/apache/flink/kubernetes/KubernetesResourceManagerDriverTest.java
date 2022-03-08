@@ -62,7 +62,7 @@ public class KubernetesResourceManagerDriverTest
     private static final String CLUSTER_ID = "testing-flink-cluster";
     private static final KubernetesResourceManagerDriverConfiguration
             KUBERNETES_RESOURCE_MANAGER_CONFIGURATION =
-                    new KubernetesResourceManagerDriverConfiguration(CLUSTER_ID);
+                    new KubernetesResourceManagerDriverConfiguration(CLUSTER_ID, "localhost:9000");
 
     @Test
     public void testOnPodAdded() throws Exception {

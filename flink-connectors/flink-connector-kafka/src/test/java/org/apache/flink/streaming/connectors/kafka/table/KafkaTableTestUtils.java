@@ -18,6 +18,7 @@
 
 package org.apache.flink.streaming.connectors.kafka.table;
 
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
@@ -39,6 +40,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
@@ -74,23 +76,17 @@ public class KafkaTableTestUtils {
     }
 
     public static void waitingExpectedResults(
-            String sinkName, List<String> expected, Duration timeout) throws InterruptedException {
-        long now = System.currentTimeMillis();
-        long stop = now + timeout.toMillis();
+            String sinkName, List<String> expected, Duration timeout)
+            throws InterruptedException, TimeoutException {
         Collections.sort(expected);
-        while (System.currentTimeMillis() < stop) {
-            List<String> actual = TestValuesTableFactory.getResults(sinkName);
-            Collections.sort(actual);
-            if (expected.equals(actual)) {
-                return;
-            }
-            Thread.sleep(100);
-        }
-
-        // timeout, assert again
-        List<String> actual = TestValuesTableFactory.getResults(sinkName);
-        Collections.sort(actual);
-        assertEquals(expected, actual);
+        CommonTestUtils.waitUtil(
+                () -> {
+                    List<String> actual = TestValuesTableFactory.getResults(sinkName);
+                    Collections.sort(actual);
+                    return expected.equals(actual);
+                },
+                timeout,
+                "Can not get the expected result.");
     }
 
     public static void comparedWithKeyAndOrder(

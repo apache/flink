@@ -202,12 +202,27 @@ class RocksDBHandle implements AutoCloseable {
             final String fileName = file.getFileName().toString();
             final Path targetFile = instanceRocksDBDirectory.resolve(fileName);
             if (fileName.endsWith(SST_FILE_SUFFIX)) {
-                // hardlink'ing the immutable sst-files.
-                Files.createLink(targetFile, file);
-            } else {
-                // true copy for all other files.
-                Files.copy(file, targetFile, StandardCopyOption.REPLACE_EXISTING);
+                try {
+                    // hardlink'ing the immutable sst-files.
+                    Files.createLink(targetFile, file);
+                    continue;
+                } catch (IOException ioe) {
+                    final String logMessage =
+                            String.format(
+                                    "Could not hard link sst file %s. Trying to copy it over. This might "
+                                            + "increase the recovery time. In order to avoid this, configure "
+                                            + "RocksDB's working directory and the local state directory to be on the same volume.",
+                                    fileName);
+                    if (logger.isDebugEnabled()) {
+                        logger.debug(logMessage, ioe);
+                    } else {
+                        logger.info(logMessage);
+                    }
+                }
             }
+
+            // true copy for all other files and files that could not be hard linked.
+            Files.copy(file, targetFile, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 

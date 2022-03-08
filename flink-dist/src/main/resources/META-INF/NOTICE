@@ -29,7 +29,7 @@ See bundled license files for details.
 This project bundles the following dependencies under the MIT/X11 license.
 See bundled license files for details.
 
-- org.slf4j:slf4j-api:1.7.15
+- org.slf4j:slf4j-api:1.7.32
 
 This project bundles the following dependencies under the CDDL 1.1 license.
 See bundled license files for details.

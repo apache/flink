@@ -28,7 +28,7 @@ LogicalProject(EXPR$0=[ARRAY(_UTF-16LE'Hi':VARCHAR(2147483647) CHARACTER SET "UT
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[ARRAY(_UTF-16LE'Hi':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", _UTF-16LE'Hello':VARCHAR(2147483647) CHARACTER SET "UTF-16LE", c) AS EXPR$0])
+Calc(select=[ARRAY('Hi', 'Hello', c) AS EXPR$0])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -45,7 +45,7 @@ LogicalProject(EXPR$0=[$0], EXPR$1=[CAST($1):VARCHAR(2147483647) CHARACTER SET "
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a AS EXPR$0, CAST(b) AS EXPR$1])
+Calc(select=[a AS EXPR$0, CAST(b AS VARCHAR(2147483647)) AS EXPR$1])
 +- Values(tuples=[[{ 3, _UTF-16LE'c' }]], values=[a, b])
 ]]>
     </Resource>
@@ -80,7 +80,7 @@ LogicalProject(EXPR$0=[ARRAY(0.12:DECIMAL(3, 2), 0.5:DECIMAL(3, 2), 0.99:DECIMAL
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[ARRAY(0.12:DECIMAL(3, 2), 0.5:DECIMAL(3, 2), 0.99:DECIMAL(3, 2)) AS EXPR$0])
+Calc(select=[ARRAY(0.12, 0.5, 0.99) AS EXPR$0])
 +- Values(tuples=[[{ 0 }]], values=[ZERO])
 ]]>
     </Resource>
@@ -97,7 +97,7 @@ LogicalProject(EXPR$0=[MAP(_UTF-16LE'a', 0.12:DECIMAL(3, 2), _UTF-16LE'b', 0.5:D
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[MAP(_UTF-16LE'a', 0.12:DECIMAL(3, 2), _UTF-16LE'b', 0.5:DECIMAL(3, 2)) AS EXPR$0])
+Calc(select=[MAP('a', 0.12, 'b', 0.5) AS EXPR$0])
 +- Values(tuples=[[{ 0 }]], values=[ZERO])
 ]]>
     </Resource>
@@ -136,7 +136,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2], d=[$3])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, CAST(1984-07-12) AS b, CAST(14:34:24) AS c, CAST(1984-07-12 14:34:24:TIMESTAMP(3)) AS d], where=[((b = 1984-07-12) AND (c = 14:34:24) AND (d = 1984-07-12 14:34:24:TIMESTAMP(3)))])
+Calc(select=[a, CAST(1984-07-12 AS DATE) AS b, CAST(14:34:24 AS TIME(0)) AS c, CAST(1984-07-12 14:34:24 AS TIMESTAMP(3)) AS d], where=[((b = 1984-07-12) AND (c = 14:34:24) AND (d = 1984-07-12 14:34:24))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable3, source: [TestTableSource(a, b, c, d)]]], fields=[a, b, c, d])
 ]]>
     </Resource>
@@ -154,7 +154,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[1, 3, 4, 5, 6]) AND SEARCH(c, Sarg[_UTF-16LE'xx':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
+Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[1, 3, 4, 5, 6]) AND SEARCH(c, Sarg[_UTF-16LE'xx']))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -172,7 +172,7 @@ LogicalProject(EXPR$0=[ROW($0, $1, $2)], EXPR$1=[ARRAY(12, $1)], EXPR$2=[MAP($0,
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[ROW(a, b, c) AS EXPR$0, ARRAY(12, b) AS EXPR$1, MAP(a, c) AS EXPR$2], where=[(ROW(a, b, c) = CAST(ROW(_UTF-16LE'foo', 12, 1984-07-12 14:34:24)))])
+Calc(select=[ROW(a, b, c) AS EXPR$0, ARRAY(12, b) AS EXPR$1, MAP(a, c) AS EXPR$2], where=[(ROW(a, b, c) = CAST(ROW('foo', 12, 1984-07-12 14:34:24) AS RecordType(VARCHAR(2147483647) EXPR$0, INTEGER EXPR$1, TIMESTAMP(3) EXPR$2)))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable5, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -261,7 +261,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c], where=[(a IS NULL OR SEARCH(a, Sarg[1L:BIGINT, 10L:BIGINT]:BIGINT))])
+Calc(select=[a, b, c], where=[(a IS NULL OR SEARCH(a, Sarg[1, 10]))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -279,7 +279,7 @@ LogicalProject(a=[$0], b=[$1], c=[$2])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[(-∞..1), (1..3), (3..4), (4..5), (5..6), (6..+∞)]) OR SEARCH(c, Sarg[_UTF-16LE'xx':VARCHAR(2147483647) CHARACTER SET "UTF-16LE"]:VARCHAR(2147483647) CHARACTER SET "UTF-16LE"))])
+Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[(-∞..1), (1..3), (3..4), (4..5), (5..6), (6..+∞)]) OR SEARCH(c, Sarg[_UTF-16LE'xx']))])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -349,7 +349,7 @@ LogicalProject(EXPR$0=[IF(OR(=($2, _UTF-16LE''), IS NULL($2)), _UTF-16LE'a', _UT
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[IF(((c = _UTF-16LE'':VARCHAR(2147483647) CHARACTER SET "UTF-16LE") OR c IS NULL), _UTF-16LE'a', _UTF-16LE'b') AS EXPR$0])
+Calc(select=[IF(((c = '') OR c IS NULL), 'a', 'b') AS EXPR$0])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -382,7 +382,7 @@ LogicalProject(EXPR$0=[MAP($1, 30:BIGINT, 10, $0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[MAP(b, 30:BIGINT, 10, a) AS EXPR$0])
+Calc(select=[MAP(b, 30, 10, a) AS EXPR$0])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
@@ -438,7 +438,7 @@ LogicalProject(EXPR$0=[ROW(1, _UTF-16LE'Hi', $0)])
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-Calc(select=[ROW(1, _UTF-16LE'Hi', a) AS EXPR$0])
+Calc(select=[ROW(1, 'Hi', a) AS EXPR$0])
 +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>

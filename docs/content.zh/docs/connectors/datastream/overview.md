@@ -41,13 +41,12 @@ under the License.
  * [Apache Cassandra]({{< ref "docs/connectors/datastream/cassandra" >}}) (sink)
  * [Amazon Kinesis Streams]({{< ref "docs/connectors/datastream/kinesis" >}}) (source/sink)
  * [Elasticsearch]({{< ref "docs/connectors/datastream/elasticsearch" >}}) (sink)
- * [FileSystem (Hadoop included) - Streaming and Batch]({{< ref "docs/connectors/datastream/file_sink" >}}) (sink)
+ * [FileSystem]({{< ref "docs/connectors/datastream/filesystem" >}}) (sink)
  * [RabbitMQ]({{< ref "docs/connectors/datastream/rabbitmq" >}}) (source/sink)
  * [Google PubSub]({{< ref "docs/connectors/datastream/pubsub" >}}) (source/sink)
  * [Hybrid Source]({{< ref "docs/connectors/datastream/hybridsource" >}}) (source)
  * [Apache NiFi]({{< ref "docs/connectors/datastream/nifi" >}}) (source/sink)
  * [Apache Pulsar]({{< ref "docs/connectors/datastream/pulsar" >}}) (source)
- * [Twitter Streaming API]({{< ref "docs/connectors/datastream/twitter" >}}) (source)
  * [JDBC]({{< ref "docs/connectors/datastream/jdbc" >}}) (sink)
 
 请记住，在使用一种连接器时，通常需要额外的第三方组件，比如：数据存储服务器或者消息队列。

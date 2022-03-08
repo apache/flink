@@ -21,7 +21,7 @@ package org.apache.flink.table.runtime.arrow;
 import org.apache.flink.api.java.tuple.Tuple5;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.vector.ColumnVector;
+import org.apache.flink.table.data.columnar.vector.ColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowArrayColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBigIntColumnVector;
 import org.apache.flink.table.runtime.arrow.vectors.ArrowBooleanColumnVector;

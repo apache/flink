@@ -64,6 +64,8 @@ public final class SpecificInputTypeStrategies {
                     logical(LogicalTypeFamily.BINARY_STRING),
                     logical(LogicalTypeFamily.TIMESTAMP),
                     logical(LogicalTypeFamily.CONSTRUCTED),
+                    logical(LogicalTypeRoot.STRUCTURED_TYPE),
+                    logical(LogicalTypeRoot.DISTINCT_TYPE),
                     logical(LogicalTypeRoot.BOOLEAN),
                     logical(LogicalTypeFamily.NUMERIC));
 

@@ -18,7 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.enumerator.subscriber;
 
-import org.apache.flink.connector.kafka.source.testutils.KafkaSourceTestEnv;
+import org.apache.flink.connector.kafka.testutils.KafkaSourceTestEnv;
 import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.kafka.clients.admin.AdminClient;

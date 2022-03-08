@@ -24,6 +24,7 @@ import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.base.LongSerializer;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.cep.configuration.CEPCacheOptions;
 import org.apache.flink.cep.nfa.NFA;
 import org.apache.flink.cep.nfa.aftermatch.AfterMatchSkipStrategy;
 import org.apache.flink.cep.pattern.Pattern;
@@ -43,9 +44,13 @@ import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -54,7 +59,23 @@ import static org.junit.Assert.assertEquals;
 
 /** End to end tests of both CEP operators and {@link NFA}. */
 @SuppressWarnings("serial")
+@RunWith(Parameterized.class)
 public class CEPITCase extends AbstractTestBase {
+
+    @Parameterized.Parameter public Configuration envConfiguration;
+
+    @Parameterized.Parameters
+    public static Collection<Configuration> prepareSharedBufferCacheConfig() {
+        Configuration miniCacheConfig = new Configuration();
+        miniCacheConfig.set(CEPCacheOptions.CEP_CACHE_STATISTICS_INTERVAL, Duration.ofSeconds(1));
+        miniCacheConfig.set(CEPCacheOptions.CEP_SHARED_BUFFER_ENTRY_CACHE_SLOTS, 1);
+        miniCacheConfig.set(CEPCacheOptions.CEP_SHARED_BUFFER_EVENT_CACHE_SLOTS, 1);
+
+        Configuration bigCacheConfig = new Configuration();
+        miniCacheConfig.set(CEPCacheOptions.CEP_CACHE_STATISTICS_INTERVAL, Duration.ofSeconds(1));
+
+        return Arrays.asList(miniCacheConfig, bigCacheConfig);
+    }
 
     /**
      * Checks that a certain event sequence is recognized.
@@ -63,7 +84,8 @@ public class CEPITCase extends AbstractTestBase {
      */
     @Test
     public void testSimplePatternCEP() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         DataStream<Event> input =
                 env.fromElements(
@@ -133,7 +155,8 @@ public class CEPITCase extends AbstractTestBase {
 
     @Test
     public void testSimpleKeyedPatternCEP() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(2);
 
         DataStream<Event> input =
@@ -219,7 +242,8 @@ public class CEPITCase extends AbstractTestBase {
 
     @Test
     public void testSimplePatternEventTime() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         // (Event, timestamp)
         DataStream<Event> input =
@@ -315,7 +339,8 @@ public class CEPITCase extends AbstractTestBase {
 
     @Test
     public void testSimpleKeyedPatternEventTime() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(2);
 
         // (Event, timestamp)
@@ -424,7 +449,8 @@ public class CEPITCase extends AbstractTestBase {
 
     @Test
     public void testSimplePatternWithSingleState() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         DataStream<Tuple2<Integer, Integer>> input =
                 env.fromElements(new Tuple2<>(0, 1), new Tuple2<>(0, 2));
@@ -464,7 +490,8 @@ public class CEPITCase extends AbstractTestBase {
 
     @Test
     public void testProcessingTimeWithWindow() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(1);
 
         DataStream<Integer> input = env.fromElements(1, 2);
@@ -494,7 +521,8 @@ public class CEPITCase extends AbstractTestBase {
 
     @Test
     public void testTimeoutHandling() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(1);
 
         // (Event, timestamp)
@@ -609,7 +637,8 @@ public class CEPITCase extends AbstractTestBase {
      */
     @Test
     public void testSimpleOrFilterPatternCEP() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         DataStream<Event> input =
                 env.fromElements(
@@ -694,7 +723,8 @@ public class CEPITCase extends AbstractTestBase {
      */
     @Test
     public void testSimplePatternEventTimeWithComparator() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         // (Event, timestamp)
         DataStream<Event> input =
@@ -804,7 +834,8 @@ public class CEPITCase extends AbstractTestBase {
 
     @Test
     public void testSimpleAfterMatchSkip() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         DataStream<Tuple2<Integer, String>> input =
                 env.fromElements(
@@ -855,7 +886,8 @@ public class CEPITCase extends AbstractTestBase {
 
     @Test
     public void testRichPatternFlatSelectFunction() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         DataStream<Event> input =
                 env.fromElements(
@@ -950,7 +982,8 @@ public class CEPITCase extends AbstractTestBase {
 
     @Test
     public void testRichPatternSelectFunction() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
         env.setParallelism(2);
 
         DataStream<Event> input =
@@ -1059,7 +1092,9 @@ public class CEPITCase extends AbstractTestBase {
 
     @Test
     public void testFlatSelectSerializationWithAnonymousClass() throws Exception {
-        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(envConfiguration);
 
         DataStreamSource<Integer> elements = env.fromElements(1, 2, 3);
         OutputTag<Integer> outputTag = new OutputTag<Integer>("AAA") {};

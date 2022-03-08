@@ -19,9 +19,9 @@
 
 set -Eeuo pipefail
 
-KAFKA_VERSION="2.6.0"
-CONFLUENT_VERSION="6.0.4"
-CONFLUENT_MAJOR_VERSION="6.0"
+KAFKA_VERSION="2.8.1"
+CONFLUENT_VERSION="6.2.2"
+CONFLUENT_MAJOR_VERSION="6.2"
 # Check the Confluent Platform <> Apache Kafka compatibility matrix when updating KAFKA_VERSION
 KAFKA_SQL_VERSION="universal"
 

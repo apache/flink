@@ -21,7 +21,6 @@ from typing import Generic, List, Iterable, Dict, Set
 
 from pyflink.common import Row
 from pyflink.datastream.state import MapState
-from pyflink.fn_execution.state_impl import LRUCache
 from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
     MergingWindowAssigner
 from pyflink.fn_execution.table.window_context import Context, K, W
@@ -236,6 +235,9 @@ class MergingWindowProcessFunction(InternalWindowProcessFunction[K, W]):
         self._window_mapping = None  # type: MapState
         self._state_backend = state_backend
         self._sorted_windows = None  # type: List
+
+        from pyflink.fn_execution.state_impl import LRUCache
+
         self._cached_sorted_windows = LRUCache(10000, None)
 
     def open(self, ctx: Context[K, W]):
