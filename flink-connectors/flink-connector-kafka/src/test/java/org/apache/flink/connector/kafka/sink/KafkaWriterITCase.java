@@ -232,7 +232,7 @@ public class KafkaWriterITCase {
                 writer.write(1, SINK_WRITER_CONTEXT);
                 expected.add("testMetadataPublisher-0@" + i);
             }
-            writer.prepareCommit();
+            writer.flush(false);
             assertThat(metadataList).usingRecursiveComparison().isEqualTo(expected);
         }
     }
