@@ -46,6 +46,12 @@ create temporary view if not exists v1 as select * from orders;
 [INFO] Execute statement succeed.
 !info
 
+# test query a view with hint
+select * from v1 /*+ OPTIONS('number-of-rows' = '1') */;
+[ERROR] Could not execute SQL statement. Reason:
+org.apache.flink.table.api.ValidationException: View '`default_catalog`.`default_database`.`v1`' cannot be enriched with new options. Hints can only be applied to tables.
+!error
+
 # test create a view reference another view
 create temporary view if not exists v2 as select * from v1;
 [INFO] Execute statement succeed.

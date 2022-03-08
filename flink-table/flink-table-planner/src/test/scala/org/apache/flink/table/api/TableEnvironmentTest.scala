@@ -345,6 +345,28 @@ class TableEnvironmentTest {
   }
 
   @Test
+  def testQueryViewWithHints(): Unit = {
+    val statement =
+      """
+        |CREATE TABLE MyTable (
+        |  a bigint,
+        |  b int,
+        |  c varchar
+        |) WITH (
+        |  'connector' = 'COLLECTION'
+        |)
+      """.stripMargin
+    tableEnv.executeSql(statement)
+    tableEnv.executeSql("CREATE TEMPORARY VIEW my_view AS SELECT a, c FROM MyTable")
+
+    assertThatThrownBy(
+      () => tableEnv.executeSql("SELECT c FROM my_view /*+ OPTIONS('is-bounded' = 'true') */"))
+      .hasMessageContaining("View '`default_catalog`.`default_database`.`my_view`' " +
+      "cannot be enriched with new options. Hints can only be applied to tables.")
+      .isInstanceOf(classOf[ValidationException])
+  }
+
+  @Test
   def testAlterTableCompactOnManagedTableUnderStreamingMode(): Unit = {
     val statement =
       """
