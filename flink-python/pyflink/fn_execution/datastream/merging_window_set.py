@@ -102,7 +102,7 @@ class MergingWindowSet(Generic[W]):
             self._mapping[merge_result] = merged_state_window
             merged_state_windows.remove(merged_state_window)
 
-            if merge_result not in merged_windows and len(merged_windows) == 1:
+            if merge_result not in merged_windows or len(merged_windows) != 1:
                 merge_function.merge(
                     merge_result,
                     merged_windows,

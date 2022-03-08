@@ -29,9 +29,8 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
 import org.apache.flink.streaming.api.operators.TimestampedCollector;
+import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.types.Row;
-
-import java.io.IOException;
 
 /** This handler can accepts the runner output which contains timer registration event. */
 public class OutputWithTimerRowHandler {
@@ -59,7 +58,7 @@ public class OutputWithTimerRowHandler {
         this.baisWrapper = new DataInputViewStreamWrapper(bais);
     }
 
-    public void accept(Row runnerOutput, long timestamp) throws IOException {
+    public void accept(Row runnerOutput, long timestamp) throws Exception {
         switch (RunnerOutputType.valueOf((byte) runnerOutput.getField(0))) {
             case NORMAL_RECORD:
                 onData(timestamp, runnerOutput.getField(1));
@@ -87,9 +86,10 @@ public class OutputWithTimerRowHandler {
     }
 
     private void onTimerOperation(
-            TimerOperandType operandType, long time, Row key, Object namespace) {
+            TimerOperandType operandType, long time, Row key, Object namespace) throws Exception {
         synchronized (keyedStateBackend) {
             keyContext.setCurrentKey(key);
+            PythonOperatorUtils.setCurrentKeyForTimerService(internalTimerService, key);
             switch (operandType) {
                 case REGISTER_EVENT_TIMER:
                     internalTimerService.registerEventTimeTimer(namespace, time);

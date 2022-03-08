@@ -23,6 +23,8 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
 import org.apache.flink.runtime.state.KeyedStateBackend;
 import org.apache.flink.streaming.api.functions.python.DataStreamPythonFunctionInfo;
+import org.apache.flink.streaming.api.operators.InternalTimerService;
+import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionInternalTimeService;
 import org.apache.flink.streaming.api.operators.sorted.state.BatchExecutionKeyedStateBackend;
 import org.apache.flink.table.functions.python.PythonAggregateFunctionInfo;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -200,6 +202,15 @@ public enum PythonOperatorUtils {
             KeyedStateBackend<K> stateBackend, K currentKey) {
         if (!inBatchExecutionMode(stateBackend)) {
             stateBackend.setCurrentKey(currentKey);
+        }
+    }
+
+    /** Set the current key for the timer service. */
+    public static <K, N> void setCurrentKeyForTimerService(
+            InternalTimerService<N> internalTimerService, K currentKey) throws Exception {
+        if (internalTimerService instanceof BatchExecutionInternalTimeService) {
+            ((BatchExecutionInternalTimeService<K, N>) internalTimerService)
+                    .setCurrentKey(currentKey);
         }
     }
 
