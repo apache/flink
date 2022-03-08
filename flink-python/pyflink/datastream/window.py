@@ -39,6 +39,7 @@ __all__ = ['Window',
            'TimeWindowSerializer',
            'CountWindowSerializer']
 
+
 def long_to_int_with_bit_mixing(x: int) -> int:
     x = (x ^ (x >> 30)) * 0xbf58476d1ce4e5b9
     x = (x ^ (x >> 27)) * 0x94d049bb133111eb
@@ -64,13 +65,15 @@ class Window(ABC):
     def max_timestamp(self) -> int:
         pass
 
+
 class SessionWindowTimeGapExtractor(ABC):
     """
     Window is a grouping of elements into finite buckets. Windows have a maximum timestamp
     which means that, at some point, all elements that go into one window will have arrived.
     """
+
     @abstractmethod
-    def extract(self, element:Any) -> int:
+    def extract(self, element: Any) -> int:
         """
         Extracts the session time gap.
         Params:
@@ -78,6 +81,7 @@ class SessionWindowTimeGapExtractor(ABC):
         :return: The session time gap in milliseconds.
         """
         pass
+
 
 class TimeWindow(Window):
     """
@@ -121,7 +125,7 @@ class TimeWindow(Window):
 
     def __eq__(self, other):
         return self.__class__ == other.__class__ and self.end == other.end \
-            and self.start == other.start
+               and self.start == other.start
 
     def __lt__(self, other: 'TimeWindow'):
         if not isinstance(other, TimeWindow):
@@ -213,6 +217,7 @@ KEY = TypeVar('KEY')
 
 MAX_LONG_VALUE = sys.maxsize
 MIN_LONG_VALUE = -MAX_LONG_VALUE - 1
+
 
 class TriggerResult(Enum):
     """
@@ -539,6 +544,7 @@ class EventTimeTrigger(Trigger[T, TimeWindow]):
     """
     A Trigger that fires once the watermark passes the end of the window to which a pane belongs.
     """
+
     def on_element(self,
                    element: T,
                    timestamp: int,
@@ -589,6 +595,7 @@ class ProcessingTimeTrigger(Trigger[T, TimeWindow]):
     A Trigger that fires once the current system time passes the end of the window to
     which a pane belongs.
     """
+
     def on_element(self,
                    element: T,
                    timestamp: int,
@@ -629,6 +636,7 @@ class CountTrigger(Trigger[T, CountWindow]):
     """
     A Trigger that fires once the count of elements in a pane reaches the given count.
     """
+
     def __init__(self, window_size: int):
         self._window_size = window_size
         self._count_state_descriptor = ReducingStateDescriptor(
@@ -691,6 +699,7 @@ class TumblingWindowAssigner(WindowAssigner[T, TimeWindow]):
             >>> .key_by(lambda x: x[0], key_type=Types.STRING()) \
             >>> .window(TumblingWindowAssigner(60000, 0, True))
     """
+
     def __init__(self, size: int, offset: int, is_event_time: bool):
         if abs(offset) >= size:
             raise Exception("TumblingWindowAssigner parameters must satisfy abs(offset) < size")
@@ -705,7 +714,8 @@ class TumblingWindowAssigner(WindowAssigner[T, TimeWindow]):
                        context: WindowAssigner.WindowAssignerContext) -> Collection[TimeWindow]:
         if self._is_event_time is False:
             current_processing_time = context.get_current_processing_time()
-            start = TimeWindow.get_window_start_with_offset(current_processing_time, self._offset, self._size)
+            start = TimeWindow.get_window_start_with_offset(current_processing_time, self._offset,
+                                                            self._size)
             return [TimeWindow(start, start + self._size)]
         else:
             if timestamp > MIN_LONG_VALUE:
@@ -713,8 +723,8 @@ class TumblingWindowAssigner(WindowAssigner[T, TimeWindow]):
                 return [TimeWindow(start, start + self._size)]
             else:
                 raise Exception("Record has MIN_LONG_VALUE timestamp (= no timestamp marker). "
-                            + "Is the time characteristic set to 'ProcessingTime', or did you forget to call "
-                            + "'data_stream.assign_timestamps_and_watermarks(...)'?")
+                                + "Is the time characteristic set to 'ProcessingTime', or did you forget to call "
+                                + "'data_stream.assign_timestamps_and_watermarks(...)'?")
 
     def get_default_trigger(self, env) -> Trigger[T, W]:
         if self._is_event_time is True:
@@ -737,6 +747,7 @@ class CountTumblingWindowAssigner(WindowAssigner[T, CountWindow]):
     A WindowAssigner that windows elements into fixed-size windows based on the count number
     of the elements. Windows cannot overlap.
     """
+
     def __init__(self, window_size: int):
         """
         Windows this KeyedStream into tumbling count windows.
@@ -792,10 +803,11 @@ class SlidingWindowAssigner(WindowAssigner[T, TimeWindow]):
             >>> .key_by(lambda x: x[0], key_type=Types.STRING()) \
             >>> .window(SlidingWindowAssigner(60000, 10000, 0, True))
     """
+
     def __init__(self, size: int, slide: int, offset: int, is_event_time: bool):
-        if abs(offset) >= slide or size<= 0:
+        if abs(offset) >= slide or size <= 0:
             raise Exception("SlidingWindowAssigner parameters must satisfy "
-                + "abs(offset) < slide and size > 0")
+                            + "abs(offset) < slide and size > 0")
 
         self._size = size
         self._slide = slide
@@ -852,6 +864,7 @@ class CountSlidingWindowAssigner(WindowAssigner[T, CountWindow]):
     A WindowAssigner that windows elements into sliding windows based on the count number of
     the elements. Windows can possibly overlap.
     """
+
     def __init__(self, window_size: int, window_slide: int):
         """
         Windows this KeyedStream into sliding count windows.
@@ -906,6 +919,7 @@ class SessionWindowAssigner(MergingWindowAssigner[T, TimeWindow]):
         WindowAssigner that windows elements into sessions based on the timestamp. Windows cannot
         overlap.
         """
+
     def __init__(self, session_gap: int, is_event_time: bool):
         if session_gap <= 0:
             raise Exception("SessionWindowAssigner parameters must satisfy 0 < size")
@@ -953,9 +967,11 @@ class DynamicSessionWindowAssigner(MergingWindowAssigner[T, TimeWindow]):
         WindowAssigner that windows elements into sessions based on the timestamp. Windows cannot
         overlap.
         """
+
     def __init__(self,
                  session_window_time_gap_extractor: SessionWindowTimeGapExtractor,
                  is_event_time: bool):
+        self._session_gap = None
         self._session_window_time_gap_extractor = session_window_time_gap_extractor
         self._is_event_time = is_event_time
 
@@ -997,7 +1013,7 @@ class DynamicSessionWindowAssigner(MergingWindowAssigner[T, TimeWindow]):
         return "DynamicSessionWindowAssigner(%s, %s)" % (self._session_gap, self._is_event_time)
 
 
-class TumblingProcessingTimeWindows():
+class TumblingProcessingTimeWindows:
     """
     A WindowAssigner that windows elements into windows based on the current system time of
     the machine the operation is running on. Windows cannot overlap.
@@ -1008,8 +1024,9 @@ class TumblingProcessingTimeWindows():
      windowed =
        keyed.window(TumblingProcessingTimeWindows.of(Time.of(1, MINUTES), Time.of(10, SECONDS))
     """
+
     @staticmethod
-    def of(size: Time, offset = None):
+    def of(size: Time, offset=None):
         """
         Creates a new TumblingProcessingTimeWindows WindowAssigner that assigns elements to time
         windows based on the element timestamp and offset.
@@ -1032,7 +1049,7 @@ class TumblingProcessingTimeWindows():
             return TumblingWindowAssigner(size.to_milliseconds(), offset.to_milliseconds(), False)
 
 
-class TumblingEventTimeWindows():
+class TumblingEventTimeWindows:
     """
     A WindowAssigner that windows elements into windows based on the timestamp of the elements.
     Windows cannot overlap.
@@ -1044,7 +1061,7 @@ class TumblingEventTimeWindows():
     """
 
     @staticmethod
-    def of(size: Time, offset = None):
+    def of(size: Time, offset=None):
         """
         Creates a new TumblingEventTimeWindows WindowAssigner that assigns elements to time
         windows based on the element timestamp and offset.
@@ -1066,9 +1083,9 @@ class TumblingEventTimeWindows():
             return TumblingWindowAssigner(size.to_milliseconds(), offset.to_milliseconds(), True)
 
 
-class SlidingProcessingTimeWindows():
+class SlidingProcessingTimeWindows:
     @staticmethod
-    def of(size: Time, slide: Time, offset = None):
+    def of(size: Time, slide: Time, offset=None):
         """
         Creates a new SlidingProcessingTimeWindows WindowAssigner that assigns elements to time
         windows based on the element timestamp and offset.
@@ -1091,12 +1108,12 @@ class SlidingProcessingTimeWindows():
                                          0, False)
         else:
             return SlidingWindowAssigner(size.to_milliseconds(), slide.to_milliseconds(),
-                                     offset.to_milliseconds(), False)
+                                         offset.to_milliseconds(), False)
 
 
-class SlidingEventTimeWindows():
+class SlidingEventTimeWindows:
     @staticmethod
-    def of(size: Time, slide: Time, offset = None):
+    def of(size: Time, slide: Time, offset=None):
         """
         Creates a new SlidingEventTimeWindows WindowAssigner that assigns elements to time
         windows based on the element timestamp and offset.
@@ -1115,13 +1132,13 @@ class SlidingEventTimeWindows():
         """
         if offset is None:
             return SlidingWindowAssigner(size.to_milliseconds(), slide.to_milliseconds(),
-                                        0, True)
+                                         0, True)
         else:
             return SlidingWindowAssigner(size.to_milliseconds(), slide.to_milliseconds(),
-                                        offset.to_milliseconds(), True)
+                                         offset.to_milliseconds(), True)
 
 
-class ProcessingTimeSessionWindows():
+class ProcessingTimeSessionWindows:
     """
     A WindowAssigner that windows elements into sessions based on the current processing time.
     Windows cannot overlap.
@@ -1130,6 +1147,7 @@ class ProcessingTimeSessionWindows():
     keyed = in.keyBy(...)
     windowed = keyed.window(ProcessingTimeSessionWindows.with_gap(Time.minutes(1)))
     """
+
     @staticmethod
     def with_gap(size: Time):
         """
@@ -1154,7 +1172,7 @@ class ProcessingTimeSessionWindows():
         return DynamicSessionWindowAssigner(session_window_time_gap_extractor, False)
 
 
-class EventTimeSessionWindows():
+class EventTimeSessionWindows:
     """
     A WindowAssigner that windows elements into sessions based on the timestamp of the elements.
     Windows cannot overlap.
@@ -1163,6 +1181,7 @@ class EventTimeSessionWindows():
     keyed = in.keyBy(...)
     windowed = keyed.window(EventTimeSessionWindows.with_gap(Time.minutes(1)))
     """
+
     @staticmethod
     def with_gap(size: Time):
         """
@@ -1187,7 +1206,7 @@ class EventTimeSessionWindows():
         return DynamicSessionWindowAssigner(session_window_time_gap_extractor, True)
 
 
-class DynamicProcessingTimeSessionWindows():
+class DynamicProcessingTimeSessionWindows:
     """
     A WindowAssigner that windows elements into sessions based on the current processing time.
     Windows cannot overlap.
@@ -1199,6 +1218,7 @@ class DynamicProcessingTimeSessionWindows():
     Type parameters:
     <T> – The type of the input elements
     """
+
     @staticmethod
     def with_dynamic_gap(session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
         """
@@ -1212,7 +1232,7 @@ class DynamicProcessingTimeSessionWindows():
         return DynamicSessionWindowAssigner(session_window_time_gap_extractor, False)
 
 
-class DynamicEventTimeSessionWindows():
+class DynamicEventTimeSessionWindows:
     """
     A WindowAssigner that windows elements into sessions based on the timestamp of the elements.
     Windows cannot overlap.
@@ -1224,6 +1244,7 @@ class DynamicEventTimeSessionWindows():
     Type parameters:
     <T> – The type of the input elements
     """
+
     @staticmethod
     def with_dynamic_gap(session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
         """
