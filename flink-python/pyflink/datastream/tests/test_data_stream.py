@@ -793,7 +793,25 @@ class DataStreamTests(object):
 
         self.env.execute('test_time_window')
         results = self.test_sink.get_results()
-        expected = ['(hi,1)', '(hi,1)', '(hi,2)', '(hi,3)']
+        expected = ['(hi,1)', '(hi,3)', '(hi,3)']
+        self.assert_equals_sorted(expected, results)
+
+    def test_session_window_late_merge(self):
+        self.env.set_parallelism(1)
+        data_stream = self.env.from_collection([
+            ('hi', 0), ('hi', 2), ('hi', 1)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window(SimpleMergeTimeWindowAssigner()) \
+            .process(CountWindowProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_session_window_late_merge')
+        results = self.test_sink.get_results()
+        expected = ['(hi,3)']
         self.assert_equals_sorted(expected, results)
 
 
@@ -1427,12 +1445,31 @@ class SimpleMergeTimeWindowAssigner(MergingWindowAssigner[tuple, TimeWindow]):
     def merge_windows(self,
                       windows: Iterable[TimeWindow],
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
-        window_list = [w for w in windows]
-        window_list.sort()
-        for i in range(1, len(window_list)):
-            if window_list[i - 1].end > window_list[i].start:
-                callback.merge([window_list[i - 1], window_list[i]],
-                               TimeWindow(window_list[i - 1].start, window_list[i].end))
+        sorted_windows = list(windows)
+        sorted_windows.sort()
+        merged = []
+        current_merge = None
+        current_merge_set = set()
+
+        for candidate in sorted_windows:
+            if current_merge is None:
+                current_merge = candidate
+                current_merge_set.add(candidate)
+            elif current_merge.intersects(candidate):
+                current_merge = current_merge.cover(candidate)
+                current_merge_set.add(candidate)
+            else:
+                merged.append((current_merge, current_merge_set))
+                current_merge = candidate
+                current_merge_set = set()
+                current_merge_set.add(candidate)
+
+        if current_merge is not None:
+            merged.append((current_merge, current_merge_set))
+
+        for merge_key, merge_set in merged:
+            if len(merge_set) > 1:
+                callback.merge(merge_set, merge_key)
 
     def assign_windows(self,
                        element: tuple,

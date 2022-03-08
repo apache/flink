@@ -27,6 +27,7 @@ import org.apache.flink.runtime.state.VoidNamespace;
 import org.apache.flink.runtime.state.VoidNamespaceSerializer;
 import org.apache.flink.streaming.api.operators.InternalTimerService;
 import org.apache.flink.streaming.api.operators.KeyContext;
+import org.apache.flink.streaming.api.utils.PythonOperatorUtils;
 import org.apache.flink.types.Row;
 
 import java.util.HashMap;
@@ -83,9 +84,11 @@ public final class TimerRegistration {
         }
     }
 
-    private void setTimer(TimerOperandType operandType, long timestamp, Row key, Object namespace) {
+    private void setTimer(TimerOperandType operandType, long timestamp, Row key, Object namespace)
+            throws Exception {
         synchronized (keyedStateBackend) {
             keyContext.setCurrentKey(key);
+            PythonOperatorUtils.setCurrentKeyForTimerService(internalTimerService, key);
             switch (operandType) {
                 case REGISTER_EVENT_TIMER:
                     internalTimerService.registerEventTimeTimer(namespace, timestamp);
