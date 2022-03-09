@@ -28,17 +28,14 @@ Flink provides an [Apache Pulsar](https://pulsar.apache.org) connector for readi
 
 ## Dependency
 
-You can use the connector with the Pulsar 2.8.1 or higher version. However, if you want a more stable
-Pulsar [transactions](https://pulsar.apache.org/docs/en/txn-what/) support, 
-it is recommended to use the Pulsar 2.9.2 or higher version.
+You can use the connector with the Pulsar 2.8.1 or higher version. However, the Pulsar connector supports
+Pulsar [transactions](https://pulsar.apache.org/docs/en/txn-what/), it is recommended to use the Pulsar 2.9.2 or higher version.
 For details on Pulsar compatibility, refer to the [PIP-72](https://github.com/apache/pulsar/wiki/PIP-72%3A-Introduce-Pulsar-Interface-Taxonomy%3A-Audience-and-Stability-Classification).
 
 {{< artifact flink-connector-pulsar >}}
 
-{{< hint info >}}
 Flink's streaming connectors are not part of the binary distribution.
-See how to link with them [here]({{< ref "docs/dev/configuration/overview" >}}).
-{{< /hint >}}
+See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 ## Pulsar Source
 
@@ -46,16 +43,16 @@ See how to link with them [here]({{< ref "docs/dev/configuration/overview" >}}).
 This part describes the Pulsar source based on the new
 [data source]({{< ref "docs/dev/datastream/sources.md" >}}) API.
 
-If you want to use the legacy `SourceFunction` interface or on Flink 1.13 or lower releases, refer to the StreamNative's [pulsar-flink](https://github.com/streamnative/pulsar-flink).
+If you want to use the legacy `SourceFunction` or on Flink 1.13 or lower releases,
+just use the StreamNative's [Pulsar Flink connector](https://github.com/streamnative/pulsar-flink).
 {{< /hint >}}
 
 ### Usage
 
 Pulsar source provides a builder class for constructing a PulsarSource instance. The code snippet below shows
-how to build a PulsarSource instance to consume messages from the earliest cursor of the topic 
-"persistent://public/default/my-topic" in **Exclusive** subscription type (`my-subscription`) 
+how to build a PulsarSource instance to consume messages from the earliest cursor of the topic
+"persistent://public/default/my-topic" in **Exclusive** subscription type (`my-subscription`)
 and deserialize the raw payload of the messages as strings.
-
 
 ```java
 PulsarSource<String> source = PulsarSource.builder()
@@ -74,16 +71,16 @@ env.fromSource(source, WatermarkStrategy.noWatermarks(), "Pulsar Source");
 The following properties are **required** for building a PulsarSource:
 
 - Pulsar service URL, configured by `setServiceUrl(String)`
-- Pulsar service HTTP URL (aka. admin URL), configured by `setAdminUrl(String)`
+- Pulsar service HTTP URL (also known as admin URL), configured by `setAdminUrl(String)`
 - Pulsar subscription name, configured by `setSubscriptionName(String)`
 - Topics / partitions to subscribe, see the following
   [topic-partition subscription](#topic-partition-subscription) for more details.
 - Deserializer to parse Pulsar messages, see the following
   [deserializer](#deserializer) for more details.
 
-It's **recommended** to set the consumer name in Pulsar Source by `setConsumerName(String)`. This would give
-a unique name to the flink connector in the Pulsar statistic dashboard and a mechanism to
-monitor the performance of your flink applications.
+It is **recommended** to set the consumer name in Pulsar Source by `setConsumerName(String)`.
+This would give a unique name to the flink connector in the Pulsar statistic dashboard.
+Give you a mechanism to monitor the performance of your flink applications.
 
 ### Topic-partition Subscription
 
@@ -108,19 +105,18 @@ Since Pulsar 2.0, all topic names internally are in  a form of  `{persistent|non
 Now, for partitioned topics, you can use short names in many cases (for the sake of simplicity).
 The flexible naming system stems from the fact that there is now a default topic type, tenant, and namespace in a Pulsar cluster.
 
-
-Topic property | Default
-:------------|:-------
-topic type | `persistent`
-tenant | `public`
-namespace | `default`
+| Topic property | Default      |
+|:---------------|:-------------|
+| topic type     | `persistent` |
+| tenant         | `public`     |
+| namespace      | `default`    |
 
 This table lists a mapping relationship between your input topic name and the translated topic name:
 
-Input topic name | Translated topic name
-:----------------|:---------------------
-`my-topic` | `persistent://public/default/my-topic`
-`my-tenant/my-namespace/my-topic` | `persistent://my-tenant/my-namespace/my-topic`
+| Input topic name                  | Translated topic name                          |
+|:----------------------------------|:-----------------------------------------------|
+| `my-topic`                        | `persistent://public/default/my-topic`         |
+| `my-tenant/my-namespace/my-topic` | `persistent://my-tenant/my-namespace/my-topic` |
 
 {{< hint warning >}}
 For non-persistent topics, you need to specify the entire topic name,
@@ -135,32 +131,32 @@ Internally, Pulsar divides a partitioned topic as a set of non-partitioned topic
 For example, if a `simple-string` topic with 3 partitions is created under the `sample` tenant with the `flink` namespace.
 The topics on Pulsar would be:
 
-Topic name | Partitioned
-:--------- | :----------
-`persistent://sample/flink/simple-string` | Y
-`persistent://sample/flink/simple-string-partition-0` | N
-`persistent://sample/flink/simple-string-partition-1` | N
-`persistent://sample/flink/simple-string-partition-2` | N
+| Topic name                                            | Partitioned |
+|:------------------------------------------------------|:------------|
+| `persistent://sample/flink/simple-string`             | Y           |
+| `persistent://sample/flink/simple-string-partition-0` | N           |
+| `persistent://sample/flink/simple-string-partition-1` | N           |
+| `persistent://sample/flink/simple-string-partition-2` | N           |
 
 You can directly consume messages from the topic partitions by using the non-partitioned topic names above.
-For example, use `PulsarSource.builder().setTopics("sample/flink/simple-string-partition-1", "sample/flink/simple-string-partition-2")` 
+For example, use `PulsarSource.builder().setTopics("sample/flink/simple-string-partition-1", "sample/flink/simple-string-partition-2")`
 would consume the partitions 1 and 2 of the `sample/flink/simple-string` topic.
 
-#### Setting Topic Regex Pattern
+#### Setting Topic Pattern
 
 Pulsar source extracts the topic type (`persistent` or `non-persistent`) from the given topic pattern.
-For example, you can use the `PulsarSource.builder().setTopicPattern("non-persistent://my-topic*")` to specify 
-a  `non-persistent` topic. By default, a `persistent` topic is created if you do not specify the topic type in the regular expression.
+For example, you can use the `PulsarSource.builder().setTopicPattern("non-persistent://my-topic*")` to specify a `non-persistent` topic.
+By default, a `persistent` topic is created if you do not specify the topic type in the regular expression.
 
-You can use `setTopicPattern("topic-*", RegexSubscriptionMode.AllTopics)` to consume both `persistent` and `non-persistent` topics based on the topic pattern.
-
+You can use `setTopicPattern("topic-*", RegexSubscriptionMode.AllTopics)` to consume
+both `persistent` and `non-persistent` topics based on the topic pattern.
 Pulsar source would filter the available topics by the `RegexSubscriptionMode`.
-
 
 ### Deserializer
 
 A deserializer (`PulsarDeserializationSchema`) is for parsing Pulsar messages from bytes.
 You can configure the deserializer using `setDeserializationSchema(PulsarDeserializationSchema)`.
+The `PulsarDeserializationSchema` defines how to deserialize a Pulsar `Message<byte[]>`.
 
 If only the raw payload of a message (message data in bytes) is needed,
 you can use the predefined `PulsarDeserializationSchema`. Pulsar connector provides three implementation methods.
@@ -184,7 +180,6 @@ you can use the predefined `PulsarDeserializationSchema`. Pulsar connector provi
   ```java
   PulsarDeserializationSchema.flinkTypeInfo(TypeInformation, ExecutionConfig)
   ```
-  
 
 Pulsar `Message<byte[]>` contains some [extra properties](https://pulsar.apache.org/docs/en/concepts-messaging/#messages),
 such as message key, message publish time, message time, and application-defined key/value pairs etc.
@@ -193,7 +188,6 @@ These properties could be acquired by the `Message<byte[]>` interface.
 If you want to deserialize the Pulsar message by these properties, you need to implement `PulsarDeserializationSchema`.
 And ensure that the `TypeInformation` from the `PulsarDeserializationSchema.getProducedType()` is correct.
 Flink uses this `TypeInformation` to pass the messages to downstream operators.
-
 
 ### Pulsar Subscriptions
 
@@ -208,7 +202,7 @@ The subscription name is required for consuming messages. Pulsar connector suppo
 There is no difference between `Exclusive` and `Failover` in the Pulsar connector.
 When a Flink reader crashes, all (non-acknowledged and subsequent) messages are redelivered to the available Flink readers.
 
-By default, if no subscription type is defined, Pulsar source uses `Shared` subscription.
+By default, if no subscription type is defined, Pulsar source uses the `Shared` subscription type.
 
 ```java
 // Shared subscription with name "my-shared"
@@ -219,18 +213,17 @@ PulsarSource.builder().setSubscriptionName("my-exclusive").setSubscriptionType(S
 ```
 
 If you want to use the `Key_Shared` subscription type on the Pulsar connector.
-Ensure that you provide a `RangeGenerator` implementation. The `RangeGenerator` generates a set of 
+Ensure that you provide a `RangeGenerator` implementation. The `RangeGenerator` generates a set of
 key hash ranges so that a respective reader subtask only dispatches messages where the hash of the
 message key is contained in the specified range.
 
-Pulsar connector uses a `UniformRangeGenerator` which divides the range by the Flink source 
+Pulsar connector uses a `UniformRangeGenerator` which divides the range by the Flink source
 parallelism if no `RangeGenerator` is provided in the `Key_Shared` subscription type.
-
 
 ### Starting Position
 
-Pulsar source is able to consume messages starting from different positions by setting
-the `setStartCursor(StartCursor)` option.
+Pulsar source is able to consume messages starting from different positions by setting the `setStartCursor(StartCursor)` option.
+Built-in start cursors include:
 
 - Start from the earliest available message in the topic.
   ```java
@@ -248,13 +241,13 @@ the `setStartCursor(StartCursor)` option.
   StartCursor.fromMessageId(MessageId)
   ```
 - Start from a specified message between the earliest and the latest.
-  Pulsar connector consumes from the latest available message if the message ID does not exist.
+  Pulsar connector consumes from the latest available message if the message id doesn't exist.
 
   Include or exclude the start message by using the second boolean parameter.
   ```java
   StartCursor.fromMessageId(MessageId, boolean)
   ```
-- Start from the specified message by `Message<byte[]>.getEventTime()`.
+- Start from the specified message time by `Message<byte[]>.getEventTime()`.
   ```java
   StartCursor.fromMessageTime(long)
   ```
@@ -266,18 +259,15 @@ The `MessageId` contains some extra information (the ledger, entry, partition) a
 you can create a `MessageId` by using `DefaultImplementation.newMessageId(long ledgerId, long entryId, int partitionIndex)`.
 {{< /hint >}}
 
-
 ### Boundedness
 
 Pulsar source supports streaming and batch running modes.
 By default, the `PulsarSource` runs in the streaming mode.
 
-In streaming mode, Pulsar source never stops until a Flink job fails or is cancelled. However,
-you can set Pulsar source stopping at a stop position by using  `setUnboundedStopCursor(StopCursor)`.
-
+In the streaming mode, Pulsar source never stops until a Flink job fails or is cancelled.
+However, you can use the `setUnboundedStopCursor(StopCursor)` to set the Pulsar source to stop at a specific stop position.
 
 You can use `setBoundedStopCursor(StopCursor)` to specify a stop position to run in batch mode.
-
 
 Built-in stop cursors include:
 
@@ -302,7 +292,6 @@ Built-in stop cursors include:
   StopCursor.atEventTime(long)
   ```
 
-
 ### Configurable Options
 
 In addition to configuration options described above, you can set arbitrary options for `PulsarClient`,
@@ -317,13 +306,13 @@ which is required for creating a `PulsarClient`, as Flink configuration options 
 
 {{< generated/pulsar_client_configuration >}}
 
-
 #### PulsarAdmin Options
 
-The [admin API](https://pulsar.apache.org/docs/en/admin-api-overview/) is used for querying topic metadata and for discovering the desired topics when the Pulsar connector uses topic-pattern subscription. It shares most part of the
-configuration options with the client API. The configuration options listed here are only used in the admin API.
+The [admin API](https://pulsar.apache.org/docs/en/admin-api-overview/) is used for querying topic metadata
+and for discovering the desired topics when the Pulsar connector uses topic-pattern subscription.
+It shares most part of the configuration options with the client API.
+The configuration options listed here are only used in the admin API.
 They are also defined in `PulsarOptions`.
-
 
 {{< generated/pulsar_admin_configuration >}}
 
@@ -337,7 +326,7 @@ The Pulsar connector uses the Consumer API. It extracts most parts of Pulsar's `
 #### PulsarSource Options
 
 The configuration options below are mainly used for customizing the performance and message acknowledgement behavior.
-You can just leave them alone if you do not meet any performance issues.
+You can just leave them alone if you do not have any performance issues.
 
 {{< generated/pulsar_source_configuration >}}
 
@@ -346,7 +335,7 @@ You can just leave them alone if you do not meet any performance issues.
 To handle scenarios like topic scaling-out or topic creation without restarting the Flink
 job, Pulsar source periodically discover new partitions under a provided
 topic-partition subscription pattern. To enable partition discovery, you can set a non-negative value for
-the `PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS` option`:
+the `PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS` option:
 
 ```java
 // discover new partitions per 10 seconds
@@ -354,13 +343,11 @@ PulsarSource.builder()
     .setConfig(PulsarSourceOptions.PULSAR_PARTITION_DISCOVERY_INTERVAL_MS, 10000);
 ```
 
-
 {{< hint warning >}}
 - Partition discovery is **enabled** by default. The Pulsar connector queries the topic metadata every 30 seconds.
 - To disable partition discovery, you need to set a negative partition discovery interval.
 - The partition discovery is disabled in the batch mode even if you set this option with a non-negative value.
 {{< /hint >}}
-
 
 ### Event Time and Watermarks
 
@@ -368,12 +355,11 @@ By default, the message uses the timestamp embedded in Pulsar `Message<byte[]>` 
 You can define a `WatermarkStrategy` to extract the event time from the message,
 and emit the watermark downstream:
 
-
 ```java
 env.fromSource(pulsarSource, new CustomWatermarkStrategy(), "Pulsar Source With Custom Watermark Strategy")
 ```
 
-[This documentation]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}}) describes 
+[This documentation]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}}) describes
 details about how to define a `WatermarkStrategy`.
 
 ### Message Acknowledgement
@@ -397,7 +383,6 @@ You can use the `PulsarSourceOptions.PULSAR_AUTO_COMMIT_CURSOR_INTERVAL` option 
 Pulsar source does **NOT** rely on committed positions for fault tolerance.
 Acknowledging messages is only for exposing the progress of consumers and monitoring on these two subscription types.
 
-
 #### Acknowledgement on Shared and Key_Shared Subscription Types
 
 In `Shared` and `Key_Shared` subscription types, messages are acknowledged one by one. You can acknowledge
@@ -405,14 +390,13 @@ a message in a transaction and commit it to Pulsar.
 
 You should enable transaction in the Pulsar `borker.conf` file when using these two subscription types in connector:
 
-
 ```text
 transactionCoordinatorEnabled=true
 ```
 
-Pulsar transaction is  created within 3 hours as the timeout by default. 
+Pulsar transaction is  created within 3 hours as the timeout by default.
 Ensure that that timeout is greater than checkpoint interval + maximum recovery time.
-A shorter checkpoint interval indicates a better consuming performance.
+A shorter checkpoint interval indicates a better  consuming performance.
 You can use the `PulsarSourceOptions.PULSAR_TRANSACTION_TIMEOUT_MILLIS` option to change the transaction timeout.
 
 If checkpointing is disabled or you can not enable the transaction on Pulsar broker, you should set
@@ -426,7 +410,7 @@ All acknowledgements in a transaction are recorded in the Pulsar broker side.
 
 ## Pulsar Sink
 
-Pulsar sink supports writing records into one or more Pulsar topics or a specified list of Pulsar partitions.
+Pulsar Sink supports writing records into one or more Pulsar topics or a specified list of Pulsar partitions.
 
 {{< hint info >}}
 This part describes the Pulsar sink based on the new
@@ -438,9 +422,9 @@ If you still want to use the legacy `SinkFunction` or on Flink 1.14 or previous 
 
 ### Usage
 
-Pulsar Sink uses a builder class to a construct `PulsarSink` instance.
-
+Pulsar Sink uses a builder class to construct the `PulsarSink` instance.
 This example writes a String record to a Pulsar topic with at-least-once delivery guarantee.
+
 ```java
 DataStream<String> stream = ...
 
@@ -462,15 +446,15 @@ The following properties are **required** for building PulsarSink:
 - Topics / partitions to write, see [writing targets](#writing-targets) for more details.
 - Serializer to generate Pulsar messages, see [serializer](#serializer) for more details.
 
-It is **recommended** to set the producer name in Pulsar Sink by `setProducerName(String)`. This gives
-a unique name to the flink connector in the Pulsar statistic dashboard which is convenient for
-performance monitoring of your flink applications.
+It is **recommended** to set the producer name in Pulsar Sink by `setProducerName(String)`.
+This gives a unique name to the flink connector in the Pulsar statistic dashboard.
+Give you a mechanism to monitor the performance of your flink applications.
 
-### Specify target topics 
+### Writing Topics
 
-Setting the topics to write is similar to the [topic-partition subscription](#topic-partition-subscription)
-in Pulsar source. We support a mixin style of topic setting. Therefore, you can provide a list of topics
-, partitions or both of them.
+Setting the topics to write is a bit like the [topic-partition subscription](#topic-partition-subscription)
+in Pulsar source. We support a mixin style of topic setting. Therefore, you can provide a list of topics,
+partitions, or both of them.
 
 ```java
 // Topic "some-topic1" and "some-topic2"
@@ -483,35 +467,29 @@ PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2")
 PulsarSink.builder().setTopics("topic-a-partition-0", "topic-a-partition-2", "some-topic2")
 ```
 
-Auto partition discovery is enabled by default. Pulsar sink query the topic metadata from
-the Pulsar in a fixed interval. You can use the `PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL` 
-option to change the discovery interval option.
+The topics you provide support auto partition discovery. We query the topic metadata from the Pulsar in a fixed interval.
+You can use the `PulsarSinkOptions.PULSAR_TOPIC_METADATA_REFRESH_INTERVAL` option to change the discovery interval option.
 
-A custom [`TopicRouter`][message routing](#message-routing) allows user implement custom topic routing strategy.
-And read [flexible topic naming](#flexible-topic-naming)for understanding how to configure partitions 
-on the Pulsar connector.
-
+Configure writing targets can be replaced by using a custom [`TopicRouter`]
+[message routing](#message-routing). And read [flexible topic naming](#flexible-topic-naming)
+for understanding how to configure partitions on the Pulsar connector.
 
 {{< hint warning >}}
-If you build  the Pulsar sink based on both the topic and its corresponding partitions, 
-Pulsar sink merges them and only use the topic.
+If you build  the Pulsar sink based on both the topic and its corresponding partitions, Pulsar sink merges them and only use the topic.
 
-For example, if you use the `PulsarSink.builder().setTopics("some-topic1", "some-topic1-partition-0")` 
-option to build the Pulsar sink, it is simplified to `PulsarSink.builder().setTopics("some-topic1")`.
-
+For example, it uses the `PulsarSink.builder().setTopics("some-topic1", "some-topic1-partition-0")` option to build the Pulsar sink,
+it is simplified to `PulsarSink.builder().setTopics("some-topic1")`.
 {{< /hint >}}
 
 ### Serializer
 
-A serializer (`PulsarSerializationSchema`) is required to serialize the record instance into bytes.
+A serializer (`PulsarSerializationSchema`) is required to serializing the record instance into bytes.
 Similar to `PulsarSource`, Pulsar sink supports both Flink's `SerializationSchema` and
 Pulsar's `Schema`. But Pulsar's `Schema.AUTO_PRODUCE_BYTES()` is not supported in Pulsar Sink.
 
 If you do not need the message key and other message properties in Pulsar's
-[Message](https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/Message.html) 
-interface, you can use the predefined `PulsarSerializationSchema`. Pulsar sink provides two default
-implementation.
-
+[Message](https://pulsar.apache.org/api/client/2.9.0-SNAPSHOT/org/apache/pulsar/client/api/Message.html) interface,
+you can use the predefined `PulsarSerializationSchema`. Pulsar sink provides two implementation methods.
 
 - Encode the message by using Pulsar's [Schema](https://pulsar.apache.org/docs/en/schema-understand/).
   ```java
@@ -561,9 +539,8 @@ By default Pulsar Sink supports two router implementation.
 
 - `KeyHashTopicRouter`: use the hashcode of the message's key to decide the topic partition that messages are sent to.
 
-  The message key is provided by `PulsarMessageBuiilder.key(String key)`.
-  You need to implement this interface and extract the message key when you want to send the message
-  with the same key to the same topic partition.
+  The message key is provided by `PulsarSerializationSchema.key(IN, PulsarSinkContext)`
+  You need to implement this interface and extract the message key when you want to send the message with the same key to the same topic partition.
 
   If you do not provide the message key. A topic  partition is randomly chosen from the topic list.
 
@@ -575,13 +552,14 @@ By default Pulsar Sink supports two router implementation.
   All messages are sent to the first partition, and switch to the next partition after sending
   a fixed number of messages. The batch size can be customized by the `PulsarSinkOptions.PULSAR_BATCHING_MAX_MESSAGES` option.
 
-You can configure  custom routers by using the `TopicRouter` interface. If you implement a  `TopicRouter`, 
-ensure that  it is  serializable. And you can return partitions which are not
-available in the pre-discovered partition list.
+Let’s assume there are ten messages and two topics. Topic A has two partitions while topic B has three partitions.
+The batch size is set to five messages. In this case, topic A has 5 messages per partition which topic B does not receive any messages.
 
-Thus, you do not  need to specify  topics using the `PulsarSinkBuilder.setTopics` option when you 
-implement the custom topic router.
+You can configure custom routers by using the `TopicRouter` interface.
+If you implement a `TopicRouter`, ensure that it is serializable.
+And you can return partitions which are not available in the pre-discovered partition list.
 
+Thus, you do not need to specify topics using the `PulsarSinkBuilder.setTopics` option when you implement the custom topic router.
 
 ```java
 @PublicEvolving
@@ -603,18 +581,17 @@ API to implement its own routing layer to support multiple topics routing.
 For details, see  [partitioned topics](https://pulsar.apache.org/docs/en/cookbooks-partitioned/).
 {{< /hint >}}
 
-
 ### Delivery Guarantee
 
 `PulsarSink` supports three delivery guarantee semantics.
 
 - `NONE`: Data loss can happen even when the pipeline is running.
-  Basically, we use a fire-and-forget strategy to send records to Pulsar topics in this mode. It means that this mode  has the highest throughput.
+  Basically, we use a fire-and-forget strategy to send records to Pulsar topics in this mode.
+  It means that this mode has the highest throughput.
 - `AT_LEAST_ONCE`: No data loss happens, but data duplication can happen after a restart from checkpoint.
 - `EXACTLY_ONCE`: No data loss happens. Each record is sent to the Pulsar broker only once.
-  Under the hood,  Pulsar Sink uses [Pulsar transaction](https://pulsar.apache.org/docs/en/transactions/)
-  and two phase commit (2PC) to ensure records are sent only once even after pipeline restarts.
-
+  Pulsar Sink uses [Pulsar transaction](https://pulsar.apache.org/docs/en/transactions/)
+  and two-phase commit (2PC) to ensure records are sent only once even after pipeline restarts.
 
 ### Delayed message delivery
 
@@ -625,14 +602,13 @@ enables you to consume a message later. With delayed message enabled,  the Pulsa
 Delayed message delivery only works in the `Shared` subscription type. In `Exclusive` and `Failover`
 subscription types, the delayed message is dispatched immediately.
 
-You can configure the `MessageDelayer` to specify when to send the message to the consumer.
+You can configure the `MessageDelayer` for judging when sending the message to the consumer.
 The default delayer is never delay the message dispatching. You can use the `MessageDelayer.fixed(Duration)` option to
 Configure delaying all messages in a fixed duration. You can also implement the `MessageDelayer`
-interface to dispatch  messages at different  time.
-
+interface to dispatch messages at different time.
 
 {{< hint warning >}}
-The dispatch time should be calculated by using the `PulsarSinkContext.processTime()`.
+The dispatch time should be calculated by the `PulsarSinkContext.processTime()`.
 {{< /hint >}}
 
 ### Configurable Options
@@ -642,7 +618,7 @@ by using `setConfig(ConfigOption<T>, T)`, `setConfig(Configuration)` and `setCon
 
 #### PulsarClient and PulsarAdmin Options
 
-For details, refer to the [PulsarClient options](#pulsarclient-options) and [PulsarAdmin options](#pulsaradmin-options) defined in source part.
+For details, refer to [PulsarAdmin options](#pulsaradmin-options).
 
 #### Pulsar Producer Options
 
@@ -654,7 +630,7 @@ Pulsar's `ProducerConfigurationData` as Flink configuration options in `PulsarSi
 #### PulsarSink Options
 
 The configuration options below are mainly used for customizing the performance and message
-sending behavior. You can just leave them alone if you do not meet any performance issues.
+sending behavior. You can just leave them alone if you do not have any performance issues.
 
 {{< generated/pulsar_sink_configuration >}}
 
@@ -679,7 +655,7 @@ The first 6 metrics are standard Pulsar Sink metrics as described in
         <th rowspan="13">Operator</th>
         <td>numBytesOut</td>
         <td>n/a</td>
-        <td>The total number of output bytes since the sink starts.</td>
+        <td>The total number of output bytes since the sink starts. Count towards the numBytesOut in TaskIOMetricsGroup.</td>
         <td>Counter</td>
     </tr>
     <tr>
@@ -691,7 +667,7 @@ The first 6 metrics are standard Pulsar Sink metrics as described in
     <tr>
         <td>numRecordsOut</td>
         <td>n/a</td>
-        <td>The total number of output records since the sink starts</td>
+        <td>The total number of output records since the sink starts.</td>
         <td>Counter</td>
     </tr>
     <tr>
@@ -709,77 +685,72 @@ The first 6 metrics are standard Pulsar Sink metrics as described in
     <tr>
         <td>currentSendTime</td>
         <td>n/a</td>
-        <td>The time it takes to send the last record, from when enqueuing the message in client buffer to its ack</td>
+        <td>The time it takes to send the last record, from enqueue the message in client buffer to its ack.</td>
         <td>Gauge</td>
     </tr>
     <tr>
         <td>PulsarSink.numAcksReceived</td>
         <td>n/a</td>
-        <td>The number of acks received for sent messages</td>
+        <td>The number of acks received for sent messages.</td>
         <td>Counter</td>
     </tr>
     <tr>
         <td>PulsarSink.sendLatencyMax</td>
         <td>n/a</td>
-        <td>The max send latency in the last refresh interval across all producers</td>
+        <td>The maximum send latency in the last refresh interval across all producers.</td>
         <td>Gauge</td>
     </tr>
     <tr>
         <td>PulsarSink.producer."ProducerName".sendLatency50Pct</td>
         <td>ProducerName</td>
-        <td>The 50th percentile of send latency in the last refresh interval for a specific producer</td>
+        <td>The 50th percentile of send latency in the last refresh interval for a specific producer.</td>
         <td>Gauge</td>
     </tr>
     <tr>
         <td>PulsarSink.producer."ProducerName".sendLatency75Pct</td>
         <td>ProducerName</td>
-        <td>The 75th percentile of send latency in the last refresh interval for a specific producer</td>
+        <td>The 75th percentile of send latency in the last refresh interval for a specific producer.</td>
         <td>Gauge</td>
     </tr>
     <tr>
         <td>PulsarSink.producer."ProducerName".sendLatency95Pct</td>
         <td>ProducerName</td>
-        <td>The 95th percentile of send latency in the last refresh interval for a specific producer</td>
+        <td>The 95th percentile of send latency in the last refresh interval for a specific producer.</td>
         <td>Gauge</td>
     </tr>
     <tr>
         <td>PulsarSink.producer."ProducerName".sendLatency99Pct</td>
         <td>ProducerName</td>
-        <td>The 99th percentile of send latency in the last refresh interval for a specific producer</td>
+        <td>The 99th percentile of send latency in the last refresh interval for a specific producer.</td>
         <td>Gauge</td>
     </tr>
     <tr>
         <td>PulsarSink.producer."ProducerName".sendLatency999Pct</td>
         <td>ProducerName</td>
-        <td>The 99.9th percentile of send latency in the last refresh interval for a specific producer</td>
+        <td>The 99.9th percentile of send latency in the last refresh interval for a specific producer.</td>
         <td>Gauge</td>
     </tr>
   </tbody>
 </table>
 
-
-
 {{< hint info >}}
 - `numBytesOut`, `numRecordsOut`, `numRecordsOutErrors` are retrieved from Pulsar client metrics.
-  See how to link with them [here]({{< ref "docs/dev/configuration/overview" >}}).
+
 - `currentSendTime` tracks the time from when the producer calls `sendAync()` to
-  the time when message is acknowledged by the broker. This metric is not available in `NONE` delivery guarantee.
+  the time when the message is acknowledged by the broker. This metric is not available in `NONE` delivery guarantee.
 {{< /hint >}}
 
-
-  
 The Pulsar producer refreshes its stats every 60 seconds by default. And PulsarSink retrieves the Pulsar producer
 stats every 500ms. Thus `numRecordsOut`, `numBytesOut`, `numAcksReceived`, and `numRecordsOutErrors` 
 is updated every 60 seconds. To increase the metrics refresh frequency, you can change
-the Pulsar producer stats refresh interval to a smaller value (minimum 1 second) as shown below.
+the Pulsar producer stats refresh interval to a smaller value (minimum 1 second), as shown below.
 
 ```java
-    builder.setConfig(PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS. 1L)
+builder.setConfig(PulsarOptions.PULSAR_STATS_INTERVAL_SECONDS. 1L)
 ```
 
-`numBytesOutRate` and `numRecordsOutRate` are calculated based on the `numBytesOut` and `numRecordsOut`
+`numBytesOutRate` and `numRecordsOutRate` are calculated based on the `numBytesOut` and `numRecordsOUt`
 counter respectively. Flink internally uses a fixed 60 seconds window to calculate the rates.
-
 
 ### Brief Design Rationale
 
@@ -791,10 +762,8 @@ Pulsar sink follow the Sink API defined in
 In `EXACTLY_ONCE` mode, the Pulsar sink does not store transaction information in checkpoint,
 which means a new bunch of transactions will be created after a restart.
 Therefore, any message in previous pending transactions is  either aborted or timeout
-(Either way, they are not visible to the downstream Pulsar consumer).
+(In no way they are visible to the downstream Pulsar consumer).
 Pulsar team is working to optimize the resource cost bought by unfinished pending transactions.
-This design gurantees that SinkWriter is stateless.
-
 
 #### Pulsar Schema Evolution
 
@@ -803,18 +772,17 @@ you to reuse the same Flink job after certain "allowed" data model changes, like
 a field in a AVRO-based Pojo class. Please note that you can specify Pulsar schema validation rules
 and define an auto schema update. For details, refer to [Pulsar Schema Evolution](https://pulsar.apache.org/docs/en/schema-evolution-compatibility/).
 
-
 ## Known Issues
+
 This section describes some known issues about the Pulsar connectors.
 
 ### No TransactionCoordinatorNotFound, but automatic reconnect
 
 Pulsar  transaction is still in active development and is not stable. Pulsar 2.9.2
-introduce [a breaking change](https://github.com/apache/pulsar/pull/13135) in transactions.
-If you use Pulsar 2.9.2 or higher version  with an older Pulsar client, you might 
-get a `TransactionCoordinatorNotFound` exception.
+introduce [a break change](https://github.com/apache/pulsar/pull/13135) in transactions.
+If you use Pulsar 2.9.2 or higher version  with an older Pulsar client, you might get a `TransactionCoordinatorNotFound` exception.
 
-You can use the latest `pulsar-client-all` package to resolve this issue.
+You can use the latest `pulsar-client-all` release to resolve this issue.
 
 ## Upgrading to the Latest Connector Version
 
@@ -823,7 +791,7 @@ The Pulsar connector does not store any state on the Flink side. The Pulsar conn
 For Pulsar, you additionally need to know these limitations:
 
 * Do not upgrade the Pulsar connector and Pulsar broker version at the same time.
-* Always use a newer Pulsar client with Pulsar connector to consume message from Pulsar.
+* Always use a newer Pulsar client with Pulsar connector to consuming messages from Pulsar.
 
 ## Troubleshooting
 
@@ -832,14 +800,5 @@ If you have a problem with Pulsar when using Flink, keep in mind that Flink only
 [PulsarAdmin](https://pulsar.apache.org/docs/en/admin-api-overview/)
 and your problem might be independent of Flink and sometimes can be solved by upgrading Pulsar brokers,
 reconfiguring Pulsar brokers or reconfiguring Pulsar connector in Flink.
-
-### Messages can be delayed on low volume topics
-
-When the Pulsar source connector reads from a low volume topic, users might observe a 10 seconds delay between messages. Pulsar buffers messages from topics by default. Before emitting to downstream
-operators, the number of buffered records must be equal or larger than `PulsarSourceOptions.PULSAR_MAX_FETCH_RECORDS`. If the data volume is low, it could be that filling up the number of buffered records takes longer than `PULSAR_MAX_FETCH_TIME` (default to 10 seconds). If that's the case, it means that only after this time has passed the messages will be emitted. 
-
-To avoid this behaviour, you need to change either the buffered records or the waiting time. 
-
-
 
 {{< top >}}
