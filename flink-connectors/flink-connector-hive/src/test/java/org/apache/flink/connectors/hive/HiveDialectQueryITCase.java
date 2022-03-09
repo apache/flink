@@ -311,6 +311,25 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testJoinInvolvingComplexType() throws Exception {
+        tableEnv.executeSql("CREATE TABLE test2a (a ARRAY<INT>)");
+        tableEnv.executeSql("CREATE TABLE test2b (a INT)");
+        try {
+            tableEnv.executeSql("insert into test2a SELECT ARRAY(1, 2)").await();
+            tableEnv.executeSql("insert into test2b values (2), (3), (4)").await();
+            List<Row> result =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select *  from test2b join test2a on test2b.a = test2a.a[1]")
+                                    .collect());
+            assertEquals("[+I[2, [1, 2]]]", result.toString());
+        } finally {
+            tableEnv.executeSql("drop table test2a");
+            tableEnv.executeSql("drop table test2b");
+        }
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
