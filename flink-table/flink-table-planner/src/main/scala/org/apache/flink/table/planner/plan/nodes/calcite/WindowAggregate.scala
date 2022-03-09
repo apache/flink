@@ -31,6 +31,9 @@ import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
 
+import scala.collection.JavaConverters._
+
+
 /**
   * Relational operator that eliminates duplicates and computes totals with time window group.
   *
@@ -43,7 +46,7 @@ abstract class WindowAggregate(
     groupSet: ImmutableBitSet,
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty])
+    namedProperties: util.List[NamedWindowProperty])
   extends Aggregate(
     cluster,
     traitSet,
@@ -54,7 +57,7 @@ abstract class WindowAggregate(
 
   def getWindow: LogicalWindow = window
 
-  def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
+  def getNamedProperties: util.List[NamedWindowProperty] = namedProperties
 
   override def accept(shuttle: RelShuttle): RelNode = shuttle.visit(this)
 
@@ -63,7 +66,7 @@ abstract class WindowAggregate(
     val typeFactory = getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val builder = typeFactory.builder
     builder.addAll(aggregateRowType.getFieldList)
-    namedProperties.foreach { namedProp =>
+    namedProperties.asScala.foreach { namedProp =>
       builder.add(
         namedProp.getName,
         typeFactory.createFieldTypeFromLogicalType(namedProp.getProperty.getResultType)
@@ -82,6 +85,6 @@ abstract class WindowAggregate(
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("window", window)
-      .item("properties", namedProperties.map(_.getName).mkString(", "))
+      .item("properties", namedProperties.asScala.map(_.getName).mkString(", "))
   }
 }

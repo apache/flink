@@ -30,6 +30,8 @@ import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
 
+import scala.collection.JavaConverters._
+
 /**
   * Relational operator that represents a window table aggregate. A TableAggregate is similar to the
   * [[org.apache.calcite.rel.core.Aggregate]] but may output 0 or more records for a group.
@@ -42,19 +44,19 @@ abstract class WindowTableAggregate(
     groupSets: util.List[ImmutableBitSet],
     aggCalls: util.List[AggregateCall],
     window: LogicalWindow,
-    namedProperties: Seq[NamedWindowProperty])
+    namedProperties: util.List[NamedWindowProperty])
   extends TableAggregate(cluster, traitSet, input, groupSet, groupSets, aggCalls) {
 
   def getWindow: LogicalWindow = window
 
-  def getNamedProperties: Seq[NamedWindowProperty] = namedProperties
+  def getNamedProperties: util.List[NamedWindowProperty] = namedProperties
 
   override def deriveRowType(): RelDataType = {
     val aggregateRowType = super.deriveRowType()
     val typeFactory = getCluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
     val builder = typeFactory.builder
     builder.addAll(aggregateRowType.getFieldList)
-    namedProperties.foreach { namedProp =>
+    namedProperties.asScala.foreach { namedProp =>
       builder.add(
         namedProp.getName,
         typeFactory.createFieldTypeFromLogicalType(namedProp.getProperty.getResultType)
@@ -66,6 +68,6 @@ abstract class WindowTableAggregate(
   override def explainTerms(pw: RelWriter): RelWriter = {
     super.explainTerms(pw)
       .item("window", window)
-      .item("properties", namedProperties.map(_.getName).mkString(", "))
+      .item("properties", namedProperties.asScala.map(_.getName).mkString(", "))
   }
 }

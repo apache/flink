@@ -34,6 +34,7 @@ import org.apache.flink.table.planner.plan.trait.FlinkRelDistribution;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
+import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
 import org.apache.flink.table.types.DataType;
 
 import org.apache.calcite.plan.RelOptRule;
@@ -160,7 +161,7 @@ public class BatchPhysicalPythonWindowAggregateRule extends RelOptRule {
                         window,
                         inputTimeFieldIndex,
                         inputTimeIsDate,
-                        agg.getNamedProperties());
+                        JavaScalaConversionUtil.toScala(agg.getNamedProperties()));
         call.transformTo(windowAgg);
     }
 
