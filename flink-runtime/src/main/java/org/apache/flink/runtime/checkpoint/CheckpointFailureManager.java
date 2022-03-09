@@ -105,7 +105,7 @@ public class CheckpointFailureManager {
         updateStatsAfterCheckpointFailed(pendingCheckpointStats, statsTracker, exception);
 
         LOG.warn(
-                "Failed to trigger checkpoint {} for job {}. ({} consecutive failed attempts so far)",
+                "Failed to trigger or complete checkpoint {} for job {}. ({} consecutive failed attempts so far)",
                 checkpointId == UNKNOWN_CHECKPOINT_ID ? "UNKNOWN_CHECKPOINT_ID" : checkpointId,
                 job,
                 continuousFailureCounter.get(),
