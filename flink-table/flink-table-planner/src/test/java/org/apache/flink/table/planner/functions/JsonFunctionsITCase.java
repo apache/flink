@@ -57,7 +57,6 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_WITH_LOCAL_TIME_ZONE;
 import static org.apache.flink.table.api.DataTypes.VARBINARY;
-import static org.apache.flink.table.api.DataTypes.VARCHAR;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.jsonArray;
@@ -183,7 +182,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_VALUE(CAST(NULL AS STRING), 'lax $')",
                                 null,
                                 STRING(),
-                                VARCHAR(2000)),
+                                STRING()),
 
                         // RETURNING + Supported Data Types
                         resultSpec(
@@ -191,7 +190,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_VALUE(f0, '$.type')",
                                 "account",
                                 STRING(),
-                                VARCHAR(2000)),
+                                STRING()),
                         resultSpec(
                                 $("f0").jsonValue("$.activated", BOOLEAN()),
                                 "JSON_VALUE(f0, '$.activated' RETURNING BOOLEAN)",
@@ -220,7 +219,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_VALUE(f0, 'lax $.invalid' NULL ON EMPTY ERROR ON ERROR)",
                                 null,
                                 STRING(),
-                                VARCHAR(2000)),
+                                STRING()),
                         resultSpec(
                                 $("f0").jsonValue(
                                                 "lax $.invalid",
@@ -243,7 +242,7 @@ public class JsonFunctionsITCase extends BuiltInFunctionTestBase {
                                 "JSON_VALUE(f0, 'strict $.invalid' ERROR ON EMPTY NULL ON ERROR)",
                                 null,
                                 STRING(),
-                                VARCHAR(2000)),
+                                STRING()),
                         resultSpec(
                                 $("f0").jsonValue(
                                                 "strict $.invalid",
