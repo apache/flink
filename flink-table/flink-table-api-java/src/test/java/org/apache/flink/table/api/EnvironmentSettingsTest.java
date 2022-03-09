@@ -34,15 +34,16 @@ public class EnvironmentSettingsTest {
     public void testFromConfiguration() {
         Configuration configuration = new Configuration();
         configuration.setString("execution.runtime-mode", "batch");
-        EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(configuration);
+        EnvironmentSettings settings =
+                EnvironmentSettings.newInstance().withConfiguration(configuration).build();
 
         assertFalse("Expect batch mode.", settings.isStreamingMode());
     }
 
     @Test
-    public void testToConfiguration() {
+    public void testGetConfiguration() {
         EnvironmentSettings settings = new EnvironmentSettings.Builder().inBatchMode().build();
-        Configuration configuration = settings.toConfiguration();
+        Configuration configuration = settings.getConfiguration();
 
         assertEquals(RuntimeExecutionMode.BATCH, configuration.get(RUNTIME_MODE));
     }

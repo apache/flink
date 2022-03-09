@@ -19,11 +19,13 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.Experimental;
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptions;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.configuration.WritableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
@@ -35,6 +37,7 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static java.time.ZoneId.SHORT_IDS;
 
@@ -68,7 +71,15 @@ import static java.time.ZoneId.SHORT_IDS;
  * @see OptimizerConfigOptions
  */
 @PublicEvolving
-public class TableConfig implements WritableConfig {
+public final class TableConfig implements WritableConfig, ReadableConfig {
+    //
+    // TableConfig is also a ReadableConfig which is built once the TableEnvironment is created and
+    // contains both the configuration defined in the environment (flink-conf.yaml + CLI params),
+    // stored in rootConfiguration, but also any extra configuration defined by the user in the
+    // application, which has precedence over the environment configuration. This way, any consumer
+    // of TableConfig cat get the complete view of the configuration (environment + user defined) by
+    // calling the get() and getOptional() methods.
+
     /** Defines if all fields need to be checked for NULL first. */
     private Boolean nullCheck = true;
 
@@ -83,6 +94,8 @@ public class TableConfig implements WritableConfig {
 
     /** A configuration object to hold all key/value configuration. */
     private final Configuration configuration = new Configuration();
+
+    private ReadableConfig rootConfiguration = new Configuration();
 
     /**
      * Sets a value for the given {@link ConfigOption}.
@@ -121,9 +134,34 @@ public class TableConfig implements WritableConfig {
         return this;
     }
 
+    @Override
+    public <T> T get(ConfigOption<T> option) {
+        return configuration.getOptional(option).orElseGet(() -> rootConfiguration.get(option));
+    }
+
+    @Override
+    public <T> Optional<T> getOptional(ConfigOption<T> option) {
+        final Optional<T> tableValue = configuration.getOptional(option);
+        if (tableValue.isPresent()) {
+            return tableValue;
+        }
+        return rootConfiguration.getOptional(option);
+    }
+
     /** Gives direct access to the underlying key-value map for advanced configuration. */
     public Configuration getConfiguration() {
         return configuration;
+    }
+
+    /**
+     * Sets the given key-value configuration as {@link #rootConfiguration}, which contains any
+     * configuration set in the environment ({@code flink-conf.yaml} + {@code CLI} parameters.
+     *
+     * @param rootConfiguration key-value root configuration to be set
+     */
+    @Internal
+    public void setRootConfiguration(ReadableConfig rootConfiguration) {
+        this.rootConfiguration = rootConfiguration;
     }
 
     /**
@@ -139,8 +177,7 @@ public class TableConfig implements WritableConfig {
 
     /** Returns the current SQL dialect. */
     public SqlDialect getSqlDialect() {
-        return SqlDialect.valueOf(
-                getConfiguration().getString(TableConfigOptions.TABLE_SQL_DIALECT).toUpperCase());
+        return SqlDialect.valueOf(get(TableConfigOptions.TABLE_SQL_DIALECT).toUpperCase());
     }
 
     /** Sets the current SQL dialect to parse a SQL query. Flink's SQL behavior by default. */
@@ -320,9 +357,9 @@ public class TableConfig implements WritableConfig {
                 && !(maxTime.toMilliseconds() == 0 && minTime.toMilliseconds() == 0)) {
             throw new IllegalArgumentException(
                     "Difference between minTime: "
-                            + minTime.toString()
+                            + minTime
                             + " and maxTime: "
-                            + maxTime.toString()
+                            + maxTime
                             + " should be at least 5 minutes.");
         }
         setIdleStateRetention(Duration.ofMillis(minTime.toMilliseconds()));
@@ -398,8 +435,7 @@ public class TableConfig implements WritableConfig {
     @Experimental
     public void addJobParameter(String key, String value) {
         Map<String, String> params =
-                getConfiguration()
-                        .getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
+                getOptional(PipelineOptions.GLOBAL_JOB_PARAMETERS)
                         .map(HashMap::new)
                         .orElseGet(HashMap::new);
         params.put(key, value);

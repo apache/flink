@@ -221,7 +221,8 @@ public class SessionContext {
 
         ModuleManager moduleManager = new ModuleManager();
 
-        final EnvironmentSettings settings = EnvironmentSettings.fromConfiguration(configuration);
+        final EnvironmentSettings settings =
+                EnvironmentSettings.newInstance().withConfiguration(configuration).build();
 
         CatalogManager catalogManager =
                 CatalogManager.newBuilder()

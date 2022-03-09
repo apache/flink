@@ -110,7 +110,7 @@ class TransformationsTest {
     @Test
     public void testLegacyUid() {
         final TableEnvironment env =
-                TableEnvironment.create(EnvironmentSettings.inStreamingMode().toConfiguration());
+                TableEnvironment.create(EnvironmentSettings.inStreamingMode().getConfiguration());
         env.getConfig().set(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS, true);
 
         env.createTemporaryTable(
