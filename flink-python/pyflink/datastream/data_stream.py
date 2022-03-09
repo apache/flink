@@ -250,7 +250,7 @@ class DataStream(object):
         return self
 
     def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
-        -> 'DataStream':
+            -> 'DataStream':
         """
         Applies a Map transformation on a DataStream. The transformation calls a MapFunction for
         each element of the DataStream. Each MapFunction call returns exactly one element.
@@ -567,7 +567,7 @@ class DataStream(object):
             j_python_data_stream_function_operator))
 
     def assign_timestamps_and_watermarks(self, watermark_strategy: WatermarkStrategy) -> \
-        'DataStream':
+            'DataStream':
         """
         Assigns timestamps to the elements in the data stream and generates watermarks to signal
         event time progress. The given {@link WatermarkStrategy} is used to create a
@@ -699,7 +699,7 @@ class DataStream(object):
 
         stream_with_partition_info.name(
             gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
-                .STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME)
+            .STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME)
 
         JPartitionCustomKeySelector = gateway.jvm.PartitionCustomKeySelector
         JIdParitioner = gateway.jvm.org.apache.flink.api.java.functions.IdPartitioner
@@ -736,7 +736,7 @@ class DataStream(object):
         return DataStreamSink(self._j_data_stream.sinkTo(sink.get_java_function()))
 
     def execute_and_collect(self, job_execution_name: str = None, limit: int = None) \
-        -> Union['CloseableIterator', list]:
+            -> Union['CloseableIterator', list]:
         """
         Triggers the distributed execution of the streaming dataflow and returns an iterator over
         the elements of the given DataStream.
@@ -938,7 +938,7 @@ class DataStreamSink(object):
         return self
 
     def slot_sharing_group(self, slot_sharing_group: Union[str, SlotSharingGroup]) \
-        -> 'DataStreamSink':
+            -> 'DataStreamSink':
         """
         Sets the slot sharing group of this operation. Parallel instances of operations that are in
         the same slot sharing group will be co-located in the same TaskManager slot, if possible.
@@ -983,7 +983,7 @@ class KeyedStream(DataStream):
         self._origin_stream = origin_stream
 
     def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
-        -> 'DataStream':
+            -> 'DataStream':
         """
         Applies a Map transformation on a KeyedStream. The transformation calls a MapFunction for
         each element of the DataStream. Each MapFunction call returns exactly one element.
@@ -1165,7 +1165,7 @@ class KeyedStream(DataStream):
                 if self._filter_func(value):
                     yield value
 
-        return self.process(FilterKeyedProcessFunctionAdapter(func), self._original_data_type_info) \
+        return self.process(FilterKeyedProcessFunctionAdapter(func), self._original_data_type_info)\
             .name("Filter")
 
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
@@ -1383,7 +1383,7 @@ class WindowedStream(object):
         return self._get_result_data_stream(internal_window_function, result_type)
 
     def _get_result_data_stream(
-        self, internal_window_function: InternalWindowFunction, result_type):
+            self, internal_window_function: InternalWindowFunction, result_type):
         if self._window_trigger is None:
             self._window_trigger = self._window_assigner.get_default_trigger(
                 self.get_execution_environment())
@@ -1524,7 +1524,7 @@ class ConnectedStreams(object):
                 .name("Co-Map")
 
     def flat_map(self, func: CoFlatMapFunction, output_type: TypeInformation = None) \
-        -> 'DataStream':
+            -> 'DataStream':
         """
         Applies a CoFlatMap transformation on a `ConnectedStreams` and maps the output to a
         common type. The transformation calls a `CoFlatMapFunction.flatMap1` for each element
