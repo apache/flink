@@ -23,8 +23,8 @@ import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.table.annotation.DataTypeHint
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.table.functions.{FunctionContext, ScalarFunction, TableFunction}
+import org.apache.flink.table.functions.python.{PythonEnv, PythonFunction}
 import org.apache.flink.types.Row
 
 import org.junit.Assert
@@ -32,7 +32,6 @@ import org.junit.Assert
 import java.lang.Boolean
 
 import scala.annotation.varargs
-
 
 case class SimpleUser(name: String, age: Int)
 
@@ -50,7 +49,7 @@ class TableFunc0 extends TableFunction[SimpleUser] {
 @SerialVersionUID(1L)
 class TableFunc1 extends TableFunction[String] {
   def eval(str: String): Unit = {
-    if (str.contains("#")){
+    if (str.contains("#")) {
       str.split("#").foreach(collect)
     }
   }
@@ -67,12 +66,15 @@ class TableFunc1 extends TableFunction[String] {
 class TableFunc2 extends TableFunction[Row] {
   def eval(str: String): Unit = {
     if (str.contains("#")) {
-      str.split("#").foreach({ s =>
-        val row = new Row(2)
-        row.setField(0, s)
-        row.setField(1, s.length)
-        collect(row)
-      })
+      str
+        .split("#")
+        .foreach({
+          s =>
+            val row = new Row(2)
+            row.setField(0, s)
+            row.setField(1, s.length)
+            collect(row)
+        })
     }
   }
 
@@ -98,12 +100,13 @@ class TableFunc3(data: String, conf: Map[String, String]) extends TableFunction[
             val value = conf.get(key).get
             collect(
               SimpleUser(
-                data.concat("_key=")
-                .concat(key)
-                .concat("_value=")
-                .concat(value)
-                .concat("_")
-                .concat(splits(0)),
+                data
+                  .concat("_key=")
+                  .concat(key)
+                  .concat("_value=")
+                  .concat(value)
+                  .concat("_")
+                  .concat(splits(0)),
                 splits(1).toInt))
           }
         } else {
@@ -396,11 +399,9 @@ class TableFunc6 extends TableFunction[Row] {
 @DataTypeHint("ROW<f0 INT>")
 class TableFunc7 extends TableFunction[Row] {
 
-  def eval(@DataTypeHint("ROW<f0 INT>") row: Row): Unit = {
-  }
+  def eval(@DataTypeHint("ROW<f0 INT>") row: Row): Unit = {}
 
-  def eval(@DataTypeHint("ARRAY<ROW<f0 INT>>") row: java.util.List[Row]): Unit = {
-  }
+  def eval(@DataTypeHint("ARRAY<ROW<f0 INT>>") row: java.util.List[Row]): Unit = {}
 }
 
 @SerialVersionUID(1L)
@@ -457,7 +458,6 @@ class PojoUser() {
 // ----------------------------------------------------------------------------------------------
 // Invalid Table Functions
 // ----------------------------------------------------------------------------------------------
-
 
 // this is used to check whether scala object is forbidden
 @SerialVersionUID(1L)

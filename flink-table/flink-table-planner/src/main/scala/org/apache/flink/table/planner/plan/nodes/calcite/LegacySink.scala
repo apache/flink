@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
@@ -25,20 +24,25 @@ import org.apache.flink.table.sinks.TableSink
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.{RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.hint.RelHint
 
 import java.util
 
 /**
-  * Relational expression that writes out data of input node into a [[TableSink]].
-  *
-  * @param cluster  cluster that this relational expression belongs to
-  * @param traitSet the traits of this rel
-  * @param input    input relational expression
-  * @param sink     Table sink to write into
-  * @param sinkName Name of tableSink, which is not required property, that is, it could be null
-  */
+ * Relational expression that writes out data of input node into a [[TableSink]].
+ *
+ * @param cluster
+ *   cluster that this relational expression belongs to
+ * @param traitSet
+ *   the traits of this rel
+ * @param input
+ *   input relational expression
+ * @param sink
+ *   Table sink to write into
+ * @param sinkName
+ *   Name of tableSink, which is not required property, that is, it could be null
+ */
 abstract class LegacySink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -55,7 +59,8 @@ abstract class LegacySink(
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    super.explainTerms(pw)
+    super
+      .explainTerms(pw)
       .itemIf("name", sinkName, sinkName != null)
       .item("fields", sink.getTableSchema.getFieldNames.mkString(", "))
       .itemIf("hints", RelExplainUtil.hintsToString(hints), !hints.isEmpty)

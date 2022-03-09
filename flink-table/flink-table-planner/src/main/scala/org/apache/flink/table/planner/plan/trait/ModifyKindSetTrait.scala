@@ -15,18 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.`trait`
 
-import org.apache.calcite.plan.{RelOptPlanner, RelTrait, RelTraitDef}
 import org.apache.flink.table.connector.ChangelogMode
 import org.apache.flink.types.RowKind
 
+import org.apache.calcite.plan.{RelOptPlanner, RelTrait, RelTraitDef}
+
 import scala.collection.JavaConversions._
 
-/**
- * ModifyKindSetTrait is used to describe what modify operation will be produced by this node.
- */
+/** ModifyKindSetTrait is used to describe what modify operation will be produced by this node. */
 class ModifyKindSetTrait(val modifyKindSet: ModifyKindSet) extends RelTrait {
 
   override def satisfies(relTrait: RelTrait): Boolean = relTrait match {
@@ -53,24 +51,17 @@ class ModifyKindSetTrait(val modifyKindSet: ModifyKindSet) extends RelTrait {
 }
 
 object ModifyKindSetTrait {
-  /**
-   * An empty [[ModifyKindSetTrait]] which doesn't contain any [[ModifyKind]].
-   */
+
+  /** An empty [[ModifyKindSetTrait]] which doesn't contain any [[ModifyKind]]. */
   val EMPTY = new ModifyKindSetTrait(ModifyKindSet.newBuilder().build())
 
-  /**
-   * Insert-only [[ModifyKindSetTrait]].
-   */
+  /** Insert-only [[ModifyKindSetTrait]]. */
   val INSERT_ONLY = new ModifyKindSetTrait(ModifyKindSet.INSERT_ONLY)
 
-  /**
-   * A modify [[ModifyKindSetTrait]] that contains all change operations.
-   */
+  /** A modify [[ModifyKindSetTrait]] that contains all change operations. */
   val ALL_CHANGES = new ModifyKindSetTrait(ModifyKindSet.ALL_CHANGES)
 
-  /**
-   * Creates an instance of [[ModifyKindSetTrait]] from th given [[ChangelogMode]].
-   */
+  /** Creates an instance of [[ModifyKindSetTrait]] from th given [[ChangelogMode]]. */
   def fromChangelogMode(changelogMode: ChangelogMode): ModifyKindSetTrait = {
     val builder = ModifyKindSet.newBuilder
     changelogMode.getContainedKinds.foreach {

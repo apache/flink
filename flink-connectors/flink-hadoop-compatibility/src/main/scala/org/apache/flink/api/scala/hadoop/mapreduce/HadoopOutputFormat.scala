@@ -15,11 +15,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.hadoop.mapreduce
 
 import org.apache.flink.annotation.Public
 import org.apache.flink.api.java.hadoop.mapreduce.HadoopOutputFormatBase
+
 import org.apache.hadoop.mapreduce.{Job, OutputFormat}
 
 @Public

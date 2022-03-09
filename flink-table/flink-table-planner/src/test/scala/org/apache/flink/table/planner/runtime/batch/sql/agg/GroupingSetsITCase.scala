@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.batch.sql.agg
 
 import org.apache.flink.api.java.typeutils.RowTypeInfo
@@ -35,8 +34,17 @@ class GroupingSetsITCase extends BatchTestBase {
   private val TABLE_WITH_NULLS_NAME = "MyTableWithNulls"
 
   private val TABLE_NAME_EMPS = "emps"
-  private val empsTypes = new RowTypeInfo(Types.LONG, Types.STRING, Types.INT, Types.STRING,
-    Types.STRING, Types.LONG, Types.INT, Types.BOOLEAN, Types.BOOLEAN, Types.LOCAL_DATE)
+  private val empsTypes = new RowTypeInfo(
+    Types.LONG,
+    Types.STRING,
+    Types.INT,
+    Types.STRING,
+    Types.STRING,
+    Types.LONG,
+    Types.INT,
+    Types.BOOLEAN,
+    Types.BOOLEAN,
+    Types.LOCAL_DATE)
   private val empsNames =
     "empno, name, deptno, gender, city, empid, age, slacker, manager, joinedat"
   private val nullableOfEmps: Array[Boolean] =
@@ -77,8 +85,15 @@ class GroupingSetsITCase extends BatchTestBase {
   )
 
   private val TABLE_NAME_SCOTT_EMP = "scott_emp"
-  private val scottEmpTypes = new RowTypeInfo(Types.INT, Types.STRING, Types.STRING, Types.INT,
-    Types.LOCAL_DATE, Types.DOUBLE, Types.DOUBLE, Types.INT)
+  private val scottEmpTypes = new RowTypeInfo(
+    Types.INT,
+    Types.STRING,
+    Types.STRING,
+    Types.INT,
+    Types.LOCAL_DATE,
+    Types.DOUBLE,
+    Types.DOUBLE,
+    Types.INT)
   private val scottEmpNames = "empno, ename, job, mgr, hiredate, sal, comm, deptno"
   private val nullableOfScottEmp = Array(true, true, true, true, true, true, true, true)
   private lazy val scottEmpData = Seq(
@@ -102,22 +117,31 @@ class GroupingSetsITCase extends BatchTestBase {
   override def before(): Unit = {
     super.before()
     registerCollection(TABLE_NAME, data3, type3, "f0, f1, f2", nullablesOfData3)
-    val nullableData3 = data3.map { r =>
-      val newField2 = if (r.getField(2).asInstanceOf[String].contains("world")) {
-        null.asInstanceOf[String]
-      } else {
-        r.getField(2)
-      }
-      row(r.getField(0), r.getField(1), newField2)
+    val nullableData3 = data3.map {
+      r =>
+        val newField2 = if (r.getField(2).asInstanceOf[String].contains("world")) {
+          null.asInstanceOf[String]
+        } else {
+          r.getField(2)
+        }
+        row(r.getField(0), r.getField(1), newField2)
     }
     val nullablesOfNullsData3 = Array(true, true, true)
-    registerCollection(TABLE_WITH_NULLS_NAME, nullableData3, type3, "f0, f1, f2",
+    registerCollection(
+      TABLE_WITH_NULLS_NAME,
+      nullableData3,
+      type3,
+      "f0, f1, f2",
       nullablesOfNullsData3)
 
     registerCollection(TABLE_NAME_EMPS, empsData, empsTypes, empsNames, nullableOfEmps)
     registerCollection(TABLE_NAME_EMP, empData, empTypes, empNames, nullableOfEmp)
     registerCollection(TABLE_NAME_DEPT, deptData, deptTypes, deptNames, nullableOfDept)
-    registerCollection(TABLE_NAME_SCOTT_EMP, scottEmpData, scottEmpTypes, scottEmpNames,
+    registerCollection(
+      TABLE_NAME_SCOTT_EMP,
+      scottEmpData,
+      scottEmpTypes,
+      scottEmpNames,
       nullableOfScottEmp)
   }
 
@@ -163,7 +187,9 @@ class GroupingSetsITCase extends BatchTestBase {
         row(null, "San Francisco", null, 1),
         row(null, "Vancouver", null, 2),
         row(null, null, false, 1),
-        row(null, null, null, 2)))
+        row(null, null, null, 2)
+      )
+    )
   }
 
   @Test
@@ -184,16 +210,34 @@ class GroupingSetsITCase extends BatchTestBase {
         row("M", "Vancouver", -1, 1),
         row("M", "Vancouver", 40, 1),
         row(null, null, -1, 1),
-        row(null, null, 10, 1)))
+        row(null, null, 10, 1)
+      )
+    )
   }
 
   @Test
   def testCube(): Unit = {
     checkResult(
       "select deptno + 1, count(*) as c from emp group by cube(deptno, gender)",
-      Seq(row(11, 1), row(11, 1), row(11, 2), row(21, 1), row(21, 1), row(31, 2), row(31, 2),
-        row(51, 1), row(51, 1), row(51, 2), row(61, 1), row(61, 1), row(null, 1), row(null, 1),
-        row(null, 3), row(null, 6), row(null, 9))
+      Seq(
+        row(11, 1),
+        row(11, 1),
+        row(11, 2),
+        row(21, 1),
+        row(21, 1),
+        row(31, 2),
+        row(31, 2),
+        row(51, 1),
+        row(51, 1),
+        row(51, 2),
+        row(61, 1),
+        row(61, 1),
+        row(null, 1),
+        row(null, 1),
+        row(null, 3),
+        row(null, 6),
+        row(null, 9)
+      )
     )
   }
 
@@ -209,16 +253,29 @@ class GroupingSetsITCase extends BatchTestBase {
   def testRollupOn2Column(): Unit = {
     checkResult(
       "select gender, deptno + 1, count(*) as c from emp group by rollup(deptno, gender)",
-      Seq(row("M", 21, 1), row("F", 11, 1), row("F", 31, 2), row("F", 51, 1),
-        row("F", 61, 1), row("F", null, 1), row("M", 11, 1), row("M", 51, 1),
-        row(null, 11, 2), row(null, 21, 1), row(null, 31, 2), row(null, 51, 2),
-        row(null, 61, 1), row(null, null, 1), row(null, null, 9))
+      Seq(
+        row("M", 21, 1),
+        row("F", 11, 1),
+        row("F", 31, 2),
+        row("F", 51, 1),
+        row("F", 61, 1),
+        row("F", null, 1),
+        row("M", 11, 1),
+        row("M", 51, 1),
+        row(null, 11, 2),
+        row(null, 21, 1),
+        row(null, 31, 2),
+        row(null, 51, 2),
+        row(null, 61, 1),
+        row(null, null, 1),
+        row(null, null, 9)
+      )
     )
   }
 
   @Test
   def testRollupOnColumnWithNulls(): Unit = {
-    //Note the two rows with NULL key (one represents ALL)
+    // Note the two rows with NULL key (one represents ALL)
     checkResult(
       "select gender, count(*) as c from emp group by rollup(gender)",
       Seq(row("F", 6), row("M", 3), row(null, 9))
@@ -237,9 +294,25 @@ class GroupingSetsITCase extends BatchTestBase {
   def testRollupCartesianProduct(): Unit = {
     checkResult(
       "select deptno, count(*) as c from emp group by rollup(deptno), rollup(gender)",
-      Seq(row("10", 1), row("10", 1), row("20", 1), row("20", 1), row(null, 1), row("10", 2),
-        row("30", 2), row("30", 2), row("50", 1), row("50", 1), row("50", 2), row("60", 1),
-        row("60", 1), row(null, 1), row(null, 3), row(null, 6), row(null, 9))
+      Seq(
+        row("10", 1),
+        row("10", 1),
+        row("20", 1),
+        row("20", 1),
+        row(null, 1),
+        row("10", 2),
+        row("30", 2),
+        row("30", 2),
+        row("50", 1),
+        row("50", 1),
+        row("50", 2),
+        row("60", 1),
+        row("60", 1),
+        row(null, 1),
+        row(null, 3),
+        row(null, 6),
+        row(null, 9)
+      )
     )
   }
 
@@ -248,13 +321,48 @@ class GroupingSetsITCase extends BatchTestBase {
     checkResult(
       "select deptno / 2 + 1 as half1, count(*) as c from emp " +
         "group by rollup(deptno / 2, gender), rollup(substring(ename FROM 1 FOR 1))",
-      Seq(row(11, 1), row(11, 1), row(11, 1), row(11, 1), row(16, 1), row(16, 1),
-        row(16, 1), row(16, 1), row(16, 2), row(16, 2), row(26, 1), row(26, 1),
-        row(26, 1), row(26, 1), row(26, 1), row(26, 1), row(26, 2), row(31, 1),
-        row(31, 1), row(31, 1), row(31, 1), row(6, 1), row(6, 1), row(6, 1),
-        row(6, 1), row(6, 1), row(6, 1), row(6, 2), row(null, 1), row(null, 1),
-        row(null, 1), row(null, 1), row(null, 1), row(null, 1), row(null, 1),
-        row(null, 1), row(null, 1), row(null, 2), row(null, 2), row(null, 9))
+      Seq(
+        row(11, 1),
+        row(11, 1),
+        row(11, 1),
+        row(11, 1),
+        row(16, 1),
+        row(16, 1),
+        row(16, 1),
+        row(16, 1),
+        row(16, 2),
+        row(16, 2),
+        row(26, 1),
+        row(26, 1),
+        row(26, 1),
+        row(26, 1),
+        row(26, 1),
+        row(26, 1),
+        row(26, 2),
+        row(31, 1),
+        row(31, 1),
+        row(31, 1),
+        row(31, 1),
+        row(6, 1),
+        row(6, 1),
+        row(6, 1),
+        row(6, 1),
+        row(6, 1),
+        row(6, 1),
+        row(6, 2),
+        row(null, 1),
+        row(null, 1),
+        row(null, 1),
+        row(null, 1),
+        row(null, 1),
+        row(null, 1),
+        row(null, 1),
+        row(null, 1),
+        row(null, 1),
+        row(null, 2),
+        row(null, 2),
+        row(null, 9)
+      )
     )
   }
 
@@ -282,8 +390,11 @@ class GroupingSetsITCase extends BatchTestBase {
         "from emp as e join dept as d using (deptno) " +
         "group by cube(e.deptno, d.deptno, e.gender) " +
         "having count(*) > 2 or gender = 'M' and e.deptno = 10",
-      Seq(row(10, "M", "Bob"), row(10, "M", "Bob"),
-        row(null, "F", "Alice"), row(null, null, "Alice"))
+      Seq(
+        row(10, "M", "Bob"),
+        row(10, "M", "Bob"),
+        row(null, "F", "Alice"),
+        row(null, null, "Alice"))
     )
   }
 
@@ -300,7 +411,8 @@ class GroupingSetsITCase extends BatchTestBase {
     checkResult(
       "select deptno, job, count(*) as c, grouping(deptno) as d, grouping(job) j, " +
         "grouping(deptno, job) as x from scott_emp group by cube(deptno, job)",
-      Seq(row(10, "CLERK", 1, 0, 0, 0),
+      Seq(
+        row(10, "CLERK", 1, 0, 0, 0),
         row(10, "MANAGER", 1, 0, 0, 0),
         row(10, "PRESIDENT", 1, 0, 0, 0),
         row(10, null, 3, 0, 1, 1),
@@ -317,7 +429,8 @@ class GroupingSetsITCase extends BatchTestBase {
         row(null, "MANAGER", 3, 1, 0, 2),
         row(null, "PRESIDENT", 1, 1, 0, 2),
         row(null, "SALESMAN", 4, 1, 0, 2),
-        row(null, null, 14, 1, 1, 3))
+        row(null, null, 14, 1, 1, 3)
+      )
     )
   }
 
@@ -328,11 +441,23 @@ class GroupingSetsITCase extends BatchTestBase {
         "grouping_id(deptno) as gd, grouping_id(gender) as gg, " +
         "grouping_id(gender, deptno) as ggd, grouping_id(deptno, gender) as gdg " +
         "from emp group by rollup(deptno, gender)",
-      Seq(row(1, 0, 0, 0, 0, 0, 0), row(1, 0, 0, 0, 0, 0, 0), row(1, 0, 0, 0, 0, 0, 0),
-        row(1, 0, 0, 0, 0, 0, 0), row(1, 0, 0, 0, 0, 0, 0), row(1, 0, 0, 0, 0, 0, 0),
-        row(1, 0, 0, 0, 0, 0, 0), row(2, 0, 0, 0, 0, 0, 0), row(9, 1, 0, 1, 1, 3, 3),
-        row(1, 0, 0, 0, 1, 2, 1), row(1, 0, 0, 0, 1, 2, 1), row(1, 0, 0, 0, 1, 2, 1),
-        row(2, 0, 0, 0, 1, 2, 1), row(2, 0, 0, 0, 1, 2, 1), row(2, 0, 0, 0, 1, 2, 1))
+      Seq(
+        row(1, 0, 0, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0, 0, 0),
+        row(2, 0, 0, 0, 0, 0, 0),
+        row(9, 1, 0, 1, 1, 3, 3),
+        row(1, 0, 0, 0, 1, 2, 1),
+        row(1, 0, 0, 0, 1, 2, 1),
+        row(1, 0, 0, 0, 1, 2, 1),
+        row(2, 0, 0, 0, 1, 2, 1),
+        row(2, 0, 0, 0, 1, 2, 1),
+        row(2, 0, 0, 0, 1, 2, 1)
+      )
     )
   }
 
@@ -345,11 +470,23 @@ class GroupingSetsITCase extends BatchTestBase {
         "grouping_id(deptno, gender, deptno) as gidgd " +
         "from emp group by rollup(deptno, gender) " +
         "having grouping(deptno) <= grouping_id(deptno, gender, deptno)",
-      Seq(row(1, 0, 0, 0, 0), row(1, 0, 0, 0, 0), row(1, 0, 0, 0, 0),
-        row(1, 0, 0, 0, 0), row(1, 0, 0, 0, 0), row(1, 0, 0, 0, 0),
-        row(1, 0, 0, 0, 0), row(2, 0, 0, 0, 0), row(1, 0, 0, 2, 2),
-        row(1, 0, 0, 2, 2), row(1, 0, 0, 2, 2), row(2, 0, 0, 2, 2),
-        row(2, 0, 0, 2, 2), row(2, 0, 0, 2, 2), row(9, 1, 1, 7, 7))
+      Seq(
+        row(1, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0),
+        row(1, 0, 0, 0, 0),
+        row(2, 0, 0, 0, 0),
+        row(1, 0, 0, 2, 2),
+        row(1, 0, 0, 2, 2),
+        row(1, 0, 0, 2, 2),
+        row(2, 0, 0, 2, 2),
+        row(2, 0, 0, 2, 2),
+        row(2, 0, 0, 2, 2),
+        row(9, 1, 1, 7, 7)
+      )
     )
   }
 
@@ -366,8 +503,12 @@ class GroupingSetsITCase extends BatchTestBase {
     checkResult(
       "select deptno, gender, grouping_id(deptno, gender, deptno), count(*) as c " +
         "from emp where deptno = 10 group by rollup(gender, deptno)",
-      Seq(row(10, "F", 0, 1), row(10, "M", 0, 1), row(null, "F", 5, 1),
-        row(null, "M", 5, 1), row(null, null, 7, 2))
+      Seq(
+        row(10, "F", 0, 1),
+        row(10, "M", 0, 1),
+        row(null, "F", 5, 1),
+        row(null, "M", 5, 1),
+        row(null, null, 7, 2))
     )
   }
 
@@ -375,8 +516,14 @@ class GroupingSetsITCase extends BatchTestBase {
   def testGroupingInSelectClauseOfRollupQuery(): Unit = {
     checkResult(
       "select count(*) as c, deptno, grouping(deptno) as g from emp group by rollup(deptno)",
-      Seq(row(1, 20, 0), row(1, 60, 0), row(1, null, 0), row(2, 10, 0),
-        row(2, 30, 0), row(2, 50, 0), row(9, null, 1))
+      Seq(
+        row(1, 20, 0),
+        row(1, 60, 0),
+        row(1, null, 0),
+        row(2, 10, 0),
+        row(2, 30, 0),
+        row(2, 50, 0),
+        row(9, null, 1))
     )
   }
 
@@ -386,15 +533,25 @@ class GroupingSetsITCase extends BatchTestBase {
       "select deptno, gender, grouping(deptno) gd, grouping(gender) gg, " +
         "grouping_id(deptno, gender) dg, grouping_id(gender, deptno) gd, " +
         "group_id() gid, count(*) c from emp group by cube(deptno, gender)",
-      Seq(row(10, "F", 0, 0, 0, 0, 0, 1), row(10, "M", 0, 0, 0, 0, 0, 1),
-        row(20, "M", 0, 0, 0, 0, 0, 1), row(30, "F", 0, 0, 0, 0, 0, 2),
-        row(50, "F", 0, 0, 0, 0, 0, 1), row(50, "M", 0, 0, 0, 0, 0, 1),
-        row(60, "F", 0, 0, 0, 0, 0, 1), row(null, "F", 0, 0, 0, 0, 0, 1),
-        row(null, null, 1, 1, 3, 3, 0, 9), row(10, null, 0, 1, 1, 2, 0, 2),
-        row(20, null, 0, 1, 1, 2, 0, 1), row(30, null, 0, 1, 1, 2, 0, 2),
-        row(50, null, 0, 1, 1, 2, 0, 2), row(60, null, 0, 1, 1, 2, 0, 1),
-        row(null, "F", 1, 0, 2, 1, 0, 6), row(null, "M", 1, 0, 2, 1, 0, 3),
-        row(null, null, 0, 1, 1, 2, 0, 1))
+      Seq(
+        row(10, "F", 0, 0, 0, 0, 0, 1),
+        row(10, "M", 0, 0, 0, 0, 0, 1),
+        row(20, "M", 0, 0, 0, 0, 0, 1),
+        row(30, "F", 0, 0, 0, 0, 0, 2),
+        row(50, "F", 0, 0, 0, 0, 0, 1),
+        row(50, "M", 0, 0, 0, 0, 0, 1),
+        row(60, "F", 0, 0, 0, 0, 0, 1),
+        row(null, "F", 0, 0, 0, 0, 0, 1),
+        row(null, null, 1, 1, 3, 3, 0, 9),
+        row(10, null, 0, 1, 1, 2, 0, 2),
+        row(20, null, 0, 1, 1, 2, 0, 1),
+        row(30, null, 0, 1, 1, 2, 0, 2),
+        row(50, null, 0, 1, 1, 2, 0, 2),
+        row(60, null, 0, 1, 1, 2, 0, 1),
+        row(null, "F", 1, 0, 2, 1, 0, 6),
+        row(null, "M", 1, 0, 2, 1, 0, 3),
+        row(null, null, 0, 1, 1, 2, 0, 1)
+      )
     )
   }
 
@@ -403,23 +560,47 @@ class GroupingSetsITCase extends BatchTestBase {
     checkResult(
       "select deptno + 1 as d1, deptno + 1 - 1 as d0, count(*) as c " +
         "from emp group by rollup (deptno + 1)",
-      Seq(row(11, 10, 2), row(21, 20, 1), row(31, 30, 2), row(51, 50, 2),
-        row(61, 60, 1), row(null, null, 1), row(null, null, 9))
+      Seq(
+        row(11, 10, 2),
+        row(21, 20, 1),
+        row(31, 30, 2),
+        row(51, 50, 2),
+        row(61, 60, 1),
+        row(null, null, 1),
+        row(null, null, 9))
     )
 
     checkResult(
       "select mod(deptno, 20) as d, count(*) as c, gender as g " +
         "from emp group by cube(mod(deptno, 20), gender)",
-      Seq(row(0, 1, "F"), row(0, 1, "M"), row(0, 2, null), row(10, 2, "M"),
-        row(10, 4, "F"), row(10, 6, null), row(null, 1, "F"), row(null, 1, null),
-        row(null, 3, "M"), row(null, 6, "F"), row(null, 9, null))
+      Seq(
+        row(0, 1, "F"),
+        row(0, 1, "M"),
+        row(0, 2, null),
+        row(10, 2, "M"),
+        row(10, 4, "F"),
+        row(10, 6, null),
+        row(null, 1, "F"),
+        row(null, 1, null),
+        row(null, 3, "M"),
+        row(null, 6, "F"),
+        row(null, 9, null)
+      )
     )
 
     checkResult(
       "select mod(deptno, 20) as d, count(*) as c, gender as g " +
         "from emp group by rollup(mod(deptno, 20), gender)",
-      Seq(row(0, 1, "F"), row(0, 1, "M"), row(0, 2, null), row(10, 2, "M"), row(10, 4, "F"),
-        row(10, 6, null), row(null, 1, "F"), row(null, 1, null), row(null, 9, null))
+      Seq(
+        row(0, 1, "F"),
+        row(0, 1, "M"),
+        row(0, 2, null),
+        row(10, 2, "M"),
+        row(10, 4, "F"),
+        row(10, 6, null),
+        row(null, 1, "F"),
+        row(null, 1, null),
+        row(null, 9, null))
     )
 
     checkResult(
@@ -438,7 +619,8 @@ class GroupingSetsITCase extends BatchTestBase {
     checkResult(
       "select deptno, group_id() as g, count(*) as c " +
         "from scott_emp group by grouping sets (deptno, (), ())",
-      Seq(row(10, 0, 3),
+      Seq(
+        row(10, 0, 3),
         row(10, 1, 3),
         row(20, 0, 5),
         row(20, 1, 5),
@@ -461,7 +643,8 @@ class GroupingSetsITCase extends BatchTestBase {
         "end gr_text " +
         "from scott_emp group by rollup(deptno, job, (empno,ename)) " +
         "order by deptno, job, empno",
-      Seq(row(10, "CLERK", 7934, "MILLER", 1300.00, "grouped by deptno,job,empno,ename"),
+      Seq(
+        row(10, "CLERK", 7934, "MILLER", 1300.00, "grouped by deptno,job,empno,ename"),
         row(10, "CLERK", null, null, 1300.00, "grouped by deptno,job"),
         row(10, "MANAGER", 7782, "CLARK", 2450.00, "grouped by deptno,job,empno,ename"),
         row(10, "MANAGER", null, null, 2450.00, "grouped by deptno,job"),
@@ -487,7 +670,8 @@ class GroupingSetsITCase extends BatchTestBase {
         row(30, "SALESMAN", 7844, "TURNER", 1500.00, "grouped by deptno,job,empno,ename"),
         row(30, "SALESMAN", null, null, 5600.00, "grouped by deptno,job"),
         row(30, null, null, null, 9400.00, "grouped by deptno"),
-        row(null, null, null, null, 29025.00, "grouped by ()"))
+        row(null, null, null, null, 29025.00, "grouped by ()")
+      )
     )
   }
 
@@ -530,7 +714,8 @@ class GroupingSetsITCase extends BatchTestBase {
       row(null, "Comment#13", 19, 0, 1, 0, 1, 0, 2, 1),
       row(null, "Luke Skywalker", 6, 0, 1, 0, 1, 0, 2, 1),
       row(null, "Hello", 2, 0, 1, 0, 1, 0, 2, 1),
-      row(null, null, 11, 0, 1, 1, 1, 1, 3, 21))
+      row(null, null, 11, 0, 1, 1, 1, 1, 3, 21)
+    )
     checkResult(query, expected)
   }
 
@@ -564,7 +749,8 @@ class GroupingSetsITCase extends BatchTestBase {
       row(null, "Comment#12", 18, 0),
       row(null, "Comment#11", 17, 0),
       row(null, "Comment#10", 16, 0),
-      row(null, "Comment#1", 7, 0))
+      row(null, "Comment#1", 7, 0)
+    )
     checkResult(query, expected)
   }
 

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.hadoopcompatibility.scala
 
 import org.apache.flink.api.scala._
@@ -24,6 +23,7 @@ import org.apache.flink.hadoopcompatibility.scala.HadoopInputs
 import org.apache.flink.test.testdata.WordCountData
 import org.apache.flink.test.util.{JavaProgramTestBase, TestBaseUtils}
 import org.apache.flink.util.OperatingSystem
+
 import org.apache.hadoop.fs.Path
 import org.apache.hadoop.io.{LongWritable, Text}
 import org.apache.hadoop.mapreduce.Job
@@ -41,14 +41,16 @@ class WordCountMapreduceITCase extends JavaProgramTestBase {
     Assume.assumeTrue("This test can't run successfully on Windows.", !OperatingSystem.isWindows)
   }
 
-  protected override def preSubmit() {
+  override protected def preSubmit() {
     textPath = createTempFile("text.txt", WordCountData.TEXT)
     resultPath = getTempDirPath("result")
   }
 
-  protected override def postSubmit() {
-    TestBaseUtils.compareResultsByLinesInMemory(WordCountData.COUNTS,
-                                                resultPath, Array[String](".", "_"))
+  override protected def postSubmit() {
+    TestBaseUtils.compareResultsByLinesInMemory(
+      WordCountData.COUNTS,
+      resultPath,
+      Array[String](".", "_"))
   }
 
   protected def testProgram() {
@@ -56,26 +58,26 @@ class WordCountMapreduceITCase extends JavaProgramTestBase {
     postSubmit()
   }
 
-  private def internalRun (): Unit = {
+  private def internalRun(): Unit = {
     val env = ExecutionEnvironment.getExecutionEnvironment
 
     val input =
-      env.createInput(HadoopInputs.readHadoopFile(new TextInputFormat, classOf[LongWritable],
-        classOf[Text], textPath))
+      env.createInput(
+        HadoopInputs
+          .readHadoopFile(new TextInputFormat, classOf[LongWritable], classOf[Text], textPath))
 
     val counts = input
       .map(_._2.toString)
-      .flatMap(_.toLowerCase.split("\\W+").filter(_.nonEmpty).map( (_, 1)))
+      .flatMap(_.toLowerCase.split("\\W+").filter(_.nonEmpty).map((_, 1)))
       .groupBy(0)
       .sum(1)
 
     val words = counts
-      .map( t => (new Text(t._1), new LongWritable(t._2)) )
+      .map(t => (new Text(t._1), new LongWritable(t._2)))
 
     val job = Job.getInstance()
-    val hadoopOutputFormat = new HadoopOutputFormat[Text, LongWritable](
-      new TextOutputFormat[Text, LongWritable],
-      job)
+    val hadoopOutputFormat =
+      new HadoopOutputFormat[Text, LongWritable](new TextOutputFormat[Text, LongWritable], job)
     hadoopOutputFormat.getConfiguration.set("mapred.textoutputformat.separator", " ")
 
     FileOutputFormat.setOutputPath(job, new Path(resultPath))
@@ -85,4 +87,3 @@ class WordCountMapreduceITCase extends JavaProgramTestBase {
     env.execute("Hadoop Compat WordCount")
   }
 }
-

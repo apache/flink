@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.scala._
@@ -31,19 +30,20 @@ class PartitionableSinkTest extends TableTestBase {
   createTable("sink", shuffleBy = false)
 
   private def createTable(name: String, shuffleBy: Boolean): Unit = {
-    util.tableEnv.executeSql(
-      s"""
-         |create table $name (
-         |  a bigint,
-         |  b bigint,
-         |  c bigint
-         |) partitioned by (b, c) with (
-         |  'connector' = 'filesystem',
-         |  'path' = '/non',
-         |  ${if (shuffleBy) "'sink.shuffle-by-partition.enable'='true'," else ""}
-         |  'format' = 'testcsv'
-         |)
-         |""".stripMargin)
+    util.tableEnv.executeSql(s"""
+                                |create table $name (
+                                |  a bigint,
+                                |  b bigint,
+                                |  c bigint
+                                |) partitioned by (b, c) with (
+                                |  'connector' = 'filesystem',
+                                |  'path' = '/non',
+                                |  ${
+                                 if (shuffleBy) "'sink.shuffle-by-partition.enable'='true'," else ""
+                               }
+                                |  'format' = 'testcsv'
+                                |)
+                                |""".stripMargin)
   }
 
   @Test

@@ -18,20 +18,18 @@
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecCorrelate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalTableFunctionScan
 import org.apache.flink.table.planner.plan.utils.JoinTypeUtil
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
-import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.`type`.RelDataType
+import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rel.core.JoinRelType
 import org.apache.calcite.rex.{RexCall, RexNode}
 
-/**
- * Flink RelNode which matches along with join a Java/Scala user defined table function.
- */
+/** Flink RelNode which matches along with join a Java/Scala user defined table function. */
 class StreamPhysicalCorrelate(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -49,18 +47,8 @@ class StreamPhysicalCorrelate(
     outputRowType,
     joinType) {
 
-  def copy(
-      traitSet: RelTraitSet,
-      newChild: RelNode,
-      outputType: RelDataType): RelNode = {
-    new StreamPhysicalCorrelate(
-      cluster,
-      traitSet,
-      newChild,
-      scan,
-      condition,
-      outputType,
-      joinType)
+  def copy(traitSet: RelTraitSet, newChild: RelNode, outputType: RelDataType): RelNode = {
+    new StreamPhysicalCorrelate(cluster, traitSet, newChild, scan, condition, outputType, joinType)
   }
 
   override def translateToExecNode(): ExecNode[_] = {

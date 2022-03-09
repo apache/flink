@@ -17,21 +17,17 @@
  */
 package org.apache.flink.api.scala.typeutils
 
-import org.apache.flink.annotation.{PublicEvolving, Public}
+import org.apache.flink.annotation.{Public, PublicEvolving}
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.TypeSerializer
 
 import scala.collection.JavaConverters._
-
 import scala.util.Try
 
-/**
- * TypeInformation for [[scala.util.Try]].
- */
+/** TypeInformation for [[scala.util.Try]]. */
 @Public
-class TryTypeInfo[A, T <: Try[A]](val elemTypeInfo: TypeInformation[A])
-  extends TypeInformation[T] {
+class TryTypeInfo[A, T <: Try[A]](val elemTypeInfo: TypeInformation[A]) extends TypeInformation[T] {
 
   @PublicEvolving
   override def isBasicType: Boolean = false

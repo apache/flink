@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.catalog.{CatalogTable, ContextResolvedTable, ObjectIdentifier, ResolvedCatalogTable}
@@ -34,9 +33,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[Sink]] that is a relational expression
-  * which writes out data of input node into a [[DynamicTableSink]].
-  */
+ * Sub-class of [[Sink]] that is a relational expression which writes out data of input node into a
+ * [[DynamicTableSink]].
+ */
 class FlinkLogicalSink(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

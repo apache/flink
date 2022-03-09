@@ -24,31 +24,36 @@ import org.apache.flink.streaming.api.windowing.windows.Window
 import org.apache.flink.util.Collector
 
 /**
-  * Wraps a joined data stream, allowing to use anonymous partial functions to
-  * perform extraction of items in a tuple, case class instance or collection
-  *
-  * @param stream The wrapped data stream
-  * @tparam T The type of the data stream items from the right input of the join
-  * @tparam K The type of key
-  * @tparam W The type of the window
-  */
+ * Wraps a joined data stream, allowing to use anonymous partial functions to perform extraction of
+ * items in a tuple, case class instance or collection
+ *
+ * @param stream
+ *   The wrapped data stream
+ * @tparam T
+ *   The type of the data stream items from the right input of the join
+ * @tparam K
+ *   The type of key
+ * @tparam W
+ *   The type of the window
+ */
 class OnWindowedStream[T, K, W <: Window](stream: WindowedStream[T, K, W]) {
 
   /**
-    * Applies a reduce function to the window. The window function is called for each evaluation
-    * of the window for each key individually. The output of the reduce function is interpreted
-    * as a regular non-windowed stream.
-    *
-    * This window will try and pre-aggregate data as much as the window policies permit.
-    * For example,tumbling time windows can perfectly pre-aggregate the data, meaning that only one
-    * element per key is stored. Sliding time windows will pre-aggregate on the granularity of the
-    * slide interval, so a few elements are stored per key (one per slide interval).
-    * Custom windows may not be able to pre-aggregate, or may need to store extra values in an
-    * aggregation tree.
-    *
-    * @param function The reduce function.
-    * @return The data stream that is the result of applying the reduce function to the window.
-    */
+   * Applies a reduce function to the window. The window function is called for each evaluation of
+   * the window for each key individually. The output of the reduce function is interpreted as a
+   * regular non-windowed stream.
+   *
+   * This window will try and pre-aggregate data as much as the window policies permit. For
+   * example,tumbling time windows can perfectly pre-aggregate the data, meaning that only one
+   * element per key is stored. Sliding time windows will pre-aggregate on the granularity of the
+   * slide interval, so a few elements are stored per key (one per slide interval). Custom windows
+   * may not be able to pre-aggregate, or may need to store extra values in an aggregation tree.
+   *
+   * @param function
+   *   The reduce function.
+   * @return
+   *   The data stream that is the result of applying the reduce function to the window.
+   */
   @PublicEvolving
   def reduceWith(function: (T, T) => T): DataStream[T] =
     stream.reduce(function)

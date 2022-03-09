@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.api.TableConfig
@@ -23,17 +22,17 @@ import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.PlannerContext
+import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.metadata.MockMetaTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.types.logical.LogicalType
 import org.apache.flink.table.utils.CatalogManagerMocks
 
 import org.apache.calcite.jdbc.CalciteSchema
 import org.apache.calcite.plan.{Convention, ConventionTraitDef, RelOptCluster, RelTraitSet}
+import org.apache.calcite.rel.RelCollationTraitDef
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.calcite.rel.RelCollationTraitDef
 import org.apache.calcite.rex.RexBuilder
 import org.apache.calcite.schema.SchemaPlus
 import org.junit.Before
@@ -41,8 +40,8 @@ import org.junit.Before
 import java.util
 
 /**
- * A base class for rel node test.
- * TODO refactor the metadata test to extract the common logic for all related tests.
+ * A base class for rel node test. TODO refactor the metadata test to extract the common logic for
+ * all related tests.
  */
 class RelNodeTestBase {
   val tableConfig = new TableConfig()
@@ -61,8 +60,8 @@ class RelNodeTestBase {
       ConventionTraitDef.INSTANCE,
       FlinkRelDistributionTraitDef.INSTANCE,
       RelCollationTraitDef.INSTANCE
-      )
     )
+  )
 
   val typeFactory: FlinkTypeFactory = plannerContext.getTypeFactory
   var relBuilder: FlinkRelBuilder = _
@@ -80,9 +79,12 @@ class RelNodeTestBase {
 
   /**
    * Build a [[LogicalTableScan]] based on a [[MockMetaTable]] using given field names and types.
-    @param fieldNames String array
-   * @param fieldTypes [[LogicalType]] array
-   * @return a [[LogicalTableScan]]
+   * @param fieldNames
+   *   String array
+   * @param fieldTypes
+   *   [[LogicalType]] array
+   * @return
+   *   a [[LogicalTableScan]]
    */
   def buildLogicalTableScan(
       fieldNames: Array[String],

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.calcite.plan._
@@ -23,10 +22,10 @@ import org.apache.calcite.rel.RelNode
 import org.apache.calcite.rex.RexNode
 
 /**
-  * Sub-class of [[WatermarkAssigner]] that is a relational operator
-  * which generates [[org.apache.flink.streaming.api.watermark.Watermark]].
-  * This class corresponds to Calcite logical rel.
-  */
+ * Sub-class of [[WatermarkAssigner]] that is a relational operator which generates
+ * [[org.apache.flink.streaming.api.watermark.Watermark]]. This class corresponds to Calcite logical
+ * rel.
+ */
 final class LogicalWatermarkAssigner(
     cluster: RelOptCluster,
     traits: RelTraitSet,
@@ -55,4 +54,3 @@ object LogicalWatermarkAssigner {
     new LogicalWatermarkAssigner(cluster, traits, input, rowtimeFieldIndex, watermarkExpr)
   }
 }
-

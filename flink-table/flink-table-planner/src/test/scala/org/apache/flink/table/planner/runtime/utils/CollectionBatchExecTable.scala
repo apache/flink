@@ -28,8 +28,8 @@ import scala.util.Random
 /**
  * #################################################################################################
  *
- * BE AWARE THAT OTHER TESTS DEPEND ON THIS TEST DATA.
- * IF YOU MODIFY THE DATA MAKE SURE YOU CHECK THAT ALL TESTS ARE STILL WORKING!
+ * BE AWARE THAT OTHER TESTS DEPEND ON THIS TEST DATA. IF YOU MODIFY THE DATA MAKE SURE YOU CHECK
+ * THAT ALL TESTS ARE STILL WORKING!
  *
  * #################################################################################################
  */
@@ -104,8 +104,7 @@ object CollectionBatchExecTable {
     BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getGroupSortedNestedTupleDataSet(env: TableEnvironment, fields: String = null)
-    : Table = {
+  def getGroupSortedNestedTupleDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[((Int, Int), String)]
     data.+=(((1, 3), "a"))
     data.+=(((1, 2), "a"))
@@ -184,8 +183,7 @@ object CollectionBatchExecTable {
     BatchTableEnvUtil.fromCollection(env, Random.shuffle(data), fields)
   }
 
-  def getSmallTuplebasedPojoMatchingDataSet(env: TableEnvironment, fields: String = null):
-    Table = {
+  def getSmallTuplebasedPojoMatchingDataSet(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[(Int, String, Int, Int, Long, String, Long)]
     data.+=((1, "First", 10, 100, 1000L, "One", 10000L))
     data.+=((2, "Second", 20, 200, 2000L, "Two", 20000L))
@@ -227,22 +225,14 @@ object CollectionBatchExecTable {
 
   def getTupleContainingPojos(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[(Int, CrazyNested, POJO)]
-    data.+=((
-      1,
-      new CrazyNested("one", "uno", 1L),
-      new POJO(1, "First", 10, 100, 1000L, "One", 10000L)))
-    data.+=((
-      1,
-      new CrazyNested("one", "uno", 1L),
-      new POJO(1, "First", 10, 100, 1000L, "One", 10000L)))
-    data.+=((
-      1,
-      new CrazyNested("one", "uno", 1L),
-      new POJO(1, "First", 10, 100, 1000L, "One", 10000L)))
-    data.+=((
-      2,
-      new CrazyNested("two", "duo", 2L),
-      new POJO(1, "First", 10, 100, 1000L, "One", 10000L)))
+    data.+=(
+      (1, new CrazyNested("one", "uno", 1L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L)))
+    data.+=(
+      (1, new CrazyNested("one", "uno", 1L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L)))
+    data.+=(
+      (1, new CrazyNested("one", "uno", 1L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L)))
+    data.+=(
+      (2, new CrazyNested("two", "duo", 2L), new POJO(1, "First", 10, 100, 1000L, "One", 10000L)))
     BatchTableEnvUtil.fromCollection(env, data, fields)
   }
 
@@ -259,8 +249,7 @@ object CollectionBatchExecTable {
     BatchTableEnvUtil.fromCollection(env, data, fields)
   }
 
-  def getSmallTuplebasedDataSetMatchingPojo(env: TableEnvironment, fields: String = null):
-  Table = {
+  def getSmallTuplebasedDataSetMatchingPojo(env: TableEnvironment, fields: String = null): Table = {
     val data = new mutable.MutableList[(Long, Integer, Integer, Long, String, Integer, String)]
     data.+=((10000L, 10, 100, 1000L, "One", 1, "First"))
     data.+=((20000L, 20, 200, 2000L, "Two", 2, "Second"))
@@ -269,8 +258,7 @@ object CollectionBatchExecTable {
   }
 
   def getPojoWithMultiplePojos(env: TableEnvironment, fields: String = null): Table = {
-    val data = new mutable.MutableList[CollectionBatchExecTable
-    .PojoWithMultiplePojos]
+    val data = new mutable.MutableList[CollectionBatchExecTable.PojoWithMultiplePojos]
     data.+=(new CollectionBatchExecTable.PojoWithMultiplePojos("a", "aa", "b", "bb", 1))
     data.+=(new CollectionBatchExecTable.PojoWithMultiplePojos("b", "bb", "c", "cc", 2))
     data.+=(new CollectionBatchExecTable.PojoWithMultiplePojos("b", "bb", "c", "cc", 2))
@@ -280,7 +268,7 @@ object CollectionBatchExecTable {
     BatchTableEnvUtil.fromCollection(env, data, fields)
   }
 
-  /** Tool converters used to convert string fields to array of [[Expression]]s. **/
+  /** Tool converters used to convert string fields to array of [[Expression]]s. * */
   implicit def strToExpressions(fields: String): Array[Expression] = {
     if (fields == null) {
       null
@@ -401,4 +389,3 @@ object CollectionBatchExecTable {
   }
 
 }
-

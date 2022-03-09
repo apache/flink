@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.calcite
 
 import org.apache.flink.table.planner.plan.nodes.calcite.{LogicalExpand, LogicalRank}
@@ -23,17 +22,15 @@ import org.apache.flink.table.runtime.operators.rank.{RankRange, RankType}
 
 import org.apache.calcite.plan.Contexts
 import org.apache.calcite.rel.`type`.RelDataTypeField
-import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rel.{RelCollation, RelNode}
+import org.apache.calcite.rel.core.RelFactories
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.tools.{RelBuilder, RelBuilderFactory}
 import org.apache.calcite.util.ImmutableBitSet
 
 import java.util
 
-/**
-  * Contains factory interface and default implementation for creating various rel nodes.
-  */
+/** Contains factory interface and default implementation for creating various rel nodes. */
 object FlinkRelFactories {
 
   val FLINK_REL_BUILDER: RelBuilderFactory = FlinkRelBuilder.proto(Contexts.empty)
@@ -55,10 +52,7 @@ object FlinkRelFactories {
 
   val DEFAULT_RANK_FACTORY = new RankFactoryImpl
 
-  /**
-    * Can create a [[LogicalExpand]] of the
-    * appropriate type for this rule's calling convention.
-    */
+  /** Can create a [[LogicalExpand]] of the appropriate type for this rule's calling convention. */
   trait ExpandFactory {
     def createExpand(
         input: RelNode,
@@ -66,9 +60,7 @@ object FlinkRelFactories {
         expandIdIndex: Int): RelNode
   }
 
-  /**
-    * Implementation of [[ExpandFactory]] that returns a [[LogicalExpand]].
-    */
+  /** Implementation of [[ExpandFactory]] that returns a [[LogicalExpand]]. */
   class ExpandFactoryImpl extends ExpandFactory {
     def createExpand(
         input: RelNode,
@@ -78,10 +70,7 @@ object FlinkRelFactories {
     }
   }
 
-  /**
-    * Can create a [[LogicalRank]] of the
-    * appropriate type for this rule's calling convention.
-    */
+  /** Can create a [[LogicalRank]] of the appropriate type for this rule's calling convention. */
   trait RankFactory {
     def createRank(
         input: RelNode,
@@ -93,9 +82,7 @@ object FlinkRelFactories {
         outputRankNumber: Boolean): RelNode
   }
 
-  /**
-    * Implementation of [[RankFactory]] that returns a [[LogicalRank]].
-    */
+  /** Implementation of [[RankFactory]] that returns a [[LogicalRank]]. */
   class RankFactoryImpl extends RankFactory {
     def createRank(
         input: RelNode,
@@ -105,8 +92,14 @@ object FlinkRelFactories {
         rankRange: RankRange,
         rankNumberType: RelDataTypeField,
         outputRankNumber: Boolean): RelNode = {
-      LogicalRank.create(input, partitionKey, orderKey, rankType, rankRange,
-        rankNumberType, outputRankNumber)
+      LogicalRank.create(
+        input,
+        partitionKey,
+        orderKey,
+        rankType,
+        rankRange,
+        rankNumberType,
+        outputRankNumber)
     }
   }
 }

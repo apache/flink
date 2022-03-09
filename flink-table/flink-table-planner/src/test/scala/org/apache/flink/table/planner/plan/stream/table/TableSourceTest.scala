@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.core.testutils.FlinkMatchers.containsMessage
@@ -66,9 +65,10 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    val t = util.tableEnv.from("rowTimeT")
+    val t = util.tableEnv
+      .from("rowTimeT")
       .where($"val" > 100)
-      .window(Tumble over 10.minutes on 'rowtime as 'w)
+      .window(Tumble.over(10.minutes).on('rowtime).as('w))
       .groupBy('name, 'w)
       .select('name, 'w.end, 'val.avg)
     util.verifyExecPlan(t)
@@ -91,9 +91,10 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    val t = util.tableEnv.from("rowTimeT")
+    val t = util.tableEnv
+      .from("rowTimeT")
       .where($"val" > 100)
-      .window(Tumble over 10.minutes on 'rowtime as 'w)
+      .window(Tumble.over(10.minutes).on('rowtime).as('w))
       .groupBy('name, 'w)
       .select('name, 'w.end, 'val.avg)
     util.verifyExecPlan(t)
@@ -115,9 +116,10 @@ class TableSourceTest extends TableTestBase {
        """.stripMargin
     util.tableEnv.executeSql(ddl)
 
-    val t = util.tableEnv.from("procTimeT")
-      .window(Over partitionBy 'id orderBy 'proctime preceding 2.hours as 'w)
-      .select('id, 'name, 'val.sum over 'w as 'valSum)
+    val t = util.tableEnv
+      .from("procTimeT")
+      .window(Over.partitionBy('id).orderBy('proctime).preceding(2.hours).as('w))
+      .select('id, 'name, 'val.sum.over('w).as('valSum))
       .filter('valSum > 100)
     util.verifyExecPlan(t)
   }
@@ -234,11 +236,13 @@ class TableSourceTest extends TableTestBase {
 
     val t = util.tableEnv
       .from("T")
-      .select('id,
-        'deepNested.get("nested1").get("name") as 'nestedName,
-        'nested.get("value") as 'nestedValue,
-        'deepNested.get("nested2").get("flag") as 'nestedFlag,
-        'deepNested.get("nested2").get("num") as 'nestedNum)
+      .select(
+        'id,
+        'deepNested.get("nested1").get("name").as('nestedName),
+        'nested.get("value").as('nestedValue),
+        'deepNested.get("nested2").get("flag").as('nestedFlag),
+        'deepNested.get("nested2").get("num").as('nestedNum)
+      )
     util.verifyExecPlan(t)
   }
 

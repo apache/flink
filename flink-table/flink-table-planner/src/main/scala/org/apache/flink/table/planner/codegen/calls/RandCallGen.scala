@@ -15,17 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
-import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GeneratedExpression}
+import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
 import org.apache.flink.table.types.logical.{DoubleType, IntType, LogicalType}
 
-/**
-  * Generates a random function call.
-  * Supports: RAND([seed]) and RAND_INTEGER([seed, ] bound)
-  */
+/** Generates a random function call. Supports: RAND([seed]) and RAND_INTEGER([seed, ] bound) */
 class RandCallGen(isRandInteger: Boolean, hasSeed: Boolean) extends CallGenerator {
 
   override def generate(
@@ -43,13 +39,11 @@ class RandCallGen(isRandInteger: Boolean, hasSeed: Boolean) extends CallGenerato
     }
 
     if (isRandInteger) {
-      generateCallIfArgsNotNull(ctx, new IntType(), operands) { terms =>
-        s"$randField.nextInt(${terms.last})"
+      generateCallIfArgsNotNull(ctx, new IntType(), operands) {
+        terms => s"$randField.nextInt(${terms.last})"
       }
     } else {
-      generateCallIfArgsNotNull(ctx, new DoubleType(), operands) { _ =>
-        s"$randField.nextDouble()"
-      }
+      generateCallIfArgsNotNull(ctx, new DoubleType(), operands)(_ => s"$randField.nextDouble()")
     }
   }
 

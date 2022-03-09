@@ -15,11 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
+import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, CodeGenUtils, GeneratedExpression}
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateCallIfArgsNotNull
-import org.apache.flink.table.planner.codegen.{CodeGenUtils, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.types.logical.LogicalType
 
 class HashCodeCallGen extends CallGenerator {
@@ -31,6 +30,6 @@ class HashCodeCallGen extends CallGenerator {
     val inputType = operands.head.resultType
     val code = CodeGenUtils.hashCodeForType(ctx, inputType, inputTerm)
 
-    generateCallIfArgsNotNull(ctx, returnType, operands) { _ => code }
+    generateCallIfArgsNotNull(ctx, returnType, operands)(_ => code)
   }
 }

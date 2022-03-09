@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.runtime.stream.sql
 
 import org.apache.flink.core.fs.Path
@@ -26,9 +25,7 @@ import org.junit.Assert.assertEquals
 
 import scala.collection.Seq
 
-/**
-  * Test csv [[StreamFileSystemITCaseBase]].
-  */
+/** Test csv [[StreamFileSystemITCaseBase]]. */
 class StreamFileSystemTestCsvITCase extends StreamFileSystemITCaseBase {
 
   override def formatProperties(): Array[String] = {

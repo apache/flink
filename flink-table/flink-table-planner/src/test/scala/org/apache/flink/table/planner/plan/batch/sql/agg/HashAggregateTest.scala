@@ -37,9 +37,10 @@ class HashAggregateTest(aggStrategy: AggregatePhaseStrategy) extends AggregateTe
   def before(): Unit = {
     // disable sort agg
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, OperatorType.SortAgg.toString)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+      OperatorType.SortAgg.toString)
+    util.tableEnv.getConfig.getConfiguration
+      .setString(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, aggStrategy.toString)
   }
 
   override def testMinWithVariableLengthType(): Unit = {

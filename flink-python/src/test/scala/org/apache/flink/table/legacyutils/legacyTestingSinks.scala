@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.legacyutils
 
 import org.apache.flink.api.common.functions.MapFunction
@@ -42,8 +41,8 @@ private[flink] class TestAppendSink extends AppendStreamTableSink[Row] {
   var fTypes: Array[TypeInformation[_]] = _
 
   override def consumeDataStream(dataStream: DataStream[Row]): DataStreamSink[_] = {
-    dataStream.map(
-      new MapFunction[Row, JTuple2[JBool, Row]] {
+    dataStream
+      .map(new MapFunction[Row, JTuple2[JBool, Row]] {
         override def map(value: Row): JTuple2[JBool, Row] = new JTuple2(true, value)
       })
       .addSink(new RowSink)
@@ -56,8 +55,8 @@ private[flink] class TestAppendSink extends AppendStreamTableSink[Row] {
   override def getFieldTypes: Array[TypeInformation[_]] = fTypes
 
   override def configure(
-    fieldNames: Array[String],
-    fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = {
+      fieldNames: Array[String],
+      fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = {
     val copy = new TestAppendSink
     copy.fNames = fieldNames
     copy.fTypes = fieldTypes
@@ -92,9 +91,7 @@ private[flink] class TestRetractSink extends RetractStreamTableSink[Row] {
 }
 
 @deprecated
-private[flink] class TestUpsertSink(
-    expectedKeys: Array[String],
-    expectedIsAppendOnly: Boolean)
+private[flink] class TestUpsertSink(expectedKeys: Array[String], expectedIsAppendOnly: Boolean)
   extends UpsertStreamTableSink[Row] {
 
   var fNames: Array[String] = _
@@ -165,16 +162,18 @@ object RowCollector {
   def retractResults(results: List[JTuple2[JBool, Row]]): List[String] = {
 
     val retracted = results
-      .foldLeft(Map[String, Int]()){ (m: Map[String, Int], v: JTuple2[JBool, Row]) =>
-        val cnt = m.getOrElse(v.f1.toString, 0)
-        if (v.f0) {
-          m + (v.f1.toString -> (cnt + 1))
-        } else {
-          m + (v.f1.toString -> (cnt - 1))
-        }
-      }.filter{ case (_, c: Int) => c != 0 }
+      .foldLeft(Map[String, Int]()) {
+        (m: Map[String, Int], v: JTuple2[JBool, Row]) =>
+          val cnt = m.getOrElse(v.f1.toString, 0)
+          if (v.f0) {
+            m + (v.f1.toString -> (cnt + 1))
+          } else {
+            m + (v.f1.toString -> (cnt - 1))
+          }
+      }
+      .filter { case (_, c: Int) => c != 0 }
 
-    if (retracted.exists{ case (_, c: Int) => c < 0}) {
+    if (retracted.exists { case (_, c: Int) => c < 0 }) {
       throw new AssertionError("Received retracted rows which have not been accumulated.")
     }
 
@@ -186,13 +185,14 @@ object RowCollector {
 
     def getKeys(r: Row): Row = Row.project(r, keys)
 
-    val upserted = results.foldLeft(Map[Row, String]()){ (o: Map[Row, String], r) =>
-      val key = getKeys(r.f1)
-      if (r.f0) {
-        o + (key -> r.f1.toString)
-      } else {
-        o - key
-      }
+    val upserted = results.foldLeft(Map[Row, String]()) {
+      (o: Map[Row, String], r) =>
+        val key = getKeys(r.f1)
+        if (r.f0) {
+          o + (key -> r.f1.toString)
+        } else {
+          o - key
+        }
     }
 
     upserted.values.toList

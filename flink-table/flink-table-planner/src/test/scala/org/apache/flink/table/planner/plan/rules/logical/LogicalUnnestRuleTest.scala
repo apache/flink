@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.planner.plan.common.UnnestTestBase
@@ -26,9 +25,7 @@ import org.apache.calcite.plan.hep.HepMatchOrder
 import org.apache.calcite.tools.RuleSets
 import org.junit.Before
 
-/**
-  * Test for [[LogicalUnnestRule]].
-  */
+/** Test for [[LogicalUnnestRule]]. */
 class LogicalUnnestRuleTest extends UnnestTestBase(false) {
 
   override protected def getTableTestUtil: TableTestUtil = batchTestUtil()

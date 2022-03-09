@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.logical
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -32,9 +31,9 @@ import java.util
 import scala.collection.JavaConversions._
 
 /**
-  * Sub-class of [[Intersect]] that is a relational expression
-  * which returns the intersection of the rows of its inputs in Flink.
-  */
+ * Sub-class of [[Intersect]] that is a relational expression which returns the intersection of the
+ * rows of its inputs in Flink.
+ */
 class FlinkLogicalIntersect(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -79,9 +78,7 @@ private class FlinkLogicalIntersectConverter
 object FlinkLogicalIntersect {
   val CONVERTER: ConverterRule = new FlinkLogicalIntersectConverter()
 
-  def create(
-      inputs: util.List[RelNode],
-      all: Boolean): FlinkLogicalIntersect = {
+  def create(inputs: util.List[RelNode], all: Boolean): FlinkLogicalIntersect = {
     val cluster = inputs.get(0).getCluster
     val traitSet = cluster.traitSetOf(FlinkConventions.LOGICAL).simplify()
     new FlinkLogicalIntersect(cluster, traitSet, inputs, all)

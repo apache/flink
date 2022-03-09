@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.api.common.BatchShuffleMode
@@ -28,10 +27,10 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.api.config.{ExecutionConfigOptions, OptimizerConfigOptions}
 import org.apache.flink.table.planner.utils.{TableTestBase, TableTestUtil}
 
+import org.junit.{Before, Test}
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 import org.junit.runners.Parameterized.Parameters
-import org.junit.{Before, Test}
 
 @RunWith(classOf[Parameterized])
 class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTestBase {
@@ -50,7 +49,8 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
   @Test
   def testBasicMultipleInput(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+      "NestedLoopJoin,SortMergeJoin")
     val sql =
       """
         |SELECT * FROM
@@ -71,10 +71,11 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
     //                 \-> [J -> J] -> [Agg -> J -/
     //                      |    |             |
     //                      y    t             y
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration
+      .setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin,SortAgg")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+      "HashJoin,SortMergeJoin,SortAgg")
     val sql =
       """
         |WITH
@@ -103,7 +104,8 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
   @Test
   def testJoinWithAggAsProbe(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+      "NestedLoopJoin,SortMergeJoin,SortAgg")
     val sql =
       """
         |WITH T AS (SELECT a, d FROM x INNER JOIN y ON x.a = y.d)
@@ -119,16 +121,16 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
   @Test
   def testKeepMultipleInputWithOneMemberForChainableSource(): Unit = {
     createChainableTableSource()
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+    util.tableEnv.getConfig.getConfiguration
+      .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sql = "SELECT * FROM chainable LEFT JOIN x ON chainable.a = x.a"
     util.verifyExecPlan(sql)
   }
 
   @Test
   def testAvoidIncludingUnionFromInputSide(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+    util.tableEnv.getConfig.getConfiguration
+      .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sql =
       """
         |SELECT * FROM
@@ -141,8 +143,8 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
   @Test
   def testIncludeUnionForChainableSource(): Unit = {
     createChainableTableSource()
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+    util.tableEnv.getConfig.getConfiguration
+      .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sql =
       """
         |SELECT * FROM
@@ -154,8 +156,8 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
 
   @Test
   def testAvoidIncludingCalcAfterNonChainableSource(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+    util.tableEnv.getConfig.getConfiguration
+      .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sql =
       """
         |SELECT * FROM x
@@ -169,8 +171,8 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
   @Test
   def testIncludeCalcForChainableSource(): Unit = {
     createChainableTableSource()
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+    util.tableEnv.getConfig.getConfiguration
+      .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sql =
       """
         |SELECT * FROM chainable
@@ -184,7 +186,8 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
   @Test
   def testAvoidIncludingSingleton(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin,HashAgg")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+      "HashJoin,SortMergeJoin,HashAgg")
     val sql =
       """
         |WITH
@@ -201,8 +204,8 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
 
   @Test
   def testNoPriorityConstraint(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
+    util.tableEnv.getConfig.getConfiguration
+      .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,NestedLoopJoin")
     val sql =
       """
         |SELECT * FROM x
@@ -214,8 +217,8 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
 
   @Test
   def testRelatedInputs(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+    util.tableEnv.getConfig.getConfiguration
+      .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sql =
       """
         |WITH
@@ -233,7 +236,8 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
   @Test
   def testRelatedInputsWithAgg(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin,SortAgg")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+      "HashJoin,SortMergeJoin,SortAgg")
     val sql =
       """
         |WITH
@@ -250,10 +254,11 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
 
   @Test
   def testRemoveRedundantUnion(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration
+      .setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin,SortAgg")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+      "NestedLoopJoin,SortMergeJoin,SortAgg")
     val sql =
       """
         |WITH
@@ -271,10 +276,11 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
 
   @Test
   def testRemoveOneInputOperatorFromRoot(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
+    util.tableEnv.getConfig.getConfiguration
+      .setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, false)
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+      "NestedLoopJoin,SortMergeJoin")
     val sql =
       """
         |WITH
@@ -291,7 +297,8 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
   @Test
   def testCleanUpMultipleInputWithOneMember(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+      "NestedLoopJoin,SortMergeJoin")
     val sql =
       """
         |WITH
@@ -307,10 +314,10 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
   @Test
   def testKeepUsefulUnion(): Unit = {
     createChainableTableSource()
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
+    util.tableEnv.getConfig.getConfiguration
+      .setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration
+      .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashJoin,SortMergeJoin")
     val sql =
       """
         |WITH
@@ -326,10 +333,11 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
 
   @Test
   def testDeadlockCausedByExchangeInAncestor(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, true)
+    util.tableEnv.getConfig.getConfiguration
+      .setBoolean(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED, true)
     util.tableEnv.getConfig.getConfiguration.setString(
-      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "NestedLoopJoin,SortMergeJoin")
+      ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS,
+      "NestedLoopJoin,SortMergeJoin")
     val sql =
       """
         |WITH T1 AS (
@@ -345,8 +353,8 @@ class MultipleInputCreationTest(shuffleMode: BatchShuffleMode) extends TableTest
       new MockSource(Boundedness.BOUNDED, 1),
       WatermarkStrategy.noWatermarks[Integer],
       "chainable")
-    TableTestUtil.createTemporaryView[Integer](
-      util.tableEnv, "chainable", dataStream, Some(Array('a)))
+    TableTestUtil
+      .createTemporaryView[Integer](util.tableEnv, "chainable", dataStream, Some(Array('a)))
   }
 }
 

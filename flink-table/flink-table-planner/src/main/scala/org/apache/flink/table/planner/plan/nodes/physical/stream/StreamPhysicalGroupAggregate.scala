@@ -19,14 +19,14 @@ package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.PartialFinalType
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGroupAggregate
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils, RelExplainUtil}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
-import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.rel.{RelNode, RelWriter}
+import org.apache.calcite.rel.core.AggregateCall
 
 import java.util
 
@@ -35,7 +35,8 @@ import java.util
  *
  * This node does support un-splittable aggregate function (e.g. STDDEV_POP).
  *
- * @see [[StreamPhysicalGroupAggregateBase]] for more info.
+ * @see
+ *   [[StreamPhysicalGroupAggregateBase]] for more info.
  */
 class StreamPhysicalGroupAggregate(
     cluster: RelOptCluster,
@@ -67,15 +68,14 @@ class StreamPhysicalGroupAggregate(
 
   override def explainTerms(pw: RelWriter): RelWriter = {
     val inputRowType = getInput.getRowType
-    super.explainTerms(pw)
-      .itemIf("groupBy",
-        RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
+    super
+      .explainTerms(pw)
+      .itemIf("groupBy", RelExplainUtil.fieldToString(grouping, inputRowType), grouping.nonEmpty)
       .itemIf("partialFinalType", partialFinalType, partialFinalType != PartialFinalType.NONE)
-      .item("select", RelExplainUtil.streamGroupAggregationToString(
-        inputRowType,
-        getRowType,
-        aggInfoList,
-        grouping))
+      .item(
+        "select",
+        RelExplainUtil
+          .streamGroupAggregationToString(inputRowType, getRowType, aggInfoList, grouping))
   }
 
   override def translateToExecNode(): ExecNode[_] = {

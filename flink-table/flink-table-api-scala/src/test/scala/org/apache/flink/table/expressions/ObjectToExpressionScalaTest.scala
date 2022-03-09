@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.expressions
 
 import org.apache.flink.table.api.ImplicitExpressionConversions
@@ -31,9 +30,9 @@ class ObjectToExpressionScalaTest extends ImplicitExpressionConversions {
 
   @Test
   def testSeqConversion(): Unit = {
-      val expr = ApiExpressionUtils.objectToExpression(Seq(1, 2));
+    val expr = ApiExpressionUtils.objectToExpression(Seq(1, 2));
 
-      assertThatEquals(expr, array(1, 2));
+    assertThatEquals(expr, array(1, 2));
   }
 
   @Test

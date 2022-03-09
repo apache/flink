@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.codegen.calls
 
 import org.apache.flink.table.functions.{FunctionDefinition, ScalarFunction, TableFunction, UserDefinedFunctionHelper}
@@ -43,8 +42,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
   override def generate(
       ctx: CodeGeneratorContext,
       operands: Seq[GeneratedExpression],
-      returnType: LogicalType)
-    : GeneratedExpression = {
+      returnType: LogicalType): GeneratedExpression = {
 
     val function: BridgingSqlFunction = call.getOperator.asInstanceOf[BridgingSqlFunction]
     val definition: FunctionDefinition = function.getDefinition
@@ -55,10 +53,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
     val callContext = new OperatorBindingCallContext(
       dataTypeFactory,
       definition,
-      RexCallBinding.create(
-        function.getTypeFactory,
-        call,
-        Collections.emptyList()),
+      RexCallBinding.create(function.getTypeFactory, call, Collections.emptyList()),
       call.getType)
 
     // create the final UDF for runtime

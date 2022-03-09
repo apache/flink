@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.legacyutils
 
 import org.apache.flink.api.common.ExecutionConfig
@@ -28,8 +27,8 @@ import org.apache.flink.streaming.api.datastream.{DataStream, DataStreamSink, Da
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction
 import org.apache.flink.table.api.TableSchema
-import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.descriptors.{DescriptorProperties, Schema}
+import org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR
 import org.apache.flink.table.factories.{StreamTableSinkFactory, StreamTableSourceFactory}
 import org.apache.flink.table.functions.{AsyncTableFunction, TableFunction}
 import org.apache.flink.table.legacyutils.TestCollectionTableFactory.{getCollectionSink, getCollectionSource}
@@ -39,18 +38,15 @@ import org.apache.flink.types.Row
 
 import java.io.IOException
 import java.util
-import java.util.{Optional, ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap}
+import java.util.{ArrayList => JArrayList, LinkedList => JLinkedList, List => JList, Map => JMap, Optional}
 
 import scala.collection.JavaConversions._
 
-/**
- * Testing utils adopted from legacy planner until the Python code is updated.
- */
+/** Testing utils adopted from legacy planner until the Python code is updated. */
 @deprecated
 class TestCollectionTableFactory
   extends StreamTableSourceFactory[Row]
-  with StreamTableSinkFactory[Row]
-{
+  with StreamTableSinkFactory[Row] {
 
   override def createTableSource(properties: JMap[String, String]): TableSource[Row] = {
     getCollectionSource(properties, TestCollectionTableFactory.isStreaming)
@@ -90,22 +86,24 @@ object TestCollectionTableFactory {
   val RESULT = new JLinkedList[Row]()
   private var emitIntervalMS = -1L
 
-  def initData(sourceData: JList[Row],
+  def initData(
+      sourceData: JList[Row],
       dimData: JList[Row] = List(),
-      emitInterval: Long = -1L): Unit ={
+      emitInterval: Long = -1L): Unit = {
     SOURCE_DATA.addAll(sourceData)
     DIM_DATA.addAll(dimData)
     emitIntervalMS = emitInterval
   }
 
-  def reset(): Unit ={
+  def reset(): Unit = {
     RESULT.clear()
     SOURCE_DATA.clear()
     DIM_DATA.clear()
     emitIntervalMS = -1L
   }
 
-  def getCollectionSource(props: JMap[String, String],
+  def getCollectionSource(
+      props: JMap[String, String],
       isStreaming: Boolean): CollectionTableSource = {
     val properties = new DescriptorProperties()
     properties.putProperties(props)
@@ -121,9 +119,7 @@ object TestCollectionTableFactory {
     new CollectionTableSink(schema.toRowType.asInstanceOf[RowTypeInfo])
   }
 
-  /**
-    * Table source of collection.
-    */
+  /** Table source of collection. */
   class CollectionTableSource(
       val emitIntervalMs: Long,
       val schema: TableSchema,
@@ -137,9 +133,11 @@ object TestCollectionTableFactory {
     override def isBounded: Boolean = !isStreaming
 
     override def getDataStream(streamEnv: StreamExecutionEnvironment): DataStreamSource[Row] = {
-      val dataStream = streamEnv.createInput(new TestCollectionInputFormat[Row](emitIntervalMs,
-        SOURCE_DATA,
-        rowType.createSerializer(new ExecutionConfig)),
+      val dataStream = streamEnv.createInput(
+        new TestCollectionInputFormat[Row](
+          emitIntervalMs,
+          SOURCE_DATA,
+          rowType.createSerializer(new ExecutionConfig)),
         rowType)
       if (parallelism.isPresent) {
         dataStream.setParallelism(parallelism.get())
@@ -162,11 +160,8 @@ object TestCollectionTableFactory {
     override def isAsyncEnabled: Boolean = false
   }
 
-  /**
-    * Table sink of collection.
-    */
-  class CollectionTableSink(val outputType: RowTypeInfo)
-      extends AppendStreamTableSink[Row] {
+  /** Table sink of collection. */
+  class CollectionTableSink(val outputType: RowTypeInfo) extends AppendStreamTableSink[Row] {
 
     override def getOutputType: RowTypeInfo = outputType
 
@@ -180,13 +175,12 @@ object TestCollectionTableFactory {
       dataStream.addSink(new UnsafeMemorySinkFunction(outputType)).setParallelism(1)
     }
 
-    override def configure(fieldNames: Array[String],
+    override def configure(
+        fieldNames: Array[String],
         fieldTypes: Array[TypeInformation[_]]): TableSink[Row] = this
   }
 
-  /**
-    * Sink function of unsafe memory.
-    */
+  /** Sink function of unsafe memory. */
   class UnsafeMemorySinkFunction(outputType: TypeInformation[Row]) extends RichSinkFunction[Row] {
     private var serializer: TypeSerializer[Row] = _
 
@@ -200,9 +194,7 @@ object TestCollectionTableFactory {
     }
   }
 
-  /**
-    * Collection inputFormat for testing.
-    */
+  /** Collection inputFormat for testing. */
   class TestCollectionInputFormat[T](
       val emitIntervalMs: Long,
       val dataSet: java.util.Collection[T],
@@ -221,12 +213,9 @@ object TestCollectionTableFactory {
     }
   }
 
-  /**
-    * Dimension table source fetcher.
-    */
-  class TemporalTableFetcher(
-      val dimData: JLinkedList[Row],
-      val keys: Array[Int]) extends TableFunction[Row] {
+  /** Dimension table source fetcher. */
+  class TemporalTableFetcher(val dimData: JLinkedList[Row], val keys: Array[Int])
+    extends TableFunction[Row] {
 
     @throws[Exception]
     def eval(values: Any*): Unit = {
@@ -242,9 +231,7 @@ object TestCollectionTableFactory {
         if (matched) {
           // copy the row data
           val ret = new Row(data.getArity)
-          0 until data.getArity foreach { idx =>
-            ret.setField(idx, data.getField(idx))
-          }
+          (0 until data.getArity).foreach(idx => ret.setField(idx, data.getField(idx)))
           collect(ret)
         }
       }

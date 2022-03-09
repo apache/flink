@@ -18,21 +18,21 @@
 package org.apache.flink.api.scala.operators
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction
+import org.apache.flink.api.scala._
 import org.apache.flink.api.scala.util.CollectionDataSets
 import org.apache.flink.api.scala.util.CollectionDataSets.MutableTuple3
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.core.fs.FileSystem.WriteMode
+import org.apache.flink.test.util.{MultipleProgramsTestBase, TestBaseUtils}
 import org.apache.flink.test.util.MultipleProgramsTestBase.TestExecutionMode
-import org.apache.flink.test.util.{TestBaseUtils, MultipleProgramsTestBase}
 import org.apache.flink.util.Collector
-import org.junit.{Test, After, Before, Rule}
+
+import org.junit.{After, Before, Rule, Test}
 import org.junit.rules.TemporaryFolder
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 import scala.collection.JavaConverters._
-
-import org.apache.flink.api.scala._
 
 @RunWith(classOf[Parameterized])
 class FlatMapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mode) {
@@ -60,7 +60,7 @@ class FlatMapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getStringDataSet(env)
-    val nonPassingFlatMapDs = ds.flatMap( in => if (in.contains("banana")) Some(in) else None )
+    val nonPassingFlatMapDs = ds.flatMap(in => if (in.contains("banana")) Some(in) else None)
     nonPassingFlatMapDs.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "\n"
@@ -73,7 +73,7 @@ class FlatMapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getStringDataSet(env)
-    val duplicatingFlatMapDs = ds.flatMap( in => Seq(in, in.toUpperCase) )
+    val duplicatingFlatMapDs = ds.flatMap(in => Seq(in, in.toUpperCase))
     duplicatingFlatMapDs.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi\n" + "HI\n" + "Hello\n" + "HELLO\n" + "Hello world\n" + "HELLO WORLD\n" +
@@ -92,7 +92,7 @@ class FlatMapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
     val varyingTuplesMapDs = ds.flatMap {
       in =>
         val numTuples = in._1 % 3
-        (0 until numTuples) map { i => in }
+        (0 until numTuples).map(i => in)
     }
     varyingTuplesMapDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -111,7 +111,7 @@ class FlatMapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.getCustomTypeDataSet(env)
-    val typeConversionFlatMapDs = ds.flatMap { in => Some((in.myInt, in.myLong, in.myString)) }
+    val typeConversionFlatMapDs = ds.flatMap(in => Some((in.myInt, in.myLong, in.myString)))
     typeConversionFlatMapDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "1,0,Hi\n" + "2,1,Hello\n" + "2,2,Hello world\n" + "3,3,Hello world, " +
@@ -125,11 +125,11 @@ class FlatMapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
   @Test
   def testTypeConversionFlatMapperTupleToBasic(): Unit = {
     /*
-         * Test type conversion flatmapper (Tuple -> Basic)
-         */
+     * Test type conversion flatmapper (Tuple -> Basic)
+     */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ds = CollectionDataSets.get3TupleDataSet(env)
-    val typeConversionFlatMapDs = ds.flatMap ( in => Some(in._3) )
+    val typeConversionFlatMapDs = ds.flatMap(in => Some(in._3))
     typeConversionFlatMapDs.writeAsText(resultPath, WriteMode.OVERWRITE)
     env.execute()
     expected = "Hi\n" + "Hello\n" + "Hello world\n" + "Hello world, how are you?\n" + "I am fine" +
@@ -146,13 +146,11 @@ class FlatMapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
      * multiple times and changes it in between
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
-    val ds = CollectionDataSets.get3TupleDataSet(env).map {
-      t => MutableTuple3(t._1, t._2, t._3)
-    }
+    val ds = CollectionDataSets.get3TupleDataSet(env).map(t => MutableTuple3(t._1, t._2, t._3))
     val inputObjFlatMapDs = ds.flatMap {
       (in, out: Collector[MutableTuple3[Int, Long, String]]) =>
         val numTuples = in._1 % 4
-        (0 until numTuples) foreach { i => in._1 = i; out.collect(in) }
+        (0 until numTuples).foreach { i => in._1 = i; out.collect(in) }
     }
     inputObjFlatMapDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
@@ -174,27 +172,28 @@ class FlatMapITCase(mode: TestExecutionMode) extends MultipleProgramsTestBase(mo
      */
     val env = ExecutionEnvironment.getExecutionEnvironment
     val ints = CollectionDataSets.getIntDataSet(env)
-    val ds = CollectionDataSets.get3TupleDataSet(env).map {
-      t => MutableTuple3(t._1, t._2, t._3)
-    }
-    val bcFlatMapDs = ds.flatMap(
-      new RichFlatMapFunction[MutableTuple3[Int, Long, String],
-        MutableTuple3[Int, Long, String]] {
-        private var f2Replace = 0
-        private val outTuple = MutableTuple3(0, 0L, "")
-        override def open(config: Configuration): Unit = {
-          val ints = getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
-          f2Replace = ints.sum
-        }
-        override def flatMap(
-                              value: MutableTuple3[Int, Long, String],
-                              out: Collector[MutableTuple3[Int, Long, String]]): Unit = {
-          outTuple._1 = f2Replace
-          outTuple._2 = value._2
-          outTuple._3 = value._3
-          out.collect(outTuple)
-        }
-      }).withBroadcastSet(ints, "ints")
+    val ds = CollectionDataSets.get3TupleDataSet(env).map(t => MutableTuple3(t._1, t._2, t._3))
+    val bcFlatMapDs = ds
+      .flatMap(
+        new RichFlatMapFunction[
+          MutableTuple3[Int, Long, String],
+          MutableTuple3[Int, Long, String]] {
+          private var f2Replace = 0
+          private val outTuple = MutableTuple3(0, 0L, "")
+          override def open(config: Configuration): Unit = {
+            val ints = getRuntimeContext.getBroadcastVariable[Int]("ints").asScala
+            f2Replace = ints.sum
+          }
+          override def flatMap(
+              value: MutableTuple3[Int, Long, String],
+              out: Collector[MutableTuple3[Int, Long, String]]): Unit = {
+            outTuple._1 = f2Replace
+            outTuple._2 = value._2
+            outTuple._3 = value._3
+            out.collect(outTuple)
+          }
+        })
+      .withBroadcastSet(ints, "ints")
     bcFlatMapDs.writeAsCsv(resultPath, writeMode = WriteMode.OVERWRITE)
     env.execute()
     expected = "55,1,Hi\n" + "55,2,Hello\n" + "55,2,Hello world\n" + "55,3,Hello world, " +

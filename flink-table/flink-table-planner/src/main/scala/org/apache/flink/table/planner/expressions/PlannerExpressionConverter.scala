@@ -15,14 +15,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.expressions
 
 import org.apache.flink.api.common.typeinfo.{TypeInformation, Types}
 import org.apache.flink.table.api.{TableException, ValidationException}
 import org.apache.flink.table.expressions._
-import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.functions._
+import org.apache.flink.table.functions.BuiltInFunctionDefinitions._
 import org.apache.flink.table.planner.functions.InternalFunctionDefinitions.THROW_EXCEPTION
 import org.apache.flink.table.runtime.types.TypeInfoDataTypeConverter.fromDataTypeToTypeInfo
 import org.apache.flink.table.types.logical.LogicalTypeRoot.{CHAR, DECIMAL, SYMBOL}
@@ -30,26 +29,28 @@ import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{hasLength, 
 
 import _root_.scala.collection.JavaConverters._
 
-/**
-  * Visitor implementation for converting [[Expression]]s to [[PlannerExpression]]s.
-  */
+/** Visitor implementation for converting [[Expression]]s to [[PlannerExpression]]s. */
 class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExpression] {
 
   override def visit(call: CallExpression): PlannerExpression = {
     val definition = call.getFunctionDefinition
     translateCall(
-      definition, call.getChildren.asScala,
+      definition,
+      call.getChildren.asScala,
       () =>
         definition match {
           case ROW | ARRAY | MAP => ApiResolvedExpression(call.getOutputDataType)
           case _ =>
-            if (definition.getKind == FunctionKind.AGGREGATE ||
-              definition.getKind == FunctionKind.TABLE_AGGREGATE) {
+            if (
+              definition.getKind == FunctionKind.AGGREGATE ||
+              definition.getKind == FunctionKind.TABLE_AGGREGATE
+            ) {
               ApiResolvedAggregateCallExpression(call)
             } else {
               ApiResolvedExpression(call.getOutputDataType)
             }
-        })
+        }
+    )
   }
 
   override def visit(unresolvedCall: UnresolvedCallExpression): PlannerExpression = {
@@ -63,8 +64,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   private def translateCall(
       func: FunctionDefinition,
       children: Seq[Expression],
-      unknownFunctionHandler: () => PlannerExpression)
-    : PlannerExpression = {
+      unknownFunctionHandler: () => PlannerExpression): PlannerExpression = {
 
     // special case: requires individual handling of child expressions
     func match {
@@ -73,9 +73,9 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
         assert(children.size == 3)
         return Reinterpret(
           children.head.accept(this),
-          fromDataTypeToTypeInfo(
-            children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType),
-          getValue[Boolean](children(2).accept(this)))
+          fromDataTypeToTypeInfo(children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType),
+          getValue[Boolean](children(2).accept(this))
+        )
 
       case WINDOW_START =>
         assert(children.size == 1)
@@ -101,8 +101,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
         assert(children.size == 2)
         return ThrowException(
           children.head.accept(this),
-          fromDataTypeToTypeInfo(
-            children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType))
+          fromDataTypeToTypeInfo(children(1).asInstanceOf[TypeLiteralExpression].getOutputDataType))
 
       case _ =>
     }
@@ -111,19 +110,13 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
     func match {
       case sfd: ScalarFunctionDefinition =>
-        val call = PlannerScalarFunctionCall(
-          sfd.getScalarFunction,
-          args)
-        //it configures underlying state
+        val call = PlannerScalarFunctionCall(sfd.getScalarFunction, args)
+        // it configures underlying state
         call.validateInput()
         call
 
       case tfd: TableFunctionDefinition =>
-        PlannerTableFunctionCall(
-          tfd.toString,
-          tfd.getTableFunction,
-          args,
-          tfd.getResultType)
+        PlannerTableFunctionCall(tfd.toString, tfd.getTableFunction, args, tfd.getResultType)
 
       case afd: AggregateFunctionDefinition =>
         AggFunctionCall(
@@ -180,11 +173,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
 
           case TEMPORAL_OVERLAPS =>
             assert(args.size == 4)
-            TemporalOverlaps(
-              args.head,
-              args(1),
-              args(2),
-              args.last)
+            TemporalOverlaps(args.head, args(1), args(2), args.last)
 
           case DATE_FORMAT =>
             assert(args.size == 2)
@@ -264,15 +253,11 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
     if (literal.isNull) {
       Null(typeInfo)
     } else {
-      Literal(
-        literal.getValueAs(typeInfo.getTypeClass).get(),
-        typeInfo)
+      Literal(literal.getValueAs(typeInfo.getTypeClass).get(), typeInfo)
     }
   }
 
-  /**
-    * This method makes the planner more lenient for new data types defined for literals.
-    */
+  /** This method makes the planner more lenient for new data types defined for literals. */
   private def getLiteralTypeInfo(literal: ValueLiteralExpression): TypeInformation[_] = {
     val logicalType = literal.getOutputDataType.getLogicalType
 
@@ -284,9 +269,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       if (hasPrecision(logicalType, value.precision()) && hasScale(logicalType, value.scale())) {
         return Types.BIG_DEC
       }
-    }
-
-    else if (logicalType.is(CHAR)) {
+    } else if (logicalType.is(CHAR)) {
       if (literal.isNull) {
         return Types.STRING
       }
@@ -336,8 +319,7 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
       fromDataTypeToTypeInfo(fieldReference.getOutputDataType))
   }
 
-  override def visit(fieldReference: UnresolvedReferenceExpression)
-    : PlannerExpression = {
+  override def visit(fieldReference: UnresolvedReferenceExpression): PlannerExpression = {
     UnresolvedFieldReference(fieldReference.getName)
   }
 
@@ -384,9 +366,9 @@ class PlannerExpressionConverter private extends ApiExpressionVisitor[PlannerExp
   }
 
   private def translateWindowReference(reference: Expression): PlannerExpression = reference match {
-    case expr : LocalReferenceExpression =>
+    case expr: LocalReferenceExpression =>
       WindowReference(expr.getName, Some(fromDataTypeToTypeInfo(expr.getOutputDataType)))
-    //just because how the datastream is converted to table
+    // just because how the datastream is converted to table
     case expr: UnresolvedReferenceExpression =>
       UnresolvedFieldReference(expr.getName)
     case _ =>

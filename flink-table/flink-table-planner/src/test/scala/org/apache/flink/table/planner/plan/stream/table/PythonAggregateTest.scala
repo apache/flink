@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table
 
 import org.apache.flink.api.java.tuple.Tuple1
@@ -49,7 +48,8 @@ class PythonAggregateTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
     val func = new TestPythonAggregateFunction
 
-    val resultTable = sourceTable.groupBy('b)
+    val resultTable = sourceTable
+      .groupBy('b)
       .select('b, func('a, 'c))
 
     util.verifyExecPlan(resultTable)
@@ -61,7 +61,8 @@ class PythonAggregateTest extends TableTestBase {
     val sourceTable = util.addTableSource[(Int, Long, Int)]("MyTable", 'a, 'b, 'c)
     val func = new TestPythonAggregateFunction
 
-    val resultTable = sourceTable.groupBy('b)
+    val resultTable = sourceTable
+      .groupBy('b)
       .select('b, func('a, 'c), 'a.count())
 
     util.verifyExecPlan(resultTable)
@@ -72,7 +73,8 @@ class PythonAggregateTest extends TableTestBase {
     val accType = DataTypes.ROW(
       DataTypes.FIELD("f0", DataTypes.STRING()),
       DataTypes.FIELD("f1", ListView.newListViewDataType(DataTypes.STRING())),
-      DataTypes.FIELD("f2", MapView.newMapViewDataType(DataTypes.STRING(), DataTypes.BIGINT())))
+      DataTypes.FIELD("f2", MapView.newMapViewDataType(DataTypes.STRING(), DataTypes.BIGINT()))
+    )
 
     val specs = CommonPythonUtil.extractDataViewSpecs(0, accType)
 
@@ -84,9 +86,11 @@ class PythonAggregateTest extends TableTestBase {
       new MapViewSpec(
         "agg0$f2",
         2,
-        DataTypes.MAP(
-          DataTypes.STRING(), DataTypes.BIGINT()).bridgedTo(classOf[java.util.Map[_, _]]),
-        false))
+        DataTypes
+          .MAP(DataTypes.STRING(), DataTypes.BIGINT())
+          .bridgedTo(classOf[java.util.Map[_, _]]),
+        false)
+    )
 
     assertEquals(expected(0).getClass, specs(0).getClass)
     assertEquals(expected(0).getDataType, specs(0).getDataType)
@@ -101,8 +105,9 @@ class PythonAggregateTest extends TableTestBase {
   @Test(expected = classOf[TableException])
   def testExtractSecondLevelDataViewSpecs(): Unit = {
     val accType = DataTypes.ROW(
-      DataTypes.FIELD("f0", DataTypes.ROW(
-        DataTypes.FIELD("f0", ListView.newListViewDataType(DataTypes.STRING())))))
+      DataTypes.FIELD(
+        "f0",
+        DataTypes.ROW(DataTypes.FIELD("f0", ListView.newListViewDataType(DataTypes.STRING())))))
     CommonPythonUtil.extractDataViewSpecs(0, accType)
   }
 

@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.table.stringexpr
 
 import org.apache.flink.api.scala._
@@ -31,14 +30,14 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testPartitionedUnboundedOverRow(): Unit = {
     val util = streamTestUtil()
-    val t = util.addDataStream[(Long, Int, String, Int, Long)](
-      "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
+    val t =
+      util.addDataStream[(Long, Int, String, Int, Long)]("T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
-      .window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_ROW as 'w)
-      .select('a, 'b.sum over 'w as 'cnt, call("weightAvgFun", 'a, 'b) over 'w as 'myCnt)
+      .window(Over.partitionBy('a).orderBy('rowtime).preceding(UNBOUNDED_ROW).as('w))
+      .select('a, 'b.sum.over('w).as('cnt), call("weightAvgFun", 'a, 'b).over('w).as('myCnt))
     val resJava = t
       .window(Over.partitionBy("a").orderBy("rowtime").preceding("unbounded_row").as("w"))
       .select("a, SUM(b) OVER w as cnt, weightAvgFun(a, b) over w as myCnt")
@@ -49,14 +48,14 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testUnboundedOverRow(): Unit = {
     val util = streamTestUtil()
-    val t = util.addDataStream[(Long, Int, String, Int, Long)](
-      "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
+    val t =
+      util.addDataStream[(Long, Int, String, Int, Long)]("T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
-      .window(Over orderBy 'rowtime preceding UNBOUNDED_ROW following CURRENT_ROW as 'w)
-      .select('a, 'b.sum over 'w, call("weightAvgFun", 'a, 'b) over 'w as 'myCnt)
+      .window(Over.orderBy('rowtime).preceding(UNBOUNDED_ROW).following(CURRENT_ROW).as('w))
+      .select('a, 'b.sum.over('w), call("weightAvgFun", 'a, 'b).over('w).as('myCnt))
     val resJava = t
       .window(Over.orderBy("rowtime").preceding("unbounded_row").following("current_row").as("w"))
       .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
@@ -67,14 +66,14 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testPartitionedBoundedOverRow(): Unit = {
     val util = streamTestUtil()
-    val t = util.addDataStream[(Long, Int, String, Int, Long)](
-      "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
+    val t =
+      util.addDataStream[(Long, Int, String, Int, Long)]("T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
-      .window(Over partitionBy('a, 'd) orderBy 'rowtime preceding 10.rows as 'w)
-      .select('a, 'b.sum over 'w, call("weightAvgFun", 'a, 'b) over 'w as 'myCnt)
+      .window(Over.partitionBy('a, 'd).orderBy('rowtime).preceding(10.rows).as('w))
+      .select('a, 'b.sum.over('w), call("weightAvgFun", 'a, 'b).over('w).as('myCnt))
     val resJava = t
       .window(Over.partitionBy("a, d").orderBy("rowtime").preceding("10.rows").as("w"))
       .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
@@ -85,14 +84,14 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testBoundedOverRow(): Unit = {
     val util = streamTestUtil()
-    val t = util.addDataStream[(Long, Int, String, Int, Long)](
-      "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
+    val t =
+      util.addDataStream[(Long, Int, String, Int, Long)]("T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
-      .window(Over orderBy 'rowtime preceding 10.rows following CURRENT_ROW as 'w)
-      .select('a, 'b.sum over 'w, call("weightAvgFun", 'a, 'b) over 'w as 'myCnt)
+      .window(Over.orderBy('rowtime).preceding(10.rows).following(CURRENT_ROW).as('w))
+      .select('a, 'b.sum.over('w), call("weightAvgFun", 'a, 'b).over('w).as('myCnt))
     val resJava = t
       .window(Over.orderBy("rowtime").preceding("10.rows").following("current_row").as("w"))
       .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
@@ -103,14 +102,14 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testPartitionedUnboundedOverRange(): Unit = {
     val util = streamTestUtil()
-    val t = util.addDataStream[(Long, Int, String, Int, Long)](
-      "T1",'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
+    val t =
+      util.addDataStream[(Long, Int, String, Int, Long)]("T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
-      .window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_RANGE as 'w)
-      .select('a, 'b.sum over 'w, call("weightAvgFun", 'a, 'b) over 'w as 'myCnt)
+      .window(Over.partitionBy('a).orderBy('rowtime).preceding(UNBOUNDED_RANGE).as('w))
+      .select('a, 'b.sum.over('w), call("weightAvgFun", 'a, 'b).over('w).as('myCnt))
     val resJava = t
       .window(Over.partitionBy("a").orderBy("rowtime").preceding("unbounded_range").as("w"))
       .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
@@ -121,21 +120,20 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testRowTimeUnboundedOverRange(): Unit = {
     val util = streamTestUtil()
-    val t = util.addDataStream[(Long, Int, String, Int, Long)](
-      "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
+    val t =
+      util.addDataStream[(Long, Int, String, Int, Long)]("T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
-      .window(Over orderBy 'rowtime preceding UNBOUNDED_RANGE following CURRENT_RANGE as 'w)
-      .select('a, 'b.sum over 'w, call("weightAvgFun", 'a, 'b) over 'w as 'myCnt)
+      .window(Over.orderBy('rowtime).preceding(UNBOUNDED_RANGE).following(CURRENT_RANGE).as('w))
+      .select('a, 'b.sum.over('w), call("weightAvgFun", 'a, 'b).over('w).as('myCnt))
     val resJava = t
       .window(
         Over.orderBy("rowtime").preceding("unbounded_range").following("current_range").as("w"))
       .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
     val resJava2 = t
-      .window(
-        Over.orderBy("rowtime").as("w"))
+      .window(Over.orderBy("rowtime").as("w"))
       .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
 
     verifyTableEquals(resScala, resJava)
@@ -145,21 +143,20 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testProcTimeUnboundedOverRange(): Unit = {
     val util = streamTestUtil()
-    val t = util.addDataStream[(Long, Int, String, Int, Long)](
-      "T1", 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
+    val t = util
+      .addDataStream[(Long, Int, String, Int, Long)]("T1", 'a, 'b, 'c, 'd, 'e, 'proctime.proctime)
 
     util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
-      .window(Over orderBy 'proctime preceding UNBOUNDED_RANGE following CURRENT_RANGE as 'w)
-      .select('a, 'b.sum over 'w, call("weightAvgFun", 'a, 'b) over 'w as 'myCnt)
+      .window(Over.orderBy('proctime).preceding(UNBOUNDED_RANGE).following(CURRENT_RANGE).as('w))
+      .select('a, 'b.sum.over('w), call("weightAvgFun", 'a, 'b).over('w).as('myCnt))
     val resJava = t
       .window(
         Over.orderBy("proctime").preceding("unbounded_range").following("current_range").as("w"))
       .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
     val resJava2 = t
-      .window(
-        Over.orderBy("proctime").as("w"))
+      .window(Over.orderBy("proctime").as("w"))
       .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
 
     verifyTableEquals(resScala, resJava)
@@ -169,14 +166,14 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testPartitionedBoundedOverRange(): Unit = {
     val util = streamTestUtil()
-    val t = util.addDataStream[(Long, Int, String, Int, Long)](
-      "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
+    val t =
+      util.addDataStream[(Long, Int, String, Int, Long)]("T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
-      .window(Over partitionBy('a, 'c) orderBy 'rowtime preceding 10.minutes as 'w)
-      .select('a, 'b.sum over 'w, call("weightAvgFun", 'a, 'b) over 'w as 'myCnt)
+      .window(Over.partitionBy('a, 'c).orderBy('rowtime).preceding(10.minutes).as('w))
+      .select('a, 'b.sum.over('w), call("weightAvgFun", 'a, 'b).over('w).as('myCnt))
     val resJava = t
       .window(Over.partitionBy("a, c").orderBy("rowtime").preceding("10.minutes").as("w"))
       .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
@@ -187,14 +184,14 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testBoundedOverRange(): Unit = {
     val util = streamTestUtil()
-    val t = util.addDataStream[(Long, Int, String, Int, Long)](
-      "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
+    val t =
+      util.addDataStream[(Long, Int, String, Int, Long)]("T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     util.addTemporarySystemFunction("weightAvgFun", classOf[WeightedAvg])
 
     val resScala = t
-      .window(Over orderBy 'rowtime preceding 4.hours following CURRENT_RANGE as 'w)
-      .select('a, 'b.sum over 'w, call("weightAvgFun", 'a, 'b) over 'w as 'myCnt)
+      .window(Over.orderBy('rowtime).preceding(4.hours).following(CURRENT_RANGE).as('w))
+      .select('a, 'b.sum.over('w), call("weightAvgFun", 'a, 'b).over('w).as('myCnt))
     val resJava = t
       .window(Over.orderBy("rowtime").preceding("4.hours").following("current_range").as("w"))
       .select("a, SUM(b) OVER w, weightAvgFun(a, b) over w as myCnt")
@@ -205,31 +202,31 @@ class OverWindowStringExpressionTest extends TableTestBase {
   @Test
   def testScalarFunctionsOnOverWindow(): Unit = {
     val util = streamTestUtil()
-    val t = util.addDataStream[(Long, Int, String, Int, Long)](
-      "T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
+    val t =
+      util.addDataStream[(Long, Int, String, Int, Long)]("T1", 'a, 'b, 'c, 'd, 'e, 'rowtime.rowtime)
 
     val plusOne = Func1
     util.addFunction("plusOne", plusOne)
     util.addTemporarySystemFunction("weightedAvg", classOf[WeightedAvg])
 
     val resScala = t
-      .window(Over partitionBy 'a orderBy 'rowtime preceding UNBOUNDED_ROW as 'w)
+      .window(Over.partitionBy('a).orderBy('rowtime).preceding(UNBOUNDED_ROW).as('w))
       .select(
-        array('a.sum over 'w, 'a.count over 'w),
-        call("plusOne", 'b.sum over 'w as 'wsum) as 'd,
-        ('a.count over 'w).exp(),
-        (call("weightedAvg", 'a, 'b) over 'w) + 1,
-        "AVG:".toExpr + (call("weightedAvg", 'a, 'b) over 'w))
+        array('a.sum.over('w), 'a.count.over('w)),
+        call("plusOne", 'b.sum.over('w).as('wsum)).as('d),
+        ('a.count.over('w)).exp(),
+        (call("weightedAvg", 'a, 'b).over('w)) + 1,
+        "AVG:".toExpr + (call("weightedAvg", 'a, 'b).over('w))
+      )
 
     val resJava = t
       .window(Over.partitionBy("a").orderBy("rowtime").preceding("unbounded_row").as("w"))
-      .select(
-        s"""
-           |ARRAY(SUM(a) OVER w, COUNT(a) OVER w),
-           |plusOne(SUM(b) OVER w AS wsum) AS d,
-           |EXP(COUNT(a) OVER w),
-           |(weightedAvg(a, b) OVER w) + 1,
-           |'AVG:' + (weightedAvg(a, b) OVER w)
+      .select(s"""
+                 |ARRAY(SUM(a) OVER w, COUNT(a) OVER w),
+                 |plusOne(SUM(b) OVER w AS wsum) AS d,
+                 |EXP(COUNT(a) OVER w),
+                 |(weightedAvg(a, b) OVER w) + 1,
+                 |'AVG:' + (weightedAvg(a, b) OVER w)
          """.stripMargin)
 
     verifyTableEquals(resScala, resJava)

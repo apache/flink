@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
@@ -29,9 +28,7 @@ import org.apache.calcite.rel.convert.ConverterRule
 
 import scala.collection.JavaConverters._
 
-/**
-  * Rule that converts [[FlinkLogicalCalc]] to [[StreamPhysicalCalc]].
-  */
+/** Rule that converts [[FlinkLogicalCalc]] to [[StreamPhysicalCalc]]. */
 class StreamPhysicalCalcRule
   extends ConverterRule(
     classOf[FlinkLogicalCalc],
@@ -50,12 +47,7 @@ class StreamPhysicalCalcRule
     val traitSet: RelTraitSet = rel.getTraitSet.replace(FlinkConventions.STREAM_PHYSICAL)
     val newInput = RelOptRule.convert(calc.getInput, FlinkConventions.STREAM_PHYSICAL)
 
-    new StreamPhysicalCalc(
-      rel.getCluster,
-      traitSet,
-      newInput,
-      calc.getProgram,
-      rel.getRowType)
+    new StreamPhysicalCalc(rel.getCluster, traitSet, newInput, calc.getProgram, rel.getRowType)
   }
 }
 

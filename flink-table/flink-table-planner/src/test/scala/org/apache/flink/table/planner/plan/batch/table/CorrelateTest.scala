@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.table
 
 import org.apache.flink.api.scala._
@@ -36,7 +35,7 @@ class CorrelateTest extends TableTestBase {
     val func = new TableFunc1
     util.addFunction("func1", func)
 
-    val result1 = table.joinLateral(func('c) as 's).select('c, 's)
+    val result1 = table.joinLateral(func('c).as('s)).select('c, 's)
 
     util.verifyExecPlan(result1)
   }
@@ -48,7 +47,7 @@ class CorrelateTest extends TableTestBase {
     val func = new TableFunc1
     util.addFunction("func1", func)
 
-    val result2 = table.joinLateral(func('c, "$") as 's).select('c, 's)
+    val result2 = table.joinLateral(func('c, "$").as('s)).select('c, 's)
     util.verifyExecPlan(result2)
   }
 
@@ -59,7 +58,7 @@ class CorrelateTest extends TableTestBase {
     val func = new TableFunc1
     util.addFunction("func1", func)
 
-    val result = table.leftOuterJoinLateral(func('c) as 's).select('c, 's).where('s > "")
+    val result = table.leftOuterJoinLateral(func('c).as('s)).select('c, 's).where('s > "")
     util.verifyExecPlan(result)
   }
 
@@ -70,7 +69,7 @@ class CorrelateTest extends TableTestBase {
     val func = new TableFunc1
     util.addFunction("func1", func)
 
-    val result = table.leftOuterJoinLateral(func('c) as 's, true).select('c, 's)
+    val result = table.leftOuterJoinLateral(func('c).as('s), true).select('c, 's)
     util.verifyExecPlan(result)
   }
 
@@ -81,8 +80,9 @@ class CorrelateTest extends TableTestBase {
     val func = new TableFunc0
     util.addFunction("func1", func)
 
-    val result = sourceTable.select('a, 'b, 'c)
-      .joinLateral(func('c) as('d, 'e))
+    val result = sourceTable
+      .select('a, 'b, 'c)
+      .joinLateral(func('c).as('d, 'e))
       .select('c, 'd, 'e)
       .where('e > 10)
       .where('e > 20)
@@ -95,12 +95,11 @@ class CorrelateTest extends TableTestBase {
   def testCorrelateWithMultiFilterAndWithoutCalcMergeRules(): Unit = {
     val util = batchTestUtil()
     val programs = util.getBatchProgram()
-    programs.getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL)
-      .get.remove(
-      RuleSets.ofList(
-        CoreRules.CALC_MERGE,
-        CoreRules.FILTER_CALC_MERGE,
-        CoreRules.PROJECT_CALC_MERGE))
+    programs
+      .getFlinkRuleSetProgram(FlinkBatchProgram.LOGICAL)
+      .get
+      .remove(RuleSets
+        .ofList(CoreRules.CALC_MERGE, CoreRules.FILTER_CALC_MERGE, CoreRules.PROJECT_CALC_MERGE))
     // removing
     util.replaceBatchProgram(programs)
 
@@ -108,8 +107,9 @@ class CorrelateTest extends TableTestBase {
     val func = new TableFunc0
     util.addFunction("func1", func)
 
-    val result = sourceTable.select('a, 'b, 'c)
-      .joinLateral(func('c) as('d, 'e))
+    val result = sourceTable
+      .select('a, 'b, 'c)
+      .joinLateral(func('c).as('d, 'e))
       .select('c, 'd, 'e)
       .where('e > 10)
       .where('e > 20)
@@ -123,7 +123,7 @@ class CorrelateTest extends TableTestBase {
     val util = batchTestUtil()
     val sourceTable = util.addTableSource[(Int, Int, String)]("MyTable", 'a, 'b, 'c)
     val func = new MockPythonTableFunction
-    val result = sourceTable.joinLateral(func('a, 'b) as('x, 'y))
+    val result = sourceTable.joinLateral(func('a, 'b).as('x, 'y))
 
     util.verifyExecPlan(result)
   }

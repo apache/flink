@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.api.scala.manual
 
 import org.apache.flink.api.common.ExecutionConfig
@@ -33,27 +32,29 @@ import org.junit.Assert._
 import java.io._
 import java.util.Random
 
-/**
- * This test is wrote as manual test.
- */
+/** This test is wrote as manual test. */
 class MassiveCaseClassSortingITCase extends TestLogger {
-  
-  val SEED : Long = 347569784659278346L
-  
+
+  val SEED: Long = 347569784659278346L
+
   def testStringTuplesSorting() {
-    
+
     val NUM_STRINGS = 3000000
     var input: File = null
     var sorted: File = null
-    
+
     try {
-      input = generateFileWithStringTuples(NUM_STRINGS,
-                                           "http://some-uri.com/that/is/a/common/prefix/to/all")
-        
+      input = generateFileWithStringTuples(
+        NUM_STRINGS,
+        "http://some-uri.com/that/is/a/common/prefix/to/all")
+
       sorted = File.createTempFile("sorted_strings", "txt")
-      
-      val command = Array("/bin/bash", "-c", "export LC_ALL=\"C\" && cat \""
-                        + input.getAbsolutePath + "\" | sort > \"" + sorted.getAbsolutePath + "\"")
+
+      val command = Array(
+        "/bin/bash",
+        "-c",
+        "export LC_ALL=\"C\" && cat \""
+          + input.getAbsolutePath + "\" | sort > \"" + sorted.getAbsolutePath + "\"")
 
       var p: Process = null
       try {
@@ -63,86 +64,76 @@ class MassiveCaseClassSortingITCase extends TestLogger {
           throw new Exception("Command failed with return code " + retCode)
         }
         p = null
-      }
-      finally {
+      } finally {
         if (p != null) {
           p.destroy()
         }
       }
-      
+
       var sorter: Sorter[StringTuple] = null
-      
+
       var reader: BufferedReader = null
       var verifyReader: BufferedReader = null
-      
+
       try {
         reader = new BufferedReader(new FileReader(input))
         val inputIterator = new StringTupleReader(reader)
-        
+
         val typeInfo = implicitly[TypeInformation[StringTuple]]
           .asInstanceOf[CompositeType[StringTuple]]
-        
+
         val serializer = typeInfo.createSerializer(new ExecutionConfig)
-        val comparator = typeInfo.createComparator(
-          Array(0, 1),
-          Array(true, true),
-          0,
-          new ExecutionConfig)
-        
+        val comparator =
+          typeInfo.createComparator(Array(0, 1), Array(true, true), 0, new ExecutionConfig)
+
         val mm = MemoryManagerBuilder.newBuilder.setMemorySize(1024 * 1024).build
         val ioMan = new IOManagerAsync()
-        
-        sorter =
-          ExternalSorter.newBuilder(
-              mm,
-              new DummyInvokable,
-              serializer,
-              comparator)
-            .maxNumFileHandles(4)
-            .enableSpilling(ioMan, 0.8f)
-            .memoryFraction(1.0)
-            .objectReuse(false)
-            .largeRecords(true)
-            .build(inputIterator);
+
+        sorter = ExternalSorter
+          .newBuilder(mm, new DummyInvokable, serializer, comparator)
+          .maxNumFileHandles(4)
+          .enableSpilling(ioMan, 0.8f)
+          .memoryFraction(1.0)
+          .objectReuse(false)
+          .largeRecords(true)
+          .build(inputIterator);
 
         val sortedData = sorter.getIterator
         reader.close()
-        
+
         verifyReader = new BufferedReader(new FileReader(sorted))
         val verifyIterator = new StringTupleReader(verifyReader)
-        
+
         var num = 0
         var hasMore = true
-        
+
         while (hasMore) {
           val next = verifyIterator.next(null)
-          
-          if (next != null ) {
+
+          if (next != null) {
             num += 1
-            
+
             val nextFromFlinkSort = sortedData.next(null)
-            
+
             assertNotNull(nextFromFlinkSort)
-            
+
             assertEquals(next.key1, nextFromFlinkSort.key1)
             assertEquals(next.key2, nextFromFlinkSort.key2)
-            
+
             // assert array equals does not work here
             assertEquals(next.value.length, nextFromFlinkSort.value.length)
             for (i <- 0 until next.value.length) {
               assertEquals(next.value(i), nextFromFlinkSort.value(i))
             }
-            
-          }
-          else {
+
+          } else {
             hasMore = false
           }
         }
-        
+
         assertNull(sortedData.next(null))
         assertEquals(NUM_STRINGS, num)
-      }
-      finally {
+      } finally {
         if (reader != null) {
           reader.close()
         }
@@ -153,15 +144,13 @@ class MassiveCaseClassSortingITCase extends TestLogger {
           sorter.close()
         }
       }
-    }
-    catch {
+    } catch {
       case e: Exception => {
         System.err.println(e.getMessage)
         e.printStackTrace()
         e.getMessage
       }
-    }
-    finally {
+    } finally {
       if (input != null) {
         input.delete()
       }
@@ -170,29 +159,28 @@ class MassiveCaseClassSortingITCase extends TestLogger {
       }
     }
   }
-  
-  
+
   private def generateFileWithStringTuples(numStrings: Int, prefix: String): File = {
     val rnd = new Random(SEED)
     val bld = new StringBuilder()
     val f = File.createTempFile("strings", "txt")
-    
+
     var wrt: BufferedWriter = null
-    
+
     try {
       wrt = new BufferedWriter(new FileWriter(f))
 
       for (i <- 0 until numStrings) {
         bld.setLength(0)
         val numComps = rnd.nextInt(5) + 2
-        
+
         for (z <- 0 until numComps) {
           if (z > 0) {
             bld.append(' ')
           }
           bld.append(prefix)
           val len = rnd.nextInt(20) + 10
-          
+
           for (k <- 0 until len) {
             val c = (rnd.nextInt(80) + 40).toChar
             bld.append(c)
@@ -202,8 +190,7 @@ class MassiveCaseClassSortingITCase extends TestLogger {
         wrt.write(str)
         wrt.newLine()
       }
-    }
-    finally {
+    } finally {
       wrt.close()
     }
     f
@@ -211,16 +198,16 @@ class MassiveCaseClassSortingITCase extends TestLogger {
 }
 
 object MassiveCaseClassSortingITCase {
-  
+
   def main(args: Array[String]) {
     new MassiveCaseClassSortingITCase().testStringTuplesSorting()
   }
 }
 
 case class StringTuple(key1: String, key2: String, value: Array[String])
-  
+
 class StringTupleReader(val reader: BufferedReader) extends MutableObjectIterator[StringTuple] {
-  
+
   override def next(reuse: StringTuple): StringTuple = {
     val line = reader.readLine()
     if (line == null) {

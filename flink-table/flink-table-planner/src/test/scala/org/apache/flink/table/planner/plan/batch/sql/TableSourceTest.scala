@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.batch.sql
 
 import org.apache.flink.table.api.config.TableConfigOptions
@@ -91,17 +90,16 @@ class TableSourceTest extends TableTestBase {
          |)
          |""".stripMargin
     util.tableEnv.executeSql(ddl4)
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MyTable (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING
-         |) WITH (
-         |  'connector' = 'values',
-         |  'bounded' = 'true'
-         |)
-         |""".stripMargin)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MyTable (
+                                |  `a` INT,
+                                |  `b` BIGINT,
+                                |  `c` STRING
+                                |) WITH (
+                                |  'connector' = 'values',
+                                |  'bounded' = 'true'
+                                |)
+                                |""".stripMargin)
   }
 
   @Test
@@ -147,7 +145,7 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testNestedProjectFieldWithITEM(): Unit = {
-    //TODO: always push projection into table source in FLINK-22118
+    // TODO: always push projection into table source in FLINK-22118
     util.verifyExecPlan(
       s"""
          |SELECT
@@ -160,60 +158,54 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testTableHintWithDifferentOptions(): Unit = {
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MySink (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING
-         |) WITH (
-         |  'connector' = 'filesystem',
-         |  'format' = 'testcsv',
-         |  'path' = '/tmp/test'
-         |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MySink (
+                                |  `a` INT,
+                                |  `b` BIGINT,
+                                |  `c` STRING
+                                |) WITH (
+                                |  'connector' = 'filesystem',
+                                |  'format' = 'testcsv',
+                                |  'path' = '/tmp/test'
+                                |)
        """.stripMargin)
 
     val stmtSet = util.tableEnv.createStatementSet()
-    stmtSet.addInsertSql(
-      """
-        |insert into MySink select a,b,c from MyTable
-        |  /*+ OPTIONS('source.num-element-to-skip'='1') */
-        |""".stripMargin)
-    stmtSet.addInsertSql(
-      """
-        |insert into MySink select a,b,c from MyTable
-        |  /*+ OPTIONS('source.num-element-to-skip'='2') */
-        |""".stripMargin)
+    stmtSet.addInsertSql("""
+                           |insert into MySink select a,b,c from MyTable
+                           |  /*+ OPTIONS('source.num-element-to-skip'='1') */
+                           |""".stripMargin)
+    stmtSet.addInsertSql("""
+                           |insert into MySink select a,b,c from MyTable
+                           |  /*+ OPTIONS('source.num-element-to-skip'='2') */
+                           |""".stripMargin)
 
     util.verifyExecPlan(stmtSet)
   }
 
   @Test
   def testTableHintWithSameOptions(): Unit = {
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MySink (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING
-         |) WITH (
-         |  'connector' = 'filesystem',
-         |  'format' = 'testcsv',
-         |  'path' = '/tmp/test'
-         |)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MySink (
+                                |  `a` INT,
+                                |  `b` BIGINT,
+                                |  `c` STRING
+                                |) WITH (
+                                |  'connector' = 'filesystem',
+                                |  'format' = 'testcsv',
+                                |  'path' = '/tmp/test'
+                                |)
        """.stripMargin)
 
     val stmtSet = util.tableEnv.createStatementSet()
-    stmtSet.addInsertSql(
-      """
-        |insert into MySink select a,b,c from MyTable
-        |  /*+ OPTIONS('source.num-element-to-skip'='1') */
-        |""".stripMargin)
-    stmtSet.addInsertSql(
-      """
-        |insert into MySink select a,b,c from MyTable
-        |  /*+ OPTIONS('source.num-element-to-skip'='1') */
-        |""".stripMargin)
+    stmtSet.addInsertSql("""
+                           |insert into MySink select a,b,c from MyTable
+                           |  /*+ OPTIONS('source.num-element-to-skip'='1') */
+                           |""".stripMargin)
+    stmtSet.addInsertSql("""
+                           |insert into MySink select a,b,c from MyTable
+                           |  /*+ OPTIONS('source.num-element-to-skip'='1') */
+                           |""".stripMargin)
 
     util.verifyExecPlan(stmtSet)
   }
@@ -221,18 +213,18 @@ class TableSourceTest extends TableTestBase {
   @Test
   def testTableHintWithDigestReuseForLogicalTableScan(): Unit = {
     util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
-    util.tableEnv.executeSql(
-      s"""
-         |CREATE TABLE MySink (
-         |  `a` INT,
-         |  `b` BIGINT,
-         |  `c` STRING
-         |) WITH (
-         |  'connector' = 'filesystem',
-         |  'format' = 'testcsv',
-         |  'path' = '/tmp/test'
-         |)
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      true)
+    util.tableEnv.executeSql(s"""
+                                |CREATE TABLE MySink (
+                                |  `a` INT,
+                                |  `b` BIGINT,
+                                |  `c` STRING
+                                |) WITH (
+                                |  'connector' = 'filesystem',
+                                |  'format' = 'testcsv',
+                                |  'path' = '/tmp/test'
+                                |)
        """.stripMargin)
 
     val stmtSet = util.tableEnv.createStatementSet()
@@ -243,11 +235,10 @@ class TableSourceTest extends TableTestBase {
         |union all
         |select a,b,c from MyTable /*+ OPTIONS('source.num-element-to-skip'='1') */
         |""".stripMargin)
-    stmtSet.addInsertSql(
-      """
-        |insert into MySink select a,b,c from MyTable
-        |  /*+ OPTIONS('source.num-element-to-skip'='2') */
-        |""".stripMargin)
+    stmtSet.addInsertSql("""
+                           |insert into MySink select a,b,c from MyTable
+                           |  /*+ OPTIONS('source.num-element-to-skip'='2') */
+                           |""".stripMargin)
 
     util.verifyExecPlan(stmtSet)
   }

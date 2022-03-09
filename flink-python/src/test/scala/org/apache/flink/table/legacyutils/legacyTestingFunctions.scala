@@ -15,16 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.legacyutils
 
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
+import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction, TableFunction}
-import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
+
+import org.junit.Assert
 
 import java.lang.{Iterable => JIterable}
-import org.junit.Assert
 
 /*
  * Testing utils adopted from legacy planner until the Python code is updated.
@@ -119,10 +119,7 @@ abstract class MaxAggFunction[T](implicit ord: Ordering[T])
   }
 
   override def getAccumulatorType: TypeInformation[MaxAccumulator[T]] = {
-    new TupleTypeInfo(
-      classOf[MaxAccumulator[T]],
-      getValueTypeInfo,
-      BasicTypeInfo.BOOLEAN_TYPE_INFO)
+    new TupleTypeInfo(classOf[MaxAccumulator[T]], getValueTypeInfo, BasicTypeInfo.BOOLEAN_TYPE_INFO)
   }
 
   def getInitValue: T
@@ -139,7 +136,7 @@ class ByteMaxAggFunction extends MaxAggFunction[Byte] {
 @deprecated
 class TableFunc1 extends TableFunction[String] {
   def eval(str: String): Unit = {
-    if (str.contains("#")){
+    if (str.contains("#")) {
       str.split("#").foreach(collect)
     }
   }

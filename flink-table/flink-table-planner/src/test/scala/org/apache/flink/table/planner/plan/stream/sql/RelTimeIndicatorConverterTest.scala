@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.stream.sql
 
 import org.apache.flink.api.scala._
@@ -31,14 +30,12 @@ import org.junit.Test
 
 import java.sql.Timestamp
 
-/**
-  * Tests for [[org.apache.flink.table.planner.calcite.RelTimeIndicatorConverter]].
-  */
+/** Tests for [[org.apache.flink.table.planner.calcite.RelTimeIndicatorConverter]]. */
 class RelTimeIndicatorConverterTest extends TableTestBase {
 
   private val util = streamTestUtil()
-  util.addDataStream[(Long, Long, Int)](
-    "MyTable", 'rowtime.rowtime, 'long, 'int, 'proctime.proctime)
+  util
+    .addDataStream[(Long, Long, Int)]("MyTable", 'rowtime.rowtime, 'long, 'int, 'proctime.proctime)
   util.addDataStream[(Long, Long, Int)]("MyTable1", 'rowtime.rowtime, 'long, 'int)
   util.addDataStream[(Long, Int)]("MyTable2", 'long, 'int, 'proctime.proctime)
 
@@ -73,7 +70,6 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
   def testAggregationOnRowtime(): Unit = {
     util.verifyExecPlan("SELECT MIN(rowtime) FROM MyTable1 GROUP BY long")
   }
-
 
   @Test
   def testGroupingOnProctime(): Unit = {
@@ -179,18 +175,18 @@ class RelTimeIndicatorConverterTest extends TableTestBase {
 
     val table = util.tableEnv.sqlQuery(sql)
 
-    val appendSink1 = util.createAppendTableSink(
-      Array("long", "sum"),
-      Array(new BigIntType(), new BigIntType()))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "appendSink1", appendSink1)
+    val appendSink1 =
+      util.createAppendTableSink(Array("long", "sum"), Array(new BigIntType(), new BigIntType()))
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink1", appendSink1)
     stmtSet.addInsert("appendSink1", table)
 
-    val appendSink2 = util.createAppendTableSink(
-      Array("long", "sum"),
-      Array(new BigIntType(), new BigIntType()))
-    util.tableEnv.asInstanceOf[TableEnvironmentInternal].registerTableSinkInternal(
-      "appendSink2", appendSink2)
+    val appendSink2 =
+      util.createAppendTableSink(Array("long", "sum"), Array(new BigIntType(), new BigIntType()))
+    util.tableEnv
+      .asInstanceOf[TableEnvironmentInternal]
+      .registerTableSinkInternal("appendSink2", appendSink2)
     stmtSet.addInsert("appendSink2", table)
 
     util.verifyExecPlan(stmtSet)

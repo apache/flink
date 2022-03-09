@@ -15,20 +15,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.physical.stream
 
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecExchange
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalExchange
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.{RelDistribution, RelNode}
 
-/**
- * Stream physical RelNode for [[org.apache.calcite.rel.core.Exchange]].
- */
+/** Stream physical RelNode for [[org.apache.calcite.rel.core.Exchange]]. */
 class StreamPhysicalExchange(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,

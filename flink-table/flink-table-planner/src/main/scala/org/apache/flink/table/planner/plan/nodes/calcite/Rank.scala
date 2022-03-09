@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.flink.table.planner.plan.nodes.calcite
 
 import org.apache.flink.table.api.TableException
@@ -25,35 +24,43 @@ import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankRan
 
 import org.apache.calcite.plan.{RelOptCluster, RelOptCost, RelOptPlanner, RelTraitSet}
 import org.apache.calcite.rel.`type`.{RelDataType, RelDataTypeField, RelDataTypeFieldImpl}
-import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.rel.{RelCollation, RelNode, RelWriter, SingleRel}
+import org.apache.calcite.rel.metadata.RelMetadataQuery
 import org.apache.calcite.util.{ImmutableBitSet, NumberUtil}
 
 import scala.collection.JavaConversions._
 
 /**
-  * Relational expression that returns the rows in which the rank number of each row
-  * is in the given range.
-  *
-  * The node is an optimization of `OVER` for some special cases,
-  * e.g.
-  * {{{
-  * SELECT * FROM (
-  *  SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
-  * WHERE rk < 10
-  * }}}
-  * can be converted to this node.
-  *
-  * @param cluster          cluster that this relational expression belongs to
-  * @param traitSet         the traits of this rel
-  * @param input            input relational expression
-  * @param partitionKey     partition keys (may be empty)
-  * @param orderKey         order keys (should not be empty)
-  * @param rankType         rank type to define how exactly generate rank number
-  * @param rankRange        the expected range of rank number value
-  * @param rankNumberType   the field type of rank number
-  * @param outputRankNumber whether output rank number
-  */
+ * Relational expression that returns the rows in which the rank number of each row is in the given
+ * range.
+ *
+ * The node is an optimization of `OVER` for some special cases, e.g.
+ * {{{
+ * SELECT * FROM (
+ *  SELECT a, b, RANK() OVER (PARTITION BY b ORDER BY c) rk FROM MyTable) t
+ * WHERE rk < 10
+ * }}}
+ * can be converted to this node.
+ *
+ * @param cluster
+ *   cluster that this relational expression belongs to
+ * @param traitSet
+ *   the traits of this rel
+ * @param input
+ *   input relational expression
+ * @param partitionKey
+ *   partition keys (may be empty)
+ * @param orderKey
+ *   order keys (should not be empty)
+ * @param rankType
+ *   rank type to define how exactly generate rank number
+ * @param rankRange
+ *   the expected range of rank number value
+ * @param rankNumberType
+ *   the field type of rank number
+ * @param outputRankNumber
+ *   whether output rank number
+ */
 abstract class Rank(
     cluster: RelOptCluster,
     traitSet: RelTraitSet,
@@ -105,18 +112,22 @@ abstract class Rank(
     if (newRankNumberName == rankNumberType.getName) {
       typeBuilder.add(rankNumberType)
     } else {
-      typeBuilder.add(new RelDataTypeFieldImpl(
-        newRankNumberName, rankNumberType.getIndex, rankNumberType.getType))
+      typeBuilder.add(
+        new RelDataTypeFieldImpl(
+          newRankNumberName,
+          rankNumberType.getIndex,
+          rankNumberType.getType))
     }
 
     typeBuilder.build()
   }
 
   override def explainTerms(pw: RelWriter): RelWriter = {
-    val select = getRowType.getFieldNames.zipWithIndex.map {
-      case (name, idx) => s"$name=$$$idx"
-    }.mkString(", ")
-    super.explainTerms(pw)
+    val select = getRowType.getFieldNames.zipWithIndex
+      .map { case (name, idx) => s"$name=$$$idx" }
+      .mkString(", ")
+    super
+      .explainTerms(pw)
       .item("rankType", rankType)
       .item("rankRange", rankRange)
       .item("partitionBy", partitionKey.map(i => s"$$$i").mkString(","))
