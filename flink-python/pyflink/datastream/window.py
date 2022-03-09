@@ -21,7 +21,7 @@ from abc import ABC, abstractmethod
 from enum import Enum
 from io import BytesIO
 from typing import TypeVar, Generic, Iterable, Collection, Any
-from pyflink.common import TypeSerializer, Time
+from pyflink.common import Time
 from pyflink.common.serializer import TypeSerializer
 from pyflink.datastream.functions import RuntimeContext, InternalWindowFunction
 from pyflink.metrics import MetricGroup
