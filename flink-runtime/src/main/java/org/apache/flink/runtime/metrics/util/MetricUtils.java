@@ -42,7 +42,6 @@ import org.apache.flink.util.Preconditions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.Nullable;
 import javax.management.AttributeNotFoundException;
 import javax.management.InstanceNotFoundException;
 import javax.management.MBeanException;
@@ -341,7 +340,8 @@ public class MetricUtils {
 
             metrics.<Double, Gauge<Double>>gauge("Load", mxBean::getProcessCpuLoad);
             metrics.<Long, Gauge<Long>>gauge("Time", mxBean::getProcessCpuTime);
-            metrics.<Double, Gauge<Double>>gauge("UsedProcessor", () -> mxBean.getProcessCpuLoad() * mxBean.getAvailableProcessors());
+            metrics.<Double, Gauge<Double>>gauge(
+                    "CpuUsed", () -> mxBean.getProcessCpuLoad() * mxBean.getAvailableProcessors());
 
         } catch (Exception e) {
             LOG.warn(
