@@ -846,8 +846,7 @@ public class FunctionITCase extends StreamingTestBase {
                                 tEnv().explainSql(
                                                 "INSERT INTO SinkTable "
                                                         + "SELECT * FROM TABLE(MD5('3'))"))
-                .hasMessageContaining(
-                        "Currently, only table functions can be used in a correlate operation.");
+                .hasMessageContaining("Argument must be a table function: MD5");
     }
 
     @Test
@@ -864,8 +863,7 @@ public class FunctionITCase extends StreamingTestBase {
                                 tEnv().explainSql(
                                                 "INSERT INTO SinkTable "
                                                         + "SELECT RowTableFunction('test')"))
-                .hasMessageContaining(
-                        "Currently, only scalar functions can be used in a projection or filter operation.");
+                .hasMessageContaining("Cannot call table function here: 'RowTableFunction'");
     }
 
     @Test

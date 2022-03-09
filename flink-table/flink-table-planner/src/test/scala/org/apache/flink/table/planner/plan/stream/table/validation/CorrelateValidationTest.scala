@@ -68,11 +68,10 @@ class CorrelateValidationTest extends TableTestBase {
     util.addFunction("func0", Func0)
 
     // SQL API call
-    // NOTE: it doesn't throw an exception but an AssertionError, maybe a Calcite bug
     expectExceptionThrown(
       util.tableEnv.sqlQuery("SELECT * FROM MyTable, LATERAL TABLE(func0(a))"),
       null,
-      classOf[AssertionError])
+      classOf[ValidationException])
 
     //========== throw exception when the parameters is not correct ===============
     // Java Table API call
