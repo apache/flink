@@ -23,6 +23,7 @@ import org.apache.flink.connector.file.table.FileSystemTableFactory;
 import org.apache.flink.formats.testcsv.TestCsvFormatFactory;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation;
 import org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanRestore;
 import org.apache.flink.table.catalog.CatalogManager;
@@ -72,8 +73,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 
-import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG;
-import static org.apache.flink.table.api.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_COMPILE_CATALOG_OBJECTS;
 import static org.apache.flink.table.api.config.TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
@@ -114,8 +113,8 @@ public class DynamicTableSourceSpecSerdeTest {
                 new DynamicTableSourceSpec(
                         ContextResolvedTable.temporary(
                                 ObjectIdentifier.of(
-                                        DEFAULT_BUILTIN_CATALOG,
-                                        DEFAULT_BUILTIN_DATABASE,
+                                        TableConfigOptions.TABLE_CATALOG_NAME.defaultValue(),
+                                        TableConfigOptions.TABLE_DATABASE_NAME.defaultValue(),
                                         "MyTable"),
                                 new ResolvedCatalogTable(catalogTable1, resolvedSchema1)),
                         null);
@@ -154,8 +153,8 @@ public class DynamicTableSourceSpecSerdeTest {
                 new DynamicTableSourceSpec(
                         ContextResolvedTable.temporary(
                                 ObjectIdentifier.of(
-                                        DEFAULT_BUILTIN_CATALOG,
-                                        DEFAULT_BUILTIN_DATABASE,
+                                        TableConfigOptions.TABLE_CATALOG_NAME.defaultValue(),
+                                        TableConfigOptions.TABLE_DATABASE_NAME.defaultValue(),
                                         "MyTable"),
                                 new ResolvedCatalogTable(catalogTable2, resolvedSchema2)),
                         Arrays.asList(
@@ -274,7 +273,10 @@ public class DynamicTableSourceSpecSerdeTest {
     void testDynamicTableSourceSpecSerdeWithEnrichmentOptions() throws Exception {
         // Test model
         ObjectIdentifier identifier =
-                ObjectIdentifier.of(DEFAULT_BUILTIN_CATALOG, DEFAULT_BUILTIN_DATABASE, "my_table");
+                ObjectIdentifier.of(
+                        TableConfigOptions.TABLE_CATALOG_NAME.defaultValue(),
+                        TableConfigOptions.TABLE_DATABASE_NAME.defaultValue(),
+                        "my_table");
 
         String formatPrefix = FactoryUtil.getFormatPrefix(FORMAT, TestFormatFactory.IDENTIFIER);
 

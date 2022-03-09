@@ -50,7 +50,7 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
 
         gateway = get_gateway()
 
-        DEFAULT_BUILTIN_CATALOG = gateway.jvm.EnvironmentSettings.DEFAULT_BUILTIN_CATALOG
+        DEFAULT_BUILTIN_CATALOG = gateway.jvm.TableConfigOptions.TABLE_CATALOG_NAME.defaultValue()
 
         builder = EnvironmentSettings.new_instance()
 
@@ -67,7 +67,7 @@ class EnvironmentSettingsTests(PyFlinkTestCase):
 
         gateway = get_gateway()
 
-        DEFAULT_BUILTIN_DATABASE = gateway.jvm.EnvironmentSettings.DEFAULT_BUILTIN_DATABASE
+        DEFAULT_BUILTIN_DATABASE = gateway.jvm.TableConfigOptions.TABLE_DATABASE_NAME.defaultValue()
 
         builder = EnvironmentSettings.new_instance()
 

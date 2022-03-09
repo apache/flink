@@ -31,7 +31,6 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -92,9 +91,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     TableEnvironment}.
      */
     static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment) {
-        return create(
-                executionEnvironment,
-                EnvironmentSettings.fromConfiguration(executionEnvironment.getConfiguration()));
+        return create(executionEnvironment, EnvironmentSettings.newInstance().build());
     }
 
     /**
@@ -122,9 +119,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
      */
     static StreamTableEnvironment create(
             StreamExecutionEnvironment executionEnvironment, EnvironmentSettings settings) {
-        TableConfig tableConfig = new TableConfig();
-        tableConfig.addConfiguration(settings.toConfiguration());
-        return StreamTableEnvironmentImpl.create(executionEnvironment, settings, tableConfig);
+        return StreamTableEnvironmentImpl.create(executionEnvironment, settings);
     }
 
     /**

@@ -37,7 +37,8 @@ class TableConfigCompletenessTests(PythonAPICompletenessTestCase, PyFlinkTestCas
     @classmethod
     def excluded_methods(cls):
         # internal interfaces, no need to expose to users.
-        return {'getPlannerConfig', 'setPlannerConfig', 'addJobParameter'}
+        return {'getPlannerConfig', 'setPlannerConfig', 'addJobParameter',
+                'setRootConfiguration', 'get', 'getOptional'}
 
     @classmethod
     def java_method_name(cls, python_method_name):

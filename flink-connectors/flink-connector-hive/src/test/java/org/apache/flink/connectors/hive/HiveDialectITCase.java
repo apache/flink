@@ -25,7 +25,6 @@ import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.ValidationException;
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.api.internal.TableEnvironmentInternal;
 import org.apache.flink.table.catalog.CatalogBaseTable;
 import org.apache.flink.table.catalog.CatalogPartitionSpec;
@@ -43,6 +42,7 @@ import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
@@ -88,11 +88,6 @@ import static org.junit.Assert.fail;
 
 /** Test Hive syntax when Hive dialect is used. */
 public class HiveDialectITCase {
-
-    private static final String DEFAULT_BUILTIN_CATALOG =
-            TableConfigOptions.TABLE_CATALOG_NAME.defaultValue();
-    private static final String DEFAULT_BUILTIN_DATABASE =
-            TableConfigOptions.TABLE_DATABASE_NAME.defaultValue();
 
     private TableEnvironment tableEnv;
     private HiveCatalog hiveCatalog;
@@ -674,17 +669,18 @@ public class HiveDialectITCase {
         List<Row> catalogs =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show catalogs").collect());
         assertEquals(2, catalogs.size());
-        tableEnv.executeSql("use catalog " + DEFAULT_BUILTIN_CATALOG);
+        tableEnv.executeSql("use catalog " + CatalogManagerMocks.DEFAULT_CATALOG);
         List<Row> databases =
                 CollectionUtil.iteratorToList(tableEnv.executeSql("show databases").collect());
         assertEquals(1, databases.size());
-        assertEquals("+I[" + DEFAULT_BUILTIN_DATABASE + "]", databases.get(0).toString());
+        assertEquals(
+                "+I[" + CatalogManagerMocks.DEFAULT_DATABASE + "]", databases.get(0).toString());
         String catalogName =
                 tableEnv.executeSql("show current catalog").collect().next().toString();
-        assertEquals("+I[" + DEFAULT_BUILTIN_CATALOG + "]", catalogName);
+        assertEquals("+I[" + CatalogManagerMocks.DEFAULT_CATALOG + "]", catalogName);
         String databaseName =
                 tableEnv.executeSql("show current database").collect().next().toString();
-        assertEquals("+I[" + DEFAULT_BUILTIN_DATABASE + "]", databaseName);
+        assertEquals("+I[" + CatalogManagerMocks.DEFAULT_DATABASE + "]", databaseName);
     }
 
     @Test

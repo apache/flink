@@ -18,7 +18,6 @@
 package org.apache.flink.table.api.bridge.scala
 
 import org.apache.flink.annotation.PublicEvolving
-import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
@@ -869,9 +868,7 @@ object StreamTableEnvironment {
     *                             [[TableEnvironment]].
     */
   def create(executionEnvironment: StreamExecutionEnvironment): StreamTableEnvironment = {
-    create(
-      executionEnvironment,
-      EnvironmentSettings.fromConfiguration(executionEnvironment.getConfiguration))
+    create(executionEnvironment, EnvironmentSettings.newInstance().build)
   }
 
   /**
@@ -899,9 +896,6 @@ object StreamTableEnvironment {
       executionEnvironment: StreamExecutionEnvironment,
       settings: EnvironmentSettings)
     : StreamTableEnvironment = {
-    val config = new TableConfig()
-    config.addConfiguration(settings.toConfiguration)
-    StreamTableEnvironmentImpl
-      .create(executionEnvironment, settings, config)
+    StreamTableEnvironmentImpl.create(executionEnvironment, settings)
   }
 }

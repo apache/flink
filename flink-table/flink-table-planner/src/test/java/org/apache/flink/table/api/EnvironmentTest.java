@@ -24,12 +24,15 @@ import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.streaming.api.environment.ExecutionCheckpointingOptions;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.types.Row;
 
 import org.junit.Test;
 
 import java.time.Duration;
+import java.util.concurrent.ExecutionException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link TableEnvironment} that require a planner. */
@@ -60,5 +63,30 @@ public class EnvironmentTest {
         assertEquals(128, env.getParallelism());
         assertEquals(800, env.getConfig().getAutoWatermarkInterval());
         assertEquals(30000, env.getCheckpointConfig().getCheckpointInterval());
+    }
+
+    @Test
+    public void testEnvironmentSettings() throws ExecutionException, InterruptedException {
+        Configuration conf = new Configuration();
+        conf.set(TableConfigOptions.TABLE_CATALOG_NAME, "myCatalog");
+        EnvironmentSettings settings =
+                EnvironmentSettings.newInstance().withConfiguration(conf).build();
+
+        TableEnvironment tEnv = TableEnvironment.create(settings);
+        assertThat(tEnv.getConfig().get(TableConfigOptions.TABLE_CATALOG_NAME))
+                .isEqualTo("myCatalog");
+        assertThat(tEnv.getCurrentCatalog()).isEqualTo("myCatalog");
+
+        StreamTableEnvironment stEnv =
+                StreamTableEnvironment.create(
+                        StreamExecutionEnvironment.getExecutionEnvironment(), settings);
+        assertThat(stEnv.getConfig().get(TableConfigOptions.TABLE_CATALOG_NAME))
+                .isEqualTo("myCatalog");
+
+        stEnv.getConfig()
+                .set(
+                        TableConfigOptions.TABLE_CATALOG_NAME,
+                        TableConfigOptions.TABLE_CATALOG_NAME.defaultValue());
+        assertThat(stEnv.getCurrentCatalog()).isEqualTo("myCatalog");
     }
 }

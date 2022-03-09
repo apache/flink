@@ -1526,10 +1526,17 @@ object TestingTableEnvironment {
       catalogManager: Option[CatalogManager] = None,
       tableConfig: TableConfig): TestingTableEnvironment = {
 
-    tableConfig.addConfiguration(settings.toConfiguration)
-
     // temporary solution until FLINK-15635 is fixed
     val classLoader = Thread.currentThread.getContextClassLoader
+
+    val executorFactory = FactoryUtil.discoverFactory(
+      classLoader, classOf[ExecutorFactory], ExecutorFactory.DEFAULT_IDENTIFIER)
+
+    val executor = executorFactory.create(settings.getConfiguration)
+
+    tableConfig.setRootConfiguration(executor.getConfiguration)
+    tableConfig.addConfiguration(settings.getConfiguration)
+
 
     val moduleManager = new ModuleManager
 
@@ -1538,7 +1545,7 @@ object TestingTableEnvironment {
       case _ =>
         CatalogManager.newBuilder
           .classLoader(classLoader)
-          .config(tableConfig.getConfiguration)
+          .config(tableConfig)
           .defaultCatalog(
             settings.getBuiltInCatalogName,
             new GenericInMemoryCatalog(
@@ -1547,12 +1554,7 @@ object TestingTableEnvironment {
           .build
     }
 
-    val functionCatalog = new FunctionCatalog(tableConfig, catalogMgr, moduleManager)
-
-    val executorFactory = FactoryUtil.discoverFactory(
-      classLoader, classOf[ExecutorFactory], ExecutorFactory.DEFAULT_IDENTIFIER)
-
-    val executor = executorFactory.create(tableConfig.getConfiguration)
+    val functionCatalog = new FunctionCatalog(settings.getConfiguration, catalogMgr, moduleManager)
 
     val planner = PlannerFactoryUtil.createPlanner(
       executor, tableConfig, moduleManager, catalogMgr, functionCatalog).asInstanceOf[PlannerBase]
