@@ -84,6 +84,7 @@ class AvroParquetRecordFormatTest {
                         .parse(
                                 "{\"type\": \"record\", "
                                         + "\"name\": \"User\", "
+                                        + "\"namespace\": \"org.apache.flink.formats.parquet.avro.AvroParquetRecordFormatTest\", "
                                         + "\"fields\": [\n"
                                         + "        {\"name\": \"name\", \"type\": \"string\" },\n"
                                         + "        {\"name\": \"favoriteNumber\",  \"type\": [\"int\", \"null\"] },\n"
@@ -137,6 +138,21 @@ class AvroParquetRecordFormatTest {
                         datumPath.getFileSystem().getFileStatus(datumPath).getLen());
         for (Datum datum : datumRecords) {
             assertEquals(Objects.requireNonNull(reader.read()), datum);
+        }
+    }
+
+    @Test
+    void testReflectReadFromGenericRecords() throws IOException {
+        StreamFormat.Reader<User> reader =
+                createReader(
+                        AvroParquetReaders.forReflectRecord(User.class),
+                        new Configuration(),
+                        userPath,
+                        0,
+                        userPath.getFileSystem().getFileStatus(userPath).getLen());
+        for (GenericRecord record : userRecords) {
+            User user = reader.read();
+            assertUserEquals(Objects.requireNonNull(user), record);
         }
     }
 
@@ -309,9 +325,16 @@ class AvroParquetRecordFormatTest {
     }
 
     private void assertUserEquals(GenericRecord user, GenericRecord expected) {
-        assertEquals(user.get("name").toString(), expected.get("name"));
+        assertEquals(user.get("name").toString(), expected.get("name").toString());
         assertEquals(user.get("favoriteNumber"), expected.get("favoriteNumber"));
-        assertEquals(user.get("favoriteColor").toString(), expected.get("favoriteColor"));
+        assertEquals(
+                user.get("favoriteColor").toString(), expected.get("favoriteColor").toString());
+    }
+
+    private void assertUserEquals(User user, GenericRecord expected) {
+        assertEquals(user.getName(), expected.get("name").toString());
+        assertEquals(user.getFavoriteNumber(), expected.get("favoriteNumber"));
+        assertEquals(user.getFavoriteColor(), expected.get("favoriteColor").toString());
     }
 
     private static List<Address> createAddressList() {
@@ -323,5 +346,31 @@ class AvroParquetRecordFormatTest {
 
     private static List<Datum> createDatumList() {
         return Arrays.asList(new Datum("a", 1), new Datum("b", 2), new Datum("c", 3));
+    }
+
+    private static final class User {
+        private String name;
+        private Integer favoriteNumber;
+        private String favoriteColor;
+
+        public User() {}
+
+        public User(String name, Integer favoriteNumber, String favoriteColor) {
+            this.name = name;
+            this.favoriteNumber = favoriteNumber;
+            this.favoriteColor = favoriteColor;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public Integer getFavoriteNumber() {
+            return favoriteNumber;
+        }
+
+        public String getFavoriteColor() {
+            return favoriteColor;
+        }
     }
 }
