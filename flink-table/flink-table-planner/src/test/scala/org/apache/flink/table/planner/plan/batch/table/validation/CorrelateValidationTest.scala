@@ -36,7 +36,6 @@ class CorrelateValidationTest extends TableTestBase {
     val util = batchTestUtil()
     val table = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val func = new TableFunc1
-   util.addFunction("func1", func)
     val result = table
       .leftOuterJoinLateral(func('c) as 's, 'c === 's)
       .select('c, 's)

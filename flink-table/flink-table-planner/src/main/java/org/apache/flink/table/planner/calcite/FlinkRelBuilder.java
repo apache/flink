@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.ExpandFactory;
 import org.apache.flink.table.planner.calcite.FlinkRelFactories.RankFactory;
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.hint.FlinkHints;
 import org.apache.flink.table.planner.plan.QueryOperationConverter;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
@@ -33,6 +34,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowTableAggre
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.operators.rank.RankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
@@ -40,6 +42,7 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.ImmutableList;
 import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptCluster;
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.plan.RelOptSchema;
 import org.apache.calcite.plan.RelOptTable.ToRelContext;
 import org.apache.calcite.plan.ViewExpanders;
@@ -48,18 +51,26 @@ import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.rel.hint.RelHint;
 import org.apache.calcite.rel.logical.LogicalAggregate;
+import org.apache.calcite.rel.logical.LogicalTableFunctionScan;
+import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
+import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.tools.RelBuilder;
 import org.apache.calcite.tools.RelBuilderFactory;
 import org.apache.calcite.util.ImmutableBitSet;
 import org.apache.calcite.util.Util;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.function.UnaryOperator;
+import java.util.stream.Collectors;
 
 import static org.apache.flink.table.planner.plan.utils.AggregateUtil.isTableAggregate;
 
@@ -103,6 +114,54 @@ public final class FlinkRelBuilder extends RelBuilder {
             final Context chain = Contexts.chain(context, clusterContext);
             return FlinkRelBuilder.of(chain, cluster, schema);
         };
+    }
+
+    /**
+     * {@link RelBuilder#functionScan(SqlOperator, int, Iterable)} cannot work smoothly with aliases
+     * which is why we implement a custom one. The method is static because some {@link RelOptRule}s
+     * don't use {@link FlinkRelBuilder}.
+     */
+    public static RelBuilder pushFunctionScan(
+            RelBuilder relBuilder,
+            SqlOperator operator,
+            int inputCount,
+            Iterable<RexNode> operands,
+            List<String> aliases) {
+        Preconditions.checkArgument(
+                operator instanceof BridgingSqlFunction.WithTableFunction,
+                "Table function expected.");
+        final RexBuilder rexBuilder = relBuilder.getRexBuilder();
+        final RelDataTypeFactory typeFactory = relBuilder.getTypeFactory();
+
+        final List<RelNode> inputs = new LinkedList<>();
+        for (int i = 0; i < inputCount; i++) {
+            inputs.add(0, relBuilder.build());
+        }
+
+        final List<RexNode> operandList = CollectionUtil.iterableToList(operands);
+
+        final RelDataType functionRelDataType = rexBuilder.deriveReturnType(operator, operandList);
+        final List<RelDataType> fieldRelDataTypes;
+        if (functionRelDataType.isStruct()) {
+            fieldRelDataTypes =
+                    functionRelDataType.getFieldList().stream()
+                            .map(RelDataTypeField::getType)
+                            .collect(Collectors.toList());
+        } else {
+            fieldRelDataTypes = Collections.singletonList(functionRelDataType);
+        }
+        final RelDataType rowRelDataType = typeFactory.createStructType(fieldRelDataTypes, aliases);
+
+        final RexNode call = rexBuilder.makeCall(rowRelDataType, operator, operandList);
+        final RelNode functionScan =
+                LogicalTableFunctionScan.create(
+                        relBuilder.getCluster(),
+                        inputs,
+                        call,
+                        null,
+                        rowRelDataType,
+                        Collections.emptySet());
+        return relBuilder.push(functionScan);
     }
 
     public RelBuilder expand(List<List<RexNode>> projects, int expandIdIndex) {

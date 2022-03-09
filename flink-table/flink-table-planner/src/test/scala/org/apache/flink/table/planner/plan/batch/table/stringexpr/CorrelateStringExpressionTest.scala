@@ -29,9 +29,7 @@ class CorrelateStringExpressionTest extends TableTestBase {
   private val util = batchTestUtil()
   private val tab = util.addTableSource[(Int, Long, String)]("Table1", 'a, 'b, 'c)
   private val func1 = new TableFunc1
- util.addFunction("func1", func1)
   private val func2 = new TableFunc2
- util.addFunction("func2", func2)
 
   @Test
   def testCorrelateJoins1(): Unit = {
@@ -61,7 +59,6 @@ class CorrelateStringExpressionTest extends TableTestBase {
   def testCorrelateJoins5(): Unit = {
     // test hierarchy generic type
     val hierarchy = new HierarchyTableFunction
-   util.addFunction("hierarchy", hierarchy)
     val scalaTable = tab.joinLateral(
       hierarchy('c) as('name, 'adult, 'len)).select('c, 'name, 'len, 'adult)
     util.verifyExecPlan(scalaTable)
@@ -71,7 +68,6 @@ class CorrelateStringExpressionTest extends TableTestBase {
   def testCorrelateJoins6(): Unit = {
     // test pojo type
     val pojo = new PojoTableFunc
-   util.addFunction("pojo", pojo)
     val scalaTable = tab.joinLateral(pojo('c)).select('c, 'name, 'age)
     util.verifyExecPlan(scalaTable)
   }

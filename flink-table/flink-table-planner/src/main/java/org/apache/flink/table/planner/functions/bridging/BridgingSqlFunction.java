@@ -26,6 +26,7 @@ import org.apache.flink.table.functions.FunctionDefinition;
 import org.apache.flink.table.functions.FunctionIdentifier;
 import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.planner.calcite.FlinkContext;
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.types.DataType;
@@ -35,6 +36,10 @@ import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.sql.SqlFunction;
 import org.apache.calcite.sql.SqlKind;
+import org.apache.calcite.sql.SqlOperator;
+import org.apache.calcite.sql.SqlTableFunction;
+import org.apache.calcite.sql.type.SqlReturnTypeInference;
+import org.apache.calcite.tools.RelBuilder;
 
 import java.util.List;
 
@@ -52,7 +57,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * (either a system or user-defined function).
  */
 @Internal
-public final class BridgingSqlFunction extends SqlFunction {
+public class BridgingSqlFunction extends SqlFunction {
 
     private final DataTypeFactory dataTypeFactory;
 
@@ -108,6 +113,10 @@ public final class BridgingSqlFunction extends SqlFunction {
                 functionKind == FunctionKind.SCALAR || functionKind == FunctionKind.TABLE,
                 "Scalar or table function kind expected.");
 
+        if (functionKind == FunctionKind.TABLE) {
+            return new BridgingSqlFunction.WithTableFunction(
+                    dataTypeFactory, typeFactory, kind, resolvedFunction, typeInference);
+        }
         return new BridgingSqlFunction(
                 dataTypeFactory, typeFactory, kind, resolvedFunction, typeInference);
     }
@@ -176,5 +185,33 @@ public final class BridgingSqlFunction extends SqlFunction {
     @Override
     public boolean isDeterministic() {
         return resolvedFunction.getDefinition().isDeterministic();
+    }
+
+    // --------------------------------------------------------------------------------------------
+    // Table function extension
+    // --------------------------------------------------------------------------------------------
+
+    /** Special flavor of {@link BridgingSqlFunction} to indicate a table function to Calcite. */
+    public static class WithTableFunction extends BridgingSqlFunction implements SqlTableFunction {
+
+        private WithTableFunction(
+                DataTypeFactory dataTypeFactory,
+                FlinkTypeFactory typeFactory,
+                SqlKind kind,
+                ContextResolvedFunction resolvedFunction,
+                TypeInference typeInference) {
+            super(dataTypeFactory, typeFactory, kind, resolvedFunction, typeInference);
+        }
+
+        /**
+         * The conversion to a row type is handled on the caller side. This allows us to perform it
+         * SQL/Table API-specific. This is in particular important to set the aliases of fields
+         * correctly (see {@link FlinkRelBuilder#pushFunctionScan(RelBuilder, SqlOperator, int,
+         * Iterable, List)}).
+         */
+        @Override
+        public SqlReturnTypeInference getRowTypeInference() {
+            return getReturnTypeInference();
+        }
     }
 }

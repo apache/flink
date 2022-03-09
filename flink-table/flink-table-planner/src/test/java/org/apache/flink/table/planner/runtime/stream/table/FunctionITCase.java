@@ -28,27 +28,23 @@ import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory
 import org.apache.flink.table.planner.runtime.utils.StreamingTestBase;
 import org.apache.flink.types.Row;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.util.Arrays;
 import java.util.List;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
-import static org.hamcrest.CoreMatchers.containsString;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.junit.Assert.assertThat;
-import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /** Tests for user defined functions in the Table API. */
 public class FunctionITCase extends StreamingTestBase {
 
-    @Rule public ExpectedException thrown = ExpectedException.none();
-
     @Test
-    public void testScalarFunction() throws Exception {
+    void testScalarFunction() throws Exception {
         final List<Row> sourceData =
                 Arrays.asList(Row.of(1, 1L, 1L), Row.of(2, 2L, 1L), Row.of(3, 3L, 1L));
 
@@ -61,7 +57,7 @@ public class FunctionITCase extends StreamingTestBase {
         tEnv().executeSql(
                         "CREATE TABLE TestTable(a INT, b BIGINT, c BIGINT) WITH ('connector' = 'COLLECTION')");
 
-        Table table =
+        final Table table =
                 tEnv().from("TestTable")
                         .select(
                                 $("a"),
@@ -75,7 +71,7 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testJoinWithTableFunction() throws Exception {
+    void testJoinWithTableFunction() throws Exception {
         final List<Row> sourceData =
                 Arrays.asList(
                         Row.of("1,2,3"), Row.of("2,3,4"), Row.of("3,4,5"), Row.of((String) null));
@@ -103,23 +99,22 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testLateralJoinWithScalarFunction() throws Exception {
-        thrown.expect(ValidationException.class);
-        thrown.expect(
-                hasMessage(
-                        containsString(
-                                "Currently, only table functions can be used in a correlate operation.")));
-
+    void testLateralJoinWithScalarFunction() throws Exception {
         TestCollectionTableFactory.reset();
         tEnv().executeSql("CREATE TABLE SourceTable(s STRING) WITH ('connector' = 'COLLECTION')");
         tEnv().executeSql(
                         "CREATE TABLE SinkTable(s STRING, sa ARRAY<STRING>) WITH ('connector' = 'COLLECTION')");
 
-        tEnv().from("SourceTable")
-                .joinLateral(call(new RowScalarFunction(), $("s")).as("a", "b"))
-                .select($("a"), $("b"))
-                .executeInsert("SinkTable")
-                .await();
+        assertThatThrownBy(
+                        () -> {
+                            tEnv().from("SourceTable")
+                                    .joinLateral(
+                                            call(new RowScalarFunction(), $("s")).as("a", "b"));
+                        })
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "A lateral join only accepts an expression which defines a table function"));
     }
 
     // --------------------------------------------------------------------------------------------

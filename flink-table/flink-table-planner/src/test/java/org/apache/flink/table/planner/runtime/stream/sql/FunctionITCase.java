@@ -64,6 +64,7 @@ import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -925,16 +926,12 @@ public class FunctionITCase extends StreamingTestBase {
     public void testInvalidUseOfSystemScalarFunction() {
         tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
 
-        try {
-            tEnv().explainSql("INSERT INTO SinkTable " + "SELECT * FROM TABLE(MD5('3'))");
-            fail();
-        } catch (ValidationException e) {
-            assertThat(
-                    e,
-                    hasMessage(
-                            containsString(
-                                    "Currently, only table functions can be used in a correlate operation.")));
-        }
+        assertThatThrownBy(
+                        () ->
+                                tEnv().explainSql(
+                                                "INSERT INTO SinkTable "
+                                                        + "SELECT * FROM TABLE(MD5('3'))"))
+                .hasMessageContaining("Argument must be a table function: MD5");
     }
 
     @Test
@@ -946,16 +943,12 @@ public class FunctionITCase extends StreamingTestBase {
 
         tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 
-        try {
-            tEnv().explainSql("INSERT INTO SinkTable " + "SELECT RowTableFunction('test')");
-            fail();
-        } catch (ValidationException e) {
-            assertThat(
-                    e,
-                    hasMessage(
-                            containsString(
-                                    "Currently, only scalar functions can be used in a projection or filter operation.")));
-        }
+        assertThatThrownBy(
+                        () ->
+                                tEnv().explainSql(
+                                                "INSERT INTO SinkTable "
+                                                        + "SELECT RowTableFunction('test')"))
+                .hasMessageContaining("Cannot call table function here: 'RowTableFunction'");
     }
 
     @Test
