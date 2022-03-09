@@ -218,7 +218,6 @@ object Graph {
    * @tparam EV Edge value type
    * @return Graph with vertices and edges read from the given files.
    */
-  // scalastyle:off
   // This method exceeds the max allowed number of parameters -->  
   def fromCsvReader[
       K: TypeInformation : ClassTag,
@@ -290,7 +289,6 @@ object Graph {
       }
     }
   }
-  // scalastyle:on
 }
 
 /**
