@@ -131,8 +131,10 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
     @Override
     public void createDirtyResultInternal(JobResultEntry jobResultEntry) throws IOException {
         final Path path = constructDirtyPath(jobResultEntry.getJobId());
-        OutputStream os = fileSystem.create(path, FileSystem.WriteMode.NO_OVERWRITE);
-        mapper.writeValue(os, new JsonJobResultEntry(jobResultEntry));
+        try (OutputStream os = fileSystem.create(path, FileSystem.WriteMode.NO_OVERWRITE)) {
+            mapper.writeValue(os, new JsonJobResultEntry(jobResultEntry));
+            os.flush();
+        }
     }
 
     @Override
