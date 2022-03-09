@@ -96,24 +96,13 @@ stages:
   - stage: cron_build
     displayName: "Cron build"
     dependsOn: [] # depending on an empty array makes the stages run in parallel
-    condition: or(eq(variables['Build.Reason'], 'Schedule'), eq(variables['MODE'], 'nightly'))
+    condition: not(eq(variables['Build.Reason'], in('Schedule', 'Manual')))
     jobs:
       - template: build-nightly-dist.yml
         parameters:
           stage_name: cron_snapshot_deployment
           environment: PROFILE=""
           container: flink-build-container
-      - template: jobs-template.yml
-        parameters:
-          stage_name: cron_azure
-          test_pool_definition:
-            vmImage: 'ubuntu-20.04'
-          e2e_pool_definition:
-            vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: 8
       - template: jobs-template.yml
         parameters:
           stage_name: cron_hadoop241
@@ -136,46 +125,8 @@ stages:
           run_end_to_end: true
           container: flink-build-container
           jdk: 8
-      - template: jobs-template.yml
-        parameters:
-          stage_name: cron_scala212
-          test_pool_definition:
-            name: Default
-          e2e_pool_definition:
-            vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.12 -Phive-1.2.1"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: 8
-      - template: jobs-template.yml
-        parameters:
-          stage_name: cron_jdk11
-          test_pool_definition:
-            name: Default
-          e2e_pool_definition:
-            vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Djdk11"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: 11
-      - template: jobs-template.yml
-        parameters:
-          stage_name: cron_adaptive_scheduler
-          test_pool_definition:
-            name: Default
-          e2e_pool_definition:
-            vmImage: 'ubuntu-20.04'
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11 -Penable-adaptive-scheduler"
-          run_end_to_end: true
-          container: flink-build-container
-          jdk: 8
       - job: docs_404_check # run on a MSFT provided machine
         pool:
           vmImage: 'ubuntu-20.04'
         steps:
           - script: ./tools/ci/docs.sh
-      - template: build-python-wheels.yml
-        parameters:
-          stage_name: cron_python_wheels
-          environment: PROFILE="-Dhadoop.version=2.8.3 -Dinclude_hadoop_aws -Dscala-2.11"
-          container: flink-build-container

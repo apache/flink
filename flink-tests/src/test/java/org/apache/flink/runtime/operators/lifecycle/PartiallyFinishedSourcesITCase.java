@@ -113,6 +113,7 @@ public class PartiallyFinishedSourcesITCase extends TestLogger {
 
     @Test
     public void test() throws Exception {
+
         TestJobWithDescription testJob = buildJob();
 
         // pick any source operator
