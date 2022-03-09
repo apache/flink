@@ -23,7 +23,6 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -32,6 +31,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -150,9 +150,9 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
-        final TableConfig tableConfig = planner.getTableConfig();
-        if (grouping.length > 0 && tableConfig.getMinIdleStateRetentionTime() < 0) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
+        if (grouping.length > 0 && config.getStateRetentionTime() < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent excessive "
@@ -166,7 +166,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(tableConfig),
+                                new CodeGeneratorContext(config.getTableConfig()),
                                 planner.getRelBuilder(),
                                 JavaScalaConversionUtil.toScala(inputRowType.getChildren()),
                                 // TODO: heap state backend do not copy key currently,
@@ -205,9 +205,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
                         .generateRecordEqualiser("GroupAggValueEqualiser");
         final int inputCountIndex = aggInfoList.getIndexOfCountStar();
         final boolean isMiniBatchEnabled =
-                tableConfig
-                        .getConfiguration()
-                        .getBoolean(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
+                config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED);
 
         final OneInputStreamOperator<RowData, RowData> operator;
         if (isMiniBatchEnabled) {
@@ -219,10 +217,10 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
                             inputRowType,
                             inputCountIndex,
                             generateUpdateBefore,
-                            tableConfig.getIdleStateRetention().toMillis());
+                            config.getStateRetentionTime());
             operator =
                     new KeyedMapBundleOperator<>(
-                            aggFunction, AggregateUtil.createMiniBatchTrigger(tableConfig));
+                            aggFunction, AggregateUtil.createMiniBatchTrigger(config));
         } else {
             GroupAggFunction aggFunction =
                     new GroupAggFunction(
@@ -231,7 +229,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
                             accTypes,
                             inputCountIndex,
                             generateUpdateBefore,
-                            tableConfig.getIdleStateRetention().toMillis());
+                            config.getStateRetentionTime());
             operator = new KeyedProcessOperator<>(aggFunction);
         }
 
@@ -239,7 +237,7 @@ public class StreamExecGroupAggregate extends StreamExecAggregateBase {
         final OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        createTransformationMeta(GROUP_AGGREGATE_TRANSFORMATION, tableConfig),
+                        createTransformationMeta(GROUP_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());

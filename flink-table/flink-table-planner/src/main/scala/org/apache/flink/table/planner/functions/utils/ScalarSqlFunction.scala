@@ -19,14 +19,16 @@
 package org.apache.flink.table.planner.functions.utils
 
 import org.apache.flink.table.api.ValidationException
-import org.apache.flink.table.functions.{FunctionIdentifier, ScalarFunction}
+import org.apache.flink.table.functions.{BuiltInFunctionDefinitions, FunctionIdentifier, ScalarFunction}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.ScalarSqlFunction._
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils.{getOperandType, _}
 import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter.getDefaultExternalClassForType
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.runtime.types.TypeInfoLogicalTypeConverter.fromTypeInfoToLogicalType
 import org.apache.flink.table.types.logical.LogicalType
+
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.sql._
 import org.apache.calcite.sql.`type`.SqlOperandTypeChecker.Consistency
@@ -42,7 +44,10 @@ import scala.collection.JavaConverters._
   * @param displayName    name to be displayed in operator name
   * @param scalarFunction scalar function to be called
   * @param typeFactory    type factory for converting Flink's between Calcite's types
+  * @deprecated Use [[BuiltInFunctionDefinitions]] that translates to [[BridgingSqlFunction]].
   */
+@Deprecated
+@deprecated
 class ScalarSqlFunction(
     identifier: FunctionIdentifier,
     val displayName: String,

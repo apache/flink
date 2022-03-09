@@ -40,7 +40,7 @@ public class SymbolUtilTest {
     public void testCalciteToSerializable() {
         final SerializableSymbol trimString = SerializableSymbol.of("TRIM", "LEADING");
         assertThat(calciteToSerializable(SqlTrimFunction.Flag.LEADING)).isEqualTo(trimString);
-        assertThat(SymbolUtil.serializableToCalcite(trimString))
+        assertThat(SymbolUtil.serializableToCalcite(SqlTrimFunction.Flag.class, "LEADING"))
                 .isEqualTo(SqlTrimFunction.Flag.LEADING);
 
         final SerializableSymbol emptyOrErrorString =

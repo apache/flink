@@ -31,19 +31,16 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.configuration.StateChangelogOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
-import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.OperatorState;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
-import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.IncrementalRemoteKeyedStateHandle;
 import org.apache.flink.runtime.state.KeyGroupsStateHandle;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SavepointKeyedStateHandle;
 import org.apache.flink.runtime.state.changelog.ChangelogStateBackendHandle;
-import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
@@ -58,8 +55,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.event.Level;
 
-import java.io.DataInputStream;
-import java.io.IOException;
 import java.nio.file.Path;
 import java.util.LinkedList;
 import java.util.List;
@@ -69,6 +64,7 @@ import java.util.function.Predicate;
 
 import static java.util.Arrays.asList;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
+import static org.apache.flink.test.util.TestUtils.loadCheckpointMetadata;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -275,17 +271,6 @@ public class SavepointFormatITCase {
                                 .findFirst()
                                 .map(subtaskState -> subtaskState.getManagedKeyedState().hasState())
                                 .orElse(false);
-    }
-
-    private CheckpointMetadata loadCheckpointMetadata(String savepointPath) throws IOException {
-        CompletedCheckpointStorageLocation location =
-                AbstractFsCheckpointStorageAccess.resolveCheckpointPointer(savepointPath);
-
-        try (DataInputStream stream =
-                new DataInputStream(location.getMetadataHandle().openInputStream())) {
-            return Checkpoints.loadCheckpointMetadata(
-                    stream, Thread.currentThread().getContextClassLoader(), savepointPath);
-        }
     }
 
     private void relocateAndVerify(

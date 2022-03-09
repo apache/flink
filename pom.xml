@@ -1364,7 +1364,7 @@ under the License.
 			<plugin>
 				<groupId>org.apache.rat</groupId>
 				<artifactId>apache-rat-plugin</artifactId>
-				<version>0.12</version><!--$NO-MVN-MAN-VER$-->
+				<version>0.13</version>
 				<inherited>false</inherited>
 				<executions>
 					<execution>
@@ -1375,6 +1375,7 @@ under the License.
 					</execution>
 				</executions>
 				<configuration>
+					<consoleOutput>true</consoleOutput>
 					<excludeSubProjects>false</excludeSubProjects>
 					<numUnapprovedLicenses>0</numUnapprovedLicenses>
 					<licenses>
@@ -1481,7 +1482,7 @@ under the License.
 						<exclude>flink-end-to-end-tests/flink-tpcds-test/tpcds-tool/query/*</exclude>
 						<exclude>flink-connectors/flink-connector-aws-base/src/test/resources/profile</exclude>
 						<exclude>flink-connectors/flink-connector-kinesis/src/test/resources/profile</exclude>
-						<exclude>flink-connectors/flink-connector-aws-kinesis-data-streams/src/test/resources/profile</exclude>
+						<exclude>flink-connectors/flink-connector-aws-kinesis-streams/src/test/resources/profile</exclude>
 						<exclude>flink-table/flink-table-code-splitter/src/test/resources/**</exclude>
 						<exclude>flink-connectors/flink-connector-pulsar/src/test/resources/**</exclude>
 

@@ -939,7 +939,32 @@ public class SqlToOperationConverter {
 
     /** Convert SHOW TABLES statement. */
     private Operation convertShowTables(SqlShowTables sqlShowTables) {
-        return new ShowTablesOperation();
+        if (sqlShowTables.getPreposition() == null) {
+            return new ShowTablesOperation(
+                    sqlShowTables.getLikeSqlPattern(),
+                    sqlShowTables.isWithLike(),
+                    sqlShowTables.isNotLike());
+        }
+        String[] fullDatabaseName = sqlShowTables.fullDatabaseName();
+        if (fullDatabaseName.length > 2) {
+            throw new ValidationException(
+                    String.format(
+                            "show tables from/in identifier [ %s ] format error",
+                            String.join(".", fullDatabaseName)));
+        }
+        String catalogName =
+                (fullDatabaseName.length == 1)
+                        ? catalogManager.getCurrentCatalog()
+                        : fullDatabaseName[0];
+        String databaseName =
+                (fullDatabaseName.length == 1) ? fullDatabaseName[0] : fullDatabaseName[1];
+        return new ShowTablesOperation(
+                catalogName,
+                databaseName,
+                sqlShowTables.getLikeSqlPattern(),
+                sqlShowTables.isWithLike(),
+                sqlShowTables.isNotLike(),
+                sqlShowTables.getPreposition());
     }
 
     /** Convert SHOW COLUMNS statement. */

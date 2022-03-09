@@ -127,7 +127,7 @@ public class ExpressionResolver {
     private final boolean isGroupedAggregation;
 
     private ExpressionResolver(
-            TableConfig config,
+            TableConfig tableConfig,
             TableReferenceLookup tableLookup,
             FunctionLookup functionLookup,
             DataTypeFactory typeFactory,
@@ -137,7 +137,7 @@ public class ExpressionResolver {
             List<LocalReferenceExpression> localReferences,
             @Nullable DataType outputDataType,
             boolean isGroupedAggregation) {
-        this.config = Preconditions.checkNotNull(config).getConfiguration();
+        this.config = Preconditions.checkNotNull(tableConfig).getConfiguration();
         this.tableLookup = Preconditions.checkNotNull(tableLookup);
         this.fieldLookup = Preconditions.checkNotNull(fieldLookup);
         this.functionLookup = Preconditions.checkNotNull(functionLookup);
@@ -165,7 +165,7 @@ public class ExpressionResolver {
      * resolver like e.g. {@link GroupWindow} or {@link OverWindow}. You can also add additional
      * {@link ResolverRule}.
      *
-     * @param config general configuration
+     * @param tableConfig general configuration
      * @param tableCatalog a way to lookup a table reference by name
      * @param functionLookup a way to lookup call by name
      * @param typeFactory a way to lookup and create data types
@@ -173,14 +173,19 @@ public class ExpressionResolver {
      * @return builder for resolver
      */
     public static ExpressionResolverBuilder resolverFor(
-            TableConfig config,
+            TableConfig tableConfig,
             TableReferenceLookup tableCatalog,
             FunctionLookup functionLookup,
             DataTypeFactory typeFactory,
             SqlExpressionResolver sqlExpressionResolver,
             QueryOperation... inputs) {
         return new ExpressionResolverBuilder(
-                inputs, config, tableCatalog, functionLookup, typeFactory, sqlExpressionResolver);
+                inputs,
+                tableConfig,
+                tableCatalog,
+                functionLookup,
+                typeFactory,
+                sqlExpressionResolver);
     }
 
     /**
@@ -420,7 +425,7 @@ public class ExpressionResolver {
     /** Builder for creating {@link ExpressionResolver}. */
     public static class ExpressionResolverBuilder {
 
-        private final TableConfig config;
+        private final TableConfig tableConfig;
         private final List<QueryOperation> queryOperations;
         private final TableReferenceLookup tableCatalog;
         private final FunctionLookup functionLookup;
@@ -433,12 +438,12 @@ public class ExpressionResolver {
 
         private ExpressionResolverBuilder(
                 QueryOperation[] queryOperations,
-                TableConfig config,
+                TableConfig tableConfig,
                 TableReferenceLookup tableCatalog,
                 FunctionLookup functionLookup,
                 DataTypeFactory typeFactory,
                 SqlExpressionResolver sqlExpressionResolver) {
-            this.config = config;
+            this.tableConfig = tableConfig;
             this.queryOperations = Arrays.asList(queryOperations);
             this.tableCatalog = tableCatalog;
             this.functionLookup = functionLookup;
@@ -469,7 +474,7 @@ public class ExpressionResolver {
 
         public ExpressionResolver build() {
             return new ExpressionResolver(
-                    config,
+                    tableConfig,
                     tableCatalog,
                     functionLookup,
                     typeFactory,

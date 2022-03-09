@@ -193,6 +193,38 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testShowTables() {
         sql("show tables").ok("SHOW TABLES");
+        sql("show tables not like '%'").ok("SHOW TABLES NOT LIKE '%'");
+
+        sql("show tables from db1").ok("SHOW TABLES FROM `DB1`");
+        sql("show tables in db1").ok("SHOW TABLES IN `DB1`");
+
+        sql("show tables from catalog1.db1").ok("SHOW TABLES FROM `CATALOG1`.`DB1`");
+        sql("show tables in catalog1.db1").ok("SHOW TABLES IN `CATALOG1`.`DB1`");
+
+        sql("show tables from db1 like '%'").ok("SHOW TABLES FROM `DB1` LIKE '%'");
+        sql("show tables in db1 like '%'").ok("SHOW TABLES IN `DB1` LIKE '%'");
+
+        sql("show tables from catalog1.db1 like '%'")
+                .ok("SHOW TABLES FROM `CATALOG1`.`DB1` LIKE '%'");
+        sql("show tables in catalog1.db1 like '%'").ok("SHOW TABLES IN `CATALOG1`.`DB1` LIKE '%'");
+
+        sql("show tables from db1 not like '%'").ok("SHOW TABLES FROM `DB1` NOT LIKE '%'");
+        sql("show tables in db1 not like '%'").ok("SHOW TABLES IN `DB1` NOT LIKE '%'");
+
+        sql("show tables from catalog1.db1 not like '%'")
+                .ok("SHOW TABLES FROM `CATALOG1`.`DB1` NOT LIKE '%'");
+        sql("show tables in catalog1.db1 not like '%'")
+                .ok("SHOW TABLES IN `CATALOG1`.`DB1` NOT LIKE '%'");
+
+        sql("show tables ^db1^").fails("(?s).*Encountered \"db1\" at line 1, column 13.\n.*");
+        sql("show tables ^catalog1^.db1")
+                .fails("(?s).*Encountered \"catalog1\" at line 1, column 13.\n.*");
+
+        sql("show tables ^search^ db1")
+                .fails("(?s).*Encountered \"search\" at line 1, column 13.\n.*");
+
+        sql("show tables from db1 ^likes^ '%t'")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 22.\n.*");
     }
 
     @Test

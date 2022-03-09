@@ -177,8 +177,9 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
     // Shared with BuiltInSqlOperator and BuiltInSqlFunction in planner
     // --------------------------------------------------------------------------------------------
 
+    // note that for SQL operators the name can contain spaces and dollar signs
     private static final Pattern INTERNAL_NAME_PATTERN =
-            Pattern.compile("\\$[A-Z0-9_]+\\$[1-9][0-9]*");
+            Pattern.compile("\\$[A-Z0-9_ $]+\\$[1-9][0-9]*");
 
     private static final String INTERNAL_NAME_FORMAT = "$%s$%s";
 
@@ -200,8 +201,7 @@ public final class BuiltInFunctionDefinition implements SpecializedFunction {
     }
 
     public static String qualifyFunctionName(String name, int version) {
-        return String.format(
-                INTERNAL_NAME_FORMAT, name.replace(' ', '_').toUpperCase(Locale.ROOT), version);
+        return String.format(INTERNAL_NAME_FORMAT, name.toUpperCase(Locale.ROOT), version);
     }
 
     // --------------------------------------------------------------------------------------------

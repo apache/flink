@@ -28,12 +28,11 @@ import org.apache.flink.table.planner.connectors.CollectDynamicSink;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecSink;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.ChangelogModeJsonDeserializer;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.ChangelogModeJsonSerializer;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSinkSpec;
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -42,8 +41,6 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonInclude;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -79,8 +76,6 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
     public static final String FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE = "requireUpsertMaterialize";
 
     @JsonProperty(FIELD_NAME_INPUT_CHANGELOG_MODE)
-    @JsonSerialize(using = ChangelogModeJsonSerializer.class)
-    @JsonDeserialize(using = ChangelogModeJsonDeserializer.class)
     private final ChangelogMode inputChangelogMode;
 
     @JsonProperty(FIELD_NAME_REQUIRE_UPSERT_MATERIALIZE)
@@ -130,7 +125,8 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<Object> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<Object> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -165,6 +161,11 @@ public class StreamExecSink extends CommonExecSink implements StreamExecNode<Obj
         }
 
         return createSinkTransformation(
-                planner, inputTransform, tableSink, rowtimeFieldIndex, upsertMaterialize);
+                planner.getExecEnv(),
+                config,
+                inputTransform,
+                tableSink,
+                rowtimeFieldIndex,
+                upsertMaterialize);
     }
 }

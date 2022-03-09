@@ -22,18 +22,16 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonDeserializer;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalTypeJsonSerializer;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.AggregateInfoList;
 import org.apache.flink.table.planner.plan.utils.AggregateUtil;
@@ -49,8 +47,6 @@ import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotation.JsonSerialize;
 
 import org.apache.calcite.rel.core.AggregateCall;
 import org.apache.calcite.tools.RelBuilder;
@@ -107,8 +103,6 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
 
     /** The input row type of this node's partial local agg. */
     @JsonProperty(FIELD_NAME_PARTIAL_LOCAL_AGG_INPUT_TYPE)
-    @JsonSerialize(using = LogicalTypeJsonSerializer.class)
-    @JsonDeserialize(using = LogicalTypeJsonDeserializer.class)
     private final RowType partialLocalAggInputType;
 
     /** Whether this node consumes retraction messages. */
@@ -166,7 +160,8 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -179,7 +174,6 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                         partialAggNeedRetraction,
                         false);
 
-        final TableConfig config = planner.getTableConfig();
         final GeneratedAggsHandleFunction partialAggsHandler =
                 generateAggsHandler(
                         "PartialGroupAggsHandler",
@@ -221,7 +215,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                         partialAggsHandler,
                         finalAggsHandler,
                         finalKeySelector,
-                        config.getIdleStateRetention().toMillis());
+                        config.getStateRetentionTime());
 
         final OneInputStreamOperator<RowData, RowData> operator =
                 new KeyedMapBundleOperator<>(
@@ -232,8 +226,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
                         createTransformationMeta(
-                                INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION,
-                                planner.getTableConfig()),
+                                INCREMENTAL_GROUP_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
@@ -249,13 +242,13 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
             AggregateInfoList aggInfoList,
             int mergedAccOffset,
             DataType[] mergedAccExternalTypes,
-            TableConfig config,
+            ExecNodeConfig config,
             RelBuilder relBuilder,
             boolean inputFieldCopy) {
 
         AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(config),
+                        new CodeGeneratorContext(config.getTableConfig()),
                         relBuilder,
                         JavaScalaConversionUtil.toScala(partialLocalAggInputType.getChildren()),
                         inputFieldCopy);

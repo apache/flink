@@ -67,6 +67,7 @@ public class YarnEntrypointUtils {
         configuration.setString(JobManagerOptions.ADDRESS, hostname);
         configuration.removeConfig(JobManagerOptions.BIND_HOST);
         configuration.removeConfig(TaskManagerOptions.BIND_HOST);
+        configuration.removeConfig(TaskManagerOptions.HOST);
         configuration.setString(RestOptions.ADDRESS, hostname);
         configuration.setString(RestOptions.BIND_ADDRESS, hostname);
 

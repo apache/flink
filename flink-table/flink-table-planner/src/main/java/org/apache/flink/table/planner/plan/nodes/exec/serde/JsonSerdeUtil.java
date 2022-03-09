@@ -19,6 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.FlinkVersion;
+import org.apache.flink.annotation.Internal;
+import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
@@ -30,10 +32,13 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
+import org.apache.flink.table.planner.plan.nodes.exec.InputProperty.RequiredDistribution;
 import org.apache.flink.table.planner.plan.utils.ExecNodeMetadataUtil;
 import org.apache.flink.table.runtime.groupwindow.WindowReference;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.extraction.ExtractionUtils;
 import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonGenerator;
@@ -67,7 +72,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.util.Optional;
 
-/** An utility class that provide abilities for JSON serialization and deserialization. */
+/** A utility class that provide abilities for JSON serialization and deserialization. */
+@Internal
 public class JsonSerdeUtil {
 
     /** Return true if the given class's constructors have @JsonCreator annotation, else false. */
@@ -122,7 +128,7 @@ public class JsonSerdeUtil {
 
     private static Module createFlinkTableJacksonModule() {
         final SimpleModule module = new SimpleModule("Flink table module");
-        ExecNodeMetadataUtil.execNodes().stream()
+        ExecNodeMetadataUtil.execNodes()
                 .forEach(c -> module.registerSubtypes(new NamedType(c, c.getName())));
         registerSerializers(module);
         registerDeserializers(module);
@@ -134,15 +140,10 @@ public class JsonSerdeUtil {
     private static void registerSerializers(SimpleModule module) {
         module.addSerializer(new ExecNodeGraphJsonSerializer());
         module.addSerializer(new FlinkVersionJsonSerializer());
-        // ObjectIdentifierJsonSerializer is needed for LogicalType serialization
         module.addSerializer(new ObjectIdentifierJsonSerializer());
-        // LogicalTypeJsonSerializer is needed for RelDataType serialization
         module.addSerializer(new LogicalTypeJsonSerializer());
-        // DataTypeJsonSerializer is needed for LogicalType serialization
         module.addSerializer(new DataTypeJsonSerializer());
-        // RelDataTypeJsonSerializer is needed for RexNode serialization
         module.addSerializer(new RelDataTypeJsonSerializer());
-        // RexNode is used in many exec nodes, so we register its serializer directly here
         module.addSerializer(new RexNodeJsonSerializer());
         module.addSerializer(new AggregateCallJsonSerializer());
         module.addSerializer(new ChangelogModeJsonSerializer());
@@ -154,24 +155,19 @@ public class JsonSerdeUtil {
         module.addSerializer(new ResolvedCatalogTableJsonSerializer());
         module.addSerializer(new ResolvedExpressionJsonSerializer());
         module.addSerializer(new ResolvedSchemaJsonSerializer());
+        module.addSerializer(new RequiredDistributionJsonSerializer());
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static void registerDeserializers(SimpleModule module) {
         module.addDeserializer(ExecNodeGraph.class, new ExecNodeGraphJsonDeserializer());
         module.addDeserializer(FlinkVersion.class, new FlinkVersionJsonDeserializer());
-        // ObjectIdentifierJsonDeserializer is needed for LogicalType deserialization
         module.addDeserializer(ObjectIdentifier.class, new ObjectIdentifierJsonDeserializer());
-        // LogicalTypeJsonSerializer is needed for RelDataType serialization
         module.addDeserializer(LogicalType.class, new LogicalTypeJsonDeserializer());
-        // DataTypeJsonDeserializer is needed for LogicalType serialization
+        module.addDeserializer(RowType.class, (StdDeserializer) new LogicalTypeJsonDeserializer());
         module.addDeserializer(DataType.class, new DataTypeJsonDeserializer());
-        // RelDataTypeJsonSerializer is needed for RexNode serialization
         module.addDeserializer(RelDataType.class, new RelDataTypeJsonDeserializer());
-        // RexNode is used in many exec nodes, so we register its deserializer directly here
         module.addDeserializer(RexNode.class, new RexNodeJsonDeserializer());
-        // We need this explicit mapping to make sure Jackson can deserialize POJOs declaring fields
-        // with RexLiteral instead of RexNode.
         module.addDeserializer(RexLiteral.class, (StdDeserializer) new RexNodeJsonDeserializer());
         module.addDeserializer(AggregateCall.class, new AggregateCallJsonDeserializer());
         module.addDeserializer(ChangelogMode.class, new ChangelogModeJsonDeserializer());
@@ -185,6 +181,8 @@ public class JsonSerdeUtil {
                 ResolvedCatalogTable.class, new ResolvedCatalogTableJsonDeserializer());
         module.addDeserializer(ResolvedExpression.class, new ResolvedExpressionJsonDeserializer());
         module.addDeserializer(ResolvedSchema.class, new ResolvedSchemaJsonDeserializer());
+        module.addDeserializer(
+                RequiredDistribution.class, new RequiredDistributionJsonDeserializer());
     }
 
     private static void registerMixins(SimpleModule module) {
@@ -242,6 +240,15 @@ public class JsonSerdeUtil {
             return Optional.of(ctx.readValue(traverse(objectNode.get(fieldName), codec), type));
         }
         return Optional.empty();
+    }
+
+    static Class<?> loadClass(String className, SerdeContext serdeContext, String explanation) {
+        try {
+            return ExtractionUtils.classForName(className, true, serdeContext.getClassLoader());
+        } catch (ClassNotFoundException e) {
+            throw new TableException(
+                    String.format("Could not load class '%s' for %s.", className, explanation), e);
+        }
     }
 
     private JsonSerdeUtil() {}

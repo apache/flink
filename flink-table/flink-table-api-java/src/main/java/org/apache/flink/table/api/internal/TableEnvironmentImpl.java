@@ -71,6 +71,7 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.table.delegation.ExecutorFactory;
+import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
@@ -583,6 +584,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
+    public String[] listTables(String catalog, String databaseName) {
+        return catalogManager.listTables(catalog, databaseName).stream()
+                .sorted()
+                .toArray(String[]::new);
+    }
+
+    @Override
     public String[] listViews() {
         return catalogManager.listViews().stream().sorted().toArray(String[]::new);
     }
@@ -710,7 +718,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     @Override
     public CompiledPlan loadPlan(PlanReference planReference) {
         try {
-            return planner.loadPlan(planReference);
+            return new CompiledPlanImpl(this, planner.loadPlan(planReference));
         } catch (IOException e) {
             throw new TableException(String.format("Cannot load %s.", planReference), e);
         }
@@ -724,15 +732,17 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             throw new TableException(UNSUPPORTED_QUERY_IN_COMPILE_PLAN_SQL_MSG);
         }
 
-        return planner.compilePlan(Collections.singletonList((ModifyOperation) operations.get(0)));
+        return new CompiledPlanImpl(
+                this,
+                planner.compilePlan(
+                        Collections.singletonList((ModifyOperation) operations.get(0))));
     }
 
     @Override
-    public TableResult executePlan(CompiledPlan plan) {
-        CompiledPlanInternal planInternal = (CompiledPlanInternal) plan;
-        List<Transformation<?>> transformations = planner.translatePlan(planInternal);
+    public TableResultInternal executePlan(InternalPlan plan) {
+        List<Transformation<?>> transformations = planner.translatePlan(plan);
         List<String> sinkIdentifierNames =
-                deduplicateSinkIdentifierNames(planInternal.getSinkIdentifiers());
+                deduplicateSinkIdentifierNames(plan.getSinkIdentifiers());
         return executeInternal(transformations, sinkIdentifierNames);
     }
 
@@ -773,7 +783,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public CompiledPlan compilePlan(List<ModifyOperation> operations) {
-        return planner.compilePlan(operations);
+        return new CompiledPlanImpl(this, planner.compilePlan(operations));
     }
 
     @Override
@@ -1201,7 +1211,21 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 return buildShowResult("module name", listModules());
             }
         } else if (operation instanceof ShowTablesOperation) {
-            return buildShowResult("table name", listTables());
+            ShowTablesOperation showTablesOperation = (ShowTablesOperation) operation;
+            if (showTablesOperation.getPreposition() == null) {
+                return buildShowTablesResult(listTables(), showTablesOperation);
+            }
+            final String catalogName = showTablesOperation.getCatalogName();
+            final String databaseName = showTablesOperation.getDatabaseName();
+            Catalog catalog = getCatalogOrThrowException(catalogName);
+            if (catalog.databaseExists(databaseName)) {
+                return buildShowTablesResult(
+                        listTables(catalogName, databaseName), showTablesOperation);
+            } else {
+                throw new ValidationException(
+                        String.format(
+                                "Database '%s'.'%s' doesn't exist.", catalogName, databaseName));
+            }
         } else if (operation instanceof ShowFunctionsOperation) {
             ShowFunctionsOperation showFunctionsOperation = (ShowFunctionsOperation) operation;
             String[] functionNames = null;
@@ -1321,7 +1345,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                             compileAndExecutePlanOperation.getFilePath(),
                             true,
                             compileAndExecutePlanOperation.getOperation());
-            return (TableResultInternal) executePlan(compiledPlan);
+            return (TableResultInternal) compiledPlan.execute();
         } else if (operation instanceof NopOperation) {
             return TableResultImpl.TABLE_RESULT_OK;
         } else {
@@ -1412,6 +1436,24 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     private String[] generateTableColumnsNames() {
         return new String[] {"name", "type", "null", "key", "extras", "watermark"};
+    }
+
+    private TableResultInternal buildShowTablesResult(
+            String[] tableList, ShowTablesOperation showTablesOp) {
+        String[] rows = tableList.clone();
+        if (showTablesOp.isUseLike()) {
+            rows =
+                    Arrays.stream(tableList)
+                            .filter(
+                                    row ->
+                                            showTablesOp.isNotLike()
+                                                    != SqlLikeUtils.like(
+                                                            row,
+                                                            showTablesOp.getLikePattern(),
+                                                            "\\"))
+                            .toArray(String[]::new);
+        }
+        return buildShowResult("table name", rows);
     }
 
     private TableResultInternal buildShowColumnsResult(
@@ -1832,7 +1874,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     @Override
-    public String explainPlan(CompiledPlan compiledPlan, ExplainDetail... extraDetails) {
-        return planner.explainPlan((CompiledPlanInternal) compiledPlan, extraDetails);
+    public String explainPlan(InternalPlan compiledPlan, ExplainDetail... extraDetails) {
+        return planner.explainPlan(compiledPlan, extraDetails);
     }
 }

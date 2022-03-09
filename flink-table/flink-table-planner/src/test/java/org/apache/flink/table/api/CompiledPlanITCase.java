@@ -91,8 +91,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
     public void testExecutePlanSql() throws Exception {
         File sinkPath = createSourceSinkTables();
 
-        CompiledPlan plan = tableEnv.compilePlanSql("insert into sink select * from src");
-        tableEnv.executePlan(plan).await();
+        tableEnv.compilePlanSql("insert into sink select * from src").execute().await();
 
         assertResult(DATA, sinkPath);
     }
@@ -101,8 +100,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
     public void testExecutePlanTable() throws Exception {
         File sinkPath = createSourceSinkTables();
 
-        CompiledPlan plan = tableEnv.from("src").select($("*")).insertInto("sink").compilePlan();
-        tableEnv.executePlan(plan).await();
+        tableEnv.from("src").select($("*")).insertInto("sink").compilePlan().execute().await();
 
         assertResult(DATA, sinkPath);
     }
@@ -218,7 +216,7 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
 
     @Test
     public void testCompilePlanOverwrite() throws Exception {
-        tableEnv.getConfig().getConfiguration().set(TableConfigOptions.PLAN_FORCE_RECOMPILE, true);
+        tableEnv.getConfig().set(TableConfigOptions.PLAN_FORCE_RECOMPILE, true);
 
         Path planPath =
                 Paths.get(URI.create(getTempDirPath("plan")).getPath(), "plan.json")
@@ -310,9 +308,8 @@ public class CompiledPlanITCase extends JsonPlanTestBase {
                         .toString();
 
         String actual =
-                tableEnv.explainPlan(
-                        tableEnv.loadPlan(PlanReference.fromJsonString(planFromResources)),
-                        ExplainDetail.JSON_EXECUTION_PLAN);
+                tableEnv.loadPlan(PlanReference.fromJsonString(planFromResources))
+                        .explain(ExplainDetail.JSON_EXECUTION_PLAN);
         String expected = TableTestUtil.readFromResource("/explain/testExplainJsonPlan.out");
         assertThat(TableTestUtil.replaceNodeIdInOperator(TableTestUtil.replaceStreamNodeId(actual)))
                 .isEqualTo(expected);

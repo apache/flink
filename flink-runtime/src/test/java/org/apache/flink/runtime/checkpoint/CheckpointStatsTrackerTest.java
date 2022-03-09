@@ -69,7 +69,7 @@ public class CheckpointStatsTrackerTest {
         pending.reportSubtaskStats(jobVertexID, createSubtaskStats(1));
         pending.reportSubtaskStats(jobVertexID, createSubtaskStats(2));
 
-        pending.reportCompletedCheckpoint(null);
+        tracker.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(null));
 
         CheckpointStatsSnapshot snapshot = tracker.createSnapshot();
         // History should be empty
@@ -118,7 +118,7 @@ public class CheckpointStatsTrackerTest {
         completed1.reportSubtaskStats(jobVertexID, createSubtaskStats(1));
         completed1.reportSubtaskStats(jobVertexID, createSubtaskStats(2));
 
-        completed1.reportCompletedCheckpoint(null);
+        tracker.reportCompletedCheckpoint(completed1.toCompletedCheckpointStats(null));
 
         // Failed checkpoint
         PendingCheckpointStats failed =
@@ -129,7 +129,7 @@ public class CheckpointStatsTrackerTest {
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
                         vertexToDop);
 
-        failed.reportFailedCheckpoint(12, null);
+        tracker.reportFailedCheckpoint(failed.toFailedCheckpoint(12, null));
 
         // Completed savepoint
         PendingCheckpointStats savepoint =
@@ -143,7 +143,7 @@ public class CheckpointStatsTrackerTest {
         savepoint.reportSubtaskStats(jobVertexID, createSubtaskStats(1));
         savepoint.reportSubtaskStats(jobVertexID, createSubtaskStats(2));
 
-        savepoint.reportCompletedCheckpoint(null);
+        tracker.reportCompletedCheckpoint(savepoint.toCompletedCheckpointStats(null));
 
         // In Progress
         PendingCheckpointStats inProgress =
@@ -171,6 +171,15 @@ public class CheckpointStatsTrackerTest {
         assertEquals(1, counts.getNumberOfInProgressCheckpoints());
         assertEquals(2, counts.getNumberOfCompletedCheckpoints());
         assertEquals(1, counts.getNumberOfFailedCheckpoints());
+
+        tracker.reportFailedCheckpointsWithoutInProgress();
+
+        CheckpointStatsSnapshot snapshot1 = tracker.createSnapshot();
+        counts = snapshot1.getCounts();
+        assertEquals(5, counts.getTotalNumberOfCheckpoints());
+        assertEquals(1, counts.getNumberOfInProgressCheckpoints());
+        assertEquals(2, counts.getNumberOfCompletedCheckpoints());
+        assertEquals(2, counts.getNumberOfFailedCheckpoints());
 
         // Summary stats
         CompletedCheckpointStatsSummarySnapshot summary = snapshot.getSummaryStats();
@@ -242,7 +251,7 @@ public class CheckpointStatsTrackerTest {
         assertEquals(snapshot2, tracker.createSnapshot());
 
         // Complete checkpoint => new snapshot
-        pending.reportCompletedCheckpoint(null);
+        tracker.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(null));
 
         CheckpointStatsSnapshot snapshot3 = tracker.createSnapshot();
         assertNotEquals(snapshot2, snapshot3);
@@ -289,6 +298,7 @@ public class CheckpointStatsTrackerTest {
                                 CheckpointStatsTracker.NUMBER_OF_FAILED_CHECKPOINTS_METRIC,
                                 CheckpointStatsTracker.LATEST_RESTORED_CHECKPOINT_TIMESTAMP_METRIC,
                                 CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC,
+                                CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC,
                                 CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC,
                                 CheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_PROCESSED_DATA_METRIC,
@@ -296,7 +306,7 @@ public class CheckpointStatsTrackerTest {
                                         .LATEST_COMPLETED_CHECKPOINT_PERSISTED_DATA_METRIC,
                                 CheckpointStatsTracker
                                         .LATEST_COMPLETED_CHECKPOINT_EXTERNAL_PATH_METRIC)));
-        assertEquals(10, registeredGaugeNames.size());
+        assertEquals(11, registeredGaugeNames.size());
     }
 
     /**
@@ -327,7 +337,7 @@ public class CheckpointStatsTrackerTest {
         CheckpointStatsTracker stats = new CheckpointStatsTracker(0, metricGroup);
 
         // Make sure to adjust this test if metrics are added/removed
-        assertEquals(10, registeredGauges.size());
+        assertEquals(11, registeredGauges.size());
 
         // Check initial values
         Gauge<Long> numCheckpoints =
@@ -353,6 +363,11 @@ public class CheckpointStatsTrackerTest {
                 (Gauge<Long>)
                         registeredGauges.get(
                                 CheckpointStatsTracker.LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC);
+        Gauge<Long> latestCompletedFullSize =
+                (Gauge<Long>)
+                        registeredGauges.get(
+                                CheckpointStatsTracker
+                                        .LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC);
         Gauge<Long> latestCompletedDuration =
                 (Gauge<Long>)
                         registeredGauges.get(
@@ -379,6 +394,7 @@ public class CheckpointStatsTrackerTest {
         assertEquals(Long.valueOf(0), numFailedCheckpoints.getValue());
         assertEquals(Long.valueOf(-1), latestRestoreTimestamp.getValue());
         assertEquals(Long.valueOf(-1), latestCompletedSize.getValue());
+        assertEquals(Long.valueOf(-1), latestCompletedFullSize.getValue());
         assertEquals(Long.valueOf(-1), latestCompletedDuration.getValue());
         assertEquals(Long.valueOf(-1), latestProcessedData.getValue());
         assertEquals(Long.valueOf(-1), latestPersistedData.getValue());
@@ -399,7 +415,8 @@ public class CheckpointStatsTrackerTest {
         assertEquals(Long.valueOf(0), numFailedCheckpoints.getValue());
 
         long ackTimestamp = 11231230L;
-        long stateSize = 12381238L;
+        long checkpointedSize = 123L;
+        long fullCheckpointSize = 12381238L;
         long processedData = 4242L;
         long persistedData = 4444L;
         long ignored = 0;
@@ -409,8 +426,8 @@ public class CheckpointStatsTrackerTest {
                 new SubtaskStateStats(
                         0,
                         ackTimestamp,
-                        stateSize,
-                        stateSize,
+                        checkpointedSize,
+                        fullCheckpointSize,
                         ignored,
                         ignored,
                         processedData,
@@ -422,7 +439,7 @@ public class CheckpointStatsTrackerTest {
 
         assertTrue(pending.reportSubtaskStats(jobVertexID, subtaskStats));
 
-        pending.reportCompletedCheckpoint(externalPath);
+        stats.reportCompletedCheckpoint(pending.toCompletedCheckpointStats(externalPath));
 
         // Verify completed checkpoint updated
         assertEquals(Long.valueOf(1), numCheckpoints.getValue());
@@ -430,7 +447,8 @@ public class CheckpointStatsTrackerTest {
         assertEquals(Long.valueOf(1), numCompletedCheckpoints.getValue());
         assertEquals(Long.valueOf(0), numFailedCheckpoints.getValue());
         assertEquals(Long.valueOf(-1), latestRestoreTimestamp.getValue());
-        assertEquals(Long.valueOf(stateSize), latestCompletedSize.getValue());
+        assertEquals(Long.valueOf(checkpointedSize), latestCompletedSize.getValue());
+        assertEquals(Long.valueOf(fullCheckpointSize), latestCompletedFullSize.getValue());
         assertEquals(Long.valueOf(processedData), latestProcessedData.getValue());
         assertEquals(Long.valueOf(persistedData), latestPersistedData.getValue());
         assertEquals(Long.valueOf(ackTimestamp), latestCompletedDuration.getValue());
@@ -446,7 +464,7 @@ public class CheckpointStatsTrackerTest {
                         singletonMap(jobVertexID, 1));
 
         long failureTimestamp = 1230123L;
-        nextPending.reportFailedCheckpoint(failureTimestamp, null);
+        stats.reportFailedCheckpoint(nextPending.toFailedCheckpoint(failureTimestamp, null));
 
         // Verify updated
         assertEquals(Long.valueOf(2), numCheckpoints.getValue());
@@ -482,7 +500,7 @@ public class CheckpointStatsTrackerTest {
                         singletonMap(jobVertexID, 1));
 
         thirdPending.reportSubtaskStats(jobVertexID, subtaskStats);
-        thirdPending.reportCompletedCheckpoint(null);
+        stats.reportCompletedCheckpoint(thirdPending.toCompletedCheckpointStats(null));
 
         // Verify external path is "n/a", because internal checkpoint won't generate external path.
         assertEquals("n/a", latestCompletedExternalPath.getValue());

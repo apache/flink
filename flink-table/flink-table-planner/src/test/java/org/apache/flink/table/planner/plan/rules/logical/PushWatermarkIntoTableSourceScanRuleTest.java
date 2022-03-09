@@ -237,10 +237,7 @@ public class PushWatermarkIntoTableSourceScanRuleTest extends TableTestBase {
 
     @Test
     public void testWatermarkWithIdleSource() {
-        util.tableEnv()
-                .getConfig()
-                .getConfiguration()
-                .set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1000));
+        util.tableEnv().getConfig().set(TABLE_EXEC_SOURCE_IDLE_TIMEOUT, Duration.ofMillis(1000));
         String ddl =
                 "CREATE TABLE MyTable("
                         + "  a INT,\n"

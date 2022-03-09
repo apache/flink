@@ -798,6 +798,17 @@ public interface TableEnvironment {
     String[] listTables();
 
     /**
+     * Gets the names of all tables available in the given namespace (the given database of the
+     * given catalog). It returns both temporary and permanent tables and views.
+     *
+     * @return A list of the names of all registered tables in the given database of the given
+     *     catalog.
+     * @see #listTemporaryTables()
+     * @see #listTemporaryViews()
+     */
+    String[] listTables(String catalogName, String databaseName);
+
+    /**
      * Gets the names of all views available in the current namespace (the current database of the
      * current catalog). It returns both temporary and permanent views.
      *
@@ -1082,7 +1093,7 @@ public interface TableEnvironment {
      * {@link CompiledPlan} and the website documentation for more information.
      *
      * <p>This method will parse the input reference and will validate the plan. The returned
-     * instance can be executed via {@link #executePlan(CompiledPlan)}.
+     * instance can be executed via {@link CompiledPlan#execute()}.
      *
      * <p>Note: The compiled plan feature is not supported in batch mode.
      *
@@ -1103,7 +1114,7 @@ public interface TableEnvironment {
      *
      * <p>Note: The compiled plan feature is not supported in batch mode.
      *
-     * @see #executePlan(CompiledPlan)
+     * @see CompiledPlan#execute()
      * @see #loadPlan(PlanReference)
      * @throws TableException if the SQL statement is invalid or if the plan cannot be persisted.
      */
@@ -1111,46 +1122,13 @@ public interface TableEnvironment {
     CompiledPlan compilePlanSql(String stmt) throws TableException;
 
     /**
-     * Executes the provided {@link CompiledPlan}.
-     *
-     * <p>Compiled plans can be persisted and reloaded across Flink versions. They describe static
-     * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
-     * {@link CompiledPlan} and the website documentation for more information.
-     *
-     * <p>If a job is resumed from a savepoint, it will eventually resume the execution.
-     *
-     * <p>Note: The compiled plan feature is not supported in batch mode.
-     *
-     * @see #compilePlanSql(String)
-     * @see #loadPlan(PlanReference)
-     */
-    @Experimental
-    TableResult executePlan(CompiledPlan plan);
-
-    /**
-     * Shorthand for {@code tEnv.executePlan(tEnv.loadPlan(planReference))}.
+     * Shorthand for {@code tEnv.loadPlan(planReference).execute()}.
      *
      * @see #loadPlan(PlanReference)
-     * @see #executePlan(CompiledPlan)
+     * @see CompiledPlan#execute()
      */
     @Experimental
     default TableResult executePlan(PlanReference planReference) throws TableException {
-        return executePlan(loadPlan(planReference));
+        return loadPlan(planReference).execute();
     }
-
-    /**
-     * Returns the AST of the specified statement and the execution plan to compute the result of
-     * the given statement.
-     *
-     * <p>Compiled plans can be persisted and reloaded across Flink versions. They describe static
-     * pipelines to ensure backwards compatibility and enable stateful streaming job upgrades. See
-     * {@link CompiledPlan} and the website documentation for more information.
-     *
-     * <p>Note: The compiled plan feature is not supported in batch mode.
-     *
-     * @see #loadPlan(PlanReference)
-     * @see #compilePlanSql(String)
-     */
-    @Experimental
-    String explainPlan(CompiledPlan compiledPlan, ExplainDetail... extraDetails);
 }

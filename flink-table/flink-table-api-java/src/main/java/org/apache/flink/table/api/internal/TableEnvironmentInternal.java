@@ -25,6 +25,7 @@ import org.apache.flink.table.api.ExplainDetail;
 import org.apache.flink.table.api.Table;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.delegation.InternalPlan;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.operations.ModifyOperation;
 import org.apache.flink.table.operations.Operation;
@@ -119,11 +120,12 @@ public interface TableEnvironmentInternal extends TableEnvironment {
      */
     void registerTableSinkInternal(String name, TableSink<?> configuredSink);
 
-    /**
-     * Compile a plan staring from a list of operations.
-     *
-     * <p><b>Note:</b> This API is <b>experimental</b> and subject to change in future releases.
-     */
     @Experimental
     CompiledPlan compilePlan(List<ModifyOperation> operations);
+
+    @Experimental
+    TableResultInternal executePlan(InternalPlan plan);
+
+    @Experimental
+    String explainPlan(InternalPlan compiledPlan, ExplainDetail... extraDetails);
 }

@@ -40,7 +40,6 @@ public class ForwardHashExchangeITCase extends BatchTestBase {
         env().getConfig().setDynamicGraph(true);
         env().disableOperatorChaining();
         tEnv().getConfig()
-                .getConfiguration()
                 .set(ExecutionOptions.BATCH_SHUFFLE_MODE, BatchShuffleMode.ALL_EXCHANGES_BLOCKING);
 
         String testDataId = TestValuesTableFactory.registerData(TestData.data3());
@@ -61,9 +60,7 @@ public class ForwardHashExchangeITCase extends BatchTestBase {
 
     @Test
     public void testOverAggWithHashAgg() {
-        tEnv().getConfig()
-                .getConfiguration()
-                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
+        tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "SortAgg");
         checkResult(
                 "SELECT\n"
                         + "   b,\n"
@@ -85,9 +82,7 @@ public class ForwardHashExchangeITCase extends BatchTestBase {
 
     @Test
     public void testOverAggWithSortAgg() {
-        tEnv().getConfig()
-                .getConfiguration()
-                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+        tEnv().getConfig().set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
         checkResult(
                 "SELECT\n"
                         + "   b,\n"

@@ -410,15 +410,39 @@ SqlShowViews SqlShowViews() :
 }
 
 /**
-* Parse a "Show Tables" metadata query command.
+* SHOW TABLES FROM [catalog.] database sql call.
 */
 SqlShowTables SqlShowTables() :
 {
+    SqlIdentifier databaseName = null;
+    SqlCharStringLiteral likeLiteral = null;
+    String prep = null;
+    boolean notLike = false;
+    SqlParserPos pos;
 }
 {
     <SHOW> <TABLES>
+    { pos = getPos(); }
+    [
+        ( <FROM> { prep = "FROM"; } | <IN> { prep = "IN"; } )
+        { pos = getPos(); }
+        databaseName = CompoundIdentifier()
+    ]
+    [
+        [
+            <NOT>
+            {
+                notLike = true;
+            }
+        ]
+        <LIKE>  <QUOTED_STRING>
+        {
+            String likeCondition = SqlParserUtil.parseString(token.image);
+            likeLiteral = SqlLiteral.createCharString(likeCondition, getPos());
+        }
+    ]
     {
-        return new SqlShowTables(getPos());
+        return new SqlShowTables(pos, prep, databaseName, notLike, likeLiteral);
     }
 }
 
@@ -1711,7 +1735,8 @@ SqlEndStatementSet SqlEndStatementSet() :
 
 /**
 * Parse a statement set.
-* END;
+*
+* STATEMENT SET BEGIN (RichSqlInsert();)+ END
 */
 SqlNode SqlStatementSet() :
 {
@@ -1743,16 +1768,13 @@ SqlNode SqlRichExplain() :
     Set<String> explainDetails = new HashSet<String>();
 }
 {
-    <EXPLAIN> 
-    [
-        <PLAN> <FOR> 
-        |
-            ParseExplainDetail(explainDetails)
-        (
-            <COMMA>
-            ParseExplainDetail(explainDetails)
-        )*
-    ]
+    (
+    LOOKAHEAD(3) <EXPLAIN> <PLAN> <FOR>
+    |
+    LOOKAHEAD(2) <EXPLAIN> ParseExplainDetail(explainDetails) ( <COMMA> ParseExplainDetail(explainDetails) )*
+    |
+    <EXPLAIN>
+    )
     (
         stmt = SqlStatementSet()
         |

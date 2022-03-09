@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
@@ -54,13 +55,15 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindow
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.LogicalWindowJsonSerializer.KIND_TUMBLING;
 
 /**
- * JSON deserializer for {@link LogicalWindow}, refer to {@link LogicalWindowJsonSerializer} for
- * serializer.
+ * JSON deserializer for {@link LogicalWindow}.
+ *
+ * @see LogicalWindowJsonSerializer for the reverse operation
  */
-public class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow> {
+@Internal
+final class LogicalWindowJsonDeserializer extends StdDeserializer<LogicalWindow> {
     private static final long serialVersionUID = 1L;
 
-    public LogicalWindowJsonDeserializer() {
+    LogicalWindowJsonDeserializer() {
         super(LogicalWindow.class);
     }
 

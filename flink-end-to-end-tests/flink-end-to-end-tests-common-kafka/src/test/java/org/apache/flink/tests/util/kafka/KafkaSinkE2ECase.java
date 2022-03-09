@@ -19,9 +19,7 @@
 package org.apache.flink.tests.util.kafka;
 
 import org.apache.flink.connector.kafka.sink.testutils.KafkaSinkExternalContextFactory;
-import org.apache.flink.connector.testframe.environment.TestEnvironment;
 import org.apache.flink.connector.testframe.external.DefaultContainerizedExternalSystem;
-import org.apache.flink.connector.testframe.external.sink.DataStreamSinkExternalContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestContext;
 import org.apache.flink.connector.testframe.junit.annotations.TestEnv;
 import org.apache.flink.connector.testframe.junit.annotations.TestExternalSystem;
@@ -32,8 +30,6 @@ import org.apache.flink.tests.util.TestUtils;
 import org.apache.flink.tests.util.flink.FlinkContainerTestEnvironment;
 import org.apache.flink.util.DockerImageVersions;
 
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.TestTemplate;
 import org.testcontainers.containers.KafkaContainer;
 import org.testcontainers.utility.DockerImageName;
 
@@ -84,13 +80,4 @@ public class KafkaSinkE2ECase extends SinkTestSuiteBase<String> {
                                     .toURL()));
 
     public KafkaSinkE2ECase() throws Exception {}
-
-    @Disabled("Skip metric test until FLINK-26126 fixed")
-    @TestTemplate
-    @Override
-    public void testMetrics(
-            TestEnvironment testEnv,
-            DataStreamSinkExternalContext<String> externalContext,
-            CheckpointingMode semantic)
-            throws Exception {}
 }

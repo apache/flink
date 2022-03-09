@@ -51,13 +51,25 @@ jobmanager.bind-host: localhost
 
 jobmanager.memory.process.size: 1600m
 
-# The host interface the TaskManager will bind to. My default, this is localhost, and will prevent
+# The host interface the TaskManager will bind to. By default, this is localhost, and will prevent
 # the TaskManager from communicating outside the machine/container it is running on.
 #
 # To enable this, set the bind-host address to one that has access to an outside facing network
 # interface, such as 0.0.0.0.
 
 taskmanager.bind-host: localhost
+
+# The address of the host on which the TaskManager runs and can be reached by the JobManager and
+# other TaskManagers. If not specified, the TaskManager will try different strategies to identify
+# the address.
+#
+# Note this address needs to be reachable by the JobManager and forward traffic to one of
+# the interfaces the TaskManager is bound to (see 'taskmanager.bind-host').
+#
+# Note also that unless all TaskManagers are running on the same machine, this address needs to be
+# configured separately for each TaskManager.
+
+taskmanager.host: localhost
 
 # The total process memory size for the TaskManager.
 #

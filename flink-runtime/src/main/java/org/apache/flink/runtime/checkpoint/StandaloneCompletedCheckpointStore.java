@@ -101,7 +101,7 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
                 CheckpointSubsumeHelper.subsume(
                                 checkpoints,
                                 maxNumberOfCheckpointsToRetain,
-                                CompletedCheckpoint::discardOnSubsume)
+                                cc -> cc.markAsDiscardedOnSubsume().discard())
                         .orElse(null);
 
         unregisterUnusedState(checkpoints);
@@ -133,7 +133,13 @@ public class StandaloneCompletedCheckpointStore extends AbstractCompleteCheckpoi
 
             long lowestRetained = Long.MAX_VALUE;
             for (CompletedCheckpoint checkpoint : checkpoints) {
-                if (!checkpoint.discardOnShutdown(jobStatus)) {
+                if (checkpoint.shouldBeDiscardedOnShutdown(jobStatus)) {
+                    checkpoint.markAsDiscardedOnShutdown(jobStatus).discard();
+                } else {
+                    LOG.info(
+                            "Checkpoint with ID {} at '{}' not discarded.",
+                            checkpoint.getCheckpointID(),
+                            checkpoint.getExternalPointer());
                     lowestRetained = Math.min(checkpoint.getCheckpointID(), lowestRetained);
                 }
             }

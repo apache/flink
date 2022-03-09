@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
@@ -35,6 +34,7 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
@@ -120,7 +120,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         if (overSpec.getGroups().size() > 1) {
             throw new TableException("All aggregates must be computed on the same window.");
         }
@@ -137,8 +138,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
         }
 
         final int[] partitionKeys = overSpec.getPartition().getFieldIndices();
-        final TableConfig tableConfig = planner.getTableConfig();
-        if (partitionKeys.length > 0 && tableConfig.getMinIdleStateRetentionTime() < 0) {
+        if (partitionKeys.length > 0 && config.getStateRetentionTime() < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent "
@@ -175,8 +175,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                     "the specific value is decimal which haven not supported yet.");
         }
         long precedingOffset = -1 * (long) boundValue;
-        Configuration mergedConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), tableConfig);
+        Configuration pythonConfig =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
                         inputTransform,
@@ -186,13 +186,12 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                         group.getAggCalls().toArray(new AggregateCall[0]),
                         precedingOffset,
                         group.isRows(),
-                        partitionKeys,
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
-                        mergedConfig,
-                        tableConfig);
+                        config.getStateRetentionTime(),
+                        config.getMaxIdleStateRetentionTime(),
+                        pythonConfig,
+                        config);
 
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(mergedConfig)) {
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
 
@@ -213,25 +212,23 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
             AggregateCall[] aggCalls,
             long lowerBoundary,
             boolean isRowsClause,
-            int[] grouping,
             long minIdleStateRetentionTime,
             long maxIdleStateRetentionTime,
-            Configuration mergedConfig,
-            TableConfig tableConfig) {
+            Configuration pythonConfig,
+            ExecNodeConfig config) {
         Tuple2<int[], PythonFunctionInfo[]> aggCallInfos =
                 CommonPythonUtil.extractPythonAggregateFunctionInfosFromAggregateCall(aggCalls);
         int[] pythonUdafInputOffsets = aggCallInfos.f0;
         PythonFunctionInfo[] pythonFunctionInfos = aggCallInfos.f1;
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonOverWindowAggregateFunctionOperator(
-                        tableConfig,
-                        mergedConfig,
+                        config,
+                        pythonConfig,
                         inputRowType,
                         outputRowType,
                         rowTimeIdx,
                         lowerBoundary,
                         isRowsClause,
-                        grouping,
                         pythonUdafInputOffsets,
                         pythonFunctionInfos,
                         minIdleStateRetentionTime,
@@ -239,8 +236,8 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationName(mergedConfig),
-                createTransformationDescription(mergedConfig),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
@@ -248,14 +245,13 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonOverWindowAggregateFunctionOperator(
-            TableConfig tableConfig,
-            Configuration mergedConfig,
+            ExecNodeConfig config,
+            Configuration pythonConfig,
             RowType inputRowType,
             RowType outputRowType,
             int rowTiemIdx,
             long lowerBoundary,
             boolean isRowsClause,
-            int[] grouping,
             int[] udafInputOffsets,
             PythonFunctionInfo[] pythonFunctionInfos,
             long minIdleStateRetentionTime,
@@ -270,7 +266,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                                 .project(outputRowType);
         GeneratedProjection generatedProjection =
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(tableConfig),
+                        CodeGeneratorContext.apply(config.getTableConfig()),
                         "UdafInputProjection",
                         inputRowType,
                         userDefinedFunctionInputType,
@@ -301,7 +297,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                                 GeneratedProjection.class);
                 return (OneInputStreamOperator<RowData, RowData>)
                         ctor.newInstance(
-                                mergedConfig,
+                                pythonConfig,
                                 minIdleStateRetentionTime,
                                 maxIdleStateRetentionTime,
                                 pythonFunctionInfos,
@@ -341,7 +337,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                                 GeneratedProjection.class);
                 return (OneInputStreamOperator<RowData, RowData>)
                         ctor.newInstance(
-                                mergedConfig,
+                                pythonConfig,
                                 pythonFunctionInfos,
                                 inputRowType,
                                 userDefinedFunctionInputType,

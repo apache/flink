@@ -27,8 +27,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Represents a static, executable entity that has been compiled from a Table & SQL API pipeline
- * definition. It encodes operators, expressions, functions, data types, and table connectors.
+ * Represents an immutable, fully optimized, and executable entity that has been compiled from a
+ * Table & SQL API pipeline definition. It encodes operators, expressions, functions, data types,
+ * and table connectors.
  *
  * <p>Every new Flink version might introduce improved optimizer rules, more efficient operators,
  * and other changes that impact the behavior of previously defined pipelines. In order to ensure
@@ -40,12 +41,13 @@ import java.nio.file.Paths;
  * It can be persisted using {@link #writeToFile(Path, boolean)} or by manually extracting the JSON
  * representation with {@link #asJsonString()}. A plan can be loaded back from a file or a string
  * using {@link TableEnvironment#loadPlan(PlanReference)}. Instances can be executed using {@link
- * TableEnvironment#executePlan(CompiledPlan)}.
+ * #execute()}.
  *
  * <p>Depending on the configuration, permanent catalog metadata (such as information about tables
  * and functions) will be persisted in the plan as well. Anonymous/inline objects will be persisted
- * if possible or fail the compilation otherwise. Temporary objects are never part of a plan and
- * need to be present during a restore.
+ * (including schema and options) if possible or fail the compilation otherwise. For temporary
+ * objects, only the identifier is part of the plan and the object needs to be present in the
+ * session context during a restore.
  *
  * <p>Note: Plan restores assume a stable session context. Configuration, loaded modules and
  * catalogs, and temporary objects must not change. Schema evolution and changes of function
@@ -56,7 +58,7 @@ import java.nio.file.Paths;
  * @see PlanReference
  */
 @Experimental
-public interface CompiledPlan extends Explainable<CompiledPlan> {
+public interface CompiledPlan extends Explainable<CompiledPlan>, Executable {
 
     // --- Writer methods
 

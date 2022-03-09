@@ -19,8 +19,8 @@
 package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.planner.delegation.PlannerBase;
@@ -123,9 +123,15 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     @Override
-    public Transformation<T> translateToPlan(Planner planner) {
+    public final Transformation<T> translateToPlan(Planner planner) {
         if (transformation == null) {
-            transformation = translateToPlanInternal((PlannerBase) planner);
+            transformation =
+                    translateToPlanInternal(
+                            (PlannerBase) planner,
+                            new ExecNodeConfig(
+                                    ((PlannerBase) planner).getConfiguration(),
+                                    ((PlannerBase) planner).getTableConfig(),
+                                    new Configuration()));
             if (this instanceof SingleTransformationTranslator) {
                 if (inputsContainSingleton()) {
                     transformation.setParallelism(1);
@@ -136,8 +142,17 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return transformation;
     }
 
-    /** Internal method, translates this node into a Flink operator. */
-    protected abstract Transformation<T> translateToPlanInternal(PlannerBase planner);
+    /**
+     * Internal method, translates this node into a Flink operator.
+     *
+     * @param planner The planner.
+     * @param config per-{@link ExecNode} configuration that contains the merged configuration from
+     *     various layers which all the nodes implementing this method should use, instead of
+     *     retrieving configuration from the {@code planner}. For more details check {@link
+     *     ExecNodeConfig}.
+     */
+    protected abstract Transformation<T> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config);
 
     @Override
     public void accept(ExecNodeVisitor visitor) {
@@ -162,16 +177,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
         return context.generateUid(operatorName);
     }
 
-    protected String createTransformationName(TableConfig config) {
-        return createTransformationName(config.getConfiguration());
-    }
-
     protected String createTransformationName(ReadableConfig config) {
         return createFormattedTransformationName(getDescription(), getSimplifiedName(), config);
-    }
-
-    protected String createTransformationDescription(TableConfig config) {
-        return createTransformationDescription(config.getConfiguration());
     }
 
     protected String createTransformationDescription(ReadableConfig config) {
@@ -179,13 +186,9 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
     }
 
     protected TransformationMetadata createTransformationMeta(
-            String operatorName, TableConfig config) {
-        return createTransformationMeta(operatorName, config.getConfiguration());
-    }
-
-    protected TransformationMetadata createTransformationMeta(
             String operatorName, ReadableConfig config) {
-        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())
+                || config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
             return new TransformationMetadata(
                     createTransformationName(config), createTransformationDescription(config));
         } else {
@@ -201,7 +204,8 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
             String operatorName, String detailName, String simplifiedName, ReadableConfig config) {
         final String name = createFormattedTransformationName(detailName, simplifiedName, config);
         final String desc = createFormattedTransformationDescription(detailName, config);
-        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())) {
+        if (ExecNodeMetadataUtil.isUnsupported(this.getClass())
+                || config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
             return new TransformationMetadata(name, desc);
         } else {
             // Only classes supporting metadata util need to set the uid

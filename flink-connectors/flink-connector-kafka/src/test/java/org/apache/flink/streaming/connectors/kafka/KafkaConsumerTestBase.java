@@ -82,7 +82,6 @@ import org.apache.flink.util.ExceptionUtils;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
-import kafka.server.KafkaServer;
 import org.apache.commons.io.output.ByteArrayOutputStream;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetResetStrategy;
@@ -193,30 +192,19 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
             stream.print();
             see.execute("No broker test");
         } catch (JobExecutionException jee) {
-            if (kafkaServer.getVersion().equals("0.9")
-                    || kafkaServer.getVersion().equals("0.10")
-                    || kafkaServer.getVersion().equals("0.11")
-                    || kafkaServer.getVersion().equals("2.0")) {
-                final Optional<TimeoutException> optionalTimeoutException =
-                        ExceptionUtils.findThrowable(jee, TimeoutException.class);
-                assertTrue(optionalTimeoutException.isPresent());
+            final Optional<TimeoutException> optionalTimeoutException =
+                    ExceptionUtils.findThrowable(jee, TimeoutException.class);
+            assertTrue(optionalTimeoutException.isPresent());
 
-                final TimeoutException timeoutException = optionalTimeoutException.get();
-                if (useNewSource) {
-                    assertThat(
-                            timeoutException.getCause().getMessage(),
-                            containsString("Timed out waiting for a node assignment."));
-                } else {
-                    assertEquals(
-                            "Timeout expired while fetching topic metadata",
-                            timeoutException.getMessage());
-                }
+            final TimeoutException timeoutException = optionalTimeoutException.get();
+            if (useNewSource) {
+                assertThat(
+                        timeoutException.getCause().getMessage(),
+                        containsString("Timed out waiting for a node assignment."));
             } else {
-                final Optional<Throwable> optionalThrowable =
-                        ExceptionUtils.findThrowableWithMessage(
-                                jee, "Unable to retrieve any partitions");
-                assertTrue(optionalThrowable.isPresent());
-                assertTrue(optionalThrowable.get() instanceof RuntimeException);
+                assertEquals(
+                        "Timeout expired while fetching topic metadata",
+                        timeoutException.getMessage());
             }
         }
     }
@@ -832,7 +820,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         final int elementsPerPartition = 100;
         final int totalElements = parallelism * elementsPerPartition;
 
-        createTestTopic(topic, parallelism, 2);
+        createTestTopic(topic, parallelism, 1);
         createTestTopic(
                 additionalEmptyTopic,
                 parallelism,
@@ -1475,23 +1463,30 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
     public void runBrokerFailureTest() throws Exception {
         final String topic = "brokerFailureTestTopic";
 
+        // Start a temporary multi-broker cluster.
+        // This test case relies on stopping a broker and switching partition leader to another
+        // during the test, so single-broker cluster (kafkaServer) could not fulfill the
+        // requirement.
+        KafkaTestEnvironment multiBrokerCluster = constructKafkaTestEnvironment();
+        multiBrokerCluster.prepare(KafkaTestEnvironment.createConfig().setKafkaServersNumber(3));
+
         final int parallelism = 2;
         final int numElementsPerPartition = 1000;
         final int totalElements = parallelism * numElementsPerPartition;
         final int failAfterElements = numElementsPerPartition / 3;
 
-        createTestTopic(topic, parallelism, 2);
+        multiBrokerCluster.createTestTopic(topic, parallelism, 2);
 
         DataGenerators.generateRandomizedIntegerSequence(
                 StreamExecutionEnvironment.getExecutionEnvironment(),
-                kafkaServer,
+                multiBrokerCluster,
                 topic,
                 parallelism,
                 numElementsPerPartition,
                 true);
 
         // find leader to shut down
-        int leaderId = kafkaServer.getLeaderToShutDown(topic);
+        int leaderId = multiBrokerCluster.getLeaderToShutDown(topic);
 
         LOG.info("Leader to shutdown {}", leaderId);
 
@@ -1507,20 +1502,22 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         env.setRestartStrategy(RestartStrategies.noRestart());
 
         Properties props = new Properties();
-        props.putAll(standardProps);
-        props.putAll(secureProps);
+        props.putAll(multiBrokerCluster.getStandardProperties());
+        props.putAll(multiBrokerCluster.getSecureProperties());
 
         getStream(env, topic, schema, props)
                 .map(new PartitionValidatingMapper(parallelism, 1))
-                .map(new BrokerKillingMapper<Integer>(leaderId, failAfterElements))
+                .map(new BrokerKillingMapper<>(multiBrokerCluster, leaderId, failAfterElements))
                 .addSink(new ValidatingExactlyOnceSink(totalElements))
                 .setParallelism(1);
 
-        BrokerKillingMapper.killedLeaderBefore = false;
-        tryExecute(env, "Broker failure once test");
-
-        // start a new broker:
-        kafkaServer.restartBroker(leaderId);
+        try {
+            BrokerKillingMapper.killedLeaderBefore = false;
+            tryExecute(env, "Broker failure once test");
+        } finally {
+            // Tear down the temporary cluster anyway
+            multiBrokerCluster.shutdown();
+        }
     }
 
     public void runKeyValueTest() throws Exception {
@@ -2594,6 +2591,7 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         public static volatile boolean killedLeaderBefore;
         public static volatile boolean hasBeenCheckpointedBeforeFailure;
 
+        private static KafkaTestEnvironment kafkaServerToKill;
         private final int shutdownBrokerId;
         private final int failCount;
         private int numElementsTotal;
@@ -2601,7 +2599,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
         private boolean failer;
         private boolean hasBeenCheckpointed;
 
-        public BrokerKillingMapper(int shutdownBrokerId, int failCount) {
+        public BrokerKillingMapper(
+                KafkaTestEnvironment kafkaServer, int shutdownBrokerId, int failCount) {
+            kafkaServerToKill = kafkaServer;
             this.shutdownBrokerId = shutdownBrokerId;
             this.failCount = failCount;
         }
@@ -2620,32 +2620,9 @@ public abstract class KafkaConsumerTestBase extends KafkaTestBaseWithFlink {
 
                 if (failer && numElementsTotal >= failCount) {
                     // shut down a Kafka broker
-                    KafkaServer toShutDown = null;
-                    for (KafkaServer server : kafkaServer.getBrokers()) {
-
-                        if (kafkaServer.getBrokerId(server) == shutdownBrokerId) {
-                            toShutDown = server;
-                            break;
-                        }
-                    }
-
-                    if (toShutDown == null) {
-                        StringBuilder listOfBrokers = new StringBuilder();
-                        for (KafkaServer server : kafkaServer.getBrokers()) {
-                            listOfBrokers.append(kafkaServer.getBrokerId(server));
-                            listOfBrokers.append(" ; ");
-                        }
-
-                        throw new Exception(
-                                "Cannot find broker to shut down: "
-                                        + shutdownBrokerId
-                                        + " ; available brokers: "
-                                        + listOfBrokers.toString());
-                    } else {
-                        hasBeenCheckpointedBeforeFailure = hasBeenCheckpointed;
-                        killedLeaderBefore = true;
-                        toShutDown.shutdown();
-                    }
+                    kafkaServerToKill.stopBroker(shutdownBrokerId);
+                    hasBeenCheckpointedBeforeFailure = hasBeenCheckpointed;
+                    killedLeaderBefore = true;
                 }
             }
             return value;

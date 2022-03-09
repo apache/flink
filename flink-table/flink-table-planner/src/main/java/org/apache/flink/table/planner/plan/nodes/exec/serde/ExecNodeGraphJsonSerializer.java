@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraphValidator;
 import org.apache.flink.table.planner.plan.nodes.exec.visitor.ExecNodeVisitor;
@@ -29,13 +30,15 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 import java.io.IOException;
 
 /**
- * JSON serializer for {@link ExecNodeGraph}. It uses the intermediate representation {@link
- * JsonPlanGraph}.
+ * JSON serializer for {@link ExecNodeGraph}.
+ *
+ * @see ExecNodeGraphJsonDeserializer for the reverse operation
  */
-public class ExecNodeGraphJsonSerializer extends StdSerializer<ExecNodeGraph> {
+@Internal
+final class ExecNodeGraphJsonSerializer extends StdSerializer<ExecNodeGraph> {
     private static final long serialVersionUID = 1L;
 
-    public ExecNodeGraphJsonSerializer() {
+    ExecNodeGraphJsonSerializer() {
         super(ExecNodeGraph.class);
     }
 

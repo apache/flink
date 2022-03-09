@@ -298,8 +298,8 @@ class ChangelogSourceITCase(
   }
 
   private def registerChangelogSourceWithEventsDuplicate(): Unit = {
-    tEnv.getConfig.getConfiguration.setBoolean(
-      ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, true)
+    tEnv.getConfig
+      .set(ExecutionConfigOptions.TABLE_EXEC_SOURCE_CDC_EVENTS_DUPLICATE, Boolean.box(true))
     val userChangelog: Seq[Row] = Seq(
       changelogRow("+I", "user1", "Tom", "tom@gmail.com", new JBigDecimal("10.02")),
       changelogRow("+I", "user2", "Jack", "jack@hotmail.com", new JBigDecimal("71.2")),

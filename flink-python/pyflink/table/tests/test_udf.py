@@ -804,7 +804,7 @@ class PyFlinkEmbeddedMultiThreadTests(UserDefinedFunctionTests, PyFlinkBatchTabl
                                                                "multi-thread")
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8")
 class PyFlinkEmbeddedSubInterpreterTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
     def setUp(self):
         super(PyFlinkEmbeddedSubInterpreterTests, self).setUp()

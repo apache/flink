@@ -29,12 +29,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "PROCTIME",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
                   "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -90,12 +86,8 @@
       "inputIndex" : 1,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "PROCTIME",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION"
-      },
+      "kind" : "CALL",
+      "internalName" : "$PROCTIME$1",
       "operands" : [ ],
       "type" : {
         "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -288,11 +280,8 @@
         },
         "aggCalls" : [ {
           "name" : "w0$o0",
-          "aggFunction" : {
-            "name" : "COUNT",
-            "kind" : "COUNT",
-            "syntax" : "FUNCTION_STAR"
-          },
+          "syntax" : "FUNCTION_STAR",
+          "internalName" : "$COUNT$1",
           "argList" : [ 0 ],
           "filterArg" : -1,
           "distinct" : true,
@@ -301,11 +290,7 @@
           "type" : "BIGINT NOT NULL"
         }, {
           "name" : "w0$o1",
-          "aggFunction" : {
-            "name" : "$SUM0",
-            "kind" : "SUM0",
-            "syntax" : "FUNCTION"
-          },
+          "internalName" : "$$SUM0$1",
           "argList" : [ 0 ],
           "filterArg" : -1,
           "distinct" : true,
@@ -361,12 +346,9 @@
       "inputIndex" : 1,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 3,
@@ -374,26 +356,17 @@
       } ],
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
-        "kind" : "REX_CALL",
-        "operator" : {
-          "name" : "CASE",
-          "kind" : "CASE",
-          "syntax" : "SPECIAL"
-        },
+        "kind" : "CALL",
+        "syntax" : "SPECIAL",
+        "internalName" : "$CASE$1",
         "operands" : [ {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : ">",
-            "kind" : "GREATER_THAN",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$>$1",
           "operands" : [ {
             "kind" : "INPUT_REF",
             "inputIndex" : 3,

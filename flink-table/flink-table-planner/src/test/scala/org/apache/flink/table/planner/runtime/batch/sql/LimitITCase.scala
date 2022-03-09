@@ -24,7 +24,7 @@ import org.apache.flink.table.planner.runtime.utils.{BatchTestBase, TestData}
 
 class LimitITCase extends LegacyLimitITCase {
   override def before(): Unit = {
-    BatchTestBase.configForMiniCluster(conf)
+    BatchTestBase.configForMiniCluster(tableConfig)
     registerCollection("Table3", data3, type3, "a, b, c", nullablesOfData3)
 
     val myTableDataId = TestValuesTableFactory.registerData(TestData.data3)

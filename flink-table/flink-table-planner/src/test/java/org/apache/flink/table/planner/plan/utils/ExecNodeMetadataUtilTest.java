@@ -24,6 +24,7 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -202,7 +203,8 @@ public class ExecNodeMetadataUtilTest {
         }
 
         @Override
-        protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        protected Transformation<RowData> translateToPlanInternal(
+                PlannerBase planner, ExecNodeConfig config) {
             return null;
         }
     }
@@ -234,7 +236,8 @@ public class ExecNodeMetadataUtilTest {
         }
 
         @Override
-        protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        protected Transformation<RowData> translateToPlanInternal(
+                PlannerBase planner, ExecNodeConfig config) {
             return null;
         }
     }
@@ -250,7 +253,8 @@ public class ExecNodeMetadataUtilTest {
         }
 
         @Override
-        protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        protected Transformation<RowData> translateToPlanInternal(
+                PlannerBase planner, ExecNodeConfig config) {
             return null;
         }
     }
@@ -268,7 +272,8 @@ public class ExecNodeMetadataUtilTest {
         }
 
         @Override
-        protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        protected Transformation<RowData> translateToPlanInternal(
+                PlannerBase planner, ExecNodeConfig config) {
             return null;
         }
     }
@@ -302,7 +307,8 @@ public class ExecNodeMetadataUtilTest {
         }
 
         @Override
-        protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+        protected Transformation<RowData> translateToPlanInternal(
+                PlannerBase planner, ExecNodeConfig config) {
             return null;
         }
     }

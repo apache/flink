@@ -30,7 +30,7 @@ import org.apache.flink.table.types.logical.{LogicalType, LogicalTypeRoot}
 import java.lang.reflect.Method
 import scala.collection.mutable
 
-class FunctionGenerator private(config: TableConfig) {
+class FunctionGenerator private(tableConfig: TableConfig) {
 
   val INTEGRAL_TYPES = Array(
     TINYINT,
@@ -44,7 +44,7 @@ class FunctionGenerator private(config: TableConfig) {
     mutable.Map()
 
   val isStreamingMode = RuntimeExecutionMode.STREAMING.equals(
-    config.getConfiguration.get(ExecutionOptions.RUNTIME_MODE))
+    tableConfig.getConfiguration.get(ExecutionOptions.RUNTIME_MODE))
   // ----------------------------------------------------------------------------------------------
   // Arithmetic functions
   // ----------------------------------------------------------------------------------------------
@@ -942,5 +942,6 @@ class FunctionGenerator private(config: TableConfig) {
 }
 
 object FunctionGenerator {
-    def getInstance(config: TableConfig): FunctionGenerator = new FunctionGenerator(config)
+    def getInstance(tableConfig: TableConfig): FunctionGenerator =
+      new FunctionGenerator(tableConfig)
 }

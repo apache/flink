@@ -39,11 +39,8 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
     @Before
     public void setup() {
         TableConfig tableConfig = util.tableEnv().getConfig();
-        tableConfig
-                .getConfiguration()
-                .setBoolean(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED,
-                        true);
+        tableConfig.set(
+                OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED, true);
         String ddl =
                 "CREATE TABLE inventory (\n"
                         + "  id BIGINT,\n"
@@ -143,8 +140,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
         // reset config
         util.getTableEnv()
                 .getConfig()
-                .getConfiguration()
-                .setBoolean(
+                .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED,
                         true);
     }
@@ -166,8 +162,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
         // enable sort agg
         util.getTableEnv()
                 .getConfig()
-                .getConfiguration()
-                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
 
         util.verifyRelPlan(
                 "SELECT\n"
@@ -181,8 +176,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
         // reset config
         util.getTableEnv()
                 .getConfig()
-                .getConfiguration()
-                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "");
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "");
     }
 
     @Test
@@ -190,8 +184,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
         // enable sort agg
         util.getTableEnv()
                 .getConfig()
-                .getConfiguration()
-                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg");
 
         util.verifyRelPlan(
                 "SELECT\n"
@@ -204,8 +197,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
         // reset config
         util.getTableEnv()
                 .getConfig()
-                .getConfiguration()
-                .setString(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "");
+                .set(ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "");
     }
 
     @Test
@@ -263,8 +255,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
         // enable two-phase aggregate, otherwise there is no local aggregate
         util.getTableEnv()
                 .getConfig()
-                .getConfiguration()
-                .setString(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
 
         util.verifyRelPlan(
                 "SELECT\n"

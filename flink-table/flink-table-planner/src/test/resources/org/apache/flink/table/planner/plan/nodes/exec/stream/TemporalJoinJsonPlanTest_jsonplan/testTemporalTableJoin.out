@@ -26,12 +26,8 @@
               "kind" : "COMPUTED",
               "expression" : {
                 "rexNode" : {
-                  "kind" : "REX_CALL",
-                  "operator" : {
-                    "name" : "PROCTIME",
-                    "kind" : "OTHER_FUNCTION",
-                    "syntax" : "FUNCTION"
-                  },
+                  "kind" : "CALL",
+                  "internalName" : "$PROCTIME$1",
                   "operands" : [ ],
                   "type" : {
                     "type" : "TIMESTAMP_WITH_LOCAL_TIME_ZONE",
@@ -301,12 +297,9 @@
     "id" : 8,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "*",
-        "kind" : "TIMES",
-        "syntax" : "BINARY"
-      },
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$*$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,

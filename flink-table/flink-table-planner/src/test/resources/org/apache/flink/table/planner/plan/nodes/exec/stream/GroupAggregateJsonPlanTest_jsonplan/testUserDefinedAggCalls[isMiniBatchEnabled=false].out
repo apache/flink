@@ -91,14 +91,7 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "a1",
-      "aggFunction" : {
-        "name" : "my_sum1",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION",
-        "functionKind" : "AGGREGATE",
-        "instance" : "rO0ABXNyAFhvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucGxhbi51dGlscy5KYXZhVXNlckRlZmluZWRBZ2dGdW5jdGlvbnMkVmFyU3VtMUFnZ0Z1bmN0aW9uUncPGXj5ZSICAAB4cgAyb3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuQWdncmVnYXRlRnVuY3Rpb24g1IzcoWgbiQIAAHhyADxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5JbXBlcmF0aXZlQWdncmVnYXRlRnVuY3Rpb27yV4D2r81spwIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5Vc2VyRGVmaW5lZEZ1bmN0aW9uWWgLCLtDDxYCAAB4cA",
-        "bridging" : true
-      },
+      "catalogName" : "`default_catalog`.`default_database`.`my_sum1`",
       "argList" : [ 0, 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -107,14 +100,7 @@
       "type" : "BIGINT"
     }, {
       "name" : "a2",
-      "aggFunction" : {
-        "name" : "my_sum2",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION",
-        "functionKind" : "AGGREGATE",
-        "instance" : "rO0ABXNyAFhvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucGxhbi51dGlscy5KYXZhVXNlckRlZmluZWRBZ2dGdW5jdGlvbnMkVmFyU3VtMkFnZ0Z1bmN0aW9ucnj2tPeOlPcCAAB4cgAyb3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuQWdncmVnYXRlRnVuY3Rpb24g1IzcoWgbiQIAAHhyADxvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5JbXBlcmF0aXZlQWdncmVnYXRlRnVuY3Rpb27yV4D2r81spwIAAHhyADRvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5Vc2VyRGVmaW5lZEZ1bmN0aW9uWWgLCLtDDxYCAAB4cA",
-        "bridging" : true
-      },
+      "systemName" : "my_sum2",
       "argList" : [ 2, 0 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -123,14 +109,8 @@
       "type" : "BIGINT"
     }, {
       "name" : "a3",
-      "aggFunction" : {
-        "name" : "my_avg",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION",
-        "functionKind" : "AGGREGATE",
-        "instance" : "rO0ABXNyAFFvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucGxhbi51dGlscy5KYXZhVXNlckRlZmluZWRBZ2dGdW5jdGlvbnMkV2VpZ2h0ZWRBdmctK0s1MInyIQIAAHhyADJvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLmZ1bmN0aW9ucy5BZ2dyZWdhdGVGdW5jdGlvbiDUjNyhaBuJAgAAeHIAPG9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnVuY3Rpb25zLkltcGVyYXRpdmVBZ2dyZWdhdGVGdW5jdGlvbvJXgPavzWynAgAAeHIANG9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnVuY3Rpb25zLlVzZXJEZWZpbmVkRnVuY3Rpb25ZaAsIu0MPFgIAAHhw",
-        "bridging" : true
-      },
+      "catalogName" : "`default_catalog`.`default_database`.`my_avg`",
+      "class" : "org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions$WeightedAvg",
       "argList" : [ 3, 4 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -139,14 +119,7 @@
       "type" : "BIGINT"
     }, {
       "name" : "c1",
-      "aggFunction" : {
-        "name" : "my_count",
-        "kind" : "OTHER_FUNCTION",
-        "syntax" : "FUNCTION",
-        "functionKind" : "AGGREGATE",
-        "instance" : "rO0ABXNyAFNvcmcuYXBhY2hlLmZsaW5rLnRhYmxlLnBsYW5uZXIucGxhbi51dGlscy5KYXZhVXNlckRlZmluZWRBZ2dGdW5jdGlvbnMkQ291bnREaXN0aW5jdIvbEsgDUXHeAgAAeHIAMm9yZy5hcGFjaGUuZmxpbmsudGFibGUuZnVuY3Rpb25zLkFnZ3JlZ2F0ZUZ1bmN0aW9uINSM3KFoG4kCAAB4cgA8b3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuSW1wZXJhdGl2ZUFnZ3JlZ2F0ZUZ1bmN0aW9u8leA9q_NbKcCAAB4cgA0b3JnLmFwYWNoZS5mbGluay50YWJsZS5mdW5jdGlvbnMuVXNlckRlZmluZWRGdW5jdGlvblloCwi7Qw8WAgAAeHA",
-        "bridging" : true
-      },
+      "systemName" : "my_count",
       "argList" : [ 5 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -170,12 +143,9 @@
     "id" : 5,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,

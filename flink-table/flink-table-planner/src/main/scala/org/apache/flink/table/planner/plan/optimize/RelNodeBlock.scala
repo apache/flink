@@ -19,9 +19,8 @@
 package org.apache.flink.table.planner.plan.optimize
 
 import org.apache.flink.annotation.Experimental
-import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.{ConfigOption, ReadableConfig}
 import org.apache.flink.table.planner.plan.`trait`.MiniBatchInterval
 import org.apache.flink.table.planner.plan.nodes.calcite.LegacySink
 import org.apache.flink.table.planner.plan.reuse.SubplanReuser.{SubplanReuseContext, SubplanReuseShuttle}
@@ -30,6 +29,7 @@ import org.apache.flink.table.planner.plan.utils.{DefaultRelShuttle, ExpandTable
 import org.apache.flink.util.Preconditions
 
 import com.google.common.collect.Sets
+
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.{Aggregate, Project, Snapshot, TableFunctionScan, Union}
 import org.apache.calcite.rex.RexNode
@@ -258,13 +258,13 @@ class RelNodeWrapper(relNode: RelNode) {
 /**
   * Builds [[RelNodeBlock]] plan
   */
-class RelNodeBlockPlanBuilder private(config: TableConfig) {
+class RelNodeBlockPlanBuilder private(config: ReadableConfig) {
 
   private val node2Wrapper = new util.IdentityHashMap[RelNode, RelNodeWrapper]()
   private val node2Block = new util.IdentityHashMap[RelNode, RelNodeBlock]()
 
-  private val isUnionAllAsBreakPointEnabled = config.getConfiguration.getBoolean(
-    RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED)
+  private val isUnionAllAsBreakPointEnabled = config
+    .get(RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED)
 
   /**
     * Decompose the [[RelNode]] plan into many [[RelNodeBlock]]s,
@@ -415,7 +415,7 @@ object RelNodeBlockPlanBuilder {
     */
   def buildRelNodeBlockPlan(
       sinkNodes: Seq[RelNode],
-      config: TableConfig): Seq[RelNodeBlock] = {
+      config: ReadableConfig): Seq[RelNodeBlock] = {
     require(sinkNodes.nonEmpty)
 
     // expand QueryOperationCatalogViewTable in TableScan
@@ -438,9 +438,9 @@ object RelNodeBlockPlanBuilder {
     * @param relNodes RelNode trees
     * @return RelNode dag which reuse common subPlan in each tree
     */
-  private def reuseRelNodes(relNodes: Seq[RelNode], tableConfig: TableConfig): Seq[RelNode] = {
-    val findOpBlockWithDigest = tableConfig.getConfiguration.getBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
+  private def reuseRelNodes(relNodes: Seq[RelNode], config: ReadableConfig): Seq[RelNode] = {
+    val findOpBlockWithDigest = config
+      .get(RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
     if (!findOpBlockWithDigest) {
       return relNodes
     }

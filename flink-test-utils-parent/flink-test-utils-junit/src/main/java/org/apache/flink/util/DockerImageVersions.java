@@ -29,7 +29,7 @@ package org.apache.flink.util;
 public class DockerImageVersions {
 
     public static final String ELASTICSEARCH_7 =
-            "docker.elastic.co/elasticsearch/elasticsearch:7.15.2";
+            "docker.elastic.co/elasticsearch/elasticsearch:7.10.2";
 
     public static final String ELASTICSEARCH_6 =
             "docker.elastic.co/elasticsearch/elasticsearch:6.8.20";
@@ -47,4 +47,6 @@ public class DockerImageVersions {
     public static final String CASSANDRA_3 = "cassandra:3.0";
 
     public static final String MINIO = "minio/minio:RELEASE.2022-02-07T08-17-33Z";
+
+    public static final String ZOOKEEPER = "zookeeper:3.4.14";
 }

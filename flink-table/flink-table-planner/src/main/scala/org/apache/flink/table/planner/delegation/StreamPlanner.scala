@@ -23,17 +23,17 @@ import org.apache.flink.api.dag.Transformation
 import org.apache.flink.configuration.ExecutionOptions
 import org.apache.flink.streaming.api.graph.StreamGraph
 import org.apache.flink.table.api.PlanReference.{ContentPlanReference, FilePlanReference, ResourcePlanReference}
-import org.apache.flink.table.api.internal.CompiledPlanInternal
-import org.apache.flink.table.api.{CompiledPlan, ExplainDetail, PlanReference, TableConfig, TableException}
+import org.apache.flink.table.api.internal.TableEnvironmentInternal
+import org.apache.flink.table.api.{ExplainDetail, PlanReference, TableConfig, TableException}
 import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
-import org.apache.flink.table.delegation.Executor
+import org.apache.flink.table.delegation.{Executor, InternalPlan}
 import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.{ModifyOperation, Operation}
-import org.apache.flink.table.planner.plan.ExecNodeGraphCompiledPlan
+import org.apache.flink.table.planner.plan.ExecNodeGraphInternalPlan
 import org.apache.flink.table.planner.plan.`trait`._
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeGraph
 import org.apache.flink.table.planner.plan.nodes.exec.processor.ExecNodeGraphProcessor
-import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil
+import org.apache.flink.table.planner.plan.nodes.exec.serde.{JsonSerdeUtil, SerdeContext}
 import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecNode
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodePlanDumper
 import org.apache.flink.table.planner.plan.optimize.{Optimizer, StreamCommonSubGraphBasedOptimizer}
@@ -52,11 +52,11 @@ import _root_.scala.collection.JavaConversions._
 
 class StreamPlanner(
     executor: Executor,
-    config: TableConfig,
+    tableConfig: TableConfig,
     moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
     catalogManager: CatalogManager)
-  extends PlannerBase(executor, config, moduleManager, functionCatalog, catalogManager,
+  extends PlannerBase(executor, tableConfig, moduleManager, functionCatalog, catalogManager,
     isStreamingMode = true) {
 
   override protected def getTraitDefs: Array[RelTraitDef[_ <: RelTrait]] = {
@@ -73,7 +73,7 @@ class StreamPlanner(
   override protected def getExecNodeGraphProcessors: Seq[ExecNodeGraphProcessor] = Seq()
 
   override protected def translateToPlan(execGraph: ExecNodeGraph): util.List[Transformation[_]] = {
-    validateAndOverrideConfiguration()
+    beforeTranslation()
     val planner = createDummyPlanner()
     val transformations = execGraph.getRootNodes.map {
       case node: StreamExecNode[_] => node.translateToPlan(planner)
@@ -81,7 +81,7 @@ class StreamPlanner(
         throw new TableException("Cannot generate DataStream due to an invalid logical plan. " +
           "This is a bug and should not happen. Please file an issue.")
     }
-    cleanupInternalConfigurations()
+    afterTranslation()
     transformations
   }
 
@@ -131,10 +131,10 @@ class StreamPlanner(
   private def createDummyPlanner(): StreamPlanner = {
     val dummyExecEnv = new DummyStreamExecutionEnvironment(getExecEnv)
     val executor = new DefaultExecutor(dummyExecEnv)
-    new StreamPlanner(executor, config, moduleManager, functionCatalog, catalogManager)
+    new StreamPlanner(executor, tableConfig, moduleManager, functionCatalog, catalogManager)
   }
 
-  override def loadPlan(planReference: PlanReference): CompiledPlanInternal = {
+  override def loadPlan(planReference: PlanReference): InternalPlan = {
     val ctx = createSerdeContext
     val objectReader: ObjectReader = JsonSerdeUtil.createObjectReader(ctx)
     val execNodeGraph = planReference match {
@@ -142,57 +142,55 @@ class StreamPlanner(
         objectReader.readValue(filePlanReference.getFile, classOf[ExecNodeGraph])
       case contentPlanReference: ContentPlanReference =>
         objectReader.readValue(contentPlanReference.getContent, classOf[ExecNodeGraph])
-      case resourcePlanReference: ResourcePlanReference => {
+      case resourcePlanReference: ResourcePlanReference =>
         val url = resourcePlanReference.getClassLoader
           .getResource(resourcePlanReference.getResourcePath)
         if (url == null) {
           throw new IOException(
-            "Cannot load the plan reference from classpath: " + planReference);
+            "Cannot load the plan reference from classpath: " + planReference)
         }
         objectReader.readValue(new File(url.toURI), classOf[ExecNodeGraph])
-      }
       case _ => throw new IllegalStateException(
         "Unknown PlanReference. This is a bug, please contact the developers")
     }
 
-    new ExecNodeGraphCompiledPlan(
-      this,
-      JsonSerdeUtil.createObjectWriter(createSerdeContext)
+    new ExecNodeGraphInternalPlan(
+      JsonSerdeUtil.createObjectWriter(ctx)
         .withDefaultPrettyPrinter()
         .writeValueAsString(execNodeGraph),
       execNodeGraph)
   }
 
-  override def compilePlan(modifyOperations: util.List[ModifyOperation]): CompiledPlanInternal = {
-    validateAndOverrideConfiguration()
+  override def compilePlan(
+     modifyOperations: util.List[ModifyOperation]): InternalPlan = {
+    beforeTranslation()
     val relNodes = modifyOperations.map(translateToRel)
     val optimizedRelNodes = optimize(relNodes)
     val execGraph = translateToExecNodeGraph(optimizedRelNodes)
-    cleanupInternalConfigurations()
+    afterTranslation()
 
-    new ExecNodeGraphCompiledPlan(
-      this,
+    new ExecNodeGraphInternalPlan(
       JsonSerdeUtil.createObjectWriter(createSerdeContext)
         .withDefaultPrettyPrinter()
         .writeValueAsString(execGraph),
       execGraph)
   }
 
-  override def translatePlan(plan: CompiledPlanInternal): util.List[Transformation[_]] = {
-    validateAndOverrideConfiguration()
-    val execGraph = plan.asInstanceOf[ExecNodeGraphCompiledPlan].getExecNodeGraph
+  override def translatePlan(plan: InternalPlan): util.List[Transformation[_]] = {
+    beforeTranslation()
+    val execGraph = plan.asInstanceOf[ExecNodeGraphInternalPlan].getExecNodeGraph
     val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
+    afterTranslation()
     transformations
   }
 
-  override def explainPlan(plan: CompiledPlanInternal, extraDetails: ExplainDetail*): String = {
-    validateAndOverrideConfiguration()
-    val execGraph = plan.asInstanceOf[ExecNodeGraphCompiledPlan].getExecNodeGraph
+  override def explainPlan(plan: InternalPlan, extraDetails: ExplainDetail*): String = {
+    beforeTranslation()
+    val execGraph = plan.asInstanceOf[ExecNodeGraphInternalPlan].getExecNodeGraph
     val transformations = translateToPlan(execGraph)
-    cleanupInternalConfigurations()
+    afterTranslation()
 
-    val streamGraph = executor.createPipeline(transformations, config.getConfiguration, null)
+    val streamGraph = executor.createPipeline(transformations, tableConfig.getConfiguration, null)
       .asInstanceOf[StreamGraph]
 
     val sb = new StringBuilder
@@ -210,8 +208,8 @@ class StreamPlanner(
     sb.toString()
   }
 
-  override def validateAndOverrideConfiguration(): Unit = {
-    super.validateAndOverrideConfiguration()
+  override def beforeTranslation(): Unit = {
+    super.beforeTranslation()
     val runtimeMode = getConfiguration.get(ExecutionOptions.RUNTIME_MODE)
     if (runtimeMode != RuntimeExecutionMode.STREAMING) {
       throw new IllegalArgumentException(

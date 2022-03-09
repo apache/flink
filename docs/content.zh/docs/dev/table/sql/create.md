@@ -33,6 +33,7 @@ CREATE 语句用于向当前或指定的 [Catalog]({{< ref "docs/dev/table/catal
 目前 Flink SQL 支持下列 CREATE 语句：
 
 - CREATE TABLE
+- CREATE CATALOG
 - CREATE DATABASE
 - CREATE VIEW
 - CREATE FUNCTION

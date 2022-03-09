@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.utils.ScanUtil;
@@ -81,7 +82,8 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final Transformation<?> sourceTransform;
         final StreamExecutionEnvironment env = planner.getExecEnv();
         if (tableSource instanceof InputFormatTableSource) {
@@ -131,7 +133,7 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
                                                 getNameRemapping()));
 
         return createConversionTransformationIfNeeded(
-                planner, sourceTransform, rowtimeExpression.orElse(null));
+                planner.getExecEnv(), config, sourceTransform, rowtimeExpression.orElse(null));
     }
 
     protected abstract <IN> Transformation<IN> createInput(
@@ -140,7 +142,8 @@ public abstract class CommonExecLegacyTableSourceScan extends ExecNodeBase<RowDa
             TypeInformation<IN> typeInfo);
 
     protected abstract Transformation<RowData> createConversionTransformationIfNeeded(
-            PlannerBase planner,
+            StreamExecutionEnvironment streamExecEnv,
+            ExecNodeConfig config,
             Transformation<?> sourceTransform,
             @Nullable RexNode rowtimeExpression);
 

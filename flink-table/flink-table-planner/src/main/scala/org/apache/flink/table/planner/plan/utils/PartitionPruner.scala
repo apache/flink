@@ -74,7 +74,7 @@ object PartitionPruner {
     * @return Pruned partitions.
     */
   def prunePartitions(
-      config: TableConfig,
+      tableConfig: TableConfig,
       partitionFieldNames: Array[String],
       partitionFieldTypes: Array[LogicalType],
       allPartitions: JList[JMap[String, String]],
@@ -87,7 +87,7 @@ object PartitionPruner {
     val inputType = InternalTypeInfo.ofFields(partitionFieldTypes, partitionFieldNames).toRowType
     val returnType: LogicalType = new BooleanType(false)
 
-    val ctx = new ConstantCodeGeneratorContext(config)
+    val ctx = new ConstantCodeGeneratorContext(tableConfig)
     val collectorTerm = DEFAULT_COLLECTOR_TERM
 
     val exprGenerator = new ExprCodeGenerator(ctx, false)
@@ -119,8 +119,8 @@ object PartitionPruner {
     val results: JList[Boolean] = new JArrayList[Boolean](allPartitions.size)
     val collector = new ListCollector[Boolean](results)
 
-    val parameters = if (config.getConfiguration != null) {
-      config.getConfiguration
+    val parameters = if (tableConfig.getConfiguration != null) {
+      tableConfig.getConfiguration
     } else {
       new Configuration()
     }
@@ -129,7 +129,7 @@ object PartitionPruner {
       // do filter against all partitions
       allPartitions.foreach { partition =>
         val row = convertPartitionToRow(
-          config.getLocalTimeZone, partitionFieldNames, partitionFieldTypes, partition)
+          tableConfig.getLocalTimeZone, partitionFieldNames, partitionFieldTypes, partition)
         collector.collect(richMapFunction.map(row))
       }
     } finally {

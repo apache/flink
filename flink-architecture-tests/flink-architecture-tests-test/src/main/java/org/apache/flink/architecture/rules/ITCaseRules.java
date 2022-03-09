@@ -18,8 +18,9 @@
 
 package org.apache.flink.architecture.rules;
 
-import org.apache.flink.core.testutils.AllCallbackWrapper;
-import org.apache.flink.runtime.testutils.MiniClusterExtension;
+import org.apache.flink.architecture.common.Predicates;
+import org.apache.flink.runtime.testutils.InternalMiniClusterExtension;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
@@ -29,15 +30,19 @@ import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 import org.junit.ClassRule;
 import org.junit.Rule;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.Extension;
 import org.junit.jupiter.api.extension.RegisterExtension;
+
+import java.util.Arrays;
 
 import static com.tngtech.archunit.core.domain.JavaModifier.ABSTRACT;
 import static com.tngtech.archunit.library.freeze.FreezingArchRule.freeze;
 import static org.apache.flink.architecture.common.Conditions.fulfill;
 import static org.apache.flink.architecture.common.GivenJavaClasses.javaClassesThat;
 import static org.apache.flink.architecture.common.Predicates.arePublicFinalOfTypeWithAnnotation;
-import static org.apache.flink.architecture.common.Predicates.arePublicStaticFinalAssignableTo;
 import static org.apache.flink.architecture.common.Predicates.arePublicStaticFinalOfTypeWithAnnotation;
+import static org.apache.flink.architecture.common.Predicates.areStaticFinalOfTypeWithAnnotation;
 import static org.apache.flink.architecture.common.Predicates.containAnyFieldsInClassHierarchyThat;
 
 /** Rules for Integration Tests. */
@@ -61,18 +66,21 @@ public class ITCaseRules {
      * <p>1. For JUnit 5 test, both fields are required like:
      *
      * <pre>{@code
+     * @RegisterExtension
      * public static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
      *         new MiniClusterExtension(
      *                 new MiniClusterResourceConfiguration.Builder()
      *                         .setConfiguration(getFlinkConfiguration())
      *                         .build());
-     *
-     * @RegisterExtension
-     * public static AllCallbackWrapper allCallbackWrapper =
-     *         new AllCallbackWrapper(MINI_CLUSTER_RESOURCE);
      * }</pre>
      *
-     * <p>2. For JUnit 4 test via @Rule like:
+     * <p>2. For JUnit 5 test, use {@link ExtendWith}:
+     *
+     * <pre>{@code
+     * @ExtendWith(MiniClusterExtension.class)
+     * }</pre>
+     *
+     * <p>3. For JUnit 4 test via @Rule like:
      *
      * <pre>{@code
      * @Rule
@@ -86,7 +94,7 @@ public class ITCaseRules {
      *                          .build());
      * }</pre>
      *
-     * <p>3. For JUnit 4 test via @ClassRule like:
+     * <p>4. For JUnit 4 test via @ClassRule like:
      *
      * <pre>{@code
      * @ClassRule
@@ -110,7 +118,6 @@ public class ITCaseRules {
                                             fulfill(
                                                     // JUnit 5 violation check
                                                     miniClusterExtensionRule()
-                                                            .and(allCallbackWrapper())
                                                             // JUnit 4 violation check, which should
                                                             // be
                                                             // removed
@@ -135,14 +142,46 @@ public class ITCaseRules {
                         MiniClusterWithClientResource.class, Rule.class));
     }
 
-    private static DescribedPredicate<JavaClass> miniClusterExtensionRule() {
-        return containAnyFieldsInClassHierarchyThat(
-                arePublicStaticFinalAssignableTo(MiniClusterExtension.class));
+    private static DescribedPredicate<JavaClass> inFlinkRuntimePackages() {
+        return JavaClass.Predicates.resideInAPackage("org.apache.flink.runtime.*");
     }
 
-    private static DescribedPredicate<JavaClass> allCallbackWrapper() {
-        return containAnyFieldsInClassHierarchyThat(
-                arePublicStaticFinalOfTypeWithAnnotation(
-                        AllCallbackWrapper.class, RegisterExtension.class));
+    private static DescribedPredicate<JavaClass> outsideFlinkRuntimePackages() {
+        return JavaClass.Predicates.resideOutsideOfPackage("org.apache.flink.runtime.*");
+    }
+
+    private static DescribedPredicate<JavaClass> miniClusterExtensionRule() {
+        // Only flink-runtime should use InternalMiniClusterExtension,
+        // other packages should use MiniClusterExtension
+        return Predicates.exactlyOneOf(
+                inFlinkRuntimePackages()
+                        .and(
+                                containAnyFieldsInClassHierarchyThat(
+                                        areStaticFinalOfTypeWithAnnotation(
+                                                InternalMiniClusterExtension.class,
+                                                RegisterExtension.class))),
+                outsideFlinkRuntimePackages()
+                        .and(
+                                containAnyFieldsInClassHierarchyThat(
+                                        areStaticFinalOfTypeWithAnnotation(
+                                                MiniClusterExtension.class,
+                                                RegisterExtension.class))),
+                inFlinkRuntimePackages()
+                        .and(
+                                isAnnotatedWithExtendWithUsingExtension(
+                                        InternalMiniClusterExtension.class)),
+                outsideFlinkRuntimePackages()
+                        .and(isAnnotatedWithExtendWithUsingExtension(MiniClusterExtension.class)));
+    }
+
+    private static DescribedPredicate<JavaClass> isAnnotatedWithExtendWithUsingExtension(
+            Class<? extends Extension> extensionClass) {
+        return DescribedPredicate.describe(
+                "is annotated with @ExtendWith with class " + extensionClass.getSimpleName(),
+                clazz ->
+                        clazz.isAnnotatedWith(ExtendWith.class)
+                                && Arrays.asList(
+                                                clazz.getAnnotationOfType(ExtendWith.class).value())
+                                        .contains(extensionClass));
     }
 }

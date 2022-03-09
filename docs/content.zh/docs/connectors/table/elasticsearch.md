@@ -263,6 +263,10 @@ Elasticsearch sink 同时支持静态索引和动态索引。
 `date_format_string` 与 Java 的 [DateTimeFormatter](https://docs.oracle.com/javase/8/docs/api/index.html) 兼容。
 例如，如果选项值设置为 `'myusers-{log_ts|yyyy-MM-dd}'`，则 `log_ts` 字段值为 `2020-03-27 12:25:55` 的记录将被写入到 "myusers-2020-03-27" 索引中。
 
+你也可以使用 `'{now()|date_format_string}'` 将当前的系统时间转换为 `date_format_string` 指定的格式。`now()` 对应的时间类型是 `TIMESTAMP_WITH_LTZ` 。
+在将系统时间格式化为字符串时会使用 session 中通过 `table.local-time-zone` 中配置的时区。 使用 `NOW()`, `now()`, `CURRENT_TIMESTAMP`, `current_timestamp` 均可以。
+
+**注意:** 使用当前系统时间生成的动态索引时， 对于 changelog 的流，无法保证同一主键对应的记录能产生相同的索引名, 因此使用基于系统时间的动态索引，只能支持 append only 的流。
 
 数据类型映射
 ----------------

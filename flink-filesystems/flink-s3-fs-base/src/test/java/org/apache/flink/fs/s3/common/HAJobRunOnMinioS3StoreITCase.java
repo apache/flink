@@ -20,6 +20,7 @@ package org.apache.flink.fs.s3.common;
 
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.core.testutils.TestContainerExtension;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
@@ -27,11 +28,15 @@ import org.apache.flink.runtime.highavailability.AbstractHAJobRunITCase;
 import org.apache.flink.runtime.highavailability.FileSystemJobResultStore;
 import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.test.junit5.MiniClusterExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
 import com.amazonaws.services.s3.model.S3ObjectSummary;
 import org.apache.commons.lang3.StringUtils;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.extension.RegisterExtension;
 
 import java.time.Duration;
@@ -51,9 +56,22 @@ public abstract class HAJobRunOnMinioS3StoreITCase extends AbstractHAJobRunITCas
     private static final String JOB_RESULT_STORE_FOLDER = "jrs";
 
     @RegisterExtension
+    @Order(2)
     private static final AllCallbackWrapper<TestContainerExtension<MinioTestContainer>>
             MINIO_EXTENSION =
                     new AllCallbackWrapper<>(new TestContainerExtension<>(MinioTestContainer::new));
+
+    @RegisterExtension
+    @Order(3)
+    private static final MiniClusterExtension miniClusterExtension =
+            new MiniClusterExtension(
+                    () -> {
+                        final Configuration configuration = createConfiguration();
+                        FileSystem.initialize(configuration, null);
+                        return new MiniClusterResourceConfiguration.Builder()
+                                .setConfiguration(configuration)
+                                .build();
+                    });
 
     private static MinioTestContainer getMinioContainer() {
         return MINIO_EXTENSION.getCustomExtension().getTestContainer();
@@ -77,13 +95,7 @@ public abstract class HAJobRunOnMinioS3StoreITCase extends AbstractHAJobRunITCas
         return pathSeparator + StringUtils.join(subfolders, pathSeparator);
     }
 
-    @Override
-    protected String getHAStoragePath() {
-        return createS3URIWithSubPath(CLUSTER_ID);
-    }
-
-    @Override
-    protected Configuration createConfiguration() {
+    private static Configuration createConfiguration() {
         final Configuration config = new Configuration();
 
         getMinioContainer().setS3ConfigOptions(config);
@@ -94,7 +106,12 @@ public abstract class HAJobRunOnMinioS3StoreITCase extends AbstractHAJobRunITCas
                 JobResultStoreOptions.STORAGE_PATH,
                 createS3URIWithSubPath(CLUSTER_ID, JOB_RESULT_STORE_FOLDER));
 
-        return config;
+        return addHaConfiguration(config, createS3URIWithSubPath(CLUSTER_ID));
+    }
+
+    @AfterAll
+    public static void unsetFileSystem() {
+        FileSystem.initialize(new Configuration(), null);
     }
 
     @Override

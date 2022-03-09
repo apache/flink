@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -124,7 +125,8 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -132,7 +134,7 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(planner.getTableConfig()),
+                        new CodeGeneratorContext(config.getTableConfig()),
                         planner.getRelBuilder(),
                         JavaScalaConversionUtil.toScala(inputRowType.getChildren()),
                         // the local aggregate result will be buffered, so need copy
@@ -161,14 +163,11 @@ public class StreamExecLocalGroupAggregate extends StreamExecAggregateBase {
 
         final MapBundleOperator<RowData, RowData, RowData, RowData> operator =
                 new MapBundleOperator<>(
-                        aggFunction,
-                        AggregateUtil.createMiniBatchTrigger(planner.getTableConfig()),
-                        selector);
+                        aggFunction, AggregateUtil.createMiniBatchTrigger(config), selector);
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationMeta(
-                        LOCAL_GROUP_AGGREGATE_TRANSFORMATION, planner.getTableConfig()),
+                createTransformationMeta(LOCAL_GROUP_AGGREGATE_TRANSFORMATION, config),
                 operator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

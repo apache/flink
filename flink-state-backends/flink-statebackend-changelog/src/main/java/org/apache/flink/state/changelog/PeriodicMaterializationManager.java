@@ -33,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -166,6 +167,10 @@ class PeriodicMaterializationManager implements Closeable {
                                         subtaskName,
                                         upTo);
 
+                                scheduleNextMaterialization();
+                            } else if (throwable instanceof CancellationException) {
+                                // can happen e.g. due to task cancellation
+                                LOG.info("materialization cancelled", throwable);
                                 scheduleNextMaterialization();
                             } else {
                                 // if failed

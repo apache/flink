@@ -86,6 +86,8 @@ public class MetricNames {
     // FLIP-33 sink
     public static final String NUM_RECORDS_OUT_ERRORS = "numRecordsOutErrors";
     public static final String CURRENT_SEND_TIME = "currentSendTime";
+    public static final String NUM_RECORDS_SEND = "numRecordsSend";
+    public static final String NUM_BYTES_SEND = "numBytesSend";
 
     // FLIP-33 source
     public static final String NUM_RECORDS_IN_ERRORS = "numRecordsInErrors";

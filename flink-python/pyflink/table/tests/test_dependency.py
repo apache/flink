@@ -100,7 +100,7 @@ class EmbeddedMultiThreadDependencyTests(DependencyTests, PyFlinkStreamTableTest
                                                                "multi-thread")
 
 
-@pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
+@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8")
 class EmbeddedSubInterpreterDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
     def setUp(self):
         super(EmbeddedSubInterpreterDependencyTests, self).setUp()

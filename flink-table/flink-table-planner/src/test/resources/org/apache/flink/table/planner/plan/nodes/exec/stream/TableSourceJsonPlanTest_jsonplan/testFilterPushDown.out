@@ -31,12 +31,9 @@
       "abilities" : [ {
         "type" : "FilterPushDown",
         "predicates" : [ {
-          "kind" : "REX_CALL",
-          "operator" : {
-            "name" : ">",
-            "kind" : "GREATER_THAN",
-            "syntax" : "BINARY"
-          },
+          "kind" : "CALL",
+          "syntax" : "BINARY",
+          "internalName" : "$>$1",
           "operands" : [ {
             "kind" : "INPUT_REF",
             "inputIndex" : 0,

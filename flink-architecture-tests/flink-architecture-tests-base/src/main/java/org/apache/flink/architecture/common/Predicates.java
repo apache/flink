@@ -29,6 +29,7 @@ import com.tngtech.archunit.core.domain.properties.CanBeAnnotated;
 import java.lang.annotation.Annotation;
 import java.util.Arrays;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.tngtech.archunit.lang.conditions.ArchPredicates.is;
 import static org.apache.flink.architecture.common.JavaFieldPredicates.annotatedWith;
@@ -76,11 +77,26 @@ public class Predicates {
      * <p>Attention: changing the description will add a rule into the stored.rules.
      */
     public static DescribedPredicate<JavaField> arePublicStaticOfType(Class<?> clazz) {
+        return areFieldOfType(clazz, JavaModifier.PUBLIC, JavaModifier.STATIC);
+    }
+
+    /**
+     * Tests that the given field is of the given type {@code clazz} and has given modifiers.
+     *
+     * <p>Attention: changing the description will add a rule into the stored.rules.
+     */
+    public static DescribedPredicate<JavaField> areFieldOfType(
+            Class<?> clazz, JavaModifier... modifiers) {
         return DescribedPredicate.describe(
-                "are public, static, and of type " + clazz.getSimpleName(),
+                String.format(
+                        "are %s, and of type %s",
+                        Arrays.stream(modifiers)
+                                .map(JavaModifier::toString)
+                                .map(String::toLowerCase)
+                                .collect(Collectors.joining(", ")),
+                        clazz.getSimpleName()),
                 field ->
-                        field.getModifiers().contains(JavaModifier.PUBLIC)
-                                && field.getModifiers().contains(JavaModifier.STATIC)
+                        field.getModifiers().containsAll(Arrays.asList(modifiers))
                                 && field.getRawType().isEquivalentTo(clazz));
     }
 
@@ -124,6 +140,34 @@ public class Predicates {
     public static DescribedPredicate<JavaField> arePublicStaticFinalOfTypeWithAnnotation(
             Class<?> clazz, Class<? extends Annotation> annotationType) {
         return arePublicStaticFinalOfType(clazz).and(annotatedWith(annotationType));
+    }
+
+    /**
+     * Tests that the given field is {@code static final} and of the given type {@code clazz} with
+     * exactly the given {@code annotationType}. It doesn't matter if public, private or protected.
+     */
+    public static DescribedPredicate<JavaField> areStaticFinalOfTypeWithAnnotation(
+            Class<?> clazz, Class<? extends Annotation> annotationType) {
+        return areFieldOfType(clazz, JavaModifier.STATIC, JavaModifier.FINAL)
+                .and(annotatedWith(annotationType));
+    }
+
+    /**
+     * Returns a {@link DescribedPredicate} that returns true if one and only one of the given
+     * predicates match.
+     */
+    @SafeVarargs
+    public static <T> DescribedPredicate<T> exactlyOneOf(
+            final DescribedPredicate<? super T>... other) {
+        return DescribedPredicate.describe(
+                "only one of the following predicates match:\n"
+                        + Arrays.stream(other)
+                                .map(dp -> "* " + dp + "\n")
+                                .collect(Collectors.joining()),
+                t ->
+                        Arrays.stream(other)
+                                .map(dp -> dp.apply(t))
+                                .reduce(false, Boolean::logicalXor));
     }
 
     private Predicates() {}

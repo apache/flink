@@ -235,8 +235,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         // accordingly, based on their type length
         try {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
                             ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD.name());
 
@@ -255,8 +254,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
 
         } finally {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
                             ExecutionConfigOptions.TypeLengthEnforcer.IGNORE.name());
         }
@@ -315,8 +313,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         // accordingly, based on their type length
         try {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
                             ExecutionConfigOptions.TypeLengthEnforcer.TRIM_PAD.name());
 
@@ -359,8 +356,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
 
         } finally {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER.key(),
                             ExecutionConfigOptions.TypeLengthEnforcer.IGNORE.name());
         }
@@ -415,8 +411,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         // Change config option to "drop", to drop the columns instead of throwing errors
         try {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key(),
                             ExecutionConfigOptions.NotNullEnforcer.DROP.name());
 
@@ -431,8 +426,7 @@ public class CommonExecSinkITCase extends AbstractTestBase {
             assertThat(results.get().get(1).getInt(2)).isEqualTo(33);
         } finally {
             tableEnv.getConfig()
-                    .getConfiguration()
-                    .setString(
+                    .set(
                             TABLE_EXEC_SINK_NOT_NULL_ENFORCER.key(),
                             ExecutionConfigOptions.NotNullEnforcer.ERROR.name());
         }

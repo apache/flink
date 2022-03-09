@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.io.network.netty;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.runtime.io.network.ConnectionID;
 import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.PartitionRequestClient;
@@ -47,9 +48,27 @@ public class NettyConnectionManager implements ConnectionManager {
             int maxNumberOfConnections,
             boolean connectionReuseEnabled) {
 
+        this(
+                new NettyBufferPool(nettyConfig.getNumberOfArenas()),
+                partitionProvider,
+                taskEventPublisher,
+                nettyConfig,
+                maxNumberOfConnections,
+                connectionReuseEnabled);
+    }
+
+    @VisibleForTesting
+    public NettyConnectionManager(
+            NettyBufferPool bufferPool,
+            ResultPartitionProvider partitionProvider,
+            TaskEventPublisher taskEventPublisher,
+            NettyConfig nettyConfig,
+            int maxNumberOfConnections,
+            boolean connectionReuseEnabled) {
+
         this.server = new NettyServer(nettyConfig);
         this.client = new NettyClient(nettyConfig);
-        this.bufferPool = new NettyBufferPool(nettyConfig.getNumberOfArenas());
+        this.bufferPool = checkNotNull(bufferPool);
 
         this.partitionRequestClientFactory =
                 new PartitionRequestClientFactory(

@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
@@ -36,12 +37,13 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.annotatio
  *
  * <p>This model is used only during serialization/deserialization.
  */
+@Internal
 @JsonIgnoreProperties(ignoreUnknown = true)
-class JsonPlanEdge {
-    public static final String FIELD_NAME_SOURCE = "source";
-    public static final String FIELD_NAME_TARGET = "target";
-    public static final String FIELD_NAME_SHUFFLE = "shuffle";
-    public static final String FIELD_NAME_SHUFFLE_MODE = "shuffleMode";
+final class JsonPlanEdge {
+    static final String FIELD_NAME_SOURCE = "source";
+    static final String FIELD_NAME_TARGET = "target";
+    static final String FIELD_NAME_SHUFFLE = "shuffle";
+    static final String FIELD_NAME_SHUFFLE_MODE = "shuffleMode";
 
     /** The source node id of this edge. */
     @JsonProperty(FIELD_NAME_SOURCE)
@@ -59,7 +61,7 @@ class JsonPlanEdge {
     private final StreamExchangeMode exchangeMode;
 
     @JsonCreator
-    public JsonPlanEdge(
+    JsonPlanEdge(
             @JsonProperty(FIELD_NAME_SOURCE) int sourceId,
             @JsonProperty(FIELD_NAME_TARGET) int targetId,
             @JsonProperty(FIELD_NAME_SHUFFLE) ExecEdge.Shuffle shuffle,
@@ -70,24 +72,24 @@ class JsonPlanEdge {
         this.exchangeMode = exchangeMode;
     }
 
-    public int getSourceId() {
+    int getSourceId() {
         return sourceId;
     }
 
-    public int getTargetId() {
+    int getTargetId() {
         return targetId;
     }
 
-    public ExecEdge.Shuffle getShuffle() {
+    ExecEdge.Shuffle getShuffle() {
         return shuffle;
     }
 
-    public StreamExchangeMode getExchangeMode() {
+    StreamExchangeMode getExchangeMode() {
         return exchangeMode;
     }
 
     /** Build {@link JsonPlanEdge} from an {@link ExecEdge}. */
-    public static JsonPlanEdge fromExecEdge(ExecEdge execEdge) {
+    static JsonPlanEdge fromExecEdge(ExecEdge execEdge) {
         return new JsonPlanEdge(
                 execEdge.getSource().getId(),
                 execEdge.getTarget().getId(),

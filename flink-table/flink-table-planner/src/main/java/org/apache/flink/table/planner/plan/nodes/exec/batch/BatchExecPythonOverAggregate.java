@@ -24,7 +24,6 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.ManagedMemoryUseCase;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
@@ -34,6 +33,7 @@ import org.apache.flink.table.planner.codegen.ProjectionCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
@@ -88,7 +88,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -148,17 +149,17 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                 }
             }
         }
-        Configuration mergedConfig =
-                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), planner.getTableConfig());
+        Configuration pythonConfig =
+                CommonPythonUtil.getMergedConfig(planner.getExecEnv(), config.getTableConfig());
         OneInputTransformation<RowData, RowData> transform =
                 createPythonOneInputTransformation(
                         inputTransform,
                         inputType,
                         InternalTypeInfo.of(getOutputType()).toRowType(),
                         isRangeWindows,
-                        mergedConfig,
-                        planner.getTableConfig());
-        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(mergedConfig)) {
+                        pythonConfig,
+                        config);
+        if (CommonPythonUtil.isPythonWorkerUsingManagedMemory(pythonConfig)) {
             transform.declareManagedMemoryUseCaseAtSlotScope(ManagedMemoryUseCase.PYTHON);
         }
         return transform;
@@ -169,8 +170,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
             RowType inputRowType,
             RowType outputRowType,
             boolean[] isRangeWindows,
-            Configuration mergedConfig,
-            TableConfig tableConfig) {
+            Configuration pythonConfig,
+            ExecNodeConfig config) {
         Tuple2<int[], PythonFunctionInfo[]> aggCallInfos =
                 CommonPythonUtil.extractPythonAggregateFunctionInfosFromAggregateCall(
                         aggCalls.toArray(new AggregateCall[0]));
@@ -178,8 +179,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
         PythonFunctionInfo[] pythonFunctionInfos = aggCallInfos.f1;
         OneInputStreamOperator<RowData, RowData> pythonOperator =
                 getPythonOverWindowAggregateFunctionOperator(
-                        tableConfig,
-                        mergedConfig,
+                        config,
+                        pythonConfig,
                         inputRowType,
                         outputRowType,
                         isRangeWindows,
@@ -187,8 +188,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                         pythonFunctionInfos);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                createTransformationName(mergedConfig),
-                createTransformationDescription(mergedConfig),
+                createTransformationName(pythonConfig),
+                createTransformationDescription(pythonConfig),
                 pythonOperator,
                 InternalTypeInfo.of(outputRowType),
                 inputTransform.getParallelism());
@@ -196,8 +197,8 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
 
     @SuppressWarnings("unchecked")
     private OneInputStreamOperator<RowData, RowData> getPythonOverWindowAggregateFunctionOperator(
-            TableConfig tableConfig,
-            Configuration mergedConfig,
+            ExecNodeConfig config,
+            Configuration pythonConfig,
             RowType inputRowType,
             RowType outputRowType,
             boolean[] isRangeWindows,
@@ -237,7 +238,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                             GeneratedProjection.class);
             return (OneInputStreamOperator<RowData, RowData>)
                     ctor.newInstance(
-                            mergedConfig,
+                            pythonConfig,
                             pythonFunctionInfos,
                             inputRowType,
                             udfInputType,
@@ -249,13 +250,13 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                             sortSpec.getFieldIndices()[0],
                             sortSpec.getAscendingOrders()[0],
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(tableConfig),
+                                    CodeGeneratorContext.apply(config.getTableConfig()),
                                     "UdafInputProjection",
                                     inputRowType,
                                     udfInputType,
                                     udafInputOffsets),
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(tableConfig),
+                                    CodeGeneratorContext.apply(config.getTableConfig()),
                                     "GroupKey",
                                     inputRowType,
                                     (RowType)
@@ -263,7 +264,7 @@ public class BatchExecPythonOverAggregate extends BatchExecOverAggregateBase {
                                                     .project(inputRowType),
                                     partitionSpec.getFieldIndices()),
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(tableConfig),
+                                    CodeGeneratorContext.apply(config.getTableConfig()),
                                     "GroupSet",
                                     inputRowType,
                                     (RowType)

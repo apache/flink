@@ -516,11 +516,11 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     public void testToDataStreamCustomEventTime() throws Exception {
         final StreamTableEnvironment tableEnv = StreamTableEnvironment.create(env);
 
-        final TableConfig config = tableEnv.getConfig();
+        final TableConfig tableConfig = tableEnv.getConfig();
 
         // session time zone should not have an impact on the conversion
-        final ZoneId originalZone = config.getLocalTimeZone();
-        config.setLocalTimeZone(ZoneId.of("Europe/Berlin"));
+        final ZoneId originalZone = tableConfig.getLocalTimeZone();
+        tableConfig.setLocalTimeZone(ZoneId.of("Europe/Berlin"));
 
         final LocalDateTime localDateTime1 = LocalDateTime.parse("1970-01-01T00:00:00.000");
         final LocalDateTime localDateTime2 = LocalDateTime.parse("1970-01-01T01:00:00.000");
@@ -567,7 +567,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 localDateTime1.atOffset(ZoneOffset.UTC).toInstant().toEpochMilli(),
                 localDateTime2.atOffset(ZoneOffset.UTC).toInstant().toEpochMilli());
 
-        config.setLocalTimeZone(originalZone);
+        tableConfig.setLocalTimeZone(originalZone);
     }
 
     @Test

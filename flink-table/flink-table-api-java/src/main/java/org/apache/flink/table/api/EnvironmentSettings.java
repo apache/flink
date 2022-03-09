@@ -33,7 +33,6 @@ import javax.annotation.Nullable;
 import static org.apache.flink.api.common.RuntimeExecutionMode.BATCH;
 import static org.apache.flink.api.common.RuntimeExecutionMode.STREAMING;
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
-import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_PLANNER;
 
 /**
  * Defines all parameters that initialize a table environment. Those parameters are used only during
@@ -150,19 +149,6 @@ public class EnvironmentSettings {
                                 configuration.get(RUNTIME_MODE), RUNTIME_MODE.key()));
         }
 
-        switch (configuration.get(TABLE_PLANNER)) {
-            case BLINK:
-                builder.useBlinkPlanner();
-                break;
-            case OLD:
-                builder.useOldPlanner();
-                break;
-            default:
-                throw new IllegalArgumentException(
-                        String.format(
-                                "Unrecognized value '%s' for option '%s'.",
-                                configuration.get(TABLE_PLANNER), TABLE_PLANNER.key()));
-        }
         return builder.build();
     }
 
@@ -170,7 +156,6 @@ public class EnvironmentSettings {
     public Configuration toConfiguration() {
         Configuration configuration = new Configuration();
         configuration.set(RUNTIME_MODE, isStreamingMode() ? STREAMING : BATCH);
-        configuration.set(TABLE_PLANNER, PlannerType.BLINK);
         return configuration;
     }
 
@@ -195,18 +180,6 @@ public class EnvironmentSettings {
         return isStreamingMode;
     }
 
-    /**
-     * Tells if the {@link TableEnvironment} should work in the blink planner or old planner.
-     *
-     * @deprecated The old planner has been removed in Flink 1.14. Since there is only one planner
-     *     left (previously called the 'blink' planner), this method is obsolete and will be removed
-     *     in future versions.
-     */
-    @Deprecated
-    public boolean isBlinkPlanner() {
-        return true;
-    }
-
     /** Returns the identifier of the {@link Planner} to be used. */
     @Internal
     public String getPlanner() {
@@ -228,49 +201,6 @@ public class EnvironmentSettings {
         private String builtInCatalogName = DEFAULT_BUILTIN_CATALOG;
         private String builtInDatabaseName = DEFAULT_BUILTIN_DATABASE;
         private boolean isStreamingMode = true;
-
-        /**
-         * @deprecated The old planner has been removed in Flink 1.14. Since there is only one
-         *     planner left (previously called the 'blink' planner), this setting will throw an
-         *     exception.
-         */
-        @Deprecated
-        public Builder useOldPlanner() {
-            throw new TableException(
-                    "The old planner has been removed in Flink 1.14. "
-                            + "Please upgrade your table program to use the default "
-                            + "planner (previously called the 'blink' planner).");
-        }
-
-        /**
-         * Sets the Blink planner as the required module.
-         *
-         * <p>This is the default behavior.
-         *
-         * @deprecated The old planner has been removed in Flink 1.14. Since there is only one
-         *     planner left (previously called the 'blink' planner), this setting is obsolete and
-         *     will be removed in future versions.
-         */
-        @Deprecated
-        public Builder useBlinkPlanner() {
-            return this;
-        }
-
-        /**
-         * Does not set a planner requirement explicitly.
-         *
-         * <p>A planner will be discovered automatically, if there is only one planner available.
-         *
-         * <p>By default, {@link #useBlinkPlanner()} is enabled.
-         *
-         * @deprecated The old planner has been removed in Flink 1.14. Since there is only one
-         *     planner left (previously called the 'blink' planner), this setting is obsolete and
-         *     will be removed in future versions.
-         */
-        @Deprecated
-        public Builder useAnyPlanner() {
-            return this;
-        }
 
         /** Sets that the components should work in a batch mode. Streaming mode by default. */
         public Builder inBatchMode() {

@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.table.api.{DataTypes, JsonOnNull}
-import org.apache.flink.table.planner.codegen.CodeGenUtils.{className, newName, rowFieldReadAccess, typeTerm}
+import org.apache.flink.table.planner.codegen.CodeGenUtils.{ARRAY_DATA, MAP_DATA, className, newName, rowFieldReadAccess, typeTerm}
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable.{JSON_ARRAY, JSON_OBJECT}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.runtime.functions.SqlJsonUtils
@@ -35,6 +35,8 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.util.RawV
 import org.apache.calcite.rex.{RexCall, RexNode}
 
 import java.time.format.DateTimeFormatter
+
+import scala.annotation.tailrec
 
 /** Utility for generating JSON function calls. */
 object JsonGenerateUtils {
@@ -56,6 +58,8 @@ object JsonGenerateUtils {
 
   /**
    * Returns a term which wraps the given `valueExpr` into a [[JsonNode]] of the appropriate type.
+   *
+   * Does not support nullability.
    */
   def createNodeTerm(
       ctx: CodeGeneratorContext,
@@ -63,26 +67,25 @@ object JsonGenerateUtils {
     createNodeTerm(ctx, valueExpr.resultTerm, valueExpr.resultType)
   }
 
-  /**
-   * Returns a term which wraps the given expression into a [[JsonNode]] of the appropriate type.
-   */
+  @tailrec
   private def createNodeTerm(
       ctx: CodeGeneratorContext,
-      term: String,
-      logicalType: LogicalType): String = {
+      valueTerm: String,
+      valueType: LogicalType)
+    : String = {
     val nodeFactoryTerm = s"$jsonUtils.getNodeFactory()"
 
-    logicalType.getTypeRoot match {
-      case CHAR | VARCHAR => s"$nodeFactoryTerm.textNode($term.toString())"
-      case BOOLEAN => s"$nodeFactoryTerm.booleanNode($term)"
-      case DECIMAL => s"$nodeFactoryTerm.numberNode($term.toBigDecimal())"
+    valueType.getTypeRoot match {
+      case CHAR | VARCHAR => s"$nodeFactoryTerm.textNode($valueTerm.toString())"
+      case BOOLEAN => s"$nodeFactoryTerm.booleanNode($valueTerm)"
+      case DECIMAL => s"$nodeFactoryTerm.numberNode($valueTerm.toBigDecimal())"
       case TINYINT | SMALLINT | INTEGER | BIGINT | FLOAT | DOUBLE =>
-        s"$nodeFactoryTerm.numberNode($term)"
+        s"$nodeFactoryTerm.numberNode($valueTerm)"
 
       case TIMESTAMP_WITHOUT_TIME_ZONE | TIMESTAMP_WITH_LOCAL_TIME_ZONE =>
         val formatter = s"${typeTerm(classOf[DateTimeFormatter])}.ISO_LOCAL_DATE_TIME"
-        val isoTerm = s"$term.toLocalDateTime().format($formatter)"
-        logicalType.getTypeRoot match {
+        val isoTerm = s"$valueTerm.toLocalDateTime().format($formatter)"
+        valueType.getTypeRoot match {
           case TIMESTAMP_WITHOUT_TIME_ZONE => s"$nodeFactoryTerm.textNode($isoTerm)"
           case TIMESTAMP_WITH_LOCAL_TIME_ZONE => s"""$nodeFactoryTerm.textNode($isoTerm + "Z")"""
         }
@@ -91,32 +94,57 @@ object JsonGenerateUtils {
         throw new CodeGenException(s"'TIMESTAMP WITH TIME ZONE' is not yet supported.")
 
       case BINARY | VARBINARY =>
-        s"$nodeFactoryTerm.binaryNode($term)"
+        s"$nodeFactoryTerm.binaryNode($valueTerm)"
 
       case ARRAY =>
         val converterName = generateArrayConverter(ctx,
-          logicalType.asInstanceOf[ArrayType].getElementType)
-        s"$converterName($term)"
+          valueType.asInstanceOf[ArrayType].getElementType)
+        s"$converterName($valueTerm)"
 
       case ROW | STRUCTURED_TYPE=>
-        val converterName = generateRowConverter(ctx, logicalType)
-        s"$converterName($term)"
+        val converterName = generateRowConverter(ctx, valueType)
+        s"$converterName($valueTerm)"
 
       case MAP =>
-        val mapType = logicalType.asInstanceOf[MapType]
+        val mapType = valueType.asInstanceOf[MapType]
         val converterName = generateMapConverter(ctx, mapType.getKeyType, mapType.getValueType)
-        s"$converterName($term)"
+        s"$converterName($valueTerm)"
 
       case MULTISET =>
         val converterName = generateMapConverter(ctx,
-          logicalType.asInstanceOf[MultisetType].getElementType, DataTypes.INT().getLogicalType)
-        s"$converterName($term)"
+          valueType.asInstanceOf[MultisetType].getElementType, DataTypes.INT().getLogicalType)
+        s"$converterName($valueTerm)"
 
       case DISTINCT_TYPE =>
-        createNodeTerm(ctx, term, logicalType.asInstanceOf[DistinctType].getSourceType)
+        createNodeTerm(
+          ctx,
+          valueTerm,
+          valueType.asInstanceOf[DistinctType].getSourceType)
 
       case _ => throw new CodeGenException(
-        s"Type '$logicalType' is not scalar or cannot be converted into JSON.")
+        s"Type '$valueType' is not scalar or cannot be converted into JSON.")
+    }
+  }
+
+  private def createNullableNodeTerm(
+      ctx: CodeGeneratorContext,
+      containerTerm: String,
+      indexTerm: String,
+      fieldType: LogicalType): String = {
+    val nodeFactoryTerm = s"$jsonUtils.getNodeFactory()"
+
+    val fieldAccessTerm = rowFieldReadAccess(indexTerm, containerTerm, fieldType)
+
+    val valueNodeTerm = createNodeTerm(ctx, fieldAccessTerm, fieldType)
+
+    if (fieldType.isNullable) {
+      s"""
+         |$containerTerm.isNullAt($indexTerm) ?
+         |    (${className[JsonNode]}) $nodeFactoryTerm.nullNode() :
+         |    (${className[JsonNode]}) $valueNodeTerm
+         |""".stripMargin
+    } else {
+      valueNodeTerm
     }
   }
 
@@ -159,17 +187,15 @@ object JsonGenerateUtils {
   /** Generates a method to convert arrays into [[ArrayNode]]. */
   private def generateArrayConverter(
       ctx: CodeGeneratorContext,
-      elementType: LogicalType): String = {
-    val fieldAccessCode = toExternalTypeTerm(
-      rowFieldReadAccess("i", "arrData", elementType), elementType)
-
+      elementType: LogicalType)
+    : String = {
     val methodName = newName("convertArray")
     val methodCode =
       s"""
-         |private ${className[ArrayNode]} $methodName(${CodeGenUtils.ARRAY_DATA} arrData) {
+         |private ${className[ArrayNode]} $methodName($ARRAY_DATA arrData) {
          |    ${className[ArrayNode]} arrNode = $jsonUtils.getNodeFactory().arrayNode();
          |    for (int i = 0; i < arrData.size(); i++) {
-         |        arrNode.add(${createNodeTerm(ctx, fieldAccessCode, elementType)});
+         |        arrNode.add(${createNullableNodeTerm(ctx, "arrData", "i", elementType)});
          |    }
          |
          |    return arrNode;
@@ -190,12 +216,10 @@ object JsonGenerateUtils {
     val populateObjectCode = fieldNames.zipWithIndex.map {
       case (fieldName, idx) =>
         val fieldType = fieldTypes(idx)
-        val fieldAccessCode = toExternalTypeTerm(
-          rowFieldReadAccess(idx.toString, "rowData", fieldType), fieldType)
-
         s"""
-           |objNode.set("$fieldName",
-           |    ${createNodeTerm(ctx, fieldAccessCode, fieldType)});
+           |objNode.set(
+           |    "$fieldName",
+           |    ${createNullableNodeTerm(ctx, "rowData", idx.toString, fieldType)});
            |""".stripMargin
     }.mkString
 
@@ -225,24 +249,24 @@ object JsonGenerateUtils {
           + "The key type must be a character string.")
     }
 
-    val keyAccessCode = toExternalTypeTerm(
-      rowFieldReadAccess("i", "mapData.keyArray()", keyType), keyType)
-    val valueAccessCode = toExternalTypeTerm(
-      rowFieldReadAccess("i", "mapData.valueArray()", valueType), valueType)
-
     val methodName = newName("convertMap")
     val methodCode =
       s"""
-         |private ${className[ObjectNode]} $methodName(${CodeGenUtils.MAP_DATA} mapData) {
+         |private ${className[ObjectNode]} $methodName($MAP_DATA mapData) {
          |    ${className[ObjectNode]} objNode = $jsonUtils.getNodeFactory().objectNode();
          |    for (int i = 0; i < mapData.size(); i++) {
-         |        java.lang.String key = $keyAccessCode;
+         |        $ARRAY_DATA keyArray = mapData.keyArray();
+         |        $ARRAY_DATA valueArray = mapData.valueArray();
+         |        java.lang.String key = keyArray.isNullAt(i) ? null :
+         |          ${rowFieldReadAccess("i", "keyArray", keyType)}.toString();
          |        if (key == null) {
          |            throw new java.lang.IllegalArgumentException("Key at index " + i
          |                + " was null. This is not supported during conversion to JSON.");
          |        }
          |
-         |        objNode.set(key, ${createNodeTerm(ctx, valueAccessCode, valueType)});
+         |        objNode.set(
+         |            key,
+         |            ${createNullableNodeTerm(ctx, "valueArray", "i", valueType)});
          |    }
          |
          |    return objNode;
@@ -251,13 +275,5 @@ object JsonGenerateUtils {
 
     ctx.addReusableMember(methodCode)
     methodName
-  }
-
-  private def toExternalTypeTerm(term: String, logicalType: LogicalType): String = {
-    if (isCharacterString(logicalType)) {
-      s"$term.toString()"
-    } else {
-      term
-    }
   }
 }

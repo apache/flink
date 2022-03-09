@@ -23,6 +23,7 @@ import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.connector.elasticsearch.sink.ElasticsearchSink;
 import org.apache.flink.connector.elasticsearch.sink.ElasticsearchSinkBuilderBase;
 import org.apache.flink.connector.elasticsearch.sink.FlushBackoffType;
+import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
@@ -37,6 +38,7 @@ import org.elasticsearch.common.xcontent.XContentType;
 
 import javax.annotation.Nullable;
 
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Function;
@@ -54,10 +56,12 @@ class ElasticsearchDynamicSink implements DynamicTableSink {
     final DataType physicalRowDataType;
     final List<LogicalTypeWithIndex> primaryKeyLogicalTypesWithIndex;
     final ElasticsearchConfiguration config;
+    final ZoneId localTimeZoneId;
 
     final String summaryString;
     final ElasticsearchSinkBuilderSupplier<RowData> builderSupplier;
     @Nullable final String documentType;
+    final boolean isDynamicIndexWithSystemTime;
 
     ElasticsearchDynamicSink(
             EncodingFormat<SerializationSchema<RowData>> format,
@@ -66,7 +70,8 @@ class ElasticsearchDynamicSink implements DynamicTableSink {
             DataType physicalRowDataType,
             String summaryString,
             ElasticsearchSinkBuilderSupplier<RowData> builderSupplier,
-            @Nullable String documentType) {
+            @Nullable String documentType,
+            ZoneId localTimeZoneId) {
         this.format = checkNotNull(format);
         this.physicalRowDataType = checkNotNull(physicalRowDataType);
         this.primaryKeyLogicalTypesWithIndex = checkNotNull(primaryKeyLogicalTypesWithIndex);
@@ -74,6 +79,13 @@ class ElasticsearchDynamicSink implements DynamicTableSink {
         this.summaryString = checkNotNull(summaryString);
         this.builderSupplier = checkNotNull(builderSupplier);
         this.documentType = documentType;
+        this.localTimeZoneId = localTimeZoneId;
+        this.isDynamicIndexWithSystemTime = isDynamicIndexWithSystemTime();
+    }
+
+    public boolean isDynamicIndexWithSystemTime() {
+        IndexGeneratorFactory.IndexHelper indexHelper = new IndexGeneratorFactory.IndexHelper();
+        return indexHelper.checkIsDynamicIndexWithSystemTimeFormat(config.getIndex());
     }
 
     Function<RowData, String> createKeyExtractor() {
@@ -85,7 +97,8 @@ class ElasticsearchDynamicSink implements DynamicTableSink {
         return IndexGeneratorFactory.createIndexGenerator(
                 config.getIndex(),
                 DataType.getFieldNames(physicalRowDataType),
-                DataType.getFieldDataTypes(physicalRowDataType));
+                DataType.getFieldDataTypes(physicalRowDataType),
+                localTimeZoneId);
     }
 
     @Override
@@ -95,6 +108,10 @@ class ElasticsearchDynamicSink implements DynamicTableSink {
             if (kind != RowKind.UPDATE_BEFORE) {
                 builder.addContainedKind(kind);
             }
+        }
+        if (isDynamicIndexWithSystemTime && !requestedMode.containsOnly(RowKind.INSERT)) {
+            throw new ValidationException(
+                    "Dynamic indexing based on system time only works on append only stream.");
         }
         return builder.build();
     }
@@ -169,7 +186,8 @@ class ElasticsearchDynamicSink implements DynamicTableSink {
                 physicalRowDataType,
                 summaryString,
                 builderSupplier,
-                documentType);
+                documentType,
+                localTimeZoneId);
     }
 
     @Override

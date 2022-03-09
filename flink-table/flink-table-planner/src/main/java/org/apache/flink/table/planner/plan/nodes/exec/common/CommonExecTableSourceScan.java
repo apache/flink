@@ -24,11 +24,13 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.ParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.StreamSource;
 import org.apache.flink.streaming.api.transformations.LegacySourceTransformation;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.connector.ProviderContext;
 import org.apache.flink.table.connector.source.DataStreamScanProvider;
 import org.apache.flink.table.connector.source.InputFormatProvider;
@@ -40,6 +42,7 @@ import org.apache.flink.table.planner.connectors.TransformationScanProvider;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.MultipleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.DynamicTableSourceSpec;
@@ -88,10 +91,10 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final StreamExecutionEnvironment env = planner.getExecEnv();
-        final TransformationMetadata meta =
-                createTransformationMeta(SOURCE_TRANSFORMATION, planner.getTableConfig());
+        final TransformationMetadata meta = createTransformationMeta(SOURCE_TRANSFORMATION, config);
         final InternalTypeInfo<RowData> outputTypeInfo =
                 InternalTypeInfo.of((RowType) getOutputType());
         final ScanTableSource tableSource =
@@ -130,7 +133,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         } else if (provider instanceof DataStreamScanProvider) {
             Transformation<RowData> transformation =
                     ((DataStreamScanProvider) provider)
-                            .produceDataStream(createProviderContext(), env)
+                            .produceDataStream(createProviderContext(config), env)
                             .getTransformation();
             meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
@@ -138,7 +141,7 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         } else if (provider instanceof TransformationScanProvider) {
             final Transformation<RowData> transformation =
                     ((TransformationScanProvider) provider)
-                            .createTransformation(createProviderContext());
+                            .createTransformation(createProviderContext(config));
             meta.fill(transformation);
             transformation.setOutputType(outputTypeInfo);
             return transformation;
@@ -148,9 +151,10 @@ public abstract class CommonExecTableSourceScan extends ExecNodeBase<RowData>
         }
     }
 
-    private ProviderContext createProviderContext() {
+    private ProviderContext createProviderContext(ReadableConfig config) {
         return name -> {
-            if (this instanceof StreamExecNode) {
+            if (this instanceof StreamExecNode
+                    && !config.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_TRANSFORMATION_UIDS)) {
                 return Optional.of(createTransformationUid(name));
             }
             return Optional.empty();

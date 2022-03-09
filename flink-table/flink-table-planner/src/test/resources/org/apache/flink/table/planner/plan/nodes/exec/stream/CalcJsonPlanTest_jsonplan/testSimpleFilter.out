@@ -59,12 +59,9 @@
       "type" : "TIMESTAMP(3)"
     } ],
     "condition" : {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : ">",
-        "kind" : "GREATER_THAN",
-        "syntax" : "BINARY"
-      },
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$>$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,

@@ -71,12 +71,9 @@
       "inputIndex" : 1,
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : ">",
-        "kind" : "GREATER_THAN",
-        "syntax" : "BINARY"
-      },
+      "kind" : "CALL",
+      "syntax" : "BINARY",
+      "internalName" : "$>$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
@@ -108,11 +105,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt_a",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -121,11 +115,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "max_b",
-      "aggFunction" : {
-        "name" : "MAX",
-        "kind" : "MAX",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$MAX$1",
       "argList" : [ 0 ],
       "filterArg" : 2,
       "distinct" : false,
@@ -134,11 +124,7 @@
       "type" : "INT"
     }, {
       "name" : "min_c",
-      "aggFunction" : {
-        "name" : "MIN",
-        "kind" : "MIN",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$MIN$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -176,11 +162,8 @@
     "grouping" : [ 0 ],
     "aggCalls" : [ {
       "name" : "cnt_a",
-      "aggFunction" : {
-        "name" : "COUNT",
-        "kind" : "COUNT",
-        "syntax" : "FUNCTION_STAR"
-      },
+      "syntax" : "FUNCTION_STAR",
+      "internalName" : "$COUNT$1",
       "argList" : [ 1 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -189,11 +172,7 @@
       "type" : "BIGINT NOT NULL"
     }, {
       "name" : "max_b",
-      "aggFunction" : {
-        "name" : "MAX",
-        "kind" : "MAX",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$MAX$1",
       "argList" : [ 0 ],
       "filterArg" : 2,
       "distinct" : false,
@@ -202,11 +181,7 @@
       "type" : "INT"
     }, {
       "name" : "min_c",
-      "aggFunction" : {
-        "name" : "MIN",
-        "kind" : "MIN",
-        "syntax" : "FUNCTION"
-      },
+      "internalName" : "$MIN$1",
       "argList" : [ 3 ],
       "filterArg" : -1,
       "distinct" : false,
@@ -231,12 +206,9 @@
     "id" : 7,
     "type" : "stream-exec-calc_1",
     "projection" : [ {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 0,
@@ -244,12 +216,9 @@
       } ],
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 1,
@@ -257,12 +226,9 @@
       } ],
       "type" : "BIGINT"
     }, {
-      "kind" : "REX_CALL",
-      "operator" : {
-        "name" : "CAST",
-        "kind" : "CAST",
-        "syntax" : "SPECIAL"
-      },
+      "kind" : "CALL",
+      "syntax" : "SPECIAL",
+      "internalName" : "$CAST$1",
       "operands" : [ {
         "kind" : "INPUT_REF",
         "inputIndex" : 2,

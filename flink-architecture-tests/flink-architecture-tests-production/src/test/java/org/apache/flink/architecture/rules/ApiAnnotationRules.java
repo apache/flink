@@ -30,6 +30,7 @@ import com.tngtech.archunit.core.domain.JavaMethodCall;
 import com.tngtech.archunit.junit.ArchTest;
 import com.tngtech.archunit.lang.ArchRule;
 
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAnyPackage;
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideOutsideOfPackage;
 import static com.tngtech.archunit.core.domain.properties.CanBeAnnotated.Predicates.annotatedWith;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.methods;
@@ -87,6 +88,7 @@ public class ApiAnnotationRules {
                             .should(
                                     haveLeafTypes(
                                             resideOutsideOfPackage("org.apache.flink..")
+                                                    .or(resideInShadedPackage())
                                                     .or(
                                                             areDirectlyAnnotatedWithAtLeastOneOf(
                                                                     Public.class,
@@ -117,6 +119,7 @@ public class ApiAnnotationRules {
                             .should(
                                     haveLeafTypes(
                                             resideOutsideOfPackage("org.apache.flink..")
+                                                    .or(resideInShadedPackage())
                                                     .or(
                                                             areDirectlyAnnotatedWithAtLeastOneOf(
                                                                     Public.class,
@@ -138,6 +141,14 @@ public class ApiAnnotationRules {
                                         public boolean apply(JavaMethodCall call) {
                                             final JavaClass targetOwner = call.getTargetOwner();
                                             final JavaClass originOwner = call.getOriginOwner();
+
+                                            // no violation for caller annotated with
+                                            // @VisibleForTesting
+                                            if (call.getOrigin()
+                                                    .isAnnotatedWith(VisibleForTesting.class)) {
+                                                return false;
+                                            }
+
                                             if (originOwner.equals(targetOwner)) {
                                                 return false;
                                             }
@@ -160,4 +171,8 @@ public class ApiAnnotationRules {
                                     })
                             .as(
                                     "Production code must not call methods annotated with @VisibleForTesting"));
+
+    private static DescribedPredicate<JavaClass> resideInShadedPackage() {
+        return resideInAnyPackage("..shaded..");
+    }
 }

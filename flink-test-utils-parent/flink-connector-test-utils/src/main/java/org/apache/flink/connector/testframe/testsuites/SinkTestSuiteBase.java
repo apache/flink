@@ -405,6 +405,7 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
                                     externalContext,
                                     jobClient.getJobID(),
                                     sinkName,
+                                    MetricNames.NUM_RECORDS_SEND,
                                     testRecords.size());
                         } catch (Exception e) {
                             // skip failed assert try
@@ -531,16 +532,23 @@ public abstract class SinkTestSuiteBase<T extends Comparable<T>> {
             DataStreamSinkExternalContext<T> context,
             JobID jobId,
             String sinkName,
-            long allRecordSize)
+            String metricsName,
+            long expectedSize)
             throws Exception {
         double sumNumRecordsOut =
                 metricQuerier.getAggregatedMetricsByRestAPI(
                         testEnv.getRestEndpoint(),
                         jobId,
                         sinkName,
-                        MetricNames.IO_NUM_RECORDS_OUT,
+                        metricsName,
                         getSinkMetricFilter(context));
-        return Precision.equals(allRecordSize, sumNumRecordsOut);
+
+        if (Precision.equals(expectedSize, sumNumRecordsOut)) {
+            return true;
+        } else {
+            LOG.info("expected:<{}> but was <{}>({})", expectedSize, sumNumRecordsOut, metricsName);
+            return false;
+        }
     }
 
     /** Sort the list. */

@@ -22,7 +22,6 @@ import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.operators.TwoInputStreamOperator;
 import org.apache.flink.streaming.api.transformations.TwoInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.data.RowData;
@@ -34,6 +33,7 @@ import org.apache.flink.table.planner.codegen.GeneratedExpression;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
@@ -141,7 +141,8 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         ExecEdge leftInputEdge = getInputEdges().get(0);
         ExecEdge rightInputEdge = getInputEdges().get(1);
         RowType leftInputType = (RowType) leftInputEdge.getOutputType();
@@ -171,7 +172,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
         RowType returnType = (RowType) getOutputType();
 
         TwoInputStreamOperator<RowData, RowData, RowData> joinOperator =
-                getJoinOperator(planner.getTableConfig(), leftInputType, rightInputType);
+                getJoinOperator(config, leftInputType, rightInputType);
         Transformation<RowData> leftTransform =
                 (Transformation<RowData>) leftInputEdge.translateToPlan(planner);
         Transformation<RowData> rightTransform =
@@ -181,8 +182,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
                 ExecNodeUtil.createTwoInputTransformation(
                         leftTransform,
                         rightTransform,
-                        createTransformationMeta(
-                                TEMPORAL_JOIN_TRANSFORMATION, planner.getTableConfig()),
+                        createTransformationMeta(TEMPORAL_JOIN_TRANSFORMATION, config),
                         joinOperator,
                         InternalTypeInfo.of(returnType),
                         leftTransform.getParallelism());
@@ -206,11 +206,11 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
     }
 
     private TwoInputStreamOperator<RowData, RowData, RowData> getJoinOperator(
-            TableConfig config, RowType leftInputType, RowType rightInputType) {
+            ExecNodeConfig config, RowType leftInputType, RowType rightInputType) {
 
         // input must not be nullable, because the runtime join function will make sure
         // the code-generated function won't process null inputs
-        final CodeGeneratorContext ctx = new CodeGeneratorContext(config);
+        final CodeGeneratorContext ctx = new CodeGeneratorContext(config.getTableConfig());
         final ExprCodeGenerator exprGenerator =
                 new ExprCodeGenerator(ctx, false)
                         .bindInput(
@@ -241,14 +241,14 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
     }
 
     private TwoInputStreamOperator<RowData, RowData, RowData> createJoinOperator(
-            TableConfig tableConfig,
+            ExecNodeConfig config,
             RowType leftInputType,
             RowType rightInputType,
             GeneratedJoinCondition generatedJoinCondition) {
 
         boolean isLeftOuterJoin = joinSpec.getJoinType() == FlinkJoinType.LEFT;
-        long minRetentionTime = tableConfig.getMinIdleStateRetentionTime();
-        long maxRetentionTime = tableConfig.getMaxIdleStateRetentionTime();
+        long minRetentionTime = config.getStateRetentionTime();
+        long maxRetentionTime = config.getMaxIdleStateRetentionTime();
         if (rightTimeAttributeIndex >= 0) {
             return new TemporalRowTimeJoinOperator(
                     InternalTypeInfo.of(leftInputType),
