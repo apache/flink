@@ -149,7 +149,7 @@ class StatelessFunctionOperation(FunctionOperation):
             name, spec, counter_factory, sampler, consumers, operation_cls)
 
     def generate_operation(self):
-        return self.operation_cls(self.spec)
+        return self.operation_cls(self.spec.serialized_fn)
 
 
 class StatefulFunctionOperation(FunctionOperation):
@@ -161,7 +161,7 @@ class StatefulFunctionOperation(FunctionOperation):
             name, spec, counter_factory, sampler, consumers, operation_cls)
 
     def generate_operation(self):
-        return self.operation_cls(self.spec, self._keyed_state_backend)
+        return self.operation_cls(self.spec.serialized_fn, self._keyed_state_backend)
 
     def add_timer_info(self, timer_family_id: str, timer_info: TimerInfo):
         # ignore timer_family_id

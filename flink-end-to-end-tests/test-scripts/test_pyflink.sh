@@ -222,16 +222,6 @@ function read_msg_from_kafka {
     --consumer-property group.id=$3 --timeout-ms 90000 2> /dev/null
 }
 
-function cat_jm_logs {
-     local log_file_name=${3:-standalonesession}
-     cat $FLINK_LOG_DIR/*$log_file_name*.log
-}
-
-function cat_tm_logs {
-	local logfile="$FLINK_LOG_DIR/flink*taskexecutor*log"
-	cat ${logfile}
-}
-
 send_msg_to_kafka "${PAYMENT_MSGS[*]}"
 
 JOB_ID=$(${FLINK_DIR}/bin/flink run \
@@ -277,9 +267,5 @@ if [[ "${EXPECTED_MSG[*]}" != "${SORTED_READ_MSG[*]}" ]]; then
     echo "Output from Flink program does not match expected output."
     echo -e "EXPECTED Output: --${EXPECTED_MSG[*]}--"
     echo -e "ACTUAL: --${SORTED_READ_MSG[*]}--"
-    jm_log=$(cat_jm_logs)
-    echo "JobManager logs: " ${jm_log}
-    tm_log=$(cat_tm_logs)
-    echo "TaskManager logs: " ${tm_log}
     exit 1
 fi

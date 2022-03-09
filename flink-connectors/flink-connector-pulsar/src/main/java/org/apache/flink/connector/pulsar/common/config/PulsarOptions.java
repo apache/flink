@@ -47,7 +47,6 @@ import static org.apache.flink.connector.pulsar.common.config.PulsarOptions.CLIE
             @ConfigGroup(name = "PulsarClient", keyPrefix = CLIENT_CONFIG_PREFIX),
             @ConfigGroup(name = "PulsarAdmin", keyPrefix = ADMIN_CONFIG_PREFIX)
         })
-@SuppressWarnings("java:S1192")
 public final class PulsarOptions {
 
     // Pulsar client API config prefix.
@@ -78,8 +77,7 @@ public final class PulsarOptions {
                                             "To connect to Pulsar using client libraries, you need to specify a Pulsar protocol URL.")
                                     .linebreak()
                                     .text(
-                                            "You can assign Pulsar protocol URLs to specific clusters and use the %s scheme.",
-                                            code("pulsar"))
+                                            "You can assign Pulsar protocol URLs to specific clusters and use the Pulsar scheme.")
                                     .linebreak()
                                     .list(
                                             text(
@@ -208,8 +206,8 @@ public final class PulsarOptions {
                                     .text(
                                             " On the other hand, sending out a huge number of small packets might limit the overall throughput.")
                                     .text(
-                                            " Therefore, if latency is not a concern, it is recommended to set the %s flag to %s.",
-                                            code("useTcpNoDelay"), code("false"))
+                                            " Therefore, if latency is not a concern, it is recommended to set this option to %s.",
+                                            code("false"))
                                     .linebreak()
                                     .text("By default, it is set to %s.", code("true"))
                                     .build());
@@ -265,13 +263,13 @@ public final class PulsarOptions {
                                             "The maximum number of lookup requests allowed on each broker connection to prevent overload on the broker.")
                                     .text(
                                             " It should be greater than %s.",
-                                            code("maxConcurrentLookupRequests"))
+                                            code("pulsar.client.concurrentLookupRequest"))
                                     .text(
                                             " Requests that inside %s are already sent to broker,",
-                                            code("maxConcurrentLookupRequests"))
+                                            code("pulsar.client.concurrentLookupRequest"))
                                     .text(
                                             " and requests beyond %s and under %s will wait in each client cnx.",
-                                            code("maxConcurrentLookupRequests"),
+                                            code("pulsar.client.concurrentLookupRequest"),
                                             code("maxLookupRequests"))
                                     .build());
 
@@ -314,12 +312,12 @@ public final class PulsarOptions {
                                             "If the duration passes without a response from a broker, the connection attempt is dropped.")
                                     .build());
 
-    // TODO This option would be exposed by Pulsar's ClientBuilder in the next Pulsar release.
     public static final ConfigOption<Integer> PULSAR_REQUEST_TIMEOUT_MS =
             ConfigOptions.key(CLIENT_CONFIG_PREFIX + "requestTimeoutMs")
                     .intType()
                     .defaultValue(60000)
-                    .withDescription("Maximum duration (in ms) for completing a request.");
+                    .withDescription(
+                            "Maximum duration (in ms) for completing a request. This config option is not supported before Pulsar 2.8.1");
 
     public static final ConfigOption<Long> PULSAR_INITIAL_BACKOFF_INTERVAL_NANOS =
             ConfigOptions.key(CLIENT_CONFIG_PREFIX + "initialBackoffIntervalNanos")

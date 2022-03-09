@@ -26,6 +26,7 @@ import org.apache.flink.api.connector.sink.SinkWriter;
 import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.streaming.api.functions.sink.filesystem.bucketassigners.SimpleVersionedStringSerializer;
+import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
 
 import javax.annotation.Nullable;
 
@@ -124,6 +125,10 @@ public class TestSink<T> implements Sink<T, String, String, String> {
 
     public static Builder<Integer> newBuilder() {
         return new Builder<>();
+    }
+
+    public org.apache.flink.api.connector.sink2.Sink<T> asV2() {
+        return SinkV1Adapter.wrap(this);
     }
 
     /** A builder class for {@link TestSink}. */

@@ -1253,7 +1253,8 @@ class TableSinkITCase extends StreamingTestBase {
     val t = env.fromCollection(tupleData3)
         .assignAscendingTimestamps(_._1.toLong)
         .toTable(tEnv, 'id, 'num, 'text, 'rowtime.rowtime)
-    tEnv.getConfig.getConfiguration.set(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
+    tEnv.getConfig.set(
+      ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE,
       ExecutionConfigOptions.SinkKeyedShuffle.FORCE)
 
     tEnv.executeSql(

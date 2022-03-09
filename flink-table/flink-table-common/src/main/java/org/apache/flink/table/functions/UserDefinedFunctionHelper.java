@@ -190,7 +190,6 @@ public final class UserDefinedFunctionHelper {
      *
      * <p>Requires access to {@link ReadableConfig} if Python functions should be supported.
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public static UserDefinedFunction instantiateFunction(
             ClassLoader classLoader,
             @Nullable ReadableConfig config,
@@ -210,7 +209,7 @@ public final class UserDefinedFunctionHelper {
                 case SCALA:
                     final Class<?> functionClass =
                             classLoader.loadClass(catalogFunction.getClassName());
-                    return UserDefinedFunctionHelper.instantiateFunction((Class) functionClass);
+                    return UserDefinedFunctionHelper.instantiateFunction(functionClass);
                 default:
                     throw new IllegalArgumentException(
                             "Unknown function language: " + catalogFunction.getFunctionLanguage());
@@ -224,11 +223,17 @@ public final class UserDefinedFunctionHelper {
     /**
      * Instantiates a {@link UserDefinedFunction} assuming a JVM function with default constructor.
      */
-    public static UserDefinedFunction instantiateFunction(
-            Class<? extends UserDefinedFunction> functionClass) {
-        validateClass(functionClass, true);
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static UserDefinedFunction instantiateFunction(Class<?> functionClass) {
+        if (!UserDefinedFunction.class.isAssignableFrom(functionClass)) {
+            throw new ValidationException(
+                    String.format(
+                            "Function '%s' does not extend from '%s'.",
+                            functionClass.getName(), UserDefinedFunction.class.getName()));
+        }
+        validateClass((Class) functionClass, true);
         try {
-            return functionClass.newInstance();
+            return (UserDefinedFunction) functionClass.newInstance();
         } catch (Exception e) {
             throw new ValidationException(
                     String.format(
@@ -247,6 +252,9 @@ public final class UserDefinedFunctionHelper {
     /**
      * Returns whether a {@link UserDefinedFunction} can be easily serialized and identified by only
      * a fully qualified class name. It must have a default constructor and no serializable fields.
+     *
+     * <p>Other properties (such as checks for abstract classes) are validated at the entry points
+     * of the API, see {@link #prepareInstance(ReadableConfig, UserDefinedFunction)}.
      */
     public static boolean isClassNameSerializable(UserDefinedFunction function) {
         final Class<?> functionClass = function.getClass();

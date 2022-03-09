@@ -28,18 +28,15 @@ import org.apache.flink.runtime.zookeeper.ZooKeeperResource;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.function.BiConsumerWithException;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.CuratorFramework;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionState;
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.state.ConnectionStateListener;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.CuratorFramework;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionState;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.state.ConnectionStateListener;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-import java.time.Duration;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertFalse;
 
@@ -70,7 +67,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                 configuration,
                 (connectionStateListener, contender) -> {
                     connectionStateListener.awaitSuspendedConnection();
-                    contender.awaitRevokeLeadership(Duration.ofSeconds(1L));
+                    contender.awaitRevokeLeadership();
                 });
     }
 
@@ -97,7 +94,7 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
                 configuration,
                 (connectionStateListener, contender) -> {
                     connectionStateListener.awaitLostConnection();
-                    contender.awaitRevokeLeadership(Duration.ofSeconds(1L));
+                    contender.awaitRevokeLeadership();
                 });
     }
 
@@ -206,9 +203,8 @@ public class ZooKeeperLeaderElectionConnectionHandlingTest extends TestLogger {
             return revokeLeadershipLatch.isTriggered();
         }
 
-        public void awaitRevokeLeadership(Duration timeout)
-                throws InterruptedException, TimeoutException {
-            revokeLeadershipLatch.await(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        public void awaitRevokeLeadership() throws InterruptedException {
+            revokeLeadershipLatch.await();
         }
     }
 

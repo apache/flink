@@ -21,6 +21,7 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.changelog.ChangelogStateHandle;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChange;
@@ -29,6 +30,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 /** In-memory {@link ChangelogStateHandle}. */
 @Internal
@@ -40,21 +42,36 @@ public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
     private final SequenceNumber from; // for debug purposes
     private final SequenceNumber to; // for debug purposes
     private final KeyGroupRange keyGroupRange;
-
-    public InMemoryChangelogStateHandle(
-            List<StateChange> changes, long from, long to, KeyGroupRange keyGroupRange) {
-        this(changes, SequenceNumber.of(from), SequenceNumber.of(to), keyGroupRange);
-    }
+    private final StateHandleID stateHandleID;
 
     public InMemoryChangelogStateHandle(
             List<StateChange> changes,
             SequenceNumber from,
             SequenceNumber to,
             KeyGroupRange keyGroupRange) {
+        this(changes, from, to, keyGroupRange, new StateHandleID(UUID.randomUUID().toString()));
+    }
+
+    private InMemoryChangelogStateHandle(
+            List<StateChange> changes,
+            SequenceNumber from,
+            SequenceNumber to,
+            KeyGroupRange keyGroupRange,
+            StateHandleID stateHandleId) {
         this.changes = changes;
         this.from = from;
         this.to = to;
         this.keyGroupRange = keyGroupRange;
+        this.stateHandleID = stateHandleId;
+    }
+
+    public static InMemoryChangelogStateHandle restore(
+            List<StateChange> changes,
+            SequenceNumber from,
+            SequenceNumber to,
+            KeyGroupRange keyGroupRange,
+            StateHandleID stateHandleId) {
+        return new InMemoryChangelogStateHandle(changes, from, to, keyGroupRange, stateHandleId);
     }
 
     @Override
@@ -63,6 +80,12 @@ public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
     @Override
     public long getStateSize() {
         return changes.stream().mapToLong(change -> change.getChange().length).sum();
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        // memory changelog state handle would be counted as checkpoint each time.
+        return getStateSize();
     }
 
     public List<StateChange> getChanges() {
@@ -80,6 +103,11 @@ public class InMemoryChangelogStateHandle implements ChangelogStateHandle {
         return changes.stream().mapToInt(StateChange::getKeyGroup).anyMatch(keyGroupRange::contains)
                 ? this
                 : null;
+    }
+
+    @Override
+    public StateHandleID getStateHandleId() {
+        return stateHandleID;
     }
 
     @Override

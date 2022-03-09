@@ -22,13 +22,18 @@ import org.apache.flink.annotation.Public;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.operators.ResourceSpec;
 import org.apache.flink.api.common.operators.SlotSharingGroup;
-import org.apache.flink.api.connector.sink.Sink;
+import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 import org.apache.flink.streaming.api.operators.StreamSink;
 import org.apache.flink.streaming.api.transformations.LegacySinkTransformation;
 import org.apache.flink.streaming.api.transformations.PhysicalTransformation;
 import org.apache.flink.streaming.api.transformations.SinkTransformation;
+import org.apache.flink.streaming.api.transformations.SinkV1Adapter;
+
+import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
  * A Stream Sink. This is used for emitting elements from a streaming topology.
@@ -40,27 +45,44 @@ public class DataStreamSink<T> {
 
     private final PhysicalTransformation<T> transformation;
 
-    @SuppressWarnings("unchecked")
-    protected DataStreamSink(DataStream<T> inputStream, StreamSink<T> operator) {
-        this.transformation =
-                (PhysicalTransformation<T>)
-                        new LegacySinkTransformation<>(
-                                inputStream.getTransformation(),
-                                "Unnamed",
-                                operator,
-                                inputStream.getExecutionEnvironment().getParallelism());
+    protected DataStreamSink(PhysicalTransformation<T> transformation) {
+        this.transformation = checkNotNull(transformation);
     }
 
-    @SuppressWarnings("unchecked")
-    protected DataStreamSink(DataStream<T> inputStream, Sink<T, ?, ?, ?> sink) {
-        transformation =
-                (PhysicalTransformation<T>)
-                        new SinkTransformation<>(
-                                inputStream.getTransformation(),
-                                sink,
-                                "Unnamed",
-                                inputStream.getExecutionEnvironment().getParallelism());
-        inputStream.getExecutionEnvironment().addOperator(transformation);
+    static <T> DataStreamSink<T> forSinkFunction(
+            DataStream<T> inputStream, SinkFunction<T> sinkFunction) {
+        StreamSink<T> sinkOperator = new StreamSink<>(sinkFunction);
+        final StreamExecutionEnvironment executionEnvironment =
+                inputStream.getExecutionEnvironment();
+        PhysicalTransformation<T> transformation =
+                new LegacySinkTransformation<>(
+                        inputStream.getTransformation(),
+                        "Unnamed",
+                        sinkOperator,
+                        executionEnvironment.getParallelism());
+        executionEnvironment.addOperator(transformation);
+        return new DataStreamSink<>(transformation);
+    }
+
+    @Internal
+    public static <T> DataStreamSink<T> forSink(DataStream<T> inputStream, Sink<T> sink) {
+        final StreamExecutionEnvironment executionEnvironment =
+                inputStream.getExecutionEnvironment();
+        SinkTransformation<T, T> transformation =
+                new SinkTransformation<>(
+                        inputStream,
+                        sink,
+                        inputStream.getType(),
+                        "Sink",
+                        executionEnvironment.getParallelism());
+        executionEnvironment.addOperator(transformation);
+        return new DataStreamSink<>(transformation);
+    }
+
+    @Internal
+    public static <T> DataStreamSink<T> forSinkV1(
+            DataStream<T> inputStream, org.apache.flink.api.connector.sink.Sink<T, ?, ?, ?> sink) {
+        return forSink(inputStream, SinkV1Adapter.wrap(sink));
     }
 
     /** Returns the transformation that contains the actual sink operator of this sink. */
@@ -131,6 +153,10 @@ public class DataStreamSink<T> {
      */
     @PublicEvolving
     public DataStreamSink<T> setUidHash(String uidHash) {
+        if (!(transformation instanceof LegacySinkTransformation)) {
+            throw new UnsupportedOperationException(
+                    "Cannot set a custom UID hash on a non-legacy sink");
+        }
         transformation.setUidHash(uidHash);
         return this;
     }

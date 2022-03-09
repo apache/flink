@@ -60,6 +60,8 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.DELIVERY_GUARANTEE;
 import static org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions.KEY_FIELDS;
@@ -146,14 +148,19 @@ public class KafkaDynamicTableFactory
 
     @Override
     public Set<ConfigOption<?>> forwardOptions() {
-        final Set<ConfigOption<?>> options = new HashSet<>();
-        options.add(TOPIC);
-        options.add(TOPIC_PATTERN);
-        options.add(SCAN_STARTUP_MODE);
-        options.add(SCAN_STARTUP_SPECIFIC_OFFSETS);
-        options.add(SCAN_TOPIC_PARTITION_DISCOVERY);
-        options.add(SCAN_STARTUP_TIMESTAMP_MILLIS);
-        return options;
+        return Stream.of(
+                        PROPS_BOOTSTRAP_SERVERS,
+                        PROPS_GROUP_ID,
+                        TOPIC,
+                        TOPIC_PATTERN,
+                        SCAN_STARTUP_MODE,
+                        SCAN_STARTUP_SPECIFIC_OFFSETS,
+                        SCAN_TOPIC_PARTITION_DISCOVERY,
+                        SCAN_STARTUP_TIMESTAMP_MILLIS,
+                        SINK_PARTITIONER,
+                        SINK_PARALLELISM,
+                        TRANSACTIONAL_ID_PREFIX)
+                .collect(Collectors.toSet());
     }
 
     @Override

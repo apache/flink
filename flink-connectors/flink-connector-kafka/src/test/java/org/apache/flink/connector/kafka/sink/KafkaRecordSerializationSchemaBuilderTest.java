@@ -44,6 +44,7 @@ import java.util.function.Function;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -53,11 +54,15 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
 
     private static final String DEFAULT_TOPIC = "test";
 
+    private static Map<String, ?> configurableConfiguration;
     private static Map<String, ?> configuration;
+    private static boolean isKeySerializer;
 
     @Before
     public void setUp() {
+        configurableConfiguration = new HashMap<>();
         configuration = new HashMap<>();
+        isKeySerializer = false;
     }
 
     @Test
@@ -161,6 +166,37 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
     }
 
     @Test
+    public void testKafkaKeySerializerWrapperWithoutConfigurable() throws Exception {
+        final Map<String, String> config = ImmutableMap.of("simpleKey", "simpleValue");
+        final KafkaRecordSerializationSchema<String> schema =
+                KafkaRecordSerializationSchema.builder()
+                        .setTopic(DEFAULT_TOPIC)
+                        // Use StringSerializer as dummy Serializer, since ValueSerializer is
+                        // mandatory.
+                        .setKafkaValueSerializer(StringSerializer.class, config)
+                        .setKafkaKeySerializer(SimpleStringSerializer.class, config)
+                        .build();
+        open(schema);
+        assertEquals(configuration, config);
+        assertTrue(isKeySerializer);
+        assertTrue(configurableConfiguration.isEmpty());
+    }
+
+    @Test
+    public void testKafkaValueSerializerWrapperWithoutConfigurable() throws Exception {
+        final Map<String, String> config = ImmutableMap.of("simpleKey", "simpleValue");
+        final KafkaRecordSerializationSchema<String> schema =
+                KafkaRecordSerializationSchema.builder()
+                        .setTopic(DEFAULT_TOPIC)
+                        .setKafkaValueSerializer(SimpleStringSerializer.class, config)
+                        .build();
+        open(schema);
+        assertEquals(configuration, config);
+        assertFalse(isKeySerializer);
+        assertTrue(configurableConfiguration.isEmpty());
+    }
+
+    @Test
     public void testSerializeRecordWithKafkaSerializer() throws Exception {
         final Map<String, String> config = ImmutableMap.of("configKey", "configValue");
         final KafkaRecordSerializationSchema<String> schema =
@@ -168,30 +204,9 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
                         .setTopic(DEFAULT_TOPIC)
                         .setKafkaValueSerializer(ConfigurableStringSerializer.class, config)
                         .build();
-        schema.open(
-                new SerializationSchema.InitializationContext() {
-                    @Override
-                    public MetricGroup getMetricGroup() {
-                        return null;
-                    }
-
-                    @Override
-                    public UserCodeClassLoader getUserCodeClassLoader() {
-                        return new UserCodeClassLoader() {
-                            @Override
-                            public ClassLoader asClassLoader() {
-                                return KafkaRecordSerializationSchemaBuilderTest.class
-                                        .getClassLoader();
-                            }
-
-                            @Override
-                            public void registerReleaseHookIfAbsent(
-                                    String releaseHookName, Runnable releaseHook) {}
-                        };
-                    }
-                },
-                null);
-        assertEquals(configuration, config);
+        open(schema);
+        assertEquals(configurableConfiguration, config);
+        assertTrue(configuration.isEmpty());
         final Deserializer<String> deserializer = new StringDeserializer();
         final ProducerRecord<byte[], byte[]> record = schema.serialize("a", null, null);
         assertEquals("a", deserializer.deserialize(DEFAULT_TOPIC, record.value()));
@@ -272,7 +287,8 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
     }
 
     /**
-     * Serializer based on Kafka's serialization stack.
+     * Serializer based on Kafka's serialization stack. This is the special case that implements
+     * {@link Configurable}
      *
      * <p>This class must be public to make it instantiable by the tests.
      */
@@ -280,7 +296,20 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
             implements Configurable {
         @Override
         public void configure(Map<String, ?> configs) {
+            configurableConfiguration = configs;
+        }
+    }
+
+    /**
+     * Serializer based on Kafka's serialization stack.
+     *
+     * <p>This class must be public to make it instantiable by the tests.
+     */
+    public static class SimpleStringSerializer extends StringSerializer {
+        @Override
+        public void configure(Map<String, ?> configs, boolean isKey) {
             configuration = configs;
+            isKeySerializer = isKey;
         }
     }
 
@@ -322,5 +351,31 @@ public class KafkaRecordSerializationSchemaBuilderTest extends TestLogger {
                 T record, byte[] key, byte[] value, String targetTopic, int[] partitions) {
             return partition;
         }
+    }
+
+    private void open(KafkaRecordSerializationSchema<String> schema) throws Exception {
+        schema.open(
+                new SerializationSchema.InitializationContext() {
+                    @Override
+                    public MetricGroup getMetricGroup() {
+                        return null;
+                    }
+
+                    @Override
+                    public UserCodeClassLoader getUserCodeClassLoader() {
+                        return new UserCodeClassLoader() {
+                            @Override
+                            public ClassLoader asClassLoader() {
+                                return KafkaRecordSerializationSchemaBuilderTest.class
+                                        .getClassLoader();
+                            }
+
+                            @Override
+                            public void registerReleaseHookIfAbsent(
+                                    String releaseHookName, Runnable releaseHook) {}
+                        };
+                    }
+                },
+                null);
     }
 }

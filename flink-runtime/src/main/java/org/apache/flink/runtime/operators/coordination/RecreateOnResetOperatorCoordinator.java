@@ -128,8 +128,16 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         // capture the status whether the coordinator was started when this method was called
         final boolean wasStarted = this.started;
 
-        closingFuture.thenRun(
-                () -> {
+        closingFuture.whenComplete(
+                (ignored, e) -> {
+                    if (e != null) {
+                        LOG.warn(
+                                String.format(
+                                        "Received exception when closing "
+                                                + "operator coordinator for %s.",
+                                        oldCoordinator.operatorId),
+                                e);
+                    }
                     if (!closed) {
                         // The previous coordinator has closed. Create a new one.
                         newCoordinator.createNewInternalCoordinator(context, provider);
@@ -231,6 +239,11 @@ public class RecreateOnResetOperatorCoordinator implements OperatorCoordinator {
         @Override
         public ClassLoader getUserCodeClassloader() {
             return context.getUserCodeClassloader();
+        }
+
+        @Override
+        public CoordinatorStore getCoordinatorStore() {
+            return context.getCoordinatorStore();
         }
 
         @VisibleForTesting

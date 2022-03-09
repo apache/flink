@@ -153,13 +153,19 @@ When deploying Flink, there are often multiple options available for each buildi
 </table>
 
 
+### Repeatable Resource Cleanup
+
+Once a job has reached a globally terminal state of either finished, failed or cancelled, the
+external component resources associated with the job are then cleaned up. In the event of a
+failure when cleaning up a resource, Flink will attempt to retry the cleanup. You can
+[configure]({{< ref "docs/deployment/config#retryable-cleanup" >}}) the retry strategy used.
 
 ## Deployment Modes
 
 Flink can execute applications in one of three ways:
 - in Application Mode,
-- in a Per-Job Mode,
-- in Session Mode.
+- in Session Mode,
+- in a Per-Job Mode (deprecated).
 
  The above modes differ in:
  - the cluster lifecycle and resource isolation guarantees
@@ -196,7 +202,7 @@ Executing the `main()` method on the cluster may have other implications for you
 in your environment using the `registerCachedFile()` must be accessible by the JobManager of your application.
 {{< /hint >}}
 
-Compared to the *Per-Job* mode, the *Application Mode* allows the submission of applications consisting of
+Compared to the *Per-Job (deprecated)* mode, the *Application Mode* allows the submission of applications consisting of
 multiple jobs. The order of job execution is not affected by the deployment mode but by the call used
 to launch the job. Using `execute()`, which is blocking, establishes an order and it will lead to the 
 execution of the "next"  job being postponed until "this" job finishes. Using `executeAsync()`, which is 
@@ -212,16 +218,6 @@ Additionally, when any of multiple running jobs in Application Mode (submitted f
 Regular job completions (by the sources shutting down) are supported.
 {{< /hint >}}
 
-### Per-Job Mode
-
-Aiming at providing better resource isolation guarantees, the *Per-Job* mode uses the available resource provider
-framework (e.g. YARN, Kubernetes) to spin up a cluster for each submitted job. This cluster is available to 
-that job only. When the job finishes, the cluster is torn down and any lingering resources (files, etc) are
-cleared up. This provides better resource isolation, as a misbehaving job can only bring down its own 
-TaskManagers. In addition, it spreads the load of book-keeping across multiple JobManagers, as there is 
-one per job. For these reasons, the *Per-Job* resource allocation model is the preferred mode by many 
-production reasons.
-
 ### Session Mode
 
 *Session mode* assumes an already running cluster and uses the resources of that cluster to execute any 
@@ -234,17 +230,29 @@ restarting jobs accessing the filesystem concurrently and making it unavailable 
 Additionally, having a single cluster running multiple jobs implies more load for the JobManager, who 
 is responsible for the book-keeping of all the jobs in the cluster.
 
+### Per-Job Mode (deprecated)
+
+{{< hint danger >}}
+Per-job mode is only supported by YARN and has been deprecated in Flink 1.15. 
+It will be dropped in [FLINK-26000](https://issues.apache.org/jira/browse/FLINK-26000).
+Please consider application mode to launch a dedicated cluster per-job on YARN. 
+{{< /hint >}}
+
+Aiming at providing better resource isolation guarantees, the *Per-Job* mode uses the available resource provider
+framework (e.g. YARN) to spin up a cluster for each submitted job. This cluster is available to
+that job only. When the job finishes, the cluster is torn down and any lingering resources (files, etc) are
+cleared up. This provides better resource isolation, as a misbehaving job can only bring down its own
+TaskManagers. In addition, it spreads the load of book-keeping across multiple JobManagers, as there is
+one per job.
 
 ### Summary
 
 In *Session Mode*, the cluster lifecycle is independent of that of any job running on the cluster
-and the resources are shared across all jobs. The *Per-Job* mode pays the price of spinning up a cluster
-for every submitted job, but this comes with better isolation guarantees as the resources are not shared 
-across jobs. In this case, the lifecycle of the cluster is bound to that of the job. Finally, the 
+and the resources are shared across all jobs. 
 *Application Mode* creates a session cluster per application and executes the application's `main()` 
-method on the cluster.
-
-
+method on the cluster. 
+It thus comes with better resource isolation as the resources are only used by the job(s) launched from a single `main()` method. 
+This comes at the price of spining up a dedicated cluster for each application. 
 
 ## Vendor Solutions
 

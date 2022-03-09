@@ -18,6 +18,7 @@
 
 package org.apache.flink.formats.parquet.avro;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.formats.parquet.ParquetBuilder;
 import org.apache.flink.formats.parquet.ParquetWriterFactory;
 
@@ -37,6 +38,7 @@ import java.io.IOException;
  * Convenience builder to create {@link ParquetWriterFactory} instances for the different Avro
  * types.
  */
+@Experimental
 public class AvroParquetWriters {
     /**
      * Creates a ParquetWriterFactory for an Avro specific type. The Parquet writers will use the

@@ -45,7 +45,7 @@ To use this connector, add one or more of the following dependencies to your pro
     </tr>
     <tr>
         <td>Sink</td>
-        <td>{{< artifact flink-connector-aws-kinesis-data-streams >}}</td>
+        <td>{{< artifact flink-connector-aws-kinesis-streams >}}</td>
     </tr>
   </tbody>
 </table>
@@ -578,9 +578,9 @@ Retry and backoff parameters can be configured using the `ConsumerConfigConstant
 this is called once per stream during stream consumer deregistration, unless the `NONE` or `EAGER` registration strategy is configured.
 Retry and backoff parameters can be configured using the `ConsumerConfigConstants.DEREGISTER_STREAM_*` keys.  
 
-## Kinesis Data Streams Sink
+## Kinesis Streams Sink
 
-The Kinesis Data Streams sink (hereafter "Kinesis sink") uses the [AWS v2 SDK for Java](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/home.html) to write data from a Flink stream into a Kinesis stream.
+The Kinesis Streams sink (hereafter "Kinesis sink") uses the [AWS v2 SDK for Java](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/home.html) to write data from a Flink stream into a Kinesis stream.
 
 To write data into a Kinesis stream, make sure the stream is marked as "ACTIVE" in the Amazon Kinesis Data Stream console.
 
@@ -589,12 +589,6 @@ For the monitoring to work, the user accessing the stream needs access to the Cl
 {{< tabs "6df3b696-c2ca-4f44-bea0-96cf8275d61c" >}}
 {{< tab "Java" >}}
 ```java
-ElementConverter<String, PutRecordsRequestEntry> elementConverter =
-    KinesisDataStreamsSinkElementConverter.<String>builder()
-        .setSerializationSchema(new SimpleStringSchema())
-        .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
-        .build();
-
 Properties sinkProperties = new Properties();
 // Required
 sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1");
@@ -603,18 +597,19 @@ sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1");
 sinkProperties.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id");
 sinkProperties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key");
 
-KinesisDataStreamsSink<String> kdsSink =
-    KinesisDataStreamsSink.<String>builder()
-        .setKinesisClientProperties(sinkProperties)    // Required
-        .setElementConverter(elementConverter)         // Required
-        .setStreamName("your-stream-name")             // Required
-        .setFailOnError(false)                         // Optional
-        .setMaxBatchSize(500)                          // Optional
-        .setMaxInFlightRequests(16)                    // Optional
-        .setMaxBufferedRequests(10_000)                // Optional
-        .setMaxBatchSizeInBytes(5 * 1024 * 1024)       // Optional
-        .setMaxTimeInBufferMS(5000)                    // Optional
-        .setMaxRecordSizeInBytes(1 * 1024 * 1024)      // Optional
+KinesisStreamsSink<String> kdsSink =
+    KinesisStreamsSink.<String>builder()
+        .setKinesisClientProperties(sinkProperties)                               // Required
+        .setSerializationSchema(new SimpleStringSchema())                         // Required
+        .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))  // Required
+        .setStreamName("your-stream-name")                                        // Required
+        .setFailOnError(false)                                                    // Optional
+        .setMaxBatchSize(500)                                                     // Optional
+        .setMaxInFlightRequests(50)                                               // Optional
+        .setMaxBufferedRequests(10_000)                                           // Optional
+        .setMaxBatchSizeInBytes(5 * 1024 * 1024)                                  // Optional
+        .setMaxTimeInBufferMS(5000)                                               // Optional
+        .setMaxRecordSizeInBytes(1 * 1024 * 1024)                                 // Optional
         .build();
 
 DataStream<String> simpleStringStream = ...;
@@ -623,12 +618,6 @@ simpleStringStream.sinkTo(kdsSink);
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val elementConverter =
-    KinesisDataStreamsSinkElementConverter.<String>builder()
-        .setSerializationSchema(new SimpleStringSchema())
-        .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))
-        .build()
-
 val sinkProperties = new Properties()
 // Required
 sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1")
@@ -637,17 +626,18 @@ sinkProperties.put(AWSConfigConstants.AWS_REGION, "us-east-1")
 sinkProperties.put(AWSConfigConstants.AWS_ACCESS_KEY_ID, "aws_access_key_id")
 sinkProperties.put(AWSConfigConstants.AWS_SECRET_ACCESS_KEY, "aws_secret_access_key")
 
-val kdsSink = KinesisDataStreamsSink.<String>builder()
-    .setKinesisClientProperties(sinkProperties)  // Required
-    .setElementConverter(elementConverter)       // Required
-    .setStreamName("your-stream-name")           // Required
-    .setFailOnError(false)                       // Optional
-    .setMaxBatchSize(500)                        // Optional
-    .setMaxInFlightRequests(16)                  // Optional
-    .setMaxBufferedRequests(10000)               // Optional
-    .setMaxBatchSizeInBytes(5 * 1024 * 1024)     // Optional
-    .setMaxTimeInBufferMS(5000)                  // Optional
-    .setMaxRecordSizeInBytes(1 * 1024 * 1024)    // Optional
+val kdsSink = KinesisStreamsSink.<String>builder()
+    .setKinesisClientProperties(sinkProperties)                               // Required
+    .setSerializationSchema(new SimpleStringSchema())                         // Required
+    .setPartitionKeyGenerator(element -> String.valueOf(element.hashCode()))  // Required
+    .setStreamName("your-stream-name")                                        // Required
+    .setFailOnError(false)                                                    // Optional
+    .setMaxBatchSize(500)                                                     // Optional
+    .setMaxInFlightRequests(50)                                               // Optional
+    .setMaxBufferedRequests(10000)                                            // Optional
+    .setMaxBatchSizeInBytes(5 * 1024 * 1024)                                  // Optional
+    .setMaxTimeInBufferMS(5000)                                               // Optional
+    .setMaxRecordSizeInBytes(1 * 1024 * 1024)                                 // Optional
     .build()
 
 val simpleStringStream = ...
@@ -658,7 +648,7 @@ simpleStringStream.sinkTo(kdsSink)
 
 The above is a simple example of using the Kinesis sink. Begin by creating a `java.util.Properties` instance with the `AWS_REGION`, `AWS_ACCESS_KEY_ID`, and `AWS_SECRET_ACCESS_KEY` configured. You can then construct the sink with the builder. The default values for the optional configurations are shown above. Some of these values have been set as a result of [configuration on KDS](https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html). 
 
-You will always need to supply a `KinesisDataStreamsSinkElementConverter` during sink creation. This is where you specify your serialization schema and logic for generating a [partition key](https://docs.aws.amazon.com/streams/latest/dev/key-concepts.html#partition-key) from a record.
+You will always need to specify your serialization schema and logic for generating a [partition key](https://docs.aws.amazon.com/streams/latest/dev/key-concepts.html#partition-key) from a record.
 
 Some or all of the records in a request may fail to be persisted by Kinesis Data Streams for a number of reasons. If `failOnError` is on, then a runtime exception will be raised. Otherwise those records will be requeued in the buffer for retry.
 
@@ -680,8 +670,8 @@ found at [Quotas and Limits](https://docs.aws.amazon.com/streams/latest/dev/serv
 
 You generally reduce backpressure by increasing the size of the internal queue:
 ```
-KinesisDataStreamsSink<String> kdsSink =
-    KinesisDataStreamsSink.<String>builder()
+KinesisStreamsSink<String> kdsSink =
+    KinesisStreamsSink.<String>builder()
         ...
         .setMaxBufferedRequests(10_000)
         ...
@@ -690,7 +680,7 @@ KinesisDataStreamsSink<String> kdsSink =
 ## Kinesis Producer
 
 {{< hint warning >}}
-The old Kinesis sink `org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer` is deprecated and may be removed with a future release of Flink, please use [Kinesis Sink]({{<ref "docs/connectors/datastream/kinesis#kinesis-data-streams-sink">}}) instead.
+The old Kinesis sink `org.apache.flink.streaming.connectors.kinesis.FlinkKinesisProducer` is deprecated and may be removed with a future release of Flink, please use [Kinesis Sink]({{<ref "docs/connectors/datastream/kinesis#kinesis-streams-sink">}}) instead.
 {{< /hint >}}
 
 The new sink uses the [AWS v2 SDK for Java](https://docs.aws.amazon.com/sdk-for-java/latest/developer-guide/home.html) whereas the old sink uses the Kinesis Producer Library. Because of this, the new Kinesis sink does not support [aggregation](https://docs.aws.amazon.com/streams/latest/dev/kinesis-kpl-concepts.html#kinesis-kpl-concepts-aggretation).

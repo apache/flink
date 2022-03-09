@@ -20,9 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 
 
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory.toLogicalType
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
-import org.apache.flink.table.runtime.functions.table.ReplicateRowsFunction
 
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.rel.RelNode

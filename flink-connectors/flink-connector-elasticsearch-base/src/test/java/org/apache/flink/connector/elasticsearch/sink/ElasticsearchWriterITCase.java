@@ -45,7 +45,7 @@ import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.unit.ByteSizeUnit;
 import org.elasticsearch.common.unit.ByteSizeValue;
-import org.elasticsearch.core.TimeValue;
+import org.elasticsearch.common.unit.TimeValue;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -113,7 +113,7 @@ class ElasticsearchWriterITCase {
             writer.write(Tuple2.of(4, buildMessage(4)), null);
 
             // Ignore flush on checkpoint
-            writer.prepareCommit(false);
+            writer.flush(false);
 
             context.assertThatIdsAreNotWritten(index, 1, 2, 3, 4);
 
@@ -166,7 +166,7 @@ class ElasticsearchWriterITCase {
             context.assertThatIdsAreNotWritten(index, 1, 2, 3);
 
             // Trigger flush
-            writer.prepareCommit(false);
+            writer.flush(false);
 
             context.assertThatIdsAreWritten(index, 1, 2, 3);
         }

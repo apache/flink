@@ -23,6 +23,7 @@ import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import javax.annotation.Nullable;
@@ -66,13 +67,16 @@ public class WebSubmissionJobClient implements JobClient {
 
     @Override
     public CompletableFuture<String> stopWithSavepoint(
-            boolean advanceToEndOfEventTime, @Nullable String savepointDirectory) {
+            boolean advanceToEndOfEventTime,
+            @Nullable String savepointDirectory,
+            SavepointFormatType formatType) {
         throw new FlinkRuntimeException(
                 "Stop with Savepoint is not supported by the Job Client when in Web Submission.");
     }
 
     @Override
-    public CompletableFuture<String> triggerSavepoint(@Nullable String savepointDirectory) {
+    public CompletableFuture<String> triggerSavepoint(
+            @Nullable String savepointDirectory, SavepointFormatType formatType) {
         throw new FlinkRuntimeException(
                 "A savepoint cannot be taken through the Job Client when in Web Submission.");
     }

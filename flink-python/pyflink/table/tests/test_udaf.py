@@ -17,6 +17,7 @@
 ################################################################################
 import collections
 import datetime
+import unittest
 from decimal import Decimal
 
 import pandas as pd
@@ -505,6 +506,28 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                                          ["hello.hello2", "", "hello,hello2", "hello"]],
                                         columns=['a', 'b', 'c', 'd']))
 
+    def test_clean_state(self):
+        self.t_env.register_function("my_count", CountAggregateFunction())
+        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.fn-execution.bundle.size", "1")
+        self.t_env.get_config().get_configuration().set_string(
+            "python.state.cache-size", "0")
+        self.t_env.get_config().get_configuration().set_string(
+            "table.exec.state.ttl", "2ms")
+
+        self.t_env.execute_sql("""
+            CREATE TABLE test_source (
+                a BIGINT
+            ) WITH (
+              'connector' = 'datagen',
+              'number-of-rows' = '5',
+              'rows-per-second' = '1'
+            )
+        """)
+        t = self.t_env.from_path('test_source')
+        t.select("my_count(a) as a").to_pandas()
+
     def test_tumbling_group_window_over_time(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -786,6 +809,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                             "+I[1, 2018-03-11 03:10:00.0, 2018-03-11 04:10:00.0, 2]",
                             "+I[1, 2018-03-11 04:20:00.0, 2018-03-11 04:50:00.0, 1]"])
 
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_group_aggregate_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -818,12 +842,13 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
         self.t_env.create_temporary_function("my_sum", SumAggregateFunction())
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table "
-                                                   "SELECT a, my_sum(b) FROM source_table "
-                                                   "GROUP BY a")
+        json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table "
+                                                      "SELECT a, my_sum(b) FROM source_table "
+                                                      "GROUP BY a")
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
+    @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_group_window_aggregate_from_json_plan(self):
         # create source file path
         tmp_dir = self.tempdir
@@ -871,16 +896,18 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
         self.t_env.create_temporary_function("my_count", CountAggregateFunction())
 
-        json_plan = self.t_env._j_tenv.getJsonPlan("INSERT INTO sink_table "
-                                                   "SELECT a, "
-                                                   "SESSION_START(rowtime, INTERVAL '30' MINUTE), "
-                                                   "SESSION_END(rowtime, INTERVAL '30' MINUTE), "
-                                                   "my_count(c) "
-                                                   "FROM source_table "
-                                                   "GROUP BY "
-                                                   "a, b, SESSION(rowtime, INTERVAL '30' MINUTE)")
+        json_plan = self.t_env._j_tenv.compilePlanSql("INSERT INTO sink_table "
+                                                      "SELECT a, "
+                                                      "SESSION_START("
+                                                      "rowtime, INTERVAL '30' MINUTE), "
+                                                      "SESSION_END(rowtime, INTERVAL '30' MINUTE), "
+                                                      "my_count(c) "
+                                                      "FROM source_table "
+                                                      "GROUP BY "
+                                                      "a, b, "
+                                                      "SESSION(rowtime, INTERVAL '30' MINUTE)")
         from py4j.java_gateway import get_method
-        get_method(self.t_env._j_tenv.executeJsonPlan(json_plan), "await")()
+        get_method(self.t_env._j_tenv.executePlan(json_plan), "await")()
 
         import glob
         lines = [line.strip() for file in glob.glob(sink_path + '/*') for line in open(file, 'r')]

@@ -19,7 +19,6 @@
 package org.apache.flink.connector.elasticsearch.table;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.TableColumn;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -58,24 +57,6 @@ class KeyExtractor implements SerializableFunction<RowData, String> {
             builder.append(value);
         }
         return builder.toString();
-    }
-
-    private static class ColumnWithIndex {
-        public TableColumn column;
-        public int index;
-
-        public ColumnWithIndex(TableColumn column, int index) {
-            this.column = column;
-            this.index = index;
-        }
-
-        public LogicalType getType() {
-            return column.getType().getLogicalType();
-        }
-
-        public int getIndex() {
-            return index;
-        }
     }
 
     public static SerializableFunction<RowData, String> createKeyExtractor(

@@ -21,7 +21,7 @@ package org.apache.flink.streaming.api.runners.python.beam;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.fnexecution.v1.FlinkFnApi;
-import org.apache.flink.python.env.PythonEnvironmentManager;
+import org.apache.flink.python.env.process.ProcessPythonEnvironmentManager;
 import org.apache.flink.python.metric.FlinkMetricContainer;
 import org.apache.flink.runtime.memory.MemoryManager;
 import org.apache.flink.runtime.state.KeyedStateBackend;
@@ -68,7 +68,7 @@ public class BeamDataStreamPythonFunctionRunner extends BeamPythonFunctionRunner
 
     public BeamDataStreamPythonFunctionRunner(
             String taskName,
-            PythonEnvironmentManager environmentManager,
+            ProcessPythonEnvironmentManager environmentManager,
             String headOperatorFunctionUrn,
             List<FlinkFnApi.UserDefinedDataStreamFunction> userDefinedDataStreamFunctions,
             Map<String, String> jobOptions,

@@ -25,9 +25,12 @@ import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.runtime.jobmanager.scheduler.NoResourceAvailableException;
+import org.apache.flink.runtime.jobmanager.slots.TaskManagerGateway;
 import org.apache.flink.runtime.jobmaster.SlotInfo;
 import org.apache.flink.runtime.jobmaster.SlotRequestId;
 import org.apache.flink.runtime.slots.ResourceRequirement;
+import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
+import org.apache.flink.runtime.taskmanager.TaskManagerLocation;
 import org.apache.flink.runtime.util.ResourceCounter;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.Preconditions;
@@ -39,6 +42,7 @@ import javax.annotation.Nullable;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -65,6 +69,8 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
 
     private final Time batchSlotTimeout;
     private boolean isBatchSlotRequestTimeoutCheckDisabled;
+
+    private boolean isJobRestarting = false;
 
     public DeclarativeSlotPoolBridge(
             JobID jobId,
@@ -119,6 +125,50 @@ public class DeclarativeSlotPoolBridge extends DeclarativeSlotPoolService implem
     protected void onClose() {
         final FlinkException cause = new FlinkException("Closing slot pool");
         cancelPendingRequests(request -> true, cause);
+    }
+
+    /**
+     * To set whether the underlying is currently restarting or not. In the former case the slot
+     * pool bridge will accept all incoming slot offers.
+     *
+     * @param isJobRestarting whether this is restarting or not
+     */
+    @Override
+    public void setIsJobRestarting(boolean isJobRestarting) {
+        this.isJobRestarting = isJobRestarting;
+    }
+
+    @Override
+    public Collection<SlotOffer> offerSlots(
+            TaskManagerLocation taskManagerLocation,
+            TaskManagerGateway taskManagerGateway,
+            Collection<SlotOffer> offers) {
+        assertHasBeenStarted();
+
+        if (!isTaskManagerRegistered(taskManagerLocation.getResourceID())) {
+            log.debug(
+                    "Ignoring offered slots from unknown task manager {}.",
+                    taskManagerLocation.getResourceID());
+            return Collections.emptyList();
+        }
+
+        if (isJobRestarting) {
+            getDeclarativeSlotPool()
+                    .registerSlots(
+                            offers,
+                            taskManagerLocation,
+                            taskManagerGateway,
+                            getRelativeTimeMillis());
+
+            return offers;
+        } else {
+            return getDeclarativeSlotPool()
+                    .offerSlots(
+                            offers,
+                            taskManagerLocation,
+                            taskManagerGateway,
+                            getRelativeTimeMillis());
+        }
     }
 
     private void cancelPendingRequests(

@@ -23,6 +23,7 @@ import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.KeyedStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SharedStateRegistryKey;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.runtime.state.memory.ByteStreamStateHandle;
@@ -31,6 +32,7 @@ import javax.annotation.Nullable;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 
 /** {@link ChangelogStateHandle} implementation based on {@link StreamStateHandle}. */
 @Internal
@@ -43,14 +45,43 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     private final List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets;
 
     private final long size;
+    private final long incrementalSize;
+    private final StateHandleID stateHandleID;
 
     public ChangelogStateHandleStreamImpl(
             List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets,
             KeyGroupRange keyGroupRange,
-            long size) {
+            long size,
+            long incrementalSize) {
+        this(
+                handlesAndOffsets,
+                keyGroupRange,
+                size,
+                incrementalSize,
+                new StateHandleID(UUID.randomUUID().toString()));
+    }
+
+    private ChangelogStateHandleStreamImpl(
+            List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets,
+            KeyGroupRange keyGroupRange,
+            long size,
+            long incrementalSize,
+            StateHandleID stateHandleId) {
         this.handlesAndOffsets = handlesAndOffsets;
         this.keyGroupRange = keyGroupRange;
         this.size = size;
+        this.incrementalSize = incrementalSize;
+        this.stateHandleID = stateHandleId;
+    }
+
+    public static ChangelogStateHandleStreamImpl restore(
+            List<Tuple2<StreamStateHandle, Long>> handlesAndOffsets,
+            KeyGroupRange keyGroupRange,
+            long size,
+            long incrementalSize,
+            StateHandleID stateHandleID) {
+        return new ChangelogStateHandleStreamImpl(
+                handlesAndOffsets, keyGroupRange, size, incrementalSize, stateHandleID);
     }
 
     @Override
@@ -73,7 +104,12 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
         if (offsets.getNumberOfKeyGroups() == 0) {
             return null;
         }
-        return new ChangelogStateHandleStreamImpl(handlesAndOffsets, offsets, 0L /* unknown */);
+        return new ChangelogStateHandleStreamImpl(handlesAndOffsets, offsets, 0L, 0L /* unknown */);
+    }
+
+    @Override
+    public StateHandleID getStateHandleId() {
+        return stateHandleID;
     }
 
     @Override
@@ -90,6 +126,11 @@ public final class ChangelogStateHandleStreamImpl implements ChangelogStateHandl
     @Override
     public long getStateSize() {
         return size;
+    }
+
+    @Override
+    public long getCheckpointedSize() {
+        return incrementalSize;
     }
 
     private static SharedStateRegistryKey getKey(StreamStateHandle stateHandle) {

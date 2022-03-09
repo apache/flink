@@ -75,7 +75,6 @@ public class SchedulerUtilsTest extends TestLogger {
         final CompletedCheckpointStore completedCheckpointStore =
                 SchedulerUtils.createCompletedCheckpointStore(
                         jobManagerConfig,
-                        getClass().getClassLoader(),
                         new StandaloneCheckpointRecoveryFactory(),
                         Executors.directExecutor(),
                         log,
@@ -102,7 +101,6 @@ public class SchedulerUtilsTest extends TestLogger {
         CompletedCheckpointStore checkpointStore =
                 SchedulerUtils.createCompletedCheckpointStore(
                         new Configuration(),
-                        getClass().getClassLoader(),
                         recoveryFactory,
                         Executors.directExecutor(),
                         log,
@@ -111,7 +109,7 @@ public class SchedulerUtilsTest extends TestLogger {
         SharedStateRegistry sharedStateRegistry = checkpointStore.getSharedStateRegistry();
 
         IncrementalRemoteKeyedStateHandle newHandle =
-                buildIncrementalHandle(key, new PlaceholderStreamStateHandle(), backendId);
+                buildIncrementalHandle(key, new PlaceholderStreamStateHandle(1L), backendId);
         newHandle.registerSharedStates(sharedStateRegistry, 1L);
 
         assertSame(handle, newHandle.getSharedState().get(key));
@@ -123,7 +121,6 @@ public class SchedulerUtilsTest extends TestLogger {
             public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
                     JobID jobId,
                     int maxNumberOfCheckpointsToRetain,
-                    ClassLoader userClassLoader,
                     SharedStateRegistryFactory sharedStateRegistryFactory,
                     Executor ioExecutor) {
                 List<CompletedCheckpoint> checkpoints = singletonList(checkpoint);
@@ -153,7 +150,8 @@ public class SchedulerUtilsTest extends TestLogger {
                 singletonMap(operatorID, operatorState),
                 emptyList(),
                 CheckpointProperties.forCheckpoint(NEVER_RETAIN_AFTER_TERMINATION),
-                new TestCompletedCheckpointStorageLocation());
+                new TestCompletedCheckpointStorageLocation(),
+                null);
     }
 
     private IncrementalRemoteKeyedStateHandle buildIncrementalHandle(

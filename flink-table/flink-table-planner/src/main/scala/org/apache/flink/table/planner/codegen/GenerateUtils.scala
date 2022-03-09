@@ -20,7 +20,6 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.ExecutionConfig
 import org.apache.flink.api.common.typeinfo.{AtomicType => AtomicTypeInfo}
-import org.apache.flink.table.api.{JsonExistsOnError, JsonQueryOnEmptyOrError, JsonQueryWrapper}
 import org.apache.flink.table.data._
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -30,6 +29,7 @@ import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, 
 import org.apache.flink.table.planner.codegen.calls.CurrentTimePointCallGen
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec
 import org.apache.flink.table.planner.plan.utils.SortUtil
+import org.apache.flink.table.planner.typeutils.SymbolUtil.calciteToCommon
 import org.apache.flink.table.planner.utils.TimestampStringUtils.toLocalDateTime
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isCharacterString, isReference, isTemporal}
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
@@ -37,7 +37,6 @@ import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, getFieldTypes}
 
 import org.apache.calcite.avatica.util.ByteString
-import org.apache.calcite.sql.{SqlJsonExistsErrorBehavior, SqlJsonQueryEmptyOrErrorBehavior, SqlJsonQueryWrapperBehavior}
 import org.apache.calcite.util.TimestampString
 import org.apache.commons.lang3.StringEscapeUtils
 
@@ -63,9 +62,10 @@ object GenerateUtils {
       ctx: CodeGeneratorContext,
       returnType: LogicalType,
       operands: Seq[GeneratedExpression],
-      resultNullable: Boolean = false)
+      resultNullable: Boolean = false,
+      wrapTryCatch: Boolean = false)
       (call: Seq[String] => String): GeneratedExpression = {
-    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable) {
+    generateCallWithStmtIfArgsNotNull(ctx, returnType, operands, resultNullable, wrapTryCatch) {
       args => ("", call(args))
     }
   }
@@ -77,7 +77,8 @@ object GenerateUtils {
       ctx: CodeGeneratorContext,
       returnType: LogicalType,
       operands: Seq[GeneratedExpression],
-      resultNullable: Boolean = false)
+      resultNullable: Boolean = false,
+      wrapTryCatch: Boolean = false)
       (call: Seq[String] => (String, String)): GeneratedExpression = {
     val resultTypeTerm = if (resultNullable) {
       boxedTypeTermForType(returnType)
@@ -96,14 +97,30 @@ object GenerateUtils {
 
     val (stmt, result) = call(operands.map(_.resultTerm))
 
+    val wrappedResultAssignment = if (wrapTryCatch) {
+      s"""
+         |try {
+         |  $stmt
+         |  $resultTerm = $result;
+         |} catch (Throwable ${newName("ignored")}) {
+         |  $nullTerm = true;
+         |  $resultTerm = $defaultValue;
+         |}
+         |""".stripMargin
+    } else {
+      s"""
+         |$stmt
+         |$resultTerm = $result;
+         |""".stripMargin
+    }
+
     val resultCode = if (ctx.nullCheck && operands.nonEmpty) {
       s"""
          |${operands.map(_.code).mkString("\n")}
          |$nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
          |$resultTerm = $defaultValue;
          |if (!$nullTerm) {
-         |  $stmt
-         |  $resultTerm = $result;
+         |  $wrappedResultAssignment
          |  $nullTermCode
          |}
          |""".stripMargin
@@ -111,16 +128,14 @@ object GenerateUtils {
       s"""
          |${operands.map(_.code).mkString("\n")}
          |$nullTerm = false;
-         |$stmt
-         |$resultTerm = $result;
+         |$wrappedResultAssignment
          |$nullTermCode
          |""".stripMargin
     } else {
       s"""
          |$nullTerm = false;
          |${operands.map(_.code).mkString("\n")}
-         |$stmt
-         |$resultTerm = $result;
+         |$wrappedResultAssignment
          |""".stripMargin
     }
 
@@ -149,7 +164,8 @@ object GenerateUtils {
       ctx: CodeGeneratorContext,
       returnType: LogicalType,
       operands: Seq[GeneratedExpression],
-      resultNullable: Boolean = false)
+      resultNullable: Boolean = false,
+      wrapTryCatch: Boolean = false)
       (call: Seq[String] => String): GeneratedExpression = {
     val resultTypeTerm = if (resultNullable) {
       boxedTypeTermForType(returnType)
@@ -174,10 +190,26 @@ object GenerateUtils {
         x.resultTerm
       })
 
+
+    val wrappedResultAssignment = if (wrapTryCatch) {
+      s"""
+         |try {
+         |  $resultTerm = ${call(parameters)};
+         |} catch (Throwable ${newName("ignored")}) {
+         |  $nullTerm = true;
+         |  $resultTerm = $defaultValue;
+         |}
+         |""".stripMargin
+    } else {
+      s"""
+         |$resultTerm = ${call(parameters)};
+         |""".stripMargin
+    }
+
     val resultCode = if (ctx.nullCheck) {
       s"""
          |${operands.map(_.code).mkString("\n")}
-         |$resultTerm = ${call(parameters)};
+         |$wrappedResultAssignment
          |$nullTermCode
          |if ($nullTerm) {
          |  $resultTerm = $defaultValue;
@@ -186,7 +218,7 @@ object GenerateUtils {
     } else {
       s"""
          |${operands.map(_.code).mkString("\n")}
-         |$resultTerm = ${call(parameters)};
+         |$wrappedResultAssignment
          |$nullTermCode
        """.stripMargin
     }
@@ -445,27 +477,7 @@ object GenerateUtils {
   }
 
   def generateSymbol(value: Enum[_]): GeneratedExpression = {
-    // Make sure to convert calcite enum types to flink types
-    val convertedValue = value match {
-      case tu: org.apache.calcite.avatica.util.TimeUnit =>
-        org.apache.flink.table.utils.DateTimeUtils.TimeUnit.valueOf(tu.name())
-      case tur: org.apache.calcite.avatica.util.TimeUnitRange =>
-        org.apache.flink.table.utils.DateTimeUtils.TimeUnitRange.valueOf(tur.name())
-      case jeeb: SqlJsonExistsErrorBehavior =>
-        JsonExistsOnError.valueOf(jeeb.name())
-      case jqeeb: SqlJsonQueryEmptyOrErrorBehavior =>
-        JsonQueryOnEmptyOrError.valueOf(jqeeb.name())
-      case jqwb: SqlJsonQueryWrapperBehavior => jqwb match {
-        case SqlJsonQueryWrapperBehavior.WITHOUT_ARRAY =>
-          JsonQueryWrapper.WITHOUT_ARRAY
-        case SqlJsonQueryWrapperBehavior.WITH_CONDITIONAL_ARRAY =>
-          JsonQueryWrapper.CONDITIONAL_ARRAY
-        case SqlJsonQueryWrapperBehavior.WITH_UNCONDITIONAL_ARRAY =>
-          JsonQueryWrapper.UNCONDITIONAL_ARRAY
-      }
-      case _ => value
-    }
-
+    val convertedValue = calciteToCommon(value, true)
     GeneratedExpression(
       qualifyEnum(convertedValue),
       NEVER_NULL,

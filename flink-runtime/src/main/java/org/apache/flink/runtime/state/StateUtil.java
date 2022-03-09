@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.state;
 
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.LambdaUtil;
 
 import org.apache.flink.shaded.guava30.com.google.common.base.Joiner;
@@ -70,9 +71,9 @@ public class StateUtil {
      * @throws Exception if the discard operation failed
      * @return the size of state before cancellation (if available)
      */
-    public static long discardStateFuture(Future<? extends StateObject> stateFuture)
+    public static Tuple2<Long, Long> discardStateFuture(Future<? extends StateObject> stateFuture)
             throws Exception {
-        long stateSize = 0;
+        long stateSize = 0, checkpointedSize = 0;
         if (null != stateFuture) {
             if (!stateFuture.cancel(true)) {
 
@@ -84,6 +85,7 @@ public class StateUtil {
                     StateObject stateObject = stateFuture.get();
                     if (stateObject != null) {
                         stateSize = stateObject.getStateSize();
+                        checkpointedSize = getCheckpointedSize(stateObject, stateSize);
                         stateObject.discardState();
                     }
 
@@ -95,13 +97,21 @@ public class StateUtil {
                 }
             } else if (stateFuture.isDone()) {
                 try {
-                    stateSize = stateFuture.get().getStateSize();
+                    StateObject stateObject = stateFuture.get();
+                    stateSize = stateObject.getStateSize();
+                    checkpointedSize = getCheckpointedSize(stateObject, stateSize);
                 } catch (Exception e) {
                     // ignored
                 }
             }
         }
-        return stateSize;
+        return Tuple2.of(stateSize, checkpointedSize);
+    }
+
+    private static long getCheckpointedSize(StateObject stateObject, long stateSize) {
+        return stateObject instanceof CompositeStateHandle
+                ? ((CompositeStateHandle) stateObject).getCheckpointedSize()
+                : stateSize;
     }
 
     /**

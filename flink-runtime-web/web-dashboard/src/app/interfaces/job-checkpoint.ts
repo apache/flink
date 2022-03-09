@@ -25,6 +25,7 @@ export interface Checkpoint {
     failed: number;
   };
   summary: {
+    checkpointed_size: CheckpointMinMaxAvgStatistics;
     state_size: CheckpointMinMaxAvgStatistics;
     end_to_end_duration: CheckpointMinMaxAvgStatistics;
     alignment_buffered: CheckpointMinMaxAvgStatistics;
@@ -39,6 +40,7 @@ export interface Checkpoint {
       trigger_timestamp: number;
       latest_ack_timestamp: number;
       state_size: number;
+      checkpointed_size: number;
       end_to_end_duration: number;
       alignment_buffered: number;
       num_subtasks: number;
@@ -64,6 +66,7 @@ export interface CheckpointHistory {
   trigger_timestamp: number;
   latest_ack_timestamp: number;
   state_size: number;
+  checkpointed_size: number;
   end_to_end_duration: number;
   alignment_buffered: number;
   num_subtasks: number;
@@ -89,6 +92,7 @@ export interface CheckpointCompletedStatistics {
   trigger_timestamp: number;
   latest_ack_timestamp: number;
   state_size: number;
+  checkpointed_size: number;
   end_to_end_duration: number;
   alignment_buffered: number;
   num_subtasks: number;
@@ -104,6 +108,7 @@ export interface CheckpointTaskStatistics {
   status: string;
   latest_ack_timestamp: number;
   state_size: number;
+  checkpointed_size: number;
   end_to_end_duration: number;
   alignment_buffered: number;
   num_subtasks: number;
@@ -135,6 +140,7 @@ export interface CheckpointDetail {
   trigger_timestamp: number;
   latest_ack_timestamp: number;
   state_size: number;
+  checkpointed_size: number;
   end_to_end_duration: number;
   external_path: string;
   discarded: boolean;
@@ -149,6 +155,7 @@ export interface CheckpointDetail {
       status: string;
       latest_ack_timestamp: number;
       state_size: number;
+      checkpointed_size: number;
       end_to_end_duration: number;
       alignment_buffered: number;
       num_subtasks: number;
@@ -160,6 +167,7 @@ export interface CheckpointDetail {
 export interface CompletedSubTaskCheckpointStatistics {
   ack_timestamp: number;
   end_to_end_duration: number;
+  checkpointed_size: number;
   state_size: number;
   checkpoint: {
     sync: number;
@@ -188,11 +196,13 @@ export interface CheckpointSubTask {
   status: string;
   latest_ack_timestamp: number;
   state_size: number;
+  checkpointed_size: number;
   end_to_end_duration: number;
   alignment_buffered: number;
   num_subtasks: number;
   num_acknowledged_subtasks: number;
   summary: {
+    checkpointed_size: CheckpointMinMaxAvgStatistics;
     state_size: CheckpointMinMaxAvgStatistics;
     end_to_end_duration: CheckpointMinMaxAvgStatistics;
     checkpoint_duration: {

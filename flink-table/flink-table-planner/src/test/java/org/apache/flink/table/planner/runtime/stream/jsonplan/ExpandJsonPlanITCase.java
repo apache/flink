@@ -37,15 +37,10 @@ public class ExpandJsonPlanITCase extends JsonPlanTestBase {
     @Test
     public void testExpand() throws Exception {
         tableEnv.getConfig()
-                .getConfiguration()
                 .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY,
-                        AggregatePhaseStrategy.ONE_PHASE.name());
-        tableEnv.getConfig()
-                .getConfiguration()
-                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
-        tableEnv.getConfig()
-                .getConfiguration()
+                        AggregatePhaseStrategy.ONE_PHASE.name())
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
                 .set(IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED(), false);
 
         createTestValuesSourceTable(
@@ -56,13 +51,12 @@ public class ExpandJsonPlanITCase extends JsonPlanTestBase {
                 "c varchar");
         createTestNonInsertOnlyValuesSinkTable(
                 "MySink", "b bigint", "a bigint", "c varchar", "primary key (b) not enforced");
-        String jsonPlan =
-                tableEnv.getJsonPlan(
+        compileSqlAndExecutePlan(
                         "insert into MySink select b, "
                                 + "count(distinct a) as a, "
                                 + "max(c) as c "
-                                + "from MyTable group by b");
-        tableEnv.executeJsonPlan(jsonPlan).await();
+                                + "from MyTable group by b")
+                .await();
 
         List<String> result = TestValuesTableFactory.getResults("MySink");
         assertResult(Arrays.asList("+I[1, 1, Hi]", "+I[2, 2, Hello world]"), result);

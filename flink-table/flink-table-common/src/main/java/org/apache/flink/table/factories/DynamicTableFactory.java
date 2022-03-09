@@ -80,7 +80,25 @@ public interface DynamicTableFactory extends Factory {
     @PublicEvolving
     interface Context {
 
-        /** Returns the identifier of the table in the {@link Catalog}. */
+        /**
+         * Returns the identifier of the table in the {@link Catalog}.
+         *
+         * <p>This identifier describes the relationship between the table instance and the
+         * associated {@link Catalog} (if any). However, it doesn't uniquely identify this specific
+         * table configuration. The same table might be stored in different catalogs or, in case of
+         * anonymous tables, this identifier is auto-generated and non-deterministic. Because of
+         * that behaviour, we strongly suggest using this identifier only for printing and logging
+         * purposes, and rely on user input for uniquely identifying a "table instance".
+         *
+         * <p>For example, when implementing a Kafka source using consumer groups, the user should
+         * provide the consumer group id manually rather than using this identifier as the consumer
+         * group id, so the offset tracking remains stable even if this table is anonymous, or it's
+         * moved to another {@link Catalog}.
+         *
+         * <p>Note that for anonymous tables {@link ObjectIdentifier#asSerializableString()} will
+         * fail, so we suggest to use {@link ObjectIdentifier#asSummaryString()} for generating
+         * strings.
+         */
         ObjectIdentifier getObjectIdentifier();
 
         /**

@@ -35,8 +35,8 @@ For details on Pulsar compatibility, please refer to the [PIP-72](https://github
 
 {{< artifact flink-connector-pulsar >}}
 
-Flink's streaming connectors are not currently part of the binary distribution.
-See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+Flink's streaming connectors are not part of the binary distribution.
+See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 ## Pulsar Source
 
@@ -416,5 +416,14 @@ If you have a problem with Pulsar when using Flink, keep in mind that Flink only
 [PulsarAdmin](https://pulsar.apache.org/docs/en/admin-api-overview/)
 and your problem might be independent of Flink and sometimes can be solved by upgrading Pulsar brokers,
 reconfiguring Pulsar brokers or reconfiguring Pulsar connector in Flink.
+
+### Messages can be delayed on low volume topics
+
+When the Pulsar source connector reads from a low volume topic, users might observe a 10 seconds delay between messages. Pulsar buffers messages from topics by default. Before emitting to downstream
+operators, the number of buffered records must be equal or larger than `PulsarSourceOptions.PULSAR_MAX_FETCH_RECORDS`. If the data volume is low, it could be that filling up the number of buffered records takes longer than `PULSAR_MAX_FETCH_TIME` (default to 10 seconds). If that's the case, it means that only after this time has passed the messages will be emitted. 
+
+To avoid this behaviour, you need to change either the buffered records or the waiting time. 
+
+
 
 {{< top >}}

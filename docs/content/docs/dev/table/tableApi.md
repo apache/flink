@@ -90,9 +90,9 @@ import org.apache.flink.table.api.bridge.scala._
 val settings = EnvironmentSettings
     .newInstance()
     .inStreamingMode()
-    .build();
+    .build()
 
-val tEnv = TableEnvironment.create(settings);
+val tEnv = TableEnvironment.create(settings)
 
 // register Orders table in table environment
 // ...
@@ -364,7 +364,7 @@ Table result = orders.select($("a"), $("c").as("d"));
 {{< tab "Scala" >}}
 ```scala
 val orders = tableEnv.from("Orders")
-Table result = orders.select($"a", $"c" as "d");
+Table result = orders.select($"a", $"c" as "d")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -493,7 +493,7 @@ Table result = orders.addColumns(concat($("c"), "sunny"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.addColumns(concat($"c", "Sunny"))
 ```
 {{< /tab >}}
@@ -524,7 +524,7 @@ Table result = orders.addOrReplaceColumns(concat($("c"), "sunny").as("desc"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.addOrReplaceColumns(concat($"c", "Sunny") as "desc")
 ```
 {{< /tab >}}
@@ -551,7 +551,7 @@ Table result = orders.dropColumns($("b"), $("c"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.dropColumns($"b", $"c")
 ```
 {{< /tab >}}
@@ -579,7 +579,7 @@ Table result = orders.renameColumns($("b").as("b2"), $("c").as("c2"));
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders = tableEnv.from("Orders");
+val orders = tableEnv.from("Orders")
 val result = orders.renameColumns($"b" as "b2", $"c" as "c2")
 ```
 {{< /tab >}}
@@ -772,7 +772,7 @@ Table result = orders
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders: Table = tableEnv.from("Orders");
+val orders: Table = tableEnv.from("Orders")
 // Distinct aggregation on group by
 val groupByDistinctResult = orders
     .groupBy($"a")
@@ -832,11 +832,11 @@ orders.groupBy("users")
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
-val orders: Table = tEnv.from("Orders");
+val orders: Table = tEnv.from("Orders")
 
 // Use distinct aggregation for user-defined aggregate functions
-val myUdagg = new MyUdagg();
-orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDistinctResult");
+val myUdagg = new MyUdagg()
+orders.groupBy($"users").select($"users", myUdagg.distinct($"points") as "myDistinctResult")
 ```
 {{< /tab >}}
 {{< tab "Python" >}}
@@ -1359,7 +1359,7 @@ Table result = left.select($("a"), $("b"), $("c")).where($("a").in(right));
 {{< tab "Scala" >}}
 ```scala
 val left = tableEnv.from("Orders1")
-val right = tableEnv.from("Orders2");
+val right = tableEnv.from("Orders2")
 
 val result = left.select($"a", $"b", $"c").where($"a".in(right))
 ```
@@ -1454,7 +1454,9 @@ result3 = table.order_by(table.a.asc).offset(10).fetch(5)
 
 {{< label Batch >}} {{< label Streaming >}}
 
-Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table. The `executeInsert()` method will immediately submit a Flink job which execute the insert operation.
+Similar to the `INSERT INTO` clause in a SQL query, the method performs an insertion into a registered output table.
+The `insertInto()` method will transform the `INSERT INTO` to a `TablePipeline`.
+The pipeline can be explained with `TablePipeline.explain()` and executed with `TablePipeline.execute()`.
 
 Output tables must be registered in the TableEnvironment (see Connector tables). Moreover, the schema of the registered table must match the schema of the query.
 
@@ -1462,13 +1464,13 @@ Output tables must be registered in the TableEnvironment (see Connector tables).
 {{< tab "Java" >}}
 ```java
 Table orders = tableEnv.from("Orders");
-orders.executeInsert("OutOrders");
+orders.insertInto("OutOrders").execute();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
 ```scala
 val orders = tableEnv.from("Orders")
-orders.executeInsert("OutOrders")
+orders.insertInto("OutOrders").execute()
 ```
 {{< /tab >}}
 {{< tab "Python" >}}

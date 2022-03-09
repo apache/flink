@@ -62,6 +62,22 @@ public class ChangelogPqStateTest {
     }
 
     @Test
+    public void testPollRecorded() throws Exception {
+        testRecorded(
+                singletonList("x"),
+                ChangelogKeyGroupedPriorityQueue::poll,
+                logger -> assertTrue(logger.stateElementRemoved));
+    }
+
+    @Test
+    public void testRemoveRecorded() throws Exception {
+        testRecorded(
+                singletonList("x"),
+                state -> state.remove("x"),
+                logger -> assertTrue(logger.stateElementRemoved));
+    }
+
+    @Test
     public void testAddAllRecorded() throws Exception {
         testRecorded(
                 emptyList(),
@@ -113,17 +129,11 @@ public class ChangelogPqStateTest {
         assertion.accept(logger);
     }
 
-    private static class TestPriorityQueueChangeLogger<T>
-            implements PriorityQueueStateChangeLogger<T> {
+    private static class TestPriorityQueueChangeLogger<T> implements StateChangeLogger<T, Void> {
         public boolean stateElementChanged;
         public boolean stateCleared;
         public boolean stateElementRemoved;
         public boolean stateElementAdded;
-
-        @Override
-        public void stateElementPolled() {
-            stateElementRemoved = true;
-        }
 
         @Override
         public void valueUpdated(T newState, Void ns) {
@@ -147,8 +157,8 @@ public class ChangelogPqStateTest {
 
         @Override
         public void valueElementAdded(
-                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer, Void ns)
-                throws IOException {
+                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
+                Void ns) {
             stateElementAdded = true;
         }
 

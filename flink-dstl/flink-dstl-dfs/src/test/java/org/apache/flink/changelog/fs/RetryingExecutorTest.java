@@ -176,7 +176,8 @@ public class RetryingExecutorTest {
                         } finally {
                             firstAttemptCompletedLatch.countDown();
                         }
-                    });
+                    },
+                    t -> {});
             firstAttemptCompletedLatch.await(); // before closing executor
         }
         assertEquals(expectedAttempts, attemptsMade.get());

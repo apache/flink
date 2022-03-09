@@ -28,6 +28,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.TaskManagerOptions;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.MultiShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
@@ -225,7 +226,13 @@ public class TimestampITCase extends TestLogger {
                             // send stop until the job is stopped
                             do {
                                 try {
-                                    clusterClient.stopWithSavepoint(id, false, "test").get();
+                                    clusterClient
+                                            .stopWithSavepoint(
+                                                    id,
+                                                    false,
+                                                    "test",
+                                                    SavepointFormatType.CANONICAL)
+                                            .get();
                                 } catch (Exception e) {
                                     boolean ignoreException =
                                             ExceptionUtils.findThrowable(

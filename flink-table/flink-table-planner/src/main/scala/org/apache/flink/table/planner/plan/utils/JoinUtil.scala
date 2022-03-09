@@ -124,23 +124,23 @@ object JoinUtil {
   }
 
   def generateConditionFunction(
-      config: TableConfig,
+      tableConfig: TableConfig,
       joinSpec: JoinSpec,
       leftType: LogicalType,
       rightType: LogicalType): GeneratedJoinCondition = {
     generateConditionFunction(
-        config,
-        joinSpec.getNonEquiCondition().orElse(null),
+      tableConfig,
+        joinSpec.getNonEquiCondition.orElse(null),
         leftType,
         rightType)
   }
 
   def generateConditionFunction(
-        config: TableConfig,
+        tableConfig: TableConfig,
         nonEquiCondition: RexNode,
         leftType: LogicalType,
         rightType: LogicalType): GeneratedJoinCondition = {
-    val ctx = CodeGeneratorContext(config)
+    val ctx = CodeGeneratorContext(tableConfig)
     // should consider null fields
     val exprGenerator = new ExprCodeGenerator(ctx, false)
         .bindInput(leftType)

@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
-import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.planner.utils.StreamTableTestUtil;
@@ -62,8 +61,7 @@ public class CorrelateJsonPlanTest extends TableTestBase {
                         + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(sinkTableDdl);
 
-        TableFunc1 func1 = new TableFunc1();
-        util.addFunction("func1", func1, Types.STRING);
+        util.addTemporarySystemFunction("func1", TableFunc1.class);
         String sqlQuery =
                 "insert into MySink SELECT c, s FROM MyTable, LATERAL TABLE(func1(c)) AS T(s)";
         util.verifyJsonPlan(sqlQuery);
@@ -98,8 +96,7 @@ public class CorrelateJsonPlanTest extends TableTestBase {
                         + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(sinkTableDdl);
 
-        TableFunc1 func1 = new TableFunc1();
-        util.addFunction("func1", func1, Types.STRING);
+        util.addTemporarySystemFunction("func1", TableFunc1.class);
         String sqlQuery =
                 "insert into MySink SELECT c, s FROM MyTable, LATERAL TABLE(func1(c, '$')) AS T(s)";
         util.verifyJsonPlan(sqlQuery);
@@ -116,8 +113,7 @@ public class CorrelateJsonPlanTest extends TableTestBase {
                         + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(sinkTableDdl);
 
-        TableFunc1 func1 = new TableFunc1();
-        util.addFunction("func1", func1, Types.STRING);
+        util.addTemporarySystemFunction("func1", TableFunc1.class);
         String sqlQuery =
                 "insert into MySink SELECT c, s FROM MyTable LEFT JOIN LATERAL TABLE(func1(c)) AS T(s) ON TRUE";
         util.verifyJsonPlan(sqlQuery);
@@ -134,8 +130,7 @@ public class CorrelateJsonPlanTest extends TableTestBase {
                         + "  'table-sink-class' = 'DEFAULT')";
         tEnv.executeSql(sinkTableDdl);
 
-        TableFunc1 func1 = new TableFunc1();
-        util.addFunction("func1", func1, Types.STRING);
+        util.addTemporarySystemFunction("func1", TableFunc1.class);
         String sqlQuery =
                 "insert into MySink "
                         + "select * from (SELECT c, s FROM MyTable, LATERAL TABLE(func1(c)) AS T(s)) as T2 where c = s";

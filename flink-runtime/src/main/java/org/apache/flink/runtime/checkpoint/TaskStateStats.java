@@ -112,6 +112,11 @@ public class TaskStateStats implements Serializable {
         }
     }
 
+    /** @return Total persisted size over all subtasks of this checkpoint. */
+    public long getCheckpointedSize() {
+        return summaryStats.getCheckpointedSize().getSum();
+    }
+
     /** @return Total checkpoint state size over all subtasks. */
     public long getStateSize() {
         return summaryStats.getStateSizeStats().getSum();
@@ -167,6 +172,7 @@ public class TaskStateStats implements Serializable {
         private static final long serialVersionUID = 1009476026522091909L;
 
         private StatsSummary stateSize = new StatsSummary();
+        private StatsSummary checkpointedSize = new StatsSummary();
         private StatsSummary ackTimestamp = new StatsSummary();
         private StatsSummary syncCheckpointDuration = new StatsSummary();
         private StatsSummary asyncCheckpointDuration = new StatsSummary();
@@ -176,6 +182,7 @@ public class TaskStateStats implements Serializable {
         private StatsSummary checkpointStartDelay = new StatsSummary();
 
         void updateSummary(SubtaskStateStats subtaskStats) {
+            checkpointedSize.add(subtaskStats.getCheckpointedSize());
             stateSize.add(subtaskStats.getStateSize());
             if (subtaskStats.isCompleted()) {
                 ackTimestamp.add(subtaskStats.getAckTimestamp());
@@ -186,6 +193,10 @@ public class TaskStateStats implements Serializable {
             persistedData.add(subtaskStats.getPersistedData());
             alignmentDuration.add(subtaskStats.getAlignmentDuration());
             checkpointStartDelay.add(subtaskStats.getCheckpointStartDelay());
+        }
+
+        public StatsSummary getCheckpointedSize() {
+            return checkpointedSize;
         }
 
         public StatsSummary getStateSizeStats() {

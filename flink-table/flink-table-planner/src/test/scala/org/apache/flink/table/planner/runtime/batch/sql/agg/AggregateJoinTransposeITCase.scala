@@ -79,7 +79,7 @@ class AggregateJoinTransposeITCase extends BatchTestBase {
     tEnv.getConfig.setPlannerConfig(calciteConfig)
 
     // HashJoin is disabled due to translateToPlanInternal method is not implemented yet
-    tEnv.getConfig.getConfiguration.setString(TABLE_EXEC_DISABLED_OPERATORS, "HashJoin")
+    tEnv.getConfig.set(TABLE_EXEC_DISABLED_OPERATORS, "HashJoin")
     registerCollection("T3", data3, type3, "a, b, c", nullablesOfData3)
 
     registerCollection("MyTable",

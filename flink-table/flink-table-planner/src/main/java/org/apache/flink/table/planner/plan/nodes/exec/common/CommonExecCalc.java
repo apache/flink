@@ -25,6 +25,8 @@ import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -33,8 +35,6 @@ import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnore;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rex.RexNode;
@@ -48,9 +48,11 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Base class for exec Calc. */
-@JsonIgnoreProperties(ignoreUnknown = true)
 public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         implements SingleTransformationTranslator<RowData> {
+
+    public static final String CALC_TRANSFORMATION = "calc";
+
     public static final String FIELD_NAME_PROJECTION = "projection";
     public static final String FIELD_NAME_CONDITION = "condition";
 
@@ -60,19 +62,20 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
     @JsonProperty(FIELD_NAME_CONDITION)
     private final @Nullable RexNode condition;
 
-    @JsonIgnore private final Class<?> operatorBaseClass;
-    @JsonIgnore private final boolean retainHeader;
+    private final Class<?> operatorBaseClass;
+    private final boolean retainHeader;
 
     protected CommonExecCalc(
+            int id,
+            ExecNodeContext context,
             List<RexNode> projection,
             @Nullable RexNode condition,
             Class<?> operatorBaseClass,
             boolean retainHeader,
-            int id,
             List<InputProperty> inputProperties,
             RowType outputType,
             String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.projection = checkNotNull(projection);
         this.condition = condition;
@@ -82,12 +85,13 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final CodeGeneratorContext ctx =
-                new CodeGeneratorContext(planner.getTableConfig())
+                new CodeGeneratorContext(config.getTableConfig())
                         .setOperatorBaseClass(operatorBaseClass);
 
         final CodeGenOperatorFactory<RowData> substituteStreamOperator =
@@ -101,8 +105,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
                         getClass().getSimpleName());
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationMeta(CALC_TRANSFORMATION, config),
                 substituteStreamOperator,
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

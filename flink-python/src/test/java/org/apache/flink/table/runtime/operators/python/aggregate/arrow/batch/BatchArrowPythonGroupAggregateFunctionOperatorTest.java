@@ -233,7 +233,7 @@ public class BatchArrowPythonGroupAggregateFunctionOperatorTest
         public PythonFunctionRunner createPythonFunctionRunner() {
             return new PassThroughPythonAggregateFunctionRunner(
                     getRuntimeContext().getTaskName(),
-                    PythonTestUtils.createTestEnvironmentManager(),
+                    PythonTestUtils.createTestProcessEnvironmentManager(),
                     udfInputType,
                     udfOutputType,
                     getFunctionUrn(),

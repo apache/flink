@@ -63,6 +63,7 @@ public class LookupKeySerdeTest {
                         null);
         SerdeContext serdeCtx =
                 new SerdeContext(
+                        null,
                         flinkContext,
                         Thread.currentThread().getContextClassLoader(),
                         FlinkTypeFactory.INSTANCE(),

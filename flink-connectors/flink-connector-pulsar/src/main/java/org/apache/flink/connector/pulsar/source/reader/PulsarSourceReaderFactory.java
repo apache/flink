@@ -21,7 +21,6 @@ package org.apache.flink.connector.pulsar.source.reader;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.connector.source.SourceReader;
 import org.apache.flink.api.connector.source.SourceReaderContext;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
 import org.apache.flink.connector.base.source.reader.synchronization.FutureCompletingBlockingQueue;
 import org.apache.flink.connector.pulsar.source.config.SourceConfiguration;
@@ -41,9 +40,8 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 
 import java.util.function.Supplier;
 
-import static org.apache.flink.connector.base.source.reader.SourceReaderOptions.ELEMENT_QUEUE_CAPACITY;
-import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.createAdmin;
-import static org.apache.flink.connector.pulsar.common.config.PulsarConfigUtils.createClient;
+import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createAdmin;
+import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createClient;
 
 /**
  * This factory class is used for creating different types of source reader for different
@@ -65,16 +63,15 @@ public final class PulsarSourceReaderFactory {
     public static <OUT> SourceReader<OUT, PulsarPartitionSplit> create(
             SourceReaderContext readerContext,
             PulsarDeserializationSchema<OUT> deserializationSchema,
-            Configuration configuration,
             SourceConfiguration sourceConfiguration) {
 
-        PulsarClient pulsarClient = createClient(configuration);
-        PulsarAdmin pulsarAdmin = createAdmin(configuration);
+        PulsarClient pulsarClient = createClient(sourceConfiguration);
+        PulsarAdmin pulsarAdmin = createAdmin(sourceConfiguration);
 
         // Create a message queue with the predefined source option.
-        int queueSize = configuration.getInteger(ELEMENT_QUEUE_CAPACITY);
+        int queueCapacity = sourceConfiguration.getMessageQueueCapacity();
         FutureCompletingBlockingQueue<RecordsWithSplitIds<PulsarMessage<OUT>>> elementsQueue =
-                new FutureCompletingBlockingQueue<>(queueSize);
+                new FutureCompletingBlockingQueue<>(queueCapacity);
 
         // Create different pulsar source reader by subscription type.
         SubscriptionType subscriptionType = sourceConfiguration.getSubscriptionType();
@@ -86,14 +83,12 @@ public final class PulsarSourceReaderFactory {
                             new PulsarOrderedPartitionSplitReader<>(
                                     pulsarClient,
                                     pulsarAdmin,
-                                    configuration,
                                     sourceConfiguration,
                                     deserializationSchema);
 
             return new PulsarOrderedSourceReader<>(
                     elementsQueue,
                     splitReaderSupplier,
-                    configuration,
                     readerContext,
                     sourceConfiguration,
                     pulsarClient,
@@ -112,7 +107,6 @@ public final class PulsarSourceReaderFactory {
                             new PulsarUnorderedPartitionSplitReader<>(
                                     pulsarClient,
                                     pulsarAdmin,
-                                    configuration,
                                     sourceConfiguration,
                                     deserializationSchema,
                                     coordinatorClient);
@@ -120,7 +114,6 @@ public final class PulsarSourceReaderFactory {
             return new PulsarUnorderedSourceReader<>(
                     elementsQueue,
                     splitReaderSupplier,
-                    configuration,
                     readerContext,
                     sourceConfiguration,
                     pulsarClient,

@@ -39,6 +39,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonTyp
 import org.apache.calcite.rex.RexNode;
 
 import java.time.Duration;
+import java.util.Objects;
 
 import scala.Option;
 
@@ -49,7 +50,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to/from JSON, but also can push the watermark into a {@link SupportsWatermarkPushDown}.
  */
 @JsonTypeName("WatermarkPushDown")
-public class WatermarkPushDownSpec extends SourceAbilitySpecBase {
+public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_WATERMARK_EXPR = "watermarkExpr";
     public static final String FIELD_NAME_IDLE_TIMEOUT_MILLIS = "idleTimeoutMillis";
 
@@ -110,5 +111,26 @@ public class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                     "watermark=[%s], idletimeout=[%d]", expressionStr, idleTimeoutMillis);
         }
         return String.format("watermark=[%s]", expressionStr);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        WatermarkPushDownSpec that = (WatermarkPushDownSpec) o;
+        return idleTimeoutMillis == that.idleTimeoutMillis
+                && Objects.equals(watermarkExpr, that.watermarkExpr);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), watermarkExpr, idleTimeoutMillis);
     }
 }

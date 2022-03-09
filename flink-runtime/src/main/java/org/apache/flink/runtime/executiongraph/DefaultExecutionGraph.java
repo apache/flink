@@ -59,8 +59,12 @@ import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration;
+import org.apache.flink.runtime.jobmanager.scheduler.SlotSharingGroup;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStore;
+import org.apache.flink.runtime.operators.coordination.CoordinatorStoreImpl;
 import org.apache.flink.runtime.query.KvStateLocationRegistry;
 import org.apache.flink.runtime.scheduler.InternalFailuresListener;
+import org.apache.flink.runtime.scheduler.SsgNetworkMemoryCalculationUtils;
 import org.apache.flink.runtime.scheduler.VertexParallelismInformation;
 import org.apache.flink.runtime.scheduler.VertexParallelismStore;
 import org.apache.flink.runtime.scheduler.adapter.DefaultExecutionTopology;
@@ -128,6 +132,9 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     /** The executor which is used to execute blocking io operations. */
     private final Executor ioExecutor;
+
+    /** {@link CoordinatorStore} shared across all operator coordinators within this execution. */
+    private final CoordinatorStore coordinatorStore = new CoordinatorStoreImpl();
 
     /** Executor that runs tasks in the job manager's main thread. */
     @Nonnull private ComponentMainThreadExecutor jobMasterMainThreadExecutor;
@@ -761,6 +768,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     // --------------------------------------------------------------------------------------------
 
     @Override
+    public void notifyNewlyInitializedJobVertices(List<ExecutionJobVertex> vertices) {
+        executionTopology.notifyExecutionGraphUpdated(this, vertices);
+    }
+
+    @Override
     public void attachJobGraph(List<JobVertex> topologicallySorted) throws JobException {
         if (isDynamic) {
             attachJobGraph(topologicallySorted, Collections.emptyList());
@@ -838,7 +850,8 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
                 maxPriorAttemptsHistoryLength,
                 rpcTimeout,
                 createTimestamp,
-                this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()));
+                this.initialAttemptCounts.getAttemptCounts(ejv.getJobVertexId()),
+                coordinatorStore);
 
         ejv.connectToPredecessors(this.intermediateResults);
 
@@ -854,6 +867,24 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
         }
 
         registerExecutionVerticesAndResultPartitionsFor(ejv);
+
+        // enrich network memory.
+        SlotSharingGroup slotSharingGroup = ejv.getSlotSharingGroup();
+        if (areJobVerticesAllInitialized(slotSharingGroup)) {
+            SsgNetworkMemoryCalculationUtils.enrichNetworkMemory(
+                    slotSharingGroup, this::getJobVertex, shuffleMaster);
+        }
+    }
+
+    private boolean areJobVerticesAllInitialized(final SlotSharingGroup group) {
+        for (JobVertexID jobVertexId : group.getJobVertexIds()) {
+            final ExecutionJobVertex jobVertex = getJobVertex(jobVertexId);
+            checkNotNull(jobVertex, "Unknown job vertex %s", jobVertexId);
+            if (!jobVertex.isInitialized()) {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -1481,8 +1512,11 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
 
     @Override
     public void notifyExecutionChange(
-            final Execution execution, final ExecutionState newExecutionState) {
-        executionStateUpdateListener.onStateUpdate(execution.getAttemptId(), newExecutionState);
+            final Execution execution,
+            ExecutionState previousState,
+            final ExecutionState newExecutionState) {
+        executionStateUpdateListener.onStateUpdate(
+                execution.getAttemptId(), previousState, newExecutionState);
     }
 
     private void assertRunningInJobMasterMainThread() {
@@ -1541,5 +1575,16 @@ public class DefaultExecutionGraph implements ExecutionGraph, InternalExecutionG
     @Override
     public boolean isDynamic() {
         return isDynamic;
+    }
+
+    @Override
+    public Optional<String> findVertexWithAttempt(ExecutionAttemptID attemptId) {
+        return Optional.ofNullable(currentExecutions.get(attemptId))
+                .map(Execution::getVertexWithAttempt);
+    }
+
+    @Override
+    public Optional<AccessExecution> findExecution(ExecutionAttemptID attemptId) {
+        return Optional.ofNullable(currentExecutions.get(attemptId));
     }
 }

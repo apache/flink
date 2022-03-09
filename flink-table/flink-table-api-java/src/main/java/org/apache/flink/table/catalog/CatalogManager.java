@@ -899,7 +899,7 @@ public final class CatalogManager {
 
     /** Resolves a {@link CatalogBaseTable} to a validated {@link ResolvedCatalogBaseTable}. */
     public ResolvedCatalogBaseTable<?> resolveCatalogBaseTable(CatalogBaseTable baseTable) {
-        Preconditions.checkState(schemaResolver != null, "Schema resolver is not initialized.");
+        Preconditions.checkNotNull(schemaResolver, "Schema resolver is not initialized.");
         if (baseTable instanceof CatalogTable) {
             return resolveCatalogTable((CatalogTable) baseTable);
         } else if (baseTable instanceof CatalogView) {
@@ -911,13 +911,14 @@ public final class CatalogManager {
 
     /** Resolves a {@link CatalogTable} to a validated {@link ResolvedCatalogTable}. */
     public ResolvedCatalogTable resolveCatalogTable(CatalogTable table) {
-        Preconditions.checkState(schemaResolver != null, "Schema resolver is not initialized.");
+        Preconditions.checkNotNull(schemaResolver, "Schema resolver is not initialized.");
         if (table instanceof ResolvedCatalogTable) {
             return (ResolvedCatalogTable) table;
         }
 
         final ResolvedSchema resolvedSchema = table.getUnresolvedSchema().resolve(schemaResolver);
 
+        // Validate partition keys are included in physical columns
         final List<String> physicalColumns =
                 resolvedSchema.getColumns().stream()
                         .filter(Column::isPhysical)
@@ -941,7 +942,7 @@ public final class CatalogManager {
 
     /** Resolves a {@link CatalogView} to a validated {@link ResolvedCatalogView}. */
     public ResolvedCatalogView resolveCatalogView(CatalogView view) {
-        Preconditions.checkState(schemaResolver != null, "Schema resolver is not initialized.");
+        Preconditions.checkNotNull(schemaResolver, "Schema resolver is not initialized.");
         if (view instanceof ResolvedCatalogView) {
             return (ResolvedCatalogView) view;
         }

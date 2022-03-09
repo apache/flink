@@ -125,7 +125,7 @@ object FunctionCodeGenerator {
 
     val funcCode =
       j"""
-      ${ctx.getClassHeaderComment()}
+      ${ctx.getClassHeaderComment}
       public class $funcName
           extends ${samHeader._1.getCanonicalName} {
 

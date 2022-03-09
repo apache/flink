@@ -17,9 +17,13 @@
 
 package org.apache.flink.runtime.checkpoint;
 
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nullable;
 
@@ -33,6 +37,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** The checkpoint failure manager which centralized manage checkpoint failure processing logic. */
 public class CheckpointFailureManager {
+
+    private static final Logger LOG = LoggerFactory.getLogger(CheckpointFailureManager.class);
 
     public static final int UNLIMITED_TOLERABLE_FAILURE_NUMBER = Integer.MAX_VALUE;
     public static final String EXCEEDED_CHECKPOINT_TOLERABLE_FAILURE_MESSAGE =
@@ -80,22 +86,54 @@ public class CheckpointFailureManager {
      *     strategy can be used.
      * @param exception the checkpoint exception.
      * @param executionAttemptID the execution attempt id, as a safe guard.
+     * @param job the JobID.
+     * @param pendingCheckpointStats the pending checkpoint statistics.
+     * @param statsTracker the tracker for checkpoint statistics.
      */
     public void handleCheckpointException(
             @Nullable PendingCheckpoint pendingCheckpoint,
             CheckpointProperties checkpointProperties,
             CheckpointException exception,
-            @Nullable ExecutionAttemptID executionAttemptID) {
+            @Nullable ExecutionAttemptID executionAttemptID,
+            JobID job,
+            @Nullable PendingCheckpointStats pendingCheckpointStats,
+            CheckpointStatsTracker statsTracker) {
+        long checkpointId =
+                pendingCheckpoint == null
+                        ? UNKNOWN_CHECKPOINT_ID
+                        : pendingCheckpoint.getCheckpointID();
+        updateStatsAfterCheckpointFailed(pendingCheckpointStats, statsTracker, exception);
+
+        LOG.warn(
+                "Failed to trigger checkpoint {} for job {}. ({} consecutive failed attempts so far)",
+                checkpointId == UNKNOWN_CHECKPOINT_ID ? "UNKNOWN_CHECKPOINT_ID" : checkpointId,
+                job,
+                continuousFailureCounter.get(),
+                exception);
         if (isJobManagerFailure(exception, executionAttemptID)) {
-            handleJobLevelCheckpointException(
-                    checkpointProperties,
-                    exception,
-                    pendingCheckpoint == null
-                            ? UNKNOWN_CHECKPOINT_ID
-                            : pendingCheckpoint.getCheckpointID());
+            handleJobLevelCheckpointException(checkpointProperties, exception, checkpointId);
         } else {
             handleTaskLevelCheckpointException(
                     checkNotNull(pendingCheckpoint), exception, checkNotNull(executionAttemptID));
+        }
+    }
+
+    /**
+     * Updating checkpoint statistics after checkpoint failed.
+     *
+     * @param pendingCheckpointStats the pending checkpoint statistics.
+     * @param exception the checkpoint exception.
+     */
+    private void updateStatsAfterCheckpointFailed(
+            @Nullable PendingCheckpointStats pendingCheckpointStats,
+            CheckpointStatsTracker statsTracker,
+            CheckpointException exception) {
+        if (pendingCheckpointStats != null) {
+            long failureTimestamp = System.currentTimeMillis();
+            statsTracker.reportFailedCheckpoint(
+                    pendingCheckpointStats.toFailedCheckpoint(failureTimestamp, exception));
+        } else {
+            statsTracker.reportFailedCheckpointsWithoutInProgress();
         }
     }
 

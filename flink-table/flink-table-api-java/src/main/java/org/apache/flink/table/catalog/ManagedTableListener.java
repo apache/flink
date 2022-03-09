@@ -104,8 +104,7 @@ public class ManagedTableListener {
     }
 
     /** Check a resolved catalog table is Flink's managed table or not. */
-    public static boolean isManagedTable(
-            @Nullable Catalog catalog, ResolvedCatalogBaseTable<?> table) {
+    public static boolean isManagedTable(@Nullable Catalog catalog, CatalogBaseTable table) {
         if (catalog == null || !catalog.supportsManagedTable()) {
             // catalog not support managed table
             return false;
@@ -135,8 +134,11 @@ public class ManagedTableListener {
             return false;
         }
 
+        if (table instanceof ResolvedCatalogBaseTable) {
+            table = ((ResolvedCatalogBaseTable<?>) table).getOrigin();
+        }
         // ConnectorCatalogTable is not managed table
-        return !(table.getOrigin() instanceof ConnectorCatalogTable);
+        return !(table instanceof ConnectorCatalogTable);
     }
 
     /** Enrich options for creating managed table. */

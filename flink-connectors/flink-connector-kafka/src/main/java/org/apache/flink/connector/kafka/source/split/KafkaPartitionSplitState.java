@@ -18,7 +18,10 @@
 
 package org.apache.flink.connector.kafka.source.split;
 
+import org.apache.flink.annotation.Internal;
+
 /** This class extends KafkaPartitionSplit to track a mutable current offset. */
+@Internal
 public class KafkaPartitionSplitState extends KafkaPartitionSplit {
 
     private long currentOffset;

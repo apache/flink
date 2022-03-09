@@ -22,6 +22,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.time.Time;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinatorGateway;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -47,7 +48,6 @@ import org.apache.flink.runtime.slots.ResourceRequirement;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
 import org.apache.flink.runtime.taskmanager.TaskExecutionState;
-import org.apache.flink.runtime.taskmanager.UnresolvedTaskManagerLocation;
 import org.apache.flink.util.SerializedValue;
 
 import javax.annotation.Nullable;
@@ -166,17 +166,16 @@ public interface JobMasterGateway
     /**
      * Registers the task manager at the job manager.
      *
-     * @param taskManagerRpcAddress the rpc address of the task manager
-     * @param unresolvedTaskManagerLocation unresolved location of the task manager
      * @param jobId jobId specifying the job for which the JobMaster should be responsible
+     * @param taskManagerRegistrationInformation the information for registering a task manager at
+     *     the job manager
      * @param timeout for the rpc call
      * @return Future registration response indicating whether the registration was successful or
      *     not
      */
     CompletableFuture<RegistrationResponse> registerTaskManager(
-            final String taskManagerRpcAddress,
-            final UnresolvedTaskManagerLocation unresolvedTaskManagerLocation,
             final JobID jobId,
+            final TaskManagerRegistrationInformation taskManagerRegistrationInformation,
             @RpcTimeout final Time timeout);
 
     /**
@@ -226,12 +225,14 @@ public interface JobMasterGateway
      *
      * @param targetDirectory to which to write the savepoint data or null if the default savepoint
      *     directory should be used
+     * @param formatType binary format for the savepoint
      * @param timeout for the rpc call
      * @return Future which is completed with the savepoint path once completed
      */
     CompletableFuture<String> triggerSavepoint(
             @Nullable final String targetDirectory,
             final boolean cancelJob,
+            final SavepointFormatType formatType,
             @RpcTimeout final Time timeout);
 
     /**
@@ -253,6 +254,7 @@ public interface JobMasterGateway
      */
     CompletableFuture<String> stopWithSavepoint(
             @Nullable final String targetDirectory,
+            final SavepointFormatType formatType,
             final boolean terminate,
             @RpcTimeout final Time timeout);
 

@@ -23,7 +23,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.cost.{FlinkCost, FlinkCostFactory}
 import org.apache.flink.table.planner.plan.nodes.calcite.Rank
-import org.apache.flink.table.planner.plan.nodes.exec.{InputProperty, ExecNode}
+import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.nodes.exec.batch.BatchExecRank
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalJoinRuleBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, RelExplainUtil}
@@ -228,13 +228,18 @@ class BatchPhysicalRank(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
+    val requiredDistribution = if (partitionKey.length() == 0) {
+      InputProperty.SINGLETON_DISTRIBUTION
+    } else {
+      InputProperty.hashDistribution(partitionKey.toArray)
+    }
     new BatchExecRank(
       partitionKey.toArray,
       orderKey.getFieldCollations.map(_.getFieldIndex).toArray,
       rankStart,
       rankEnd,
       outputRankNumber,
-      InputProperty.DEFAULT,
+      InputProperty.builder().requiredDistribution(requiredDistribution).build(),
       FlinkTypeFactory.toLogicalRowType(getRowType),
       getRelDetailedDescription
     )

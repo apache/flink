@@ -39,6 +39,7 @@ import org.apache.calcite.rex.RexNode;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.TimeZone;
 import java.util.stream.Collectors;
@@ -50,7 +51,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * to/from JSON, but also can push the filter into a {@link SupportsFilterPushDown}.
  */
 @JsonTypeName("FilterPushDown")
-public class FilterPushDownSpec extends SourceAbilitySpecBase {
+public final class FilterPushDownSpec extends SourceAbilitySpecBase {
     public static final String FIELD_NAME_PREDICATES = "predicates";
 
     @JsonProperty(FIELD_NAME_PREDICATES)
@@ -139,5 +140,25 @@ public class FilterPushDownSpec extends SourceAbilitySpecBase {
                 expressionStrs.stream()
                         .reduce((l, r) -> String.format("and(%s, %s)", l, r))
                         .orElse(""));
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        FilterPushDownSpec that = (FilterPushDownSpec) o;
+        return Objects.equals(predicates, that.predicates);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), predicates);
     }
 }

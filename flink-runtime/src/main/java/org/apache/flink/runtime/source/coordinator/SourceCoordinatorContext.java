@@ -42,6 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -50,11 +51,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+
+import static org.apache.flink.runtime.operators.coordination.ComponentClosingUtils.shutdownExecutorForcefully;
 
 /**
  * A context class for the {@link OperatorCoordinator}. Compared with {@link SplitEnumeratorContext}
@@ -82,7 +83,8 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
 
     private static final Logger LOG = LoggerFactory.getLogger(SourceCoordinatorContext.class);
 
-    private final ExecutorService coordinatorExecutor;
+    private final ScheduledExecutorService workerExecutor;
+    private final ScheduledExecutorService coordinatorExecutor;
     private final ExecutorNotifier notifier;
     private final OperatorCoordinator.Context operatorCoordinatorContext;
     private final SimpleVersionedSerializer<SplitT> splitSerializer;
@@ -95,13 +97,12 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     private volatile boolean closed;
 
     public SourceCoordinatorContext(
-            ExecutorService coordinatorExecutor,
             SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
             int numWorkerThreads,
             OperatorCoordinator.Context operatorCoordinatorContext,
             SimpleVersionedSerializer<SplitT> splitSerializer) {
         this(
-                coordinatorExecutor,
+                Executors.newScheduledThreadPool(1, coordinatorThreadFactory),
                 Executors.newScheduledThreadPool(
                         numWorkerThreads,
                         new ExecutorThreadFactory(
@@ -115,12 +116,13 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
     // Package private method for unit test.
     @VisibleForTesting
     SourceCoordinatorContext(
-            ExecutorService coordinatorExecutor,
+            ScheduledExecutorService coordinatorExecutor,
             ScheduledExecutorService workerExecutor,
             SourceCoordinatorProvider.CoordinatorExecutorThreadFactory coordinatorThreadFactory,
             OperatorCoordinator.Context operatorCoordinatorContext,
             SimpleVersionedSerializer<SplitT> splitSerializer,
             SplitAssignmentTracker<SplitT> splitAssignmentTracker) {
+        this.workerExecutor = workerExecutor;
         this.coordinatorExecutor = coordinatorExecutor;
         this.coordinatorThreadFactory = coordinatorThreadFactory;
         this.operatorCoordinatorContext = operatorCoordinatorContext;
@@ -158,6 +160,23 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
                     return null;
                 },
                 String.format("Failed to send event %s to subtask %d", event, subtaskId));
+    }
+
+    void sendEventToSourceOperator(int subtaskId, OperatorEvent event) {
+        checkSubtaskIndex(subtaskId);
+
+        callInCoordinatorThread(
+                () -> {
+                    final OperatorCoordinator.SubtaskGateway gateway =
+                            getGatewayAndCheckReady(subtaskId);
+                    gateway.sendEvent(event);
+                    return null;
+                },
+                String.format("Failed to send event %s to subtask %d", event, subtaskId));
+    }
+
+    ScheduledExecutorService getCoordinatorExecutor() {
+        return coordinatorExecutor;
     }
 
     @Override
@@ -238,17 +257,26 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         notifier.notifyReadyAsync(callable, handler);
     }
 
+    /** {@inheritDoc} If the runnable throws an Exception, the corresponding job is failed. */
     @Override
     public void runInCoordinatorThread(Runnable runnable) {
-        coordinatorExecutor.execute(runnable);
+        // when using a ScheduledThreadPool, uncaught exception handler catches only
+        // exceptions thrown by the threadPool, so manually call it when the exception is
+        // thrown by the runnable
+        coordinatorExecutor.execute(
+                new ThrowableCatchingRunnable(
+                        throwable ->
+                                coordinatorThreadFactory.uncaughtException(
+                                        Thread.currentThread(), throwable),
+                        runnable));
     }
 
     @Override
     public void close() throws InterruptedException {
         closed = true;
-        notifier.close();
-        coordinatorExecutor.shutdown();
-        coordinatorExecutor.awaitTermination(Long.MAX_VALUE, TimeUnit.MILLISECONDS);
+        // Close quietly so the closing sequence will be executed completely.
+        shutdownExecutorForcefully(workerExecutor, Duration.ofNanos(Long.MAX_VALUE));
+        shutdownExecutorForcefully(coordinatorExecutor, Duration.ofNanos(Long.MAX_VALUE));
     }
 
     // --------- Package private additional methods for the SourceCoordinator ------------

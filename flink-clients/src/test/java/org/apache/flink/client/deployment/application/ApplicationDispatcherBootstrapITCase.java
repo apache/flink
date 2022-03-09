@@ -26,11 +26,14 @@ import org.apache.flink.client.deployment.application.executors.EmbeddedExecutor
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.testjar.BlockingJob;
+import org.apache.flink.client.testjar.ErrorHandlingSubmissionJob;
 import org.apache.flink.client.testjar.FailingJob;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.configuration.PipelineOptionsInternal;
+import org.apache.flink.core.testutils.FlinkAssertions;
+import org.apache.flink.runtime.client.DuplicateJobSubmissionException;
 import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.dispatcher.SessionDispatcherFactory;
 import org.apache.flink.runtime.dispatcher.runner.DefaultDispatcherRunnerFactory;
@@ -38,7 +41,10 @@ import org.apache.flink.runtime.entrypoint.component.DefaultDispatcherResourceMa
 import org.apache.flink.runtime.entrypoint.component.DispatcherResourceManagerComponentFactory;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.executiongraph.ErrorInfo;
+import org.apache.flink.runtime.highavailability.JobResultEntry;
+import org.apache.flink.runtime.highavailability.JobResultStore;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedJobResultStore;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
@@ -48,11 +54,13 @@ import org.apache.flink.runtime.minicluster.TestingMiniClusterConfiguration;
 import org.apache.flink.runtime.resourcemanager.StandaloneResourceManagerFactory;
 import org.apache.flink.runtime.rest.JobRestEndpointFactory;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
+import org.apache.flink.runtime.testutils.TestingJobResultStore;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.ExceptionUtils;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 import java.time.Duration;
 import java.util.UUID;
@@ -61,11 +69,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.function.Supplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Integration tests related to {@link ApplicationDispatcherBootstrap}. */
-public class ApplicationDispatcherBootstrapITCase extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class ApplicationDispatcherBootstrapITCase {
 
     private static final Duration TIMEOUT = Duration.ofMinutes(10);
 
@@ -127,7 +134,9 @@ public class ApplicationDispatcherBootstrapITCase extends TestLogger {
                     cluster.requestJobResult(ApplicationDispatcherBootstrap.ZERO_JOB_ID);
             haServices.revokeDispatcherLeadership();
             // make sure the leadership is revoked to avoid race conditions
-            assertEquals(ApplicationStatus.UNKNOWN, firstJobResult.get().getApplicationStatus());
+            assertThat(firstJobResult.get())
+                    .extracting(JobResult::getApplicationStatus)
+                    .isEqualTo(ApplicationStatus.UNKNOWN);
             haServices.grantDispatcherLeadership();
 
             // job is suspended, wait until it's running
@@ -141,16 +150,75 @@ public class ApplicationDispatcherBootstrapITCase extends TestLogger {
             BlockingJob.unblock(blockId);
 
             // and wait for it to actually finish
-            final CompletableFuture<JobResult> secondJobResult =
-                    cluster.requestJobResult(ApplicationDispatcherBootstrap.ZERO_JOB_ID);
-            assertTrue(secondJobResult.get().isSuccess());
-            assertEquals(ApplicationStatus.SUCCEEDED, secondJobResult.get().getApplicationStatus());
+            final JobResult secondJobResult =
+                    cluster.requestJobResult(ApplicationDispatcherBootstrap.ZERO_JOB_ID).get();
+            assertThat(secondJobResult.isSuccess()).isTrue();
+            assertThat(secondJobResult.getApplicationStatus())
+                    .isEqualTo(ApplicationStatus.SUCCEEDED);
 
             // the cluster should shut down automatically once the application completes
             awaitClusterStopped(cluster, deadline);
         } finally {
             BlockingJob.cleanUp(blockId);
         }
+    }
+
+    @Test
+    public void testDirtyJobResultRecoveryInApplicationMode() throws Exception {
+        final Deadline deadline = Deadline.fromNow(TIMEOUT);
+        final Configuration configuration = new Configuration();
+        configuration.set(HighAvailabilityOptions.HA_MODE, HighAvailabilityMode.ZOOKEEPER.name());
+        configuration.set(DeploymentOptions.TARGET, EmbeddedExecutor.NAME);
+        configuration.set(ClientOptions.CLIENT_RETRY_PERIOD, Duration.ofMillis(100));
+        final TestingMiniClusterConfiguration clusterConfiguration =
+                TestingMiniClusterConfiguration.newBuilder()
+                        .setConfiguration(configuration)
+                        .build();
+
+        // having a dirty entry in the JobResultStore should make the ApplicationDispatcherBootstrap
+        // implementation fail to submit the job
+        final JobResultStore jobResultStore = new EmbeddedJobResultStore();
+        jobResultStore.createDirtyResult(
+                new JobResultEntry(
+                        TestingJobResultStore.createSuccessfulJobResult(
+                                ApplicationDispatcherBootstrap.ZERO_JOB_ID)));
+        final EmbeddedHaServicesWithLeadershipControl haServices =
+                new EmbeddedHaServicesWithLeadershipControl(TestingUtils.defaultExecutor()) {
+
+                    @Override
+                    public JobResultStore getJobResultStore() {
+                        return jobResultStore;
+                    }
+                };
+
+        final TestingMiniCluster.Builder clusterBuilder =
+                TestingMiniCluster.newBuilder(clusterConfiguration)
+                        .setHighAvailabilityServicesSupplier(() -> haServices)
+                        .setDispatcherResourceManagerComponentFactorySupplier(
+                                createApplicationModeDispatcherResourceManagerComponentFactorySupplier(
+                                        clusterConfiguration.getConfiguration(),
+                                        ErrorHandlingSubmissionJob.createPackagedProgram()));
+        try (final MiniCluster cluster = clusterBuilder.build()) {
+            // start mini cluster and submit the job
+            cluster.start();
+
+            // the cluster should shut down automatically once the application completes
+            awaitClusterStopped(cluster, deadline);
+        }
+
+        FlinkAssertions.assertThatChainOfCauses(ErrorHandlingSubmissionJob.getSubmissionException())
+                .as(
+                        "The job's main method shouldn't have been succeeded due to a DuplicateJobSubmissionException.")
+                .hasAtLeastOneElementOfType(DuplicateJobSubmissionException.class);
+
+        assertThat(
+                        jobResultStore.hasDirtyJobResultEntry(
+                                ApplicationDispatcherBootstrap.ZERO_JOB_ID))
+                .isFalse();
+        assertThat(
+                        jobResultStore.hasCleanJobResultEntry(
+                                ApplicationDispatcherBootstrap.ZERO_JOB_ID))
+                .isTrue();
     }
 
     @Test

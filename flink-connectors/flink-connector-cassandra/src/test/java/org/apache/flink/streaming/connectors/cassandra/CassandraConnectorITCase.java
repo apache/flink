@@ -36,7 +36,6 @@ import org.apache.flink.batch.connectors.cassandra.CassandraPojoInputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraPojoOutputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraRowOutputFormat;
 import org.apache.flink.batch.connectors.cassandra.CassandraTupleOutputFormat;
-import org.apache.flink.batch.connectors.cassandra.CustomCassandraAnnotatedPojo;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -58,6 +57,10 @@ import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
 import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.mapping.Mapper;
+import com.datastax.driver.mapping.annotations.Table;
+import net.bytebuddy.ByteBuddy;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -66,20 +69,26 @@ import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testcontainers.containers.CassandraContainer;
+import org.testcontainers.containers.output.Slf4jLogConsumer;
+import org.testcontainers.images.builder.Transferable;
 
+import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.lang.reflect.Constructor;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import scala.collection.JavaConverters;
 import scala.collection.Seq;
@@ -97,14 +106,15 @@ public class CassandraConnectorITCase
                 Tuple3<String, Integer, Integer>,
                 CassandraTupleWriteAheadSink<Tuple3<String, Integer, Integer>>> {
 
-    @ClassRule
-    public static final CassandraContainer CASSANDRA_CONTAINER = createCassandraContainer();
-
     private static final int MAX_CONNECTION_RETRY = 3;
     private static final long CONNECTION_RETRY_DELAY = 500L;
     private static final Logger LOG = LoggerFactory.getLogger(CassandraConnectorITCase.class);
-    private static final String TABLE_POJO = "test";
-    private static final String TABLE_POJO_NO_ANNOTATED_KEYSPACE = "testPojoNoAnnotatedKeyspace";
+    private static final Slf4jLogConsumer LOG_CONSUMER = new Slf4jLogConsumer(LOG);
+
+    @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
+
+    @ClassRule
+    public static final CassandraContainer CASSANDRA_CONTAINER = createCassandraContainer();
 
     @Rule public final RetryRule retryRule = new RetryRule();
 
@@ -196,14 +206,152 @@ public class CassandraConnectorITCase
         }
     }
 
+    private static Class<? extends Pojo> annotatePojoWithTable(String keyspace, String tableName) {
+        return new ByteBuddy()
+                .redefine(Pojo.class)
+                .name("org.apache.flink.streaming.connectors.cassandra.Pojo" + tableName)
+                .annotateType(createTableAnnotation(keyspace, tableName))
+                .make()
+                .load(Pojo.class.getClassLoader())
+                .getLoaded();
+    }
+
+    @NotNull
+    private static Table createTableAnnotation(String keyspace, String tableName) {
+        return new Table() {
+
+            @Override
+            public String keyspace() {
+                return keyspace;
+            }
+
+            @Override
+            public String name() {
+                return tableName;
+            }
+
+            @Override
+            public boolean caseSensitiveKeyspace() {
+                return false;
+            }
+
+            @Override
+            public boolean caseSensitiveTable() {
+                return false;
+            }
+
+            @Override
+            public String writeConsistency() {
+                return "";
+            }
+
+            @Override
+            public String readConsistency() {
+                return "";
+            }
+
+            @Override
+            public Class<? extends Annotation> annotationType() {
+                return Table.class;
+            }
+        };
+    }
+
+    // ------------------------------------------------------------------------
+    //  Utility methods
+    // ------------------------------------------------------------------------
+
     public static CassandraContainer createCassandraContainer() {
         CassandraContainer cassandra = new CassandraContainer(DockerImageVersions.CASSANDRA_3);
         cassandra.withJmxReporting(false);
+        cassandra.withLogConsumer(LOG_CONSUMER);
         return cassandra;
     }
 
+    private static void raiseCassandraRequestsTimeouts() {
+        try {
+            final Path configurationPath = TEMPORARY_FOLDER.newFile().toPath();
+            CASSANDRA_CONTAINER.copyFileFromContainer(
+                    "/etc/cassandra/cassandra.yaml", configurationPath.toAbsolutePath().toString());
+            String configuration =
+                    new String(Files.readAllBytes(configurationPath), StandardCharsets.UTF_8);
+            String patchedConfiguration =
+                    configuration
+                            .replaceAll(
+                                    "request_timeout_in_ms: [0-9]+", "request_timeout_in_ms: 30000")
+                            .replaceAll(
+                                    "read_request_timeout_in_ms: [0-9]+",
+                                    "read_request_timeout_in_ms: 15000")
+                            .replaceAll(
+                                    "write_request_timeout_in_ms: [0-9]+",
+                                    "write_request_timeout_in_ms: 6000");
+            CASSANDRA_CONTAINER.copyFileToContainer(
+                    Transferable.of(patchedConfiguration.getBytes(StandardCharsets.UTF_8)),
+                    "/etc/cassandra/cassandra.yaml");
+        } catch (IOException e) {
+            throw new RuntimeException("Unable to open Cassandra configuration file ", e);
+        }
+    }
+
+    private <T> List<T> readPojosWithInputFormat(Class<T> annotatedPojoClass) {
+        final CassandraPojoInputFormat<T> source =
+                new CassandraPojoInputFormat<>(
+                        injectTableName(SELECT_DATA_QUERY), builderForReading, annotatedPojoClass);
+        List<T> result = new ArrayList<>();
+
+        try {
+            source.configure(new Configuration());
+            source.open(null);
+            while (!source.reachedEnd()) {
+                T temp = source.nextRecord(null);
+                result.add(temp);
+            }
+        } finally {
+            source.close();
+        }
+        return result;
+    }
+
+    private <T> List<T> writePojosWithOutputFormat(Class<T> annotatedPojoClass) throws Exception {
+        final CassandraPojoOutputFormat<T> sink =
+                new CassandraPojoOutputFormat<>(
+                        builderForWriting,
+                        annotatedPojoClass,
+                        () -> new Mapper.Option[] {Mapper.Option.saveNullFields(true)});
+
+        final Constructor<T> pojoConstructor = getPojoConstructor(annotatedPojoClass);
+        List<T> pojos = new ArrayList<>();
+        for (int i = 0; i < 20; i++) {
+            pojos.add(pojoConstructor.newInstance(UUID.randomUUID().toString(), i, 0));
+        }
+        try {
+            sink.configure(new Configuration());
+            sink.open(0, 1);
+            for (T pojo : pojos) {
+                sink.writeRecord(pojo);
+            }
+        } finally {
+            sink.close();
+        }
+        return pojos;
+    }
+
+    private <T> Constructor<T> getPojoConstructor(Class<T> annotatedPojoClass)
+            throws NoSuchMethodException {
+        return annotatedPojoClass.getConstructor(String.class, Integer.TYPE, Integer.TYPE);
+    }
+
+    private String injectTableName(String target) {
+        return target.replace(TABLE_NAME_VARIABLE, TABLE_NAME_PREFIX + tableID);
+    }
+
+    // ------------------------------------------------------------------------
+    //  Tests initialization
+    // ------------------------------------------------------------------------
+
     @BeforeClass
     public static void startAndInitializeCassandra() {
+        raiseCassandraRequestsTimeouts();
         // CASSANDRA_CONTAINER#start() already contains retrials
         CASSANDRA_CONTAINER.start();
         cluster = CASSANDRA_CONTAINER.getCluster();
@@ -247,12 +395,8 @@ public class CassandraConnectorITCase
     public void dropTables() {
         // need to drop tables in case of retrials. Need to drop all the tables
         // that are created in test because this method is executed with every test
-        session.execute(
-                DROP_TABLE_QUERY.replace(
-                        TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo.TABLE_NAME));
-        session.execute(DROP_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_POJO));
-        session.execute(
-                DROP_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_POJO_NO_ANNOTATED_KEYSPACE));
+        session.execute(DROP_KEYSPACE_QUERY);
+        session.execute(CREATE_KEYSPACE_QUERY);
     }
 
     @AfterClass
@@ -264,6 +408,34 @@ public class CassandraConnectorITCase
             cluster.close();
         }
         CASSANDRA_CONTAINER.stop();
+    }
+
+    // ------------------------------------------------------------------------
+    //  Technical Tests
+    // ------------------------------------------------------------------------
+
+    @Test
+    public void testAnnotatePojoWithTable() {
+        final String tableName = TABLE_NAME_PREFIX + tableID;
+
+        final Class<? extends Pojo> annotatedPojoClass = annotatePojoWithTable(KEYSPACE, tableName);
+        final Table pojoTableAnnotation = annotatedPojoClass.getAnnotation(Table.class);
+        assertTrue(pojoTableAnnotation.name().contains(tableName));
+    }
+
+    @Test
+    public void testRaiseCassandraRequestsTimeouts() throws IOException {
+        // raiseCassandraRequestsTimeouts() was already called in @BeforeClass,
+        // do not change the container conf twice, just assert that it was indeed changed in the
+        // container
+        final Path configurationPath = TEMPORARY_FOLDER.newFile().toPath();
+        CASSANDRA_CONTAINER.copyFileFromContainer(
+                "/etc/cassandra/cassandra.yaml", configurationPath.toAbsolutePath().toString());
+        final String configuration =
+                new String(Files.readAllBytes(configurationPath), StandardCharsets.UTF_8);
+        assertTrue(configuration.contains("request_timeout_in_ms: 30000"));
+        assertTrue(configuration.contains("read_request_timeout_in_ms: 15000"));
+        assertTrue(configuration.contains("write_request_timeout_in_ms: 6000"));
     }
 
     // ------------------------------------------------------------------------
@@ -468,43 +640,36 @@ public class CassandraConnectorITCase
 
     @Test
     public void testCassandraPojoAtLeastOnceSink() throws Exception {
-        session.execute(CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_POJO));
+        final Class<? extends Pojo> annotatedPojoClass =
+                annotatePojoWithTable(KEYSPACE, TABLE_NAME_PREFIX + tableID);
+        writePojos(annotatedPojoClass, null);
 
-        CassandraPojoSink<Pojo> sink = new CassandraPojoSink<>(Pojo.class, builderForWriting);
-        try {
-            sink.open(new Configuration());
-            for (int x = 0; x < 20; x++) {
-                sink.send(new Pojo(UUID.randomUUID().toString(), x, 0));
-            }
-        } finally {
-            sink.close();
-        }
-
-        ResultSet rs = session.execute(SELECT_DATA_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_POJO));
+        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
         Assert.assertEquals(20, rs.all().size());
     }
 
     @Test
     public void testCassandraPojoNoAnnotatedKeyspaceAtLeastOnceSink() throws Exception {
-        session.execute(
-                CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_POJO_NO_ANNOTATED_KEYSPACE));
+        final Class<? extends Pojo> annotatedPojoClass =
+                annotatePojoWithTable("", TABLE_NAME_PREFIX + tableID);
+        writePojos(annotatedPojoClass, KEYSPACE);
+        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
+        Assert.assertEquals(20, rs.all().size());
+    }
 
-        CassandraPojoSink<PojoNoAnnotatedKeyspace> sink =
-                new CassandraPojoSink<>(PojoNoAnnotatedKeyspace.class, builderForWriting, KEYSPACE);
+    private <T> void writePojos(Class<T> annotatedPojoClass, @Nullable String keyspace)
+            throws Exception {
+        final Constructor<T> pojoConstructor = getPojoConstructor(annotatedPojoClass);
+        CassandraPojoSink<T> sink =
+                new CassandraPojoSink<>(annotatedPojoClass, builderForWriting, null, keyspace);
         try {
             sink.open(new Configuration());
             for (int x = 0; x < 20; x++) {
-                sink.send(new PojoNoAnnotatedKeyspace(UUID.randomUUID().toString(), x, 0));
+                sink.send(pojoConstructor.newInstance(UUID.randomUUID().toString(), x, 0));
             }
-
         } finally {
             sink.close();
         }
-        ResultSet rs =
-                session.execute(
-                        SELECT_DATA_QUERY.replace(
-                                TABLE_NAME_VARIABLE, TABLE_POJO_NO_ANNOTATED_KEYSPACE));
-        Assert.assertEquals(20, rs.all().size());
     }
 
     @Test
@@ -551,9 +716,9 @@ public class CassandraConnectorITCase
 
     @Test
     public void testRetrialAndDropTables() {
-        session.execute(
-                CREATE_TABLE_QUERY.replace(
-                        TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo.TABLE_NAME));
+        // should not fail with table exists upon retrial
+        // as @After method that truncate the keyspace is called upon retrials.
+        annotatePojoWithTable(KEYSPACE, TABLE_NAME_PREFIX + tableID);
         if (retrialsCount < 2) {
             retrialsCount++;
             throw new NoHostAvailableException(new HashMap<>());
@@ -563,64 +728,16 @@ public class CassandraConnectorITCase
     @Test
     public void testCassandraBatchPojoFormat() throws Exception {
 
-        session.execute(
-                CREATE_TABLE_QUERY.replace(
-                        TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo.TABLE_NAME));
+        final Class<? extends Pojo> annotatedPojoClass =
+                annotatePojoWithTable(KEYSPACE, TABLE_NAME_PREFIX + tableID);
 
-        OutputFormat<CustomCassandraAnnotatedPojo> sink =
-                new CassandraPojoOutputFormat<>(
-                        builderForWriting,
-                        CustomCassandraAnnotatedPojo.class,
-                        () -> new Mapper.Option[] {Mapper.Option.saveNullFields(true)});
-
-        List<CustomCassandraAnnotatedPojo> customCassandraAnnotatedPojos =
-                IntStream.range(0, 20)
-                        .mapToObj(
-                                x ->
-                                        new CustomCassandraAnnotatedPojo(
-                                                UUID.randomUUID().toString(), x, 0))
-                        .collect(Collectors.toList());
-        try {
-            sink.configure(new Configuration());
-            sink.open(0, 1);
-            for (CustomCassandraAnnotatedPojo customCassandraAnnotatedPojo :
-                    customCassandraAnnotatedPojos) {
-                sink.writeRecord(customCassandraAnnotatedPojo);
-            }
-        } finally {
-            sink.close();
-        }
-        ResultSet rs =
-                session.execute(
-                        SELECT_DATA_QUERY.replace(
-                                TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo.TABLE_NAME));
+        final List<? extends Pojo> pojos = writePojosWithOutputFormat(annotatedPojoClass);
+        ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
         Assert.assertEquals(20, rs.all().size());
 
-        InputFormat<CustomCassandraAnnotatedPojo, InputSplit> source =
-                new CassandraPojoInputFormat<>(
-                        SELECT_DATA_QUERY.replace(
-                                TABLE_NAME_VARIABLE, CustomCassandraAnnotatedPojo.TABLE_NAME),
-                        builderForReading,
-                        CustomCassandraAnnotatedPojo.class);
-        List<CustomCassandraAnnotatedPojo> result = new ArrayList<>();
-
-        try {
-            source.configure(new Configuration());
-            source.open(null);
-            while (!source.reachedEnd()) {
-                CustomCassandraAnnotatedPojo temp = source.nextRecord(null);
-                result.add(temp);
-            }
-        } finally {
-            source.close();
-        }
-
+        final List<? extends Pojo> result = readPojosWithInputFormat(annotatedPojoClass);
         Assert.assertEquals(20, result.size());
-        result.sort(Comparator.comparingInt(CustomCassandraAnnotatedPojo::getCounter));
-        customCassandraAnnotatedPojos.sort(
-                Comparator.comparingInt(CustomCassandraAnnotatedPojo::getCounter));
-
-        assertThat(result, samePropertyValuesAs(customCassandraAnnotatedPojos));
+        assertThat(result, samePropertyValuesAs(pojos));
     }
 
     @Test
@@ -684,10 +801,6 @@ public class CassandraConnectorITCase
         ResultSet rs = session.execute(injectTableName(SELECT_DATA_QUERY));
         List<com.datastax.driver.core.Row> rows = rs.all();
         Assert.assertEquals(rowCollection.size(), rows.size());
-    }
-
-    private String injectTableName(String target) {
-        return target.replace(TABLE_NAME_VARIABLE, TABLE_NAME_PREFIX + tableID);
     }
 
     @Test

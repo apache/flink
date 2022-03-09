@@ -45,7 +45,7 @@ import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.SerializedThrowable;
-import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.TestLoggerExtension;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
@@ -53,6 +53,7 @@ import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
@@ -79,7 +80,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 
 /** Tests for the {@link ApplicationDispatcherBootstrap}. */
-public class ApplicationDispatcherBootstrapTest extends TestLogger {
+@ExtendWith(TestLoggerExtension.class)
+public class ApplicationDispatcherBootstrapTest {
 
     private static final int TIMEOUT_SECONDS = 10;
 
@@ -641,7 +643,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
      * In this scenario, job result is no longer present in the {@link
      * org.apache.flink.runtime.dispatcher.Dispatcher dispatcher} (job has terminated and job
      * manager failed over), but we know that job has already terminated from {@link
-     * org.apache.flink.runtime.highavailability.RunningJobsRegistry running jobs registry}.
+     * org.apache.flink.runtime.highavailability.JobResultStore}.
      */
     @Test
     public void testDuplicateJobSubmissionWithTerminatedJobIdWithUnknownResult() throws Throwable {
@@ -675,7 +677,7 @@ public class ApplicationDispatcherBootstrapTest extends TestLogger {
      * In this scenario, job result is no longer present in the {@link
      * org.apache.flink.runtime.dispatcher.Dispatcher dispatcher} (job has terminated and job
      * manager failed over), but we know that job has already terminated from {@link
-     * org.apache.flink.runtime.highavailability.RunningJobsRegistry running jobs registry}.
+     * org.apache.flink.runtime.highavailability.JobResultStore}.
      */
     @Test
     public void testDuplicateJobSubmissionWithTerminatedJobIdWithUnknownResultAttached()

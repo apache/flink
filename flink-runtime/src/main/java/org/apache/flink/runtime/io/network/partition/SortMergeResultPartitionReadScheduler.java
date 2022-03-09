@@ -125,11 +125,15 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
     private volatile boolean isReleased;
 
     SortMergeResultPartitionReadScheduler(
-            BatchShuffleReadBufferPool bufferPool, Executor ioExecutor, Object lock) {
-        this(bufferPool, ioExecutor, lock, DEFAULT_BUFFER_REQUEST_TIMEOUT);
+            int numSubpartitions,
+            BatchShuffleReadBufferPool bufferPool,
+            Executor ioExecutor,
+            Object lock) {
+        this(numSubpartitions, bufferPool, ioExecutor, lock, DEFAULT_BUFFER_REQUEST_TIMEOUT);
     }
 
     SortMergeResultPartitionReadScheduler(
+            int numSubpartitions,
             BatchShuffleReadBufferPool bufferPool,
             Executor ioExecutor,
             Object lock,
@@ -138,13 +142,12 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
         this.lock = checkNotNull(lock);
         this.bufferPool = checkNotNull(bufferPool);
         this.ioExecutor = checkNotNull(ioExecutor);
-        // one partition reader can consume at most 32M (the expected buffers per request is 8M)
-        // buffers for data read. Currently, it is only an empirical value can not be configured
-        this.maxRequestedBuffers = Math.max(1, 4 * bufferPool.getNumBuffersPerRequest());
+        // one partition reader can consume at most Math.max(16M, numSubpartitions) (the expected
+        // buffers per request is 8M) buffers for data read, which means larger parallelism, more
+        // buffers. Currently, it is only an empirical strategy which can not be configured.
+        this.maxRequestedBuffers =
+                Math.max(2 * bufferPool.getNumBuffersPerRequest(), numSubpartitions);
         this.bufferRequestTimeout = checkNotNull(bufferRequestTimeout);
-
-        // initialize the buffer pool eagerly to avoid reporting errors like OOM too late
-        bufferPool.initialize();
     }
 
     @Override
@@ -261,6 +264,7 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             failedReaders.clear();
 
             if (allReaders.isEmpty()) {
+                bufferPool.unregisterRequester(this);
                 closeFileChannels();
             }
 
@@ -300,6 +304,9 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
             PartitionedFileReader fileReader = createFileReader(resultFile, targetSubpartition);
             SortMergeSubpartitionReader subpartitionReader =
                     new SortMergeSubpartitionReader(availabilityListener, fileReader);
+            if (allReaders.isEmpty()) {
+                bufferPool.registerRequester(this);
+            }
             allReaders.add(subpartitionReader);
             subpartitionReader
                     .getReleaseFuture()
@@ -367,8 +374,8 @@ class SortMergeResultPartitionReadScheduler implements Runnable, BufferRecycler 
 
         if (!isRunning
                 && !allReaders.isEmpty()
-                && numRequestedBuffers + bufferPool.getNumBuffersPerRequest()
-                        <= maxRequestedBuffers) {
+                && numRequestedBuffers + bufferPool.getNumBuffersPerRequest() <= maxRequestedBuffers
+                && numRequestedBuffers < bufferPool.getAverageBuffersPerRequester()) {
             isRunning = true;
             ioExecutor.execute(this);
         }

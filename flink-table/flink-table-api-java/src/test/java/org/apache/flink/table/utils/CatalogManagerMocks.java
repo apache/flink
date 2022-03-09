@@ -25,6 +25,8 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 
+import javax.annotation.Nullable;
+
 /** Mock implementations of {@link CatalogManager} for testing purposes. */
 public final class CatalogManagerMocks {
 
@@ -33,7 +35,15 @@ public final class CatalogManagerMocks {
     public static final String DEFAULT_DATABASE = EnvironmentSettings.DEFAULT_BUILTIN_DATABASE;
 
     public static CatalogManager createEmptyCatalogManager() {
-        final CatalogManager catalogManager = preparedCatalogManager().build();
+        return createCatalogManager(null);
+    }
+
+    public static CatalogManager createCatalogManager(@Nullable Catalog catalog) {
+        final CatalogManager.Builder builder = preparedCatalogManager();
+        if (catalog != null) {
+            builder.defaultCatalog(DEFAULT_CATALOG, catalog);
+        }
+        final CatalogManager catalogManager = builder.build();
         catalogManager.initSchemaResolver(true, ExpressionResolverMocks.dummyResolver());
         return catalogManager;
     }

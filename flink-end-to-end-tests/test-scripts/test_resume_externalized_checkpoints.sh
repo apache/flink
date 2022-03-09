@@ -104,7 +104,7 @@ function run_resume_externalized_checkpoints() {
   # take the latest checkpoint
   CHECKPOINT_PATH=$(find_latest_completed_checkpoint ${CHECKPOINT_DIR}/${DATASTREAM_JOB})
 
-  if [ -z $CHECKPOINT_PATH ]; then
+  if [ -z "${CHECKPOINT_PATH:-}" ]; then
     echo "Expected an externalized checkpoint to be present, but none exists."
     exit 1
   fi

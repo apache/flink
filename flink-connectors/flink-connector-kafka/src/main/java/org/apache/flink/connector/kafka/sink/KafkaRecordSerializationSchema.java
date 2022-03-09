@@ -63,11 +63,11 @@ public interface KafkaRecordSerializationSchema<T> extends Serializable {
     interface KafkaSinkContext {
 
         /**
-         * Get the number of the subtask the KafkaSink is running on. The numbering starts from 0
-         * and goes up to parallelism-1. (parallelism as returned by {@link
+         * Get the ID of the subtask the KafkaSink is running on. The numbering starts from 0 and
+         * goes up to parallelism-1. (parallelism as returned by {@link
          * #getNumberOfParallelInstances()}
          *
-         * @return number of subtask
+         * @return ID of subtask
          */
         int getParallelInstanceId();
 

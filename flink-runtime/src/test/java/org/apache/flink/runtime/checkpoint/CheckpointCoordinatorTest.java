@@ -21,6 +21,7 @@ package org.apache.flink.runtime.checkpoint;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
@@ -128,6 +129,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -268,6 +270,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         CheckpointMetrics lateReportedMetrics =
                 new CheckpointMetricsBuilder()
                         .setTotalBytesPersisted(18)
+                        .setBytesPersistedOfThisCheckpoint(18)
                         .setBytesProcessedDuringAlignment(19)
                         .setAsyncDurationMillis(20)
                         .setAlignmentDurationNanos(123 * 1_000_000)
@@ -297,8 +300,16 @@ public class CheckpointCoordinatorTest extends TestLogger {
             AbstractCheckpointStats actual) {
         assertEquals(checkpointId, actual.getCheckpointId());
         assertEquals(CheckpointStatsStatus.FAILED, actual.getStatus());
-        assertEquals(expected.getTotalBytesPersisted(), actual.getStateSize());
         assertEquals(0, actual.getNumberOfAcknowledgedSubtasks());
+        assertStatsMetrics(jobVertexID, subtasIdx, expected, actual);
+    }
+
+    public static void assertStatsMetrics(
+            JobVertexID jobVertexID,
+            int subtasIdx,
+            CheckpointMetrics expected,
+            AbstractCheckpointStats actual) {
+        assertEquals(expected.getTotalBytesPersisted(), actual.getStateSize());
         SubtaskStateStats taskStats =
                 actual.getAllTaskStateStats().stream()
                         .filter(s -> s.getJobVertexId().equals(jobVertexID))
@@ -717,11 +728,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
     /** Tests that do not trigger checkpoint when IOException occurred. */
     @Test
-    public void testTriggerCheckpointAfterIOException() throws Exception {
-        // given: Checkpoint coordinator which fails on initializeLocationForCheckpoint.
+    public void testTriggerCheckpointAfterCheckpointStorageIOException() throws Exception {
+        // given: Checkpoint coordinator which fails on initializeCheckpointLocation.
         TestFailJobCallback failureCallback = new TestFailJobCallback();
+        CheckpointStatsTracker statsTracker =
+                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
         CheckpointCoordinator checkpointCoordinator =
                 new CheckpointCoordinatorBuilder()
+                        .setCheckpointStatsTracker(statsTracker)
                         .setFailureManager(new CheckpointFailureManager(0, failureCallback))
                         .setCheckpointStorage(new IOExceptionCheckpointStorage())
                         .setTimer(manuallyTriggeredScheduledExecutor)
@@ -731,6 +745,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         // then: Failure manager should fail the job.
         assertEquals(1, failureCallback.getInvokeCounter());
+
+        // then: Should created PendingCheckpoint
+        assertNotNull(statsTracker.getPendingCheckpointStats(1));
     }
 
     @Test
@@ -1986,9 +2003,20 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         ExecutionAttemptID attemptID1 = vertex1.getCurrentExecutionAttempt().getAttemptId();
         ExecutionAttemptID attemptID2 = vertex2.getCurrentExecutionAttempt().getAttemptId();
-
+        CheckpointStatsTracker statsTracker =
+                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
         // set up the coordinator and validate the initial state
-        CheckpointCoordinator checkpointCoordinator = getCheckpointCoordinator(graph);
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setExecutionGraph(graph)
+                        .setCheckpointCoordinatorConfiguration(
+                                CheckpointCoordinatorConfiguration.builder()
+                                        .setAlignedCheckpointTimeout(Long.MAX_VALUE)
+                                        .setMaxConcurrentCheckpoints(Integer.MAX_VALUE)
+                                        .build())
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointStatsTracker(statsTracker)
+                        .build();
 
         assertEquals(0, checkpointCoordinator.getNumberOfPendingCheckpoints());
         assertEquals(0, checkpointCoordinator.getNumberOfRetainedSuccessfulCheckpoints());
@@ -1996,7 +2024,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         // trigger the first checkpoint. this should succeed
         String savepointDir = tmpFolder.newFolder().getAbsolutePath();
         CompletableFuture<CompletedCheckpoint> savepointFuture =
-                checkpointCoordinator.triggerSavepoint(savepointDir);
+                checkpointCoordinator.triggerSavepoint(savepointDir, SavepointFormatType.CANONICAL);
         manuallyTriggeredScheduledExecutor.triggerAll();
         assertFalse(savepointFuture.isDone());
 
@@ -2081,6 +2109,12 @@ public class CheckpointCoordinatorTest extends TestLogger {
         assertEquals(pending.getCheckpointId(), success.getCheckpointID());
         assertEquals(2, success.getOperatorStates().size());
 
+        AbstractCheckpointStats actualStats =
+                statsTracker.createSnapshot().getHistory().getCheckpointById(checkpointId);
+
+        assertEquals(checkpointId, actualStats.getCheckpointId());
+        assertEquals(CheckpointStatsStatus.COMPLETED, actualStats.getStatus());
+
         checkpointCoordinator.shutdown();
     }
 
@@ -2128,7 +2162,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         // Trigger savepoint and checkpoint
         CompletableFuture<CompletedCheckpoint> savepointFuture1 =
-                checkpointCoordinator.triggerSavepoint(savepointDir);
+                checkpointCoordinator.triggerSavepoint(savepointDir, SavepointFormatType.CANONICAL);
 
         manuallyTriggeredScheduledExecutor.triggerAll();
         long savepointId1 = counter.getLast();
@@ -2172,7 +2206,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
         assertEquals(2, checkpointCoordinator.getNumberOfPendingCheckpoints());
 
         CompletableFuture<CompletedCheckpoint> savepointFuture2 =
-                checkpointCoordinator.triggerSavepoint(savepointDir);
+                checkpointCoordinator.triggerSavepoint(savepointDir, SavepointFormatType.CANONICAL);
         manuallyTriggeredScheduledExecutor.triggerAll();
         long savepointId2 = counter.getLast();
         FutureUtils.throwIfCompletedExceptionally(savepointFuture2);
@@ -2465,7 +2499,9 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
         // Trigger savepoints
         for (int i = 0; i < numSavepoints; i++) {
-            savepointFutures.add(checkpointCoordinator.triggerSavepoint(savepointDir));
+            savepointFutures.add(
+                    checkpointCoordinator.triggerSavepoint(
+                            savepointDir, SavepointFormatType.CANONICAL));
         }
 
         // After triggering multiple savepoints, all should in progress
@@ -2508,11 +2544,11 @@ public class CheckpointCoordinatorTest extends TestLogger {
         String savepointDir = tmpFolder.newFolder().getAbsolutePath();
 
         CompletableFuture<CompletedCheckpoint> savepoint0 =
-                checkpointCoordinator.triggerSavepoint(savepointDir);
+                checkpointCoordinator.triggerSavepoint(savepointDir, SavepointFormatType.CANONICAL);
         assertFalse("Did not trigger savepoint", savepoint0.isDone());
 
         CompletableFuture<CompletedCheckpoint> savepoint1 =
-                checkpointCoordinator.triggerSavepoint(savepointDir);
+                checkpointCoordinator.triggerSavepoint(savepointDir, SavepointFormatType.CANONICAL);
         assertFalse("Did not trigger savepoint", savepoint1.isDone());
     }
 
@@ -2817,7 +2853,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                         Collections.<MasterState>emptyList(),
                         CheckpointProperties.forCheckpoint(
                                 CheckpointRetentionPolicy.NEVER_RETAIN_AFTER_TERMINATION),
-                        new TestCompletedCheckpointStorageLocation()),
+                        new TestCompletedCheckpointStorageLocation(),
+                        null),
                 new CheckpointsCleaner(),
                 () -> {});
 
@@ -3031,7 +3068,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
                                 }));
 
         final CompletableFuture<CompletedCheckpoint> savepointFuture =
-                coordinator.triggerSynchronousSavepoint(false, "test-dir");
+                coordinator.triggerSynchronousSavepoint(
+                        false, "test-dir", SavepointFormatType.CANONICAL);
 
         manuallyTriggeredScheduledExecutor.triggerAll();
         final PendingCheckpoint syncSavepoint =
@@ -3074,6 +3112,43 @@ public class CheckpointCoordinatorTest extends TestLogger {
         testingCounter.setOwner(checkpointCoordinator);
 
         testTriggerCheckpoint(checkpointCoordinator, PERIODIC_SCHEDULER_SHUTDOWN);
+    }
+
+    /** Tests that do not trigger checkpoint when CheckpointIDCounter IOException occurred. */
+    @Test
+    public void testTriggerCheckpointWithCounterIOException() throws Exception {
+        // given: Checkpoint coordinator which fails on getCheckpointId.
+        IOExceptionCheckpointIDCounter testingCounter = new IOExceptionCheckpointIDCounter();
+        TestFailJobCallback failureCallback = new TestFailJobCallback();
+
+        CheckpointStatsTracker statsTracker =
+                new CheckpointStatsTracker(Integer.MAX_VALUE, new UnregisteredMetricsGroup());
+
+        CheckpointCoordinator checkpointCoordinator =
+                new CheckpointCoordinatorBuilder()
+                        .setCheckpointIDCounter(testingCounter)
+                        .setFailureManager(new CheckpointFailureManager(0, failureCallback))
+                        .setTimer(manuallyTriggeredScheduledExecutor)
+                        .setCheckpointStatsTracker(statsTracker)
+                        .build();
+        testingCounter.setOwner(checkpointCoordinator);
+
+        // when: The checkpoint is triggered.
+        testTriggerCheckpoint(checkpointCoordinator, IO_EXCEPTION);
+
+        // then: Failure manager should fail the job.
+        assertEquals(1, failureCallback.getInvokeCounter());
+
+        // then: The NumberOfFailedCheckpoints and TotalNumberOfCheckpoints should be 1.
+        CheckpointStatsCounts counts = statsTracker.createSnapshot().getCounts();
+        assertEquals(0, counts.getNumberOfRestoredCheckpoints());
+        assertEquals(1, counts.getTotalNumberOfCheckpoints());
+        assertEquals(0, counts.getNumberOfInProgressCheckpoints());
+        assertEquals(0, counts.getNumberOfCompletedCheckpoints());
+        assertEquals(1, counts.getNumberOfFailedCheckpoints());
+
+        // then: The PendingCheckpoint shouldn't be created.
+        assertNull(statsTracker.getPendingCheckpointStats(1));
     }
 
     private void testTriggerCheckpoint(
@@ -3137,7 +3212,8 @@ public class CheckpointCoordinatorTest extends TestLogger {
             assertEquals(
                     activeRequests - maxConcurrentCheckpoints, coordinator.getNumQueuedRequests());
 
-            Future<?> savepointFuture = coordinator.triggerSavepoint("/tmp");
+            Future<?> savepointFuture =
+                    coordinator.triggerSavepoint("/tmp", SavepointFormatType.CANONICAL);
             manuallyTriggeredScheduledExecutor.triggerAll();
             assertEquals(
                     ++activeRequests - maxConcurrentCheckpoints,
@@ -3763,7 +3839,7 @@ public class CheckpointCoordinatorTest extends TestLogger {
             if (cpSequenceNumber > 0) {
                 sharedState.put(
                         new StateHandleID("shared-" + (cpSequenceNumber - 1)),
-                        spy(new PlaceholderStreamStateHandle()));
+                        spy(new PlaceholderStreamStateHandle(1L)));
             }
 
             sharedState.put(
@@ -3807,6 +3883,14 @@ public class CheckpointCoordinatorTest extends TestLogger {
 
             checkpointCoordinator.receiveAcknowledgeMessage(
                     acknowledgeCheckpoint, TASK_MANAGER_LOCATION_INFO);
+        }
+    }
+
+    private static class IOExceptionCheckpointIDCounter extends CheckpointIDCounterWithOwner {
+        @Override
+        public long getAndIncrement() throws Exception {
+            checkNotNull(owner);
+            throw new IOException("disk is error!");
         }
     }
 

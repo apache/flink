@@ -25,13 +25,15 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.program.MiniClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
 import org.apache.flink.runtime.checkpoint.CheckpointFailureReason;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointRetentionPolicy;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobGraphBuilder;
@@ -208,12 +210,13 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
     }
 
     private CompletableFuture<String> stopWithSavepoint(boolean terminate) {
-        return miniClusterResource
+        return MINI_CLUSTER_RESOURCE
                 .getMiniCluster()
                 .stopWithSavepoint(
                         jobGraph.getJobID(),
                         savepointDirectory.toAbsolutePath().toString(),
-                        terminate);
+                        terminate,
+                        SavepointFormatType.CANONICAL);
     }
 
     private JobStatus getJobStatus() throws InterruptedException, ExecutionException {
@@ -238,9 +241,9 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
 
         Assume.assumeTrue(
                 "ClusterClient is not an instance of MiniClusterClient",
-                miniClusterResource.getClusterClient() instanceof MiniClusterClient);
+                MINI_CLUSTER_RESOURCE.getClusterClient() instanceof MiniClusterClient);
 
-        clusterClient = (MiniClusterClient) miniClusterResource.getClusterClient();
+        clusterClient = (MiniClusterClient) MINI_CLUSTER_RESOURCE.getClusterClient();
 
         final ExecutionConfig config = new ExecutionConfig();
         config.setRestartStrategy(restartStrategy);
@@ -280,7 +283,7 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         JobID jobID = jobGraph.getJobID();
         CommonTestUtils.waitForAllTaskRunning(
                 () ->
-                        miniClusterResource
+                        MINI_CLUSTER_RESOURCE
                                 .getMiniCluster()
                                 .getExecutionGraph(jobID)
                                 .get(60, TimeUnit.SECONDS),
@@ -313,9 +316,9 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
         public CompletableFuture<Boolean> triggerCheckpointAsync(
                 CheckpointMetaData checkpointMetaData, CheckpointOptions checkpointOptions) {
             final long checkpointId = checkpointMetaData.getCheckpointId();
-            final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
+            final SnapshotType checkpointType = checkpointOptions.getCheckpointType();
 
-            if (checkpointType.isSynchronous()) {
+            if (checkpointType.isSavepoint() && ((SavepointType) checkpointType).isSynchronous()) {
                 synchronousSavepointId = checkpointId;
                 syncSavepointId.compareAndSet(-1, synchronousSavepointId);
             }

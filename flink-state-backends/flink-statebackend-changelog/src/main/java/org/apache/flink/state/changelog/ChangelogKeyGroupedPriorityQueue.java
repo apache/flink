@@ -42,12 +42,12 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ChangelogKeyGroupedPriorityQueue<T>
         implements KeyGroupedInternalPriorityQueue<T>, ChangelogState {
     private final KeyGroupedInternalPriorityQueue<T> delegatedPriorityQueue;
-    private final PriorityQueueStateChangeLogger<T> logger;
+    private final StateChangeLogger<T, Void> logger;
     private final TypeSerializer<T> serializer;
 
     public ChangelogKeyGroupedPriorityQueue(
             KeyGroupedInternalPriorityQueue<T> delegatedPriorityQueue,
-            PriorityQueueStateChangeLogger<T> logger,
+            StateChangeLogger<T, Void> logger,
             TypeSerializer<T> serializer) {
         this.delegatedPriorityQueue = checkNotNull(delegatedPriorityQueue);
         this.logger = checkNotNull(logger);
@@ -63,11 +63,10 @@ public class ChangelogKeyGroupedPriorityQueue<T>
     @Override
     public T poll() {
         T polled = delegatedPriorityQueue.poll();
-        try {
-            logger.stateElementPolled();
-        } catch (IOException e) {
-            ExceptionUtils.rethrow(e);
-        }
+        // Record poll as remove to avoid non-deterministic replay:
+        // elements with equal priority can be polled in different order before and after recovrey,
+        // resulting in e.g. timers being removed or not fired
+        logRemoval(polled);
         return polled;
     }
 
@@ -87,11 +86,7 @@ public class ChangelogKeyGroupedPriorityQueue<T>
     @Override
     public boolean remove(T toRemove) {
         boolean removed = delegatedPriorityQueue.remove(toRemove);
-        try {
-            logger.valueElementRemoved(out -> serializer.serialize(toRemove, out), null);
-        } catch (IOException e) {
-            ExceptionUtils.rethrow(e);
-        }
+        logRemoval(toRemove);
         return removed;
     }
 
@@ -141,5 +136,13 @@ public class ChangelogKeyGroupedPriorityQueue<T>
     @Override
     public void resetWritingMetaFlag() {
         logger.resetWritingMetaFlag();
+    }
+
+    private void logRemoval(T toRemove) {
+        try {
+            logger.valueElementRemoved(out -> serializer.serialize(toRemove, out), null);
+        } catch (IOException e) {
+            ExceptionUtils.rethrow(e);
+        }
     }
 }

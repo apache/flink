@@ -26,9 +26,12 @@ import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
 import org.apache.flink.runtime.checkpoint.channel.InputChannelInfo;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.deployment.InputGateDeploymentDescriptor;
+import org.apache.flink.runtime.deployment.SubpartitionIndexRange;
+import org.apache.flink.runtime.deployment.TaskDeploymentDescriptor;
 import org.apache.flink.runtime.event.TaskEvent;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.io.PullingAsyncDataInput;
+import org.apache.flink.runtime.io.network.ConnectionManager;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironment;
 import org.apache.flink.runtime.io.network.NettyShuffleEnvironmentBuilder;
 import org.apache.flink.runtime.io.network.TaskEventDispatcher;
@@ -46,6 +49,8 @@ import org.apache.flink.runtime.io.network.buffer.NetworkBuffer;
 import org.apache.flink.runtime.io.network.buffer.NetworkBufferPool;
 import org.apache.flink.runtime.io.network.partition.BufferAvailabilityListener;
 import org.apache.flink.runtime.io.network.partition.BufferWritingResultPartition;
+import org.apache.flink.runtime.io.network.partition.ChannelStateHolder;
+import org.apache.flink.runtime.io.network.partition.InputChannelTestUtils;
 import org.apache.flink.runtime.io.network.partition.NoOpResultSubpartitionView;
 import org.apache.flink.runtime.io.network.partition.PartitionNotFoundException;
 import org.apache.flink.runtime.io.network.partition.ResultPartition;
@@ -54,6 +59,7 @@ import org.apache.flink.runtime.io.network.partition.ResultPartitionID;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionManager;
 import org.apache.flink.runtime.io.network.partition.ResultPartitionType;
 import org.apache.flink.runtime.io.network.partition.ResultSubpartitionView;
+import org.apache.flink.runtime.io.network.partition.consumer.SingleInputGate.SubpartitionInfo;
 import org.apache.flink.runtime.io.network.util.TestTaskEvent;
 import org.apache.flink.runtime.jobgraph.IntermediateDataSetID;
 import org.apache.flink.runtime.jobgraph.IntermediateResultPartitionID;
@@ -62,6 +68,7 @@ import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
 import org.apache.flink.runtime.shuffle.NettyShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.ShuffleDescriptor;
 import org.apache.flink.runtime.shuffle.UnknownShuffleDescriptor;
+import org.apache.flink.util.CompressedSerializedValue;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
 
@@ -73,6 +80,7 @@ import java.nio.ByteOrder;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
@@ -83,7 +91,6 @@ import static org.apache.flink.runtime.checkpoint.CheckpointType.CHECKPOINT;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createLocalInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createRemoteInputChannel;
 import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createResultSubpartitionView;
-import static org.apache.flink.runtime.io.network.partition.InputChannelTestUtils.createSingleInputGate;
 import static org.apache.flink.runtime.io.network.partition.InputGateFairnessTest.setupInputGate;
 import static org.apache.flink.runtime.io.network.util.TestBufferFactory.createBuffer;
 import static org.apache.flink.runtime.state.CheckpointStorageLocationReference.getDefault;
@@ -574,25 +581,6 @@ public class SingleInputGateTest extends InputGateTestBase {
                     new IntermediateResultPartitionID()
                 };
 
-        ResourceID localLocation = ResourceID.generate();
-        ShuffleDescriptor[] channelDescs =
-                new ShuffleDescriptor[] {
-                    // Local
-                    createRemoteWithIdAndLocation(partitionIds[0], localLocation),
-                    // Remote
-                    createRemoteWithIdAndLocation(partitionIds[1], ResourceID.generate()),
-                    // Unknown
-                    new UnknownShuffleDescriptor(
-                            new ResultPartitionID(partitionIds[2], new ExecutionAttemptID()))
-                };
-
-        InputGateDeploymentDescriptor gateDesc =
-                new InputGateDeploymentDescriptor(
-                        new IntermediateDataSetID(),
-                        ResultPartitionType.PIPELINED,
-                        0,
-                        channelDescs);
-
         int initialBackoff = 137;
         int maxBackoff = 1001;
 
@@ -602,22 +590,8 @@ public class SingleInputGateTest extends InputGateTestBase {
                         .setPartitionRequestMaxBackoff(maxBackoff)
                         .build();
 
-        final TaskMetricGroup taskMetricGroup =
-                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
         SingleInputGate gate =
-                new SingleInputGateFactory(
-                                localLocation,
-                                netEnv.getConfiguration(),
-                                netEnv.getConnectionManager(),
-                                netEnv.getResultPartitionManager(),
-                                new TaskEventDispatcher(),
-                                netEnv.getNetworkBufferPool())
-                        .create(
-                                netEnv.createShuffleIOOwnerContext(
-                                        "TestTask", taskMetricGroup.executionId(), taskMetricGroup),
-                                0,
-                                gateDesc,
-                                SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER);
+                createSingleInputGate(partitionIds, ResultPartitionType.PIPELINED, netEnv);
         gate.setChannelStateWriter(ChannelStateWriter.NO_OP);
 
         gate.finishReadRecoveredState();
@@ -630,9 +604,9 @@ public class SingleInputGateTest extends InputGateTestBase {
             closer.register(netEnv::close);
             closer.register(gate::close);
 
-            assertEquals(gateDesc.getConsumedPartitionType(), gate.getConsumedPartitionType());
+            assertEquals(ResultPartitionType.PIPELINED, gate.getConsumedPartitionType());
 
-            Map<IntermediateResultPartitionID, InputChannel> channelMap = gate.getInputChannels();
+            Map<SubpartitionInfo, InputChannel> channelMap = gate.getInputChannels();
 
             assertEquals(3, channelMap.size());
             channelMap
@@ -645,13 +619,13 @@ public class SingleInputGateTest extends InputGateTestBase {
                                     throw new RuntimeException(e);
                                 }
                             });
-            InputChannel localChannel = channelMap.get(partitionIds[0]);
+            InputChannel localChannel = channelMap.get(createSubpartitionInfo(partitionIds[0]));
             assertEquals(LocalInputChannel.class, localChannel.getClass());
 
-            InputChannel remoteChannel = channelMap.get(partitionIds[1]);
+            InputChannel remoteChannel = channelMap.get(createSubpartitionInfo(partitionIds[1]));
             assertEquals(RemoteInputChannel.class, remoteChannel.getClass());
 
-            InputChannel unknownChannel = channelMap.get(partitionIds[2]);
+            InputChannel unknownChannel = channelMap.get(createSubpartitionInfo(partitionIds[2]));
             assertEquals(UnknownInputChannel.class, unknownChannel.getClass());
 
             InputChannel[] channels =
@@ -749,7 +723,11 @@ public class SingleInputGateTest extends InputGateTestBase {
 
             RemoteInputChannel remote =
                     (RemoteInputChannel)
-                            inputGate.getInputChannels().get(resultPartitionId.getPartitionId());
+                            inputGate
+                                    .getInputChannels()
+                                    .get(
+                                            createSubpartitionInfo(
+                                                    resultPartitionId.getPartitionId()));
             // only the exclusive buffers should be assigned/available now
             assertEquals(buffersPerChannel, remote.getNumberOfAvailableBuffers());
 
@@ -806,10 +784,14 @@ public class SingleInputGateTest extends InputGateTestBase {
             inputGate.setup();
 
             assertThat(
-                    inputGate.getInputChannels().get(remoteResultPartitionId.getPartitionId()),
+                    inputGate
+                            .getInputChannels()
+                            .get(createSubpartitionInfo(remoteResultPartitionId.getPartitionId())),
                     is(instanceOf((UnknownInputChannel.class))));
             assertThat(
-                    inputGate.getInputChannels().get(localResultPartitionId.getPartitionId()),
+                    inputGate
+                            .getInputChannels()
+                            .get(createSubpartitionInfo(localResultPartitionId.getPartitionId())),
                     is(instanceOf((UnknownInputChannel.class))));
 
             ResourceID localLocation = ResourceID.generate();
@@ -821,10 +803,14 @@ public class SingleInputGateTest extends InputGateTestBase {
                             remoteResultPartitionId.getPartitionId(), ResourceID.generate()));
 
             assertThat(
-                    inputGate.getInputChannels().get(remoteResultPartitionId.getPartitionId()),
+                    inputGate
+                            .getInputChannels()
+                            .get(createSubpartitionInfo(remoteResultPartitionId.getPartitionId())),
                     is(instanceOf((RemoteInputChannel.class))));
             assertThat(
-                    inputGate.getInputChannels().get(localResultPartitionId.getPartitionId()),
+                    inputGate
+                            .getInputChannels()
+                            .get(createSubpartitionInfo(localResultPartitionId.getPartitionId())),
                     is(instanceOf((UnknownInputChannel.class))));
 
             // Trigger updates to local input channel from unknown input channel
@@ -834,11 +820,106 @@ public class SingleInputGateTest extends InputGateTestBase {
                             localResultPartitionId.getPartitionId(), localLocation));
 
             assertThat(
-                    inputGate.getInputChannels().get(remoteResultPartitionId.getPartitionId()),
+                    inputGate
+                            .getInputChannels()
+                            .get(createSubpartitionInfo(remoteResultPartitionId.getPartitionId())),
                     is(instanceOf((RemoteInputChannel.class))));
             assertThat(
-                    inputGate.getInputChannels().get(localResultPartitionId.getPartitionId()),
+                    inputGate
+                            .getInputChannels()
+                            .get(createSubpartitionInfo(localResultPartitionId.getPartitionId())),
                     is(instanceOf((LocalInputChannel.class))));
+        }
+    }
+
+    @Test
+    public void testSingleInputGateWithSubpartitionIndexRange()
+            throws IOException, InterruptedException {
+
+        IntermediateResultPartitionID[] partitionIds =
+                new IntermediateResultPartitionID[] {
+                    new IntermediateResultPartitionID(),
+                    new IntermediateResultPartitionID(),
+                    new IntermediateResultPartitionID()
+                };
+
+        SubpartitionIndexRange subpartitionIndexRange = new SubpartitionIndexRange(0, 1);
+        final NettyShuffleEnvironment netEnv = new NettyShuffleEnvironmentBuilder().build();
+
+        ResourceID localLocation = ResourceID.generate();
+
+        SingleInputGate gate =
+                createSingleInputGate(
+                        partitionIds,
+                        ResultPartitionType.BLOCKING,
+                        subpartitionIndexRange,
+                        netEnv,
+                        localLocation,
+                        new TestingConnectionManager(),
+                        new TestingResultPartitionManager(new NoOpResultSubpartitionView()));
+
+        for (InputChannel channel : gate.getInputChannels().values()) {
+            if (channel instanceof ChannelStateHolder) {
+                ((ChannelStateHolder) channel).setChannelStateWriter(ChannelStateWriter.NO_OP);
+            }
+        }
+
+        SubpartitionInfo info1 = createSubpartitionInfo(partitionIds[0], 0);
+        SubpartitionInfo info2 = createSubpartitionInfo(partitionIds[0], 1);
+        SubpartitionInfo info3 = createSubpartitionInfo(partitionIds[1], 0);
+        SubpartitionInfo info4 = createSubpartitionInfo(partitionIds[1], 1);
+        SubpartitionInfo info5 = createSubpartitionInfo(partitionIds[2], 0);
+        SubpartitionInfo info6 = createSubpartitionInfo(partitionIds[2], 1);
+
+        assertThat(gate.getInputChannels().size(), is(6));
+        assertThat(gate.getInputChannels().get(info1).getConsumedSubpartitionIndex(), is(0));
+        assertThat(gate.getInputChannels().get(info2).getConsumedSubpartitionIndex(), is(1));
+        assertThat(gate.getInputChannels().get(info3).getConsumedSubpartitionIndex(), is(0));
+        assertThat(gate.getInputChannels().get(info4).getConsumedSubpartitionIndex(), is(1));
+        assertThat(gate.getInputChannels().get(info5).getConsumedSubpartitionIndex(), is(0));
+        assertThat(gate.getInputChannels().get(info6).getConsumedSubpartitionIndex(), is(1));
+
+        assertChannelsType(gate, LocalRecoveredInputChannel.class, Arrays.asList(info1, info2));
+        assertChannelsType(gate, RemoteRecoveredInputChannel.class, Arrays.asList(info3, info4));
+        assertChannelsType(gate, UnknownInputChannel.class, Arrays.asList(info5, info6));
+
+        // test setup
+        gate.setup();
+        assertNotNull(gate.getBufferPool());
+        assertEquals(1, gate.getBufferPool().getNumberOfRequiredMemorySegments());
+
+        gate.finishReadRecoveredState();
+        while (!gate.getStateConsumedFuture().isDone()) {
+            gate.pollNext();
+        }
+
+        // test request partitions
+        gate.requestPartitions();
+        gate.pollNext();
+        assertChannelsType(gate, LocalInputChannel.class, Arrays.asList(info1, info2));
+        assertChannelsType(gate, RemoteInputChannel.class, Arrays.asList(info3, info4));
+        assertChannelsType(gate, UnknownInputChannel.class, Arrays.asList(info5, info6));
+        for (InputChannel inputChannel : gate.getInputChannels().values()) {
+            if (inputChannel instanceof RemoteInputChannel) {
+                assertNotNull(((RemoteInputChannel) inputChannel).getPartitionRequestClient());
+                assertEquals(2, ((RemoteInputChannel) inputChannel).getInitialCredit());
+            } else if (inputChannel instanceof LocalInputChannel) {
+                assertNotNull(((LocalInputChannel) inputChannel).getSubpartitionView());
+            }
+        }
+
+        // test update channels
+        gate.updateInputChannel(
+                localLocation, createRemoteWithIdAndLocation(partitionIds[2], localLocation));
+        assertChannelsType(gate, LocalInputChannel.class, Arrays.asList(info1, info2));
+        assertChannelsType(gate, RemoteInputChannel.class, Arrays.asList(info3, info4));
+        assertChannelsType(gate, LocalInputChannel.class, Arrays.asList(info5, info6));
+    }
+
+    private void assertChannelsType(
+            SingleInputGate gate, Class<?> clazz, List<SubpartitionInfo> infos) {
+        for (SubpartitionInfo subpartitionInfo : infos) {
+            assertThat(gate.getInputChannels().get(subpartitionInfo), instanceOf(clazz));
         }
     }
 
@@ -898,7 +979,7 @@ public class SingleInputGateTest extends InputGateTestBase {
      */
     @Test
     public void testPartitionNotFoundExceptionWhileGetNextBuffer() throws Exception {
-        final SingleInputGate inputGate = createSingleInputGate(1);
+        final SingleInputGate inputGate = InputChannelTestUtils.createSingleInputGate(1);
         final LocalInputChannel localChannel =
                 createLocalInputChannel(inputGate, new ResultPartitionManager());
         final ResultPartitionID partitionId = localChannel.getPartitionId();
@@ -916,7 +997,7 @@ public class SingleInputGateTest extends InputGateTestBase {
 
     @Test
     public void testAnnounceBufferSize() throws Exception {
-        final SingleInputGate inputGate = createSingleInputGate(2);
+        final SingleInputGate inputGate = InputChannelTestUtils.createSingleInputGate(2);
         final LocalInputChannel localChannel =
                 createLocalInputChannel(
                         inputGate,
@@ -1057,6 +1138,81 @@ public class SingleInputGateTest extends InputGateTestBase {
     }
 
     // ---------------------------------------------------------------------------------------------
+
+    private static SubpartitionInfo createSubpartitionInfo(
+            IntermediateResultPartitionID partitionId) {
+        return createSubpartitionInfo(partitionId, 0);
+    }
+
+    private static SubpartitionInfo createSubpartitionInfo(
+            IntermediateResultPartitionID partitionId, int subpartitionIndex) {
+        return new SubpartitionInfo(partitionId, subpartitionIndex);
+    }
+
+    static SingleInputGate createSingleInputGate(
+            IntermediateResultPartitionID[] partitionIds,
+            ResultPartitionType resultPartitionType,
+            NettyShuffleEnvironment netEnv)
+            throws IOException {
+        return createSingleInputGate(
+                partitionIds,
+                resultPartitionType,
+                new SubpartitionIndexRange(0, 0),
+                netEnv,
+                ResourceID.generate(),
+                null,
+                null);
+    }
+
+    static SingleInputGate createSingleInputGate(
+            IntermediateResultPartitionID[] partitionIds,
+            ResultPartitionType resultPartitionType,
+            SubpartitionIndexRange subpartitionIndexRange,
+            NettyShuffleEnvironment netEnv,
+            ResourceID localLocation,
+            ConnectionManager connectionManager,
+            ResultPartitionManager resultPartitionManager)
+            throws IOException {
+
+        ShuffleDescriptor[] channelDescs =
+                new ShuffleDescriptor[] {
+                    // Local
+                    createRemoteWithIdAndLocation(partitionIds[0], localLocation),
+                    // Remote
+                    createRemoteWithIdAndLocation(partitionIds[1], ResourceID.generate()),
+                    // Unknown
+                    new UnknownShuffleDescriptor(
+                            new ResultPartitionID(partitionIds[2], new ExecutionAttemptID()))
+                };
+
+        InputGateDeploymentDescriptor gateDesc =
+                new InputGateDeploymentDescriptor(
+                        new IntermediateDataSetID(),
+                        resultPartitionType,
+                        subpartitionIndexRange,
+                        new TaskDeploymentDescriptor.NonOffloaded<>(
+                                CompressedSerializedValue.fromObject(channelDescs)));
+
+        final TaskMetricGroup taskMetricGroup =
+                UnregisteredMetricGroups.createUnregisteredTaskMetricGroup();
+        return new SingleInputGateFactory(
+                        localLocation,
+                        netEnv.getConfiguration(),
+                        connectionManager != null
+                                ? connectionManager
+                                : netEnv.getConnectionManager(),
+                        resultPartitionManager != null
+                                ? resultPartitionManager
+                                : netEnv.getResultPartitionManager(),
+                        new TaskEventDispatcher(),
+                        netEnv.getNetworkBufferPool())
+                .create(
+                        netEnv.createShuffleIOOwnerContext(
+                                "TestTask", taskMetricGroup.executionId(), taskMetricGroup),
+                        0,
+                        gateDesc,
+                        SingleInputGateBuilder.NO_OP_PRODUCER_CHECKER);
+    }
 
     private static Map<InputGateID, SingleInputGate> createInputGateWithLocalChannels(
             NettyShuffleEnvironment network,

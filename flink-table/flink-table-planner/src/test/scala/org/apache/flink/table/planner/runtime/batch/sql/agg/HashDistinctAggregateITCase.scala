@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.utils.OperatorType
 class HashDistinctAggregateITCase extends DistinctAggregateITCaseBase {
 
   override def prepareAggOp(): Unit = {
-    tEnv.getConfig.getConfiguration.setString(
+    tEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, OperatorType.SortAgg.toString)
   }
 }

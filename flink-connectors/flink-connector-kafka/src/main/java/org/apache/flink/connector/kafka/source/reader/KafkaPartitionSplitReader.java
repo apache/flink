@@ -18,6 +18,7 @@
 
 package org.apache.flink.connector.kafka.source.reader;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.connector.source.SourceReaderContext;
 import org.apache.flink.connector.base.source.reader.RecordsWithSplitIds;
@@ -58,6 +59,7 @@ import java.util.StringJoiner;
 import java.util.stream.Collectors;
 
 /** A {@link SplitReader} implementation that reads records from Kafka partitions. */
+@Internal
 public class KafkaPartitionSplitReader
         implements SplitReader<ConsumerRecord<byte[], byte[]>, KafkaPartitionSplit> {
     private static final Logger LOG = LoggerFactory.getLogger(KafkaPartitionSplitReader.class);

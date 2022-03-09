@@ -32,6 +32,7 @@ import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.FlinkPipelineTranslationUtil;
 import org.apache.flink.client.cli.ExecutionConfigAccessor;
 import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
+import org.apache.flink.client.testjar.ForbidConfigurationJob;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.ConfigUtils;
 import org.apache.flink.configuration.Configuration;
@@ -52,10 +53,12 @@ import org.apache.flink.optimizer.plandump.PlanJSONDumpGenerator;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.testutils.MiniClusterResource;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.NetUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.assertj.core.api.Assertions;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -348,6 +351,37 @@ public class ClientTest extends TestLogger {
         String htmlEscaped = dumper2.getOptimizerPlanAsJSON(op);
 
         assertEquals(-1, htmlEscaped.indexOf('\\'));
+    }
+
+    @Test
+    public void testFailOnForbiddenConfiguration() throws ProgramInvocationException {
+        try (final ClusterClient<?> clusterClient =
+                new MiniClusterClient(
+                        new Configuration(), MINI_CLUSTER_RESOURCE.getMiniCluster())) {
+
+            final PackagedProgram program =
+                    PackagedProgram.newBuilder()
+                            .setEntryPointClassName(ForbidConfigurationJob.class.getName())
+                            .build();
+
+            final Configuration configuration = fromPackagedProgram(program, 1, false);
+            configuration.set(DeploymentOptions.ALLOW_CLIENT_JOB_CONFIGURATIONS, false);
+
+            Assertions.assertThatThrownBy(
+                            () ->
+                                    ClientUtils.executeProgram(
+                                            new TestExecutorServiceLoader(clusterClient, plan),
+                                            configuration,
+                                            program,
+                                            true,
+                                            false))
+                    .satisfies(
+                            t ->
+                                    Assertions.assertThat(
+                                                    ExceptionUtils.findThrowable(
+                                                            t, MutatedConfigurationException.class))
+                                            .isPresent());
+        }
     }
 
     // --------------------------------------------------------------------------------------------

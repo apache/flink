@@ -95,6 +95,8 @@ Flink natively support various connectors. The following tables list all availab
 
 {{< top >}}
 
+Please refer to the [configuration]({{< ref "docs/dev/configuration/connector" >}}) section on how to add connectors as a dependency. 
+
 How to use connectors
 --------
 
@@ -270,7 +272,7 @@ The computed column is a virtual column which is not stored in the physical data
 CREATE TABLE MyTable (
   MyField1 INT,
   MyField2 STRING,
-  MyField3 BOOLEAN
+  MyField3 BOOLEAN,
   MyField4 AS PROCTIME() -- declares a proctime attribute
 ) WITH (
   ...

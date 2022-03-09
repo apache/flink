@@ -20,7 +20,7 @@ package org.apache.flink.runtime.zookeeper;
 
 import org.apache.flink.util.Preconditions;
 
-import org.apache.flink.shaded.curator4.org.apache.curator.framework.recipes.shared.SharedValue;
+import org.apache.flink.shaded.curator5.org.apache.curator.framework.recipes.shared.SharedValue;
 
 import java.io.IOException;
 

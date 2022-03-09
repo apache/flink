@@ -60,7 +60,7 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_S
  * API entities that are further translated into {@link ResolvedExpression ResolvedExpressions}
  * under the hood.
  *
- * <p>For fluent definition of expressions and easier readability, we recommend to add a star import
+ * <p>For fluent definition of expressions and easier readability, we recommend adding a star import
  * to the methods of this class:
  *
  * <pre>
@@ -72,20 +72,39 @@ import static org.apache.flink.table.functions.BuiltInFunctionDefinitions.JSON_S
  */
 @PublicEvolving
 public final class Expressions {
+
     /**
-     * Creates an unresolved reference to a table's field.
+     * Creates an unresolved reference to a table's column.
      *
      * <p>Example:
      *
      * <pre>{@code
      * tab.select($("key"), $("value"))
      * }</pre>
+     *
+     * @see #col(String)
      */
     // CHECKSTYLE.OFF: MethodName
     public static ApiExpression $(String name) {
         return new ApiExpression(unresolvedRef(name));
     }
     // CHECKSTYLE.ON: MethodName
+
+    /**
+     * Creates an unresolved reference to a table's column.
+     *
+     * <p>Because {@link #$(String)} is not supported by every JVM language due to the dollar sign,
+     * this method provides a synonym with the same behavior.
+     *
+     * <p>Example:
+     *
+     * <pre>{@code
+     * tab.select(col("key"), col("value"))
+     * }</pre>
+     */
+    public static ApiExpression col(String name) {
+        return $(name);
+    }
 
     /**
      * Creates a SQL literal.

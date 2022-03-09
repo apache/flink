@@ -51,7 +51,7 @@ class StreamTableEnvironmentImpl (
     catalogManager: CatalogManager,
     moduleManager: ModuleManager,
     functionCatalog: FunctionCatalog,
-    config: TableConfig,
+    tableConfig: TableConfig,
     scalaExecutionEnvironment: StreamExecutionEnvironment,
     planner: Planner,
     executor: Executor,
@@ -60,7 +60,7 @@ class StreamTableEnvironmentImpl (
   extends AbstractStreamTableEnvironmentImpl(
     catalogManager,
     moduleManager,
-    config,
+    tableConfig,
     executor,
     functionCatalog,
     planner,

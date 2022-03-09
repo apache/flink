@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.types.RowKind;
 
@@ -28,13 +29,15 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ser.std.S
 import java.io.IOException;
 
 /**
- * JSON serializer for {@link ChangelogMode}. refer to {@link ChangelogModeJsonDeserializer} for
- * deserializer.
+ * JSON serializer for {@link ChangelogMode}.
+ *
+ * @see ChangelogModeJsonDeserializer for the reverse operation
  */
-public class ChangelogModeJsonSerializer extends StdSerializer<ChangelogMode> {
+@Internal
+final class ChangelogModeJsonSerializer extends StdSerializer<ChangelogMode> {
     private static final long serialVersionUID = 1L;
 
-    public ChangelogModeJsonSerializer() {
+    ChangelogModeJsonSerializer() {
         super(ChangelogMode.class);
     }
 

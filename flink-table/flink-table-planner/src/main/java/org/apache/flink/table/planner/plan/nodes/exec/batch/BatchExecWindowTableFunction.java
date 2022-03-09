@@ -24,6 +24,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.logical.TimeAttributeWindowingStrategy;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.common.CommonExecWindowTableFunction;
 import org.apache.flink.table.types.logical.RowType;
@@ -40,18 +42,20 @@ public class BatchExecWindowTableFunction extends CommonExecWindowTableFunction
             RowType outputType,
             String description) {
         super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecWindowTableFunction.class),
                 windowingStrategy,
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
     }
 
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         if (windowingStrategy.isProctime()) {
             throw new TableException("Processing time Window TableFunction is not supported yet.");
         }
-        return super.translateToPlanInternal(planner);
+        return super.translateToPlanInternal(planner, config);
     }
 }

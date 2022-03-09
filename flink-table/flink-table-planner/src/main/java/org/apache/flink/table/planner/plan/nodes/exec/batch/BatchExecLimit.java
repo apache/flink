@@ -24,6 +24,8 @@ import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.runtime.operators.sort.LimitOperator;
@@ -45,7 +47,12 @@ public class BatchExecLimit extends ExecNodeBase<RowData> implements BatchExecNo
             InputProperty inputProperty,
             LogicalType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecLimit.class),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.isGlobal = isGlobal;
         this.limitStart = limitStart;
         this.limitEnd = limitEnd;
@@ -53,14 +60,15 @@ public class BatchExecLimit extends ExecNodeBase<RowData> implements BatchExecNo
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         Transformation<RowData> inputTransform =
                 (Transformation<RowData>) getInputEdges().get(0).translateToPlan(planner);
         LimitOperator operator = new LimitOperator(isGlobal, limitStart, limitEnd);
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 SimpleOperatorFactory.of(operator),
                 inputTransform.getOutputType(),
                 inputTransform.getParallelism());

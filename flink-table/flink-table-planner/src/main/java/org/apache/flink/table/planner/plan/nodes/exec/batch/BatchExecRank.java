@@ -26,6 +26,8 @@ import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.SortUtil;
@@ -40,7 +42,7 @@ import java.util.Collections;
  *
  * <p>This node supports two-stage(local and global) rank to reduce data-shuffling.
  */
-public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNode<RowData> {
+public class BatchExecRank extends ExecNodeBase<RowData> implements InputSortedExecNode<RowData> {
 
     private final int[] partitionFields;
     private final int[] sortFields;
@@ -57,7 +59,12 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecRank.class),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.partitionFields = partitionFields;
         this.sortFields = sortFields;
         this.rankStart = rankStart;
@@ -67,7 +74,8 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         ExecEdge inputEdge = getInputEdges().get(0);
         Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -80,12 +88,12 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
         RankOperator operator =
                 new RankOperator(
                         ComparatorCodeGenerator.gen(
-                                planner.getTableConfig(),
+                                config.getTableConfig(),
                                 "PartitionByComparator",
                                 inputType,
                                 SortUtil.getAscendingSortSpec(partitionFields)),
                         ComparatorCodeGenerator.gen(
-                                planner.getTableConfig(),
+                                config.getTableConfig(),
                                 "OrderByComparator",
                                 inputType,
                                 SortUtil.getAscendingSortSpec(sortFields)),
@@ -95,8 +103,8 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements BatchExecNod
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of((RowType) getOutputType()),
                 inputTransform.getParallelism());

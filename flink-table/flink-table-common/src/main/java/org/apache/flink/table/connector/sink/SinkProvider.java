@@ -32,7 +32,11 @@ import java.util.Optional;
  *
  * <p>{@code DataStreamSinkProvider} in {@code flink-table-api-java-bridge} is available for
  * advanced connector developers.
+ *
+ * @deprecated Please convert your sink to {@link org.apache.flink.api.connector.sink2.Sink} and use
+ *     {@link SinkV2Provider}.
  */
+@Deprecated
 @PublicEvolving
 public interface SinkProvider extends DynamicTableSink.SinkRuntimeProvider, ParallelismProvider {
 

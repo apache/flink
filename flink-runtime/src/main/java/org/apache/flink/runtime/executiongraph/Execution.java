@@ -26,8 +26,6 @@ import org.apache.flink.core.io.InputSplit;
 import org.apache.flink.runtime.JobException;
 import org.apache.flink.runtime.accumulators.StringifiedAccumulatorResult;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
-import org.apache.flink.runtime.checkpoint.CheckpointType;
-import org.apache.flink.runtime.checkpoint.CheckpointType.PostCheckpointAction;
 import org.apache.flink.runtime.checkpoint.JobManagerTaskRestore;
 import org.apache.flink.runtime.clusterframework.types.AllocationID;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
@@ -511,9 +509,8 @@ public class Execution
         }
 
         // make sure exactly one deployment call happens from the correct state
-        // note: the transition from CREATED to DEPLOYING is for testing purposes only
         ExecutionState previous = this.state;
-        if (previous == SCHEDULED || previous == CREATED) {
+        if (previous == SCHEDULED) {
             if (!transitionState(previous, DEPLOYING)) {
                 // race condition, someone else beat us to the deploying call.
                 // this should actually not happen and indicates a race somewhere else
@@ -523,7 +520,7 @@ public class Execution
         } else {
             // vertex may have been cancelled, or it was already scheduled
             throw new IllegalStateException(
-                    "The vertex must be in CREATED or SCHEDULED state to be deployed. Found state "
+                    "The vertex must be in SCHEDULED state to be deployed. Found state "
                             + previous);
         }
 
@@ -705,8 +702,12 @@ public class Execution
     }
 
     private void updatePartitionConsumers(final IntermediateResultPartition partition) {
-        final ConsumerVertexGroup consumerVertexGroup = partition.getConsumerVertexGroup();
-        for (ExecutionVertexID consumerVertexId : consumerVertexGroup) {
+        final Optional<ConsumerVertexGroup> consumerVertexGroup =
+                partition.getConsumerVertexGroupOptional();
+        if (!consumerVertexGroup.isPresent()) {
+            return;
+        }
+        for (ExecutionVertexID consumerVertexId : consumerVertexGroup.get()) {
             final ExecutionVertex consumerVertex =
                     vertex.getExecutionGraphAccessor().getExecutionVertexOrThrow(consumerVertexId);
             final Execution consumer = consumerVertex.getCurrentExecutionAttempt();
@@ -839,13 +840,6 @@ public class Execution
 
     private CompletableFuture<Acknowledge> triggerCheckpointHelper(
             long checkpointId, long timestamp, CheckpointOptions checkpointOptions) {
-
-        final CheckpointType checkpointType = checkpointOptions.getCheckpointType();
-        if (checkpointType.getPostCheckpointAction() == PostCheckpointAction.TERMINATE
-                && !(checkpointType.isSynchronous() && checkpointType.isSavepoint())) {
-            throw new IllegalArgumentException(
-                    "Only synchronous savepoints are allowed to advance the watermark to MAX.");
-        }
 
         final LogicalSlot slot = assignedResource;
 
@@ -1442,7 +1436,7 @@ public class Execution
             // make sure that the state transition completes normally.
             // potential errors (in listeners may not affect the main logic)
             try {
-                vertex.notifyStateTransition(this, targetState);
+                vertex.notifyStateTransition(this, currentState, targetState);
             } catch (Throwable t) {
                 LOG.error(
                         "Error while notifying execution graph of execution state transition.", t);

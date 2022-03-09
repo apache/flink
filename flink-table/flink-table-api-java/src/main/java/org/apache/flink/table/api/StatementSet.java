@@ -18,10 +18,8 @@
 
 package org.apache.flink.table.api;
 
+import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.api.config.TableConfigOptions;
-import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.types.DataType;
 
 /**
  * A {@link StatementSet} accepts pipelines defined by DML statements or {@link Table} objects. The
@@ -30,130 +28,63 @@ import org.apache.flink.table.types.DataType;
  * <p>The added statements will be cleared when calling the {@link #execute()} method.
  */
 @PublicEvolving
-public interface StatementSet {
+public interface StatementSet extends Explainable<StatementSet>, Compilable, Executable {
+
+    /** Adds a {@link TablePipeline}. */
+    StatementSet add(TablePipeline tablePipeline);
 
     /** Adds an {@code INSERT INTO} SQL statement. */
     StatementSet addInsertSql(String statement);
 
     /**
-     * Adds a statement that the pipeline defined by the given {@link Table} object should be
-     * written to a table (backed by a {@link DynamicTableSink}) that was registered under the
-     * specified path.
+     * Shorthand for {@code statementSet.add(table.insertInto(targetPath))}.
      *
-     * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
-     * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
+     * @see #add(TablePipeline)
+     * @see Table#insertInto(String)
      */
     StatementSet addInsert(String targetPath, Table table);
 
     /**
-     * Adds a statement that the pipeline defined by the given {@link Table} object should be
-     * written to a table (backed by a {@link DynamicTableSink}) that was registered under the
-     * specified path.
+     * Shorthand for {@code statementSet.add(table.insertInto(targetPath, overwrite))}.
      *
-     * <p>See the documentation of {@link TableEnvironment#useDatabase(String)} or {@link
-     * TableEnvironment#useCatalog(String)} for the rules on the path resolution.
-     *
-     * @param overwrite Indicates whether existing data should be overwritten.
+     * @see #add(TablePipeline)
+     * @see Table#insertInto(String, boolean)
      */
     StatementSet addInsert(String targetPath, Table table, boolean overwrite);
 
     /**
-     * Adds a statement that the pipeline defined by the given {@link Table} object should be
-     * written to a table (backed by a {@link DynamicTableSink}) expressed via the given {@link
-     * TableDescriptor}.
+     * Shorthand for {@code statementSet.add(table.insertInto(targetDescriptor))}.
      *
-     * <p>The given {@link TableDescriptor descriptor} describes an anonymous table that won't be
-     * registered in the catalog. This table will be propagated directly in the operation tree,
-     * adding a statement that inserts the provided {@link Table} object's pipeline into such a
-     * table.
-     *
-     * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
-     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
-     *
-     * <ul>
-     *   <li>overwrite automatically derived columns with a custom {@link DataType}
-     *   <li>add metadata columns next to the physical columns
-     *   <li>declare a primary key
-     * </ul>
-     *
-     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
-     * columns will be automatically derived and implicitly put at the beginning of the schema
-     * declaration.
-     *
-     * <p>Examples:
-     *
-     * <pre>{@code
-     * StatementSet stmtSet = tEnv.createStatementSet();
-     * Table sourceTable = tEnv.from("SourceTable");
-     * TableDescriptor sinkDescriptor = TableDescriptor.forConnector("blackhole")
-     *   .schema(Schema.newBuilder()
-     *     // …
-     *     .build())
-     *   .build();
-     *
-     * stmtSet.addInsert(sinkDescriptor, sourceTable);
-     * }</pre>
+     * @see #add(TablePipeline)
+     * @see Table#insertInto(TableDescriptor)
      */
     StatementSet addInsert(TableDescriptor targetDescriptor, Table table);
 
     /**
-     * Adds a statement that the pipeline defined by the given {@link Table} object should be
-     * written to a table (backed by a {@link DynamicTableSink}) expressed via the given {@link
-     * TableDescriptor}.
+     * Shorthand for {@code statementSet.add(table.insertInto(targetDescriptor, overwrite))}.
      *
-     * <p>The given {@link TableDescriptor descriptor} won't be registered in the catalog, but it
-     * will be propagated directly in the operation tree, adding a statement to the statement set
-     * that inserts the {@link Table} object's pipeline into the anonymous table described with
-     * {@link TableDescriptor descriptor}.
-     *
-     * <p>This method allows to declare a {@link Schema} for the sink descriptor. The declaration is
-     * similar to a {@code CREATE TABLE} DDL in SQL and allows to:
-     *
-     * <ul>
-     *   <li>overwrite automatically derived columns with a custom {@link DataType}
-     *   <li>add metadata columns next to the physical columns
-     *   <li>declare a primary key
-     * </ul>
-     *
-     * <p>It is possible to declare a schema without physical/regular columns. In this case, those
-     * columns will be automatically derived and implicitly put at the beginning of the schema
-     * declaration.
-     *
-     * <p>Examples:
-     *
-     * <pre>{@code
-     * StatementSet stmtSet = tEnv.createStatementSet();
-     * Table sourceTable = tEnv.from("SourceTable");
-     * TableDescriptor sinkDescriptor = TableDescriptor.forConnector("blackhole")
-     *   .schema(Schema.newBuilder()
-     *     // …
-     *     .build())
-     *   .build();
-     *
-     * stmtSet.addInsert(sinkDescriptor, sourceTable, true);
-     * }</pre>
-     *
-     * @param overwrite Indicates whether existing data should be overwritten.
+     * @see #add(TablePipeline)
+     * @see Table#insertInto(TableDescriptor, boolean)
      */
     StatementSet addInsert(TableDescriptor targetDescriptor, Table table, boolean overwrite);
 
     /**
-     * Returns the AST and the execution plan to compute the result of the all statements.
+     * {@inheritDoc}
      *
-     * @param extraDetails The extra explain details which the explain result should include, e.g.
-     *     estimated cost, changelog mode for streaming, displaying execution plan in json format
-     * @return AST and the execution plan.
-     */
-    String explain(ExplainDetail... extraDetails);
-
-    /**
-     * Executes all statements as one job.
+     * <p>This method executes all statements as one job.
      *
      * <p>The added statements will be cleared after calling this method.
-     *
-     * <p>By default, all DML operations are executed asynchronously. Use {@link
-     * TableResult#await()} or {@link TableResult#getJobClient()} to monitor the execution. Set
-     * {@link TableConfigOptions#TABLE_DML_SYNC} for always synchronous execution.
      */
+    @Override
     TableResult execute();
+
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This method compiles all statements into a {@link CompiledPlan} that can be executed as
+     * one job.
+     */
+    @Override
+    @Experimental
+    CompiledPlan compilePlan() throws TableException;
 }

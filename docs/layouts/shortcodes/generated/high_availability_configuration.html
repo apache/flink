@@ -33,6 +33,12 @@
             <td>File system path (URI) where Flink persists metadata in high-availability setups.</td>
         </tr>
         <tr>
+            <td><h5>high-availability.use-old-ha-services</h5></td>
+            <td style="word-wrap: break-word;">false</td>
+            <td>Boolean</td>
+            <td>Use this option to disable the new HA service implementations for ZooKeeper and K8s. This is a safety hatch in case that the new ha services are buggy.</td>
+        </tr>
+        <tr>
             <td><h5>high-availability.zookeeper.client.acl</h5></td>
             <td style="word-wrap: break-word;">"open"</td>
             <td>String</td>

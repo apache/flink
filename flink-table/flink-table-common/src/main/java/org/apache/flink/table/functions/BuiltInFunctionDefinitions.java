@@ -143,11 +143,22 @@ public final class BuiltInFunctionDefinitions {
 
     public static final BuiltInFunctionDefinition INTERNAL_REPLICATE_ROWS =
             BuiltInFunctionDefinition.newBuilder()
-                    .name("$REPLICATE_ROWS")
+                    .name("$REPLICATE_ROWS$1")
                     .kind(TABLE)
                     .outputTypeStrategy(SpecificTypeStrategies.INTERNAL_REPLICATE_ROWS)
                     .runtimeClass(
                             "org.apache.flink.table.runtime.functions.table.ReplicateRowsFunction")
+                    .internal()
+                    .build();
+
+    public static final BuiltInFunctionDefinition INTERNAL_UNNEST_ROWS =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("$UNNEST_ROWS$1")
+                    .kind(TABLE)
+                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .runtimeClass(
+                            "org.apache.flink.table.runtime.functions.table.UnnestRowsFunction")
+                    .internal()
                     .build();
 
     // --------------------------------------------------------------------------------------------
@@ -1705,6 +1716,14 @@ public final class BuiltInFunctionDefinitions {
                     .inputTypeStrategy(SpecificInputTypeStrategies.CAST)
                     .outputTypeStrategy(
                             nullableIfArgs(ConstantArgumentCount.to(0), TypeStrategies.argument(1)))
+                    .build();
+
+    public static final BuiltInFunctionDefinition TRY_CAST =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("tryCast")
+                    .kind(SCALAR)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.CAST)
+                    .outputTypeStrategy(forceNullable(TypeStrategies.argument(1)))
                     .build();
 
     public static final BuiltInFunctionDefinition REINTERPRET_CAST =

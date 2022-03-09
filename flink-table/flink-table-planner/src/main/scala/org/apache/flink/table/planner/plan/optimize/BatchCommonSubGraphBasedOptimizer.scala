@@ -30,7 +30,6 @@ import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
-import org.apache.calcite.rex.RexBuilder
 
 import java.util.Collections
 
@@ -42,7 +41,7 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
 
   override protected def doOptimize(roots: Seq[RelNode]): Seq[RelNodeBlock] = {
     // build RelNodeBlock plan
-    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, planner.getTableConfig)
+    val rootBlocks = RelNodeBlockPlanBuilder.buildRelNodeBlockPlan(roots, planner.getConfiguration)
     // optimize recursively RelNodeBlock
     rootBlocks.foreach(optimizeBlock)
     rootBlocks

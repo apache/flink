@@ -32,6 +32,7 @@ public class WorkingDirectory {
     private final File tmp;
     private final File localState;
     private final File blobStorage;
+    private final File slotAllocationSnapshotDirectory;
 
     private WorkingDirectory(File root) throws IOException {
         this.root = root;
@@ -46,6 +47,9 @@ public class WorkingDirectory {
 
         blobStorage = new File(root, "blobStorage");
         createDirectory(blobStorage);
+
+        slotAllocationSnapshotDirectory = new File(root, "slotAllocationSnapshots");
+        createDirectory(slotAllocationSnapshotDirectory);
     }
 
     private static void createDirectory(File directory) throws IOException {
@@ -65,6 +69,10 @@ public class WorkingDirectory {
 
     public File getLocalStateDirectory() {
         return localState;
+    }
+
+    public File getSlotAllocationSnapshotDirectory() {
+        return slotAllocationSnapshotDirectory;
     }
 
     public WorkingDirectory createSubWorkingDirectory(String directoryName) throws IOException {

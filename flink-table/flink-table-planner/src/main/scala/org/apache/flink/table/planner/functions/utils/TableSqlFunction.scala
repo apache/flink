@@ -20,8 +20,9 @@ package org.apache.flink.table.planner.functions.utils
 
 import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.functions.UserDefinedFunctionHelper.generateInlineFunctionName
-import org.apache.flink.table.functions.{FunctionIdentifier, TableFunction, UserDefinedFunctionHelper}
+import org.apache.flink.table.functions.{BuiltInFunctionDefinitions, FunctionIdentifier, TableFunction, UserDefinedFunctionHelper}
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
+import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.utils.TableSqlFunction._
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.plan.schema.FlinkTableFunction
@@ -48,7 +49,10 @@ import java.util
   * @param typeFactory        type factory for converting Flink's between Calcite's types
   * @param functionImpl       Calcite table function schema
   * @return [[TableSqlFunction]]
+  * @deprecated Use [[BuiltInFunctionDefinitions]] that translates to [[BridgingSqlFunction]].
   */
+@Deprecated
+@deprecated
 class TableSqlFunction(
     identifier: FunctionIdentifier,
     displayName: String,

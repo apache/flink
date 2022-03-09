@@ -18,9 +18,9 @@
 
 package org.apache.flink.runtime.scheduler.adaptive;
 
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.queryablestate.KvStateID;
 import org.apache.flink.runtime.accumulators.AccumulatorSnapshot;
 import org.apache.flink.runtime.checkpoint.CheckpointCoordinator;
@@ -28,7 +28,9 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.execution.ExecutionState;
+import org.apache.flink.runtime.executiongraph.AccessExecution;
 import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
+import org.apache.flink.runtime.executiongraph.ErrorInfo;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
 import org.apache.flink.runtime.executiongraph.ExecutionGraph;
 import org.apache.flink.runtime.executiongraph.TaskExecutionStateTransition;
@@ -48,6 +50,8 @@ import org.apache.flink.runtime.query.UnknownKvStateLocation;
 import org.apache.flink.runtime.scheduler.ExecutionGraphHandler;
 import org.apache.flink.runtime.scheduler.KvStateHandler;
 import org.apache.flink.runtime.scheduler.OperatorCoordinatorHandler;
+import org.apache.flink.runtime.scheduler.exceptionhistory.ExceptionHistoryEntry;
+import org.apache.flink.runtime.scheduler.exceptionhistory.RootExceptionHistoryEntry;
 import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointTerminationManager;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.util.FlinkException;
@@ -58,6 +62,10 @@ import org.slf4j.Logger;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.Executor;
@@ -79,18 +87,26 @@ abstract class StateWithExecutionGraph implements State {
 
     private final Logger logger;
 
+    private final ClassLoader userCodeClassLoader;
+
+    private final List<ExceptionHistoryEntry> failureCollection;
+
     StateWithExecutionGraph(
             Context context,
             ExecutionGraph executionGraph,
             ExecutionGraphHandler executionGraphHandler,
             OperatorCoordinatorHandler operatorCoordinatorHandler,
-            Logger logger) {
+            Logger logger,
+            ClassLoader userClassCodeLoader,
+            List<ExceptionHistoryEntry> failureCollection) {
         this.context = context;
         this.executionGraph = executionGraph;
         this.executionGraphHandler = executionGraphHandler;
         this.operatorCoordinatorHandler = operatorCoordinatorHandler;
         this.kvStateHandler = new KvStateHandler(executionGraph);
         this.logger = logger;
+        this.userCodeClassLoader = userClassCodeLoader;
+        this.failureCollection = new ArrayList<>(failureCollection);
 
         FutureUtils.assertNoException(
                 executionGraph
@@ -99,13 +115,17 @@ abstract class StateWithExecutionGraph implements State {
                                 jobStatus -> {
                                     if (jobStatus.isGloballyTerminalState()) {
                                         context.runIfState(
-                                                this, () -> onGloballyTerminalState(jobStatus));
+                                                this,
+                                                () -> {
+                                                    convertFailures(this.failureCollection)
+                                                            .ifPresent(context::archiveFailure);
+                                                    onGloballyTerminalState(jobStatus);
+                                                });
                                     }
                                 },
                                 context.getMainThreadExecutor()));
     }
 
-    @VisibleForTesting
     ExecutionGraph getExecutionGraph() {
         return executionGraph;
     }
@@ -221,7 +241,8 @@ abstract class StateWithExecutionGraph implements State {
                 jobId, jobVertexId, keyGroupRange, registrationName);
     }
 
-    CompletableFuture<String> triggerSavepoint(String targetDirectory, boolean cancelJob) {
+    CompletableFuture<String> triggerSavepoint(
+            String targetDirectory, boolean cancelJob, SavepointFormatType formatType) {
         final CheckpointCoordinator checkpointCoordinator =
                 executionGraph.getCheckpointCoordinator();
         StopWithSavepointTerminationManager.checkSavepointActionPreconditions(
@@ -237,7 +258,7 @@ abstract class StateWithExecutionGraph implements State {
         }
 
         return checkpointCoordinator
-                .triggerSavepoint(targetDirectory)
+                .triggerSavepoint(targetDirectory, formatType)
                 .thenApply(CompletedCheckpoint::getExternalPointer)
                 .handleAsync(
                         (path, throwable) -> {
@@ -304,6 +325,22 @@ abstract class StateWithExecutionGraph implements State {
                 operatorId, request);
     }
 
+    /** Transition to different state when failure occurs. Stays in the same state by default. */
+    abstract void onFailure(Throwable cause);
+
+    /**
+     * Transition to different state when the execution graph reaches a globally terminal state.
+     *
+     * @param globallyTerminalState globally terminal state which the execution graph reached
+     */
+    abstract void onGloballyTerminalState(JobStatus globallyTerminalState);
+
+    @Override
+    public void handleGlobalFailure(Throwable cause) {
+        failureCollection.add(ExceptionHistoryEntry.createGlobal(cause));
+        onFailure(cause);
+    }
+
     /**
      * Updates the execution graph with the given task execution state transition.
      *
@@ -311,18 +348,46 @@ abstract class StateWithExecutionGraph implements State {
      *     with
      * @return {@code true} if the update was successful; otherwise {@code false}
      */
-    abstract boolean updateTaskExecutionState(
-            TaskExecutionStateTransition taskExecutionStateTransition);
+    boolean updateTaskExecutionState(TaskExecutionStateTransition taskExecutionStateTransition) {
+        // collect before updateState, as updateState may deregister the execution
+        final Optional<AccessExecution> maybeExecution =
+                executionGraph.findExecution(taskExecutionStateTransition.getID());
+        final Optional<String> maybeTaskName =
+                executionGraph.findVertexWithAttempt(taskExecutionStateTransition.getID());
 
-    /**
-     * Callback which is called once the execution graph reaches a globally terminal state.
-     *
-     * @param globallyTerminalState globally terminal state which the execution graph reached
-     */
-    abstract void onGloballyTerminalState(JobStatus globallyTerminalState);
+        final ExecutionState desiredState = taskExecutionStateTransition.getExecutionState();
+        boolean successfulUpdate = getExecutionGraph().updateState(taskExecutionStateTransition);
+        if (successfulUpdate && desiredState == ExecutionState.FAILED) {
+            final AccessExecution execution =
+                    maybeExecution.orElseThrow(NoSuchElementException::new);
+            final String taskName = maybeTaskName.orElseThrow(NoSuchElementException::new);
+            final ExecutionState currentState = execution.getState();
+            if (currentState == desiredState) {
+                failureCollection.add(ExceptionHistoryEntry.create(execution, taskName));
+                onFailure(
+                        ErrorInfo.handleMissingThrowable(
+                                taskExecutionStateTransition.getError(userCodeClassLoader)));
+            }
+        }
+        return successfulUpdate;
+    }
+
+    List<ExceptionHistoryEntry> getFailures() {
+        return failureCollection;
+    }
+
+    private static Optional<RootExceptionHistoryEntry> convertFailures(
+            List<ExceptionHistoryEntry> failureCollection) {
+        if (failureCollection.isEmpty()) {
+            return Optional.empty();
+        }
+        final ExceptionHistoryEntry first = failureCollection.remove(0);
+        return Optional.of(
+                RootExceptionHistoryEntry.fromExceptionHistoryEntry(first, failureCollection));
+    }
 
     /** Context of the {@link StateWithExecutionGraph} state. */
-    interface Context {
+    interface Context extends StateTransitions.ToFinished {
 
         /**
          * Run the given action if the current state equals the expected state.
@@ -348,12 +413,7 @@ abstract class StateWithExecutionGraph implements State {
          */
         Executor getMainThreadExecutor();
 
-        /**
-         * Transitions into the {@link Finished} state.
-         *
-         * @param archivedExecutionGraph archivedExecutionGraph which is passed to the {@link
-         *     Finished} state
-         */
-        void goToFinished(ArchivedExecutionGraph archivedExecutionGraph);
+        /** Archive failure. */
+        void archiveFailure(RootExceptionHistoryEntry failure);
     }
 }

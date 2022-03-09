@@ -51,6 +51,15 @@ class TableConfig(object):
         else:
             self._j_table_config = j_table_config
 
+    def set(self, key: str, value: str) -> 'TableConfig':
+        """
+        Sets a string-based value for the given string-based key.
+
+        The value will be parsed by the framework on access.
+        """
+        self._j_table_config.set(key, value)
+        return self
+
     def get_local_timezone(self) -> str:
         """
         Returns the local timezone id for timestamp with local time zone, either an abbreviation

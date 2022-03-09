@@ -48,7 +48,7 @@
             <td><h5>pulsar.source.verifyInitialOffsets</h5></td>
             <td style="word-wrap: break-word;">WARN_ON_MISMATCH</td>
             <td><p>Enum</p></td>
-            <td>Upon (re)starting the source, check whether the expected message can be read. If failure is enabled, the application fails. Otherwise, it logs a warning. A possible solution is to adjust the retention settings in Pulsar or ignoring the check result.<br /><br />Possible values:<ul><li>"FAIL_ON_MISMATCH"</li><li>"WARN_ON_MISMATCH"</li></ul></td>
+            <td>Upon (re)starting the source, check whether the expected message can be read. If failure is enabled, the application fails. Otherwise, it logs a warning. A possible solution is to adjust the retention settings in Pulsar or ignoring the check result.<br /><br />Possible values:<ul><li>"FAIL_ON_MISMATCH": Fail the consuming from Pulsar when we don't find the related cursor.</li><li>"WARN_ON_MISMATCH": Print a warn message and start consuming from the valid offset.</li></ul></td>
         </tr>
     </tbody>
 </table>

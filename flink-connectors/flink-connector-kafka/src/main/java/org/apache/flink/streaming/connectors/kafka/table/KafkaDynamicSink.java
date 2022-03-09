@@ -34,7 +34,7 @@ import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.connector.format.EncodingFormat;
 import org.apache.flink.table.connector.sink.DataStreamSinkProvider;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
-import org.apache.flink.table.connector.sink.SinkProvider;
+import org.apache.flink.table.connector.sink.SinkV2Provider;
 import org.apache.flink.table.connector.sink.abilities.SupportsWritingMetadata;
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.MapData;
@@ -64,6 +64,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 /** A version-agnostic Kafka {@link DynamicTableSink}. */
 @Internal
 public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetadata {
+
+    private static final String UPSERT_KAFKA_TRANSFORMATION = "upsert-kafka";
 
     // --------------------------------------------------------------------------------------------
     // Mutable attributes
@@ -214,7 +216,7 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                         .build();
         if (flushMode.isEnabled() && upsertMode) {
             return (DataStreamSinkProvider)
-                    dataStream -> {
+                    (providerContext, dataStream) -> {
                         final boolean objectReuse =
                                 dataStream
                                         .getExecutionEnvironment()
@@ -233,13 +235,16 @@ public class KafkaDynamicSink implements DynamicTableSink, SupportsWritingMetada
                                                         ::copy
                                                 : rowData -> rowData);
                         final DataStreamSink<RowData> end = dataStream.sinkTo(sink);
+                        providerContext
+                                .generateUid(UPSERT_KAFKA_TRANSFORMATION)
+                                .ifPresent(end::uid);
                         if (parallelism != null) {
                             end.setParallelism(parallelism);
                         }
                         return end;
                     };
         }
-        return SinkProvider.of(kafkaSink, parallelism);
+        return SinkV2Provider.of(kafkaSink, parallelism);
     }
 
     @Override

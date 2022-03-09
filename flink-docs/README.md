@@ -23,7 +23,7 @@ This module contains generators that create HTML files directly from Flink's sou
 
 ## REST API documentation
 
-The `RestAPIDocGenerator` can be used to generate a full reference of the REST API of a `RestServerEndpoint`. A separate file is generated for each endpoint.
+The `RestAPIDocGenerator`/`OpenApiSpecGenerator` can be used to generate a full reference of the REST API of a `RestServerEndpoint`. A separate file is generated for each endpoint.
 
 To integrate a new endpoint into the generator
 1. Add a new `DocumentingRestEndpoint` class to `RestAPIDocGenerator` that extends the new endpoint class

@@ -31,7 +31,6 @@ public class StandaloneCheckpointRecoveryFactory implements CheckpointRecoveryFa
     public CompletedCheckpointStore createRecoveredCompletedCheckpointStore(
             JobID jobId,
             int maxNumberOfCheckpointsToRetain,
-            ClassLoader userClassLoader,
             SharedStateRegistryFactory sharedStateRegistryFactory,
             Executor ioExecutor)
             throws Exception {

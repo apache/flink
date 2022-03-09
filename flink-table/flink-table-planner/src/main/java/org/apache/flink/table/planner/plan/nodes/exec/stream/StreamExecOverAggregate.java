@@ -18,11 +18,11 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.stream;
 
+import org.apache.flink.FlinkVersion;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.operators.KeyedProcessOperator;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -32,6 +32,9 @@ import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeMetadata;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.OverSpec;
@@ -56,7 +59,6 @@ import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.RowType;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonCreator;
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.annotation.JsonProperty;
 
 import org.apache.calcite.rel.core.AggregateCall;
@@ -78,10 +80,19 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stream {@link ExecNode} for time-based over operator. */
-@JsonIgnoreProperties(ignoreUnknown = true)
+@ExecNodeMetadata(
+        name = "stream-exec-over-aggregate",
+        version = 1,
+        consumedOptions = {"table.exec.state.ttl"},
+        producedTransformations = StreamExecOverAggregate.OVER_AGGREGATE_TRANSFORMATION,
+        minPlanVersion = FlinkVersion.v1_15,
+        minStateVersion = FlinkVersion.v1_15)
 public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         implements StreamExecNode<RowData>, SingleTransformationTranslator<RowData> {
+
     private static final Logger LOG = LoggerFactory.getLogger(StreamExecOverAggregate.class);
+
+    public static final String OVER_AGGREGATE_TRANSFORMATION = "over-aggregate";
 
     public static final String FIELD_NAME_OVER_SPEC = "overSpec";
 
@@ -94,8 +105,9 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             RowType outputType,
             String description) {
         this(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(StreamExecOverAggregate.class),
                 overSpec,
-                getNewNodeId(),
                 Collections.singletonList(inputProperty),
                 outputType,
                 description);
@@ -103,19 +115,21 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
 
     @JsonCreator
     public StreamExecOverAggregate(
-            @JsonProperty(FIELD_NAME_OVER_SPEC) OverSpec overSpec,
             @JsonProperty(FIELD_NAME_ID) int id,
+            @JsonProperty(FIELD_NAME_TYPE) ExecNodeContext context,
+            @JsonProperty(FIELD_NAME_OVER_SPEC) OverSpec overSpec,
             @JsonProperty(FIELD_NAME_INPUT_PROPERTIES) List<InputProperty> inputProperties,
             @JsonProperty(FIELD_NAME_OUTPUT_TYPE) RowType outputType,
             @JsonProperty(FIELD_NAME_DESCRIPTION) String description) {
-        super(id, inputProperties, outputType, description);
+        super(id, context, inputProperties, outputType, description);
         checkArgument(inputProperties.size() == 1);
         this.overSpec = checkNotNull(overSpec);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         if (overSpec.getGroups().size() > 1) {
             throw new TableException("All aggregates must be computed on the same window.");
         }
@@ -132,8 +146,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         }
 
         final int[] partitionKeys = overSpec.getPartition().getFieldIndices();
-        final TableConfig tableConfig = planner.getTableConfig();
-        if (partitionKeys.length > 0 && tableConfig.getMinIdleStateRetentionTime() < 0) {
+        if (partitionKeys.length > 0 && config.getStateRetentionTime() < 0) {
             LOG.warn(
                     "No state retention interval configured for a query which accumulates state. "
                             + "Please provide a query configuration with valid retention interval to prevent "
@@ -171,7 +184,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                 RowType.of(
                         fieldTypes.toArray(new LogicalType[0]), fieldNames.toArray(new String[0]));
 
-        final CodeGeneratorContext ctx = new CodeGeneratorContext(tableConfig);
+        final CodeGeneratorContext ctx = new CodeGeneratorContext(config.getTableConfig());
         final KeyedProcessFunction<RowData, RowData, RowData> overProcessFunction;
         if (group.getLowerBound().isPreceding()
                 && group.getLowerBound().isUnbounded()
@@ -186,7 +199,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             inputRowType,
                             rowTimeIdx,
                             group.isRows(),
-                            tableConfig,
+                            config,
                             planner.getRelBuilder());
         } else if (group.getLowerBound().isPreceding()
                 && !group.getLowerBound().isUnbounded()
@@ -210,7 +223,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             rowTimeIdx,
                             group.isRows(),
                             precedingOffset,
-                            tableConfig,
+                            config,
                             planner.getRelBuilder());
         } else {
             throw new TableException("OVER RANGE FOLLOWING windows are not supported yet.");
@@ -222,8 +235,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         OneInputTransformation<RowData, RowData> transform =
                 ExecNodeUtil.createOneInputTransformation(
                         inputTransform,
-                        getOperatorName(tableConfig),
-                        getOperatorDescription(tableConfig),
+                        createTransformationMeta(OVER_AGGREGATE_TRANSFORMATION, config),
                         operator,
                         InternalTypeInfo.of(getOutputType()),
                         inputTransform.getParallelism());
@@ -257,7 +269,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             RowType inputRowType,
             int rowTimeIdx,
             boolean isRowsClause,
-            TableConfig tableConfig,
+            ExecNodeConfig config,
             RelBuilder relBuilder) {
         AggregateInfoList aggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
@@ -294,8 +306,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             if (isRowsClause) {
                 // ROWS unbounded over process function
                 return new RowTimeRowsUnboundedPrecedingFunction<>(
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
+                        config.getStateRetentionTime(),
+                        config.getMaxIdleStateRetentionTime(),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,
@@ -303,8 +315,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             } else {
                 // RANGE unbounded over process function
                 return new RowTimeRangeUnboundedPrecedingFunction<>(
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
+                        config.getStateRetentionTime(),
+                        config.getMaxIdleStateRetentionTime(),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,
@@ -312,8 +324,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             }
         } else {
             return new ProcTimeUnboundedPrecedingFunction<>(
-                    tableConfig.getMinIdleStateRetentionTime(),
-                    tableConfig.getMaxIdleStateRetentionTime(),
+                    config.getStateRetentionTime(),
+                    config.getMaxIdleStateRetentionTime(),
                     genAggsHandler,
                     flattenAccTypes);
         }
@@ -340,7 +352,7 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             int rowTimeIdx,
             boolean isRowsClause,
             long precedingOffset,
-            TableConfig tableConfig,
+            ExecNodeConfig config,
             RelBuilder relBuilder) {
 
         boolean[] aggCallNeedRetractions = new boolean[aggCalls.size()];
@@ -380,8 +392,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         if (rowTimeIdx >= 0) {
             if (isRowsClause) {
                 return new RowTimeRowsBoundedPrecedingFunction<>(
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
+                        config.getStateRetentionTime(),
+                        config.getMaxIdleStateRetentionTime(),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,
@@ -394,8 +406,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
         } else {
             if (isRowsClause) {
                 return new ProcTimeRowsBoundedPrecedingFunction<>(
-                        tableConfig.getMinIdleStateRetentionTime(),
-                        tableConfig.getMaxIdleStateRetentionTime(),
+                        config.getStateRetentionTime(),
+                        config.getMaxIdleStateRetentionTime(),
                         genAggsHandler,
                         flattenAccTypes,
                         fieldTypes,

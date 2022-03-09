@@ -47,6 +47,7 @@ import org.apache.flink.runtime.scheduler.DefaultSchedulerFactory;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
 import org.apache.flink.runtime.scheduler.SchedulerNGFactory;
 import org.apache.flink.runtime.scheduler.adaptive.AdaptiveSchedulerFactory;
+import org.apache.flink.runtime.scheduler.adaptivebatch.AdaptiveBatchSchedulerFactory;
 import org.apache.flink.runtime.shuffle.ShuffleMaster;
 import org.apache.flink.util.clock.SystemClock;
 
@@ -177,6 +178,16 @@ public final class DefaultSlotPoolServiceSchedulerFactory
                 slotPoolServiceFactory =
                         new DeclarativeSlotPoolServiceFactory(
                                 SystemClock.getInstance(), slotIdleTimeout, rpcTimeout);
+                break;
+            case AdaptiveBatch:
+                schedulerNGFactory = new AdaptiveBatchSchedulerFactory();
+                slotPoolServiceFactory =
+                        new DeclarativeSlotPoolBridgeServiceFactory(
+                                SystemClock.getInstance(),
+                                rpcTimeout,
+                                slotIdleTimeout,
+                                batchSlotTimeout,
+                                getRequestSlotMatchingStrategy(configuration, jobType));
                 break;
             default:
                 throw new IllegalArgumentException(

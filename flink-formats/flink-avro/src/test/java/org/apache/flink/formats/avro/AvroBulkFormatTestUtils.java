@@ -30,6 +30,8 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 
+import java.util.function.Function;
+
 /** Testing utils for tests related to {@link AbstractAvroBulkFormat}. */
 public class AvroBulkFormatTestUtils {
 
@@ -45,27 +47,20 @@ public class AvroBulkFormatTestUtils {
     public static class TestingAvroBulkFormat
             extends AbstractAvroBulkFormat<GenericRecord, RowData, FileSourceSplit> {
 
-        private transient GenericRecord reusedAvroRecord;
-        private transient AvroToRowDataConverters.AvroToRowDataConverter converter;
-
         protected TestingAvroBulkFormat() {
             super(AvroSchemaConverter.convertToSchema(ROW_TYPE));
         }
 
         @Override
-        protected void open(FileSourceSplit split) {
-            reusedAvroRecord = new GenericData.Record(readerSchema);
-            converter = AvroToRowDataConverters.createRowConverter(ROW_TYPE);
-        }
-
-        @Override
-        protected RowData convert(GenericRecord record) {
-            return record == null ? null : (RowData) converter.convert(record);
-        }
-
-        @Override
         protected GenericRecord createReusedAvroRecord() {
-            return reusedAvroRecord;
+            return new GenericData.Record(readerSchema);
+        }
+
+        @Override
+        protected Function<GenericRecord, RowData> createConverter() {
+            AvroToRowDataConverters.AvroToRowDataConverter converter =
+                    AvroToRowDataConverters.createRowConverter(ROW_TYPE);
+            return record -> record == null ? null : (RowData) converter.convert(record);
         }
 
         @Override

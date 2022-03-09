@@ -242,6 +242,41 @@ public class DeclarativeSlotPoolBridgeTest extends TestLogger {
         }
     }
 
+    @Test
+    public void testIfJobIsRestartingAllOfferedSlotsWillBeRegistered() throws Exception {
+        final CompletableFuture<Void> registerSlotsCalledFuture = new CompletableFuture<>();
+        final TestingDeclarativeSlotPoolFactory declarativeSlotPoolFactory =
+                new TestingDeclarativeSlotPoolFactory(
+                        TestingDeclarativeSlotPool.builder()
+                                .setRegisterSlotsFunction(
+                                        (slotOffers,
+                                                taskManagerLocation,
+                                                taskManagerGateway,
+                                                aLong) ->
+                                                registerSlotsCalledFuture.complete(null)));
+
+        try (DeclarativeSlotPoolBridge declarativeSlotPoolBridge =
+                createDeclarativeSlotPoolBridge(
+                        declarativeSlotPoolFactory, requestSlotMatchingStrategy)) {
+            declarativeSlotPoolBridge.start(jobMasterId, "localhost", mainThreadExecutor);
+
+            declarativeSlotPoolBridge.setIsJobRestarting(true);
+
+            final LocalTaskManagerLocation localTaskManagerLocation =
+                    new LocalTaskManagerLocation();
+            declarativeSlotPoolBridge.registerTaskManager(localTaskManagerLocation.getResourceID());
+
+            declarativeSlotPoolBridge.offerSlots(
+                    localTaskManagerLocation,
+                    new SimpleAckingTaskManagerGateway(),
+                    Collections.singleton(
+                            new SlotOffer(new AllocationID(), 0, ResourceProfile.ANY)));
+
+            // make sure that the register slots method is called
+            registerSlotsCalledFuture.join();
+        }
+    }
+
     @Nonnull
     static DeclarativeSlotPoolBridge createDeclarativeSlotPoolBridge(
             DeclarativeSlotPoolFactory declarativeSlotPoolFactory,

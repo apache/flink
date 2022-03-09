@@ -106,6 +106,7 @@ import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.FlinkException;
 import org.apache.flink.util.NetUtils;
+import org.apache.flink.util.Reference;
 import org.apache.flink.util.TestLogger;
 import org.apache.flink.util.TimeUtils;
 import org.apache.flink.util.concurrent.Executors;
@@ -266,7 +267,9 @@ public class TaskExecutorTest extends TestLogger {
 
         final TaskExecutorLocalStateStoresManager localStateStoresManager =
                 new TaskExecutorLocalStateStoresManager(
-                        false, ioManager.getSpillingDirectories(), Executors.directExecutor());
+                        false,
+                        Reference.borrowed(ioManager.getSpillingDirectories()),
+                        Executors.directExecutor());
 
         nettyShuffleEnvironment.start();
 
@@ -354,7 +357,7 @@ public class TaskExecutorTest extends TestLogger {
         final TestingJobMasterGatewayBuilder testingJobMasterGatewayBuilder =
                 new TestingJobMasterGatewayBuilder()
                         .setRegisterTaskManagerFunction(
-                                (s, taskManagerUnresolvedLocation, ignored) -> {
+                                (ignoredJobId, ignoredTaskManagerRegistrationInformation) -> {
                                     registrationAttempts.countDown();
                                     return CompletableFuture.completedFuture(
                                             new JMTMRegistrationSuccess(jmResourceId));
@@ -2274,7 +2277,7 @@ public class TaskExecutorTest extends TestLogger {
                                         CompletableFuture.completedFuture(
                                                 new ArrayList<>(slotOffers)))
                         .setRegisterTaskManagerFunction(
-                                (ignoredA, ignoredB, ignoredC) ->
+                                (ignoredJobId, ignoredTaskManagerRegistrationInformation) ->
                                         CompletableFuture.completedFuture(
                                                 new JMTMRegistrationSuccess(jobManagerResourceId)))
                         .build();
@@ -2584,7 +2587,7 @@ public class TaskExecutorTest extends TestLogger {
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
                         .setRegisterTaskManagerFunction(
-                                (s, unresolvedTaskManagerLocation, jobID) ->
+                                (ignoredJobId, ignoredTaskManagerRegistrationInformation) ->
                                         CompletableFuture.completedFuture(
                                                 new JMTMRegistrationRejection("foobar")))
                         .build();
@@ -2654,7 +2657,7 @@ public class TaskExecutorTest extends TestLogger {
         final TestingJobMasterGateway jobMasterGateway =
                 new TestingJobMasterGatewayBuilder()
                         .setRegisterTaskManagerFunction(
-                                (s, unresolvedTaskManagerLocation, jobID) ->
+                                (ignoredJobId, ignoredTaskManagerRegistrationInformation) ->
                                         new CompletableFuture<>())
                         .build();
 
@@ -2694,7 +2697,7 @@ public class TaskExecutorTest extends TestLogger {
                     jobMasterGateway.getAddress(),
                     resourceManagerGateway.getFencingToken());
 
-            taskExecutor.freeInactiveSlots(jobId, timeout);
+            taskExecutorGateway.freeInactiveSlots(jobId, timeout);
 
             // the slot should be freed
             assertThat(availableSlotFuture.get().f1, is(slotId));
@@ -2707,7 +2710,7 @@ public class TaskExecutorTest extends TestLogger {
     private TaskExecutorLocalStateStoresManager createTaskExecutorLocalStateStoresManager()
             throws IOException {
         return new TaskExecutorLocalStateStoresManager(
-                false, new File[] {tmp.newFolder()}, Executors.directExecutor());
+                false, Reference.owned(new File[] {tmp.newFolder()}), Executors.directExecutor());
     }
 
     private TaskExecutor createTaskExecutor(int numberOFSlots) throws IOException {

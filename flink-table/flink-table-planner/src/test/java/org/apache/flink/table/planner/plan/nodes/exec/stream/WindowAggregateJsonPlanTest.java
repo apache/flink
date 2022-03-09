@@ -275,9 +275,7 @@ public class WindowAggregateJsonPlanTest extends TableTestBase {
     @Test
     public void testDistinctSplitEnabled() {
         tEnv.getConfig()
-                .getConfiguration()
-                .setBoolean(
-                        OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
+                .set(OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true);
         String sinkTableDdl =
                 "CREATE TABLE MySink (\n"
                         + "  a bigint,\n"

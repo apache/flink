@@ -65,7 +65,6 @@ object LongHashJoinGenerator {
   }
 
   private def genGetLongKey(
-      ctx: CodeGeneratorContext,
       keyType: RowType,
       keyMapping: Array[Int],
       rowTerm: String): String = {
@@ -93,10 +92,10 @@ object LongHashJoinGenerator {
      """.stripMargin, anyNullTerm)
   }
 
-  def genProjection(conf: TableConfig, types: Array[LogicalType]): GeneratedProjection = {
+  def genProjection(tableConfig: TableConfig, types: Array[LogicalType]): GeneratedProjection = {
     val rowType = RowType.of(types: _*)
     ProjectionCodeGenerator.generateProjection(
-      CodeGeneratorContext.apply(conf),
+      CodeGeneratorContext.apply(tableConfig),
       "Projection",
       rowType,
       rowType,
@@ -104,7 +103,7 @@ object LongHashJoinGenerator {
   }
 
   def gen(
-      conf: TableConfig,
+      tableConfig: TableConfig,
       hashJoinType: HashJoinType,
       keyType: RowType,
       buildType: RowType,
@@ -120,13 +119,13 @@ object LongHashJoinGenerator {
     val probeSer = new BinaryRowDataSerializer(probeType.getFieldCount)
 
     val tableTerm = newName("LongHashTable")
-    val ctx = CodeGeneratorContext(conf)
+    val ctx = CodeGeneratorContext(tableConfig)
     val buildSerTerm = ctx.addReusableObject(buildSer, "buildSer")
     val probeSerTerm = ctx.addReusableObject(probeSer, "probeSer")
 
-    val bGenProj = genProjection(conf, buildType.getChildren.toArray(Array[LogicalType]()))
+    val bGenProj = genProjection(tableConfig, buildType.getChildren.toArray(Array[LogicalType]()))
     ctx.addReusableInnerClass(bGenProj.getClassName, bGenProj.getCode)
-    val pGenProj = genProjection(conf, probeType.getChildren.toArray(Array[LogicalType]()))
+    val pGenProj = genProjection(tableConfig, probeType.getChildren.toArray(Array[LogicalType]()))
     ctx.addReusableInnerClass(pGenProj.getClassName, pGenProj.getCode)
     ctx.addReusableInnerClass(condFunc.getClassName, condFunc.getCode)
 
@@ -186,12 +185,12 @@ object LongHashJoinGenerator {
          |
          |  @Override
          |  public long getBuildLongKey($ROW_DATA row) {
-         |    ${genGetLongKey(ctx, keyType, buildKeyMapping, "row")}
+         |    ${genGetLongKey(keyType, buildKeyMapping, "row")}
          |  }
          |
          |  @Override
          |  public long getProbeLongKey($ROW_DATA row) {
-         |    ${genGetLongKey(ctx, keyType, probeKeyMapping, "row")}
+         |    ${genGetLongKey(keyType, probeKeyMapping, "row")}
          |  }
          |
          |  @Override

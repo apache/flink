@@ -168,13 +168,13 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
             log.info(
                     "The rpc endpoint {} has not been started yet. Discarding message {} until processing is started.",
                     rpcEndpoint.getClass().getName(),
-                    message.getClass().getName());
+                    message);
 
             sendErrorIfSender(
                     new AkkaRpcException(
                             String.format(
-                                    "Discard message, because the rpc endpoint %s has not been started yet.",
-                                    rpcEndpoint.getAddress())));
+                                    "Discard message %s, because the rpc endpoint %s has not been started yet.",
+                                    message, rpcEndpoint.getAddress())));
         }
     }
 
@@ -276,18 +276,6 @@ class AkkaRpcActor<T extends RpcEndpoint & RpcGateway> extends AbstractActor {
             Class<?>[] parameterTypes = rpcInvocation.getParameterTypes();
 
             rpcMethod = lookupRpcMethod(methodName, parameterTypes);
-        } catch (ClassNotFoundException e) {
-            log.error("Could not load method arguments.", e);
-
-            RpcConnectionException rpcException =
-                    new RpcConnectionException("Could not load method arguments.", e);
-            getSender().tell(new Status.Failure(rpcException), getSelf());
-        } catch (IOException e) {
-            log.error("Could not deserialize rpc invocation message.", e);
-
-            RpcConnectionException rpcException =
-                    new RpcConnectionException("Could not deserialize rpc invocation message.", e);
-            getSender().tell(new Status.Failure(rpcException), getSelf());
         } catch (final NoSuchMethodException e) {
             log.error("Could not find rpc method for rpc invocation.", e);
 

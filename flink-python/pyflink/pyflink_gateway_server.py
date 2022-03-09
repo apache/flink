@@ -24,9 +24,10 @@ import re
 import signal
 import socket
 import sys
+import time
 from collections import namedtuple
 from string import Template
-from subprocess import Popen, PIPE, check_output
+from subprocess import Popen, PIPE, check_output, CalledProcessError
 
 from pyflink.find_flink_home import _find_flink_home, _find_flink_source_root
 
@@ -290,7 +291,25 @@ def launch_gateway_server_process(env, args):
         classpath = os.pathsep.join(
             [construct_flink_classpath(env), construct_hadoop_classpath(env)])
         if "FLINK_TESTING" in env:
-            download_apache_avro()
+            total_retry_times = 3
+            retry_times = 0
+            status = 0
+            error = None
+            while retry_times < total_retry_times and not status:
+                retry_times += 1
+                try:
+                    download_apache_avro()
+                    status = 1
+                except CalledProcessError as e:
+                    status = 0
+                    error = e
+                    print("{0} retry download, {1} retries remaining".format(
+                        retry_times, total_retry_times - retry_times))
+                    # sleep 3 seconds and then re-download.
+                    time.sleep(3)
+            if retry_times == total_retry_times and not status:
+                raise error
+
             classpath = os.pathsep.join([classpath, construct_test_classpath()])
         command = [java_executable, jvm_args, jvm_opts] + log_settings \
             + ["-cp", classpath, program_args.main_class] + program_args.other_args

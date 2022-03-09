@@ -156,7 +156,7 @@ public class OperatorSnapshotFutures {
     }
 
     /** @return discarded state size (if available). */
-    public long cancel() throws Exception {
+    public Tuple2<Long, Long> cancel() throws Exception {
         List<Tuple2<Future<? extends StateObject>, String>> pairs = new ArrayList<>();
         pairs.add(new Tuple2<>(getKeyedStateManagedFuture(), "managed keyed"));
         pairs.add(new Tuple2<>(getKeyedStateRawFuture(), "managed operator"));
@@ -164,13 +164,15 @@ public class OperatorSnapshotFutures {
         pairs.add(new Tuple2<>(getOperatorStateRawFuture(), "raw operator"));
         pairs.add(new Tuple2<>(getInputChannelStateFuture(), "input channel"));
         pairs.add(new Tuple2<>(getResultSubpartitionStateFuture(), "result subpartition"));
-        final long[] stateSize = new long[1]; // single-element array to access from lambda
+        final long[] sizeTuple = new long[2];
         try (Closer closer = Closer.create()) {
             for (Tuple2<Future<? extends StateObject>, String> pair : pairs) {
                 closer.register(
                         () -> {
                             try {
-                                stateSize[0] += discardStateFuture(pair.f0);
+                                Tuple2<Long, Long> tuple = discardStateFuture(pair.f0);
+                                sizeTuple[0] += tuple.f0;
+                                sizeTuple[1] += tuple.f1;
                             } catch (Exception e) {
                                 throw new RuntimeException(
                                         String.format(
@@ -181,7 +183,7 @@ public class OperatorSnapshotFutures {
                         });
             }
         }
-        return stateSize[0];
+        return Tuple2.of(sizeTuple[0], sizeTuple[1]);
     }
 
     public Future<?>[] getAllFutures() {

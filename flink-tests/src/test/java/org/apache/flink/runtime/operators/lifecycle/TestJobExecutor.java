@@ -21,6 +21,7 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.ClusterClient;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.runtime.jobgraph.JobVertexID;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommand;
 import org.apache.flink.runtime.operators.lifecycle.command.TestCommandDispatcher;
@@ -99,7 +100,12 @@ public class TestJobExecutor {
             throws Exception {
         LOG.debug("stopWithSavepoint: {} (withDrain: {})", folder, withDrain);
         ClusterClient<?> client = miniClusterResource.getClusterClient();
-        client.stopWithSavepoint(jobID, withDrain, folder.newFolder().toString()).get();
+        client.stopWithSavepoint(
+                        jobID,
+                        withDrain,
+                        folder.newFolder().toString(),
+                        SavepointFormatType.CANONICAL)
+                .get();
         return this;
     }
 

@@ -19,7 +19,7 @@
 package org.apache.flink.runtime.dispatcher.runner;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.runtime.jobmanager.JobGraphStoreFactory;
+import org.apache.flink.runtime.jobmanager.JobPersistenceComponentFactory;
 import org.apache.flink.runtime.rpc.FatalErrorHandler;
 
 import java.util.UUID;
@@ -31,18 +31,18 @@ public class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderPr
 
     private final AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory
             dispatcherGatewayServiceFactory;
-    private final JobGraphStoreFactory jobGraphStoreFactory;
+    private final JobPersistenceComponentFactory jobPersistenceComponentFactory;
     private final Executor ioExecutor;
     private final FatalErrorHandler fatalErrorHandler;
 
     public SessionDispatcherLeaderProcessFactory(
             AbstractDispatcherLeaderProcess.DispatcherGatewayServiceFactory
                     dispatcherGatewayServiceFactory,
-            JobGraphStoreFactory jobGraphStoreFactory,
+            JobPersistenceComponentFactory jobPersistenceComponentFactory,
             Executor ioExecutor,
             FatalErrorHandler fatalErrorHandler) {
         this.dispatcherGatewayServiceFactory = dispatcherGatewayServiceFactory;
-        this.jobGraphStoreFactory = jobGraphStoreFactory;
+        this.jobPersistenceComponentFactory = jobPersistenceComponentFactory;
         this.ioExecutor = ioExecutor;
         this.fatalErrorHandler = fatalErrorHandler;
     }
@@ -52,7 +52,8 @@ public class SessionDispatcherLeaderProcessFactory implements DispatcherLeaderPr
         return SessionDispatcherLeaderProcess.create(
                 leaderSessionID,
                 dispatcherGatewayServiceFactory,
-                jobGraphStoreFactory.create(),
+                jobPersistenceComponentFactory.createJobGraphStore(),
+                jobPersistenceComponentFactory.createJobResultStore(),
                 ioExecutor,
                 fatalErrorHandler);
     }

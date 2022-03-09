@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.plan.nodes.exec.batch;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.streaming.api.operators.OneInputStreamOperator;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
@@ -32,6 +31,8 @@ import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNode;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
@@ -51,7 +52,7 @@ import java.util.Collections;
 
 /** Batch {@link ExecNode} for sort-based window aggregate operator. */
 public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
-        implements BatchExecNode<RowData>, SingleTransformationTranslator<RowData> {
+        implements InputSortedExecNode<RowData>, SingleTransformationTranslator<RowData> {
 
     private final int[] grouping;
     private final int[] auxGrouping;
@@ -80,7 +81,12 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecSortWindowAggregate.class),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.grouping = grouping;
         this.auxGrouping = auxGrouping;
         this.aggCalls = aggCalls;
@@ -96,7 +102,8 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         final ExecEdge inputEdge = getInputEdges().get(0);
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
@@ -108,16 +115,13 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
                         null, // aggCallNeedRetractions
                         null); // orderKeyIndexes
 
-        final TableConfig tableConfig = planner.getTableConfig();
         final int groupBufferLimitSize =
-                tableConfig
-                        .getConfiguration()
-                        .getInteger(ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT);
+                config.get(ExecutionConfigOptions.TABLE_EXEC_WINDOW_AGG_BUFFER_SIZE_LIMIT);
 
         final Tuple2<Long, Long> windowSizeAndSlideSize = WindowCodeGenerator.getWindowDef(window);
         final SortWindowCodeGenerator windowCodeGenerator =
                 new SortWindowCodeGenerator(
-                        new CodeGeneratorContext(tableConfig),
+                        new CodeGeneratorContext(config.getTableConfig()),
                         planner.getRelBuilder(),
                         window,
                         inputTimeFieldIndex,
@@ -145,8 +149,8 @@ public class BatchExecSortWindowAggregate extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(tableConfig),
-                getOperatorDescription(tableConfig),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 new CodeGenOperatorFactory<>(generatedOperator),
                 InternalTypeInfo.of(getOutputType()),
                 inputTransform.getParallelism());

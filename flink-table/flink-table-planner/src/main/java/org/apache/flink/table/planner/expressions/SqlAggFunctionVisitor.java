@@ -19,6 +19,7 @@
 package org.apache.flink.table.planner.expressions;
 
 import org.apache.flink.table.api.TableException;
+import org.apache.flink.table.catalog.ContextResolvedFunction;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
@@ -112,19 +113,20 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
             return innerAgg.accept(this);
         }
 
-        return createSqlAggFunction(
-                call.getFunctionIdentifier().orElse(null), call.getFunctionDefinition());
+        return createSqlAggFunction(call);
     }
 
-    private SqlAggFunction createSqlAggFunction(
-            @Nullable FunctionIdentifier identifier, FunctionDefinition definition) {
+    private SqlAggFunction createSqlAggFunction(CallExpression call) {
+        final FunctionDefinition definition = call.getFunctionDefinition();
         // legacy
         if (definition instanceof AggregateFunctionDefinition) {
             return createLegacySqlAggregateFunction(
-                    identifier, (AggregateFunctionDefinition) definition);
+                    call.getFunctionIdentifier().orElse(null),
+                    (AggregateFunctionDefinition) definition);
         } else if (definition instanceof TableAggregateFunctionDefinition) {
             return createLegacySqlTableAggregateFunction(
-                    identifier, (TableAggregateFunctionDefinition) definition);
+                    call.getFunctionIdentifier().orElse(null),
+                    (TableAggregateFunctionDefinition) definition);
         }
 
         // new stack
@@ -135,8 +137,7 @@ public class SqlAggFunctionVisitor extends ExpressionDefaultVisitor<SqlAggFuncti
                 dataTypeFactory,
                 ShortcutUtils.unwrapTypeFactory(relBuilder),
                 SqlKind.OTHER_FUNCTION,
-                identifier,
-                definition,
+                ContextResolvedFunction.fromCallExpression(call),
                 typeInference);
     }
 

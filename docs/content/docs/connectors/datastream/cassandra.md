@@ -37,7 +37,7 @@ To use this connector, add the following dependency to your project:
 
 {{< artifact flink-connector-cassandra withScalaVersion >}}
 
-Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/datastream/project-configuration" >}}).
+Note that the streaming connectors are currently __NOT__ part of the binary distribution. See how to link with them for cluster execution [here]({{< ref "docs/dev/configuration/overview" >}}).
 
 ## Installing Apache Cassandra
 There are multiple ways to bring up a Cassandra instance on local machine:

@@ -28,6 +28,7 @@ import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.common.typeutils.base.StringSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.checkpoint.CheckpointException;
@@ -37,6 +38,8 @@ import org.apache.flink.runtime.checkpoint.CheckpointMetricsBuilder;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
 import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.runtime.checkpoint.SavepointType;
+import org.apache.flink.runtime.checkpoint.SnapshotType;
 import org.apache.flink.runtime.checkpoint.SubtaskState;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.checkpoint.channel.ChannelStateWriter;
@@ -79,6 +82,7 @@ import org.apache.flink.runtime.state.OperatorStreamStateHandle;
 import org.apache.flink.runtime.state.SharedStateRegistry;
 import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateBackendFactory;
+import org.apache.flink.runtime.state.StateHandleID;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.runtime.state.StatePartitionStreamProvider;
 import org.apache.flink.runtime.state.StreamStateHandle;
@@ -222,14 +226,16 @@ public class StreamTaskTest extends TestLogger {
     @Test
     public void testSavepointSuspendCompleted() throws Exception {
         testSyncSavepointWithEndInput(
-                StreamTask::notifyCheckpointCompleteAsync, CheckpointType.SAVEPOINT_SUSPEND, false);
+                StreamTask::notifyCheckpointCompleteAsync,
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
+                false);
     }
 
     @Test
     public void testSavepointTerminateCompleted() throws Exception {
         testSyncSavepointWithEndInput(
                 StreamTask::notifyCheckpointCompleteAsync,
-                CheckpointType.SAVEPOINT_TERMINATE,
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
                 true);
     }
 
@@ -243,7 +249,7 @@ public class StreamTaskTest extends TestLogger {
                                 id,
                                 new CheckpointException(
                                         UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
-                CheckpointType.SAVEPOINT_SUSPEND,
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
                 false);
     }
 
@@ -257,7 +263,7 @@ public class StreamTaskTest extends TestLogger {
                                 id,
                                 new CheckpointException(
                                         UNKNOWN_TASK_CHECKPOINT_NOTIFICATION_FAILURE)),
-                CheckpointType.SAVEPOINT_TERMINATE,
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
                 true);
     }
 
@@ -268,7 +274,7 @@ public class StreamTaskTest extends TestLogger {
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
-                CheckpointType.SAVEPOINT_SUSPEND,
+                SavepointType.suspend(SavepointFormatType.CANONICAL),
                 false);
     }
 
@@ -279,7 +285,7 @@ public class StreamTaskTest extends TestLogger {
         testSyncSavepointWithEndInput(
                 (streamTask, abortCheckpointId) ->
                         streamTask.notifyCheckpointAbortAsync(abortCheckpointId, 0),
-                CheckpointType.SAVEPOINT_TERMINATE,
+                SavepointType.terminate(SavepointFormatType.CANONICAL),
                 true);
     }
 
@@ -295,7 +301,7 @@ public class StreamTaskTest extends TestLogger {
      */
     private void testSyncSavepointWithEndInput(
             BiConsumerWithException<StreamTask<?, ?>, Long, IOException> savepointResult,
-            CheckpointType checkpointType,
+            SnapshotType checkpointType,
             boolean expectEndInput)
             throws Exception {
         StreamTaskMailboxTestHarness<String> harness =
@@ -2376,6 +2382,8 @@ public class StreamTaskTest extends TestLogger {
 
         private final transient CompletableFuture<Void> discardFuture = new CompletableFuture<>();
 
+        private final StateHandleID stateHandleId = StateHandleID.randomStateHandleId();
+
         public CompletableFuture<Void> getDiscardFuture() {
             return discardFuture;
         }
@@ -2391,6 +2399,11 @@ public class StreamTaskTest extends TestLogger {
         }
 
         @Override
+        public StateHandleID getStateHandleId() {
+            return stateHandleId;
+        }
+
+        @Override
         public void registerSharedStates(SharedStateRegistry stateRegistry, long checkpointID) {}
 
         @Override
@@ -2401,6 +2414,11 @@ public class StreamTaskTest extends TestLogger {
         @Override
         public long getStateSize() {
             return 0L;
+        }
+
+        @Override
+        public long getCheckpointedSize() {
+            return getStateSize();
         }
     }
 

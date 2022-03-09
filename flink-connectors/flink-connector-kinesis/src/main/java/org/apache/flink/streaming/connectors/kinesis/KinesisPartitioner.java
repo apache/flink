@@ -18,7 +18,7 @@
 package org.apache.flink.streaming.connectors.kinesis;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.connector.kinesis.sink.KinesisDataStreamsSinkElementConverter.PartitionKeyGenerator;
+import org.apache.flink.connector.kinesis.sink.PartitionKeyGenerator;
 
 import java.io.Serializable;
 

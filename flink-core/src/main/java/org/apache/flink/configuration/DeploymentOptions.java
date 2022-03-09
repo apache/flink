@@ -45,7 +45,7 @@ public class DeploymentOptions {
                                     .list(
                                             text("remote"),
                                             text("local"),
-                                            text("yarn-per-job"),
+                                            text("yarn-per-job (deprecated)"),
                                             text("yarn-session"),
                                             text("kubernetes-session"))
                                     .text(
@@ -104,4 +104,17 @@ public class DeploymentOptions {
                                             TextElement.text(SHUTDOWN_ON_APPLICATION_FINISH.key()),
                                             TextElement.text(HighAvailabilityOptions.HA_MODE.key()))
                                     .build());
+
+    @Experimental
+    public static final ConfigOption<Boolean> ALLOW_CLIENT_JOB_CONFIGURATIONS =
+            ConfigOptions.key("execution.allow-client-job-configurations")
+                    .booleanType()
+                    .defaultValue(true)
+                    .withDescription(
+                            "Determines whether configurations in the user program are "
+                                    + "allowed. Depending on your deployment mode failing the job "
+                                    + "might have different affects. Either your client that is "
+                                    + "trying to submit the job to an external cluster (session "
+                                    + "cluster deployment) throws the exception or the Job "
+                                    + "manager (application mode deployment).");
 }

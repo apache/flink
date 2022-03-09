@@ -42,8 +42,14 @@ import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
 
-/** */
-public class AvroParquetRecordFormat<E> implements StreamFormat<E> {
+/**
+ * A reader format that reads individual Avro records from a Parquet stream. Please refer to the
+ * factory class {@link AvroParquetReaders} for how to create new {@link AvroParquetRecordFormat}.
+ * This class leverages {@link ParquetReader} underneath. The parquet files need to be in a certain
+ * way compatible with the provided Avro schema and Avro data models, i.e. {@link GenericData},
+ * {@link org.apache.avro.specific.SpecificData}, or {@link org.apache.avro.reflect.ReflectData}.
+ */
+class AvroParquetRecordFormat<E> implements StreamFormat<E> {
 
     private static final long serialVersionUID = 1L;
 

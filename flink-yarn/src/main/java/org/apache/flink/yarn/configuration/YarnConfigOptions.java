@@ -49,17 +49,18 @@ public class YarnConfigOptions {
                             "The number of virtual cores (vcores) used by YARN application master.");
 
     /**
-     * Defines whether user-jars are included in the system class path for per-job-clusters as well
-     * as their positioning in the path. They can be positioned at the beginning (FIRST), at the end
-     * (LAST), or be positioned based on their name (ORDER). DISABLED means the user-jars are
-     * excluded from the system class path.
+     * Defines whether user-jars are included in the system class path as well as their positioning
+     * in the path. They can be positioned at the beginning (FIRST), at the end (LAST), or be
+     * positioned based on their name (ORDER). DISABLED means the user-jars are excluded from the
+     * system class path and as a result these jars will be loaded by user classloader.
      */
     public static final ConfigOption<UserJarInclusion> CLASSPATH_INCLUDE_USER_JAR =
-            key("yarn.per-job-cluster.include-user-jar")
+            key("yarn.classpath.include-user-jar")
                     .enumType(UserJarInclusion.class)
                     .defaultValue(ORDER)
+                    .withDeprecatedKeys("yarn.per-job-cluster.include-user-jar")
                     .withDescription(
-                            "Defines whether user-jars are included in the system class path for per-job-clusters "
+                            "Defines whether user-jars are included in the system class path "
                                     + "as well as their positioning in the path.");
 
     /** The vcores exposed by YARN. */

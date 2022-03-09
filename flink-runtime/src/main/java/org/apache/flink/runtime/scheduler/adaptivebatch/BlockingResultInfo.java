@@ -18,7 +18,17 @@
 
 package org.apache.flink.runtime.scheduler.adaptivebatch;
 
+import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.runtime.executiongraph.IOMetrics;
+import org.apache.flink.runtime.executiongraph.IntermediateResult;
+import org.apache.flink.runtime.executiongraph.IntermediateResultPartition;
+
+import java.util.ArrayList;
 import java.util.List;
+
+import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.apache.flink.util.Preconditions.checkNotNull;
+import static org.apache.flink.util.Preconditions.checkState;
 
 /** The blocking result info, which will be used to calculate the vertex parallelism. */
 public class BlockingResultInfo {
@@ -40,12 +50,32 @@ public class BlockingResultInfo {
         return isBroadcast;
     }
 
-    public static BlockingResultInfo createFromBroadcastResult(List<Long> blockingPartitionSizes) {
+    @VisibleForTesting
+    static BlockingResultInfo createFromBroadcastResult(List<Long> blockingPartitionSizes) {
         return new BlockingResultInfo(blockingPartitionSizes, true);
     }
 
-    public static BlockingResultInfo createFromNonBroadcastResult(
-            List<Long> blockingPartitionSizes) {
+    @VisibleForTesting
+    static BlockingResultInfo createFromNonBroadcastResult(List<Long> blockingPartitionSizes) {
         return new BlockingResultInfo(blockingPartitionSizes, false);
+    }
+
+    public static BlockingResultInfo createFromIntermediateResult(
+            IntermediateResult intermediateResult) {
+        checkArgument(intermediateResult != null);
+
+        List<Long> blockingPartitionSizes = new ArrayList<>();
+        for (IntermediateResultPartition partition : intermediateResult.getPartitions()) {
+            checkState(partition.isConsumable());
+
+            IOMetrics ioMetrics =
+                    partition.getProducer().getCurrentExecutionAttempt().getIOMetrics();
+            checkNotNull(ioMetrics, "IOMetrics should not be null.");
+
+            blockingPartitionSizes.add(
+                    ioMetrics.getNumBytesProducedOfPartitions().get(partition.getPartitionId()));
+        }
+
+        return new BlockingResultInfo(blockingPartitionSizes, intermediateResult.isBroadcast());
     }
 }

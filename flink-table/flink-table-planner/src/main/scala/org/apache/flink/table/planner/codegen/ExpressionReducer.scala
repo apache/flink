@@ -48,7 +48,7 @@ import scala.collection.mutable.ListBuffer
   *                               not null.
   */
 class ExpressionReducer(
-    config: TableConfig,
+    tableConfig: TableConfig,
     allowChangeNullability: Boolean = false)
   extends RexExecutor
   with Logging {
@@ -71,7 +71,7 @@ class ExpressionReducer(
     val resultType = RowType.of(literalTypes: _*)
 
     // generate MapFunction
-    val ctx = new ConstantCodeGeneratorContext(config)
+    val ctx = new ConstantCodeGeneratorContext(tableConfig)
 
     val exprGenerator = new ExprCodeGenerator(ctx, false)
       .bindInput(EMPTY_ROW_TYPE)
@@ -98,7 +98,7 @@ class ExpressionReducer(
         throw new TableException("RichMapFunction[GenericRowData, GenericRowData] required here")
     }
 
-    val parameters = config.getConfiguration
+    val parameters = tableConfig.getConfiguration
     val reduced = try {
       richMapFunction.open(parameters)
       // execute

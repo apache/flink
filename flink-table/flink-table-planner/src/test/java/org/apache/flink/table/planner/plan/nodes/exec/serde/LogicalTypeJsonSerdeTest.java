@@ -66,14 +66,13 @@ import org.apache.flink.table.types.utils.DataTypeFactoryMock;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.core.JsonProcessingException;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.junit.runners.Parameterized.Parameters;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -86,14 +85,16 @@ import java.util.Optional;
 import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation.ALL;
 import static org.apache.flink.table.api.config.TableConfigOptions.CatalogPlanCompilation.IDENTIFIER;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.configuredSerdeContext;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.toJson;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeMocks.toObject;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toObject;
 import static org.apache.flink.table.utils.CatalogManagerMocks.preparedCatalogManager;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** Tests for {@link LogicalType} serialization and deserialization. */
+@Execution(CONCURRENT)
 public class LogicalTypeJsonSerdeTest {
 
     @ParameterizedTest
@@ -108,7 +109,7 @@ public class LogicalTypeJsonSerdeTest {
     }
 
     @Test
-    public void testIdentifierSerde() throws JsonProcessingException {
+    public void testIdentifierSerde() throws IOException {
         final DataTypeFactoryMock dataTypeFactoryMock = new DataTypeFactoryMock();
         final TableConfig tableConfig = TableConfig.getDefault();
         final Configuration config = tableConfig.getConfiguration();
@@ -194,7 +195,6 @@ public class LogicalTypeJsonSerdeTest {
                     .description("My original type with update description.")
                     .build();
 
-    @Parameters(name = "{0}")
     private static List<LogicalType> testLogicalTypeSerde() {
         final List<LogicalType> types =
                 Arrays.asList(

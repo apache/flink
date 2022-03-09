@@ -44,6 +44,7 @@ public class RexWindowBoundSerdeTest {
     public void testSerde() throws IOException {
         SerdeContext serdeCtx =
                 new SerdeContext(
+                        null,
                         new FlinkContextImpl(
                                 false,
                                 TableConfig.getDefault(),

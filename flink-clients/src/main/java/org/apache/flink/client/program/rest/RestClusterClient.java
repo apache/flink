@@ -29,6 +29,7 @@ import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.client.JobStatusMessage;
 import org.apache.flink.runtime.client.JobSubmissionException;
@@ -357,7 +358,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                                                         artifactFilePath.getName()));
                                         filesToUpload.add(
                                                 new FileUpload(
-                                                        Paths.get(artifacts.getValue().filePath),
+                                                        Paths.get(artifactFilePath.getPath()),
                                                         RestConstants.CONTENT_TYPE_BINARY));
                                     }
                                 } catch (IOException e) {
@@ -450,7 +451,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     public CompletableFuture<String> stopWithSavepoint(
             final JobID jobId,
             final boolean advanceToEndOfTime,
-            @Nullable final String savepointDirectory) {
+            @Nullable final String savepointDirectory,
+            final SavepointFormatType formatType) {
 
         final StopWithSavepointTriggerHeaders stopWithSavepointTriggerHeaders =
                 StopWithSavepointTriggerHeaders.getInstance();
@@ -464,7 +466,7 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                         stopWithSavepointTriggerHeaders,
                         stopWithSavepointTriggerMessageParameters,
                         new StopWithSavepointRequestBody(
-                                savepointDirectory, advanceToEndOfTime, null));
+                                savepointDirectory, advanceToEndOfTime, formatType, null));
 
         return responseFuture
                 .thenCompose(
@@ -484,14 +486,16 @@ public class RestClusterClient<T> implements ClusterClient<T> {
 
     @Override
     public CompletableFuture<String> cancelWithSavepoint(
-            JobID jobId, @Nullable String savepointDirectory) {
-        return triggerSavepoint(jobId, savepointDirectory, true);
+            JobID jobId, @Nullable String savepointDirectory, SavepointFormatType formatType) {
+        return triggerSavepoint(jobId, savepointDirectory, true, formatType);
     }
 
     @Override
     public CompletableFuture<String> triggerSavepoint(
-            final JobID jobId, final @Nullable String savepointDirectory) {
-        return triggerSavepoint(jobId, savepointDirectory, false);
+            final JobID jobId,
+            final @Nullable String savepointDirectory,
+            final SavepointFormatType formatType) {
+        return triggerSavepoint(jobId, savepointDirectory, false, formatType);
     }
 
     @Override
@@ -526,7 +530,10 @@ public class RestClusterClient<T> implements ClusterClient<T> {
     }
 
     private CompletableFuture<String> triggerSavepoint(
-            final JobID jobId, final @Nullable String savepointDirectory, final boolean cancelJob) {
+            final JobID jobId,
+            final @Nullable String savepointDirectory,
+            final boolean cancelJob,
+            final SavepointFormatType formatType) {
         final SavepointTriggerHeaders savepointTriggerHeaders =
                 SavepointTriggerHeaders.getInstance();
         final SavepointTriggerMessageParameters savepointTriggerMessageParameters =
@@ -537,7 +544,8 @@ public class RestClusterClient<T> implements ClusterClient<T> {
                 sendRequest(
                         savepointTriggerHeaders,
                         savepointTriggerMessageParameters,
-                        new SavepointTriggerRequestBody(savepointDirectory, cancelJob, null));
+                        new SavepointTriggerRequestBody(
+                                savepointDirectory, cancelJob, formatType, null));
 
         return responseFuture
                 .thenCompose(

@@ -26,6 +26,8 @@ import org.apache.flink.table.planner.codegen.sort.ComparatorCodeGenerator;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecEdge;
 import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeBase;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeConfig;
+import org.apache.flink.table.planner.plan.nodes.exec.ExecNodeContext;
 import org.apache.flink.table.planner.plan.nodes.exec.InputProperty;
 import org.apache.flink.table.planner.plan.nodes.exec.SingleTransformationTranslator;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.SortSpec;
@@ -58,7 +60,12 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData>
             InputProperty inputProperty,
             RowType outputType,
             String description) {
-        super(Collections.singletonList(inputProperty), outputType, description);
+        super(
+                ExecNodeContext.newNodeId(),
+                ExecNodeContext.newContext(BatchExecSortLimit.class),
+                Collections.singletonList(inputProperty),
+                outputType,
+                description);
         this.sortSpec = sortSpec;
         this.limitStart = limitStart;
         this.limitEnd = limitEnd;
@@ -67,7 +74,8 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData>
 
     @SuppressWarnings("unchecked")
     @Override
-    protected Transformation<RowData> translateToPlanInternal(PlannerBase planner) {
+    protected Transformation<RowData> translateToPlanInternal(
+            PlannerBase planner, ExecNodeConfig config) {
         if (limitEnd == Long.MAX_VALUE) {
             throw new TableException("Not support limitEnd is max value now!");
         }
@@ -80,7 +88,7 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData>
         // generate comparator
         GeneratedRecordComparator genComparator =
                 ComparatorCodeGenerator.gen(
-                        planner.getTableConfig(), "SortLimitComparator", inputType, sortSpec);
+                        config.getTableConfig(), "SortLimitComparator", inputType, sortSpec);
 
         // TODO If input is ordered, there is no need to use the heap.
         SortLimitOperator operator =
@@ -88,8 +96,8 @@ public class BatchExecSortLimit extends ExecNodeBase<RowData>
 
         return ExecNodeUtil.createOneInputTransformation(
                 inputTransform,
-                getOperatorName(planner.getTableConfig()),
-                getOperatorDescription(planner.getTableConfig()),
+                createTransformationName(config),
+                createTransformationDescription(config),
                 SimpleOperatorFactory.of(operator),
                 InternalTypeInfo.of(inputType),
                 inputTransform.getParallelism());

@@ -82,7 +82,7 @@ public abstract class KafkaTestBase extends TestLogger {
 
     public static final Logger LOG = LoggerFactory.getLogger(KafkaTestBase.class);
 
-    public static final int NUMBER_OF_KAFKA_SERVERS = 3;
+    public static final int NUMBER_OF_KAFKA_SERVERS = 1;
 
     public static String brokerConnectionStrings;
 
@@ -152,7 +152,7 @@ public abstract class KafkaTestBase extends TestLogger {
 
     public static void startClusters(KafkaTestEnvironment.Config environmentConfig)
             throws Exception {
-        kafkaServer = constructKafkaTestEnvionment();
+        kafkaServer = constructKafkaTestEnvironment();
 
         LOG.info("Starting KafkaTestBase.prepare() for Kafka " + kafkaServer.getVersion());
 
@@ -171,7 +171,7 @@ public abstract class KafkaTestBase extends TestLogger {
         }
     }
 
-    public static KafkaTestEnvironment constructKafkaTestEnvionment() throws Exception {
+    public static KafkaTestEnvironment constructKafkaTestEnvironment() throws Exception {
         Class<?> clazz =
                 Class.forName(
                         "org.apache.flink.streaming.connectors.kafka.KafkaTestEnvironmentImpl");

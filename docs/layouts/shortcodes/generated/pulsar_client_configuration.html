@@ -90,7 +90,7 @@
             <td><h5>pulsar.client.maxLookupRequest</h5></td>
             <td style="word-wrap: break-word;">50000</td>
             <td>Integer</td>
-            <td>The maximum number of lookup requests allowed on each broker connection to prevent overload on the broker. It should be greater than <code class="highlighter-rouge">maxConcurrentLookupRequests</code>. Requests that inside <code class="highlighter-rouge">maxConcurrentLookupRequests</code> are already sent to broker, and requests beyond <code class="highlighter-rouge">maxConcurrentLookupRequests</code> and under <code class="highlighter-rouge">maxLookupRequests</code> will wait in each client cnx.</td>
+            <td>The maximum number of lookup requests allowed on each broker connection to prevent overload on the broker. It should be greater than <code class="highlighter-rouge">pulsar.client.concurrentLookupRequest</code>. Requests that inside <code class="highlighter-rouge">pulsar.client.concurrentLookupRequest</code> are already sent to broker, and requests beyond <code class="highlighter-rouge">pulsar.client.concurrentLookupRequest</code> and under <code class="highlighter-rouge">maxLookupRequests</code> will wait in each client cnx.</td>
         </tr>
         <tr>
             <td><h5>pulsar.client.maxNumberOfRejectedRequestPerConnection</h5></td>
@@ -138,13 +138,13 @@
             <td><h5>pulsar.client.requestTimeoutMs</h5></td>
             <td style="word-wrap: break-word;">60000</td>
             <td>Integer</td>
-            <td>Maximum duration (in ms) for completing a request.</td>
+            <td>Maximum duration (in ms) for completing a request. This config option is not supported before Pulsar 2.8.1</td>
         </tr>
         <tr>
             <td><h5>pulsar.client.serviceUrl</h5></td>
             <td style="word-wrap: break-word;">(none)</td>
             <td>String</td>
-            <td>Service URL provider for Pulsar service.<br />To connect to Pulsar using client libraries, you need to specify a Pulsar protocol URL.<br />You can assign Pulsar protocol URLs to specific clusters and use the <code class="highlighter-rouge">pulsar</code> scheme.<br /><ul><li>This is an example of <code class="highlighter-rouge">localhost</code>: <code class="highlighter-rouge">pulsar://localhost:6650</code>.</li><li>If you have multiple brokers, the URL is as: <code class="highlighter-rouge">pulsar://localhost:6550,localhost:6651,localhost:6652</code></li><li>A URL for a production Pulsar cluster is as: <code class="highlighter-rouge">pulsar://pulsar.us-west.example.com:6650</code></li><li>If you use TLS authentication, the URL is as <code class="highlighter-rouge">pulsar+ssl://pulsar.us-west.example.com:6651</code></li></ul></td>
+            <td>Service URL provider for Pulsar service.<br />To connect to Pulsar using client libraries, you need to specify a Pulsar protocol URL.<br />You can assign Pulsar protocol URLs to specific clusters and use the Pulsar scheme.<br /><ul><li>This is an example of <code class="highlighter-rouge">localhost</code>: <code class="highlighter-rouge">pulsar://localhost:6650</code>.</li><li>If you have multiple brokers, the URL is as: <code class="highlighter-rouge">pulsar://localhost:6550,localhost:6651,localhost:6652</code></li><li>A URL for a production Pulsar cluster is as: <code class="highlighter-rouge">pulsar://pulsar.us-west.example.com:6650</code></li><li>If you use TLS authentication, the URL is as <code class="highlighter-rouge">pulsar+ssl://pulsar.us-west.example.com:6651</code></li></ul></td>
         </tr>
         <tr>
             <td><h5>pulsar.client.sslProvider</h5></td>
@@ -216,7 +216,7 @@
             <td><h5>pulsar.client.useTcpNoDelay</h5></td>
             <td style="word-wrap: break-word;">true</td>
             <td>Boolean</td>
-            <td>Whether to use the TCP no-delay flag on the connection to disable Nagle algorithm.<br />No-delay features ensures that packets are sent out on the network as soon as possible, and it is critical to achieve low latency publishes. On the other hand, sending out a huge number of small packets might limit the overall throughput. Therefore, if latency is not a concern, it is recommended to set the <code class="highlighter-rouge">useTcpNoDelay</code> flag to <code class="highlighter-rouge">false</code>.<br />By default, it is set to <code class="highlighter-rouge">true</code>.</td>
+            <td>Whether to use the TCP no-delay flag on the connection to disable Nagle algorithm.<br />No-delay features ensures that packets are sent out on the network as soon as possible, and it is critical to achieve low latency publishes. On the other hand, sending out a huge number of small packets might limit the overall throughput. Therefore, if latency is not a concern, it is recommended to set this option to <code class="highlighter-rouge">false</code>.<br />By default, it is set to <code class="highlighter-rouge">true</code>.</td>
         </tr>
     </tbody>
 </table>

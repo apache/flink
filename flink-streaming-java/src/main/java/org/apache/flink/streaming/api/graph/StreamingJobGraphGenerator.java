@@ -67,7 +67,10 @@ import org.apache.flink.streaming.api.operators.UdfStreamOperatorFactory;
 import org.apache.flink.streaming.api.operators.YieldingOperatorFactory;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
 import org.apache.flink.streaming.runtime.partitioner.CustomPartitionerWrapper;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
+import org.apache.flink.streaming.runtime.partitioner.RescalePartitioner;
 import org.apache.flink.streaming.runtime.partitioner.StreamPartitioner;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationHead;
 import org.apache.flink.streaming.runtime.tasks.StreamIterationTail;
@@ -94,6 +97,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.runtime.jobgraph.tasks.CheckpointCoordinatorConfiguration.MINIMAL_CHECKPOINT_TIME;
@@ -213,9 +217,26 @@ public class StreamingJobGraphGenerator {
                             + "This indicates that non-serializable types (like custom serializers) were registered");
         }
 
+        addVertexIndexPrefixInVertexName();
+
         setVertexDescription();
 
         return jobGraph;
+    }
+
+    private void addVertexIndexPrefixInVertexName() {
+        if (!streamGraph.isVertexNameIncludeIndexPrefix()) {
+            return;
+        }
+        final AtomicInteger vertexIndexId = new AtomicInteger(0);
+        jobGraph.getVerticesSortedTopologicallyFromSources()
+                .forEach(
+                        vertex ->
+                                vertex.setName(
+                                        String.format(
+                                                "[vertex-%d]%s",
+                                                vertexIndexId.getAndIncrement(),
+                                                vertex.getName())));
     }
 
     private void setVertexDescription() {
@@ -766,6 +787,8 @@ public class StreamingJobGraphGenerator {
             List<StreamEdge> nonChainableOutputs,
             Map<Integer, ChainedSourceInfo> chainedSources) {
 
+        tryConvertPartitionerForDynamicGraph(chainableOutputs, nonChainableOutputs);
+
         StreamNode vertex = streamGraph.getStreamNode(vertexID);
 
         config.setVertexID(vertexID);
@@ -879,6 +902,39 @@ public class StreamingJobGraphGenerator {
         vertexConfigs.put(vertexID, config);
     }
 
+    private void tryConvertPartitionerForDynamicGraph(
+            List<StreamEdge> chainableOutputs, List<StreamEdge> nonChainableOutputs) {
+
+        for (StreamEdge edge : chainableOutputs) {
+            StreamPartitioner<?> partitioner = edge.getPartitioner();
+            if (partitioner instanceof ForwardForConsecutiveHashPartitioner
+                    || partitioner instanceof ForwardForUnspecifiedPartitioner) {
+                checkState(
+                        streamGraph.getExecutionConfig().isDynamicGraph(),
+                        String.format(
+                                "%s should only be used in dynamic graph.",
+                                partitioner.getClass().getSimpleName()));
+                edge.setPartitioner(new ForwardPartitioner<>());
+            }
+        }
+        for (StreamEdge edge : nonChainableOutputs) {
+            StreamPartitioner<?> partitioner = edge.getPartitioner();
+            if (partitioner instanceof ForwardForConsecutiveHashPartitioner) {
+                checkState(
+                        streamGraph.getExecutionConfig().isDynamicGraph(),
+                        "ForwardForConsecutiveHashPartitioner should only be used in dynamic graph.");
+                edge.setPartitioner(
+                        ((ForwardForConsecutiveHashPartitioner<?>) partitioner)
+                                .getHashPartitioner());
+            } else if (partitioner instanceof ForwardForUnspecifiedPartitioner) {
+                checkState(
+                        streamGraph.getExecutionConfig().isDynamicGraph(),
+                        "ForwardForUnspecifiedPartitioner should only be used in dynamic graph.");
+                edge.setPartitioner(new RescalePartitioner<>());
+            }
+        }
+    }
+
     private CheckpointingMode getCheckpointingMode(CheckpointConfig checkpointConfig) {
         CheckpointingMode checkpointingMode = checkpointConfig.getCheckpointingMode();
 
@@ -943,6 +999,7 @@ public class StreamingJobGraphGenerator {
         // set strategy name so that web interface can show it.
         jobEdge.setShipStrategyName(partitioner.toString());
         jobEdge.setBroadcast(partitioner.isBroadcast());
+        jobEdge.setForward(partitioner instanceof ForwardPartitioner);
         jobEdge.setDownstreamSubtaskStateMapper(partitioner.getDownstreamSubtaskStateMapper());
         jobEdge.setUpstreamSubtaskStateMapper(partitioner.getUpstreamSubtaskStateMapper());
 
@@ -1007,8 +1064,10 @@ public class StreamingJobGraphGenerator {
 
         if (!(upStreamVertex.isSameSlotSharingGroup(downStreamVertex)
                 && areOperatorsChainable(upStreamVertex, downStreamVertex, streamGraph)
-                && (edge.getPartitioner() instanceof ForwardPartitioner)
-                && edge.getExchangeMode() != StreamExchangeMode.BATCH
+                && arePartitionerAndExchangeModeChainable(
+                        edge.getPartitioner(),
+                        edge.getExchangeMode(),
+                        streamGraph.getExecutionConfig().isDynamicGraph())
                 && upStreamVertex.getParallelism() == downStreamVertex.getParallelism()
                 && streamGraph.isChainingEnabled())) {
 
@@ -1024,6 +1083,22 @@ public class StreamingJobGraphGenerator {
             }
         }
         return true;
+    }
+
+    @VisibleForTesting
+    static boolean arePartitionerAndExchangeModeChainable(
+            StreamPartitioner<?> partitioner,
+            StreamExchangeMode exchangeMode,
+            boolean isDynamicGraph) {
+        if (partitioner instanceof ForwardForConsecutiveHashPartitioner) {
+            checkState(isDynamicGraph);
+            return true;
+        } else if ((partitioner instanceof ForwardPartitioner)
+                && exchangeMode != StreamExchangeMode.BATCH) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     @VisibleForTesting
