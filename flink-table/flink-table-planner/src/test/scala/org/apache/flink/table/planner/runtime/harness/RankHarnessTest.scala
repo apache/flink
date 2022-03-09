@@ -49,8 +49,7 @@ class RankHarnessTest(mode: StateBackendMode) extends HarnessTestBase(mode) {
   override def before(): Unit = {
     super.before()
     val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
-    val config = new TestTableConfig
-    this.tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
+    this.tEnv = StreamTableEnvironmentImpl.create(env, setting)
   }
 
   @Test

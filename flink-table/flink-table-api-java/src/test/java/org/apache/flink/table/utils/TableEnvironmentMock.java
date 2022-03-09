@@ -18,6 +18,7 @@
 
 package org.apache.flink.table.utils;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.internal.TableEnvironmentImpl;
@@ -69,7 +70,7 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
     }
 
     private static TableEnvironmentMock getInstance(boolean isStreamingMode) {
-        final TableConfig tableConfig = createTableConfig();
+        final TableConfig tableConfig = TableConfig.getDefault();
         final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
         final ModuleManager moduleManager = new ModuleManager();
         return new TableEnvironmentMock(
@@ -77,13 +78,10 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
                 moduleManager,
                 tableConfig,
                 createExecutor(),
-                createFunctionCatalog(tableConfig, catalogManager, moduleManager),
+                createFunctionCatalog(
+                        tableConfig.getConfiguration(), catalogManager, moduleManager),
                 createPlanner(),
                 isStreamingMode);
-    }
-
-    private static TableConfig createTableConfig() {
-        return TableConfig.getDefault();
     }
 
     private static ExecutorMock createExecutor() {
@@ -91,8 +89,8 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
     }
 
     private static FunctionCatalog createFunctionCatalog(
-            TableConfig tableConfig, CatalogManager catalogManager, ModuleManager moduleManager) {
-        return new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+            ReadableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {
+        return new FunctionCatalog(config, catalogManager, moduleManager);
     }
 
     private static PlannerMock createPlanner() {

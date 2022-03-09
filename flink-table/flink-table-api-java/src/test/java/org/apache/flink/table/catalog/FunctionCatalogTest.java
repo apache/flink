@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.catalog;
 
-import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.functions.AggregateFunction;
 import org.apache.flink.table.functions.FunctionDefinition;
@@ -85,7 +85,7 @@ public class FunctionCatalogTest {
 
         functionCatalog =
                 new FunctionCatalog(
-                        TableConfig.getDefault(),
+                        new Configuration(),
                         CatalogManagerMocks.preparedCatalogManager()
                                 .defaultCatalog(DEFAULT_CATALOG, catalog)
                                 .build(),
