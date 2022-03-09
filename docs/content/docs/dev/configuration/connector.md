@@ -24,8 +24,8 @@ under the License.
 
 # Connectors and Formats
 
-Flink can read from and write to various external systems via connectors and use the format of your choice
-in order to read/write data from/to records.
+Flink applications can read from and write to various external systems via connectors.
+It supports multiple formats in order to encode and decode data to match Flink's data structures.
 
 An overview of available connectors and formats is available for both
 [DataStream]({{< ref "docs/connectors/datastream/overview.md" >}}) and
