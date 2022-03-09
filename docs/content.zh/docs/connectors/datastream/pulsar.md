@@ -527,7 +527,7 @@ Pulsar Sink 使用生产者 API 来发送消息。Pulsar 的 `ProducerConfigurat
         <th rowspan="13">Operator</th>
         <td>numBytesOut</td>
         <td>n/a</td>
-        <td>Pulsar Sink启动后总共发出的字节数</td>
+        <td>Pulsar Sink 启动后总共发出的字节数</td>
         <td>Counter</td>
     </tr>
     <tr>
@@ -539,7 +539,7 @@ Pulsar Sink 使用生产者 API 来发送消息。Pulsar 的 `ProducerConfigurat
     <tr>
         <td>numRecordsOut</td>
         <td>n/a</td>
-        <td>Pulsar Sink启动后总共发出的消息数</td>
+        <td>Pulsar Sink 启动后总共发出的消息数</td>
         <td>Counter</td>
     </tr>
     <tr>
@@ -575,31 +575,31 @@ Pulsar Sink 使用生产者 API 来发送消息。Pulsar 的 `ProducerConfigurat
     <tr>
         <td>PulsarSink.producer."ProducerName".sendLatency50Pct</td>
         <td>ProducerName</td>
-        <td>某个生产者在过去的一个窗口内的发送延迟50百分位数</td>
+        <td>某个生产者在过去的一个窗口内的发送延迟的中位数</td>
         <td>Gauge</td>
     </tr>
     <tr>
         <td>PulsarSink.producer."ProducerName".sendLatency75Pct</td>
         <td>ProducerName</td>
-        <td>某个生产者在过去的一个窗口内的发送延迟75百分位数</td>
+        <td>某个生产者在过去的一个窗口内的发送延迟的 75 百分位数</td>
         <td>Gauge</td>
     </tr>
     <tr>
         <td>PulsarSink.producer."ProducerName".sendLatency95Pct</td>
         <td>ProducerName</td>
-        <td>某个生产者在过去的一个窗口内的发送延950百分位数</td>
+        <td>某个生产者在过去的一个窗口内的发送延迟的 95 百分位数</td>
         <td>Gauge</td>
     </tr>
     <tr>
         <td>PulsarSink.producer."ProducerName".sendLatency99Pct</td>
         <td>ProducerName</td>
-        <td>某个生产者在过去的一个窗口内的发送延迟99百分位数</td>
+        <td>某个生产者在过去的一个窗口内的发送延迟的 99 百分位数</td>
         <td>Gauge</td>
     </tr>
     <tr>
         <td>PulsarSink.producer."ProducerName".sendLatency999Pct</td>
         <td>ProducerName</td>
-        <td>某个生产者在过去的一个窗口内的发送延迟99.9百分位数</td>
+        <td>某个生产者在过去的一个窗口内的发送延迟的 99.9 百分位数</td>
         <td>Gauge</td>
     </tr>
   </tbody>
