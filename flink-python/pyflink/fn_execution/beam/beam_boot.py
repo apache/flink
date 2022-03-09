@@ -86,7 +86,9 @@ if __name__ == "__main__":
                 worker_id=worker_id,
                 provision_endpoint=ApiServiceDescriptor(url=provision_endpoint),
                 params=params)
-            client.StartWorker(request)
+            response = client.StartWorker(request)
+            if response.error:
+                raise RuntimeError("Error starting worker: %s" % response.error)
     else:
         logging.info("Starting up Python harness in a standalone process.")
         metadata = [("worker_id", worker_id)]
