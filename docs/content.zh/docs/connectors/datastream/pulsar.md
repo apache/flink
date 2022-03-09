@@ -246,7 +246,7 @@ Pulsar Source 默认情况下使用流的方式消费数据。除非任务失败
   StopCursor.atEventTime(long)
   ```
 
-### 其他配置项
+### Source 配置项
 
 除了前面提到的配置选项，Pulsar Source 还提供了丰富的选项供 Pulsar 专家使用，在 builder 类里通过 `setConfig(ConfigOption<T>, T)` 和 `setConfig(Configuration)` 方法给定下述的全部配置。
 
@@ -491,6 +491,10 @@ public interface TopicRouter<IN> extends Serializable {
 
 ### Sink 配置项
 
+可以在 builder 类里通过 `setConfig(ConfigOption<T>, T)` 和 `setConfig(Configuration)` 方法给定下述的全部配置。
+
+#### PulsarClient 和 PulsarAdmin 配置项
+
 Pulsar Sink 和 Pulsar Source 公用的配置选项可参考
 
 - [Pulsar Java 客户端配置项](#pulsar-java-客户端配置项)
@@ -508,7 +512,7 @@ Pulsar Sink 使用生产者 API 来发送消息。Pulsar 的 `ProducerConfigurat
 
 {{< generated/pulsar_sink_configuration >}}
 
-### 监控指标
+### Sink 监控指标
 
 下列表格列出了当前 Sink 支持的监控指标，前 6 个指标是 [FLIP-33: Standardize Connector Metrics]([https://cwiki.apache.org/confluence/display/FLINK/FLIP-33%3A+Standardize+Connector+Metrics](https://cwiki.apache.org/confluence/display/FLINK/FLIP-33%3A+Standardize+Connector+Metrics)) 中规定的 Sink 连接器应当支持的标准指标。
 

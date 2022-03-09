@@ -292,7 +292,7 @@ Built-in stop cursors include:
   StopCursor.atEventTime(long)
   ```
 
-### Configurable Options
+### Source Configurable Options
 
 In addition to configuration options described above, you can set arbitrary options for `PulsarClient`,
 `PulsarAdmin`, Pulsar `Consumer` and `PulsarSource` by using `setConfig(ConfigOption<T>, T)`,
@@ -611,7 +611,7 @@ interface to dispatch messages at different time.
 The dispatch time should be calculated by the `PulsarSinkContext.processTime()`.
 {{< /hint >}}
 
-### Configurable Options
+### Sink Configurable Options
 
 You can set options for `PulsarClient`, `PulsarAdmin`, Pulsar `Producer` and `PulsarSink`
 by using `setConfig(ConfigOption<T>, T)`, `setConfig(Configuration)` and `setConfig(Properties)`.
@@ -634,7 +634,7 @@ sending behavior. You can just leave them alone if you do not have any performan
 
 {{< generated/pulsar_sink_configuration >}}
 
-### Metrics
+### Sink Metrics
 
 This table lists supported metrics.
 The first 6 metrics are standard Pulsar Sink metrics as described in
