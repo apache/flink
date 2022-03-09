@@ -25,17 +25,18 @@ import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
 import org.apache.flink.test.util.TestEnvironment;
 import org.apache.flink.util.JarUtils;
+import org.apache.flink.util.TestLogger;
 
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 
 /** IT case for the {@link AvroExternalJarProgram}. */
-class AvroExternalJarProgramITCase {
+public class AvroExternalJarProgramITCase extends TestLogger {
 
     private static final String JAR_FILE = "maven-test-jar.jar";
 
@@ -50,19 +51,19 @@ class AvroExternalJarProgramITCase {
                             .setNumSlotsPerTaskManager(PARALLELISM)
                             .build());
 
-    @BeforeAll
+    @BeforeClass
     public static void setUp() throws Exception {
         MINI_CLUSTER.start();
     }
 
-    @AfterAll
+    @AfterClass
     public static void tearDown() {
         TestEnvironment.unsetAsContext();
         MINI_CLUSTER.closeAsync();
     }
 
     @Test
-    void testExternalProgram() throws Exception {
+    public void testExternalProgram() throws Exception {
 
         String jarFile = JAR_FILE;
         try {

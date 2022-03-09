@@ -29,7 +29,7 @@ import org.apache.flink.util.StringUtils;
 
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.reflect.ReflectDatumWriter;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -48,16 +48,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 /**
  * Tests the {@link DataOutputEncoder} and {@link DataInputDecoder} classes for Avro serialization.
  */
-class EncoderDecoderTest {
+public class EncoderDecoderTest {
 
     @Test
-    void testComplexStringsDirectly() {
+    public void testComplexStringsDirecty() {
         try {
             Random rnd = new Random(349712539451944123L);
 
@@ -86,7 +87,7 @@ class EncoderDecoderTest {
 
                     String deserialized = decoder.readString();
 
-                    assertThat(deserialized).isEqualTo(testString);
+                    assertEquals(testString, deserialized);
                 }
             }
         } catch (Exception e) {
@@ -97,7 +98,7 @@ class EncoderDecoderTest {
     }
 
     @Test
-    void testPrimitiveTypes() {
+    public void testPrimitiveTypes() {
 
         testObjectSerialization(Boolean.TRUE);
         testObjectSerialization(Boolean.FALSE);
@@ -173,7 +174,7 @@ class EncoderDecoderTest {
     }
 
     @Test
-    void testArrayTypes() {
+    public void testArrayTypes() {
         {
             int[] array = new int[] {1, 2, 3, 4, 5};
             testObjectSerialization(array);
@@ -197,7 +198,7 @@ class EncoderDecoderTest {
     }
 
     @Test
-    void testEmptyArray() {
+    public void testEmptyArray() {
         {
             int[] array = new int[0];
             testObjectSerialization(array);
@@ -221,7 +222,7 @@ class EncoderDecoderTest {
     }
 
     @Test
-    void testObjects() {
+    public void testObjects() {
         // simple object containing only primitives
         {
             testObjectSerialization(new Book(976243875L, "The Serialization Odysse", 42));
@@ -247,12 +248,12 @@ class EncoderDecoderTest {
     }
 
     @Test
-    void testNestedObjectsWithCollections() {
+    public void testNestedObjectsWithCollections() {
         testObjectSerialization(new ComplexNestedObject2(true));
     }
 
     @Test
-    void testGeneratedObjectWithNullableFields() {
+    public void testGeneratedObjectWithNullableFields() {
         List<CharSequence> strings =
                 Arrays.asList(
                         new CharSequence[] {
@@ -310,7 +311,7 @@ class EncoderDecoderTest {
     }
 
     @Test
-    void testVarLenCountEncoding() {
+    public void testVarLenCountEncoding() {
         try {
             long[] values =
                     new long[] {
@@ -350,9 +351,7 @@ class EncoderDecoderTest {
 
                 for (long val : values) {
                     long read = DataInputDecoder.readVarLongCount(dataIn);
-                    assertThat(read)
-                            .withFailMessage("Wrong var-len encoded value read.")
-                            .isEqualTo(val);
+                    assertEquals("Wrong var-len encoded value read.", val, read);
                 }
             }
         } catch (Exception e) {
@@ -415,24 +414,24 @@ class EncoderDecoderTest {
             if (obj.getClass().isArray()) {
                 Class<?> clazz = obj.getClass();
                 if (clazz == byte[].class) {
-                    assertThat((byte[]) result).containsExactly((byte[]) obj);
+                    assertArrayEquals(message, (byte[]) obj, (byte[]) result);
                 } else if (clazz == short[].class) {
-                    assertThat((short[]) result).containsExactly((short[]) obj);
+                    assertArrayEquals(message, (short[]) obj, (short[]) result);
                 } else if (clazz == int[].class) {
-                    assertThat((int[]) result).containsExactly((int[]) obj);
+                    assertArrayEquals(message, (int[]) obj, (int[]) result);
                 } else if (clazz == long[].class) {
-                    assertThat((long[]) result).containsExactly((long[]) obj);
+                    assertArrayEquals(message, (long[]) obj, (long[]) result);
                 } else if (clazz == char[].class) {
-                    assertThat((char[]) result).containsExactly((char[]) obj);
+                    assertArrayEquals(message, (char[]) obj, (char[]) result);
                 } else if (clazz == float[].class) {
-                    assertThat((float[]) result).containsExactly((float[]) obj);
+                    assertArrayEquals(message, (float[]) obj, (float[]) result, 0.0f);
                 } else if (clazz == double[].class) {
-                    assertThat((double[]) result).containsExactly((double[]) obj);
+                    assertArrayEquals(message, (double[]) obj, (double[]) result, 0.0);
                 } else {
-                    assertThat((Object[]) result).containsExactly((Object[]) obj);
+                    assertArrayEquals(message, (Object[]) obj, (Object[]) result);
                 }
             } else {
-                assertThat(result).withFailMessage(message).isEqualTo(obj);
+                assertEquals(message, obj, result);
             }
         } catch (Exception e) {
             System.err.println(e.getMessage());

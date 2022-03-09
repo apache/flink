@@ -27,78 +27,55 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.core.testutils.AllCallbackWrapper;
 import org.apache.flink.formats.avro.AvroInputFormat;
 import org.apache.flink.formats.avro.AvroRecordInputFormatTest;
 import org.apache.flink.formats.avro.generated.Fixed16;
 import org.apache.flink.formats.avro.generated.User;
-import org.apache.flink.runtime.testutils.MiniClusterExtension;
-import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
-import org.apache.flink.test.util.CollectionTestEnvironment;
-import org.apache.flink.test.util.TestBaseUtils;
-import org.apache.flink.test.util.TestEnvironment;
+import org.apache.flink.test.util.MultipleProgramsTestBase;
 
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.extension.RegisterExtension;
-import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Stream;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link AvroInputFormat} reading Pojos. */
-class AvroTypeExtractionTest {
+@RunWith(Parameterized.class)
+public class AvroTypeExtractionTest extends MultipleProgramsTestBase {
 
-    private static final int PARALLELISM = 4;
-
-    private static final MiniClusterExtension MINI_CLUSTER_RESOURCE =
-            new MiniClusterExtension(
-                    new MiniClusterResourceConfiguration.Builder()
-                            .setNumberTaskManagers(1)
-                            .setNumberSlotsPerTaskManager(PARALLELISM)
-                            .build());
-
-    @RegisterExtension
-    private static final AllCallbackWrapper<MiniClusterExtension> allCallbackWrapper =
-            new AllCallbackWrapper<>(MINI_CLUSTER_RESOURCE);
-
-    /**
-     * The MiniCluster is created and reused for the lifetime of this class, but tests alternate
-     * between the MiniCluster and a CollectionTestEnvironment.
-     */
-    private static Stream<ExecutionEnvironment> getExecutionEnvironment() {
-        return Stream.of(
-                new TestEnvironment(MINI_CLUSTER_RESOURCE.getMiniCluster(), PARALLELISM, false),
-                new CollectionTestEnvironment());
+    public AvroTypeExtractionTest(TestExecutionMode mode) {
+        super(mode);
     }
 
     private File inFile;
     private String resultPath;
     private String expected;
 
-    @BeforeEach
-    public void before(@TempDir java.nio.file.Path tmpDir) throws Exception {
-        resultPath = tmpDir.resolve("out").toUri().toString();
-        inFile = tmpDir.resolve("in.avro").toFile();
+    @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
+
+    @Before
+    public void before() throws Exception {
+        resultPath = tempFolder.newFile().toURI().toString();
+        inFile = tempFolder.newFile();
         AvroRecordInputFormatTest.writeTestFile(inFile);
     }
 
-    @AfterEach
+    @After
     public void after() throws Exception {
-        TestBaseUtils.compareResultsByLinesInMemory(expected, resultPath);
+        compareResultsByLinesInMemory(expected, resultPath);
     }
 
-    @ParameterizedTest
-    @MethodSource("getExecutionEnvironment")
-    void testSimpleAvroRead(final ExecutionEnvironment env) throws Exception {
+    @Test
+    public void testSimpleAvroRead() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
         AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
@@ -135,9 +112,9 @@ class AvroTypeExtractionTest {
                         + "\"type_decimal_fixed\": [7, -48]}\n";
     }
 
-    @ParameterizedTest
-    @MethodSource("getExecutionEnvironment")
-    void testSerializeWithAvro(final ExecutionEnvironment env) throws Exception {
+    @Test
+    public void testSerializeWithAvro() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableForceAvro();
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
@@ -184,9 +161,9 @@ class AvroTypeExtractionTest {
                         + "\"type_decimal_fixed\": [7, -48]}\n";
     }
 
-    @ParameterizedTest
-    @MethodSource("getExecutionEnvironment")
-    void testKeySelection(final ExecutionEnvironment env) throws Exception {
+    @Test
+    public void testKeySelection() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableObjectReuse();
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
@@ -210,9 +187,9 @@ class AvroTypeExtractionTest {
         expected = "(Alyssa,1)\n(Charlie,1)\n";
     }
 
-    @ParameterizedTest
-    @MethodSource("getExecutionEnvironment")
-    void testWithAvroGenericSer(final ExecutionEnvironment env) throws Exception {
+    @Test
+    public void testWithAvroGenericSer() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableForceAvro();
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
@@ -239,9 +216,9 @@ class AvroTypeExtractionTest {
         expected = "(Charlie,1)\n(Alyssa,1)\n";
     }
 
-    @ParameterizedTest
-    @MethodSource("getExecutionEnvironment")
-    void testWithKryoGenericSer(final ExecutionEnvironment env) throws Exception {
+    @Test
+    public void testWithKryoGenericSer() throws Exception {
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         env.getConfig().enableForceKryo();
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
@@ -268,20 +245,18 @@ class AvroTypeExtractionTest {
         expected = "(Charlie,1)\n(Alyssa,1)\n";
     }
 
-    private static Stream<Arguments> testField() {
-        return getExecutionEnvironment()
-                .flatMap(
-                        env ->
-                                Stream.of(
-                                        Arguments.of(env, "name"),
-                                        Arguments.of(env, "type_enum"),
-                                        Arguments.of(env, "type_double_test")));
+    /** Test some know fields for grouping on. */
+    @Test
+    public void testAllFields() throws Exception {
+        for (String fieldName : Arrays.asList("name", "type_enum", "type_double_test")) {
+            testField(fieldName);
+        }
     }
 
-    /** Test some known fields for grouping on. */
-    @ParameterizedTest
-    @MethodSource("testField")
-    void testField(final ExecutionEnvironment env, final String fieldName) throws Exception {
+    private void testField(final String fieldName) throws Exception {
+        before();
+
+        final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
         Path in = new Path(inFile.getAbsoluteFile().toURI());
 
         AvroInputFormat<User> users = new AvroInputFormat<>(in, User.class);
@@ -302,7 +277,7 @@ class AvroTypeExtractionTest {
 
         // test if automatic registration of the Types worked
         ExecutionConfig ec = env.getConfig();
-        assertThat(ec.getRegisteredKryoTypes()).contains(Fixed16.class);
+        Assert.assertTrue(ec.getRegisteredKryoTypes().contains(Fixed16.class));
 
         switch (fieldName) {
             case "name":
@@ -315,8 +290,10 @@ class AvroTypeExtractionTest {
                 expected = "123.45\n1.337\n";
                 break;
             default:
-                fail("Unknown field");
+                Assert.fail("Unknown field");
                 break;
         }
+
+        after();
     }
 }

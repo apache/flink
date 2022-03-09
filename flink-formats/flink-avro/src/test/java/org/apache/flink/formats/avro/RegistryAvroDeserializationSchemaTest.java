@@ -27,7 +27,7 @@ import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,15 +35,16 @@ import java.io.OutputStream;
 import java.util.Random;
 
 import static org.apache.flink.formats.avro.utils.AvroTestUtils.writeRecord;
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
 /** Tests for {@link RegistryAvroDeserializationSchema}. */
-class RegistryAvroDeserializationSchemaTest {
+public class RegistryAvroDeserializationSchemaTest {
 
     private static final Address address = TestDataGenerator.generateRandomAddress(new Random());
 
     @Test
-    void testGenericRecordReadWithCompatibleSchema() throws IOException {
+    public void testGenericRecordReadWithCompatibleSchema() throws IOException {
         RegistryAvroDeserializationSchema<GenericRecord> deserializer =
                 new RegistryAvroDeserializationSchema<>(
                         GenericRecord.class,
@@ -69,13 +70,13 @@ class RegistryAvroDeserializationSchemaTest {
 
         GenericRecord genericRecord =
                 deserializer.deserialize(writeRecord(address, Address.getClassSchema()));
-        assertThat(genericRecord.get("num")).isEqualTo(address.getNum());
-        assertThat(genericRecord.get("street").toString()).isEqualTo(address.getStreet());
-        assertThat(genericRecord.get("country")).isNull();
+        assertEquals(address.getNum(), genericRecord.get("num"));
+        assertEquals(address.getStreet(), genericRecord.get("street").toString());
+        assertNull(genericRecord.get("country"));
     }
 
     @Test
-    void testSpecificRecordReadMoreFieldsThanWereWritten() throws IOException {
+    public void testSpecificRecordReadMoreFieldsThanWereWritten() throws IOException {
         Schema smallerUserSchema =
                 new Schema.Parser()
                         .parse(
@@ -110,7 +111,7 @@ class RegistryAvroDeserializationSchemaTest {
         SimpleRecord simpleRecord =
                 deserializer.deserialize(writeRecord(smallUser, smallerUserSchema));
 
-        assertThat(simpleRecord.getName().toString()).isEqualTo("someName");
-        assertThat(simpleRecord.getOptionalField()).isNull();
+        assertEquals("someName", simpleRecord.getName().toString());
+        assertNull(simpleRecord.getOptionalField());
     }
 }

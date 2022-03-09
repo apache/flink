@@ -23,7 +23,7 @@ import org.apache.flink.api.java.typeutils.runtime.kryo.KryoSerializer;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Registration;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -32,8 +32,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * Tests that the set of Kryo registrations is the same across compatible Flink versions.
@@ -42,7 +42,7 @@ import static org.assertj.core.api.Assertions.fail;
  * verifies that we correctly register Avro types at the {@link KryoSerializer} when Avro is
  * present.
  */
-class AvroKryoSerializerRegistrationsTest {
+public class AvroKryoSerializerRegistrationsTest {
 
     /**
      * Tests that the registered classes in Kryo did not change.
@@ -51,7 +51,7 @@ class AvroKryoSerializerRegistrationsTest {
      * change in the serializers can break savepoint backwards compatibility between Flink versions.
      */
     @Test
-    void testDefaultKryoRegisteredClassesDidNotChange() throws Exception {
+    public void testDefaultKryoRegisteredClassesDidNotChange() throws Exception {
         final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();
 
         try (BufferedReader reader =
@@ -100,7 +100,7 @@ class AvroKryoSerializerRegistrationsTest {
     private void writeDefaultKryoRegistrations(String filePath) throws IOException {
         final File file = new File(filePath);
         if (file.exists()) {
-            assertThat(file.delete()).isTrue();
+            assertTrue(file.delete());
         }
 
         final Kryo kryo = new KryoSerializer<>(Integer.class, new ExecutionConfig()).getKryo();

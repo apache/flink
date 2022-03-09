@@ -31,9 +31,10 @@ import org.apache.flink.formats.avro.generated.User;
 import org.apache.avro.file.DataFileWriter;
 import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumWriter;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
+import org.junit.After;
+import org.junit.Assert;
+import org.junit.Before;
+import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
@@ -47,13 +48,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
 
 /**
  * Test the avro input format. (The testcase is mostly the getting started tutorial of avro)
  * http://avro.apache.org/docs/current/gettingstartedjava.html
  */
-class AvroSplittableInputFormatTest {
+public class AvroSplittableInputFormatTest {
 
     private File testFile;
 
@@ -80,9 +81,9 @@ class AvroSplittableInputFormatTest {
 
     static final int NUM_RECORDS = 5000;
 
-    @BeforeEach
-    void createFiles(@TempDir java.nio.file.Path tempDir) throws IOException {
-        testFile = tempDir.resolve("AvroSplittableInputFormatTest").toFile();
+    @Before
+    public void createFiles() throws IOException {
+        testFile = File.createTempFile("AvroSplittableInputFormatTest", null);
 
         ArrayList<CharSequence> stringArray = new ArrayList<>();
         stringArray.add(TEST_ARRAY_STRING_1);
@@ -211,36 +212,38 @@ class AvroSplittableInputFormatTest {
     }
 
     @Test
-    void testSplittedIF() throws IOException {
+    public void testSplittedIF() throws IOException {
         Configuration parameters = new Configuration();
 
         AvroInputFormat<User> format =
                 new AvroInputFormat<>(new Path(testFile.getAbsolutePath()), User.class);
+
         format.configure(parameters);
-
         FileInputSplit[] splits = format.createInputSplits(4);
-        assertThat(splits).hasSize(4);
-
+        assertEquals(splits.length, 4);
         int elements = 0;
         int[] elementsPerSplit = new int[4];
         for (int i = 0; i < splits.length; i++) {
             format.open(splits[i]);
             while (!format.reachedEnd()) {
                 User u = format.nextRecord(null);
-                assertThat(u.getName().toString()).startsWith(TEST_NAME);
+                Assert.assertTrue(u.getName().toString().startsWith(TEST_NAME));
                 elements++;
                 elementsPerSplit[i]++;
             }
             format.close();
         }
 
-        assertThat(elementsPerSplit).containsExactly(1604, 1203, 1203, 990);
-        assertThat(elements).isEqualTo(NUM_RECORDS);
+        Assert.assertEquals(1604, elementsPerSplit[0]);
+        Assert.assertEquals(1203, elementsPerSplit[1]);
+        Assert.assertEquals(1203, elementsPerSplit[2]);
+        Assert.assertEquals(990, elementsPerSplit[3]);
+        Assert.assertEquals(NUM_RECORDS, elements);
         format.close();
     }
 
     @Test
-    void testAvroRecoveryWithFailureAtStart() throws Exception {
+    public void testAvroRecoveryWithFailureAtStart() throws Exception {
         final int recordsUntilCheckpoint = 132;
 
         Configuration parameters = new Configuration();
@@ -250,7 +253,7 @@ class AvroSplittableInputFormatTest {
         format.configure(parameters);
 
         FileInputSplit[] splits = format.createInputSplits(4);
-        assertThat(splits).hasSize(4);
+        assertEquals(splits.length, 4);
 
         int elements = 0;
         int[] elementsPerSplit = new int[4];
@@ -258,7 +261,7 @@ class AvroSplittableInputFormatTest {
             format.reopen(splits[i], format.getCurrentState());
             while (!format.reachedEnd()) {
                 User u = format.nextRecord(null);
-                assertThat(u.getName().toString()).startsWith(TEST_NAME);
+                Assert.assertTrue(u.getName().toString().startsWith(TEST_NAME));
                 elements++;
 
                 if (format.getRecordsReadFromBlock() == recordsUntilCheckpoint) {
@@ -273,20 +276,23 @@ class AvroSplittableInputFormatTest {
                             new AvroInputFormat<>(new Path(testFile.getAbsolutePath()), User.class);
 
                     format.reopen(splits[i], state);
-                    assertThat(format.getRecordsReadFromBlock()).isEqualTo(recordsUntilCheckpoint);
+                    assertEquals(format.getRecordsReadFromBlock(), recordsUntilCheckpoint);
                 }
                 elementsPerSplit[i]++;
             }
             format.close();
         }
 
-        assertThat(elementsPerSplit).containsExactly(1604, 1203, 1203, 990);
-        assertThat(elements).isEqualTo(NUM_RECORDS);
+        Assert.assertEquals(1604, elementsPerSplit[0]);
+        Assert.assertEquals(1203, elementsPerSplit[1]);
+        Assert.assertEquals(1203, elementsPerSplit[2]);
+        Assert.assertEquals(990, elementsPerSplit[3]);
+        Assert.assertEquals(NUM_RECORDS, elements);
         format.close();
     }
 
     @Test
-    void testAvroRecovery() throws Exception {
+    public void testAvroRecovery() throws Exception {
         final int recordsUntilCheckpoint = 132;
 
         Configuration parameters = new Configuration();
@@ -296,7 +302,7 @@ class AvroSplittableInputFormatTest {
         format.configure(parameters);
 
         FileInputSplit[] splits = format.createInputSplits(4);
-        assertThat(splits).hasSize(4);
+        assertEquals(splits.length, 4);
 
         int elements = 0;
         int[] elementsPerSplit = new int[4];
@@ -304,7 +310,7 @@ class AvroSplittableInputFormatTest {
             format.open(splits[i]);
             while (!format.reachedEnd()) {
                 User u = format.nextRecord(null);
-                assertThat(u.getName().toString()).startsWith(TEST_NAME);
+                Assert.assertTrue(u.getName().toString().startsWith(TEST_NAME));
                 elements++;
 
                 if (format.getRecordsReadFromBlock() == recordsUntilCheckpoint) {
@@ -319,15 +325,18 @@ class AvroSplittableInputFormatTest {
                             new AvroInputFormat<>(new Path(testFile.getAbsolutePath()), User.class);
 
                     format.reopen(splits[i], state);
-                    assertThat(recordsUntilCheckpoint).isEqualTo(format.getRecordsReadFromBlock());
+                    assertEquals(format.getRecordsReadFromBlock(), recordsUntilCheckpoint);
                 }
                 elementsPerSplit[i]++;
             }
             format.close();
         }
 
-        assertThat(elementsPerSplit).containsExactly(1604, 1203, 1203, 990);
-        assertThat(elements).isEqualTo(NUM_RECORDS);
+        Assert.assertEquals(1604, elementsPerSplit[0]);
+        Assert.assertEquals(1203, elementsPerSplit[1]);
+        Assert.assertEquals(1203, elementsPerSplit[2]);
+        Assert.assertEquals(990, elementsPerSplit[3]);
+        Assert.assertEquals(NUM_RECORDS, elements);
         format.close();
     }
 
@@ -355,7 +364,7 @@ class AvroSplittableInputFormatTest {
     	</dependency>
 
     @Test
-    void testHadoop() throws Exception {
+    public void testHadoop() throws Exception {
     	JobConf jf = new JobConf();
     	FileInputFormat.addInputPath(jf, new org.apache.hadoop.fs.Path(testFile.toURI()));
     	jf.setBoolean(org.apache.avro.mapred.AvroInputFormat.IGNORE_FILES_WITHOUT_EXTENSION_KEY, false);
@@ -377,4 +386,10 @@ class AvroSplittableInputFormatTest {
     	}
     	System.out.println("Status " + Arrays.toString(elementsPerSplit));
     } */
+
+    @After
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    public void deleteFiles() {
+        testFile.delete();
+    }
 }

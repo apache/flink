@@ -55,7 +55,7 @@ import static org.apache.flink.formats.avro.AvroBulkFormatTestUtils.ROW_TYPE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link AbstractAvroBulkFormat}. */
-class AvroBulkFormatTest {
+public class AvroBulkFormatTest {
 
     private static final List<RowData> TEST_DATA =
             Arrays.asList(
@@ -116,7 +116,7 @@ class AvroBulkFormatTest {
     }
 
     @Test
-    void testReadWholeFileWithOneSplit() throws IOException {
+    public void testReadWholeFileWithOneSplit() throws IOException {
         AvroBulkFormatTestUtils.TestingAvroBulkFormat bulkFormat =
                 new AvroBulkFormatTestUtils.TestingAvroBulkFormat();
         assertSplit(
@@ -132,7 +132,7 @@ class AvroBulkFormatTest {
     }
 
     @Test
-    void testReadWholeFileWithMultipleSplits() throws IOException {
+    public void testReadWholeFileWithMultipleSplits() throws IOException {
         AvroBulkFormatTestUtils.TestingAvroBulkFormat bulkFormat =
                 new AvroBulkFormatTestUtils.TestingAvroBulkFormat();
         long splitLength = tmpFile.length() / 3;
@@ -149,7 +149,7 @@ class AvroBulkFormatTest {
     }
 
     @Test
-    void testSplitsAtCriticalLocations() throws IOException {
+    public void testSplitsAtCriticalLocations() throws IOException {
         AvroBulkFormatTestUtils.TestingAvroBulkFormat bulkFormat =
                 new AvroBulkFormatTestUtils.TestingAvroBulkFormat();
         assertSplit(
@@ -168,7 +168,7 @@ class AvroBulkFormatTest {
     }
 
     @Test
-    void testRestoreReader() throws IOException {
+    public void testRestoreReader() throws IOException {
         AvroBulkFormatTestUtils.TestingAvroBulkFormat bulkFormat =
                 new AvroBulkFormatTestUtils.TestingAvroBulkFormat();
         long splitLength = tmpFile.length() / 3;

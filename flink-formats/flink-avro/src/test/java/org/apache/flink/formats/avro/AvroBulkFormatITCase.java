@@ -62,7 +62,7 @@ import java.util.Random;
 import static org.apache.flink.formats.avro.AvroBulkFormatTestUtils.ROW_TYPE;
 
 /** IT cases for {@link AbstractAvroBulkFormat}. */
-class AvroBulkFormatITCase extends SourceTestSuiteBase<RowData> {
+public class AvroBulkFormatITCase extends SourceTestSuiteBase<RowData> {
 
     private static final RowDataSerializer SERIALIZER = new RowDataSerializer(ROW_TYPE);
 

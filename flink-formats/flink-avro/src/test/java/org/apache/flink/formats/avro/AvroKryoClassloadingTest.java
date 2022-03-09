@@ -24,14 +24,15 @@ import org.apache.flink.formats.avro.utils.AvroKryoSerializerUtils;
 import org.apache.flink.runtime.execution.librarycache.FlinkUserCodeClassLoaders;
 
 import com.esotericsoftware.kryo.Kryo;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.LinkedHashMap;
 
 import static org.apache.flink.util.FlinkUserCodeClassLoader.NOOP_EXCEPTION_HANDLER;
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 /**
  * This test makes sure that reversed classloading works for the Avro/Kryo integration when Kryo is
@@ -58,10 +59,10 @@ import static org.assertj.core.api.Assertions.assertThat;
  *     0x0000020: 57b1
  * </pre>
  */
-class AvroKryoClassloadingTest {
+public class AvroKryoClassloadingTest {
 
     @Test
-    void testKryoInChildClasspath() throws Exception {
+    public void testKryoInChildClasspath() throws Exception {
         final Class<?> avroClass = AvroKryoSerializerUtils.class;
 
         final URL avroLocation = avroClass.getProtectionDomain().getCodeSource().getLocation();
@@ -83,7 +84,7 @@ class AvroKryoClassloadingTest {
 
         final Class<?> userLoadedAvroClass =
                 Class.forName(avroClass.getName(), false, userAppClassLoader);
-        assertThat(userLoadedAvroClass).isNotEqualTo(avroClass);
+        assertNotEquals(avroClass, userLoadedAvroClass);
 
         // call the 'addAvroGenericDataArrayRegistration(...)' method
         final Method m =
@@ -93,6 +94,6 @@ class AvroKryoClassloadingTest {
         final LinkedHashMap<String, ?> map = new LinkedHashMap<>();
         m.invoke(userLoadedAvroClass.newInstance(), map);
 
-        assertThat(map).hasSize(1);
+        assertEquals(1, map.size());
     }
 }

@@ -51,7 +51,9 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Simple integration test case for writing bulk encoded files with the {@link StreamingFileSink}
@@ -137,16 +139,18 @@ public class AvroStreamingFileSinkITCase extends AbstractTestBase {
     private static <T> void validateResults(
             File folder, DatumReader<T> datumReader, List<T> expected) throws Exception {
         File[] buckets = folder.listFiles();
-        assertThat(buckets).hasSize(1);
+        assertNotNull(buckets);
+        assertEquals(1, buckets.length);
 
         File[] partFiles = buckets[0].listFiles();
-        assertThat(partFiles).hasSize(2);
+        assertNotNull(partFiles);
+        assertEquals(2, partFiles.length);
 
         for (File partFile : partFiles) {
-            assertThat(partFile).isNotEmpty();
+            assertTrue(partFile.length() > 0);
 
             final List<T> fileContent = readAvroFile(partFile, datumReader);
-            assertThat(fileContent).isEqualTo(expected);
+            assertEquals(expected, fileContent);
         }
     }
 

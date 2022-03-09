@@ -31,7 +31,7 @@ import org.apache.avro.file.DataFileReader;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -47,14 +47,15 @@ import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Collections;
 
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Tests for {@link AvroOutputFormat}. */
-class AvroOutputFormatTest {
+public class AvroOutputFormatTest {
 
     @Test
-    void testSetCodec() {
+    public void testSetCodec() {
         // given
         final AvroOutputFormat<User> outputFormat = new AvroOutputFormat<>(User.class);
 
@@ -68,7 +69,7 @@ class AvroOutputFormatTest {
     }
 
     @Test
-    void testSetCodecError() {
+    public void testSetCodecError() {
         // given
         boolean error = false;
         final AvroOutputFormat<User> outputFormat = new AvroOutputFormat<>(User.class);
@@ -81,11 +82,11 @@ class AvroOutputFormatTest {
         }
 
         // then
-        assertThat(error).isTrue();
+        assertTrue(error);
     }
 
     @Test
-    void testSerialization() throws Exception {
+    public void testSerialization() throws Exception {
 
         serializeAndDeserialize(null, null);
         serializeAndDeserialize(null, User.SCHEMA$);
@@ -116,7 +117,7 @@ class AvroOutputFormatTest {
                 new ObjectInputStream(new ByteArrayInputStream(bos.toByteArray()))) {
             // then
             Object o = ois.readObject();
-            assertThat(o).isInstanceOf(AvroOutputFormat.class);
+            assertTrue(o instanceof AvroOutputFormat);
             @SuppressWarnings("unchecked")
             final AvroOutputFormat<User> restored = (AvroOutputFormat<User>) o;
             final AvroOutputFormat.Codec restoredCodec =
@@ -124,13 +125,13 @@ class AvroOutputFormatTest {
             final Schema restoredSchema =
                     (Schema) Whitebox.getInternalState(restored, "userDefinedSchema");
 
-            assertThat(codec).isSameAs(restoredCodec);
-            assertThat(schema).isEqualTo(restoredSchema);
+            assertTrue(codec != null ? restoredCodec == codec : restoredCodec == null);
+            assertTrue(schema != null ? restoredSchema.equals(schema) : restoredSchema == null);
         }
     }
 
     @Test
-    void testCompression() throws Exception {
+    public void testCompression() throws Exception {
         // given
         final Path outputPath =
                 new Path(File.createTempFile("avro-output-file", "avro").getAbsolutePath());
@@ -151,7 +152,7 @@ class AvroOutputFormatTest {
         output(compressedOutputFormat);
 
         // then
-        assertThat(fileSize(outputPath)).isGreaterThan(fileSize(compressedOutputPath));
+        assertTrue(fileSize(outputPath) > fileSize(compressedOutputPath));
 
         // cleanup
         FileSystem fs = FileSystem.getLocalFileSystem();
@@ -196,7 +197,7 @@ class AvroOutputFormatTest {
     }
 
     @Test
-    void testGenericRecord() throws IOException {
+    public void testGenericRecord() throws IOException {
         final Path outputPath =
                 new Path(File.createTempFile("avro-output-file", "generic.avro").getAbsolutePath());
         final AvroOutputFormat<GenericRecord> outputFormat =
@@ -215,9 +216,9 @@ class AvroOutputFormatTest {
 
         while (dataFileReader.hasNext()) {
             GenericRecord record = dataFileReader.next();
-            assertThat(record.get("user_name").toString()).isEqualTo("testUser");
-            assertThat(record.get("favorite_number")).isEqualTo(1);
-            assertThat(record.get("favorite_color").toString()).isEqualTo("blue");
+            assertEquals(record.get("user_name").toString(), "testUser");
+            assertEquals(record.get("favorite_number"), 1);
+            assertEquals(record.get("favorite_color").toString(), "blue");
         }
 
         // cleanup

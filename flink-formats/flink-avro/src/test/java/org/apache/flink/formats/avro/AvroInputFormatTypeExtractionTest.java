@@ -26,16 +26,14 @@ import org.apache.flink.api.java.typeutils.PojoTypeInfo;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.core.fs.Path;
 
-import org.junit.jupiter.api.Test;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import org.junit.Assert;
+import org.junit.Test;
 
 /** Tests for the type extraction of the {@link AvroInputFormat}. */
-class AvroInputFormatTypeExtractionTest {
+public class AvroInputFormatTypeExtractionTest {
 
     @Test
-    void testTypeExtraction() {
+    public void testTypeExtraction() {
         try {
             InputFormat<MyAvroType, ?> format =
                     new AvroInputFormat<MyAvroType>(
@@ -47,14 +45,14 @@ class AvroInputFormatTypeExtractionTest {
             DataSet<MyAvroType> input = env.createInput(format);
             TypeInformation<?> typeInfoDataSet = input.getType();
 
-            assertThat(typeInfoDirect).isInstanceOf(PojoTypeInfo.class);
-            assertThat(typeInfoDataSet).isInstanceOf(PojoTypeInfo.class);
+            Assert.assertTrue(typeInfoDirect instanceof PojoTypeInfo);
+            Assert.assertTrue(typeInfoDataSet instanceof PojoTypeInfo);
 
-            assertThat(typeInfoDirect.getTypeClass()).isEqualTo(MyAvroType.class);
-            assertThat(typeInfoDataSet.getTypeClass()).isEqualTo(MyAvroType.class);
+            Assert.assertEquals(MyAvroType.class, typeInfoDirect.getTypeClass());
+            Assert.assertEquals(MyAvroType.class, typeInfoDataSet.getTypeClass());
         } catch (Exception e) {
             e.printStackTrace();
-            fail(e.getMessage());
+            Assert.fail(e.getMessage());
         }
     }
 

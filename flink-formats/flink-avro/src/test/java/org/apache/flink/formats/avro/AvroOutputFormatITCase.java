@@ -32,6 +32,7 @@ import org.apache.avro.file.DataFileReader;
 import org.apache.avro.io.DatumReader;
 import org.apache.avro.reflect.ReflectDatumReader;
 import org.apache.avro.specific.SpecificDatumReader;
+import org.junit.Assert;
 
 import java.io.File;
 import java.math.BigDecimal;
@@ -44,8 +45,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-
-import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT cases for the {@link AvroOutputFormat}. */
 @SuppressWarnings("serial")
@@ -100,7 +99,8 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
             output1 = file1.listFiles();
             // check for avro ext in dir.
             for (File avroOutput : Objects.requireNonNull(output1)) {
-                assertThat(avroOutput.toString()).endsWith(".avro");
+                Assert.assertTrue(
+                        "Expect extension '.avro'", avroOutput.toString().endsWith(".avro"));
             }
         } else {
             output1 = new File[] {file1};
@@ -121,7 +121,11 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
                                 + user.getFavoriteColor());
             }
         }
-        assertThat(result1).contains(userData.split("\n"));
+        for (String expectedResult : userData.split("\n")) {
+            Assert.assertTrue(
+                    "expected user " + expectedResult + " not found.",
+                    result1.contains(expectedResult));
+        }
 
         // compare result for reflect user type
         File[] output2;
@@ -147,7 +151,11 @@ public class AvroOutputFormatITCase extends JavaProgramTestBase {
                                 + user.getFavoriteColor());
             }
         }
-        assertThat(result2).contains(userData.split("\n"));
+        for (String expectedResult : userData.split("\n")) {
+            Assert.assertTrue(
+                    "expected user " + expectedResult + " not found.",
+                    result2.contains(expectedResult));
+        }
     }
 
     private static final class ConvertToUser

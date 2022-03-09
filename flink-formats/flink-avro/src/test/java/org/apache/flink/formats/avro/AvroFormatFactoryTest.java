@@ -31,16 +31,17 @@ import org.apache.flink.table.factories.utils.FactoryMocks;
 import org.apache.flink.table.runtime.connector.source.ScanRuntimeProviderContext;
 import org.apache.flink.table.runtime.typeutils.InternalTypeInfo;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.TestLogger;
 
-import org.junit.jupiter.api.Test;
+import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.assertEquals;
 
 /** Tests for the {@link AvroFormatFactory}. */
-class AvroFormatFactoryTest {
+public class AvroFormatFactoryTest extends TestLogger {
 
     private static final ResolvedSchema SCHEMA =
             ResolvedSchema.of(
@@ -52,7 +53,7 @@ class AvroFormatFactoryTest {
             (RowType) SCHEMA.toPhysicalRowDataType().getLogicalType();
 
     @Test
-    void testSeDeSchema() {
+    public void testSeDeSchema() {
         final AvroRowDataDeserializationSchema expectedDeser =
                 new AvroRowDataDeserializationSchema(ROW_TYPE, InternalTypeInfo.of(ROW_TYPE));
 
@@ -67,7 +68,7 @@ class AvroFormatFactoryTest {
                 scanSourceMock.valueFormat.createRuntimeDecoder(
                         ScanRuntimeProviderContext.INSTANCE, SCHEMA.toPhysicalRowDataType());
 
-        assertThat(actualDeser).isEqualTo(expectedDeser);
+        assertEquals(expectedDeser, actualDeser);
 
         final AvroRowDataSerializationSchema expectedSer =
                 new AvroRowDataSerializationSchema(ROW_TYPE);
@@ -80,7 +81,7 @@ class AvroFormatFactoryTest {
         SerializationSchema<RowData> actualSer =
                 sinkMock.valueFormat.createRuntimeEncoder(null, SCHEMA.toPhysicalRowDataType());
 
-        assertThat(actualSer).isEqualTo(expectedSer);
+        assertEquals(expectedSer, actualSer);
     }
 
     // ------------------------------------------------------------------------
