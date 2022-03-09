@@ -1766,11 +1766,8 @@ public class HiveParserCalcitePlanner {
             RelCollation canonizedCollation = traitSet.canonize(RelCollations.EMPTY);
             sortRel = LogicalSort.create(srcRel, canonizedCollation, offsetRex, fetchRex);
 
-            HiveParserRowResolver outputRR = new HiveParserRowResolver();
-            if (!HiveParserRowResolver.add(outputRR, relToRowResolver.get(srcRel))) {
-                throw new SemanticException(
-                        "Duplicates detected when adding columns to RR: see previous message");
-            }
+            HiveParserRowResolver inputRR = relToRowResolver.get(srcRel);
+            HiveParserRowResolver outputRR = inputRR.duplicate();
             Map<String, Integer> hiveColNameCalcitePosMap = buildHiveToCalciteColumnMap(outputRR);
             relToRowResolver.put(sortRel, outputRR);
             relToHiveColNameCalcitePosMap.put(sortRel, hiveColNameCalcitePosMap);
@@ -2050,6 +2047,7 @@ public class HiveParserCalcitePlanner {
         Integer pos = 0;
         // TODO: will this also fix windowing? try
         HiveParserRowResolver inputRR = relToRowResolver.get(srcRel), starRR = inputRR;
+        inputRR.setCheckForAmbiguity(true);
         if (starSrcRel != null) {
             starRR = relToRowResolver.get(starSrcRel);
         }
@@ -2328,7 +2326,6 @@ public class HiveParserCalcitePlanner {
                     colInfo.setSkewedCol(
                             exprDesc instanceof ExprNodeColumnDesc
                                     && ((ExprNodeColumnDesc) exprDesc).isSkewedCol());
-                    // Hive errors out in case of duplication. We allow it and see what happens.
                     outRR.put(tabAlias, colAlias, colInfo);
 
                     if (exprDesc instanceof ExprNodeColumnDesc) {
@@ -2425,6 +2422,7 @@ public class HiveParserCalcitePlanner {
             relToRowResolver.put(res, groupByOutputRowResolver);
         }
 
+        inputRR.setCheckForAmbiguity(false);
         return res;
     }
 
@@ -2828,8 +2826,7 @@ public class HiveParserCalcitePlanner {
         }
 
         // 9. In case this HiveParserQB corresponds to subquery then modify its RR to point to
-        // subquery alias
-        // TODO: cleanup this
+        // subquery alias.
         if (qb.getParseInfo().getAlias() != null) {
             HiveParserRowResolver rr = relToRowResolver.get(res);
             HiveParserRowResolver newRR = new HiveParserRowResolver();
@@ -2843,7 +2840,7 @@ public class HiveParserCalcitePlanner {
                 }
                 ColumnInfo newColInfo = new ColumnInfo(colInfo);
                 newColInfo.setTabAlias(alias);
-                newRR.put(alias, tmp[1], newColInfo);
+                newRR.putWithCheck(alias, tmp[1], colInfo.getInternalName(), newColInfo);
             }
             relToRowResolver.put(res, newRR);
             relToHiveColNameCalcitePosMap.put(res, buildHiveToCalciteColumnMap(newRR));
