@@ -143,15 +143,6 @@ under the License.
 				</executions>
 			</plugin>
 
-			<!-- Scala Code Style, most of the configuration done via plugin management -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
-			</plugin>
-
 			<!-- self-contained jars for each example -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
