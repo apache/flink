@@ -120,7 +120,7 @@ You can edit the `groupId`, `artifactId` and `package` if you like. With the abo
 Maven will create a folder named `frauddetection` that contains a project with all the dependencies to complete this tutorial.
 After importing the project into your editor, you can find a file `FraudDetectionJob.java` (or `FraudDetectionJob.scala`) with the following code which you can run directly inside your IDE.
 Try setting break points through out the data stream and run the code in DEBUG mode to get a feeling for how everything works.
-Having trouble running directly inside your IDE? Please read the section [Running in an IDE](#running-in-an-ide).
+If you want to run directly in you IDE, please read the section [Running in an IDE](#running-in-an-ide).
 
 {{< tabs "start" >}}
 {{< tab "Java" >}}
