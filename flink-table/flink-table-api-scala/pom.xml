@@ -114,15 +114,6 @@ under the License.
 					</execution>
 				</executions>
 			</plugin>
-
-			<!-- Scala Code Style -->
-			<plugin>
-				<groupId>org.scalastyle</groupId>
-				<artifactId>scalastyle-maven-plugin</artifactId>
-				<configuration>
-					<configLocation>${project.basedir}/../../tools/maven/scalastyle-config.xml</configLocation>
-				</configuration>
-			</plugin>
 		</plugins>
 	</build>
 </project>

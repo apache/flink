@@ -267,10 +267,6 @@ ij_java_wrap_first_method_in_call_chain = true
 indent_style = tab
 indent_size = 4
 
-[*.scala]
-indent_style = space
-indent_size = 2
-
 [*.py]
 indent_style = space
 indent_size = 4
