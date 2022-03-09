@@ -55,6 +55,7 @@ import com.datastax.driver.core.ConsistencyLevel;
 import com.datastax.driver.core.QueryOptions;
 import com.datastax.driver.core.ResultSet;
 import com.datastax.driver.core.Session;
+import com.datastax.driver.core.SocketOptions;
 import com.datastax.driver.core.exceptions.NoHostAvailableException;
 import com.datastax.driver.mapping.Mapper;
 import com.datastax.driver.mapping.annotations.Table;
@@ -141,6 +142,12 @@ public class CassandraConnectorITCase
                                 new QueryOptions()
                                         .setConsistencyLevel(consistencyLevel)
                                         .setSerialConsistencyLevel(ConsistencyLevel.LOCAL_SERIAL))
+                        .withSocketOptions(
+                                new SocketOptions()
+                                        // multiply default timeout by 3
+                                        .setConnectTimeoutMillis(15000)
+                                        // double default timeout
+                                        .setReadTimeoutMillis(24000))
                         .withoutJMXReporting()
                         .withoutMetrics()
                         .build();
