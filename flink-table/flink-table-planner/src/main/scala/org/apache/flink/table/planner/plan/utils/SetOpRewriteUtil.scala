@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.plan.utils
 
 
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
+import org.apache.flink.table.planner.calcite.FlinkRelBuilder
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 
 import org.apache.calcite.plan.RelOptUtil
@@ -73,12 +74,15 @@ object SetOpRewriteUtil {
     val cluster = relBuilder.getCluster
 
     val sqlFunction = BridgingSqlFunction.of(
-      relBuilder.getCluster,
+      cluster,
       BuiltInFunctionDefinitions.INTERNAL_REPLICATE_ROWS)
 
-    relBuilder
-      .functionScan(sqlFunction, 0, relBuilder.fields(Util.range(fields.size() + 1)))
-      .rename(outputRelDataType.getFieldNames)
+    FlinkRelBuilder.pushFunctionScan(
+      relBuilder,
+      sqlFunction,
+      0,
+      relBuilder.fields(Util.range(fields.size() + 1)),
+      outputRelDataType.getFieldNames)
 
     // correlated join
     val corSet = Collections.singleton(cluster.createCorrel())
