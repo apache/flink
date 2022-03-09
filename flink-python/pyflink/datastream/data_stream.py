@@ -231,8 +231,26 @@ class DataStream(object):
             self._j_data_stream.slotSharingGroup(slot_sharing_group)
         return self
 
+    def set_description(self, description: str) -> 'DataStream':
+        """
+        Sets the description for this operator.
+
+        Description is used in json plan and web ui, but not in logging and metrics where only
+        name is available. Description is expected to provide detailed information about the
+        operator, while name is expected to be more simple, providing summary information only,
+        so that we can have more user-friendly logging messages and metric tags without losing
+        useful messages for debugging.
+
+        :param description: The description for this operator.
+        :return: The operator with new description.
+
+        .. versionadded:: 1.15.0
+        """
+        self._j_data_stream.setDescription(description)
+        return self
+
     def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
-            -> 'DataStream':
+        -> 'DataStream':
         """
         Applies a Map transformation on a DataStream. The transformation calls a MapFunction for
         each element of the DataStream. Each MapFunction call returns exactly one element.
@@ -549,7 +567,7 @@ class DataStream(object):
             j_python_data_stream_function_operator))
 
     def assign_timestamps_and_watermarks(self, watermark_strategy: WatermarkStrategy) -> \
-            'DataStream':
+        'DataStream':
         """
         Assigns timestamps to the elements in the data stream and generates watermarks to signal
         event time progress. The given {@link WatermarkStrategy} is used to create a
@@ -681,7 +699,7 @@ class DataStream(object):
 
         stream_with_partition_info.name(
             gateway.jvm.org.apache.flink.python.util.PythonConfigUtil
-            .STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME)
+                .STREAM_PARTITION_CUSTOM_MAP_OPERATOR_NAME)
 
         JPartitionCustomKeySelector = gateway.jvm.PartitionCustomKeySelector
         JIdParitioner = gateway.jvm.org.apache.flink.api.java.functions.IdPartitioner
@@ -718,7 +736,7 @@ class DataStream(object):
         return DataStreamSink(self._j_data_stream.sinkTo(sink.get_java_function()))
 
     def execute_and_collect(self, job_execution_name: str = None, limit: int = None) \
-            -> Union['CloseableIterator', list]:
+        -> Union['CloseableIterator', list]:
         """
         Triggers the distributed execution of the streaming dataflow and returns an iterator over
         the elements of the given DataStream.
@@ -790,7 +808,7 @@ class DataStream(object):
             gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo)
         output_type_info_class = self._j_data_stream.getTransformation().getOutputType().getClass()
         if output_type_info_class.isAssignableFrom(
-                Types.PICKLED_BYTE_ARRAY().get_java_type_info()
+            Types.PICKLED_BYTE_ARRAY().get_java_type_info()
                 .getClass()):
             def python_obj_to_str_map_func(value):
                 if not isinstance(value, (str, bytes)):
@@ -807,6 +825,7 @@ class DataStream(object):
                 assert isinstance(value, Row)
                 return '{}[{}]'.format(value.get_row_kind(),
                                        ','.join([str(item) for item in value._values]))
+
             transformed_data_stream = DataStream(
                 self.map(python_obj_to_str_map_func,
                          output_type=Types.STRING())._j_data_stream)
@@ -887,6 +906,24 @@ class DataStreamSink(object):
         self._j_data_stream_sink.setParallelism(parallelism)
         return self
 
+    def set_description(self, description: str) -> 'DataStreamSink':
+        """
+        Sets the description for this sink.
+
+        Description is used in json plan and web ui, but not in logging and metrics where only
+        name is available. Description is expected to provide detailed information about the sink,
+        while name is expected to be more simple, providing summary information only, so that we can
+        have more user-friendly logging messages and metric tags without losing useful messages for
+        debugging.
+
+        :param description: The description for this sink.
+        :return: The sink with new description.
+
+        .. versionadded:: 1.15.0
+        """
+        self._j_data_stream_sink.setDescription(description)
+        return self
+
     def disable_chaining(self) -> 'DataStreamSink':
         """
         Turns off chaining for this operator so thread co-location will not be used as an
@@ -901,7 +938,7 @@ class DataStreamSink(object):
         return self
 
     def slot_sharing_group(self, slot_sharing_group: Union[str, SlotSharingGroup]) \
-            -> 'DataStreamSink':
+        -> 'DataStreamSink':
         """
         Sets the slot sharing group of this operation. Parallel instances of operations that are in
         the same slot sharing group will be co-located in the same TaskManager slot, if possible.
@@ -946,7 +983,7 @@ class KeyedStream(DataStream):
         self._origin_stream = origin_stream
 
     def map(self, func: Union[Callable, MapFunction], output_type: TypeInformation = None) \
-            -> 'DataStream':
+        -> 'DataStream':
         """
         Applies a Map transformation on a KeyedStream. The transformation calls a MapFunction for
         each element of the DataStream. Each MapFunction call returns exactly one element.
@@ -1128,7 +1165,7 @@ class KeyedStream(DataStream):
                 if self._filter_func(value):
                     yield value
 
-        return self.process(FilterKeyedProcessFunctionAdapter(func), self._original_data_type_info)\
+        return self.process(FilterKeyedProcessFunctionAdapter(func), self._original_data_type_info) \
             .name("Filter")
 
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
@@ -1180,17 +1217,17 @@ class KeyedStream(DataStream):
         """
         return WindowedStream(self, window_assigner)
 
-    def count_window(self, window_size: int, window_slide = 0):
+    def count_window(self, size: int, slide=0):
         """
-        Windows this KeyedStream into tumbling count windows.
-        Params:
-        :param window_size: The size of the windows in number of elements.
-        :param window_slide: The slide interval in number of elements.
+        Windows this KeyedStream into tumbling or sliding count windows.
+
+        :param size: The size of the windows in number of elements.
+        :param slide: The slide interval in number of elements.
         """
-        if window_slide is 0:
-            return WindowedStream(self, CountTumblingWindowAssigner(window_size))
+        if slide == 0:
+            return WindowedStream(self, CountTumblingWindowAssigner(size))
         else:
-            return WindowedStream(self, CountSlidingWindowAssigner(window_size, window_slide))
+            return WindowedStream(self, CountSlidingWindowAssigner(size, slide))
 
     def union(self, *streams) -> 'DataStream':
         return self._values().union(*streams)
@@ -1346,7 +1383,7 @@ class WindowedStream(object):
         return self._get_result_data_stream(internal_window_function, result_type)
 
     def _get_result_data_stream(
-            self, internal_window_function: InternalWindowFunction, result_type):
+        self, internal_window_function: InternalWindowFunction, result_type):
         if self._window_trigger is None:
             self._window_trigger = self._window_assigner.get_default_trigger(
                 self.get_execution_environment())
@@ -1487,7 +1524,7 @@ class ConnectedStreams(object):
                 .name("Co-Map")
 
     def flat_map(self, func: CoFlatMapFunction, output_type: TypeInformation = None) \
-            -> 'DataStream':
+        -> 'DataStream':
         """
         Applies a CoFlatMap transformation on a `ConnectedStreams` and maps the output to a
         common type. The transformation calls a `CoFlatMapFunction.flatMap1` for each element
