@@ -21,18 +21,18 @@ package org.apache.flink.formats.avro.typeutils;
 import org.apache.flink.api.common.typeutils.SerializerTestInstance;
 
 import org.apache.avro.reflect.Nullable;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for the {@link AvroSerializer}. */
-public class AvroSerializerEmptyArrayTest {
+class AvroSerializerEmptyArrayTest {
 
     @Test
-    public void testBookSerialization() {
+    void testBookSerialization() {
         try {
             Book b = new Book(123, "This is a test book", 26382648);
             AvroSerializer<Book> serializer = new AvroSerializer<Book>(Book.class);
@@ -46,7 +46,7 @@ public class AvroSerializerEmptyArrayTest {
     }
 
     @Test
-    public void testSerialization() {
+    void testSerialization() {
         try {
             List<String> titles = new ArrayList<String>();
 
