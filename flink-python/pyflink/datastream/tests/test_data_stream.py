@@ -110,10 +110,10 @@ class DataStreamTests(object):
                 yield value
 
         (ds.map(lambda i: (i[0], len(i[0]), i[1]))
-         .flat_map(reserve_even)
-         .filter(lambda i: i[1] > 2)
-         .map(add_1)
-         .add_sink(self.test_sink))
+           .flat_map(reserve_even)
+           .filter(lambda i: i[1] > 2)
+           .map(add_1)
+           .add_sink(self.test_sink))
         self.env.execute('test_basic_operations_with_callable_function')
         results = self.test_sink.get_results(True)
         expected = ["<Row('cfgs', 5, Decimal('3'))>",
