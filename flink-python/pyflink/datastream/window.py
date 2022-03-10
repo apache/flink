@@ -22,8 +22,6 @@ from enum import Enum
 from io import BytesIO
 from typing import TypeVar, Generic, Iterable, Collection, Any
 
-from pygments.lexers import jvm
-
 from pyflink.common import Time, Types
 from pyflink.common.serializer import TypeSerializer
 from pyflink.datastream.functions import RuntimeContext, InternalWindowFunction
@@ -55,8 +53,8 @@ __all__ = ['Window',
            'CountWindowSerializer',
            'SessionWindowTimeGapExtractor']
 
-MAX_LONG_VALUE = 9223372036854775807
-MIN_LONG_VALUE = -9223372036854775808
+MAX_LONG_VALUE = sys.maxsize
+MIN_LONG_VALUE = -(sys.maxsize - 1)
 
 
 def long_to_int_with_bit_mixing(x: int) -> int:
