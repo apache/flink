@@ -234,7 +234,9 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                         executionConfig,
                                         ttlTimeProvider,
                                         changelogStorage.createWriter(
-                                                operatorIdentifier, keyGroupRange),
+                                                operatorIdentifier,
+                                                keyGroupRange,
+                                                env.getMainMailboxExecutor()),
                                         baseState,
                                         env.getCheckpointStorageAccess()));
 
