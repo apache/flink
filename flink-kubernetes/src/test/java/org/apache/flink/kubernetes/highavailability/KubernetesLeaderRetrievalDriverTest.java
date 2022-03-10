@@ -98,6 +98,7 @@ public class KubernetesLeaderRetrievalDriverTest extends KubernetesHighAvailabil
                             getLeaderConfigMap().getData().clear();
                             callbackHandler.onModified(
                                     Collections.singletonList(getLeaderConfigMap()));
+                            retrievalEventHandler.waitForEmptyLeaderInformation(TIMEOUT);
                             assertThat(retrievalEventHandler.getAddress(), is(nullValue()));
                         });
             }
