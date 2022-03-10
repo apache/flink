@@ -808,7 +808,7 @@ class DataStream(object):
             gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo)
         output_type_info_class = self._j_data_stream.getTransformation().getOutputType().getClass()
         if output_type_info_class.isAssignableFrom(
-            Types.PICKLED_BYTE_ARRAY().get_java_type_info()
+                Types.PICKLED_BYTE_ARRAY().get_java_type_info()
                 .getClass()):
             def python_obj_to_str_map_func(value):
                 if not isinstance(value, (str, bytes)):
