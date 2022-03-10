@@ -83,12 +83,12 @@ class DataStreamTests(object):
 
         (ds.map(lambda i: (i[0], len(i[0]), i[1][1]),
                 output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
-            .flat_map(MyFlatMapFunction(),
-                      output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
-            .filter(MyFilterFunction())
-            .map(MyMapFunction(),
-              output_type=Types.ROW([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
-            .add_sink(self.test_sink))
+           .flat_map(MyFlatMapFunction(),
+                     output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
+           .filter(MyFilterFunction())
+           .map(MyMapFunction(),
+                output_type=Types.ROW([Types.STRING(), Types.INT(), Types.BIG_DEC()]))
+           .add_sink(self.test_sink))
         self.env.execute('test_basic_operations')
         results = self.test_sink.get_results()
         expected = ["+I[cfgs, 5, 3]",
