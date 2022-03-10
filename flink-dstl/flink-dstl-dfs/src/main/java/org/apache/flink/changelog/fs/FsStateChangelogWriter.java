@@ -46,7 +46,6 @@ import java.util.TreeMap;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
-import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.flink.util.IOUtils.closeAllQuietly;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -194,6 +193,8 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
 
     private CompletableFuture<ChangelogStateHandleStreamImpl> persistInternal(SequenceNumber from)
             throws IOException {
+        UploadTask uploadTask = null;
+        CompletableFuture<ChangelogStateHandleStreamImpl> future = new CompletableFuture<>();
         synchronized (lock) {
             ensureCanPersist(from);
             rollover();
@@ -204,22 +205,25 @@ class FsStateChangelogWriter implements StateChangelogWriter<ChangelogStateHandl
             SequenceNumberRange range = SequenceNumberRange.generic(from, activeSequenceNumber);
             if (range.size() == readyToReturn.size()) {
                 checkState(toUpload.isEmpty());
-                return completedFuture(buildHandle(keyGroupRange, readyToReturn, 0L));
+                future.complete(buildHandle(keyGroupRange, readyToReturn, 0L));
             } else {
-                CompletableFuture<ChangelogStateHandleStreamImpl> future =
-                        new CompletableFuture<>();
                 uploadCompletionListeners.add(
                         new UploadCompletionListener(keyGroupRange, range, readyToReturn, future));
                 if (!toUpload.isEmpty()) {
-                    uploader.upload(
+                    uploadTask =
                             new UploadTask(
                                     toUpload.values(),
                                     this::handleUploadSuccess,
-                                    this::handleUploadFailure));
+                                    this::handleUploadFailure);
                 }
-                return future;
             }
         }
+        // upload outside the synchronized block to prevent deadlock: capacity might be needed,
+        // but upload threads need to acquire lock in completion callbacks
+        if (uploadTask != null) {
+            uploader.upload(uploadTask);
+        }
+        return future;
     }
 
     private void handleUploadFailure(List<SequenceNumber> failedSqn, Throwable throwable) {
