@@ -161,8 +161,9 @@ public class HiveParserSqlFunctionConverter {
                     "<=",
                     SqlStdOperatorTable.LESS_THAN_OR_EQUAL,
                     hToken(HiveASTParser.LESSTHANOREQUALTO, "<="));
-            registerFunction(
-                    ">", SqlStdOperatorTable.GREATER_THAN, hToken(HiveASTParser.GREATERTHAN, ">"));
+            //            registerFunction(
+            //                    ">", SqlStdOperatorTable.GREATER_THAN,
+            // hToken(HiveASTParser.GREATERTHAN, ">"));
             registerFunction(
                     ">=",
                     SqlStdOperatorTable.GREATER_THAN_OR_EQUAL,
