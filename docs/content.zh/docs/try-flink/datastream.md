@@ -51,6 +51,16 @@ Flink 支持对状态和时间的细粒度控制，以此来实现复杂的事�
 
 这个代码练习假定你对 Java 或 Scala 有一定的了解，当然，如果你之前使用的是其他开发语言，你也应该能够跟随本教程进行学习。
 
+### 在 IDE 中运行
+
+在 IDE 中运行该项目可能会遇到 `java.langNoClassDefFoundError` 的异常。这很可能是因为运行所需要的 Flink 的依赖库没有被全部加载到 classpath 里。
+
+IntelliJ IDE：前往 运行 > 编辑配置 > 
+
+Running the project in an IDE may result in a java.lang.NoClassDefFoundError exception. This is probably because you do not have all required Flink dependencies implicitly loaded into the classpath.
+
+IntelliJ IDEA: Go to Run > Edit Configurations > Modify options > Select include dependencies with "Provided" scope. This run configuration will now include all required classes to run the application from within the IDE.
+
 <a name="help-im-stuck"></a>
 
 ## 困难求助
