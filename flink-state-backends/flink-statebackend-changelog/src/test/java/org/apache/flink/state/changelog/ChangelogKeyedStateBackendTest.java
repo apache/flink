@@ -109,7 +109,7 @@ public class ChangelogKeyedStateBackendTest {
                 new ExecutionConfig(),
                 TtlTimeProvider.DEFAULT,
                 new InMemoryStateChangelogStorage()
-                        .createWriter("test", KeyGroupRange.EMPTY_KEY_GROUP_RANGE),
+                        .createWriter("test", KeyGroupRange.EMPTY_KEY_GROUP_RANGE, null),
                 emptyList(),
                 new DummyCheckpointingStorageAccess());
     }

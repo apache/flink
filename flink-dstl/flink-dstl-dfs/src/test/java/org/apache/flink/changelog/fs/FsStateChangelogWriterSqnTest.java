@@ -17,6 +17,7 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.state.KeyGroupRange;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
@@ -86,7 +87,8 @@ public class FsStateChangelogWriterSqnTest {
                         KeyGroupRange.of(0, 0),
                         StateChangeUploadScheduler.directScheduler(
                                 new TestingStateChangeUploader()),
-                        Long.MAX_VALUE)) {
+                        Long.MAX_VALUE,
+                        new SyncMailboxExecutor())) {
             if (test.withAppend) {
                 append(writer);
             }
