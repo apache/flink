@@ -35,11 +35,11 @@ import static org.apache.flink.table.planner.plan.type.FlinkReturnTypes.VARCHAR_
  * VARCHAR_FORCE_NULLABLE} return type inference by default. It also supports specifying return type
  * with the RETURNING keyword just like the original {@link SqlJsonValueFunction}.
  */
-public class SqlJsonValueFunctionWrapper extends SqlJsonValueFunction {
+class SqlJsonValueFunctionWrapper extends SqlJsonValueFunction {
 
     private final SqlReturnTypeInference returnTypeInference;
 
-    public SqlJsonValueFunctionWrapper(String name) {
+    SqlJsonValueFunctionWrapper(String name) {
         super(name);
         this.returnTypeInference =
                 ReturnTypes.cascade(
