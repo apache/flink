@@ -109,8 +109,12 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
     //
     // The set() methods only impact the application-specific configuration.
 
-    /** Defines if all fields need to be checked for NULL first. */
-    private Boolean nullCheck = true;
+    /**
+     * Defines if all fields need to be checked for NULL first.
+     *
+     * @deprecated This option is not used anymore and will be removed in next releases.
+     */
+    @Deprecated private Boolean nullCheck = true;
 
     /** Defines the configuration of Planner for Table API and SQL queries. */
     private PlannerConfig plannerConfig = PlannerConfig.EMPTY_CONFIG;
@@ -118,8 +122,10 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
     /**
      * Defines the default context for decimal division calculation. We use Scala's default
      * MathContext.DECIMAL128.
+     *
+     * @deprecated This option is not used anymore and will be removed in next releases.
      */
-    private MathContext decimalContext = MathContext.DECIMAL128;
+    @Deprecated private MathContext decimalContext = MathContext.DECIMAL128;
 
     /**
      * A configuration object to hold all configuration that has been set specifically in the Table
@@ -312,12 +318,21 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
         }
     }
 
-    /** Returns the NULL check. If enabled, all fields need to be checked for NULL first. */
+    /**
+     * Returns the NULL check. If enabled, all fields need to be checked for NULL first.
+     *
+     * @deprecated This option is not used anymore and will be removed in next releases.
+     */
+    @Deprecated
     public Boolean getNullCheck() {
         return nullCheck;
     }
 
-    /** Sets the NULL check. If enabled, all fields need to be checked for NULL first. */
+    /**
+     * Sets the NULL check. If enabled, all fields need to be checked for NULL first.
+     *
+     * @deprecated This option is not used anymore and will be removed in next releases.
+     */
     public void setNullCheck(Boolean nullCheck) {
         this.nullCheck = Preconditions.checkNotNull(nullCheck);
     }
@@ -338,7 +353,10 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
     /**
      * Returns the default context for decimal division calculation. {@link
      * java.math.MathContext#DECIMAL128} by default.
+     *
+     * @deprecated This option is not used anymore and will be removed in next releases.
      */
+    @Deprecated
     public MathContext getDecimalContext() {
         return decimalContext;
     }
@@ -346,7 +364,10 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
     /**
      * Sets the default context for decimal division calculation. {@link
      * java.math.MathContext#DECIMAL128} by default.
+     *
+     * @deprecated This option is not used anymore and will be removed in next releases.
      */
+    @Deprecated
     public void setDecimalContext(MathContext decimalContext) {
         this.decimalContext = Preconditions.checkNotNull(decimalContext);
     }
