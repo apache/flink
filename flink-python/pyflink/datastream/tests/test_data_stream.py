@@ -177,8 +177,8 @@ class DataStreamTests(object):
         ds_2 = ds_1.map(lambda x: x * 2)
 
         (ds_1.connect(ds_2).flat_map(MyCoFlatMapFunction(), output_type=Types.INT())
-            .connect(ds_2).map(MyCoMapFunction(), output_type=Types.INT())
-            .add_sink(self.test_sink))
+           .connect(ds_2).map(MyCoMapFunction(), output_type=Types.INT())
+           .add_sink(self.test_sink))
         self.env.execute("test_basic_co_operations_with_output_type")
         results = self.test_sink.get_results()
         expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
@@ -196,7 +196,7 @@ class DataStreamTests(object):
         ds2 = ds2.assign_timestamps_and_watermarks(
             WatermarkStrategy.for_monotonous_timestamps().with_timestamp_assigner(
                 SecondColumnTimestampAssigner()))
-        ds1.connect(ds2) \
+        ds1.connect(ds2)\
             .key_by(lambda x: x[0], lambda x: x[0]) \
             .process(MyKeyedCoProcessFunction()) \
             .map(lambda x: Row(x[0], x[1] + 1)) \
@@ -504,7 +504,7 @@ class DataStreamTests(object):
     def test_basic_array_type_info(self):
         ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
                                        (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
-                                       (3, [3.1, 3.2, None], ['hello', 'hi', None])],
+                                      (3, [3.1, 3.2, None], ['hello', 'hi', None])],
                                       type_info=Types.ROW([Types.INT(),
                                                            Types.BASIC_ARRAY(Types.FLOAT()),
                                                            Types.BASIC_ARRAY(Types.STRING())]))
@@ -530,7 +530,7 @@ class DataStreamTests(object):
 
         ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
                                                    Types.OBJECT_ARRAY(Types.FLOAT()),
-                                                   Types.OBJECT_ARRAY(Types.STRING())])) \
+                                                   Types.OBJECT_ARRAY(Types.STRING())]))\
             .add_sink(self.test_sink)
         self.env.execute("test basic array type info")
         results = self.test_sink.get_results()
@@ -574,9 +574,9 @@ class DataStreamTests(object):
                 yield "current timestamp: {}, current watermark: {}, current_value: {}"\
                     .format(str(current_timestamp), str(current_watermark), str(value))
 
-        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
-        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test process function')
         results = self.test_sink.get_results()
@@ -651,9 +651,9 @@ class DataStreamTests(object):
             def on_timer(self, timestamp, ctx):
                 pass
 
-        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(MyTimestampAssigner())
-        data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
             .key_by(lambda x: x[1], key_type=Types.STRING()) \
             .process(MyProcessFunction(), output_type=Types.STRING()) \
             .add_sink(self.test_sink)
@@ -883,10 +883,10 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             return key % num_partitions
 
         partitioned_stream = ds.map(lambda x: x, output_type=Types.ROW([Types.STRING(),
-                                                                        Types.INT()])) \
+                                                                        Types.INT()]))\
             .set_parallelism(4).partition_custom(my_partitioner, lambda x: x[1])
 
-        JPartitionCustomTestMapFunction = get_gateway().jvm \
+        JPartitionCustomTestMapFunction = get_gateway().jvm\
             .org.apache.flink.python.util.PartitionCustomTestMapFunction
         test_map_stream = DataStream(partitioned_stream
                                      ._j_data_stream.map(JPartitionCustomTestMapFunction()))
@@ -939,9 +939,9 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         chained_operator_name_2 = "map_operator_2"
 
         ds = self.env.from_collection([1, 2, 3])
-        ds.map(lambda x: x).set_parallelism(2).name(chained_operator_name_0) \
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1) \
-            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2) \
+        ds.map(lambda x: x).set_parallelism(2).name(chained_operator_name_0)\
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_1)\
+            .map(lambda x: x).set_parallelism(2).name(chained_operator_name_2)\
             .add_sink(self.test_sink)
 
         def assert_chainable(j_stream_graph, expected_upstream_chainable,
@@ -1032,9 +1032,9 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             def on_timer(self, timestamp, ctx):
                 yield "on timer: " + str(timestamp)
 
-        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
             .with_timestamp_assigner(MyTimestampAssigner())
-        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
             .key_by(lambda x: x[0], key_type=Types.INT()) \
             .process(MyProcessFunction(), output_type=Types.STRING()).add_sink(self.test_sink)
         self.env.execute('test time stamp assigner with keyed process function')
@@ -1056,8 +1056,8 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         ds = self.env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')],
                                       type_info=Types.ROW([Types.INT(), Types.STRING()]))
         ds.key_by(lambda a: a[1]) \
-            .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
-            .add_sink(self.test_sink)
+          .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
+          .add_sink(self.test_sink)
         self.env.execute('reduce_function_test')
         results = self.test_sink.get_results()
         expected = ["+I[1, a]", "+I[3, a]", "+I[6, a]", "+I[4, b]"]
