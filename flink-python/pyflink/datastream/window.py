@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 import math
-import sys
 from abc import ABC, abstractmethod
 from enum import Enum
 from io import BytesIO
@@ -53,8 +52,14 @@ __all__ = ['Window',
            'CountWindowSerializer',
            'SessionWindowTimeGapExtractor']
 
-MAX_LONG_VALUE = sys.maxsize
-MIN_LONG_VALUE = -(sys.maxsize - 1)
+"""
+A constant holding the maximum value a long can have, 2^63 – 1.
+"""
+MAX_LONG_VALUE = 0x7fffffffffffffff
+"""
+A constant holding the minimum value a long can have, -2^63
+"""
+MIN_LONG_VALUE = - MAX_LONG_VALUE - 1
 
 
 def long_to_int_with_bit_mixing(x: int) -> int:
