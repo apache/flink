@@ -1082,8 +1082,8 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     For example, the processing interval is set to 1 minutes:
     ::
-        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-        >>> .window(ProcessingTimeSessionWindows.with_gap(Time.minutes(1)))
+    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
+    >>> .window(ProcessingTimeSessionWindows.with_gap(Time.minutes(1)))
     """
 
     def __init__(self, session_gap: int):
@@ -1151,8 +1151,8 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     For example, Set the timestamp of the element to 1 minutes:
     ::
-        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-        >>> .window(EventTimeSessionWindows.with_gap(Time.minutes(1)))
+    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
+    >>> .window(EventTimeSessionWindows.with_gap(Time.minutes(1)))
     """
 
     def __init__(self, session_gap: int):
@@ -1219,9 +1219,8 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     For example, in order to window into windows with a dynamic time gap:
     ::
-        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-        >>> .window(DynamicProcessingTimeSessionWindows.with_dynamic_gap(
-                SessionWindowTimeGapExtractor))
+    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
+    >>> .window(DynamicProcessingTimeSessionWindows.with_dynamic_gap(SessionWindowTimeGapExtractor))
     """
 
     def __init__(self,
@@ -1281,9 +1280,8 @@ class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     For example, in order to window into windows with a dynamic time gap:
     ::
-        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-        >>> .window(DynamicEventTimeSessionWindows.with_dynamic_gap(SessionWindowTimeGapExtractor))
-    :param <T> The type of the input elements
+    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
+    >>> .window(DynamicEventTimeSessionWindows.with_dynamic_gap(SessionWindowTimeGapExtractor))
     """
     def __init__(self,
                  session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
