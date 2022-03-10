@@ -341,6 +341,8 @@ public class CompactCoordinatorTest extends AbstractCompactTestBase {
         // without . prefix
         FileSinkCommittable committable2 = committable("0", "2", 6);
 
+        FileSinkCommittable cleanup3 = cleanupInprogress("0", "3", 7);
+
         OperatorSubtaskState state;
         try (OneInputStreamOperatorTestHarness<
                         CommittableMessage<FileSinkCommittable>, CompactorRequest>
@@ -349,6 +351,9 @@ public class CompactCoordinatorTest extends AbstractCompactTestBase {
             harness.open();
 
             harness.processElement(message(committable0));
+            Assert.assertEquals(0, harness.extractOutputValues().size());
+
+            harness.processElement(message(cleanup3));
             Assert.assertEquals(0, harness.extractOutputValues().size());
 
             harness.prepareSnapshotPreBarrier(1);
@@ -374,34 +379,36 @@ public class CompactCoordinatorTest extends AbstractCompactTestBase {
             harness.initializeState(state);
             harness.open();
 
-            Assert.assertEquals(1, harness.extractOutputValues().size());
+            Assert.assertEquals(2, harness.extractOutputValues().size());
 
             harness.processElement(message(committable1));
             harness.processElement(message(committable2));
 
             List<Either<CommittableMessage<FileSinkCommittable>, CompactorRequest>> results =
                     harness.extractOutputValues();
-            Assert.assertEquals(3, results.size());
+            Assert.assertEquals(4, results.size());
 
             // restored request
             Assert.assertTrue(results.get(0).isRight());
             assertToCompact(results.get(0).right(), committable0);
 
-            // committable with . prefix should also be passed through
-            Assert.assertTrue(
-                    results.get(1).isLeft()
-                            && results.get(1).left() instanceof CommittableWithLineage);
-            Assert.assertEquals(
-                    ((CommittableWithLineage<FileSinkCommittable>) results.get(1).left())
-                            .getCommittable(),
-                    committable1);
+            assertToPassthrough(results.get(1).right(), cleanup3);
 
-            // committable without . prefix should be passed through normally
+            // committable with . prefix should also be passed through
             Assert.assertTrue(
                     results.get(2).isLeft()
                             && results.get(2).left() instanceof CommittableWithLineage);
             Assert.assertEquals(
                     ((CommittableWithLineage<FileSinkCommittable>) results.get(2).left())
+                            .getCommittable(),
+                    committable1);
+
+            // committable without . prefix should be passed through normally
+            Assert.assertTrue(
+                    results.get(3).isLeft()
+                            && results.get(3).left() instanceof CommittableWithLineage);
+            Assert.assertEquals(
+                    ((CommittableWithLineage<FileSinkCommittable>) results.get(3).left())
                             .getCommittable(),
                     committable2);
         }
