@@ -177,8 +177,8 @@ class DataStreamTests(object):
         ds_2 = ds_1.map(lambda x: x * 2)
 
         (ds_1.connect(ds_2).flat_map(MyCoFlatMapFunction(), output_type=Types.INT())
-         .connect(ds_2).map(MyCoMapFunction(), output_type=Types.INT())
-         .add_sink(self.test_sink))
+            .connect(ds_2).map(MyCoMapFunction(), output_type=Types.INT())
+            .add_sink(self.test_sink))
         self.env.execute("test_basic_co_operations_with_output_type")
         results = self.test_sink.get_results()
         expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
@@ -247,8 +247,8 @@ class DataStreamTests(object):
                 return value
 
         ds1.connect(ds2) \
-            .key_by(MyKeySelector(), MyKeySelector(), key_type=Types.INT()) \
-            .map(AssertKeyCoMapFunction()) \
+            .key_by(MyKeySelector(), MyKeySelector(), key_type=Types.INT())\
+            .map(AssertKeyCoMapFunction())\
             .map(lambda x: (x[0], x[1] + 1)) \
             .add_sink(self.test_sink)
 
@@ -364,8 +364,8 @@ class DataStreamTests(object):
                     state_value += 1
                 return state_value
 
-        keyed_stream.map(AssertKeyMapFunction()) \
-            .map(lambda x: (x[0], x[1] + 1)) \
+        keyed_stream.map(AssertKeyMapFunction())\
+            .map(lambda x: (x[0], x[1] + 1))\
             .add_sink(self.test_sink)
         self.env.execute('test_keyed_map')
         results = self.test_sink.get_results(True)
@@ -407,8 +407,8 @@ class DataStreamTests(object):
                 self.state.update(state_value)
                 yield value
 
-        keyed_stream.flat_map(AssertKeyMapFunction()) \
-            .map(lambda x: (x[0], x[1] + 1)) \
+        keyed_stream.flat_map(AssertKeyMapFunction())\
+            .map(lambda x: (x[0], x[1] + 1))\
             .add_sink(self.test_sink)
         self.env.execute('test_keyed_flat_map')
         results = self.test_sink.get_results(True)
@@ -452,8 +452,8 @@ class DataStreamTests(object):
                 self.state.update(state_value)
                 return True
 
-        keyed_stream.filter(AssertKeyFilterFunction()) \
-            .filter(lambda x: x[1] > 0) \
+        keyed_stream.filter(AssertKeyFilterFunction())\
+            .filter(lambda x: x[1] > 0)\
             .add_sink(self.test_sink)
         self.env.execute('key_by_test')
         results = self.test_sink.get_results(False)
@@ -463,7 +463,7 @@ class DataStreamTests(object):
     def test_multi_key_by(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        ds.key_by(MyKeySelector(), key_type=Types.INT()).key_by(lambda x: x[0]) \
+        ds.key_by(MyKeySelector(), key_type=Types.INT()).key_by(lambda x: x[0])\
             .add_sink(self.test_sink)
 
         self.env.execute("test multi key by")
@@ -489,12 +489,12 @@ class DataStreamTests(object):
 
     def test_primitive_array_type_info(self):
         ds = self.env.from_collection([(1, [1.1, 1.2, 1.30]), (2, [2.1, 2.2, 2.3]),
-                                       (3, [3.1, 3.2, 3.3])],
+                                      (3, [3.1, 3.2, 3.3])],
                                       type_info=Types.ROW([Types.INT(),
                                                            Types.PRIMITIVE_ARRAY(Types.FLOAT())]))
 
         ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
-                                                   Types.PRIMITIVE_ARRAY(Types.FLOAT())])) \
+                                                   Types.PRIMITIVE_ARRAY(Types.FLOAT())]))\
             .add_sink(self.test_sink)
         self.env.execute("test primitive array type info")
         results = self.test_sink.get_results()
@@ -511,7 +511,7 @@ class DataStreamTests(object):
 
         ds.map(lambda x: x, output_type=Types.ROW([Types.INT(),
                                                    Types.BASIC_ARRAY(Types.FLOAT()),
-                                                   Types.BASIC_ARRAY(Types.STRING())])) \
+                                                   Types.BASIC_ARRAY(Types.STRING())]))\
             .add_sink(self.test_sink)
         self.env.execute("test basic array type info")
         results = self.test_sink.get_results()
@@ -523,7 +523,7 @@ class DataStreamTests(object):
     def test_object_array_type_info(self):
         ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
                                        (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
-                                       (3, [3.1, 3.2, None], ['hello', 'hi', None])],
+                                      (3, [3.1, 3.2, None], ['hello', 'hi', None])],
                                       type_info=Types.ROW([Types.INT(),
                                                            Types.OBJECT_ARRAY(Types.FLOAT()),
                                                            Types.OBJECT_ARRAY(Types.STRING())]))
@@ -549,7 +549,7 @@ class DataStreamTests(object):
 
         ds.map(lambda x: x, output_type=Types.ROW([Types.SQL_DATE(),
                                                    Types.SQL_TIME(),
-                                                   Types.SQL_TIMESTAMP()])) \
+                                                   Types.SQL_TIMESTAMP()]))\
             .add_sink(self.test_sink)
         self.env.execute("test sql timestamp type info")
         results = self.test_sink.get_results()
@@ -571,7 +571,7 @@ class DataStreamTests(object):
             def process_element(self, value, ctx):
                 current_timestamp = ctx.timestamp()
                 current_watermark = ctx.timer_service().current_watermark()
-                yield "current timestamp: {}, current watermark: {}, current_value: {}" \
+                yield "current timestamp: {}, current watermark: {}, current_value: {}"\
                     .format(str(current_timestamp), str(current_watermark), str(value))
 
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
@@ -624,7 +624,7 @@ class DataStreamTests(object):
                     .new_builder(Time.seconds(1)) \
                     .set_update_type(StateTtlConfig.UpdateType.OnReadAndWrite) \
                     .set_state_visibility(
-                    StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp) \
+                        StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp) \
                     .disable_cleanup_in_background() \
                     .build()
                 map_state_descriptor.enable_time_to_live(state_ttl_config)
@@ -651,9 +651,9 @@ class DataStreamTests(object):
             def on_timer(self, timestamp, ctx):
                 pass
 
-        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps()\
             .with_timestamp_assigner(MyTimestampAssigner())
-        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy)\
             .key_by(lambda x: x[1], key_type=Types.STRING()) \
             .process(MyProcessFunction(), output_type=Types.STRING()) \
             .add_sink(self.test_sink)
