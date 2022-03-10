@@ -22,28 +22,24 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.IntervalJoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
 
-import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
 
 /** Tests for {@link IntervalJoinSpec} serialization and deserialization. */
+@Execution(ExecutionMode.CONCURRENT)
 public class IntervalJoinSpecJsonSerdeTest {
-
-    private final ObjectMapper mapper = JsonSerdeUtil.getObjectMapper();
 
     @Test
     public void testWindowBoundsSerde() throws IOException {
         IntervalJoinSpec.WindowBounds windowBounds =
                 new IntervalJoinSpec.WindowBounds(true, 0L, 10L, 1, 2);
-        assertEquals(
-                windowBounds,
-                mapper.readValue(
-                        mapper.writeValueAsString(windowBounds),
-                        IntervalJoinSpec.WindowBounds.class));
+
+        testJsonRoundTrip(windowBounds, IntervalJoinSpec.WindowBounds.class);
     }
 
     @Test
@@ -58,8 +54,7 @@ public class IntervalJoinSpecJsonSerdeTest {
         IntervalJoinSpec.WindowBounds windowBounds =
                 new IntervalJoinSpec.WindowBounds(true, 0L, 10L, 1, 2);
         IntervalJoinSpec actual = new IntervalJoinSpec(joinSpec, windowBounds);
-        assertEquals(
-                actual,
-                mapper.readValue(mapper.writeValueAsString(actual), IntervalJoinSpec.class));
+
+        testJsonRoundTrip(actual, IntervalJoinSpec.class);
     }
 }

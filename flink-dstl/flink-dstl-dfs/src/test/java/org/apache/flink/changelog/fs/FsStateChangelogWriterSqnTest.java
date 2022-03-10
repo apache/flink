@@ -84,7 +84,8 @@ public class FsStateChangelogWriterSqnTest {
                 new FsStateChangelogWriter(
                         UUID.randomUUID(),
                         KeyGroupRange.of(0, 0),
-                        new TestingStateChangeUploader(),
+                        StateChangeUploadScheduler.directScheduler(
+                                new TestingStateChangeUploader()),
                         Long.MAX_VALUE)) {
             if (test.withAppend) {
                 append(writer);

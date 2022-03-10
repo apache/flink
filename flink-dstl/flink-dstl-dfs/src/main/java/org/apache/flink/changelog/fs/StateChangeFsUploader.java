@@ -17,12 +17,12 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.changelog.fs.StateChangeUploadScheduler.UploadTask;
 import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.state.SnappyStreamCompressionDecorator;
 import org.apache.flink.runtime.state.StreamCompressionDecorator;
-import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.state.UncompressedStreamCompressionDecorator;
 import org.apache.flink.runtime.state.filesystem.FileStateHandle;
 import org.apache.flink.util.clock.Clock;
@@ -38,17 +38,14 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import static java.util.Collections.singletonList;
-import static java.util.stream.Collectors.toList;
 import static org.apache.flink.core.fs.FileSystem.WriteMode.NO_OVERWRITE;
 
 /**
- * A synchronous {@link StateChangeUploader} implementation that uploads the changes using {@link
- * FileSystem}.
+ * A synchronous {@link StateChangeUploadScheduler} implementation that uploads the changes using
+ * {@link FileSystem}.
  */
 class StateChangeFsUploader implements StateChangeUploader {
     private static final Logger LOG = LoggerFactory.getLogger(StateChangeFsUploader.class);
@@ -76,20 +73,13 @@ class StateChangeFsUploader implements StateChangeUploader {
         this.clock = SystemClock.getInstance();
     }
 
-    @Override
-    public void upload(UploadTask uploadTask) throws IOException {
-        upload(singletonList(uploadTask));
-    }
-
-    public void upload(Collection<UploadTask> tasks) throws IOException {
+    public UploadTasksResult upload(Collection<UploadTask> tasks) throws IOException {
         final String fileName = generateFileName();
         LOG.debug("upload {} tasks to {}", tasks.size(), fileName);
         Path path = new Path(basePath, fileName);
 
         try {
-            LocalResult result = uploadWithMetrics(path, tasks);
-            result.tasksOffsets.forEach(
-                    (task, offsets) -> task.complete(buildResults(result.handle, offsets)));
+            return uploadWithMetrics(path, tasks);
         } catch (IOException e) {
             metrics.getUploadFailuresCounter().inc();
             try (Closer closer = Closer.create()) {
@@ -101,19 +91,20 @@ class StateChangeFsUploader implements StateChangeUploader {
                 closer.register(() -> fileSystem.delete(path, true));
             }
         }
+        return null; // closer above throws an exception
     }
 
-    private LocalResult uploadWithMetrics(Path path, Collection<UploadTask> tasks)
+    private UploadTasksResult uploadWithMetrics(Path path, Collection<UploadTask> tasks)
             throws IOException {
         metrics.getUploadsCounter().inc();
         long start = clock.relativeTimeNanos();
-        LocalResult result = upload(path, tasks);
+        UploadTasksResult result = upload(path, tasks);
         metrics.getUploadLatenciesNanos().update(clock.relativeTimeNanos() - start);
-        metrics.getUploadSizes().update(result.handle.getStateSize());
+        metrics.getUploadSizes().update(result.getStateSize());
         return result;
     }
 
-    private LocalResult upload(Path path, Collection<UploadTask> tasks) throws IOException {
+    private UploadTasksResult upload(Path path, Collection<UploadTask> tasks) throws IOException {
         boolean wrappedStreamClosed = false;
         FSDataOutputStream fsStream = fileSystem.create(path, NO_OVERWRITE);
         try {
@@ -126,7 +117,7 @@ class StateChangeFsUploader implements StateChangeUploader {
                 FileStateHandle handle = new FileStateHandle(path, stream.getPos());
                 // WARN: streams have to be closed before returning the results
                 // otherwise JM may receive invalid handles
-                return new LocalResult(tasksOffsets, handle);
+                return new UploadTasksResult(tasksOffsets, handle);
             } finally {
                 wrappedStreamClosed = true;
             }
@@ -134,17 +125,6 @@ class StateChangeFsUploader implements StateChangeUploader {
             if (!wrappedStreamClosed) {
                 fsStream.close();
             }
-        }
-    }
-
-    private static final class LocalResult {
-        private final Map<UploadTask, Map<StateChangeSet, Long>> tasksOffsets;
-        private final StreamStateHandle handle;
-
-        public LocalResult(
-                Map<UploadTask, Map<StateChangeSet, Long>> tasksOffsets, StreamStateHandle handle) {
-            this.tasksOffsets = tasksOffsets;
-            this.handle = handle;
         }
     }
 
@@ -156,13 +136,6 @@ class StateChangeFsUploader implements StateChangeUploader {
         OutputStream compressed =
                 compression ? instance.decorateWithCompression(fsStream) : fsStream;
         return new OutputStreamWithPos(new BufferedOutputStream(compressed, bufferSize));
-    }
-
-    private List<UploadResult> buildResults(
-            StreamStateHandle handle, Map<StateChangeSet, Long> offsets) {
-        return offsets.entrySet().stream()
-                .map(e -> UploadResult.of(handle, e.getKey(), e.getValue()))
-                .collect(toList());
     }
 
     private String generateFileName() {

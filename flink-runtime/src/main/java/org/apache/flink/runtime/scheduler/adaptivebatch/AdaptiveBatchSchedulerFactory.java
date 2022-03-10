@@ -105,7 +105,7 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                         .orElseThrow(
                                 () ->
                                         new IllegalStateException(
-                                                "The DefaultScheduler requires a SlotPool."));
+                                                "The AdaptiveBatchScheduler requires a SlotPool."));
 
         final SlotSelectionStrategy slotSelectionStrategy =
                 SlotSelectionStrategyUtils.selectSlotSelectionStrategy(
@@ -171,8 +171,8 @@ public class AdaptiveBatchSchedulerFactory implements SchedulerNGFactory {
                 shuffleMaster,
                 rpcTimeout,
                 DefaultVertexParallelismDecider.from(jobMasterConfiguration),
-                jobMasterConfiguration.getInteger(
-                        JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_MAX_PARALLELISM));
+                DefaultVertexParallelismDecider.getNormalizedMaxParallelism(
+                        jobMasterConfiguration));
     }
 
     private void checkAllExchangesBlocking(final JobGraph jobGraph) {

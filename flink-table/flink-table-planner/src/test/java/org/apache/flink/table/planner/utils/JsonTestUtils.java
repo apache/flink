@@ -19,9 +19,9 @@
 package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.FlinkVersion;
-import org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.node.ObjectNode;
 
 import java.io.IOException;
@@ -29,15 +29,17 @@ import java.io.IOException;
 /** This class contains a collection of generic utilities to deal with JSON in tests. */
 public final class JsonTestUtils {
 
+    private static final ObjectMapper OBJECT_MAPPER_INSTANCE = new ObjectMapper();
+
     private JsonTestUtils() {}
 
     public static JsonNode readFromResource(String path) throws IOException {
-        return JsonSerdeUtil.getObjectMapper().readTree(JsonTestUtils.class.getResource(path));
+        return OBJECT_MAPPER_INSTANCE.readTree(JsonTestUtils.class.getResource(path));
     }
 
     public static JsonNode setFlinkVersion(JsonNode target, FlinkVersion flinkVersion) {
         return ((ObjectNode) target)
-                .set("flinkVersion", JsonSerdeUtil.getObjectMapper().valueToTree(flinkVersion));
+                .set("flinkVersion", OBJECT_MAPPER_INSTANCE.valueToTree(flinkVersion.toString()));
     }
 
     public static JsonNode clearFlinkVersion(JsonNode target) {
