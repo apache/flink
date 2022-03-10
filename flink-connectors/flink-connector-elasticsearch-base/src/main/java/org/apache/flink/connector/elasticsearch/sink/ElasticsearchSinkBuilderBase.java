@@ -48,7 +48,7 @@ public abstract class ElasticsearchSinkBuilderBase<
     private FlushBackoffType bulkFlushBackoffType = FlushBackoffType.NONE;
     private int bulkFlushBackoffRetries = -1;
     private long bulkFlushBackOffDelay = -1;
-    private DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.NONE;
+    private DeliveryGuarantee deliveryGuarantee = DeliveryGuarantee.AT_LEAST_ONCE;
     private List<HttpHost> hosts;
     protected ElasticsearchEmitter<? super IN> emitter;
     private String username;
