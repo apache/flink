@@ -420,14 +420,29 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     }
 
     val addElementsCode = elements.map { element =>
-      s"""
-         |${element.code}
-         |if (${element.nullTerm}) {
-         |  $fieldTerm.addNull();
-         |} else {
-         |  $fieldTerm.add(${element.resultTerm});
-         |}
-         |""".stripMargin
+      if (element.literalValue.isDefined) {
+        // Don't generate the null check in case the element is a literal expression
+        if (element.literalValue.get != null) {
+          s"""
+             |${element.code}
+             |$fieldTerm.add(${element.resultTerm});
+             |""".stripMargin
+        } else if (element.literalValue.get == null) {
+          s"""
+             |${element.code}
+             |$fieldTerm.addNull();
+             |""".stripMargin
+        }
+      } else {
+        s"""
+           |${element.code}
+           |if (${element.nullTerm}) {
+           |  $fieldTerm.addNull();
+           |} else {
+           |  $fieldTerm.add(${element.resultTerm});
+           |}
+           |""".stripMargin
+      }
     }.mkString("\n")
     val setBuildingFunctionName = newName("buildSet")
     val setBuildingFunctionCode =

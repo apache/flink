@@ -617,9 +617,20 @@ class CalcITCase extends BatchTestBase {
 //  }
 
   @Test
+  def testInNonConstantValue(): Unit = {
+    checkResult(
+      "SELECT a FROM Table3 WHERE a IN (CAST(b AS INT), 21)",
+      Seq(row(1), row(2), row(21)))
+  }
+
+  @Test
   def testInSmallValues(): Unit = {
     checkResult(
       "SELECT a FROM Table3 WHERE a in (1, 2)",
+      Seq(row(1), row(2)))
+
+    checkResult(
+      "SELECT a FROM Table3 WHERE a in (1, 2, NULL)",
       Seq(row(1), row(2)))
 
     checkResult(

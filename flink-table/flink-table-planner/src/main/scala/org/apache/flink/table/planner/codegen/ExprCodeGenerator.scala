@@ -18,28 +18,25 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.calcite.rex._
-import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
-import org.apache.calcite.sql.{SqlKind, SqlOperator}
-import org.apache.calcite.util.{Sarg, TimestampString}
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
-import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
+import org.apache.flink.table.data.util.DataFormatConverters.{getConverterForDataType, DataFormatConverter}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
-import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
+import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils._
 import org.apache.flink.table.planner.codegen.GeneratedExpression.{NEVER_NULL, NO_CODE}
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens._
+import org.apache.flink.table.planner.codegen.calls.SearchOperatorGen.generateSearch
 import org.apache.flink.table.planner.codegen.calls._
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction
 import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable._
 import org.apache.flink.table.planner.functions.sql.SqlThrowExceptionFunction
 import org.apache.flink.table.planner.functions.utils.{ScalarSqlFunction, TableSqlFunction}
-import org.apache.flink.table.planner.plan.utils.FlinkRexUtil
+import org.apache.flink.table.planner.plan.utils.RexLiteralUtil
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromLogicalTypeToDataType
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.isInteroperable
 import org.apache.flink.table.runtime.typeutils.TypeCheckUtils
@@ -47,6 +44,10 @@ import org.apache.flink.table.runtime.typeutils.TypeCheckUtils.{isNumeric, isTem
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.logical.utils.LogicalTypeChecks.{getFieldCount, isCompositeType}
 import org.apache.flink.table.typeutils.TimeIndicatorTypeInfo
+
+import org.apache.calcite.rex._
+import org.apache.calcite.sql.`type`.{ReturnTypes, SqlTypeName}
+import org.apache.calcite.sql.{SqlKind, SqlOperator}
 
 import scala.collection.JavaConversions._
 
@@ -464,19 +465,10 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   override def visitCall(call: RexCall): GeneratedExpression = {
     val resultType = FlinkTypeFactory.toLogicalType(call.getType)
     if (call.getKind == SqlKind.SEARCH) {
-      val sarg = call.getOperands.get(1).asInstanceOf[RexLiteral]
-          .getValueAs(classOf[Sarg[_]])
-      val rexBuilder = new FlinkRexBuilder(FlinkTypeFactory.INSTANCE)
-      if (sarg.isPoints) {
-        val operands = FlinkRexUtil.expandSearchOperands(rexBuilder, call)
-            .map(operand => operand.accept(this))
-        return generateCallExpression(ctx, call, operands, resultType)
-      } else {
-        return RexUtil.expandSearch(
-          rexBuilder,
-          null,
-          call).accept(this)
-      }
+      return generateSearch(
+        ctx,
+        generateExpression(call.getOperands.get(0)),
+        call.getOperands.get(1).asInstanceOf[RexLiteral])
     }
 
     // convert operands and help giving untyped NULL literals a type
@@ -684,11 +676,6 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         requireBoolean(operand)
         generateIsNotFalse(operand)
 
-      case SEARCH | IN =>
-        val left = operands.head
-        val right = operands.tail
-        generateIn(ctx, left, right)
-
       // casting
       case CAST =>
         generateCast(ctx, operands.head, resultType, nullOnFailure = ctx.tableConfig
@@ -864,8 +851,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
         case None => null
         case Some(literal) =>
           getConverterForDataType(fromLogicalTypeToDataType(expr.resultType))
-              .asInstanceOf[DataFormatConverter[AnyRef, AnyRef]
-              ].toExternal(literal.asInstanceOf[AnyRef])
+            .asInstanceOf[DataFormatConverter[AnyRef, AnyRef]]
+            .toExternal(literal.asInstanceOf[AnyRef])
       }
     }.toArray
   }
