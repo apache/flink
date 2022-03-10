@@ -18,6 +18,8 @@
 
 package org.apache.flink.test.util;
 
+import org.apache.flink.api.common.JobID;
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
@@ -39,6 +41,7 @@ import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.CHECKPOINT_DIR_PREFIX;
 import static org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess.METADATA_FILE_NAME;
@@ -137,6 +140,25 @@ public class TestUtils {
         } catch (IOException ioException) {
             ExceptionUtils.rethrow(ioException);
             return false; // should never happen
+        }
+    }
+
+    public static void waitUntilExternalizedCheckpointCreated(File checkpointDir)
+            throws InterruptedException, IOException {
+        while (true) {
+            Thread.sleep(50);
+            Optional<File> externalizedCheckpoint =
+                    getMostRecentCompletedCheckpointMaybe(checkpointDir);
+            if (externalizedCheckpoint.isPresent()) {
+                break;
+            }
+        }
+    }
+
+    public static void waitUntilJobCanceled(JobID jobId, ClusterClient<?> client)
+            throws ExecutionException, InterruptedException {
+        while (client.getJobStatus(jobId).get() != JobStatus.CANCELED) {
+            Thread.sleep(50);
         }
     }
 }

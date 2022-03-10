@@ -149,7 +149,7 @@ public class RocksDBIncrementalCheckpointUtils {
             // Using RocksDB's deleteRange will take advantage of delete
             // tombstones, which mark the range as deleted.
             //
-            // https://github.com/facebook/rocksdb/blob/bcd32560dd5898956b9d24553c2bb3c1b1d2319f/include/rocksdb/db.h#L357-L371
+            // https://github.com/ververica/frocksdb/blob/FRocksDB-6.20.3/include/rocksdb/db.h#L363-L377
             db.deleteRange(columnFamilyHandle, beginKeyBytes, endKeyBytes);
         }
     }
