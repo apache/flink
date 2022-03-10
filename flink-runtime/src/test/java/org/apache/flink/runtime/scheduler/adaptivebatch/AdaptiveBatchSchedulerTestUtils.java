@@ -46,9 +46,8 @@ public class AdaptiveBatchSchedulerTestUtils {
             setSchedulingStrategyFactory(new VertexwiseSchedulingStrategy.Factory());
         }
 
-        public void setJobVertexParallelismDecider(
-                VertexParallelismDecider jobVertexParallelismDecider) {
-            this.vertexParallelismDecider = jobVertexParallelismDecider;
+        public void setVertexParallelismDecider(VertexParallelismDecider vertexParallelismDecider) {
+            this.vertexParallelismDecider = vertexParallelismDecider;
         }
 
         public void setDefaultMaxParallelism(int defaultMaxParallelism) {

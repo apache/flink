@@ -24,10 +24,9 @@ under the License.
 
 # How to use Maven to configure your project
 
-You will likely need a build tool to configure your Flink project. This guide will show you how to 
-do so with [Maven](https://maven.apache.org), an open-source build automation tool developed by the 
-Apache Group that enables you to build, publish, and deploy projects. You can use it to manage the 
-entire lifecycle of your software project.
+This guide will show you how to configure a Flink job project with [Maven](https://maven.apache.org), 
+an open-source build automation tool developed by the Apache Software Foundation that enables you to build, 
+publish, and deploy projects. You can use it to manage the entire lifecycle of your software project.
 
 ## Requirements
 

@@ -38,41 +38,35 @@ import org.apache.avro.generic.GenericDatumReader;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.avro.generic.GenericRecordBuilder;
 import org.apache.avro.io.DecoderFactory;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link AvroSchemaConverter}. */
-public class AvroSchemaConverterTest {
-
-    @Rule public ExpectedException thrown = ExpectedException.none();
+class AvroSchemaConverterTest {
 
     @Test
-    public void testAvroClassConversion() {
+    void testAvroClassConversion() {
         validateUserSchema(AvroSchemaConverter.convertToTypeInfo(User.class));
     }
 
     @Test
-    public void testAvroSchemaConversion() {
+    void testAvroSchemaConversion() {
         final String schema = User.getClassSchema().toString(true);
         validateUserSchema(AvroSchemaConverter.convertToTypeInfo(schema));
     }
 
     @Test
-    public void testConvertAvroSchemaToDataType() {
+    void testConvertAvroSchemaToDataType() {
         final String schema = User.getClassSchema().toString(true);
         validateUserSchema(AvroSchemaConverter.convertToDataType(schema));
     }
 
     @Test
-    public void testAddingOptionalField() throws IOException {
+    void testAddingOptionalField() throws IOException {
         Schema oldSchema =
                 SchemaBuilder.record("record")
                         .fields()
@@ -104,18 +98,17 @@ public class AvroSchemaConverterTest {
                         null,
                         DecoderFactory.get()
                                 .binaryDecoder(serializedRecord, 0, serializedRecord.length, null));
-        assertThat(
-                newRecord,
-                equalTo(
+        assertThat(newRecord)
+                .isEqualTo(
                         new GenericRecordBuilder(newSchema)
                                 .set("category_id", 1L)
                                 .set("name", "test")
                                 .set("description", null)
-                                .build()));
+                                .build());
     }
 
     @Test
-    public void testInvalidRawTypeAvroSchemaConversion() {
+    void testInvalidRawTypeAvroSchemaConversion() {
         RowType rowType =
                 (RowType)
                         TableSchema.builder()
@@ -124,13 +117,14 @@ public class AvroSchemaConverterTest {
                                 .build()
                                 .toRowDataType()
                                 .getLogicalType();
-        thrown.expect(UnsupportedOperationException.class);
-        thrown.expectMessage("Unsupported to derive Schema for type: RAW");
-        AvroSchemaConverter.convertToSchema(rowType);
+
+        assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageStartingWith("Unsupported to derive Schema for type: RAW");
     }
 
     @Test
-    public void testInvalidTimestampTypeAvroSchemaConversion() {
+    void testInvalidTimestampTypeAvroSchemaConversion() {
         RowType rowType =
                 (RowType)
                         TableSchema.builder()
@@ -139,15 +133,16 @@ public class AvroSchemaConverterTest {
                                 .build()
                                 .toRowDataType()
                                 .getLogicalType();
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(
-                "Avro does not support TIMESTAMP type with precision: 9, "
-                        + "it only supports precision less than 3.");
-        AvroSchemaConverter.convertToSchema(rowType);
+
+        assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "Avro does not support TIMESTAMP type with precision: 9, "
+                                + "it only supports precision less than 3.");
     }
 
     @Test
-    public void testInvalidTimeTypeAvroSchemaConversion() {
+    void testInvalidTimeTypeAvroSchemaConversion() {
         RowType rowType =
                 (RowType)
                         TableSchema.builder()
@@ -156,14 +151,15 @@ public class AvroSchemaConverterTest {
                                 .build()
                                 .toRowDataType()
                                 .getLogicalType();
-        thrown.expect(IllegalArgumentException.class);
-        thrown.expectMessage(
-                "Avro does not support TIME type with precision: 6, it only supports precision less than 3.");
-        AvroSchemaConverter.convertToSchema(rowType);
+
+        assertThatThrownBy(() -> AvroSchemaConverter.convertToSchema(rowType))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "Avro does not support TIME type with precision: 6, it only supports precision less than 3.");
     }
 
     @Test
-    public void testRowTypeAvroSchemaConversion() {
+    void testRowTypeAvroSchemaConversion() {
         RowType rowType =
                 (RowType)
                         TableSchema.builder()
@@ -185,62 +181,62 @@ public class AvroSchemaConverterTest {
                                 .toRowDataType()
                                 .getLogicalType();
         Schema schema = AvroSchemaConverter.convertToSchema(rowType);
-        assertEquals(
-                "{\n"
-                        + "  \"type\" : \"record\",\n"
-                        + "  \"name\" : \"record\",\n"
-                        + "  \"fields\" : [ {\n"
-                        + "    \"name\" : \"row1\",\n"
-                        + "    \"type\" : [ \"null\", {\n"
-                        + "      \"type\" : \"record\",\n"
-                        + "      \"name\" : \"record_row1\",\n"
-                        + "      \"fields\" : [ {\n"
-                        + "        \"name\" : \"a\",\n"
-                        + "        \"type\" : [ \"null\", \"string\" ],\n"
-                        + "        \"default\" : null\n"
-                        + "      } ]\n"
-                        + "    } ],\n"
-                        + "    \"default\" : null\n"
-                        + "  }, {\n"
-                        + "    \"name\" : \"row2\",\n"
-                        + "    \"type\" : [ \"null\", {\n"
-                        + "      \"type\" : \"record\",\n"
-                        + "      \"name\" : \"record_row2\",\n"
-                        + "      \"fields\" : [ {\n"
-                        + "        \"name\" : \"b\",\n"
-                        + "        \"type\" : [ \"null\", \"string\" ],\n"
-                        + "        \"default\" : null\n"
-                        + "      } ]\n"
-                        + "    } ],\n"
-                        + "    \"default\" : null\n"
-                        + "  }, {\n"
-                        + "    \"name\" : \"row3\",\n"
-                        + "    \"type\" : [ \"null\", {\n"
-                        + "      \"type\" : \"record\",\n"
-                        + "      \"name\" : \"record_row3\",\n"
-                        + "      \"fields\" : [ {\n"
-                        + "        \"name\" : \"row3\",\n"
-                        + "        \"type\" : [ \"null\", {\n"
-                        + "          \"type\" : \"record\",\n"
-                        + "          \"name\" : \"record_row3_row3\",\n"
-                        + "          \"fields\" : [ {\n"
-                        + "            \"name\" : \"c\",\n"
-                        + "            \"type\" : [ \"null\", \"string\" ],\n"
-                        + "            \"default\" : null\n"
-                        + "          } ]\n"
-                        + "        } ],\n"
-                        + "        \"default\" : null\n"
-                        + "      } ]\n"
-                        + "    } ],\n"
-                        + "    \"default\" : null\n"
-                        + "  } ]\n"
-                        + "}",
-                schema.toString(true));
+        assertThat(schema.toString(true))
+                .isEqualTo(
+                        "{\n"
+                                + "  \"type\" : \"record\",\n"
+                                + "  \"name\" : \"record\",\n"
+                                + "  \"fields\" : [ {\n"
+                                + "    \"name\" : \"row1\",\n"
+                                + "    \"type\" : [ \"null\", {\n"
+                                + "      \"type\" : \"record\",\n"
+                                + "      \"name\" : \"record_row1\",\n"
+                                + "      \"fields\" : [ {\n"
+                                + "        \"name\" : \"a\",\n"
+                                + "        \"type\" : [ \"null\", \"string\" ],\n"
+                                + "        \"default\" : null\n"
+                                + "      } ]\n"
+                                + "    } ],\n"
+                                + "    \"default\" : null\n"
+                                + "  }, {\n"
+                                + "    \"name\" : \"row2\",\n"
+                                + "    \"type\" : [ \"null\", {\n"
+                                + "      \"type\" : \"record\",\n"
+                                + "      \"name\" : \"record_row2\",\n"
+                                + "      \"fields\" : [ {\n"
+                                + "        \"name\" : \"b\",\n"
+                                + "        \"type\" : [ \"null\", \"string\" ],\n"
+                                + "        \"default\" : null\n"
+                                + "      } ]\n"
+                                + "    } ],\n"
+                                + "    \"default\" : null\n"
+                                + "  }, {\n"
+                                + "    \"name\" : \"row3\",\n"
+                                + "    \"type\" : [ \"null\", {\n"
+                                + "      \"type\" : \"record\",\n"
+                                + "      \"name\" : \"record_row3\",\n"
+                                + "      \"fields\" : [ {\n"
+                                + "        \"name\" : \"row3\",\n"
+                                + "        \"type\" : [ \"null\", {\n"
+                                + "          \"type\" : \"record\",\n"
+                                + "          \"name\" : \"record_row3_row3\",\n"
+                                + "          \"fields\" : [ {\n"
+                                + "            \"name\" : \"c\",\n"
+                                + "            \"type\" : [ \"null\", \"string\" ],\n"
+                                + "            \"default\" : null\n"
+                                + "          } ]\n"
+                                + "        } ],\n"
+                                + "        \"default\" : null\n"
+                                + "      } ]\n"
+                                + "    } ],\n"
+                                + "    \"default\" : null\n"
+                                + "  } ]\n"
+                                + "}");
     }
 
     /** Test convert nullable data type to Avro schema then converts back. */
     @Test
-    public void testDataTypeToSchemaToDataTypeNullable() {
+    void testDataTypeToSchemaToDataTypeNullable() {
         DataType dataType =
                 DataTypes.ROW(
                         DataTypes.FIELD("f_null", DataTypes.NULL()),
@@ -271,12 +267,12 @@ public class AvroSchemaConverterTest {
                         DataTypes.FIELD("f_array", DataTypes.ARRAY(DataTypes.INT())));
         Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
         DataType converted = AvroSchemaConverter.convertToDataType(schema.toString());
-        assertEquals(dataType, converted);
+        assertThat(converted).isEqualTo(dataType);
     }
 
     /** Test convert non-nullable data type to Avro schema then converts back. */
     @Test
-    public void testDataTypeToSchemaToDataTypeNonNullable() {
+    void testDataTypeToSchemaToDataTypeNonNullable() {
         DataType dataType =
                 DataTypes.ROW(
                                 DataTypes.FIELD("f_boolean", DataTypes.BOOLEAN().notNull()),
@@ -316,12 +312,12 @@ public class AvroSchemaConverterTest {
                         .notNull();
         Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
         DataType converted = AvroSchemaConverter.convertToDataType(schema.toString());
-        assertEquals(dataType, converted);
+        assertThat(converted).isEqualTo(dataType);
     }
 
     /** Test convert nullable Avro schema to data type then converts back. */
     @Test
-    public void testSchemaToDataTypeToSchemaNullable() {
+    void testSchemaToDataTypeToSchemaNullable() {
         String schemaStr =
                 "{\n"
                         + "  \"type\" : \"record\",\n"
@@ -425,12 +421,12 @@ public class AvroSchemaConverterTest {
                         + "}";
         DataType dataType = AvroSchemaConverter.convertToDataType(schemaStr);
         Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
-        assertEquals(new Schema.Parser().parse(schemaStr), schema);
+        assertThat(schema).isEqualTo(new Schema.Parser().parse(schemaStr));
     }
 
     /** Test convert non-nullable Avro schema to data type then converts back. */
     @Test
-    public void testSchemaToDataTypeToSchemaNonNullable() {
+    void testSchemaToDataTypeToSchemaNonNullable() {
         String schemaStr =
                 "{\n"
                         + "  \"type\" : \"record\",\n"
@@ -514,7 +510,7 @@ public class AvroSchemaConverterTest {
                         + "}";
         DataType dataType = AvroSchemaConverter.convertToDataType(schemaStr);
         Schema schema = AvroSchemaConverter.convertToSchema(dataType.getLogicalType());
-        assertEquals(new Schema.Parser().parse(schemaStr), schema);
+        assertThat(schema).isEqualTo(new Schema.Parser().parse(schemaStr));
     }
 
     private void validateUserSchema(TypeInformation<?> actual) {
@@ -578,10 +574,10 @@ public class AvroSchemaConverterTest {
                         Types.BIG_DEC,
                         Types.BIG_DEC);
 
-        assertEquals(user, actual);
+        assertThat(actual).isEqualTo(user);
 
         final RowTypeInfo userRowInfo = (RowTypeInfo) user;
-        assertTrue(userRowInfo.schemaEquals(actual));
+        assertThat(userRowInfo.schemaEquals(actual)).isTrue();
     }
 
     private void validateUserSchema(DataType actual) {
@@ -640,6 +636,6 @@ public class AvroSchemaConverterTest {
                                         "type_decimal_fixed", DataTypes.DECIMAL(4, 2).notNull()))
                         .notNull();
 
-        assertEquals(user, actual);
+        assertThat(actual).isEqualTo(user);
     }
 }

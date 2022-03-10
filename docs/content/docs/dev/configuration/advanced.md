@@ -24,33 +24,29 @@ under the License.
 
 # Advanced Configuration Topics
 
-## Dependencies: Flink Core and User Application
-
-There are two broad categories of dependencies and libraries in Flink, which are explained below.
-
-### Flink Core Dependencies
+## Anatomy of the Flink distribution
 
 Flink itself consists of a set of classes and dependencies that form the core of Flink's runtime
 and must be present when a Flink application is started. The classes and dependencies needed to run
 the system handle areas such as coordination, networking, checkpointing, failover, APIs,
 operators (such as windowing), resource management, etc.
 
-These core classes and dependencies are packaged in the `flink-dist` jar, are part of Flink's `lib`
-folder, and part of the basic Flink container images. You can think of these dependencies as similar
-to Java's core library, which contains classes like `String` and `List`.
+These core classes and dependencies are packaged in the `flink-dist.jar`, which is available in the `/lib`
+folder in the downloaded distribution and is part of the basic Flink container images. 
+You can think of these dependencies as similar to Java's core library, which contains classes like `String` and `List`.
 
 In order to keep the core dependencies as small as possible and avoid dependency clashes, the
 Flink Core Dependencies do not contain any connectors or libraries (i.e. CEP, SQL, ML) in order to
 avoid having an excessive default number of classes and dependencies in the classpath.
 
-### User Application Dependencies
+The `/lib` directory of the Flink distribution additionally contains various JARs including commonly used modules, 
+such as all the required [modules to execute Table jobs](#anatomy-of-table-dependencies) and a set of connector and formats.
+These are loaded by default and can be removed from the classpath just by removing them from the `/lib` folder.
 
-These dependencies include all connectors, formats, or libraries that a specific user application
-needs and explicitly do not include the Flink DataStream and Table APIs and runtime dependencies 
-since those are already part of the Flink core dependencies.
+Flink also ships additional optional dependencies under the `/opt` folder, 
+which can be enabled by moving the JARs in the `/lib` folder.
 
-The user application is typically packaged into an *application jar*, which contains the application
-code and the required connector and library dependencies.
+For more information about classloading, refer to the section on [Classloading in Flink]({{< ref "docs/ops/debugging/debugging_classloading.md" >}}).
 
 ## Scala Versions
 
@@ -84,12 +80,14 @@ The Flink distribution contains by default the required JARs to execute Flink SQ
 in particular:
 
 - `flink-table-api-java-uber-{{< version >}}.jar` &#8594; contains all the Java APIs 
-- `flink-table-runtime-{{< version >}}.jar` &#8594; contains the runtime
+- `flink-table-runtime-{{< version >}}.jar` &#8594; contains the table runtime
 - `flink-table-planner-loader-{{< version >}}.jar` &#8594; contains the query planner
 
-**Note:** Previously, these JARs were all packaged into `flink-table.jar`. Since Flink 1.15, this has 
+{{< hint warning >}}
+Previously, these JARs were all packaged into `flink-table.jar`. Since Flink 1.15, this has 
 now been split into three JARs in order to allow users to swap the `flink-table-planner-loader-{{< version >}}.jar` 
 with `flink-table-planner{{< scala_version >}}-{{< version >}}.jar`.
+{{< /hint >}}
 
 While Table Java API artifacts are built into the distribution, Table Scala API artifacts are not 
 included by default. When using formats and connectors with the Flink Scala API, you need to either 
@@ -102,20 +100,28 @@ For more details, check out how to [connect to external systems]({{< ref "docs/c
 
 Starting from Flink 1.15, the distribution contains two planners:
 
--`flink-table-planner{{< scala_version >}}-{{< version >}}.jar`, in `/opt`, contains the query planner
--`flink-table-planner-loader-{{< version >}}.jar`, loaded by default in `/lib`, contains the query planner 
+- `flink-table-planner{{< scala_version >}}-{{< version >}}.jar`, in `/opt`, contains the query planner
+- `flink-table-planner-loader-{{< version >}}.jar`, loaded by default in `/lib`, contains the query planner 
   hidden behind an isolated classpath (you won't be able to address any `io.apache.flink.table.planner` directly)
 
-The planners contain the same code, but they are packaged differently. In one case, you must use the 
-same Scala version of the JAR. In the other, you do not need to make considerations about Scala, since
+The two planner JARs contain the same code, but they are packaged differently. In the first case, you must use the 
+same Scala version of the JAR. In second case, you do not need to make considerations about Scala, since
 it is hidden inside the JAR.
 
-If you need to access and use the internals of the query planner, you can swap the JARs (copying and
-pasting them in the downloaded distribution). Be aware that you will be constrained to using the Scala 
-version of the Flink distribution that you are using.
+By default,`flink-table-planner-loader` is used by the distribution. If you need to access and use the internals of the query planner, 
+you can swap the JARs (copying and pasting `flink-table-planner{{< scala_version >}}.jar` in the distribution `/lib` folder). 
+Be aware that you will be constrained to using the Scala version of the Flink distribution that you are using.
 
-**Note:** The two planners cannot co-exist at the same time in the classpath. If you load both of them
+{{< hint danger >}}
+The two planners cannot co-exist at the same time in the classpath. If you load both of them
 in `/lib` your Table Jobs will fail.
+{{< /hint >}}
+
+{{< hint warning >}}
+In the upcoming Flink versions, we will stop shipping the `flink-table-planner{{< scala_version >}}` artifact in the Flink distribution. 
+We strongly suggest migrating your jobs and your custom connectors/formats to work with the API modules, without relying on planner internals. 
+If you need some functionality from the planner, which is currently not exposed through the API modules, please open a ticket in order to discuss it with the community.
+{{< /hint >}}
 
 ## Hadoop Dependencies
 

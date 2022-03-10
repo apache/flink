@@ -33,6 +33,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.expressions.RexNodeExpression;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.JsonNode;
+import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
 
 import org.apache.calcite.rex.RexBuilder;
@@ -54,6 +55,7 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTest
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.assertThatJsonDoesNotContain;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.configuredSerdeContext;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.testJsonRoundTrip;
+import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectReader;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
@@ -136,15 +138,16 @@ class ResolvedCatalogTableSerdeTest {
                 JsonSerdeUtil.createObjectWriter(serdeCtx)
                         .withAttribute(ResolvedCatalogTableJsonSerializer.SERIALIZE_OPTIONS, false)
                         .writeValueAsBytes(FULL_RESOLVED_CATALOG_TABLE);
-        JsonNode actualJson = JsonSerdeUtil.getObjectMapper().readTree(actualSerialized);
+
+        final ObjectReader objectReader = createObjectReader(serdeCtx);
+        JsonNode actualJson = objectReader.readTree(actualSerialized);
         assertThatJsonContains(actualJson, ResolvedCatalogTableJsonSerializer.RESOLVED_SCHEMA);
         assertThatJsonContains(actualJson, ResolvedCatalogTableJsonSerializer.PARTITION_KEYS);
         assertThatJsonDoesNotContain(actualJson, ResolvedCatalogTableJsonSerializer.OPTIONS);
         assertThatJsonDoesNotContain(actualJson, ResolvedCatalogTableJsonSerializer.COMMENT);
 
         ResolvedCatalogTable actual =
-                JsonSerdeUtil.createObjectReader(serdeCtx)
-                        .readValue(actualSerialized, ResolvedCatalogTable.class);
+                objectReader.readValue(actualSerialized, ResolvedCatalogTable.class);
 
         assertThat(actual)
                 .isEqualTo(

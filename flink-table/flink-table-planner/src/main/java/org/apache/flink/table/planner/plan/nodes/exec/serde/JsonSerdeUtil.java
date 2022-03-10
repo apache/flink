@@ -91,6 +91,10 @@ public class JsonSerdeUtil {
     /**
      * Object mapper shared instance to serialize and deserialize the plan. Note that creating and
      * copying of object mappers is expensive and should be avoided.
+     *
+     * <p>This is not exposed to avoid bad usages, like adding new modules. If you need to read and
+     * write json persisted plans, use {@link #createObjectWriter(SerdeContext)} and {@link
+     * #createObjectReader(SerdeContext)}.
      */
     private static final ObjectMapper OBJECT_MAPPER_INSTANCE;
 
@@ -107,11 +111,6 @@ public class JsonSerdeUtil {
         OBJECT_MAPPER_INSTANCE.registerModule(new Jdk8Module().configureAbsentsAsNulls(true));
         OBJECT_MAPPER_INSTANCE.registerModule(new JavaTimeModule());
         OBJECT_MAPPER_INSTANCE.registerModule(createFlinkTableJacksonModule());
-    }
-
-    /** Get the {@link ObjectMapper} instance. */
-    public static ObjectMapper getObjectMapper() {
-        return OBJECT_MAPPER_INSTANCE;
     }
 
     public static ObjectReader createObjectReader(SerdeContext serdeContext) {

@@ -88,7 +88,6 @@ import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTest
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeTestUtil.toJson;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectReader;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.createObjectWriter;
-import static org.apache.flink.table.planner.plan.nodes.exec.serde.JsonSerdeUtil.getObjectMapper;
 import static org.apache.flink.table.planner.plan.nodes.exec.serde.RexNodeJsonSerializer.FIELD_NAME_CLASS;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
@@ -760,7 +759,7 @@ public class RexNodeJsonSerdeTest {
         final byte[] actualSerialized =
                 createObjectWriter(serdeContext)
                         .writeValueAsBytes(createFunctionCall(serdeContext, PERMANENT_FUNCTION));
-        return getObjectMapper().readTree(actualSerialized);
+        return createObjectReader(serdeContext).readTree(actualSerialized);
     }
 
     private ContextResolvedFunction deserialize(SerdeContext serdeContext, JsonNode node)

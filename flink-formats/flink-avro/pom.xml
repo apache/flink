@@ -262,6 +262,11 @@ under the License.
 						</goals>
 					</execution>
 				</executions>
+				<configuration>
+					<excludes>
+						<exclude>META-INF/services/org.junit.jupiter.api.extension.Extension</exclude>
+					</excludes>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>

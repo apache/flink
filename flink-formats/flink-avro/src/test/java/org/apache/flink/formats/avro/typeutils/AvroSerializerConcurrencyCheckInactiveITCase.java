@@ -18,9 +18,9 @@
 
 package org.apache.flink.formats.avro.typeutils;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * A test that validates that the concurrency checks in the Avro Serializer are not hard coded to
@@ -33,7 +33,7 @@ import static org.junit.Assert.assertTrue;
  * <p><b>Important:</b> If you see this test fail and the initial settings are still correct, check
  * the assumptions above (on fresh JVM fork).
  */
-public class AvroSerializerConcurrencyCheckInactiveITCase {
+class AvroSerializerConcurrencyCheckInactiveITCase {
 
     // this sets the debug initialization back to its default, even if
     // by default tests modify it (implicitly via assertion loading)
@@ -46,18 +46,12 @@ public class AvroSerializerConcurrencyCheckInactiveITCase {
      * concurrency checks are off by default.
      */
     @Test
-    public void testWithNoConcurrencyCheck() throws Exception {
-        boolean assertionError;
-        try {
-            new AvroSerializerConcurrencyTest().testConcurrentUseOfSerializer();
-            assertionError = false;
-        } catch (AssertionError e) {
-            assertionError = true;
-        }
-
-        assertTrue(
-                "testConcurrentUseOfSerializer() should have failed if "
-                        + "concurrency checks are off by default",
-                assertionError);
+    void testWithNoConcurrencyCheck() throws Exception {
+        assertThatThrownBy(
+                        () -> new AvroSerializerConcurrencyTest().testConcurrentUseOfSerializer())
+                .as(
+                        "testConcurrentUseOfSerializer() should fail if "
+                                + "concurrency checks are off by default")
+                .isInstanceOf(AssertionError.class);
     }
 }

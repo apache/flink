@@ -53,7 +53,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.table.api.Expressions.$;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for interoperability with Avro types. */
 public class AvroTypesITCase extends AbstractTestBase {
@@ -236,7 +236,7 @@ public class AvroTypesITCase extends AbstractTestBase {
                 CollectionUtil.iteratorToList(
                         DataStreamUtils.collect(tEnv.toAppendStream(result, User.class)));
         List<User> expected = Arrays.asList(USER_1, USER_2, USER_3);
-        assertEquals(expected, results);
+        assertThat(results).isEqualTo(expected);
     }
 
     private DataStream<User> testData(StreamExecutionEnvironment env) {

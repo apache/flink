@@ -39,6 +39,8 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.apache.flink.changelog.fs.FsStateChangelogOptions.PREEMPTIVE_PERSIST_THRESHOLD;
+import static org.apache.flink.changelog.fs.StateChangeUploadScheduler.directScheduler;
+import static org.apache.flink.changelog.fs.StateChangeUploadScheduler.fromConfig;
 
 /** Filesystem-based implementation of {@link StateChangelogStorage}. */
 @Experimental
@@ -47,7 +49,7 @@ public class FsStateChangelogStorage
         implements StateChangelogStorage<ChangelogStateHandleStreamImpl> {
     private static final Logger LOG = LoggerFactory.getLogger(FsStateChangelogStorage.class);
 
-    private final StateChangeUploader uploader;
+    private final StateChangeUploadScheduler uploader;
     private final long preEmptivePersistThresholdInBytes;
 
     /**
@@ -59,8 +61,7 @@ public class FsStateChangelogStorage
     public FsStateChangelogStorage(Configuration config, TaskManagerJobMetricGroup metricGroup)
             throws IOException {
         this(
-                StateChangeUploader.fromConfig(
-                        config, new ChangelogStorageMetricGroup(metricGroup)),
+                fromConfig(config, new ChangelogStorageMetricGroup(metricGroup)),
                 config.get(PREEMPTIVE_PERSIST_THRESHOLD).getBytes());
     }
 
@@ -72,14 +73,19 @@ public class FsStateChangelogStorage
             ChangelogStorageMetricGroup metricGroup)
             throws IOException {
         this(
-                new StateChangeFsUploader(
-                        basePath, basePath.getFileSystem(), compression, bufferSize, metricGroup),
+                directScheduler(
+                        new StateChangeFsUploader(
+                                basePath,
+                                basePath.getFileSystem(),
+                                compression,
+                                bufferSize,
+                                metricGroup)),
                 PREEMPTIVE_PERSIST_THRESHOLD.defaultValue().getBytes());
     }
 
     @VisibleForTesting
     public FsStateChangelogStorage(
-            StateChangeUploader uploader, long preEmptivePersistThresholdInBytes) {
+            StateChangeUploadScheduler uploader, long preEmptivePersistThresholdInBytes) {
         this.uploader = uploader;
         this.preEmptivePersistThresholdInBytes = preEmptivePersistThresholdInBytes;
     }
