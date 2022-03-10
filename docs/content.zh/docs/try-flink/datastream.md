@@ -53,13 +53,9 @@ Flink 支持对状态和时间的细粒度控制，以此来实现复杂的事�
 
 ### 在 IDE 中运行
 
-在 IDE 中运行该项目可能会遇到 `java.langNoClassDefFoundError` 的异常。这很可能是因为运行所需要的 Flink 的依赖库没有被全部加载到 classpath 里。
+在 IDE 中运行该项目可能会遇到 `java.langNoClassDefFoundError` 的异常。这很可能是因为运行所需要的 Flink 的依赖库没有默认被全部加载到类路径（classpath）里。
 
-IntelliJ IDE：前往 运行 > 编辑配置 > 
-
-Running the project in an IDE may result in a java.lang.NoClassDefFoundError exception. This is probably because you do not have all required Flink dependencies implicitly loaded into the classpath.
-
-IntelliJ IDEA: Go to Run > Edit Configurations > Modify options > Select include dependencies with "Provided" scope. This run configuration will now include all required classes to run the application from within the IDE.
+IntelliJ IDE：前往 运行 > 编辑配置 > 修改选项 > 勾选 将带有 "provided" 范围的依赖项添加到类路径。这样的话，运行配置将会包含所有在 IDE 中运行所必须的类。
 
 <a name="help-im-stuck"></a>
 
