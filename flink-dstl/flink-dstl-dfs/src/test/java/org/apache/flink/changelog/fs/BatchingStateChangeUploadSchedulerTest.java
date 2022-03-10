@@ -429,7 +429,7 @@ public class BatchingStateChangeUploadSchedulerTest {
         return Tuple2.of(thread, future);
     }
 
-    private static final class BlockingUploader implements StateChangeUploader {
+    static final class BlockingUploader implements StateChangeUploader {
         private final AtomicBoolean blocking = new AtomicBoolean(true);
         private final AtomicInteger uploadsCounter = new AtomicInteger();
 
@@ -449,7 +449,7 @@ public class BatchingStateChangeUploadSchedulerTest {
         @Override
         public void close() {}
 
-        private void unblock() {
+        void unblock() {
             blocking.set(false);
         }
 

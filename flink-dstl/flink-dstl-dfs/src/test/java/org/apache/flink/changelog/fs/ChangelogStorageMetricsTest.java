@@ -23,6 +23,7 @@ import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.testutils.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.HistogramStatistics;
+import org.apache.flink.runtime.mailbox.SyncMailboxExecutor;
 import org.apache.flink.runtime.metrics.groups.TaskManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.util.TestingMetricRegistry;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
@@ -61,7 +62,7 @@ public class ChangelogStorageMetricsTest {
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(
                         Path.fromLocalFile(temporaryFolder.newFolder()), false, 100, metrics)) {
-            FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
+            FsStateChangelogWriter writer = createWriter(storage);
 
             int numUploads = 5;
             for (int i = 0; i < numUploads; i++) {
@@ -82,7 +83,7 @@ public class ChangelogStorageMetricsTest {
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(
                         Path.fromLocalFile(temporaryFolder.newFolder()), false, 100, metrics)) {
-            FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
+            FsStateChangelogWriter writer = createWriter(storage);
 
             // upload single byte to infer header size
             SequenceNumber from = writer.nextSequenceNumber();
@@ -108,7 +109,7 @@ public class ChangelogStorageMetricsTest {
                 new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(Path.fromLocalFile(file), false, 100, metrics)) {
-            FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
+            FsStateChangelogWriter writer = createWriter(storage);
 
             int numUploads = 5;
             for (int i = 0; i < numUploads; i++) {
@@ -149,7 +150,9 @@ public class ChangelogStorageMetricsTest {
         FsStateChangelogStorage storage = new FsStateChangelogStorage(batcher, Integer.MAX_VALUE);
         FsStateChangelogWriter[] writers = new FsStateChangelogWriter[numWriters];
         for (int i = 0; i < numWriters; i++) {
-            writers[i] = storage.createWriter(Integer.toString(i), EMPTY_KEY_GROUP_RANGE);
+            writers[i] =
+                    storage.createWriter(
+                            Integer.toString(i), EMPTY_KEY_GROUP_RANGE, new SyncMailboxExecutor());
         }
 
         try {
@@ -190,7 +193,7 @@ public class ChangelogStorageMetricsTest {
                         metrics);
 
         FsStateChangelogStorage storage = new FsStateChangelogStorage(batcher, Integer.MAX_VALUE);
-        FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
+        FsStateChangelogWriter writer = createWriter(storage);
 
         try {
             for (int upload = 0; upload < numUploads; upload++) {
@@ -242,7 +245,7 @@ public class ChangelogStorageMetricsTest {
                         metrics);
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(batcher, Long.MAX_VALUE)) {
-            FsStateChangelogWriter writer = storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE);
+            FsStateChangelogWriter writer = createWriter(storage);
             int numUploads = 11;
             for (int i = 0; i < numUploads; i++) {
                 SequenceNumber from = writer.nextSequenceNumber();
@@ -287,5 +290,9 @@ public class ChangelogStorageMetricsTest {
         public void close() {
             attemptsPerTask.clear();
         }
+    }
+
+    private FsStateChangelogWriter createWriter(FsStateChangelogStorage storage) {
+        return storage.createWriter("writer", EMPTY_KEY_GROUP_RANGE, new SyncMailboxExecutor());
     }
 }
