@@ -19,7 +19,6 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.AscendingTimestampsWatermarks;
 import org.apache.flink.api.common.eventtime.TimestampAssigner;
 import org.apache.flink.api.common.eventtime.TimestampAssignerSupplier;
@@ -45,6 +44,7 @@ import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindo
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.test.state.ManualWindowSpeedITCase;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
+import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.TestLogger;
 
 import org.apache.curator.test.TestingServer;
@@ -60,7 +60,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
 import static org.junit.Assert.assertNotNull;
@@ -308,7 +307,7 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
 
         waitUntilExternalizedCheckpointCreated(checkpointDir, initialJobGraph.getJobID());
         client.cancel(initialJobGraph.getJobID()).get();
-        waitUntilCanceled(initialJobGraph.getJobID(), client);
+        TestUtils.waitUntilCanceled(initialJobGraph.getJobID(), client);
 
         return getExternalizedCheckpointCheckpointPath(checkpointDir, initialJobGraph.getJobID());
     }
@@ -354,13 +353,6 @@ public class ResumeCheckpointManuallyITCase extends TestLogger {
                                 }
                             })
                     .findAny();
-        }
-    }
-
-    private static void waitUntilCanceled(JobID jobId, ClusterClient<?> client)
-            throws ExecutionException, InterruptedException {
-        while (client.getJobStatus(jobId).get() != JobStatus.CANCELED) {
-            Thread.sleep(50);
         }
     }
 
