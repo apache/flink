@@ -47,7 +47,7 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
      * @param left The left element of the joined pair.
      * @param right The right element of the joined pair.
      * @param ctx A context that allows querying the timestamps of the left, right and joined pair.
-     *     In addition, this context allows to emit elements on a side output.
+     *     In addition, this context allows emitting elements on a side output.
      * @param out The collector to emit resulting elements to.
      * @throws Exception This function may throw exceptions which cause the streaming program to
      *     fail and go in recovery mode.
@@ -58,7 +58,7 @@ public abstract class ProcessJoinFunction<IN1, IN2, OUT> extends AbstractRichFun
     /**
      * The context that is available during an invocation of {@link #processElement(Object, Object,
      * Context, Collector)}. It gives access to the timestamps of the left element in the joined
-     * pair, the right one, and that of the joined pair. In addition, this context allows to emit
+     * pair, the right one, and that of the joined pair. In addition, this context allows emitting
      * elements on a side output.
      */
     public abstract class Context {

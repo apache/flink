@@ -327,7 +327,7 @@ public class IntervalJoinOperator<K, T1, T2, OUT>
      * ProcessJoinFunction#processElement(Object, Object, ProcessJoinFunction.Context, Collector)}.
      *
      * <p>It gives access to the timestamps of the left element in the joined pair, the right one,
-     * and that of the joined pair. In addition, this context allows to emit elements on a side
+     * and that of the joined pair. In addition, this context allows emitting elements on a side
      * output.
      */
     private final class ContextImpl extends ProcessJoinFunction<T1, T2, OUT>.Context {
