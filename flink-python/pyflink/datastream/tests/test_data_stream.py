@@ -624,7 +624,7 @@ class DataStreamTests(object):
                     .new_builder(Time.seconds(1)) \
                     .set_update_type(StateTtlConfig.UpdateType.OnReadAndWrite) \
                     .set_state_visibility(
-                    StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp) \
+                        StateTtlConfig.StateVisibility.ReturnExpiredIfNotCleanedUp) \
                     .disable_cleanup_in_background() \
                     .build()
                 map_state_descriptor.enable_time_to_live(state_ttl_config)
