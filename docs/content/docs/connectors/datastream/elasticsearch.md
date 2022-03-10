@@ -214,10 +214,7 @@ flushes of the buffered actions in progress.
 
 ### Elasticsearch Sinks and Fault Tolerance
 
-By default, the Flink Elasticsearch Sink will not provide any strong delivery guarantees.
-Users have the option to enable at-least-once semantics for the Elasticsearch sink.
-
-With Flink’s checkpointing enabled, the Flink Elasticsearch Sink can guarantee
+With Flink’s checkpointing enabled, the Flink Elasticsearch Sink guarantees
 at-least-once delivery of action requests to Elasticsearch clusters. It does
 so by waiting for all pending action requests in the `BulkProcessor` at the
 time of checkpoints. This effectively assures that all requests before the
@@ -226,34 +223,13 @@ proceeding to process more records sent to the sink.
 
 More details on checkpoints and fault tolerance are in the [fault tolerance docs]({{< ref "docs/learn-flink/fault_tolerance" >}}).
 
-To use fault tolerant Elasticsearch Sinks, at-least-once delivery has to be configured and checkpointing of the topology needs to be enabled at the execution environment:
+To use fault tolerant Elasticsearch Sinks, checkpointing of the topology needs to be enabled at the execution environment:
 
 {{< tabs "d00d1e93-4844-40d7-b0ec-9ec37e73145e" >}}
 {{< tab "Java" >}}
-Elasticsearch 6:
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.enableCheckpointing(5000); // checkpoint every 5000 msecs
-
-Elasticsearch6SinkBuilder sinkBuilder = new Elasticsearch6SinkBuilder<String>()
-    .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-    .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
-    .setEmitter(
-    (element, context, indexer) -> 
-    indexer.add(createIndexRequest(element)));
-```
-
-Elasticsearch 7:
-```java
-final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-env.enableCheckpointing(5000); // checkpoint every 5000 msecs
-
-Elasticsearch7SinkBuilder sinkBuilder = new Elasticsearch7SinkBuilder<String>()
-    .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-    .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
-    .setEmitter(
-    (element, context, indexer) -> 
-    indexer.add(createIndexRequest(element)));
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -261,27 +237,15 @@ Elasticsearch 6:
 ```scala
 val env = StreamExecutionEnvironment.getExecutionEnvironment()
 env.enableCheckpointing(5000) // checkpoint every 5000 msecs
-
-val sinkBuilder = new Elasticsearch6SinkBuilder[String]
-  .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-  .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
-  .setEmitter((element: String, context: SinkWriter.Context, indexer: RequestIndexer) =>
-  indexer.add(createIndexRequest(element)))
-```
-
-Elasticsearch 7:
-```scala
-val env = StreamExecutionEnvironment.getExecutionEnvironment()
-env.enableCheckpointing(5000) // checkpoint every 5000 msecs
-
-val sinkBuilder = new Elasticsearch7SinkBuilder[String]
-  .setDeliveryGuarantee(DeliveryGuarantee.AT_LEAST_ONCE)
-  .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
-  .setEmitter((element: String, context: SinkWriter.Context, indexer: RequestIndexer) =>
-  indexer.add(createIndexRequest(element)))
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+<p style="border-radius: 5px; padding: 5px" class="bg-info">
+<b>IMPORTANT</b>: Checkpointing is not enabled by default but the default delivery guarantee is AT_LEAST_ONCE.
+This causes the sink to buffer requests until it either finishes or the BulkProcessor flushes automatically. 
+By default, the BulkProcessor will flush after 1000 added Actions. To configure the processor to flush more frequently, please refer to the <a href="#configuring-the-internal-bulk-processor">BulkProcessor configuration section</a>.
+</p>
 
 ### Handling Failing Elasticsearch Requests
 

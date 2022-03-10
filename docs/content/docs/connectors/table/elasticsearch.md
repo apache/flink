@@ -143,7 +143,7 @@ Connector Options
       <td><h5>sink.delivery-guarantee</h5></td>
       <td>optional</td>
       <td>no</td>
-      <td style="word-wrap: break-word;">NONE</td>
+      <td style="word-wrap: break-word;">AT_LEAST_ONCE</td>
       <td>String</td>
       <td>Optional delivery guarantee when committing. Valid values are <code>NONE</code> or <code>AT_LEAST_ONCE</code>.</td>
     </tr>
