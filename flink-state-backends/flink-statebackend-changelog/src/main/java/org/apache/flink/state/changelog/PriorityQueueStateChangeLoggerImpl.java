@@ -26,20 +26,25 @@ import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.IOException;
 
+import static org.apache.flink.runtime.state.KeyGroupRangeAssignment.assignToKeyGroup;
+import static org.apache.flink.state.changelog.StateChangeOperation.REMOVE_ELEMENT;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger<K, T, Void>
         implements PriorityQueueStateChangeLogger<K, T, Void> {
     private final TypeSerializer<T> serializer;
+    private final int maxParallelism;
 
     PriorityQueueStateChangeLoggerImpl(
             TypeSerializer<T> serializer,
             InternalKeyContext<K> keyContext,
             StateChangelogWriter<?> stateChangelogWriter,
             RegisteredPriorityQueueStateBackendMetaInfo<T> meta,
-            short stateId) {
+            short stateId,
+            int maxParallelism) {
         super(stateChangelogWriter, keyContext, meta, stateId);
         this.serializer = checkNotNull(serializer);
+        this.maxParallelism = maxParallelism;
     }
 
     @Override
@@ -57,6 +62,6 @@ class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger
             ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
             Void unused)
             throws IOException {
-        super.valueElementRemoved(dataSerializer, unused);
+        log(REMOVE_ELEMENT, dataSerializer, unused, assignToKeyGroup(key, maxParallelism));
     }
 }

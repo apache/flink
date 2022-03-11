@@ -439,7 +439,8 @@ public class ChangelogKeyedStateBackend<K>
                             stateChangelogWriter,
                             new RegisteredPriorityQueueStateBackendMetaInfo<>(
                                     stateName, byteOrderedElementSerializer),
-                            ++lastCreatedStateId);
+                            ++lastCreatedStateId,
+                            keyedStateBackend.getNumberOfKeyGroups());
             closer.register(priorityQueueStateChangeLogger);
             queue =
                     new ChangelogKeyGroupedPriorityQueue<>(

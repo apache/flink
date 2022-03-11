@@ -145,9 +145,17 @@ abstract class AbstractStateChangeLogger<Key, Value, Ns>
             @Nullable ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataWriter,
             Ns ns)
             throws IOException {
+        log(op, dataWriter, ns, keyContext.getCurrentKeyGroupIndex());
+    }
+
+    protected void log(
+            StateChangeOperation op,
+            @Nullable ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataWriter,
+            Ns ns,
+            int keyGroup)
+            throws IOException {
         logMetaIfNeeded();
-        stateChangelogWriter.append(
-                keyContext.getCurrentKeyGroupIndex(), serialize(op, ns, dataWriter));
+        stateChangelogWriter.append(keyGroup, serialize(op, ns, dataWriter));
     }
 
     private void logMetaIfNeeded() throws IOException {

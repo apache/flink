@@ -31,7 +31,7 @@ public class PriorityQueueStateChangeLoggerImplTest extends StateChangeLoggerTes
         RegisteredPriorityQueueStateBackendMetaInfo<String> metaInfo =
                 new RegisteredPriorityQueueStateBackendMetaInfo<>("test", valueSerializer);
         return new PriorityQueueStateChangeLoggerImpl<>(
-                valueSerializer, keyContext, writer, metaInfo, Short.MIN_VALUE);
+                valueSerializer, keyContext, writer, metaInfo, Short.MIN_VALUE, Integer.MAX_VALUE);
     }
 
     @Override
