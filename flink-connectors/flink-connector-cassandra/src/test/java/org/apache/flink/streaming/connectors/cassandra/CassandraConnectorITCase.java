@@ -165,8 +165,6 @@ public class CassandraConnectorITCase
                     + KEYSPACE
                     + " WITH replication= {'class':'SimpleStrategy', 'replication_factor':1};";
     private static final String DROP_KEYSPACE_QUERY = "DROP KEYSPACE IF EXISTS " + KEYSPACE + " ;";
-    private static final String DROP_TABLE_QUERY =
-            "DROP TABLE IF EXISTS " + KEYSPACE + "." + TABLE_NAME_VARIABLE + " ;";
     private static final String CREATE_TABLE_QUERY =
             "CREATE TABLE "
                     + KEYSPACE
@@ -719,8 +717,6 @@ public class CassandraConnectorITCase
         Assert.assertTrue(
                 "The input data was not completely written to Cassandra", input.isEmpty());
     }
-
-    private static int retrialsCount = 0;
 
     @Test
     public void testCassandraBatchPojoFormat() throws Exception {
