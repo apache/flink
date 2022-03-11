@@ -186,7 +186,7 @@ class TimeWindowSerializer(TypeSerializer[TimeWindow]):
     def deserialize(self, stream: BytesIO) -> TimeWindow:
         if self._underlying_coder is None:
             self._underlying_coder = self._get_coder().get_impl()
-        bytes_data: bytes = stream.read(16)
+        bytes_data = stream.read(16)
         return self._underlying_coder.decode(bytes_data)
 
     def _get_coder(self):
@@ -550,7 +550,7 @@ class SessionWindowTimeGapExtractor(ABC):
     A {@code SessionWindowTimeGapExtractor} extracts session time gaps for Dynamic Session Window
     Assigners.
     :param <ABC> The type of elements that this {@code SessionWindowTimeGapExtractor} can extract
-        session time gaps from.
+     session time gaps from.
     """
 
     @abstractmethod
@@ -674,7 +674,7 @@ class CountTrigger(Trigger[T, CountWindow]):
         reduce_state.add(1)
         if reduce_state.get() >= self._window_size:
             # On FIRE, the window is evaluated and results are emitted. The window is not purged
-            #               though, all elements are retained.
+            # though, all elements are retained.
             reduce_state.clear()
             return TriggerResult.FIRE
         else:
@@ -718,7 +718,7 @@ class CountTumblingWindowAssigner(WindowAssigner[T, CountWindow]):
         :param window_size: The size of the windows in number of elements.
         """
         self._window_size = window_size
-        self._count_descriptor = ValueStateDescriptor('count-assigner', Types.LONG())
+        self._count_descriptor = ValueStateDescriptor('tumble-count-assigner', Types.LONG())
 
     @staticmethod
     def of(window_size: int):
@@ -834,7 +834,7 @@ class TumblingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
         return ProcessingTimeTrigger()
 
     @staticmethod
-    def of(size: Time, offset=None):
+    def of(size: Time, offset: Time = None):
         """
         Creates a new {@code TumblingProcessingTimeWindows} {@link WindowAssigner} that assigns
         elements to time windows based on the element timestamp and offset.
@@ -904,7 +904,7 @@ class TumblingEventTimeWindows(WindowAssigner[T, TimeWindow]):
         return EventTimeTrigger()
 
     @staticmethod
-    def of(size: Time, offset=None):
+    def of(size: Time, offset: Time = None):
         """
         Creates a new TumblingEventTimeWindows WindowAssigner that assigns elements
         to time windows based on the element timestamp, offset and a staggering offset, depending on
@@ -948,7 +948,6 @@ class SlidingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
         self._slide = slide
         self._offset = offset
         self._pane_size = math.gcd(size, slide)
-        self._num_panes_per_window = size // self._pane_size
 
     def assign_windows(self,
                        element: T,
@@ -966,7 +965,7 @@ class SlidingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
         return ProcessingTimeTrigger()
 
     @staticmethod
-    def of(size: Time, slide: Time, offset=None):
+    def of(size: Time, slide: Time, offset: Time = None):
         """
         Creates a new {@code SlidingProcessingTimeWindows} {@link WindowAssigner} that assigns
         elements to time windows based on the element timestamp and offset.
@@ -1022,7 +1021,6 @@ class SlidingEventTimeWindows(WindowAssigner[T, TimeWindow]):
         self._slide = slide
         self._offset = offset
         self._pane_size = math.gcd(size, slide)
-        self._num_panes_per_window = size // self._pane_size
 
     def assign_windows(self,
                        element: T,
@@ -1044,7 +1042,7 @@ class SlidingEventTimeWindows(WindowAssigner[T, TimeWindow]):
         return EventTimeTrigger()
 
     @staticmethod
-    def of(size: Time, slide: Time, offset=None):
+    def of(size: Time, slide: Time, offset: Time = None):
         """
         Creates a new {@code SlidingEventTimeWindows} {@link WindowAssigner} that assigns elements
         to time windows based on the element timestamp and offset.
@@ -1093,7 +1091,7 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     def __init__(self, session_gap: int):
         if session_gap <= 0:
-            raise Exception("SessionWindowAssigner parameters must satisfy 0 < size")
+            raise Exception("ProcessingTimeSessionWindows parameters must satisfy 0 < size")
 
         self._session_gap = session_gap
 
@@ -1102,10 +1100,29 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-        for i in range(1, len(window_list)):
-            if window_list[i - 1].end > window_list[i].start:
-                callback.merge([window_list[i - 1], window_list[i]],
-                               TimeWindow(window_list[i - 1].start, window_list[i].end))
+
+        window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
+        current_merge_key = None  # type: TimeWindow
+        current_merge_set = set()  # type: Set[TimeWindow]
+
+        for window in window_list:
+            if current_merge_key is None:
+                current_merge_key = window
+                current_merge_set.add(window)
+            elif current_merge_key.intersects(window):
+                current_merge_key = current_merge_key.cover(window)
+                current_merge_set.add(window)
+            else:
+                window_merge_map[current_merge_key] = current_merge_set
+                current_merge_key = window
+                current_merge_set = set()
+
+        if current_merge_key is not None:
+            window_merge_map[current_merge_key] = current_merge_set
+
+        for merge_key, merge_set in window_merge_map.items():
+            if len(merge_set) > 1:
+                callback.merge(merge_set, merge_key)
 
     def assign_windows(self,
                        element: T,
@@ -1162,7 +1179,7 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     def __init__(self, session_gap: int):
         if session_gap <= 0:
-            raise Exception("SessionWindowAssigner parameters must satisfy 0 < size")
+            raise Exception("EventTimeSessionWindows parameters must satisfy 0 < size")
 
         self._session_gap = session_gap
 
@@ -1171,10 +1188,29 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-        for i in range(1, len(window_list)):
-            if window_list[i - 1].end > window_list[i].start:
-                callback.merge([window_list[i - 1], window_list[i]],
-                               TimeWindow(window_list[i - 1].start, window_list[i].end))
+
+        window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
+        current_merge_key = None  # type: TimeWindow
+        current_merge_set = set()  # type: Set[TimeWindow]
+
+        for window in window_list:
+            if current_merge_key is None:
+                current_merge_key = window
+                current_merge_set.add(window)
+            elif current_merge_key.intersects(window):
+                current_merge_key = current_merge_key.cover(window)
+                current_merge_set.add(window)
+            else:
+                window_merge_map[current_merge_key] = current_merge_set
+                current_merge_key = window
+                current_merge_set = set()
+
+        if current_merge_key is not None:
+            window_merge_map[current_merge_key] = current_merge_set
+
+        for merge_key, merge_set in window_merge_map.items():
+            if len(merge_set) > 1:
+                callback.merge(merge_set, merge_key)
 
     def assign_windows(self,
                        element: T,
@@ -1238,10 +1274,29 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-        for i in range(1, len(window_list)):
-            if window_list[i - 1].end > window_list[i].start:
-                callback.merge([window_list[i - 1], window_list[i]],
-                               TimeWindow(window_list[i - 1].start, window_list[i].end))
+
+        window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
+        current_merge_key = None  # type: TimeWindow
+        current_merge_set = set()  # type: Set[TimeWindow]
+
+        for window in window_list:
+            if current_merge_key is None:
+                current_merge_key = window
+                current_merge_set.add(window)
+            elif current_merge_key.intersects(window):
+                current_merge_key = current_merge_key.cover(window)
+                current_merge_set.add(window)
+            else:
+                window_merge_map[current_merge_key] = current_merge_set
+                current_merge_key = window
+                current_merge_set = set()
+
+        if current_merge_key is not None:
+            window_merge_map[current_merge_key] = current_merge_set
+
+        for merge_key, merge_set in window_merge_map.items():
+            if len(merge_set) > 1:
+                callback.merge(merge_set, merge_key)
 
     def assign_windows(self,
                        element: T,
@@ -1298,10 +1353,29 @@ class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-        for i in range(1, len(window_list)):
-            if window_list[i - 1].end > window_list[i].start:
-                callback.merge([window_list[i - 1], window_list[i]],
-                               TimeWindow(window_list[i - 1].start, window_list[i].end))
+
+        window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
+        current_merge_key = None  # type: TimeWindow
+        current_merge_set = set()  # type: Set[TimeWindow]
+
+        for window in window_list:
+            if current_merge_key is None:
+                current_merge_key = window
+                current_merge_set.add(window)
+            elif current_merge_key.intersects(window):
+                current_merge_key = current_merge_key.cover(window)
+                current_merge_set.add(window)
+            else:
+                window_merge_map[current_merge_key] = current_merge_set
+                current_merge_key = window
+                current_merge_set = set()
+
+        if current_merge_key is not None:
+            window_merge_map[current_merge_key] = current_merge_set
+
+        for merge_key, merge_set in window_merge_map.items():
+            if len(merge_set) > 1:
+                callback.merge(merge_set, merge_key)
 
     def assign_windows(self,
                        element: T,
