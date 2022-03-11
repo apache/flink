@@ -43,8 +43,9 @@ public class Elasticsearch6DynamicSinkFactory extends ElasticsearchDynamicSinkFa
     }
 
     @Override
-    ElasticsearchConfiguration getConfiguration(FactoryUtil.TableFactoryHelper helper) {
-        return new Elasticsearch6Configuration(helper.getOptions());
+    ElasticsearchConfiguration getConfiguration(
+            FactoryUtil.TableFactoryHelper helper, ClassLoader classLoader) {
+        return new Elasticsearch6Configuration(helper.getOptions(), classLoader);
     }
 
     @Nullable

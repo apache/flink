@@ -132,6 +132,7 @@ class ElasticsearchDynamicSink implements DynamicTableSink {
         ElasticsearchSinkBuilderBase<RowData, ? extends ElasticsearchSinkBuilderBase> builder =
                 builderSupplier.get();
         builder.setEmitter(rowElasticsearchEmitter);
+        builder.setFailureHandler(config.getFailureHandler());
         builder.setHosts(config.getHosts().toArray(new HttpHost[0]));
         builder.setDeliveryGuarantee(config.getDeliveryGuarantee());
         builder.setBulkFlushMaxActions(config.getBulkFlushMaxActions());

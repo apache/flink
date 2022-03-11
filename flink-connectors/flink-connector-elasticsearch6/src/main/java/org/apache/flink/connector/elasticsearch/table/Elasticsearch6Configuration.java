@@ -27,8 +27,8 @@ import static org.apache.flink.connector.elasticsearch.table.Elasticsearch6Conne
 @Internal
 final class Elasticsearch6Configuration extends ElasticsearchConfiguration {
 
-    Elasticsearch6Configuration(ReadableConfig config) {
-        super(config);
+    Elasticsearch6Configuration(ReadableConfig config, ClassLoader classLoader) {
+        super(config, classLoader);
     }
 
     public String getDocumentType() {

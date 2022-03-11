@@ -24,9 +24,12 @@ import org.apache.flink.connector.elasticsearch.sink.Elasticsearch7SinkBuilder;
 import org.apache.flink.connector.elasticsearch.sink.ElasticsearchSink;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
+import org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer;
 import org.apache.flink.util.Collector;
 
 import org.apache.http.HttpHost;
+import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.update.UpdateRequest;
 import org.elasticsearch.client.Requests;
@@ -73,20 +76,55 @@ public class Elasticsearch7SinkExample {
                                     indexer.add(createUpdateRequest(element, parameterTool));
                                 })
                         .setBulkFlushMaxActions(1) // emit after every element, don't buffer
+                        .setFailureHandler(
+                                new CustomFailureHandler(parameterTool.getRequired("index")))
                         .build();
 
         source.sinkTo(sink);
         env.execute("Elasticsearch 7.x end to end sink test example");
     }
 
+    private static class CustomFailureHandler implements ActionRequestFailureHandler {
+
+        private static final long serialVersionUID = 942269087742453482L;
+
+        private final String index;
+
+        CustomFailureHandler(String index) {
+            this.index = index;
+        }
+
+        @Override
+        public void onFailure(
+                ActionRequest action, Throwable failure, int restStatusCode, RequestIndexer indexer)
+                throws Throwable {
+            if (action instanceof IndexRequest) {
+                Map<String, Object> json = new HashMap<>();
+                json.put("data", ((IndexRequest) action).source());
+
+                indexer.add(
+                        Requests.indexRequest()
+                                .index(index)
+                                .id(((IndexRequest) action).id())
+                                .source(json));
+            } else {
+                throw new IllegalStateException("unexpected");
+            }
+        }
+    }
+
     private static IndexRequest createIndexRequest(String element, ParameterTool parameterTool) {
         Map<String, Object> json = new HashMap<>();
         json.put("data", element);
 
-        return Requests.indexRequest()
-                .index(parameterTool.getRequired("index"))
-                .id(element)
-                .source(json);
+        String index;
+        if (element.startsWith("message #15")) {
+            index = ":intentional invalid index:";
+        } else {
+            index = parameterTool.getRequired("index");
+        }
+
+        return Requests.indexRequest().index(index).id(element).source(json);
     }
 
     private static UpdateRequest createUpdateRequest(

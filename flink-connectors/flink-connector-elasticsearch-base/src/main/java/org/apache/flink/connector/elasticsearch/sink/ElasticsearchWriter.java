@@ -23,6 +23,7 @@ import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
+import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.function.ThrowingRunnable;
 
@@ -31,6 +32,7 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.elasticsearch.action.ActionRequest;
 import org.elasticsearch.action.DocWriteRequest;
 import org.elasticsearch.action.bulk.BulkItemResponse;
 import org.elasticsearch.action.bulk.BulkProcessor;
@@ -47,7 +49,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.apache.flink.util.ExceptionUtils.firstOrSuppressed;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -63,6 +67,8 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
     private final RestHighLevelClient client;
     private final RequestIndexer requestIndexer;
     private final Counter numBytesOutCounter;
+    private final BufferingNoOpRequestIndexer failureRequestIndexer;
+    private final ActionRequestFailureHandler failureHandler;
 
     private long pendingActions = 0;
     private boolean checkpointInProgress = false;
@@ -93,7 +99,8 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
             BulkProcessorBuilderFactory bulkProcessorBuilderFactory,
             NetworkClientConfig networkClientConfig,
             SinkWriterMetricGroup metricGroup,
-            MailboxExecutor mailboxExecutor) {
+            MailboxExecutor mailboxExecutor,
+            ActionRequestFailureHandler failureHandler) {
         this.emitter = checkNotNull(emitter);
         this.flushOnCheckpoint = flushOnCheckpoint;
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
@@ -107,6 +114,8 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
         checkNotNull(metricGroup);
         metricGroup.setCurrentSendTimeGauge(() -> ackTime - lastSendTime);
         this.numBytesOutCounter = metricGroup.getIOMetricGroup().getNumBytesOutCounter();
+        this.failureRequestIndexer = new BufferingNoOpRequestIndexer();
+        this.failureHandler = checkNotNull(failureHandler);
         try {
             emitter.open();
         } catch (Exception e) {
@@ -126,6 +135,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
     @Override
     public void flush(boolean endOfInput) throws IOException, InterruptedException {
         checkpointInProgress = true;
+        failureRequestIndexer.processBufferedRequests(requestIndexer);
         while (pendingActions != 0 && (flushOnCheckpoint || endOfInput)) {
             bulkProcessor.flush();
             LOG.info("Waiting for the response of {} pending actions.", pendingActions);
@@ -136,6 +146,7 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
 
     @VisibleForTesting
     void blockingFlushAllActions() throws InterruptedException {
+        failureRequestIndexer.processBufferedRequests(requestIndexer);
         while (pendingActions != 0) {
             bulkProcessor.flush();
             LOG.info("Waiting for the response of {} pending actions.", pendingActions);
@@ -223,7 +234,22 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
         public void afterBulk(long executionId, BulkRequest request, Throwable failure) {
             enqueueActionInMailbox(
                     () -> {
-                        throw new FlinkRuntimeException("Complete bulk has failed.", failure);
+                        try {
+                            for (DocWriteRequest writeRequest : request.requests()) {
+                                failureHandler.onFailure(
+                                        (ActionRequest) writeRequest,
+                                        failure,
+                                        -1,
+                                        failureRequestIndexer);
+                            }
+                        } catch (Throwable t) {
+                            // fail the sink and skip the rest of the items
+                            // if the failure handler decides to throw an exception
+                            throw new FlinkRuntimeException(
+                                    "Complete bulk has failed.",
+                                    failure); // TODO: is it better to return t instead?
+                        }
+                        pendingActions -= request.numberOfActions();
                     },
                     "elasticsearchErrorCallback");
         }
@@ -260,14 +286,38 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
             final RestStatus restStatus = itemResponse.getFailure().getStatus();
             final DocWriteRequest<?> actionRequest = request.requests().get(i);
 
-            chainedFailures =
-                    firstOrSuppressed(
-                            wrapException(restStatus, failure, actionRequest), chainedFailures);
+            try {
+                if (restStatus == null) {
+                    if (actionRequest instanceof ActionRequest) {
+                        failureHandler.onFailure(
+                                (ActionRequest) actionRequest, failure, -1, failureRequestIndexer);
+                    } else {
+                        throw new UnsupportedOperationException(
+                                "The sink currently only supports ActionRequests");
+                    }
+                } else {
+                    if (actionRequest instanceof ActionRequest) {
+                        failureHandler.onFailure(
+                                (ActionRequest) actionRequest,
+                                failure,
+                                restStatus.getStatus(),
+                                failureRequestIndexer);
+                    } else {
+                        throw new UnsupportedOperationException(
+                                "The sink currently only supports ActionRequests");
+                    }
+                }
+            } catch (Throwable t) {
+                chainedFailures =
+                        firstOrSuppressed(
+                                wrapException(restStatus, failure, actionRequest), chainedFailures);
+            }
         }
-        if (chainedFailures == null) {
-            return;
+        if (chainedFailures != null) {
+            throw new FlinkRuntimeException(chainedFailures);
         }
-        throw new FlinkRuntimeException(chainedFailures);
+
+        pendingActions -= request.numberOfActions();
     }
 
     private static Throwable wrapException(
@@ -316,6 +366,45 @@ class ElasticsearchWriter<IN> implements SinkWriter<IN> {
                 pendingActions++;
                 bulkProcessor.add(updateRequest);
             }
+        }
+    }
+
+    private static class BufferingNoOpRequestIndexer
+            implements org.apache.flink.streaming.connectors.elasticsearch.RequestIndexer {
+
+        private final ConcurrentLinkedQueue<ActionRequest> bufferedRequests;
+
+        BufferingNoOpRequestIndexer() {
+            this.bufferedRequests = new ConcurrentLinkedQueue<>();
+        }
+
+        @Override
+        public void add(DeleteRequest... deleteRequests) {
+            Collections.addAll(bufferedRequests, deleteRequests);
+        }
+
+        @Override
+        public void add(IndexRequest... indexRequests) {
+            Collections.addAll(bufferedRequests, indexRequests);
+        }
+
+        @Override
+        public void add(UpdateRequest... updateRequests) {
+            Collections.addAll(bufferedRequests, updateRequests);
+        }
+
+        void processBufferedRequests(RequestIndexer actualIndexer) {
+            for (ActionRequest request : bufferedRequests) {
+                if (request instanceof IndexRequest) {
+                    actualIndexer.add((IndexRequest) request);
+                } else if (request instanceof DeleteRequest) {
+                    actualIndexer.add((DeleteRequest) request);
+                } else if (request instanceof UpdateRequest) {
+                    actualIndexer.add((UpdateRequest) request);
+                }
+            }
+
+            bufferedRequests.clear();
         }
     }
 }

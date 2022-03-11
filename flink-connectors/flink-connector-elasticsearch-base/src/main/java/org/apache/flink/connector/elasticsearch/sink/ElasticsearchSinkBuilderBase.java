@@ -22,6 +22,8 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.java.ClosureCleaner;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
+import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.http.HttpHost;
@@ -57,6 +59,7 @@ public abstract class ElasticsearchSinkBuilderBase<
     private Integer connectionTimeout;
     private Integer connectionRequestTimeout;
     private Integer socketTimeout;
+    private ActionRequestFailureHandler failureHandler = new NoOpFailureHandler();
 
     protected ElasticsearchSinkBuilderBase() {}
 
@@ -81,6 +84,11 @@ public abstract class ElasticsearchSinkBuilderBase<
         final ElasticsearchSinkBuilderBase<T, ?> self = self();
         self.emitter = emitter;
         return self;
+    }
+
+    public B setFailureHandler(ActionRequestFailureHandler failureHandler) {
+        this.failureHandler = checkNotNull(failureHandler);
+        return self();
     }
 
     /**
@@ -282,7 +290,8 @@ public abstract class ElasticsearchSinkBuilderBase<
                 deliveryGuarantee,
                 bulkProcessorBuilderFactory,
                 bulkProcessorConfig,
-                networkClientConfig);
+                networkClientConfig,
+                failureHandler);
     }
 
     private NetworkClientConfig buildNetworkClientConfig() {

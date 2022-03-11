@@ -17,14 +17,17 @@
 
 package org.apache.flink.connector.elasticsearch.sink;
 
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLoggerExtension;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Lists;
@@ -34,9 +37,14 @@ import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,6 +57,7 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.Nullable;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
 import java.util.function.BiFunction;
@@ -135,6 +144,64 @@ abstract class ElasticsearchSinkBaseITCase {
         final String index = "test-recovery-elasticsearch-sink";
         runTest(index, true, TestEmitter::jsonEmitter, new FailingMapper());
         assertTrue(failed);
+    }
+
+    @Test
+    void testFailureHandler() throws Exception {
+        final String index = "test-with-failure-handler";
+        final int numRecords = 20;
+
+        final StreamExecutionEnvironment env = new LocalStreamEnvironment();
+
+        DataStream<Tuple2<Integer, String>> source =
+                env.fromSequence(0, numRecords - 1)
+                        .flatMap(
+                                new FlatMapFunction<Long, Tuple2<Integer, String>>() {
+                                    @Override
+                                    public void flatMap(
+                                            Long value, Collector<Tuple2<Integer, String>> out) {
+                                        final int key = value.intValue();
+                                        final String message = "message #" + value;
+                                        out.collect(Tuple2.of(key, message + "update #1"));
+                                        out.collect(Tuple2.of(key, message + "update #2"));
+                                    }
+                                });
+
+        final ElasticsearchSink<Tuple2<Integer, String>> sink =
+                getSinkBuilder()
+                        .setHosts(HttpHost.create(getElasticsearchHttpHostAddress()))
+                        .setEmitter(new FailureHandlerTestEmitter(index, index))
+                        .setBulkFlushMaxActions(1)
+                        .setFailureHandler(new TestFailureHandler(index, index))
+                        .setConnectionUsername(ELASTICSEARCH_USER)
+                        .setConnectionPassword(ELASTICSEARCH_PASSWORD)
+                        .build();
+
+        source.sinkTo(sink);
+        env.enableCheckpointing(1000);
+        env.execute();
+
+        Assertions.assertDoesNotThrow(
+                () ->
+                        CommonTestUtils.waitUtil(
+                                () -> {
+                                    try {
+                                        SearchResponse searchResponse =
+                                                client.search(
+                                                        new SearchRequest(index)
+                                                                .source(
+                                                                        new SearchSourceBuilder()
+                                                                                .size(100)),
+                                                        RequestOptions.DEFAULT);
+                                        return searchResponse.getHits().getHits().length
+                                                == (3 * numRecords);
+                                    } catch (IOException e) {
+                                        return false;
+                                    }
+                                },
+                                Duration.ofSeconds(10),
+                                Duration.ofSeconds(1),
+                                "Expected 60 total documents in the index."));
     }
 
     private void runTest(

@@ -23,7 +23,12 @@ import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.elasticsearch.sink.FlushBackoffType;
+import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
+import org.apache.flink.streaming.connectors.elasticsearch.util.IgnoringFailureHandler;
+import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
+import org.apache.flink.streaming.connectors.elasticsearch.util.RetryRejectedExecutionFailureHandler;
 import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.util.InstantiationUtil;
 
 import org.apache.http.HttpHost;
 
@@ -42,6 +47,7 @@ import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnec
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.CONNECTION_REQUEST_TIMEOUT;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.CONNECTION_TIMEOUT;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.DELIVERY_GUARANTEE_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.FAILURE_HANDLER_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.HOSTS_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.INDEX_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.KEY_DELIMITER_OPTION;
@@ -55,9 +61,39 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 @Internal
 class ElasticsearchConfiguration {
     protected final ReadableConfig config;
+    private final ClassLoader classLoader;
 
-    ElasticsearchConfiguration(ReadableConfig config) {
+    ElasticsearchConfiguration(ReadableConfig config, ClassLoader classLoader) {
         this.config = checkNotNull(config);
+        this.classLoader = checkNotNull(classLoader);
+    }
+
+    public ActionRequestFailureHandler getFailureHandler() {
+        final ActionRequestFailureHandler failureHandler;
+        String value = config.get(FAILURE_HANDLER_OPTION);
+        switch (value.toUpperCase()) {
+            case "FAIL":
+                failureHandler = new NoOpFailureHandler();
+                break;
+            case "IGNORE":
+                failureHandler = new IgnoringFailureHandler();
+                break;
+            case "RETRY-REJECTED":
+                failureHandler = new RetryRejectedExecutionFailureHandler();
+                break;
+            default:
+                try {
+                    Class<?> failureHandlerClass = Class.forName(value, false, classLoader);
+                    failureHandler =
+                            (ActionRequestFailureHandler)
+                                    InstantiationUtil.instantiate(failureHandlerClass);
+                } catch (ClassNotFoundException e) {
+                    throw new ValidationException(
+                            "Could not instantiate the failure handler class: " + value, e);
+                }
+                break;
+        }
+        return failureHandler;
     }
 
     public int getBulkFlushMaxActions() {

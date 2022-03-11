@@ -58,6 +58,7 @@ import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnec
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.CONNECTION_REQUEST_TIMEOUT;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.CONNECTION_TIMEOUT;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.DELIVERY_GUARANTEE_OPTION;
+import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.FAILURE_HANDLER_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.FORMAT_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.HOSTS_OPTION;
 import static org.apache.flink.connector.elasticsearch.table.ElasticsearchConnectorOptions.INDEX_OPTION;
@@ -98,7 +99,7 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
         EncodingFormat<SerializationSchema<RowData>> format =
                 helper.discoverEncodingFormat(SerializationFormatFactory.class, FORMAT_OPTION);
 
-        ElasticsearchConfiguration config = getConfiguration(helper);
+        ElasticsearchConfiguration config = getConfiguration(helper, context.getClassLoader());
         helper.validate();
         validateConfiguration(config);
 
@@ -113,8 +114,9 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
                 getLocalTimeZoneId(context.getConfiguration()));
     }
 
-    ElasticsearchConfiguration getConfiguration(FactoryUtil.TableFactoryHelper helper) {
-        return new ElasticsearchConfiguration(helper.getOptions());
+    ElasticsearchConfiguration getConfiguration(
+            FactoryUtil.TableFactoryHelper helper, ClassLoader classLoader) {
+        return new ElasticsearchConfiguration(helper.getOptions(), classLoader);
     }
 
     ZoneId getLocalTimeZoneId(ReadableConfig readableConfig) {
@@ -128,6 +130,7 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
     }
 
     void validateConfiguration(ElasticsearchConfiguration config) {
+        config.getFailureHandler(); // checks if we can instantiate the custom failure handler
         config.getHosts(); // validate hosts
         validate(
                 config.getIndex().length() >= 1,
@@ -211,6 +214,7 @@ abstract class ElasticsearchDynamicSinkFactoryBase implements DynamicTableSinkFa
     public Set<ConfigOption<?>> optionalOptions() {
         return Stream.of(
                         KEY_DELIMITER_OPTION,
+                        FAILURE_HANDLER_OPTION,
                         BULK_FLUSH_MAX_SIZE_OPTION,
                         BULK_FLUSH_MAX_ACTIONS_OPTION,
                         BULK_FLUSH_INTERVAL_OPTION,

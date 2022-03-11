@@ -22,11 +22,14 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.description.Description;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.elasticsearch.sink.FlushBackoffType;
 
 import java.time.Duration;
 import java.util.List;
+
+import static org.apache.flink.configuration.description.TextElement.text;
 
 /**
  * Base options for the Elasticsearch connector. Needs to be public so that the {@link
@@ -68,6 +71,25 @@ public class ElasticsearchConnectorOptions {
                     .defaultValue("_")
                     .withDescription(
                             "Delimiter for composite keys e.g., \"$\" would result in IDs \"KEY1$KEY2$KEY3\".");
+
+    public static final ConfigOption<String> FAILURE_HANDLER_OPTION =
+            ConfigOptions.key("failure-handler")
+                    .stringType()
+                    .defaultValue("fail")
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Failure handling strategy in case a request to Elasticsearch fails")
+                                    .list(
+                                            text(
+                                                    "\"fail\" (throws an exception if a request fails and thus causes a job failure)"),
+                                            text(
+                                                    "\"ignore\" (ignores failures and drops the request)"),
+                                            text(
+                                                    "\"retry-rejected\" (re-adds requests that have failed due to queue capacity saturation)"),
+                                            text(
+                                                    "\"class name\" for failure handling with a ActionRequestFailureHandler subclass"))
+                                    .build());
 
     public static final ConfigOption<Integer> BULK_FLUSH_MAX_ACTIONS_OPTION =
             ConfigOptions.key("sink.bulk-flush.max-actions")

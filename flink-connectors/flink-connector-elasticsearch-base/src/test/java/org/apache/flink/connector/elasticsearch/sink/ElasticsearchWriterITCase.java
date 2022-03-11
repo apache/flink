@@ -27,6 +27,7 @@ import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
 import org.apache.flink.metrics.testutils.MetricListener;
 import org.apache.flink.runtime.metrics.groups.InternalSinkWriterMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
+import org.apache.flink.streaming.connectors.elasticsearch.util.NoOpFailureHandler;
 import org.apache.flink.util.DockerImageVersions;
 import org.apache.flink.util.FlinkRuntimeException;
 import org.apache.flink.util.TestLoggerExtension;
@@ -247,7 +248,8 @@ class ElasticsearchWriterITCase {
                 new TestBulkProcessorBuilderFactory(),
                 new NetworkClientConfig(null, null, null, null, null, null),
                 metricGroup,
-                new TestMailbox());
+                new TestMailbox(),
+                new NoOpFailureHandler());
     }
 
     private static class TestBulkProcessorBuilderFactory implements BulkProcessorBuilderFactory {

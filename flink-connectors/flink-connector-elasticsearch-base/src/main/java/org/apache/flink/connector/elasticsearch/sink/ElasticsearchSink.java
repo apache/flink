@@ -22,6 +22,7 @@ import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.connector.base.DeliveryGuarantee;
+import org.apache.flink.streaming.connectors.elasticsearch.ActionRequestFailureHandler;
 
 import org.apache.http.HttpHost;
 
@@ -59,6 +60,7 @@ public class ElasticsearchSink<IN> implements Sink<IN> {
     private final BulkProcessorBuilderFactory bulkProcessorBuilderFactory;
     private final NetworkClientConfig networkClientConfig;
     private final DeliveryGuarantee deliveryGuarantee;
+    private final ActionRequestFailureHandler failureHandler;
 
     ElasticsearchSink(
             List<HttpHost> hosts,
@@ -66,7 +68,8 @@ public class ElasticsearchSink<IN> implements Sink<IN> {
             DeliveryGuarantee deliveryGuarantee,
             BulkProcessorBuilderFactory bulkProcessorBuilderFactory,
             BulkProcessorConfig buildBulkProcessorConfig,
-            NetworkClientConfig networkClientConfig) {
+            NetworkClientConfig networkClientConfig,
+            ActionRequestFailureHandler failureHandler) {
         this.hosts = checkNotNull(hosts);
         this.bulkProcessorBuilderFactory = checkNotNull(bulkProcessorBuilderFactory);
         checkArgument(!hosts.isEmpty(), "Hosts cannot be empty.");
@@ -74,6 +77,7 @@ public class ElasticsearchSink<IN> implements Sink<IN> {
         this.deliveryGuarantee = checkNotNull(deliveryGuarantee);
         this.buildBulkProcessorConfig = checkNotNull(buildBulkProcessorConfig);
         this.networkClientConfig = checkNotNull(networkClientConfig);
+        this.failureHandler = checkNotNull(failureHandler);
     }
 
     @Override
@@ -86,6 +90,7 @@ public class ElasticsearchSink<IN> implements Sink<IN> {
                 bulkProcessorBuilderFactory,
                 networkClientConfig,
                 context.metricGroup(),
-                context.getMailboxExecutor());
+                context.getMailboxExecutor(),
+                failureHandler);
     }
 }
