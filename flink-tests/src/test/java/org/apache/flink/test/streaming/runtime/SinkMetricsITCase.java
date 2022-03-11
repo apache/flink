@@ -22,6 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.connector.sink.Sink;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
+import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.groups.OperatorMetricGroup;
 import org.apache.flink.metrics.groups.SinkWriterMetricGroup;
@@ -120,6 +121,7 @@ public class SinkMetricsITCase extends TestLogger {
         jobClient.getJobExecutionResult().get();
     }
 
+    @SuppressWarnings("checkstyle:WhitespaceAfter")
     private void assertSinkMetrics(
             JobID jobId, long processedRecordsPerSubtask, int parallelism, int numSplits) {
         List<OperatorMetricGroup> groups =
@@ -130,8 +132,10 @@ public class SinkMetricsITCase extends TestLogger {
         int subtaskWithMetrics = 0;
         for (OperatorMetricGroup group : groups) {
             Map<String, Metric> metrics = reporter.getMetricsByGroup(group);
-            // there are only 2 splits assigned; so two groups will not update metrics
-            if (group.getIOMetricGroup().getNumRecordsOutCounter().getCount() != 0) {
+            // There are only 2 splits assigned; so two groups will not update metrics.
+            // There is no other way to access the counter via OperatorMetricGroup, we have to use
+            // metrics from the reporter.
+            if (((Counter) metrics.get(MetricNames.NUM_RECORDS_SEND)).getCount() == 0) {
                 continue;
             }
             subtaskWithMetrics++;
