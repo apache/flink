@@ -759,7 +759,7 @@ public final class FactoryUtil {
     }
 
     @SuppressWarnings("unchecked")
-    static <T extends DynamicTableFactory> T discoverManagedTableFactory(
+    public static <T extends DynamicTableFactory> T discoverManagedTableFactory(
             ClassLoader classLoader, Class<T> implementClass) {
         final List<Factory> factories = discoverFactories(classLoader);
 

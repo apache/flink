@@ -1121,13 +1121,19 @@ public class SqlToOperationConverter {
         return new ExplainOperation(operation, sqlExplain.getExplainDetails());
     }
 
-    /** Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier. */
+    /**
+     * Convert DESCRIBE [EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier [PARTITION
+     * partitionSpec].
+     */
     private Operation convertDescribeTable(SqlRichDescribeTable sqlRichDescribeTable) {
         UnresolvedIdentifier unresolvedIdentifier =
                 UnresolvedIdentifier.of(sqlRichDescribeTable.fullTableName());
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
-
-        return new DescribeTableOperation(identifier, sqlRichDescribeTable.isExtended());
+        LinkedHashMap<String, String> partitionKVs = sqlRichDescribeTable.getPartitionKVs();
+        return new DescribeTableOperation(
+                identifier,
+                sqlRichDescribeTable.isExtended(),
+                partitionKVs == null ? null : new CatalogPartitionSpec((partitionKVs)));
     }
 
     /** Convert LOAD MODULE statement. */

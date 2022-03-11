@@ -22,6 +22,8 @@ import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.configuration.ConfigOption;
+import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.table.api.CompiledPlan;
@@ -77,6 +79,7 @@ import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.ApiExpressionUtils;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.factories.ManagedTableFactory;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
 import org.apache.flink.table.functions.ScalarFunction;
 import org.apache.flink.table.functions.SqlLikeUtils;
@@ -155,6 +158,7 @@ import org.apache.flink.table.types.utils.DataTypeUtils;
 import org.apache.flink.table.utils.TableSchemaUtils;
 import org.apache.flink.table.utils.print.PrintStyle;
 import org.apache.flink.types.Row;
+import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Preconditions;
 
 import java.io.File;
@@ -1313,7 +1317,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             Optional<ContextResolvedTable> result =
                     catalogManager.getTable(describeTableOperation.getSqlIdentifier());
             if (result.isPresent()) {
-                return buildDescribeResult(result.get().getResolvedSchema());
+                return describeTableOperation.isExtended()
+                        ? buildDescribeExtendedResult(
+                                result.get(),
+                                describeTableOperation.getPartitionSpec(),
+                                userClassLoader)
+                        : buildDescribeResult(result.get().getResolvedSchema());
             } else {
                 throw new ValidationException(
                         String.format(
@@ -1456,6 +1465,55 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         return buildShowResult("table name", rows);
     }
 
+    private TableResultInternal buildDescribeExtendedResult(
+            ContextResolvedTable resolvedTable,
+            Map<String, String> partitionSpec,
+            ClassLoader classLoader) {
+        final Map<String, String> tableOptions = resolvedTable.getResolvedTable().getOptions();
+        final String connectorOption = tableOptions.get(FactoryUtil.CONNECTOR.key());
+        if (connectorOption == null) {
+            final ManagedTableFactory tableFactory =
+                    FactoryUtil.discoverManagedTableFactory(classLoader, ManagedTableFactory.class);
+            final Map<String, ConfigOption<?>> configOptions = new HashMap<>();
+            if (!CollectionUtil.isNullOrEmpty(tableFactory.requiredOptions())) {
+                tableFactory
+                        .requiredOptions()
+                        .forEach(option -> configOptions.put(option.key(), option));
+            }
+            if (!CollectionUtil.isNullOrEmpty(tableFactory.optionalOptions())) {
+                tableFactory
+                        .optionalOptions()
+                        .forEach(option -> configOptions.put(option.key(), option));
+            }
+            final List<ConfigOption<?>> describeOptions =
+                    configOptions.keySet().stream()
+                            .filter(tableOptions::containsKey)
+                            .map(configOptions::get)
+                            .collect(Collectors.toList());
+            if (!partitionSpec.isEmpty()) {
+                describeOptions.add(
+                        ConfigOptions.key("partition")
+                                .stringType()
+                                .noDefaultValue()
+                                .withDescription("Partition spec."));
+            }
+            return buildResult(
+                    generateTableExtendedColumnsNames(),
+                    generateTableExtendedColumnsDataTypes(),
+                    buildTableExtendedColumns(describeOptions));
+        } else {
+            throw new ValidationException("DESCRIBE EXTENDED only supports the managed table.");
+        }
+    }
+
+    private DataType[] generateTableExtendedColumnsDataTypes() {
+        return new DataType[] {DataTypes.STRING()};
+    }
+
+    private String[] generateTableExtendedColumnsNames() {
+        return new String[] {"name"};
+    }
+
     private TableResultInternal buildShowColumnsResult(
             ResolvedSchema schema, ShowColumnsOperation showColumnsOp) {
         Object[][] rows = buildTableColumns(schema);
@@ -1520,6 +1578,12 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                                 fieldToWatermark.getOrDefault(c.getName(), null)
                             };
                         })
+                .toArray(Object[][]::new);
+    }
+
+    private Object[][] buildTableExtendedColumns(List<ConfigOption<?>> tableOptions) {
+        return tableOptions.stream()
+                .map(option -> new Object[] {option.key()})
                 .toArray(Object[][]::new);
     }
 

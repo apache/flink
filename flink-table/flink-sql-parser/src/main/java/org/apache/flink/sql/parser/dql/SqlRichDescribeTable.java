@@ -18,34 +18,50 @@
 
 package org.apache.flink.sql.parser.dql;
 
+import org.apache.flink.sql.parser.SqlPartitionUtils;
+
 import org.apache.calcite.sql.SqlCall;
 import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
+import org.apache.calcite.sql.SqlNodeList;
 import org.apache.calcite.sql.SqlOperator;
 import org.apache.calcite.sql.SqlSpecialOperator;
 import org.apache.calcite.sql.SqlWriter;
 import org.apache.calcite.sql.parser.SqlParserPos;
 
+import javax.annotation.Nullable;
+
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
- * DESCRIBE [ EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier sql call. Here we add Rich in
- * className to distinguish from calcite's original SqlDescribeTable.
+ * DESCRIBE [ EXTENDED] [[catalogName.] dataBasesName].sqlIdentifier [PARTITION partitionSpec] sql
+ * call. Here we add Rich in className to distinguish from calcite's original SqlDescribeTable.
  */
 public class SqlRichDescribeTable extends SqlCall {
 
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("DESCRIBE TABLE", SqlKind.DESCRIBE_TABLE);
     protected final SqlIdentifier tableNameIdentifier;
-    private boolean isExtended = false;
+    private final boolean isExtended;
+    private final SqlNodeList partitionSpec;
 
     public SqlRichDescribeTable(
             SqlParserPos pos, SqlIdentifier tableNameIdentifier, boolean isExtended) {
+        this(pos, tableNameIdentifier, isExtended, null);
+    }
+
+    public SqlRichDescribeTable(
+            SqlParserPos pos,
+            SqlIdentifier tableNameIdentifier,
+            boolean isExtended,
+            @Nullable SqlNodeList partitionSpec) {
         super(pos);
         this.tableNameIdentifier = tableNameIdentifier;
         this.isExtended = isExtended;
+        this.partitionSpec = partitionSpec;
     }
 
     @Override
@@ -62,6 +78,19 @@ public class SqlRichDescribeTable extends SqlCall {
         return isExtended;
     }
 
+    /**
+     * Returns the partition spec if the DESCRIBE should be applied to partitions, and null
+     * otherwise.
+     */
+    public SqlNodeList getPartitionSpec() {
+        return partitionSpec;
+    }
+
+    /** Get partition spec as key-value strings. */
+    public LinkedHashMap<String, String> getPartitionKVs() {
+        return SqlPartitionUtils.getPartitionKVs(getPartitionSpec());
+    }
+
     public String[] fullTableName() {
         return tableNameIdentifier.names.toArray(new String[0]);
     }
@@ -73,5 +102,10 @@ public class SqlRichDescribeTable extends SqlCall {
             writer.keyword("EXTENDED");
         }
         tableNameIdentifier.unparse(writer, leftPrec, rightPrec);
+        if (partitionSpec != null && partitionSpec.size() > 0) {
+            writer.keyword("PARTITION");
+            partitionSpec.unparse(
+                    writer, getOperator().getLeftPrec(), getOperator().getRightPrec());
+        }
     }
 }
