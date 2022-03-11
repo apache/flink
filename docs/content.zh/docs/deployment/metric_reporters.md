@@ -47,7 +47,7 @@ Flink 支持用户将 Flink 的各项运行时指标发送给外部系统。
 - `metrics.reporters`:（可选）启用的采集器名称列表，以逗号分隔。默认所有配置了的采集器都会被启用。
 - `metrics.reporter.<name>.scope.variables.additional`:（可选）map 形式的变量列表，列表中使用逗号分隔，map 中变量名与变量值以”:“分隔。 tag-based 类的采集器（例如 Prometheus、InfluxDB）可以使用此选项。
 
-每种发送器都需要至少设置 `class` 或 `factory.class` 属性中的一个，具体要配置哪个取决于发送器，具体情况参照下文中各发送器的配置示例。
+每种发送器都需要至少设置 `class` 或 `factory.class` 属性中的一个，要配置哪个取决于发送器，具体情况参照下文中各发送器的配置示例。
 有些基于定时调度的发送器还可以通过 `interval` 来配置发送间隔，下文会列出各类发送器的详细配置示例。
 
 想要同时配置多个发送器，可参考以下示例。
@@ -90,7 +90,7 @@ JMX 发送器默认可直接使用，无需引入其他依赖。
 
 - `port` - (非必须) JMX 监听的端口。
   如果需要在一台机器上运行多个发送器示例进行监控时（比如 TaskManger 与 JobManager 在一台机器上运行时），建议将端口号配置为 `9250-9260` 这样的区间，
-  实际使用的端口会在 JobManager 或 TaskManger 中显示。如果设置了这个选项， Flink 会按照配置的端口号或端口区间开启 JMX 发送器，
+  实际使用的端口会在相关作业 或 TaskManger 的日志中显示。如果设置了这个选项， Flink 会按照配置的端口号或端口区间开启 JMX 发送器，
   这些运行时指标可以通过本地的 JMX 默认接口访问到。
 
 配置示例：
@@ -268,12 +268,12 @@ metrics.reporter.stsd.interval: 60 SECONDS
 
 参数:
 
-- `apikey` - Datadog 的 API KEY
-- `tags` - (可选) 发送到 Datadog 时将会转换为指标的全局 tag. tag 间只能以逗号分隔。
-- `proxyHost` - (可选) 发送到 Datadog 时使用的代理主机.
-- `proxyPort` - (可选) 发送到 Datadog 时使用的代理端口, 默认为 8080.
-- `dataCenter` - (可选) 要连接的数据中心 (`EU`/`US`), 默认为 `US`.
-- `maxMetricsPerRequest` - (可选) 每次请求携带的最大运行指标个数， 默认为 2000.
+- `apikey` - Datadog 的 API KEY。
+- `tags` - (可选) 发送到 Datadog 时将会转换为指标的全局 tag。tag 间只能以逗号分隔。
+- `proxyHost` - (可选) 发送到 Datadog 时使用的代理主机。
+- `proxyPort` - (可选) 发送到 Datadog 时使用的代理端口，默认为 8080。
+- `dataCenter` - (可选) 要连接的数据中心 (`EU`/`US`)，默认为 `US`。
+- `maxMetricsPerRequest` - (可选) 每次请求携带的最大运行指标个数，默认为 2000。
 
 配置示例:
 
