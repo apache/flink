@@ -287,9 +287,10 @@ class ZooKeeperLeaderRetrievalConnectionHandlingTest {
                     // check that we find the new leader information eventually
                     CommonTestUtils.waitUntilCondition(
                             () -> {
-                                final CompletableFuture<String> afterConnectionReconnect =
-                                        queueLeaderElectionListener.next();
-                                return afterConnectionReconnect.get().equals(newLeaderAddress);
+                                final String afterConnectionReconnect =
+                                        queueLeaderElectionListener.next().get();
+                                return afterConnectionReconnect != null
+                                        && afterConnectionReconnect.equals(newLeaderAddress);
                             },
                             Deadline.fromNow(Duration.ofSeconds(30L)));
                 });
