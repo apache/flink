@@ -34,6 +34,7 @@ import org.apache.flink.connector.file.sink.compactor.RecordWiseFileCompactor;
 import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils.IntDecoder;
 import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils.IntEncoder;
 import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils.ModuloBucketAssigner;
+import org.apache.flink.connector.file.sink.utils.PartSizeAndCheckpointRollingPolicy;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -214,8 +215,7 @@ public class FileSinkCompactionSwitchITCase {
         DefaultRowFormatBuilder<Integer> sinkBuilder =
                 FileSink.forRowFormat(new Path(path), new IntEncoder())
                         .withBucketAssigner(new ModuloBucketAssigner(NUM_BUCKETS))
-                        .withRollingPolicy(
-                                new FileSinkITBase.PartSizeAndCheckpointRollingPolicy(1024));
+                        .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy<>(1024, false));
 
         if (compactionEnabled) {
             sinkBuilder =
