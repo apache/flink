@@ -128,5 +128,17 @@
             <td>Integer</td>
             <td>Thread priority of the REST server's executor for processing asynchronous requests. Lowering the thread priority will give Flink's main components more CPU time whereas increasing will allocate more time for the REST server's processing.</td>
         </tr>
+        <tr>
+            <td><h5>rest.strategy.exponential.init-wait</h5></td>
+            <td style="word-wrap: break-word;">50 ms</td>
+            <td>Duration</td>
+            <td>Initial wait duration that for the exponential wait strategy.</td>
+        </tr>
+        <tr>
+            <td><h5>rest.strategy.exponential.max-wait</h5></td>
+            <td style="word-wrap: break-word;">2 s</td>
+            <td>Duration</td>
+            <td>Maximum wait duration that for the exponential wait strategy.</td>
+        </tr>
     </tbody>
 </table>

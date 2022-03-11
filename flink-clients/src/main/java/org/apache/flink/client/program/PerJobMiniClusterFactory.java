@@ -18,6 +18,7 @@
 
 package org.apache.flink.client.program;
 
+import org.apache.flink.client.program.rest.retry.WaitStrategyUtils;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
@@ -93,7 +94,9 @@ public final class PerJobMiniClusterFactory {
                                                                             submissionResult
                                                                                     .getJobID())
                                                                     .get(),
-                                                    userCodeClassloader);
+                                                    userCodeClassloader,
+                                                    WaitStrategyUtils.createWaitStrategyWithConfig(
+                                                            configuration));
                                     return submissionResult;
                                 }))
                 .thenApply(

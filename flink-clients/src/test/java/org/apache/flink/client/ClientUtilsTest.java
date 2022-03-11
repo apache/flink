@@ -20,6 +20,8 @@ package org.apache.flink.client;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.client.program.rest.retry.WaitStrategyUtils;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.CommonTestUtils;
 import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.jobmaster.JobResult;
@@ -61,7 +63,8 @@ public class ClientUtilsTest extends TestLogger {
                                                 new RuntimeException("Err"));
                                 return buildJobResult(throwable);
                             },
-                            ClassLoader.getSystemClassLoader());
+                            ClassLoader.getSystemClassLoader(),
+                            WaitStrategyUtils.createWaitStrategyWithConfig(new Configuration()));
                     return null;
                 });
     }
@@ -79,7 +82,8 @@ public class ClientUtilsTest extends TestLogger {
         ClientUtils.waitUntilJobInitializationFinished(
                 statusSequenceIterator::next,
                 () -> buildJobResult(new RuntimeException("Err")),
-                ClassLoader.getSystemClassLoader());
+                ClassLoader.getSystemClassLoader(),
+                WaitStrategyUtils.createWaitStrategyWithConfig(new Configuration()));
     }
 
     /** Ensure that other errors are thrown. */
@@ -101,7 +105,8 @@ public class ClientUtilsTest extends TestLogger {
                                                 new RuntimeException("Err"));
                                 return buildJobResult(throwable);
                             },
-                            ClassLoader.getSystemClassLoader());
+                            ClassLoader.getSystemClassLoader(),
+                            WaitStrategyUtils.createWaitStrategyWithConfig(new Configuration()));
                     return null;
                 });
     }
@@ -126,6 +131,7 @@ public class ClientUtilsTest extends TestLogger {
                     Assert.fail("unexpected call");
                     return null;
                 },
-                ClassLoader.getSystemClassLoader());
+                ClassLoader.getSystemClassLoader(),
+                WaitStrategyUtils.createWaitStrategyWithConfig(new Configuration()));
     }
 }

@@ -251,4 +251,20 @@ public class RestOptions {
                     .defaultValue(Duration.ofMinutes(5))
                     .withDescription(
                             "Maximum duration that the result of an async operation is stored. Once elapsed the result of the operation can no longer be retrieved.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> EXP_WAIT_STRATEGY_INIT_WAIT =
+            key("rest.strategy.exponential.init-wait")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(50))
+                    .withDescription(
+                            "Initial wait duration that for the exponential wait strategy.");
+
+    @Documentation.Section(Documentation.Sections.EXPERT_REST)
+    public static final ConfigOption<Duration> EXP_WAIT_STRATEGY_MAX_WAIT =
+            key("rest.strategy.exponential.max-wait")
+                    .durationType()
+                    .defaultValue(Duration.ofMillis(2000))
+                    .withDescription(
+                            "Maximum wait duration that for the exponential wait strategy.");
 }

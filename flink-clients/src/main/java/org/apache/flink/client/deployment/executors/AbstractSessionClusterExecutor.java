@@ -26,6 +26,7 @@ import org.apache.flink.client.deployment.ClusterClientJobClientAdapter;
 import org.apache.flink.client.deployment.ClusterDescriptor;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.client.program.ClusterClientProvider;
+import org.apache.flink.client.program.rest.retry.WaitStrategyUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.core.execution.PipelineExecutor;
@@ -82,7 +83,9 @@ public class AbstractSessionClusterExecutor<
                                         ClientUtils.waitUntilJobInitializationFinished(
                                                 () -> clusterClient.getJobStatus(jobId).get(),
                                                 () -> clusterClient.requestJobResult(jobId).get(),
-                                                userCodeClassloader);
+                                                userCodeClassloader,
+                                                WaitStrategyUtils.createWaitStrategyWithConfig(
+                                                        configuration));
                                         return jobId;
                                     }))
                     .thenApplyAsync(

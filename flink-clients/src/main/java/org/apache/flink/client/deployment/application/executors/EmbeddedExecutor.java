@@ -24,6 +24,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.dag.Pipeline;
 import org.apache.flink.client.cli.ClientOptions;
 import org.apache.flink.client.deployment.executors.PipelineExecutorUtils;
+import org.apache.flink.client.program.rest.retry.WaitStrategyUtils;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.PipelineOptionsInternal;
 import org.apache.flink.core.execution.JobClient;
@@ -148,7 +149,9 @@ public class EmbeddedExecutor implements PipelineExecutor {
                                                                     .requestJobResult(
                                                                             jobId, timeout)
                                                                     .get(),
-                                                    userCodeClassloader);
+                                                    userCodeClassloader,
+                                                    WaitStrategyUtils.createWaitStrategyWithConfig(
+                                                            configuration));
                                     return jobId;
                                 }))
                 .thenApplyAsync(

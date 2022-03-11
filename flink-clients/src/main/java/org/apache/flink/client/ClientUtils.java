@@ -23,7 +23,6 @@ import org.apache.flink.client.program.ContextEnvironment;
 import org.apache.flink.client.program.PackagedProgram;
 import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.client.program.StreamContextEnvironment;
-import org.apache.flink.client.program.rest.retry.ExponentialWaitStrategy;
 import org.apache.flink.client.program.rest.retry.WaitStrategy;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
@@ -132,10 +131,10 @@ public enum ClientUtils {
     public static void waitUntilJobInitializationFinished(
             SupplierWithException<JobStatus, Exception> jobStatusSupplier,
             SupplierWithException<JobResult, Exception> jobResultSupplier,
-            ClassLoader userCodeClassloader)
+            ClassLoader userCodeClassloader,
+            WaitStrategy waitStrategy)
             throws JobInitializationException {
         LOG.debug("Wait until job initialization is finished");
-        WaitStrategy waitStrategy = new ExponentialWaitStrategy(50, 2000);
         try {
             JobStatus status = jobStatusSupplier.get();
             long attempt = 0;
