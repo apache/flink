@@ -21,6 +21,7 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.function.BiConsumerWithException;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,6 +36,7 @@ class StateChangeLoggingIterator<State, StateElement, Namespace>
     private final BiConsumerWithException<StateElement, DataOutputViewStreamWrapper, IOException>
             removalWriter;
     private final Namespace ns;
+    private final ThrowingConsumer<StateElement, IOException> removalLogger;
     @Nullable private StateElement lastReturned;
 
     private StateChangeLoggingIterator(
@@ -42,11 +44,13 @@ class StateChangeLoggingIterator<State, StateElement, Namespace>
             StateChangeLogger<State, Namespace> changeLogger,
             BiConsumerWithException<StateElement, DataOutputViewStreamWrapper, IOException>
                     removalWriter,
-            Namespace ns) {
+            Namespace ns,
+            ThrowingConsumer<StateElement, IOException> removalLogger) {
         this.iterator = iterator;
         this.changeLogger = changeLogger;
         this.removalWriter = removalWriter;
         this.ns = ns;
+        this.removalLogger = removalLogger;
     }
 
     @Override
@@ -63,7 +67,7 @@ class StateChangeLoggingIterator<State, StateElement, Namespace>
     public void remove() {
         iterator.remove();
         try {
-            changeLogger.valueElementRemoved(out -> removalWriter.accept(lastReturned, out), ns);
+            removalLogger.accept(lastReturned);
         } catch (IOException e) {
             ExceptionUtils.rethrow(e);
         }
@@ -75,8 +79,10 @@ class StateChangeLoggingIterator<State, StateElement, Namespace>
             StateChangeLogger<State, Namespace> changeLogger,
             BiConsumerWithException<StateElement, DataOutputViewStreamWrapper, IOException>
                     removalWriter,
-            Namespace ns) {
-        return new StateChangeLoggingIterator<>(iterator, changeLogger, removalWriter, ns);
+            Namespace ns,
+            ThrowingConsumer<StateElement, IOException> removalLogger) {
+        return new StateChangeLoggingIterator<>(
+                iterator, changeLogger, removalWriter, ns, removalLogger);
     }
 
     @Override

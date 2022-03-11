@@ -143,7 +143,10 @@ class ChangelogMapState<K, N, UK, UV>
                         }),
                 changeLogger,
                 (entry, out) -> serializeKey(entry.getKey(), out),
-                currentNamespace);
+                currentNamespace,
+                entry ->
+                        changeLogger.valueElementRemoved(
+                                out -> serializeKey(entry.getKey(), out), currentNamespace));
     }
 
     @Override
@@ -154,7 +157,11 @@ class ChangelogMapState<K, N, UK, UV>
                         CloseableIterator.adapterForIterator(iterable.iterator()),
                         changeLogger,
                         this::serializeKey,
-                        getCurrentNamespace());
+                        getCurrentNamespace(),
+                        lastReturned ->
+                                changeLogger.valueElementRemoved(
+                                        out -> serializeKey(lastReturned, out),
+                                        getCurrentNamespace()));
     }
 
     @Override
