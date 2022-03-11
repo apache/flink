@@ -19,7 +19,6 @@
 package org.apache.flink.connector.file.sink.compactor.operator;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
@@ -63,7 +62,6 @@ public class CompactorOperatorStateHandler
 
     private final SimpleVersionedSerializer<FileSinkCommittable> committableSerializer;
     private final BucketWriter<?, String> bucketWriter;
-    private State state = State.HANDLING_STATE;
 
     private transient CompactService compactService;
     private final List<Tuple2<CompactorRequest, CompletableFuture<Iterable<FileSinkCommittable>>>>
@@ -108,10 +106,7 @@ public class CompactorOperatorStateHandler
                         List<FileSinkCommittable> toPassThrough =
                                 request.getCommittableToPassthrough();
 
-                        String bucketId =
-                                !toCompactList.isEmpty()
-                                        ? toCompactList.get(0).getBucketId()
-                                        : toPassThrough.get(0).getBucketId();
+                        String bucketId = request.getBucketId();
 
                         for (FileSinkCommittable toCompact : toCompactList) {
                             CompactorRequest compactRequest = new CompactorRequest(bucketId);
@@ -137,56 +132,26 @@ public class CompactorOperatorStateHandler
             throws Exception {
         Either<CommittableMessage<FileSinkCommittable>, CompactorRequest> record =
                 element.getValue();
-        if (state == State.PASSING_THROUGH_ALL) {
-            // all input should be committable messages to pass through
-            output.collect(new StreamRecord<>(record.left()));
-            return;
-        }
 
-        if (state == State.PASSING_THROUGH_COMMITTABLE) {
-            checkState(
-                    record.isLeft(),
-                    "Compacting requests is not expected once a normal committable is received.");
+        if (record.isLeft()) {
             CommittableMessage<FileSinkCommittable> message = record.left();
             if (message instanceof CommittableWithLineage) {
-                checkState(
-                        !isHiddenCommittable((CommittableWithLineage<FileSinkCommittable>) message),
-                        "Hidden committable is not expected once a normal committable is received.");
-                output.collect(new StreamRecord<>(message));
-            } else {
-                // Message is summary
-                if (compactingRequests.isEmpty()) {
-                    // No compacting requests remained
-                    state = State.PASSING_THROUGH_ALL;
+                if (isHiddenCommittable((CommittableWithLineage<FileSinkCommittable>) message)) {
+                    handleHiddenCommittable((CommittableWithLineage<FileSinkCommittable>) message);
+                } else {
                     output.collect(new StreamRecord<>(message));
-                    return;
                 }
-                appendCompactingResultsToSummary((CommittableSummary<FileSinkCommittable>) message);
-            }
-            return;
-        }
-
-        if (record.isRight()) {
-            CompactorRequest request = element.getValue().right();
-            compactingRequests.add(new Tuple2<>(request, submit(request)));
-            return;
-        }
-
-        CommittableMessage<FileSinkCommittable> message = record.left();
-        if (message instanceof CommittableWithLineage) {
-            if (isHiddenCommittable((CommittableWithLineage<FileSinkCommittable>) message)) {
-                handleHiddenCommittable((CommittableWithLineage<FileSinkCommittable>) message);
             } else {
-                // No more hidden committable is expected
-                state = State.PASSING_THROUGH_COMMITTABLE;
-                output.collect(new StreamRecord<>(message));
+                if (compactingRequests.isEmpty()) {
+                    output.collect(new StreamRecord<>(message));
+                } else {
+                    appendCompactingResultsToSummary(
+                            (CommittableSummary<FileSinkCommittable>) message);
+                }
             }
         } else {
-            if (compactingRequests.isEmpty()) {
-                output.collect(new StreamRecord<>(message));
-                return;
-            }
-            appendCompactingResultsToSummary((CommittableSummary<FileSinkCommittable>) message);
+            CompactorRequest request = element.getValue().right();
+            compactingRequests.add(new Tuple2<>(request, submit(request)));
         }
     }
 
@@ -318,34 +283,5 @@ public class CompactorOperatorStateHandler
         CompletableFuture<Iterable<FileSinkCommittable>> resultFuture = new CompletableFuture<>();
         compactService.submit(request, resultFuture);
         return resultFuture;
-    }
-
-    @VisibleForTesting
-    public boolean isPassingThroughCommittable() {
-        return state == State.PASSING_THROUGH_COMMITTABLE;
-    }
-
-    @VisibleForTesting
-    public boolean isPassingThroughAll() {
-        return state == State.PASSING_THROUGH_ALL;
-    }
-
-    /** The handling state of this operator. */
-    private enum State {
-        /**
-         * Handling states of the previous run, including compaction requests from the coordinator
-         * and the hidden committable from the writer.
-         */
-        HANDLING_STATE,
-        /**
-         * All states of the previous run are handled, while some results need to be appended to the
-         * next summary. All committable can be passed through now.
-         */
-        PASSING_THROUGH_COMMITTABLE,
-        /**
-         * All states of the previous run are handled and all results are sent. The job of this
-         * operator is done and everything can be passed through directly.
-         */
-        PASSING_THROUGH_ALL
     }
 }
