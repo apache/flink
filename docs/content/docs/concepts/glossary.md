@@ -131,7 +131,12 @@ to implement streaming joins.
 
 #### Dataflow
 
-#### Determinism
+See [logical graph](#logical-graph).
+
+#### DataStream
+
+This is a collection of data in a Flink application. You can think of them as immutable collections 
+of data that can contain duplicates. This data can either be finite or unbounded.
 
 #### Directed Acyclic Graph (DAG)
 
@@ -156,68 +161,56 @@ calculation is performed.
 If you want to use event time, you will also need to supply a Timestamp Extractor and Watermark Generator 
 that Flink will use to track the progress of event time.
 
-#### Evictors
-
-This is part of the window API and allows you to remove elements collected in a [window](#window). 
-
 #### Exactly-Once
 
-A fault-tolerance guarantee
-Nothing is lost or duplicated
-
-does not mean that every event will be processed exactly once. Instead, it means that every event will affect the state being managed by Flink exactly once.
+A fault-tolerance guarantee and data delivery approach where nothing is lost or duplicated. This does 
+not mean that every event will be processed exactly once. Instead, it means that every event will affect 
+the state being managed by Flink exactly once.
 
 #### ExecutionGraph
 
-see [Physical Graph](#physical-graph)
+See [Physical Graph](#physical-graph).
 
 #### Externalized Checkpoint
 
-normally checkpoints are not intended to be manipulated by users. Flink retains only the n-most-recent checkpoints (n being configurable) while a job is running, and deletes them when a job is cancelled. But you can configure them to be retained instead, in which case you can manually resume from them.
+A checkpoint that is configured to be retained instead of being deleted when a job is cancelled. 
+Flink normally retains only the n-most-recent checkpoints (n being configurable) while a job is running 
+and deletes them when a job is cancelled. 
+
+You can manually resume from an externalized checkpoint. 
 
 #### Ingestion Time
 
-a timestamp recorded by Flink at the moment it ingests the event
-
-#### Instance
-
-The term *instance* is used to describe a specific instance of a specific type (usually
-[operator](#operator) or [function](#function)) during runtime. Since Flink is mostly written in
-Java, this corresponds to the definition of *instance* or *object* in Java. In the context of Flink,
-the term *parallel instance* is also frequently used to emphasize that multiple instances of the
-same [operator](#operator) or [function](#function) type are running in parallel.
-
-#### JVM Heap
+A timestamp recorded by Flink at the moment it ingests the event.
 
 #### (Flink) Job
 
-A Flink Job is the runtime representation of a [logical graph](#logical-graph) (also often called dataflow
+This is the runtime representation of a [logical graph](#logical-graph) (also often called dataflow
 graph) that is created and submitted by calling `execute()` in a [Flink Application](#flink-application).
 
 #### Job Cluster
 
-A Flink Job Cluster is a dedicated [Flink Cluster](#flink-cluster) that only executes a single 
-[Flink Job](#flink-job). The lifetime of the [Flink Cluster](#flink-cluster) is bound to the lifetime 
-of the Flink Job. This deployment mode has been deprecated since Flink 1.15.
+This is a dedicated [Flink Cluster](#flink-cluster) that only executes a single [Flink Job](#flink-job). 
+The lifetime of the [Flink Cluster](#flink-cluster) is bound to the lifetime of the Flink Job. This 
+deployment mode has been deprecated since Flink 1.15.
 
 #### JobGraph
 
-see [Logical Graph](#logical-graph)
+See [Logical Graph](#logical-graph).
 
 #### JobManager
 
-The JobManager is the orchestrator of a [Flink Cluster](#flink-cluster). It contains three distinct
-components: Flink Resource Manager, Flink Dispatcher and one [Flink JobMaster](#flink-jobmaster)
-per running [Flink Job](#flink-job).
+The JobManager is the orchestrator of a [Flink Cluster](#(flink)-cluster). It contains three distinct
+components: ResourceManager, Dispatcher, and a [JobMaster](#jobmaster) per running [Flink Job](#(flink)-job).
 
-There is always at least one JobManager. A high-availability setup might have multiple JobManagers, one of which is always the leader
+There is always at least one JobManager. A high-availability setup might have multiple JobManagers, 
+one of which is always the leader.
 
 #### JobMaster
 
-JobMasters are one of the components running in the [JobManager](#flink-jobmanager). A JobMaster is
-responsible for supervising the execution of the [Tasks](#task) of a single job.
-
-is responsible for managing the execution of a single JobGraph. Multiple jobs can run simultaneously in a Flink cluster, each having its own JobMaster.
+This is one of the components that run in the [JobManager](#jobmanager). It is responsible for supervising 
+the execution of the [tasks](#task) of a single [job](#(flink)-job). Multiple jobs can run simultaneously 
+in a [Flink cluster](#(flink)-cluster), each having its own JobMaster.
 
 #### JobResultStore
 
@@ -227,50 +220,64 @@ are then used by Flink to determine whether jobs should be subject to recovery i
 
 #### Key Group
 
-Key Groups are the atomic unit by which Flink can redistribute Keyed State; there are exactly as many Key Groups as the defined maximum parallelism. During execution each parallel instance of a keyed operator works with the keys for one or more Key Groups.
+These are the atomic unit by which Flink can redistribute [Keyed State](#keyed-state). There are 
+exactly as many key groups as the defined maximum parallelism. During execution, each parallel instance 
+of a keyed operator works with the keys for one or more key groups.
 
 #### Keyed State
 
-It is often very useful to be able to partition a stream around one of its attributes, so that all events with the same value of that attribute are grouped together.
+Keyed state is one of the two basic types of state in Apache Flink (the other being operator state).
+In order to have all events with the same value of an attribute grouped together, you can partition 
+a stream around that attribute, and maintain it as an embedded key/value store. This results in a keyed
+state. 
 
-Flink supports several different types of keyed state.
+A keyed state is always bound to keys and is only available to functions and operators that process
+data from a keyed stream.
 
-Simplest one is valuestate
+Flink supports several different types of keyed state, with the simplest one being [ValueState](#valuestate).
 
-maintained in what can be thought of as an embedded key/value store.
+#### Keyed Stream
 
-#### Latency
+A keyed stream is a [DataStream](#DataStream) on which [operator state](#operator-state) is partitioned 
+by a key. Typical operations supported by a DataStream are also possible on a keyed stream, except for 
+partitioning methods such as shuffle, forward, and keyBy.
 
 #### Lateness
 
-Lateness is defined relative to the watermarks. A Watermark(t) asserts that the stream is complete up through time t; any event following this watermark whose timestamp is ≤ t is late.
-
-#### Lazy Evaluation
+Lateness is defined relative to the [watermarks](#watermark). A watermark(t) asserts that the stream 
+is complete up through to time t. Any event is considered late if it comes after the watermark whose 
+timestamp is ≤ t.
 
 #### List State
 
 #### Logical Graph
 
-A logical graph is a directed graph where the nodes are [operators](#operator) and the edges define 
-input/output relationships of the operators and correspond to data streams. A logical graph is created 
-by submitting jobs to a [Flink cluster](#flink-cluster) from a [Flink application](#flink-application).
+This is a directed graph where the nodes are [operators](#operator) and the edges define input/output 
+relationships of the operators and correspond to [DataStreams](#datastreams). A logical graph is created 
+by submitting jobs to a [Flink cluster](#(flink)-cluster) from a [Flink application](#(flink)-application).
 
-Logical graphs are also often referred to as *dataflow graphs*.
+Logical graphs are also often referred to as [dataflow](#dataflow).
 
 #### Managed State
 
 Managed State describes application state which has been registered with the stream processing framework. 
 Apache Flink will take care of the persistence and rescaling of the managed state.  
 
+Managed State is represented in data structures controlled by the Flink runtime, such as internal hash tables, or RocksDB. Examples are “ValueState”, “ListState”, etc. Flink’s runtime encodes the states and writes them into the checkpoints.
+
+Keyed State and Operator State exist in two forms: managed and raw.
+
 #### Map State
 
 #### Non-keyed state
 
-operator state
+This type of state is bound to one parallel operator instance and is also called [operator state](#operator-state). 
 
-It is also possible to work with managed state in non-keyed contexts. This is sometimes called operator state. The interfaces involved are somewhat different, and since it is unusual for user-defined functions to need non-keyed state, it is not covered here. This feature is most often used in the implementation of sources and sinks.
+It is also possible to work with managed state in non-keyed contexts. The interfaces involved are somewhat different, and since it is unusual for user-defined functions to need non-keyed state, it is not covered here. This feature is most often used in the implementation of sources and sinks.
 
 #### Offset
+
+a number identifying how far you're from the beginning of a certain information stream (e.g. when you open a file, the offset determines where you wanna start reading the file, counting from the beginning of the file itself)
 
 #### Operator
 
@@ -285,6 +292,8 @@ repartitioning in between. Operators within the same operator chain forward reco
 directly without going through serialization or Flink's network stack.
 
 For distributed execution, Flink chains operator subtasks together into tasks. Each task is executed by one thread. Chaining operators together into tasks is a useful optimization: it reduces the overhead of thread-to-thread handover and buffering, and increases overall throughput while decreasing latency. The chaining behavior can be configured
+
+#### Operator State
 
 #### Parallelism 
 
@@ -323,6 +332,12 @@ Computing analytics based on processing time causes inconsistencies, and makes i
 #### Queryable state 
 
 allows you to access state from outside of Flink during runtime.
+
+#### Raw State
+
+Keyed State and Operator State exist in two forms: managed and raw.
+
+Raw State is state that operators keep in their own data structures. When checkpointed, they only write a sequence of bytes into the checkpoint. Flink knows nothing about the state’s data structures and sees only the raw bytes.
 
 #### Record
 
@@ -377,8 +392,6 @@ Formerly, a Flink Session Cluster was also known as a Flink Cluster in *session 
 
 punctuated by a gap of inactivity
 
-#### Sharding
-
 #### Shuffling
 
 #### Side Outputs
@@ -412,10 +425,6 @@ For stream processing programs, the State Backend of a [Flink Job](#flink-job) d
 RocksDB).
 
 Two implementations of state backends are available – one based on RocksDB, an embedded key/value store that keeps its working state on disk, and another heap-based state backend that keeps its working state in memory, on the Java heap.
-
-#### Stream
-
-a collection of data in a Flink program. You can think of them as immutable collections of data that can contain duplicates. This data can either be finite or unbounded
 
 #### Stream barriers
 
@@ -469,8 +478,6 @@ Timers are fault tolerant and checkpointed along with the state of the applicati
 
 there are at most one timer per key and second
 
-#### Throughput
-
 #### Transformation
 
 A transformation is applied on one or more data streams and results in one or more output data streams. 
@@ -479,10 +486,6 @@ partitioning or perform an aggregation. While [operators](#operator) and [functi
 the "physical" parts of Flink's API, transformations are only an API concept. Specifically, most 
 transformations are implemented by certain [operators](#operator).
 
-#### Trigger
-
-Part of the window API and determines when to call the window function. 
-
 #### Tumbling Window
 
 A type of window
@@ -490,7 +493,7 @@ no overlap
 
 #### Tuple
 
-This is a composite data type. 
+A composite data type that has a finite ordered list of immutable elements. 
 
 #### Unbounded streams
 
