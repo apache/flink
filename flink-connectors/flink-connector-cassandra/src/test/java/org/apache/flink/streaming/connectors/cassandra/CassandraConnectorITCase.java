@@ -401,8 +401,10 @@ public class CassandraConnectorITCase
     public void dropTables() {
         // need to drop tables in case of retrials. Need to drop all the tables
         // that are created in test because this method is executed with every test
-        session.execute(DROP_KEYSPACE_QUERY);
-        session.execute(CREATE_KEYSPACE_QUERY);
+        synchronized (this) {
+            session.execute(DROP_KEYSPACE_QUERY);
+            session.execute(CREATE_KEYSPACE_QUERY);
+        }
     }
 
     @AfterClass
