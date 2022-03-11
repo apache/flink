@@ -18,16 +18,19 @@
 
 package org.apache.flink.yarn;
 
+import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.util.FlinkException;
 import org.apache.flink.yarn.configuration.YarnConfigOptions;
 
 import org.apache.hadoop.fs.CommonConfigurationKeysPublic;
+import org.apache.hadoop.hdfs.MiniDFSCluster;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
@@ -98,7 +101,7 @@ class UtilsTest {
         yarnConfig.set(CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, defaultFs);
 
         final List<org.apache.hadoop.fs.Path> sharedLibs =
-                Utils.getQualifiedRemoteSharedPaths(flinkConfig, yarnConfig);
+                Utils.getQualifiedRemoteProvidedLibDirs(flinkConfig, yarnConfig);
         assertThat(sharedLibs).hasSize(1);
         assertThat(sharedLibs.get(0).toUri()).hasToString(qualifiedPath);
     }
@@ -115,12 +118,55 @@ class UtilsTest {
                         + "\" should only "
                         + "contain dirs accessible from all worker nodes";
         assertThatThrownBy(
-                        () -> {
-                            Utils.getQualifiedRemoteSharedPaths(
-                                    flinkConfig, new YarnConfiguration());
-                        })
-                .isInstanceOf(FlinkException.class)
+                        () ->
+                                Utils.getQualifiedRemoteProvidedLibDirs(
+                                        flinkConfig, new YarnConfiguration()))
+                .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining(msg);
+    }
+
+    @Test
+    void testInvalidRemoteUsrLib(@TempDir Path tempDir) throws IOException {
+        final String sharedLibPath = "hdfs:///flink/badlib";
+
+        final org.apache.hadoop.conf.Configuration hdConf =
+                new org.apache.hadoop.conf.Configuration();
+        hdConf.set(MiniDFSCluster.HDFS_MINIDFS_BASEDIR, tempDir.toAbsolutePath().toString());
+        try (final MiniDFSCluster hdfsCluster = new MiniDFSCluster.Builder(hdConf).build()) {
+            final org.apache.hadoop.fs.Path hdfsRootPath =
+                    new org.apache.hadoop.fs.Path(hdfsCluster.getURI());
+            hdfsCluster.getFileSystem().mkdirs(new org.apache.hadoop.fs.Path(sharedLibPath));
+
+            final Configuration flinkConfig = new Configuration();
+            flinkConfig.set(YarnConfigOptions.PROVIDED_USRLIB_DIR, sharedLibPath);
+            final YarnConfiguration yarnConfig = new YarnConfiguration();
+            yarnConfig.set(
+                    CommonConfigurationKeysPublic.FS_DEFAULT_NAME_KEY, hdfsRootPath.toString());
+            assertThatThrownBy(
+                            () -> Utils.getQualifiedRemoteProvidedUsrLib(flinkConfig, yarnConfig))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage(
+                            "The \"%s\" should be named with \"%s\".",
+                            YarnConfigOptions.PROVIDED_USRLIB_DIR.key(),
+                            ConfigConstants.DEFAULT_FLINK_USR_LIB_DIR);
+        }
+    }
+
+    @Test
+    void testSharedUsrLibIsNotRemotePathShouldThrowException(@TempDir Path tempDir) {
+        final File localLib = new File(tempDir.toAbsolutePath().toString(), "usrlib");
+        assertThat(localLib.mkdirs()).isTrue();
+        final Configuration flinkConfig = new Configuration();
+        flinkConfig.set(YarnConfigOptions.PROVIDED_USRLIB_DIR, localLib.getAbsolutePath());
+        assertThatThrownBy(
+                        () ->
+                                Utils.getQualifiedRemoteProvidedUsrLib(
+                                        flinkConfig, new YarnConfiguration()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(
+                        "The \"%s\" must point to a remote dir "
+                                + "which is accessible from all worker nodes.",
+                        YarnConfigOptions.PROVIDED_USRLIB_DIR.key());
     }
 
     @Test
