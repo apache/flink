@@ -1026,7 +1026,9 @@ the give list of `Path` and write the result file. It could be classified into t
   An example is the {{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}} that reads records from the source files and then writes them with the `CompactingFileWriter`. Users need to specify how to read records from the source files.
 
 {{< hint info >}}
-**Important** Once the compaction is enabled, the written files need to wait for longer time before they get visible.
+**Important Note 1** Once the compaction is enabled, you must explicitly call `disableCompact` when building the `FileSink` if you want to disable compaction.
+
+**Important Note 2** When the compaction is enabled, the written files need to wait for longer time before they get visible.
 {{< /hint >}}
 
 ### Important Considerations

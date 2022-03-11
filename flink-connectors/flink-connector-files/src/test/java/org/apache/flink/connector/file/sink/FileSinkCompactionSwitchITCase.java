@@ -37,6 +37,7 @@ import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils.M
 import org.apache.flink.connector.file.sink.utils.PartSizeAndCheckpointRollingPolicy;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.minicluster.MiniCluster;
@@ -64,8 +65,6 @@ import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.DataInputStream;
 import java.io.EOFException;
@@ -73,7 +72,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -86,9 +84,9 @@ import java.util.concurrent.CountDownLatch;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /** Tests of switching on or off compaction for the {@link FileSink}. */
-@RunWith(Parameterized.class)
 public class FileSinkCompactionSwitchITCase extends TestLogger {
 
     private static final int PARALLELISM = 4;
@@ -119,13 +117,6 @@ public class FileSinkCompactionSwitchITCase extends TestLogger {
 
     private String latchId;
 
-    @Parameterized.Parameter public boolean isOnToOff;
-
-    @Parameterized.Parameters(name = "isOnToOff = {0}")
-    public static Collection<Object[]> params() {
-        return Arrays.asList(new Object[] {false}, new Object[] {true});
-    }
-
     @Before
     public void setup() {
         this.latchId = UUID.randomUUID().toString();
@@ -139,14 +130,53 @@ public class FileSinkCompactionSwitchITCase extends TestLogger {
     }
 
     @Test
-    public void testSwitchingCompaction() throws Exception {
+    public void testSwitchNeverEnabledToEnabled() throws Exception {
         String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
+        FileSink<Integer> originFileSink = createFileSink(path, null, false);
+        FileSink<Integer> restoredFileSink =
+                createFileSink(path, createFileCompactStrategy(), false);
+        testSwitchingCompaction(path, originFileSink, restoredFileSink);
+    }
+
+    @Test
+    public void testSwitchDisabledToEnabled() throws Exception {
+        String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
+        FileSink<Integer> originFileSink = createFileSink(path, null, true);
+        FileSink<Integer> restoredFileSink =
+                createFileSink(path, createFileCompactStrategy(), false);
+        testSwitchingCompaction(path, originFileSink, restoredFileSink);
+    }
+
+    @Test
+    public void testSwitchEnabledToDisabled() throws Exception {
+        String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
+        FileSink<Integer> originFileSink = createFileSink(path, createFileCompactStrategy(), false);
+        FileSink<Integer> restoredFileSink = createFileSink(path, null, true);
+        testSwitchingCompaction(path, originFileSink, restoredFileSink);
+    }
+
+    @Test
+    public void testSwitchEnabledToDisabledImproperly() throws Exception {
+        String path = TEMPORARY_FOLDER.newFolder().getAbsolutePath();
+        FileSink<Integer> originFileSink = createFileSink(path, createFileCompactStrategy(), false);
+        FileSink<Integer> restoredFileSink = createFileSink(path, null, false);
+        try {
+            testSwitchingCompaction(path, originFileSink, restoredFileSink);
+        } catch (JobExecutionException expected) {
+            return;
+        }
+        fail("Job is not failing when compaction is disabled improperly");
+    }
+
+    private void testSwitchingCompaction(
+            String path, FileSink<Integer> originFileSink, FileSink<Integer> restoredFileSink)
+            throws Exception {
         String cpPath = "file://" + TEMPORARY_FOLDER.newFolder().getAbsolutePath();
 
         SharedReference<ConcurrentHashMap<Integer, Integer>> sendCountMap =
                 sharedObjects.add(new ConcurrentHashMap<>());
-        JobGraph jobGraph = createJobGraph(path, cpPath, isOnToOff, false, sendCountMap);
-        JobGraph restoringJobGraph = createJobGraph(path, cpPath, !isOnToOff, true, sendCountMap);
+        JobGraph jobGraph = createJobGraph(cpPath, originFileSink, false, sendCountMap);
+        JobGraph restoringJobGraph = createJobGraph(cpPath, restoredFileSink, true, sendCountMap);
 
         final Configuration config = new Configuration();
         config.setString(RestOptions.BIND_PORT, "18081-19000");
@@ -185,9 +215,8 @@ public class FileSinkCompactionSwitchITCase extends TestLogger {
     }
 
     private JobGraph createJobGraph(
-            String path,
             String cpPath,
-            boolean compactionEnabled,
+            FileSink<Integer> fileSink,
             boolean isFinite,
             SharedReference<ConcurrentHashMap<Integer, Integer>> sendCountMap) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -204,7 +233,7 @@ public class FileSinkCompactionSwitchITCase extends TestLogger {
 
         env.addSource(new CountingTestSource(latchId, NUM_RECORDS, isFinite, sendCountMap))
                 .setParallelism(NUM_SOURCES)
-                .sinkTo(createFileSink(path, compactionEnabled))
+                .sinkTo(fileSink)
                 .uid("sink")
                 .setParallelism(NUM_SINKS);
 
@@ -212,15 +241,17 @@ public class FileSinkCompactionSwitchITCase extends TestLogger {
         return streamGraph.getJobGraph();
     }
 
-    private FileSink<Integer> createFileSink(String path, boolean compactionEnabled) {
+    private FileSink<Integer> createFileSink(
+            String path, FileCompactStrategy compactStrategy, boolean disableCompact) {
         DefaultRowFormatBuilder<Integer> sinkBuilder =
                 FileSink.forRowFormat(new Path(path), new IntEncoder())
                         .withBucketAssigner(new ModuloBucketAssigner(NUM_BUCKETS))
                         .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy<>(1024, false));
 
-        if (compactionEnabled) {
-            sinkBuilder =
-                    sinkBuilder.enableCompact(createFileCompactStrategy(), createFileCompactor());
+        if (compactStrategy != null) {
+            sinkBuilder = sinkBuilder.enableCompact(compactStrategy, createFileCompactor());
+        } else if (disableCompact) {
+            sinkBuilder = sinkBuilder.disableCompact();
         }
 
         return sinkBuilder.build();
