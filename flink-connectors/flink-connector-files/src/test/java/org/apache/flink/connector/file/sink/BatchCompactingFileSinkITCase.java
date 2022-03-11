@@ -28,6 +28,7 @@ import org.apache.flink.connector.file.sink.utils.PartSizeAndCheckpointRollingPo
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.minicluster.RpcServiceSharing;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 
 import org.junit.Rule;
@@ -58,6 +59,11 @@ public class BatchCompactingFileSinkITCase extends BatchExecutionFileSinkITCase 
                 .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy<>(1024, false))
                 .enableCompact(createFileCompactStrategy(), createFileCompactor())
                 .build();
+    }
+
+    @Override
+    protected void configureSink(DataStreamSink<Integer> sink) {
+        sink.uid("sink");
     }
 
     private static FileCompactor createFileCompactor() {
