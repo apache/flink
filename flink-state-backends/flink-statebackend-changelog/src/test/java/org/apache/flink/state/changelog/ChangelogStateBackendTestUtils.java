@@ -354,7 +354,8 @@ public class ChangelogStateBackendTestUtils {
                 (message, exception) -> asyncComplete.completeExceptionally(exception),
                 keyedBackend,
                 10,
-                1);
+                1,
+                "testTask");
     }
 
     /** Dummy {@link CheckpointStorageAccess}. */

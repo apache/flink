@@ -24,6 +24,9 @@ import org.apache.flink.runtime.concurrent.ComponentMainThreadExecutor;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.RetryStrategy;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
@@ -37,12 +40,14 @@ import java.util.stream.Collectors;
  */
 public class DefaultResourceCleaner<T> implements ResourceCleaner {
 
+    private static final Logger LOG = LoggerFactory.getLogger(DefaultResourceCleaner.class);
+
     private final ComponentMainThreadExecutor mainThreadExecutor;
     private final Executor cleanupExecutor;
     private final CleanupFn<T> cleanupFn;
 
-    private final Collection<T> prioritizedCleanup;
-    private final Collection<T> regularCleanup;
+    private final Collection<CleanupWithLabel<T>> prioritizedCleanup;
+    private final Collection<CleanupWithLabel<T>> regularCleanup;
 
     private final RetryStrategy retryStrategy;
 
@@ -97,8 +102,8 @@ public class DefaultResourceCleaner<T> implements ResourceCleaner {
 
         private final RetryStrategy retryStrategy;
 
-        private final Collection<T> prioritizedCleanup = new ArrayList<>();
-        private final Collection<T> regularCleanup = new ArrayList<>();
+        private final Collection<CleanupWithLabel<T>> prioritizedCleanup = new ArrayList<>();
+        private final Collection<CleanupWithLabel<T>> regularCleanup = new ArrayList<>();
 
         private Builder(
                 ComponentMainThreadExecutor mainThreadExecutor,
@@ -117,10 +122,13 @@ public class DefaultResourceCleaner<T> implements ResourceCleaner {
          * resources are added matters, i.e. if two cleanable resources are added as prioritized
          * cleanup tasks, the resource being added first will block the cleanup of the second
          * resource. All prioritized cleanup resources will run and finish before any resource that
-         * is added using {@link #withRegularCleanup(Object)} is started.
+         * is added using {@link #withRegularCleanup(String, Object)} is started.
+         *
+         * @param label The label being used when logging errors in the given cleanup.
+         * @param prioritizedCleanup The cleanup callback that is going to be prioritized.
          */
-        public Builder<T> withPrioritizedCleanup(T prioritizedCleanup) {
-            this.prioritizedCleanup.add(prioritizedCleanup);
+        public Builder<T> withPrioritizedCleanup(String label, T prioritizedCleanup) {
+            this.prioritizedCleanup.add(new CleanupWithLabel<>(prioritizedCleanup, label));
             return this;
         }
 
@@ -128,10 +136,13 @@ public class DefaultResourceCleaner<T> implements ResourceCleaner {
          * Regular cleanups are resources for which the cleanup is triggered after all prioritized
          * cleanups succeeded. All added regular cleanups will run concurrently to each other.
          *
-         * @see #withPrioritizedCleanup(Object)
+         * @param label The label being used when logging errors in the given cleanup.
+         * @param regularCleanup The cleanup callback that is going to run after all prioritized
+         *     cleanups are finished.
+         * @see #withPrioritizedCleanup(String, Object)
          */
-        public Builder<T> withRegularCleanup(T regularCleanup) {
-            this.regularCleanup.add(regularCleanup);
+        public Builder<T> withRegularCleanup(String label, T regularCleanup) {
+            this.regularCleanup.add(new CleanupWithLabel<>(regularCleanup, label));
             return this;
         }
 
@@ -150,8 +161,8 @@ public class DefaultResourceCleaner<T> implements ResourceCleaner {
             ComponentMainThreadExecutor mainThreadExecutor,
             Executor cleanupExecutor,
             CleanupFn<T> cleanupFn,
-            Collection<T> prioritizedCleanup,
-            Collection<T> regularCleanup,
+            Collection<CleanupWithLabel<T>> prioritizedCleanup,
+            Collection<CleanupWithLabel<T>> regularCleanup,
             RetryStrategy retryStrategy) {
         this.mainThreadExecutor = mainThreadExecutor;
         this.cleanupExecutor = cleanupExecutor;
@@ -166,22 +177,79 @@ public class DefaultResourceCleaner<T> implements ResourceCleaner {
         mainThreadExecutor.assertRunningInMainThread();
 
         CompletableFuture<Void> cleanupFuture = FutureUtils.completedVoidFuture();
-        for (T cleanup : prioritizedCleanup) {
-            cleanupFuture = cleanupFuture.thenCompose(ignoredValue -> withRetry(jobId, cleanup));
+        for (CleanupWithLabel<T> cleanupWithLabel : prioritizedCleanup) {
+            cleanupFuture =
+                    cleanupFuture.thenCompose(
+                            ignoredValue ->
+                                    withRetry(
+                                            jobId,
+                                            cleanupWithLabel.getLabel(),
+                                            cleanupWithLabel.getCleanup()));
         }
 
         return cleanupFuture.thenCompose(
                 ignoredValue ->
                         FutureUtils.completeAll(
                                 regularCleanup.stream()
-                                        .map(cleanup -> withRetry(jobId, cleanup))
+                                        .map(
+                                                cleanupWithLabel ->
+                                                        withRetry(
+                                                                jobId,
+                                                                cleanupWithLabel.getLabel(),
+                                                                cleanupWithLabel.getCleanup()))
                                         .collect(Collectors.toList())));
     }
 
-    private CompletableFuture<Void> withRetry(JobID jobId, T cleanup) {
+    private CompletableFuture<Void> withRetry(JobID jobId, String label, T cleanup) {
         return FutureUtils.retryWithDelay(
-                () -> cleanupFn.cleanupAsync(cleanup, jobId, cleanupExecutor),
+                () ->
+                        cleanupFn
+                                .cleanupAsync(cleanup, jobId, cleanupExecutor)
+                                .whenComplete(
+                                        (value, throwable) -> {
+                                            if (throwable != null) {
+                                                final String logMessage =
+                                                        String.format(
+                                                                "Cleanup of %s failed for job %s due to a %s: %s",
+                                                                label,
+                                                                jobId,
+                                                                throwable
+                                                                        .getClass()
+                                                                        .getSimpleName(),
+                                                                throwable.getMessage());
+                                                if (LOG.isTraceEnabled()) {
+                                                    LOG.warn(logMessage, throwable);
+                                                } else {
+                                                    LOG.warn(logMessage);
+                                                }
+                                            }
+                                        }),
                 retryStrategy,
                 mainThreadExecutor);
+    }
+
+    /**
+     * {@code CleanupWithLabel} makes it possible to attach a label to a given cleanup that can be
+     * used as human-readable representation of the corresponding cleanup.
+     *
+     * @param <CLEANUP_TYPE> The type of cleanup.
+     */
+    private static class CleanupWithLabel<CLEANUP_TYPE> {
+
+        private final CLEANUP_TYPE cleanup;
+        private final String label;
+
+        public CleanupWithLabel(CLEANUP_TYPE cleanup, String label) {
+            this.cleanup = cleanup;
+            this.label = label;
+        }
+
+        public CLEANUP_TYPE getCleanup() {
+            return cleanup;
+        }
+
+        public String getLabel() {
+            return label;
+        }
     }
 }

@@ -131,8 +131,10 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
     @Override
     public void createDirtyResultInternal(JobResultEntry jobResultEntry) throws IOException {
         final Path path = constructDirtyPath(jobResultEntry.getJobId());
-        OutputStream os = fileSystem.create(path, FileSystem.WriteMode.NO_OVERWRITE);
-        mapper.writeValue(os, new JsonJobResultEntry(jobResultEntry));
+        try (OutputStream os = fileSystem.create(path, FileSystem.WriteMode.NO_OVERWRITE)) {
+            mapper.writeValue(os, new JsonJobResultEntry(jobResultEntry));
+            os.flush();
+        }
     }
 
     @Override
@@ -165,8 +167,13 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
     @Override
     public Set<JobResult> getDirtyResultsInternal() throws IOException {
+        final FileStatus[] statuses = fileSystem.listStatus(this.basePath);
+
+        Preconditions.checkState(
+                statuses != null,
+                "The base directory of the JobResultStore isn't accessible. No dirty JobResults can be restored.");
+
         final Set<JobResult> dirtyResults = new HashSet<>();
-        FileStatus[] statuses = fileSystem.listStatus(this.basePath);
         for (FileStatus s : statuses) {
             if (!s.isDir()) {
                 if (hasValidDirtyJobResultStoreEntryExtension(s.getPath().getName())) {

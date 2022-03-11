@@ -142,42 +142,6 @@ val t: DataType = DataTypes.ARRAY(DataTypes.INT().notNull()).bridgedTo(classOf[A
 API is extended. Users of predefined sources/sinks/functions do not need to define such hints. Hints within
 a table program (e.g. `field.cast(TIMESTAMP(3).bridgedTo(Timestamp.class))`) are ignored.
 
-{{< tabs "table" >}}
-{{< tab "Java/Scala" >}}
-The default planner supports the following set of SQL types:
-
-| Data Type | Remarks for Data Type |
-|:----------|:----------------------|
-| `CHAR` | |
-| `VARCHAR` | |
-| `STRING` | |
-| `BOOLEAN` | |
-| `BYTES` | `BINARY` and `VARBINARY` are not supported yet. |
-| `DECIMAL` | Supports fixed precision and scale. |
-| `TINYINT` | |
-| `SMALLINT` | |
-| `INTEGER` | |
-| `BIGINT` | |
-| `FLOAT` | |
-| `DOUBLE` | |
-| `DATE` | |
-| `TIME` | Supports only a precision of `0`. |
-| `TIMESTAMP` | |
-| `TIMESTAMP_LTZ` | |
-| `INTERVAL` | Supports only interval of `MONTH` and `SECOND(3)`. |
-| `ARRAY` | |
-| `MULTISET` | |
-| `MAP` | |
-| `ROW` | |
-| `RAW` | |
-| structured types | Only exposed in user-defined functions yet. |
-
-{{< /tab >}}
-{{< tab "Python" >}}
-N/A
-{{< /tab >}}
-{{< /tabs >}}
-
 List of Data Types
 ------------------
 
@@ -190,6 +154,36 @@ For the JVM-based Table API those types are also available in `org.apache.flink.
 For the Python Table API, those types are available in `pyflink.table.types.DataTypes`.
 {{< /tab >}}
 {{< /tabs >}}
+
+The default planner supports the following set of SQL types:
+
+| Data Type        | Remarks for Data Type                              |
+|:-----------------|:---------------------------------------------------|
+| `CHAR`           |                                                    |
+| `VARCHAR`        |                                                    |
+| `STRING`         |                                                    |
+| `BOOLEAN`        |                                                    |
+| `BINARY`         |                                                    |
+| `VARBINARY`      |                                                    |
+| `BYTES`          |                                                    |
+| `DECIMAL`        | Supports fixed precision and scale.                |
+| `TINYINT`        |                                                    |
+| `SMALLINT`       |                                                    |
+| `INTEGER`        |                                                    |
+| `BIGINT`         |                                                    |
+| `FLOAT`          |                                                    |
+| `DOUBLE`         |                                                    |
+| `DATE`           |                                                    |
+| `TIME`           | Supports only a precision of `0`.                  |
+| `TIMESTAMP`      |                                                    |
+| `TIMESTAMP_LTZ`  |                                                    |
+| `INTERVAL`       | Supports only interval of `MONTH` and `SECOND(3)`. |
+| `ARRAY`          |                                                    |
+| `MULTISET`       |                                                    |
+| `MAP`            |                                                    |
+| `ROW`            |                                                    |
+| `RAW`            |                                                    |
+| Structured types | Only exposed in user-defined functions yet.        |
 
 ### Character Strings
 
@@ -1486,6 +1480,91 @@ Not supported.
 ```
 {{< /tab >}}
 {{< /tabs >}}
+
+Casting
+-------
+
+Flink Table API and SQL can perform casting between a defined `input` type and `target` type. While some
+casting operations can always succeed regardless of the input value, others can fail at runtime
+(i.e. where there is no way to create a value for the target type). For example, it is always
+possible to convert `INT` to `STRING`, but you cannot always convert a `STRING` to `INT`.
+
+During the planning stage, the query validator rejects queries for invalid type pairs with
+a `ValidationException`, e.g. when trying to cast a `TIMESTAMP` to an `INTERVAL`.
+Valid type pairs that can fail at runtime will be accepted by the query validator, 
+but requires the user to correctly handle failures.
+
+In Flink Table API and SQL, casting can be performed by using one of the two following built-in functions:
+
+* `CAST`: The regular cast function defined by the SQL standard. It can fail the job if the cast operation is fallible and the provided input is not valid. The type inference will preserve the nullability of the input type.
+* `TRY_CAST`: An extension to the regular cast function which returns `NULL` in case the cast operation fails. Its return type is always nullable.
+
+For example:
+
+```sql
+CAST('42' AS INT) --- returns 42 of type INT NOT NULL
+CAST(NULL AS VARCHAR) --- returns NULL of type VARCHAR
+CAST('non-number' AS INT) --- throws an exception and fails the job
+
+TRY_CAST('42' AS INT) --- returns 42 of type INT
+TRY_CAST(NULL AS VARCHAR) --- returns NULL of type VARCHAR
+TRY_CAST('non-number' AS INT) --- returns NULL of type INT
+COALESCE(TRY_CAST('non-number' AS INT), 0) --- returns 0 of type INT NOT NULL
+```
+
+The matrix below describes the supported cast pairs, where "Y" means supported, "!" means fallible, "N" means unsupported:
+
+| Input\Target                           | `CHAR`¹/<br/>`VARCHAR`¹/<br/>`STRING` | `BINARY`¹/<br/>`VARBINARY`¹/<br/>`BYTES` | `BOOLEAN` | `DECIMAL` | `TINYINT` | `SMALLINT` | `INTEGER` | `BIGINT` | `FLOAT` | `DOUBLE` | `DATE` | `TIME` | `TIMESTAMP` | `TIMESTAMP_LTZ` | `INTERVAL` | `ARRAY` | `MULTISET` | `MAP` | `ROW` | `STRUCTURED` | `RAW` |
+|:---------------------------------------|:-------------------------------------:|:----------------------------------------:|:---------:|:---------:|:---------:|:----------:|:---------:|:--------:|:-------:|:--------:|:------:|:------:|:-----------:|:---------------:|:----------:|:-------:|:----------:|:-----:|:-----:|:------------:|:-----:|
+| `CHAR`/<br/>`VARCHAR`/<br/>`STRING`    |                   Y                   |                    !                     |     !     |     !     |     !     |     !      |     !     |    !     |    !    |    !     |   !    |   !    |      !      |        !        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `BINARY`/<br/>`VARBINARY`/<br/>`BYTES` |                   Y                   |                    Y                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `BOOLEAN`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `DECIMAL`                              |                   Y                   |                    N                     |     N     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `TINYINT`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `SMALLINT`                             |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `INTEGER`                              |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁵     |    N    |     N      |   N   |   N   |      N       |   N   |
+| `BIGINT`                               |                   Y                   |                    N                     |     Y     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |     N²      |       N²        |     Y⁶     |    N    |     N      |   N   |   N   |      N       |   N   |
+| `FLOAT`                                |                   Y                   |                    N                     |     N     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `DOUBLE`                               |                   Y                   |                    N                     |     N     |     Y     |     Y     |     Y      |     Y     |    Y     |    Y    |    Y     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `DATE`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   N    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `TIME`                                 |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `TIMESTAMP`                            |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `TIMESTAMP_LTZ`                        |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   Y    |   Y    |      Y      |        Y        |     N      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `INTERVAL`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |    Y⁵     |    Y⁶    |    N    |    N     |   N    |   N    |      N      |        N        |     Y      |    N    |     N      |   N   |   N   |      N       |   N   |
+| `ARRAY`                                |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |   !³    |     N      |   N   |   N   |      N       |   N   |
+| `MULTISET`                             |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     !³     |   N   |   N   |      N       |   N   |
+| `MAP`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |  !³   |   N   |      N       |   N   |
+| `ROW`                                  |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |  !³   |      N       |   N   |
+| `STRUCTURED`                           |                   Y                   |                    N                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      !³      |   N   |
+| `RAW`                                  |                   Y                   |                    !                     |     N     |     N     |     N     |     N      |     N     |    N     |    N    |    N     |   N    |   N    |      N      |        N        |     N      |    N    |     N      |   N   |   N   |      N       |  Y⁴   |
+
+Notes:
+
+1. All the casting to constant length or variable length will also trim and pad accordingly to the type definition.
+2. `TO_TIMESTAMP` and `TO_TIMESTAMP_LTZ` must be used instead of `CAST`/`TRY_CAST`.
+3. Supported iff the children type pairs are supported. Fallible iff the children type pairs are fallible.
+4. Supported iff the `RAW` class and serializer are equals.
+5. Supported iff `INTERVAL` is a `MONTH TO YEAR` range.
+6. Supported iff `INTERVAL` is a `DAY TO TIME` range.
+
+Also note that a cast of a `NULL` value will always return `NULL`, 
+regardless of whether the function used is `CAST` or `TRY_CAST`.
+
+### Legacy casting
+
+Pre Flink 1.15 casting behaviour can be enabled by setting `table.exec.legacy-cast-behaviour` to `enabled`.
+In Flink 1.15 this flag is enabled by default.
+
+In particular, this will:
+
+* Disable trimming/padding for casting to `CHAR`/`VARCHAR`/`BINARY`/`VARBINARY`
+* `CAST` never fails but returns `NULL`, behaving as `TRY_CAST` but without inferring the correct type
+* Formatting of some casting to `CHAR`/`VARCHAR`/`STRING` produces slightly different results.
+
+{{< hint warning >}}
+We **discourage** the use of this flag and we **strongly suggest** for new projects to disable this flag and use the new casting behaviour.
+This flag will be removed in the next Flink versions.
+{{< /hint >}}
 
 Data Type Extraction
 --------------------

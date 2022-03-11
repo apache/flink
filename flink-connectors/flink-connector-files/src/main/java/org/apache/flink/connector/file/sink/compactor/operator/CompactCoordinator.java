@@ -209,7 +209,7 @@ public class CompactCoordinator extends AbstractStreamOperator<CompactorRequest>
         PASS_THROUGH
     }
 
-    private static class CompactTrigger {
+    static class CompactTrigger {
         private final long threshold;
         private final int numCheckpointsBeforeCompaction;
 
