@@ -43,6 +43,11 @@ class RawToBinaryCastRule extends AbstractNullAwareCodeGeneratorCastRule<Object,
                         .build());
     }
 
+    @Override
+    public boolean canFail(LogicalType inputLogicalType, LogicalType targetLogicalType) {
+        return true;
+    }
+
     /* Example generated code for BINARY(3):
 
     // legacy behavior
