@@ -1136,7 +1136,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
             (6, 'hello')],
             type_info=Types.TUPLE([Types.INT(), Types.STRING()]))  # type: DataStream
         data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
-            .count_window(3, 2) \
+            .count_window(3) \
             .apply(SumWindowFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
             .add_sink(self.test_sink)
 
@@ -1190,13 +1190,13 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
 
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
             .key_by(lambda x: x[0], key_type=Types.STRING()) \
-            .window(EventTimeSessionWindows.with_gap(Time.seconds(5))) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(5))) \
             .process(CountWindowProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
             .add_sink(self.test_sink)
 
         self.env.execute('test_event_time_session_window')
         results = self.test_sink.get_results()
-        expected = ['(hi,7)']
+        expected = ['(hi,1)', '(hi,6)']
         self.assert_equals_sorted(expected, results)
 
     def test_event_time_dynamic_gap_session_window(self):
