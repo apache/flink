@@ -177,8 +177,8 @@ class DataStreamTests(object):
         ds_2 = ds_1.map(lambda x: x * 2)
 
         (ds_1.connect(ds_2).flat_map(MyCoFlatMapFunction(), output_type=Types.INT())
-             .connect(ds_2).map(MyCoMapFunction(), output_type=Types.INT())
-             .add_sink(self.test_sink))
+         .connect(ds_2).map(MyCoMapFunction(), output_type=Types.INT())
+         .add_sink(self.test_sink))
         self.env.execute("test_basic_co_operations_with_output_type")
         results = self.test_sink.get_results()
         expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']

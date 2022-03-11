@@ -19,7 +19,7 @@ import math
 from abc import ABC, abstractmethod
 from enum import Enum
 from io import BytesIO
-from typing import TypeVar, Generic, Iterable, Collection, Any
+from typing import TypeVar, Generic, Iterable, Collection, Any, cast
 
 from pyflink.common import Time, Types
 from pyflink.common.serializer import TypeSerializer
@@ -186,7 +186,7 @@ class TimeWindowSerializer(TypeSerializer[TimeWindow]):
     def deserialize(self, stream: BytesIO) -> TimeWindow:
         if self._underlying_coder is None:
             self._underlying_coder = self._get_coder().get_impl()
-        bytes_data = stream.read(16)
+        bytes_data: bytes = stream.read(16)
         return self._underlying_coder.decode(bytes_data)
 
     def _get_coder(self):
@@ -481,8 +481,7 @@ class WindowAssigner(ABC, Generic[T, W]):
     @abstractmethod
     def get_window_serializer(self) -> TypeSerializer[W]:
         """
-        :return: A :class:`TypeSerializer` for serializing windows that are assigned by this
-                 :class:`WindowAssigner`.
+        :return: A TypeSerializer for serializing windows that are assigned by this WindowAssigner.
         """
         pass
 
@@ -547,16 +546,15 @@ class WindowOperationDescriptor(object):
 
 class SessionWindowTimeGapExtractor(ABC):
     """
-    A {@code SessionWindowTimeGapExtractor} extracts session time gaps for Dynamic Session Window
+    A SessionWindowTimeGapExtractor extracts session time gaps for Dynamic Session Window
     Assigners.
-    :param <ABC> The type of elements that this {@code SessionWindowTimeGapExtractor} can extract
-     session time gaps from.
     """
 
     @abstractmethod
     def extract(self, element: Any) -> int:
         """
         Extracts the session time gap.
+
         :param element The input element.
         :return The session time gap in milliseconds.
         """
@@ -670,11 +668,11 @@ class CountTrigger(Trigger[T, CountWindow]):
                    timestamp: int,
                    window: CountWindow,
                    ctx: Trigger.TriggerContext) -> TriggerResult:
-        reduce_state = ctx.get_partitioned_state(self._count_state_descriptor)  # type:  ReducingState
+        reduce_state = cast(ReducingState, ctx.get_partitioned_state(self._count_state_descriptor))
         reduce_state.add(1)
         if reduce_state.get() >= self._window_size:
             # On FIRE, the window is evaluated and results are emitted. The window is not purged
-            # though, all elements are retained.
+            #               though, all elements are retained.
             reduce_state.clear()
             return TriggerResult.FIRE
         else:
@@ -715,6 +713,7 @@ class CountTumblingWindowAssigner(WindowAssigner[T, CountWindow]):
     def __init__(self, window_size: int):
         """
         Windows this KeyedStream into tumbling count windows.
+
         :param window_size: The size of the windows in number of elements.
         """
         self._window_size = window_size
@@ -760,6 +759,7 @@ class CountSlidingWindowAssigner(WindowAssigner[T, CountWindow]):
     def __init__(self, window_size: int, window_slide: int):
         """
         Windows this KeyedStream into sliding count windows.
+
         :param window_size: The size of the windows in number of elements.
         :param window_slide: The slide interval in number of elements.
         """
@@ -809,9 +809,11 @@ class TumblingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
     the machine the operation is running on. Windows cannot overlap.
 
     For example, in order to window into windows of 1 minute, every 10 seconds:
+
     ::
-    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING())
-    >>> .window(TumblingProcessingTimeWindows.of(Time.minutes(1), Time.seconds(10)))
+
+        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
+        ...     .window(TumblingProcessingTimeWindows.of(Time.minutes(1), Time.seconds(10)))
     """
     def __init__(self, size: int, offset: int):
         if abs(offset) >= size:
@@ -834,9 +836,9 @@ class TumblingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
         return ProcessingTimeTrigger()
 
     @staticmethod
-    def of(size: Time, offset: Time = None):
+    def of(size: Time, offset=None):
         """
-        Creates a new {@code TumblingProcessingTimeWindows} {@link WindowAssigner} that assigns
+        Creates a new {@code TumblingProcessingTimeWindows} :class:`WindowAssigner` that assigns
         elements to time windows based on the element timestamp and offset.
 
         For example, if you want window a stream by hour,but window begins at the 15th minutes of
@@ -858,7 +860,6 @@ class TumblingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
         else:
             return TumblingProcessingTimeWindows(size.to_milliseconds(), offset.to_milliseconds())
 
-    @property
     def get_window_serializer(self) -> TypeSerializer[TimeWindow]:
         return TimeWindowSerializer()
 
@@ -875,9 +876,11 @@ class TumblingEventTimeWindows(WindowAssigner[T, TimeWindow]):
     elements. Windows cannot overlap.
 
     For example, in order to window into windows of 1 minute:
+
     ::
-    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-    >>> .window(TumblingEventTimeWindows.of(Time.minutes(1)))
+
+        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
+        ...     .window(TumblingEventTimeWindows.of(Time.minutes(1)))
     """
 
     def __init__(self, size: int, offset: int):
@@ -895,7 +898,7 @@ class TumblingEventTimeWindows(WindowAssigner[T, TimeWindow]):
             start = TimeWindow.get_window_start_with_offset(timestamp, self._offset, self._size)
             return [TimeWindow(start, start + self._size)]
         else:
-            raise Exception("Record has jvm.java.lang.Long.MIN_VALUE timestamp (= no timestamp marker). "
+            raise Exception("Record has Java Long.MIN_VALUE timestamp (= no timestamp marker). "
                             + "Is the time characteristic set to 'ProcessingTime', "
                             + "or did you forget to call "
                             + "'data_stream.assign_timestamps_and_watermarks(...)'?")
@@ -934,9 +937,11 @@ class SlidingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
     time of the machine the operation is running on. Windows can possibly overlap.
 
     For example, in order to window into windows of 1 minute, every 10 seconds:
+
     ::
-    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-    >>> .window(SlidingProcessingTimeWindows.of(Time.minutes(1), Time.seconds(10)))
+
+        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
+        ...     .window(SlidingProcessingTimeWindows.of(Time.minutes(1), Time.seconds(10)))
     """
 
     def __init__(self, size: int, slide: int, offset: int):
@@ -967,7 +972,7 @@ class SlidingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
     @staticmethod
     def of(size: Time, slide: Time, offset: Time = None):
         """
-        Creates a new {@code SlidingProcessingTimeWindows} {@link WindowAssigner} that assigns
+        Creates a new :class:`SlidingProcessingTimeWindows` :class:`WindowAssigner` that assigns
         elements to time windows based on the element timestamp and offset.
 
         For example, if you want window a stream by hour,but window begins at the 15th minutes of
@@ -1007,9 +1012,11 @@ class SlidingEventTimeWindows(WindowAssigner[T, TimeWindow]):
     elements. Windows can possibly overlap.
 
     For example, in order to window into windows of 1 minute, every 10 seconds:
+
     ::
-    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-    >>> .window(SlidingEventTimeWindows.of(Time.minutes(1), Time.seconds(10)))
+
+        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
+        ...     .window(SlidingEventTimeWindows.of(Time.minutes(1), Time.seconds(10)))
     """
 
     def __init__(self, size: int, slide: int, offset: int):
@@ -1033,7 +1040,7 @@ class SlidingEventTimeWindows(WindowAssigner[T, TimeWindow]):
                        for start in range(last_start, timestamp - self._size, -self._slide)]
             return windows
         else:
-            raise Exception("Record has jvm.java.lang.Long.MIN_VALUE timestamp (= no timestamp marker). "
+            raise Exception("Record has Java Long.MIN_VALUE timestamp (= no timestamp marker). "
                             + "Is the time characteristic set to 'ProcessingTime', "
                               "or did you forget to call "
                             + "'data_stream.assign_timestamps_and_watermarks(...)'?")
@@ -1044,7 +1051,7 @@ class SlidingEventTimeWindows(WindowAssigner[T, TimeWindow]):
     @staticmethod
     def of(size: Time, slide: Time, offset: Time = None):
         """
-        Creates a new {@code SlidingEventTimeWindows} {@link WindowAssigner} that assigns elements
+        Creates a new :class:`SlidingEventTimeWindows` :class:`WindowAssigner` that assigns elements
         to time windows based on the element timestamp and offset.
 
         For example, if you want window a stream by hour,but window begins at the 15th minutes of
@@ -1084,9 +1091,11 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
     time. Windows cannot overlap.
 
     For example, the processing interval is set to 1 minutes:
+
     ::
-    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-    >>> .window(ProcessingTimeSessionWindows.with_gap(Time.minutes(1)))
+
+        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
+        ...     .window(ProcessingTimeSessionWindows.with_gap(Time.minutes(1)))
     """
 
     def __init__(self, session_gap: int):
@@ -1100,7 +1109,7 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-
+        
         window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
         current_merge_key = None  # type: TimeWindow
         current_merge_set = set()  # type: Set[TimeWindow]
@@ -1140,6 +1149,7 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on
         the element timestamp.
+
         :param size: The session timeout, i.e. the time gap between sessions
         :return: The policy.
         """
@@ -1150,8 +1160,9 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on the
         element timestamp.
+
         :param session_window_time_gap_extractor: The extractor to use to extract the time gap
-            from the input elements
+                                                  from the input elements.
         :return: The policy.
         """
         return DynamicProcessingTimeSessionWindows(session_window_time_gap_extractor)
@@ -1168,13 +1179,15 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
 class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
     """
-    A {@link WindowAssigner} that windows elements into sessions based on the timestamp of the
+    A :class:`WindowAssigner` that windows elements into sessions based on the timestamp of the
     elements. Windows cannot overlap.
 
     For example, Set the timestamp of the element to 1 minutes:
+
     ::
-    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-    >>> .window(EventTimeSessionWindows.with_gap(Time.minutes(1)))
+
+        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
+        ...     .window(EventTimeSessionWindows.with_gap(Time.minutes(1)))
     """
 
     def __init__(self, session_gap: int):
@@ -1188,7 +1201,7 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-
+        
         window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
         current_merge_key = None  # type: TimeWindow
         current_merge_set = set()  # type: Set[TimeWindow]
@@ -1227,7 +1240,8 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions
         based on the element timestamp.
-        :param size: The session timeout, i.e. the time gap between sessions
+
+        :param size: The session timeout, i.e. the time gap between sessions.
         :return: The policy.
         """
         return EventTimeSessionWindows(size.to_milliseconds())
@@ -1237,8 +1251,9 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on
         the element timestamp.
+
         :param session_window_time_gap_extractor: The extractor to use to extract the time gap
-            from the input elements
+                                                  from the input elements.
         :return: The policy.
         """
         return DynamicEventTimeSessionWindows(session_window_time_gap_extractor)
@@ -1259,9 +1274,12 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
     time. Windows cannot overlap.
 
     For example, in order to window into windows with a dynamic time gap:
+
     ::
-    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-    >>> .window(DynamicProcessingTimeSessionWindows.with_dynamic_gap(SessionWindowTimeGapExtractor))
+
+        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
+        ...     .window(DynamicProcessingTimeSessionWindows.with_dynamic_gap(
+        ...         SessionWindowTimeGapExtractor))
     """
 
     def __init__(self,
@@ -1274,7 +1292,7 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-
+        
         window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
         current_merge_key = None  # type: TimeWindow
         current_merge_set = set()  # type: Set[TimeWindow]
@@ -1317,8 +1335,9 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions based
         on the element timestamp.
+
         :param session_window_time_gap_extractor: The extractor to use to extract the time
-            gap from the input elements
+                                                  gap from the input elements.
         :return: The policy.
         """
         return DynamicProcessingTimeSessionWindows(session_window_time_gap_extractor)
@@ -1335,13 +1354,16 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
 class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
     """
-    A {@link WindowAssigner} that windows elements into sessions based on the timestamp of the
+    A :class:`WindowAssigner` that windows elements into sessions based on the timestamp of the
     elements. Windows cannot overlap.
 
     For example, in order to window into windows with a dynamic time gap:
+
     ::
-    >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \
-    >>> .window(DynamicEventTimeSessionWindows.with_dynamic_gap(SessionWindowTimeGapExtractor))
+
+        >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
+        ...     .window(DynamicEventTimeSessionWindows.with_dynamic_gap(
+        ...         SessionWindowTimeGapExtractor))
     """
     def __init__(self,
                  session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
@@ -1353,7 +1375,7 @@ class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-
+        
         window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
         current_merge_key = None  # type: TimeWindow
         current_merge_set = set()  # type: Set[TimeWindow]
@@ -1395,8 +1417,9 @@ class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions
         based on the element timestamp.
+
         :param session_window_time_gap_extractor: The extractor to use to extract the
-            time gap from the input elements
+                                                  time gap from the input elements.
         :return: The policy.
         """
         return DynamicEventTimeSessionWindows(session_window_time_gap_extractor)
