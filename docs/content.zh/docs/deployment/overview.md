@@ -159,6 +159,11 @@ external component resources associated with the job are then cleaned up. In the
 failure when cleaning up a resource, Flink will attempt to retry the cleanup. You can
 [configure]({{< ref "docs/deployment/config#retryable-cleanup" >}}) the retry strategy used.
 
+There is currently an issue with the cleanup of CompletedCheckpoints that failed to be deleted
+while subsuming them as part of the usual CompletedCheckpoint management. These artifacts are
+not covered by the repeatable cleanup, i.e. they have to be deleted manually, still. This is
+covered by [FLINK-26606](https://issues.apache.org/jira/browse/FLINK-26606).
+
 ## Deployment Modes
 
 Flink can execute applications in one of three ways:
