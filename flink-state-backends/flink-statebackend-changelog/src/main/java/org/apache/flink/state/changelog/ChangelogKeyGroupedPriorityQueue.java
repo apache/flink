@@ -20,6 +20,7 @@ package org.apache.flink.state.changelog;
 
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.state.changelog.restore.ChangelogApplierFactory;
 import org.apache.flink.state.changelog.restore.StateChangeApplier;
 import org.apache.flink.util.CloseableIterator;
@@ -39,15 +40,15 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * A {@link KeyGroupedInternalPriorityQueue} that keeps state on the underlying delegated {@link
  * KeyGroupedInternalPriorityQueue} as well as on the state change log.
  */
-public class ChangelogKeyGroupedPriorityQueue<T>
+public class ChangelogKeyGroupedPriorityQueue<K, T extends Keyed<?>>
         implements KeyGroupedInternalPriorityQueue<T>, ChangelogState {
     private final KeyGroupedInternalPriorityQueue<T> delegatedPriorityQueue;
-    private final StateChangeLogger<T, Void> logger;
+    private final PriorityQueueStateChangeLogger<K, T, Void> logger;
     private final TypeSerializer<T> serializer;
 
     public ChangelogKeyGroupedPriorityQueue(
             KeyGroupedInternalPriorityQueue<T> delegatedPriorityQueue,
-            StateChangeLogger<T, Void> logger,
+            PriorityQueueStateChangeLogger<K, T, Void> logger,
             TypeSerializer<T> serializer) {
         this.delegatedPriorityQueue = checkNotNull(delegatedPriorityQueue);
         this.logger = checkNotNull(logger);
@@ -146,7 +147,8 @@ public class ChangelogKeyGroupedPriorityQueue<T>
 
     private void logRemoval(T toRemove) {
         try {
-            logger.valueElementRemoved(out -> serializer.serialize(toRemove, out), null);
+            logger.valueElementRemoved(
+                    (K) toRemove.getKey(), out -> serializer.serialize(toRemove, out), null);
         } catch (IOException e) {
             ExceptionUtils.rethrow(e);
         }

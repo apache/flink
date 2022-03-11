@@ -17,9 +17,11 @@
 
 package org.apache.flink.state.changelog;
 
-import org.apache.flink.api.common.typeutils.base.StringSerializer;
+import org.apache.flink.api.common.ExecutionConfig;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.KeyGroupedInternalPriorityQueue;
+import org.apache.flink.runtime.state.Keyed;
 import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.function.FunctionWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
@@ -37,6 +39,7 @@ import java.util.List;
 import java.util.Queue;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
@@ -57,7 +60,7 @@ public class ChangelogPqStateTest {
     public void testPutRecorded() throws Exception {
         testRecorded(
                 emptyList(),
-                state -> state.add("x"),
+                state -> state.add(StringKey.of("x")),
                 logger -> assertTrue(logger.stateElementAdded));
     }
 
@@ -73,7 +76,7 @@ public class ChangelogPqStateTest {
     public void testRemoveRecorded() throws Exception {
         testRecorded(
                 singletonList("x"),
-                state -> state.remove("x"),
+                state -> state.remove(StringKey.of("x")),
                 logger -> assertTrue(logger.stateElementRemoved));
     }
 
@@ -99,15 +102,19 @@ public class ChangelogPqStateTest {
                     iteratorSupplier,
             T... elements)
             throws Exception {
-        TestPriorityQueueChangeLogger logger = new TestPriorityQueueChangeLogger();
-        ChangelogKeyGroupedPriorityQueue<String> state =
-                new ChangelogKeyGroupedPriorityQueue<String>(
-                        new TestingInternalQueueState(data), logger, new StringSerializer());
+        TestPriorityQueueChangeLogger<String, StringKey> logger =
+                new TestPriorityQueueChangeLogger<>();
+        ChangelogKeyGroupedPriorityQueue<String, StringKey> state =
+                new ChangelogKeyGroupedPriorityQueue<>(
+                        new TestingInternalQueueState(data),
+                        logger,
+                        TypeInformation.of(StringKey.class)
+                                .createSerializer(new ExecutionConfig()));
 
         Iterator iterator = iteratorSupplier.apply(state);
         for (T el : elements) {
             assertTrue(iterator.hasNext());
-            assertEquals(el, iterator.next());
+            assertEquals(el, ((StringKey) iterator.next()).key);
             iterator.remove();
         }
 
@@ -123,13 +130,17 @@ public class ChangelogPqStateTest {
             throws Exception {
         TestPriorityQueueChangeLogger logger = new TestPriorityQueueChangeLogger();
         ChangelogKeyGroupedPriorityQueue state =
-                new ChangelogKeyGroupedPriorityQueue<String>(
-                        new TestingInternalQueueState(data), logger, new StringSerializer());
+                new ChangelogKeyGroupedPriorityQueue<String, StringKey>(
+                        new TestingInternalQueueState(data),
+                        logger,
+                        TypeInformation.of(StringKey.class)
+                                .createSerializer(new ExecutionConfig()));
         action.accept(state);
         assertion.accept(logger);
     }
 
-    private static class TestPriorityQueueChangeLogger<T> implements StateChangeLogger<T, Void> {
+    private static class TestPriorityQueueChangeLogger<K, T>
+            implements PriorityQueueStateChangeLogger<K, T, Void> {
         public boolean stateElementChanged;
         public boolean stateCleared;
         public boolean stateElementRemoved;
@@ -177,6 +188,14 @@ public class ChangelogPqStateTest {
         }
 
         @Override
+        public void valueElementRemoved(
+                K key,
+                ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
+                Void unused) {
+            stateElementRemoved = true;
+        }
+
+        @Override
         public void resetWritingMetaFlag() {}
 
         public boolean anythingChanged() {
@@ -188,32 +207,35 @@ public class ChangelogPqStateTest {
     }
 
     private static class TestingInternalQueueState
-            implements KeyGroupedInternalPriorityQueue<String> {
-        private final Queue<String> queue;
+            implements KeyGroupedInternalPriorityQueue<StringKey> {
+        private final Queue<StringKey> queue;
 
         public TestingInternalQueueState(List<String> data) {
-            this.queue = data instanceof Queue ? (Queue<String>) data : new LinkedList<>(data);
+            this.queue =
+                    data.stream()
+                            .map(StringKey::of)
+                            .collect(Collectors.toCollection(LinkedList::new));
         }
 
         @Nullable
         @Override
-        public String poll() {
+        public StringKey poll() {
             return queue.poll();
         }
 
         @Nullable
         @Override
-        public String peek() {
+        public StringKey peek() {
             return queue.peek();
         }
 
         @Override
-        public boolean add(@Nonnull String toAdd) {
+        public boolean add(@Nonnull StringKey toAdd) {
             return queue.offer(toAdd);
         }
 
         @Override
-        public boolean remove(@Nonnull String toRemove) {
+        public boolean remove(@Nonnull StringKey toRemove) {
             return queue.remove(toRemove);
         }
 
@@ -228,7 +250,7 @@ public class ChangelogPqStateTest {
         }
 
         @Override
-        public void addAll(@Nullable Collection<? extends String> toAdd) {
+        public void addAll(@Nullable Collection<? extends StringKey> toAdd) {
             if (toAdd != null) {
                 queue.addAll(toAdd);
             }
@@ -236,14 +258,31 @@ public class ChangelogPqStateTest {
 
         @Nonnull
         @Override
-        public CloseableIterator<String> iterator() {
+        public CloseableIterator<StringKey> iterator() {
             return CloseableIterator.adapterForIterator(queue.iterator());
         }
 
         @Nonnull
         @Override
-        public Set<String> getSubsetForKeyGroup(int keyGroupId) {
+        public Set<StringKey> getSubsetForKeyGroup(int keyGroupId) {
             throw new UnsupportedOperationException();
+        }
+    }
+
+    private static class StringKey implements Keyed<String> {
+        public static StringKey of(String key) {
+            return new StringKey(key);
+        }
+
+        private final String key;
+
+        StringKey(String key) {
+            this.key = key;
+        }
+
+        @Override
+        public String getKey() {
+            return key;
         }
     }
 }

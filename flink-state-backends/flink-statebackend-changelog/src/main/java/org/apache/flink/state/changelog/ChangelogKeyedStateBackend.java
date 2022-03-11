@@ -152,7 +152,7 @@ public class ChangelogKeyedStateBackend<K>
      */
     private final Map<String, ChangelogState> changelogStates;
 
-    private final Map<String, ChangelogKeyGroupedPriorityQueue<?>> priorityQueueStatesByName;
+    private final Map<String, ChangelogKeyGroupedPriorityQueue<?, ?>> priorityQueueStatesByName;
 
     private final ExecutionConfig executionConfig;
 
@@ -429,10 +429,10 @@ public class ChangelogKeyedStateBackend<K>
             KeyGroupedInternalPriorityQueue<T> create(
                     @Nonnull String stateName,
                     @Nonnull TypeSerializer<T> byteOrderedElementSerializer) {
-        ChangelogKeyGroupedPriorityQueue<T> queue =
-                (ChangelogKeyGroupedPriorityQueue<T>) priorityQueueStatesByName.get(stateName);
+        ChangelogKeyGroupedPriorityQueue<K, T> queue =
+                (ChangelogKeyGroupedPriorityQueue<K, T>) priorityQueueStatesByName.get(stateName);
         if (queue == null) {
-            PriorityQueueStateChangeLoggerImpl<K, T> priorityQueueStateChangeLogger =
+            PriorityQueueStateChangeLogger<K, T, Void> priorityQueueStateChangeLogger =
                     new PriorityQueueStateChangeLoggerImpl<>(
                             byteOrderedElementSerializer,
                             keyedStateBackend.getKeyContext(),
@@ -657,7 +657,7 @@ public class ChangelogKeyedStateBackend<K>
                 changelogState.resetWritingMetaFlag();
             }
 
-            for (ChangelogKeyGroupedPriorityQueue<?> priorityQueueState :
+            for (ChangelogKeyGroupedPriorityQueue<?, ?> priorityQueueState :
                     priorityQueueStatesByName.values()) {
                 priorityQueueState.resetWritingMetaFlag();
             }

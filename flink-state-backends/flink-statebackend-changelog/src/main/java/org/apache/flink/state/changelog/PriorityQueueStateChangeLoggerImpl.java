@@ -22,12 +22,14 @@ import org.apache.flink.core.memory.DataOutputViewStreamWrapper;
 import org.apache.flink.runtime.state.RegisteredPriorityQueueStateBackendMetaInfo;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.heap.InternalKeyContext;
+import org.apache.flink.util.function.ThrowingConsumer;
 
 import java.io.IOException;
 
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
-class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger<K, T, Void> {
+class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger<K, T, Void>
+        implements PriorityQueueStateChangeLogger<K, T, Void> {
     private final TypeSerializer<T> serializer;
 
     PriorityQueueStateChangeLoggerImpl(
@@ -48,4 +50,13 @@ class PriorityQueueStateChangeLoggerImpl<K, T> extends AbstractStateChangeLogger
     @Override
     protected void serializeScope(Void unused, DataOutputViewStreamWrapper out)
             throws IOException {}
+
+    @Override
+    public void valueElementRemoved(
+            K key,
+            ThrowingConsumer<DataOutputViewStreamWrapper, IOException> dataSerializer,
+            Void unused)
+            throws IOException {
+        super.valueElementRemoved(dataSerializer, unused);
+    }
 }
