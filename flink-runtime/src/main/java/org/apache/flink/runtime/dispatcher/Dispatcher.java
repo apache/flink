@@ -89,6 +89,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -428,6 +429,17 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         try {
             if (isDuplicateJob(jobGraph.getJobID())) {
+                if (isInGloballyTerminalState(jobGraph.getJobID())) {
+                    log.warn(
+                            "Ignoring JobGraph submission '{}' ({}) because the job already reached a globally-terminal state (i.e. {}) in a previous execution.",
+                            jobGraph.getName(),
+                            jobGraph.getJobID(),
+                            Arrays.stream(JobStatus.values())
+                                    .filter(JobStatus::isGloballyTerminalState)
+                                    .map(JobStatus::name)
+                                    .collect(Collectors.joining(", ")));
+                }
+
                 final DuplicateJobSubmissionException exception =
                         isInGloballyTerminalState(jobGraph.getJobID())
                                 ? DuplicateJobSubmissionException.ofGloballyTerminated(
