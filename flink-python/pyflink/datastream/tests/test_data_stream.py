@@ -33,8 +33,8 @@ from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFl
 from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor,
                                       ReducingStateDescriptor, ReducingState, AggregatingState,
                                       AggregatingStateDescriptor, StateTtlConfig)
-from pyflink.java_gateway import get_gateway
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
+from pyflink.java_gateway import get_gateway
 from pyflink.testing.test_case_utils import PyFlinkBatchTestCase, PyFlinkStreamingTestCase
 from pyflink.util.java_utils import get_j_env_configuration
 

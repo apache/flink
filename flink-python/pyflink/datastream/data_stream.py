@@ -20,10 +20,6 @@ import uuid
 from typing import Callable, Union, List, cast
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
-from pyflink.datastream.slot_sharing_group import SlotSharingGroup
-from pyflink.datastream.window import (TimeWindowSerializer, CountWindowSerializer, WindowAssigner,
-                                       Trigger, WindowOperationDescriptor,
-                                       CountTumblingWindowAssigner, CountSlidingWindowAssigner)
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream.connectors import Sink
@@ -35,13 +31,23 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
                                           KeyedCoProcessFunction, WindowFunction,
                                           ProcessWindowFunction, InternalWindowFunction,
                                           InternalIterableWindowFunction,
-                                          InternalIterableProcessWindowFunction, CoProcessFunction)
-from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor
+                                          InternalIterableProcessWindowFunction, CoProcessFunction,
+                                          InternalSingleValueWindowFunction,
+                                          InternalSingleValueProcessWindowFunction,
+                                          PassThroughWindowFunction)
+from pyflink.datastream.slot_sharing_group import SlotSharingGroup
+from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
+    StateDescriptor, ReducingStateDescriptor
 from pyflink.datastream.utils import convert_to_python_obj
+from pyflink.datastream.window import (CountTumblingWindowAssigner, CountSlidingWindowAssigner,
+                                       CountWindowSerializer, TimeWindowSerializer, Trigger,
+                                       WindowAssigner, WindowOperationDescriptor)
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
            'DataStreamSink', 'CloseableIterator']
+
+WINDOW_STATE_NAME = 'window-contents'
 
 
 class DataStream(object):
@@ -1347,8 +1353,58 @@ class WindowedStream(object):
         self._allowed_lateness = time_ms
         return self
 
+    def reduce(self,
+               reduce_function: Union[Callable, ReduceFunction],
+               window_function: Union[WindowFunction, ProcessWindowFunction] = None,
+               output_type: TypeInformation = None) -> DataStream:
+        """
+        Applies a reduce function to the window. The window function is called for each evaluation
+        of the window for each key individually. The output of the reduce function is interpreted as
+        a regular non-windowed stream.
+
+        This window will try and incrementally aggregate data as much as the window policies
+        permit. For example, tumbling time windows can aggregate the data, meaning that only one
+        element per key is stored. Sliding time windows will aggregate on the granularity of the
+        slide interval, so a few elements are stored per key (one per slide interval). Custom
+        windows may not be able to incrementally aggregate, or may need to store extra values in an
+        aggregation tree.
+
+        Example:
+        ::
+
+            >>> ds.key_by(lambda x: x[1]) \\
+            ...     .window(TumblingEventTimeWindows.of(Time.seconds(5))) \\
+            ...     .reduce(lambda a, b: a[0] + b[0], b[1])
+
+        :param reduce_function: The reduce function.
+        :param window_function: The window function.
+        :param output_type: Type information for the result type of the window function.
+        :return: The data stream that is the result of applying the reduce function to the window.
+
+        .. versionadded:: 1.16.0
+        """
+        if window_function is None:
+            internal_window_function = InternalSingleValueWindowFunction(
+                PassThroughWindowFunction())  # type: InternalWindowFunction
+            if output_type is None:
+                output_type = self.get_input_type()
+        elif isinstance(window_function, WindowFunction):
+            internal_window_function = InternalSingleValueWindowFunction(window_function)
+        elif isinstance(window_function, ProcessWindowFunction):
+            internal_window_function = InternalSingleValueProcessWindowFunction(window_function)
+        else:
+            raise TypeError("window_function should be a WindowFunction or ProcessWindowFunction")
+
+        reducing_state_descriptor = ReducingStateDescriptor(WINDOW_STATE_NAME,
+                                                            reduce_function,
+                                                            self.get_input_type())
+
+        return self._get_result_data_stream(internal_window_function,
+                                            reducing_state_descriptor,
+                                            output_type)
+
     def apply(self,
-              window_function: WindowFunction, result_type: TypeInformation = None) -> DataStream:
+              window_function: WindowFunction, output_type: TypeInformation = None) -> DataStream:
         """
         Applies the given window function to each window. The window function is called for each
         evaluation of the window for each key individually. The output of the window function is
@@ -1358,16 +1414,19 @@ class WindowedStream(object):
         is evaluated, as the function provides no means of incremental aggregation.
 
         :param window_function: The window function.
-        :param result_type: Type information for the result type of the window function.
+        :param output_type: Type information for the result type of the window function.
         :return: The data stream that is the result of applying the window function to the window.
         """
         internal_window_function = InternalIterableWindowFunction(
             window_function)  # type: InternalWindowFunction
-        return self._get_result_data_stream(internal_window_function, result_type)
+        list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
+        return self._get_result_data_stream(internal_window_function,
+                                            list_state_descriptor,
+                                            output_type)
 
     def process(self,
                 process_window_function: ProcessWindowFunction,
-                result_type: TypeInformation = None):
+                output_type: TypeInformation = None) -> DataStream:
         """
         Applies the given window function to each window. The window function is called for each
         evaluation of the window for each key individually. The output of the window function is
@@ -1377,21 +1436,24 @@ class WindowedStream(object):
         is evaluated, as the function provides no means of incremental aggregation.
 
         :param process_window_function: The window function.
-        :param result_type: Type information for the result type of the window function.
+        :param output_type: Type information for the result type of the window function.
         :return: The data stream that is the result of applying the window function to the window.
         """
         internal_window_function = InternalIterableProcessWindowFunction(
             process_window_function)  # type: InternalWindowFunction
-        return self._get_result_data_stream(internal_window_function, result_type)
+        list_state_descriptor = ListStateDescriptor(WINDOW_STATE_NAME, self.get_input_type())
+        return self._get_result_data_stream(internal_window_function,
+                                            list_state_descriptor,
+                                            output_type)
 
-    def _get_result_data_stream(
-            self, internal_window_function: InternalWindowFunction, result_type):
+    def _get_result_data_stream(self,
+                                internal_window_function: InternalWindowFunction,
+                                window_state_descriptor: StateDescriptor,
+                                output_type: TypeInformation):
         if self._window_trigger is None:
             self._window_trigger = self._window_assigner.get_default_trigger(
                 self.get_execution_environment())
         window_serializer = self._window_assigner.get_window_serializer()
-        window_state_descriptor = ListStateDescriptor(
-            "window-contents", self.get_input_type())
         window_operation_descriptor = WindowOperationDescriptor(
             self._window_assigner,
             self._window_trigger,
@@ -1406,7 +1468,7 @@ class WindowedStream(object):
                 self._keyed_stream,
                 window_operation_descriptor,
                 flink_fn_execution_pb2.UserDefinedDataStreamFunction.WINDOW,  # type: ignore
-                result_type)
+                output_type)
 
         return DataStream(self._keyed_stream._j_data_stream.transform(
             "WINDOW",
