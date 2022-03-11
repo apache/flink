@@ -26,6 +26,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /** Request of file compacting for {@link FileSink}. */
 @Internal
 public class CompactorRequest implements Serializable {
@@ -49,6 +51,7 @@ public class CompactorRequest implements Serializable {
     }
 
     public void addToCompact(FileSinkCommittable committable) {
+        checkState(committable.hasPendingFile());
         committableToCompact.add(committable);
     }
 

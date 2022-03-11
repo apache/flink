@@ -247,7 +247,8 @@ public class ChangelogStateBackend implements DelegatingStateBackend, Configurab
                                 env.failExternally(new AsynchronousException(message, exception)),
                         keyedStateBackend,
                         executionConfig.getPeriodicMaterializeIntervalMillis(),
-                        executionConfig.getMaterializationMaxAllowedFailures());
+                        executionConfig.getMaterializationMaxAllowedFailures(),
+                        operatorIdentifier);
 
         // keyedStateBackend is responsible to close periodicMaterializationManager
         // This indicates periodicMaterializationManager binds to the keyedStateBackend

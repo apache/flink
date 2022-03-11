@@ -22,7 +22,8 @@ from typing import Callable, Union, List, cast
 from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.window import (TimeWindowSerializer, CountWindowSerializer, WindowAssigner,
-                                       Trigger, WindowOperationDescriptor)
+                                       Trigger, WindowOperationDescriptor,
+                                       CountTumblingWindowAssigner, CountSlidingWindowAssigner)
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream.connectors import Sink
@@ -38,7 +39,6 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor
 from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
-from pyflink.datastream.window import CountTumblingWindowAssigner, CountSlidingWindowAssigner
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
            'DataStreamSink', 'CloseableIterator']
