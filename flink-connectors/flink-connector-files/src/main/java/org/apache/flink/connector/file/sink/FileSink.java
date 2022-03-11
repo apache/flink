@@ -197,9 +197,14 @@ public class FileSink<IN>
     public DataStream<CommittableMessage<FileSinkCommittable>> addPreCommitTopology(
             DataStream<CommittableMessage<FileSinkCommittable>> committableStream) {
         FileCompactStrategy strategy = bucketsBuilder.getCompactStrategy();
+        if (strategy == null && !bucketsBuilder.isCompactDisabledExplicitly()) {
+            // compact is never enabled, we may not add the handlers
+            return committableStream;
+        }
+
         if (strategy == null) {
-            // not enabled, handlers will be added to process the remaining states of the compact
-            // coordinator and the compactor operators.
+            // not enabled at present, handlers will be added to process the remaining states of the
+            // compact coordinator and the compactor operators.
             SingleOutputStreamOperator<
                             Either<CommittableMessage<FileSinkCommittable>, CompactorRequest>>
                     coordinatorOp =
@@ -290,6 +295,9 @@ public class FileSink<IN>
                 throws IOException;
 
         @Internal
+        abstract boolean isCompactDisabledExplicitly();
+
+        @Internal
         abstract FileCompactStrategy getCompactStrategy();
 
         @Internal
@@ -318,6 +326,8 @@ public class FileSink<IN>
         private RollingPolicy<IN, String> rollingPolicy;
 
         private OutputFileConfig outputFileConfig;
+
+        private boolean isCompactDisabledExplicitly = false;
 
         private FileCompactStrategy compactStrategy;
 
@@ -378,6 +388,11 @@ public class FileSink<IN>
             return self();
         }
 
+        public T disableCompact() {
+            this.isCompactDisabledExplicitly = true;
+            return self();
+        }
+
         /** Creates the actual sink. */
         public FileSink<IN> build() {
             return new FileSink<>(this);
@@ -413,6 +428,11 @@ public class FileSink<IN>
         @Override
         FileCommitter createCommitter() throws IOException {
             return new FileCommitter(createBucketWriter());
+        }
+
+        @Override
+        boolean isCompactDisabledExplicitly() {
+            return isCompactDisabledExplicitly;
         }
 
         @Override
@@ -482,6 +502,8 @@ public class FileSink<IN>
         private CheckpointRollingPolicy<IN, String> rollingPolicy;
 
         private OutputFileConfig outputFileConfig;
+
+        private boolean isCompactDisabledExplicitly = false;
 
         private FileCompactStrategy compactStrategy;
 
@@ -560,6 +582,11 @@ public class FileSink<IN>
             return self();
         }
 
+        public T disableCompact() {
+            this.isCompactDisabledExplicitly = true;
+            return self();
+        }
+
         /** Creates the actual sink. */
         public FileSink<IN> build() {
             return new FileSink<>(this);
@@ -595,6 +622,11 @@ public class FileSink<IN>
         @Override
         FileCommitter createCommitter() throws IOException {
             return new FileCommitter(createBucketWriter());
+        }
+
+        @Override
+        boolean isCompactDisabledExplicitly() {
+            return isCompactDisabledExplicitly;
         }
 
         @Override
