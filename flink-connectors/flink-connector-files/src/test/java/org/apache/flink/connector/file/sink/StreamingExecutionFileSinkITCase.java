@@ -92,7 +92,8 @@ public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
         env.addSource(new StreamingExecutionTestSource(latchId, NUM_RECORDS, triggerFailover))
                 .setParallelism(NUM_SOURCES)
                 .sinkTo(createFileSink(path))
-                .setParallelism(NUM_SINKS);
+                .setParallelism(NUM_SINKS)
+                .uid("sink");
 
         StreamGraph streamGraph = env.getStreamGraph();
         return streamGraph.getJobGraph();

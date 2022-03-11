@@ -74,7 +74,8 @@ public class BatchExecutionFileSinkITCase extends FileSinkITBase {
                 .map(new BatchExecutionOnceFailingMap(NUM_RECORDS, triggerFailover))
                 .setParallelism(NUM_SINKS)
                 .sinkTo(createFileSink(path))
-                .setParallelism(NUM_SINKS);
+                .setParallelism(NUM_SINKS)
+                .uid("sink");
 
         StreamGraph streamGraph = env.getStreamGraph();
         return streamGraph.getJobGraph();

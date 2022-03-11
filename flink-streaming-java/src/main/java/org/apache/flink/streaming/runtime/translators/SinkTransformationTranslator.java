@@ -51,6 +51,8 @@ import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 
+import static org.apache.flink.util.Preconditions.checkState;
+
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} for the {@link
  * org.apache.flink.streaming.api.transformations.SinkTransformation}.
@@ -129,7 +131,9 @@ public class SinkTransformationTranslator<Input, Output>
             if (sink instanceof WithPreWriteTopology) {
                 prewritten =
                         adjustTransformations(
-                                prewritten, ((WithPreWriteTopology<T>) sink)::addPreWriteTopology);
+                                prewritten,
+                                ((WithPreWriteTopology<T>) sink)::addPreWriteTopology,
+                                true);
             }
 
             if (sink instanceof TwoPhaseCommittingSink) {
@@ -141,7 +145,8 @@ public class SinkTransformationTranslator<Input, Output>
                                 input.transform(
                                         WRITER_NAME,
                                         CommittableMessageTypeInfo.noOutput(),
-                                        new SinkWriterOperatorFactory<>(sink)));
+                                        new SinkWriterOperatorFactory<>(sink)),
+                        false);
             }
 
             final List<Transformation<?>> sinkTransformations =
@@ -172,7 +177,8 @@ public class SinkTransformationTranslator<Input, Output>
                                     input.transform(
                                             WRITER_NAME,
                                             typeInformation,
-                                            new SinkWriterOperatorFactory<>(sink)));
+                                            new SinkWriterOperatorFactory<>(sink)),
+                            false);
 
             DataStream<CommittableMessage<CommT>> precommitted = addFailOverRegion(written);
 
@@ -180,7 +186,8 @@ public class SinkTransformationTranslator<Input, Output>
                 precommitted =
                         adjustTransformations(
                                 precommitted,
-                                ((WithPreCommitTopology<T, CommT>) sink)::addPreCommitTopology);
+                                ((WithPreCommitTopology<T, CommT>) sink)::addPreCommitTopology,
+                                true);
             }
 
             DataStream<CommittableMessage<CommT>> committed =
@@ -193,7 +200,8 @@ public class SinkTransformationTranslator<Input, Output>
                                             new CommitterOperatorFactory<>(
                                                     committingSink,
                                                     isBatchMode,
-                                                    isCheckpointingEnabled)));
+                                                    isCheckpointingEnabled)),
+                            false);
 
             if (sink instanceof WithPostCommitTopology) {
                 DataStream<CommittableMessage<CommT>> postcommitted = addFailOverRegion(committed);
@@ -202,7 +210,8 @@ public class SinkTransformationTranslator<Input, Output>
                         pc -> {
                             ((WithPostCommitTopology<T, CommT>) sink).addPostCommitTopology(pc);
                             return null;
-                        });
+                        },
+                        true);
             }
         }
 
@@ -233,7 +242,9 @@ public class SinkTransformationTranslator<Input, Output>
          * customized parallelism value at environment level.
          */
         private <I, R> R adjustTransformations(
-                DataStream<I> inputStream, Function<DataStream<I>, R> action) {
+                DataStream<I> inputStream,
+                Function<DataStream<I>, R> action,
+                boolean isExpandedTopology) {
 
             // Reset the environment parallelism temporarily before adjusting transformations,
             // we can therefore be aware of any customized parallelism of the sub topology
@@ -247,6 +258,13 @@ public class SinkTransformationTranslator<Input, Output>
                     transformations.subList(numTransformsBefore, transformations.size());
 
             for (Transformation<?> subTransformation : expandedTransformations) {
+                String subUid = subTransformation.getUid();
+                if (isExpandedTopology && subUid != null && !subUid.isEmpty()) {
+                    checkState(
+                            transformation.getUid() != null && !transformation.getUid().isEmpty(),
+                            "Sink:" + transformation.getName() + " requires to set a uid");
+                }
+
                 concatUid(
                         subTransformation,
                         Transformation::getUid,
