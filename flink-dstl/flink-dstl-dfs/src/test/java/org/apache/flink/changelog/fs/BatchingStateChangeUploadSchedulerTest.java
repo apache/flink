@@ -216,19 +216,19 @@ class BatchingStateChangeUploadSchedulerTest {
                 new ManuallyTriggeredScheduledExecutorService();
         BlockingUploader uploader = new BlockingUploader();
         try (BatchingStateChangeUploadScheduler store =
-                scheduler(numAttempts, executorService, uploader, 10)) {
+                scheduler(numAttempts, executorService, uploader, 50)) {
             store.upload(upload);
             Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
             while (uploader.getUploadsCount() < numAttempts - 1 && deadline.hasTimeLeft()) {
                 executorService.triggerScheduledTasks();
                 executorService.triggerAll();
-                Thread.sleep(10);
+                Thread.sleep(1); // should be less than timeout to avoid all attempts timing out
             }
             uploader.unblock();
             while (!upload.finished.get() && deadline.hasTimeLeft()) {
                 executorService.triggerScheduledTasks();
                 executorService.triggerAll();
-                Thread.sleep(10);
+                Thread.sleep(1);
             }
         }
 
