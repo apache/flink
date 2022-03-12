@@ -177,8 +177,8 @@ class DataStreamTests(object):
         ds_2 = ds_1.map(lambda x: x * 2)
 
         (ds_1.connect(ds_2).flat_map(MyCoFlatMapFunction(), output_type=Types.INT())
-         .connect(ds_2).map(MyCoMapFunction(), output_type=Types.INT())
-         .add_sink(self.test_sink))
+            .connect(ds_2).map(MyCoMapFunction(), output_type=Types.INT())
+            .add_sink(self.test_sink))
         self.env.execute("test_basic_co_operations_with_output_type")
         results = self.test_sink.get_results()
         expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
@@ -504,7 +504,7 @@ class DataStreamTests(object):
     def test_basic_array_type_info(self):
         ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
                                        (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
-                                      (3, [3.1, 3.2, None], ['hello', 'hi', None])],
+                                       (3, [3.1, 3.2, None], ['hello', 'hi', None])],
                                       type_info=Types.ROW([Types.INT(),
                                                            Types.BASIC_ARRAY(Types.FLOAT()),
                                                            Types.BASIC_ARRAY(Types.STRING())]))
@@ -1056,8 +1056,8 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         ds = self.env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')],
                                       type_info=Types.ROW([Types.INT(), Types.STRING()]))
         ds.key_by(lambda a: a[1]) \
-          .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
-          .add_sink(self.test_sink)
+            .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
+            .add_sink(self.test_sink)
         self.env.execute('reduce_function_test')
         results = self.test_sink.get_results()
         expected = ["+I[1, a]", "+I[3, a]", "+I[6, a]", "+I[4, b]"]
