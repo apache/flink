@@ -29,6 +29,7 @@ import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.AsyncTableFunction;
 import org.apache.flink.table.functions.FunctionContext;
+import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.StringUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 
@@ -82,6 +83,7 @@ public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
     private final long cacheExpireMs;
     private final int maxRetryTimes;
     private transient Cache<Object, RowData> cache;
+    private transient ExecutorService threadPool;
 
     /** The size for thread pool. */
     private static final int THREAD_POOL_SIZE = 16;
@@ -104,7 +106,7 @@ public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
     @Override
     public void open(FunctionContext context) {
         LOG.info("start open ...");
-        final ExecutorService threadPool =
+        threadPool =
                 Executors.newFixedThreadPool(
                         THREAD_POOL_SIZE,
                         new ExecutorThreadFactory(
@@ -254,6 +256,10 @@ public class HBaseRowDataAsyncLookupFunction extends AsyncTableFunction<RowData>
                 // ignore exception when close.
                 LOG.warn("exception when close connection", e);
             }
+        }
+        if (null != threadPool) {
+            ExecutorUtils.gracefulShutdown(5, TimeUnit.SECONDS, threadPool);
+            threadPool = null;
         }
         LOG.info("end close.");
     }
