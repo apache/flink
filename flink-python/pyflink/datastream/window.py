@@ -19,7 +19,7 @@ import math
 from abc import ABC, abstractmethod
 from enum import Enum
 from io import BytesIO
-from typing import TypeVar, Generic, Iterable, Collection, Any, cast
+from typing import TypeVar, Generic, Iterable, Collection, Any, cast, Set, MutableMapping
 
 from pyflink.common import Time, Types
 from pyflink.common.serializer import TypeSerializer
@@ -1109,8 +1109,7 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-        
-        window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
+        window_merge_map = dict()  # type: MutableMapping[TimeWindow, Collection[TimeWindow]]
         current_merge_key = None  # type: TimeWindow
         current_merge_set = set()  # type: Set[TimeWindow]
 
@@ -1201,8 +1200,7 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-        
-        window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
+        window_merge_map = dict()  # type: MutableMapping[TimeWindow, Collection[TimeWindow]]
         current_merge_key = None  # type: TimeWindow
         current_merge_set = set()  # type: Set[TimeWindow]
 
@@ -1292,8 +1290,7 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-        
-        window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
+        window_merge_map = dict()  # type: MutableMapping[TimeWindow, Collection[TimeWindow]]
         current_merge_key = None  # type: TimeWindow
         current_merge_set = set()  # type: Set[TimeWindow]
 
@@ -1375,8 +1372,7 @@ class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
         window_list = [w for w in windows]
         window_list.sort()
-        
-        window_merge_map = dict()  # type: Mapping[TimeWindow, Collection[TimeWindow]]
+        window_merge_map = dict()  # type: MutableMapping[TimeWindow, Collection[TimeWindow]]
         current_merge_key = None  # type: TimeWindow
         current_merge_set = set()  # type: Set[TimeWindow]
 
