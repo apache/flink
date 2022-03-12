@@ -185,8 +185,6 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
                         .deliveryStreamName(deliveryStreamName)
                         .build();
 
-        LOG.trace("Request to submit {} entries to KDF using KDF Sink.", requestEntries.size());
-
         CompletableFuture<PutRecordBatchResponse> future =
                 firehoseClient.putRecordBatch(batchRequest);
 
@@ -214,8 +212,8 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
 
     private void handleFullyFailedRequest(
             Throwable err, List<Record> requestEntries, Consumer<List<Record>> requestResult) {
-        LOG.warn(
-                "KDF Sink failed to persist {} entries to KDF first request was {}",
+        LOG.debug(
+                "KDF Sink failed to write and will retry {} entries to KDF first request was {}",
                 requestEntries.size(),
                 requestEntries.get(0).toString(),
                 err);
@@ -231,8 +229,8 @@ class KinesisFirehoseSinkWriter<InputT> extends AsyncSinkWriter<InputT, Record> 
             PutRecordBatchResponse response,
             List<Record> requestEntries,
             Consumer<List<Record>> requestResult) {
-        LOG.warn(
-                "KDF Sink failed to persist {} entries to KDF first request was {}",
+        LOG.debug(
+                "KDF Sink failed to write and will retry {} entries to KDF first request was {}",
                 requestEntries.size(),
                 requestEntries.get(0).toString());
         numRecordsOutErrorsCounter.inc(response.failedPutCount());
