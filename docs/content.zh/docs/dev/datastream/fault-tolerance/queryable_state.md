@@ -143,7 +143,7 @@ descriptor.setQueryable("query-name"); // queryable state name
 </dependency>
 ```
 
-关于依赖的更多信息, 可以参考如何 [配置 Flink 项目]({{< ref "docs/dev/datastream/project-configuration" >}}).
+关于依赖的更多信息, 可以参考如何[配置 Flink 项目]({{< ref "docs/dev/configuration/overview" >}})。
 
 `QueryableStateClient` 将提交你的请求到内部代理，代理会处理请求并返回结果。客户端的初始化只需要提供一个有效的 `TaskManager` 主机名
 (每个 task manager 上都运行着一个 queryable state 代理)，以及代理监听的端口号。关于如何配置代理以及端口号可以参考 [Configuration Section](#configuration).
