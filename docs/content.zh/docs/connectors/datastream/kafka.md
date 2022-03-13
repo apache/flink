@@ -43,7 +43,7 @@ Apache Flink 集成了通用的 Kafka 连接器，它会尽力与 Kafka client �
 {{< artifact flink-connector-base >}}
 
 Flink 目前的流连接器还不是二进制发行版的一部分。
-[在此处]({{< ref "docs/dev/datastream/project-configuration" >}})可以了解到如何链接它们，从而在集群中运行。
+[在此处]({{< ref "docs/dev/configuration/overview" >}})可以了解到如何链接它们，从而在集群中运行。
 
 ## Kafka Source
 {{< hint info >}}

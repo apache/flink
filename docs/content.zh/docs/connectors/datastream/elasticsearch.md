@@ -52,7 +52,7 @@ under the License.
 </table>
 
 请注意，流连接器目前不是二进制发行版的一部分。
-有关如何将程序和用于集群执行的库一起打包，参考[此文档]({{< ref "docs/dev/datastream/project-configuration" >}})
+有关如何将程序和用于集群执行的库一起打包，参考[此文档]({{< ref "docs/dev/configuration/overview" >}})。
 
 ## 安装 Elasticsearch
 
@@ -373,7 +373,7 @@ checkpoint 会进行等待，直到 Elasticsearch 节点队列有足够的容量
 ## 将 Elasticsearch 连接器打包到 Uber-Jar 中
 
 建议构建一个包含所有依赖的 uber-jar (可执行的 jar)，以便更好地执行你的 Flink 程序。
-(更多信息参见[此文档]({{< ref "docs/dev/datastream/project-configuration" >}}))。
+(更多信息参见[此文档]({{< ref "docs/dev/configuration/overview" >}}))。
 
 或者，你可以将连接器的 jar 文件放入 Flink 的 `lib/` 目录下，使其在全局范围内可用，即可用于所有的作业。
 

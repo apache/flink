@@ -40,6 +40,7 @@ HBase 连接器在 upsert 模式下运行，可以使用 DDL 中定义的主键�
 
 {{< sql_download_table "hbase" >}}
 
+HBase 连接器不是二进制发行版的一部分，请查阅[这里]({{< ref "docs/dev/configuration/overview" >}})了解如何在集群运行中引用 HBase 连接器。
 
 如何使用 HBase 表
 ----------------

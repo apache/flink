@@ -36,7 +36,7 @@ Kafka 连接器提供从 Kafka topic 中消费和写入数据的能力。
 
 {{< sql_download_table "kafka" >}}
 
-Kafka 连接器目前并不包含在 Flink 的二进制发行版中，请查阅 [这里]({{< ref "docs/dev/datastream/project-configuration" >}}) 了解如何在集群运行中引用 Kafka 连接器。
+Kafka 连接器目前并不包含在 Flink 的二进制发行版中，请查阅[这里]({{< ref "docs/dev/configuration/overview" >}})了解如何在集群运行中引用 Kafka 连接器。
 
 如何创建 Kafka 表
 ----------------
