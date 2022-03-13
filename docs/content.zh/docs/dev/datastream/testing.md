@@ -151,11 +151,7 @@ class IncrementFlatMapFunctionTest extends FlatSpec with MockFactory {
 * `TwoInputStreamOperatorTestHarness` (f适用于两个 `DataStream` 的 `ConnectedStreams` 算子)
 * `KeyedTwoInputStreamOperatorTestHarness` (适用于两个 `KeyedStream` 上的 `ConnectedStreams` 算子)
 
-要使用测试工具，还需要一组其他的依赖项（测试范围）。
-
-{{< artifact flink-test-utils withTestScope >}}
-{{< artifact flink-runtime withTestScope >}}
-{{< artifact flink-streaming-java withTestScope withTestClassifier >}}
+要使用测试工具，还需要一组其他的依赖项，请查阅[配置]({{< ref "docs/dev/configuration/testing" >}})小节了解更多细节。
 
 现在，可以使用测试工具将记录和 watermark 推送到用户自定义函数或自定义算子中，控制处理时间，最后对算子的输出（包括旁路输出）进行校验。
 

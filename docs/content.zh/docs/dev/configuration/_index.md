@@ -1,7 +1,7 @@
 ---
-title: DataStream API
+title: "项目配置"
 bookCollapseSection: true
-weight: 2
+weight: 1
 ---
 <!--
 Licensed to the Apache Software Foundation (ASF) under one

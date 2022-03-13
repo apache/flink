@@ -38,8 +38,8 @@ FlinkCEP是在Flink上层实现的复杂事件处理库。
 
 ## 开始
 
-如果你想现在开始尝试，[创建一个Flink程序]({{< ref "docs/dev/datastream/project-configuration" >}})，
-添加FlinkCEP的依赖到项目的`pom.xml`文件中。
+如果你想现在开始尝试，[创建一个 Flink 程序]({{< ref "docs/dev/configuration/overview" >}})，
+添加 FlinkCEP 的依赖到项目的`pom.xml`文件中。
 
 {{< tabs "722d55a5-7f12-4bcc-b080-b28d5e8860ac" >}}
 {{< tab "Java" >}}
@@ -51,7 +51,7 @@ FlinkCEP是在Flink上层实现的复杂事件处理库。
 {{< /tabs >}}
 
 {{< hint info >}}
-FlinkCEP不是二进制发布包的一部分。在集群上执行如何链接它可以看[这里]({{< ref "docs/dev/datastream/project-configuration" >}})。
+FlinkCEP 不是二进制发布包的一部分。在集群上执行如何链接它可以看[这里]({{< ref "docs/dev/configuration/overview" >}})。
 {{< /hint >}}
 
 现在可以开始使用Pattern API写你的第一个CEP程序了。

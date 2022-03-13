@@ -40,6 +40,8 @@ Elasticsearch 连接器允许将数据写入到 Elasticsearch 引擎的索引中
 
 {{< sql_download_table "elastic" >}}
 
+Elasticsearch 连接器不是二进制发行版的一部分，请查阅[这里]({{< ref "docs/dev/configuration/overview" >}})了解如何在集群运行中引用 Elasticsearch 连接器。
+
 如何创建 Elasticsearch 表
 ----------------
 

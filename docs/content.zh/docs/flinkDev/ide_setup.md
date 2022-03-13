@@ -28,7 +28,7 @@ under the License.
 
 # 导入 Flink 到 IDE 中
 
-以下章节描述了如何将 Flink 项目导入到 IDE 中以进行 Flink 本身的源码开发。有关 Flink 程序编写的信息，请参阅 [Java API]({{< ref "docs/dev/datastream/project-configuration" >}}) 和 [Scala API]({{< ref "docs/dev/datastream/project-configuration" >}}) 快速入门指南。
+以下章节描述了如何将 Flink 项目导入到 IDE 中以进行 Flink 本身的源码开发。有关 Flink 程序编写的信息，请参阅 [Java API]({{< ref "docs/dev/configuration/overview" >}}) 和 [Scala API]({{< ref "docs/dev/configuration/overview" >}}) 快速入门指南。
 
 {{< hint info >}}
 每当你的 IDE 无法正常工作时，请优先尝试使用 Maven 命令行（`mvn clean package -DskipTests`），因为它可能是由于你的 IDE 中存在错误或未正确设置。

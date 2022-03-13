@@ -35,7 +35,7 @@ The NiFi connector is deprecated and will be removed with Flink 1.16.
 
 {{< artifact flink-connector-nifi >}}
 
-注意这些连接器目前还没有包含在二进制发行版中。添加依赖、打包配置以及集群运行的相关信息请参考 [这里]({{< ref "docs/dev/datastream/project-configuration" >}})。
+注意这些连接器目前还没有包含在二进制发行版中。添加依赖、打包配置以及集群运行的相关信息请参考 [这里]({{< ref "docs/dev/configuration/overview" >}})。
 
 #### 安装 Apache NiFi
 
