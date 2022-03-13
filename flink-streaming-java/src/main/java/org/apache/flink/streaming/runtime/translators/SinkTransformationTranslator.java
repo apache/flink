@@ -262,7 +262,10 @@ public class SinkTransformationTranslator<Input, Output>
                 if (isExpandedTopology && subUid != null && !subUid.isEmpty()) {
                     checkState(
                             transformation.getUid() != null && !transformation.getUid().isEmpty(),
-                            "Sink:" + transformation.getName() + " requires to set a uid");
+                            "Sink "
+                                    + transformation.getName()
+                                    + " requires to set a uid since its customized topology"
+                                    + " has set uid for some operators.");
                 }
 
                 concatUid(
