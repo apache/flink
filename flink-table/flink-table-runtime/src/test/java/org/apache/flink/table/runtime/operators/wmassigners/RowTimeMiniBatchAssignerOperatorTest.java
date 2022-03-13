@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import static org.junit.Assert.assertEquals;
 
 /** Tests of {@link RowTimeMiniBatchAssginerOperator}. */
-public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOperatorTestBase {
+public class RowTimeMiniBatchAssignerOperatorTest extends WatermarkAssignerOperatorTestBase {
 
     @Test
     public void testRowTimeWatermarkAssigner() throws Exception {
@@ -86,7 +86,7 @@ public class RowTimeMiniBatchAssginerOperatorTest extends WatermarkAssignerOpera
 
     @Test
     public void testEndWatermarkIsForwarded() throws Exception {
-        final RowTimeMiniBatchAssginerOperator operator = new RowTimeMiniBatchAssginerOperator(50);
+        final RowTimeMiniBatchAssignerOperator operator = new RowTimeMiniBatchAssignerOperator(50);
         OneInputStreamOperatorTestHarness<RowData, RowData> testHarness =
                 new OneInputStreamOperatorTestHarness<>(operator);
         testHarness.open();
