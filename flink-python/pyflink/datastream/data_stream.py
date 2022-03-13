@@ -1223,6 +1223,8 @@ class KeyedStream(DataStream):
 
         :param size: The size of the windows in number of elements.
         :param slide: The slide interval in number of elements.
+
+        .. versionadded:: 1.16.0
         """
         if slide == 0:
             return WindowedStream(self, CountTumblingWindowAssigner(size))

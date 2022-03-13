@@ -19,13 +19,13 @@ import math
 from abc import ABC, abstractmethod
 from enum import Enum
 from io import BytesIO
-from typing import TypeVar, Generic, Iterable, Collection, Any, cast, Set, MutableMapping
+from typing import TypeVar, Generic, Iterable, Collection, Any, cast
 
 from pyflink.common import Time, Types
 from pyflink.common.serializer import TypeSerializer
 from pyflink.datastream.functions import RuntimeContext, InternalWindowFunction
 from pyflink.datastream.state import StateDescriptor, ReducingStateDescriptor, \
-    ValueStateDescriptor, ValueState, State, ReducingState
+    ValueStateDescriptor, State, ReducingState
 from pyflink.metrics import MetricGroup
 
 __all__ = ['Window',
@@ -124,6 +124,38 @@ class TimeWindow(Window):
         :return: window start
         """
         return timestamp - (timestamp - offset + window_size) % window_size
+
+    @staticmethod
+    def merge_windows(windows: Iterable['TimeWindow'],
+                      callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
+        """
+        Merge overlapping :class`TimeWindow`.
+        """
+        sorted_windows = list(windows)
+        sorted_windows.sort()
+        merged = []
+        current_merge = None
+        current_merge_set = set()
+
+        for candidate in sorted_windows:
+            if current_merge is None:
+                current_merge = candidate
+                current_merge_set.add(candidate)
+            elif current_merge.intersects(candidate):
+                current_merge = current_merge.cover(candidate)
+                current_merge_set.add(candidate)
+            else:
+                merged.append((current_merge, current_merge_set))
+                current_merge = candidate
+                current_merge_set = set()
+                current_merge_set.add(candidate)
+
+        if current_merge is not None:
+            merged.append((current_merge, current_merge_set))
+
+        for merge_key, merge_set in merged:
+            if len(merge_set) > 1:
+                callback.merge(merge_set, merge_key)
 
     def __hash__(self):
         return self.start + mod_inverse((self.end << 1) + 1)
@@ -595,15 +627,15 @@ class EventTimeTrigger(Trigger[T, TimeWindow]):
             # No action is taken on the window.
             return TriggerResult.CONTINUE
 
+    def can_merge(self) -> bool:
+        return True
+
     def on_merge(self,
                  window: TimeWindow,
                  ctx: 'Trigger.OnMergeContext') -> None:
         window_max_timestamp = window.max_timestamp()
         if window_max_timestamp > ctx.get_current_watermark():
             ctx.register_event_time_timer(window_max_timestamp)
-
-    def can_merge(self) -> bool:
-        return True
 
     def clear(self,
               window: TimeWindow,
@@ -637,15 +669,15 @@ class ProcessingTimeTrigger(Trigger[T, TimeWindow]):
                       ctx: 'Trigger.TriggerContext') -> TriggerResult:
         return TriggerResult.CONTINUE
 
+    def can_merge(self) -> bool:
+        return True
+
     def on_merge(self,
                  window: TimeWindow,
                  ctx: 'Trigger.OnMergeContext') -> None:
         window_max_timestamp = window.max_timestamp()
         if window_max_timestamp > ctx.get_current_processing_time():
             ctx.register_processing_time_timer(window_max_timestamp)
-
-    def can_merge(self) -> bool:
-        return True
 
     def clear(self,
               window: TimeWindow,
@@ -661,19 +693,19 @@ class CountTrigger(Trigger[T, CountWindow]):
     def __init__(self, window_size: int):
         self._window_size = window_size
         self._count_state_descriptor = ReducingStateDescriptor(
-            "trigger_counter", lambda a, b: a + b, Types.LONG())
+            "count", lambda a, b: a + b, Types.LONG())
 
     def on_element(self,
                    element: T,
                    timestamp: int,
                    window: CountWindow,
                    ctx: Trigger.TriggerContext) -> TriggerResult:
-        reduce_state = cast(ReducingState, ctx.get_partitioned_state(self._count_state_descriptor))
-        reduce_state.add(1)
-        if reduce_state.get() >= self._window_size:
+        count_state = cast(ReducingState, ctx.get_partitioned_state(self._count_state_descriptor))
+        count_state.add(1)
+        if count_state.get() >= self._window_size:
             # On FIRE, the window is evaluated and results are emitted. The window is not purged
-            #               though, all elements are retained.
-            reduce_state.clear()
+            # though, all elements are retained.
+            count_state.clear()
             return TriggerResult.FIRE
         else:
             # No action is taken on the window.
@@ -693,15 +725,15 @@ class CountTrigger(Trigger[T, CountWindow]):
         # No action is taken on the window.
         return TriggerResult.CONTINUE
 
-    def on_merge(self, window: CountWindow, ctx: Trigger.OnMergeContext) -> None:
-        ctx.merge_partitioned_state(self._count_state_descriptor)
-
     def can_merge(self) -> bool:
         return True
 
+    def on_merge(self, window: CountWindow, ctx: Trigger.OnMergeContext) -> None:
+        ctx.merge_partitioned_state(self._count_state_descriptor)
+
     def clear(self, window: CountWindow, ctx: Trigger.TriggerContext) -> None:
-        state = ctx.get_partitioned_state(self._count_state_descriptor)
-        state.clear()
+        count_state = ctx.get_partitioned_state(self._count_state_descriptor)
+        count_state.clear()
 
 
 class CountTumblingWindowAssigner(WindowAssigner[T, CountWindow]):
@@ -712,30 +744,27 @@ class CountTumblingWindowAssigner(WindowAssigner[T, CountWindow]):
 
     def __init__(self, window_size: int):
         """
-        Windows this KeyedStream into tumbling count windows.
-
         :param window_size: The size of the windows in number of elements.
         """
         self._window_size = window_size
         self._count_descriptor = ValueStateDescriptor('tumble-count-assigner', Types.LONG())
 
     @staticmethod
-    def of(window_size: int):
+    def of(window_size: int) -> 'CountTumblingWindowAssigner':
         return CountTumblingWindowAssigner(window_size)
 
     def assign_windows(self,
                        element: T,
                        timestamp: int,
                        context: 'WindowAssigner.WindowAssignerContext') -> Collection[CountWindow]:
-        count = context.get_runtime_context().get_state(self._count_descriptor)
-        count_value = count.value()
+        count_state = context.get_runtime_context().get_state(self._count_descriptor)
+        count_value = count_state.value()
         if count_value is None:
             current_count = 0
         else:
             current_count = count_value
-        count.update(current_count + 1)
-        result = [CountWindow(current_count // self._window_size)]
-        return result
+        count_state.update(current_count + 1)
+        return [CountWindow(current_count // self._window_size)]
 
     def get_default_trigger(self, env) -> Trigger[T, CountWindow]:
         return CountTrigger(self._window_size)
@@ -758,8 +787,6 @@ class CountSlidingWindowAssigner(WindowAssigner[T, CountWindow]):
 
     def __init__(self, window_size: int, window_slide: int):
         """
-        Windows this KeyedStream into sliding count windows.
-
         :param window_size: The size of the windows in number of elements.
         :param window_slide: The slide interval in number of elements.
         """
@@ -767,17 +794,21 @@ class CountSlidingWindowAssigner(WindowAssigner[T, CountWindow]):
         self._window_slide = window_slide
         self._count_descriptor = ValueStateDescriptor('slide-count-assigner', Types.LONG())
 
+    @staticmethod
+    def of(window_size: int, window_slide: int) -> 'CountSlidingWindowAssigner':
+        return CountSlidingWindowAssigner(window_size, window_slide)
+
     def assign_windows(self,
                        element: T,
                        timestamp: int,
                        context: 'WindowAssigner.WindowAssignerContext') -> Collection[CountWindow]:
-        count = context.get_runtime_context().get_state(self._count_descriptor)  # type: ValueState
-        count_value = count.value()
+        count_state = context.get_runtime_context().get_state(self._count_descriptor)
+        count_value = count_state.value()
         if count_value is None:
             current_count = 0
         else:
             current_count = count_value
-        count.update(current_count + 1)
+        count_state.update(current_count + 1)
         last_id = current_count // self._window_slide
         last_start = last_id * self._window_slide
         last_end = last_start + self._window_size - 1
@@ -823,6 +854,30 @@ class TumblingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
         self._size = size
         self._offset = offset
 
+    @staticmethod
+    def of(size: Time, offset: Time = None) -> 'TumblingProcessingTimeWindows':
+        """
+        Creates a new :class:`TumblingProcessingTimeWindows` :class:`WindowAssigner` that assigns
+        elements to time windows based on the element timestamp and offset.
+
+        For example, if you want window a stream by hour, but window begins at the 15th minutes of
+        each hour, you can use of(Time.hours(1), Time.minutes(15)), then you will get time
+        windows start at 0:15:00,1:15:00,2:15:00,etc.
+
+        Rather than that, if you are living in somewhere which is not using UTC±00:00 time, such as
+        China which is using UTC+08:00, and you want a time window with size of one day, and window
+        begins at every 00:00:00 of local time, you may use of(Time.days(1), Time.hours(-8)).
+        The parameter of offset is Time.hours(-8) since UTC+08:00 is 8 hours earlier than UTC time.
+
+        :param size The size of the generated windows.
+        :param offset The offset which window start would be shifted by.
+        :return The time policy.
+        """
+        if offset is None:
+            return TumblingProcessingTimeWindows(size.to_milliseconds(), 0)
+        else:
+            return TumblingProcessingTimeWindows(size.to_milliseconds(), offset.to_milliseconds())
+
     def assign_windows(self,
                        element: T,
                        timestamp: int,
@@ -834,31 +889,6 @@ class TumblingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
 
     def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
         return ProcessingTimeTrigger()
-
-    @staticmethod
-    def of(size: Time, offset=None):
-        """
-        Creates a new {@code TumblingProcessingTimeWindows} :class:`WindowAssigner` that assigns
-        elements to time windows based on the element timestamp and offset.
-
-        For example, if you want window a stream by hour,but window begins at the 15th minutes of
-        each hour, you can use {@code of(Time.hours(1),Time.minutes(15))},then you will get time
-        windows start at 0:15:00,1:15:00,2:15:00,etc.
-
-        Rather than that,if you are living in somewhere which is not using UTC±00:00 time, such as
-        China which is using UTC+08:00,and you want a time window with size of one day, and window
-        begins at every 00:00:00 of local time,you may use {@code of(Time.days(1),Time.hours(-8))}.
-        The parameter of offset is {@code Time.hours(-8))} since UTC+08:00 is 8 hours earlier than
-        UTC time.
-
-        :param size The size of the generated windows.
-        :param offset The offset which window start would be shifted by.
-        :return The time policy.
-        """
-        if offset is None:
-            return TumblingProcessingTimeWindows(size.to_milliseconds(), 0)
-        else:
-            return TumblingProcessingTimeWindows(size.to_milliseconds(), offset.to_milliseconds())
 
     def get_window_serializer(self) -> TypeSerializer[TimeWindow]:
         return TimeWindowSerializer()
@@ -890,6 +920,21 @@ class TumblingEventTimeWindows(WindowAssigner[T, TimeWindow]):
         self._size = size
         self._offset = offset
 
+    @staticmethod
+    def of(size: Time, offset: Time = None) -> 'TumblingEventTimeWindows':
+        """
+        Creates a new TumblingEventTimeWindows WindowAssigner that assigns elements
+        to time windows based on the element timestamp, offset and a staggering offset, depending on
+        the staggering policy.
+
+        :param size The size of the generated windows.
+        :param offset The globalOffset which window start would be shifted by.
+        """
+        if offset is None:
+            return TumblingEventTimeWindows(size.to_milliseconds(), 0)
+        else:
+            return TumblingEventTimeWindows(size.to_milliseconds(), offset.to_milliseconds())
+
     def assign_windows(self,
                        element: T,
                        timestamp: int,
@@ -905,21 +950,6 @@ class TumblingEventTimeWindows(WindowAssigner[T, TimeWindow]):
 
     def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
         return EventTimeTrigger()
-
-    @staticmethod
-    def of(size: Time, offset: Time = None):
-        """
-        Creates a new TumblingEventTimeWindows WindowAssigner that assigns elements
-        to time windows based on the element timestamp, offset and a staggering offset, depending on
-        the staggering policy.
-
-        :param size The size of the generated windows.
-        :param offset The globalOffset which window start would be shifted by.
-        """
-        if offset is None:
-            return TumblingEventTimeWindows(size.to_milliseconds(), 0)
-        else:
-            return TumblingEventTimeWindows(size.to_milliseconds(), offset.to_milliseconds())
 
     def get_window_serializer(self) -> TypeSerializer[TimeWindow]:
         return TimeWindowSerializer()
@@ -954,6 +984,32 @@ class SlidingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
         self._offset = offset
         self._pane_size = math.gcd(size, slide)
 
+    @staticmethod
+    def of(size: Time, slide: Time, offset: Time = None) -> 'SlidingProcessingTimeWindows':
+        """
+        Creates a new :class:`SlidingProcessingTimeWindows` :class:`WindowAssigner` that assigns
+        elements to time windows based on the element timestamp and offset.
+
+        For example, if you want window a stream by hour,but window begins at the 15th minutes of
+        each hour, you can use of(Time.hours(1),Time.minutes(15)),then you will get time
+        windows start at 0:15:00,1:15:00,2:15:00,etc.
+
+        Rather than that, if you are living in somewhere which is not using UTC±00:00 time, such as
+        China which is using UTC+08:00, and you want a time window with size of one day, and window
+        begins at every 00:00:00 of local time,you may use of(Time.days(1),Time.hours(-8)).
+        The parameter of offset is Time.hours(-8) since UTC+08:00 is 8 hours earlier than UTC time.
+
+        :param size The size of the generated windows.
+        :param slide The slide interval of the generated windows.
+        :param offset The offset which window start would be shifted by.
+        :return The time policy.
+        """
+        if offset is None:
+            return SlidingProcessingTimeWindows(size.to_milliseconds(), slide.to_milliseconds(), 0)
+        else:
+            return SlidingProcessingTimeWindows(size.to_milliseconds(), slide.to_milliseconds(),
+                                                offset.to_milliseconds())
+
     def assign_windows(self,
                        element: T,
                        timestamp: int,
@@ -968,33 +1024,6 @@ class SlidingProcessingTimeWindows(WindowAssigner[T, TimeWindow]):
 
     def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
         return ProcessingTimeTrigger()
-
-    @staticmethod
-    def of(size: Time, slide: Time, offset: Time = None):
-        """
-        Creates a new :class:`SlidingProcessingTimeWindows` :class:`WindowAssigner` that assigns
-        elements to time windows based on the element timestamp and offset.
-
-        For example, if you want window a stream by hour,but window begins at the 15th minutes of
-        each hour, you can use {@code of(Time.hours(1),Time.minutes(15))},then you will get time
-        windows start at 0:15:00,1:15:00,2:15:00,etc.
-
-        Rather than that,if you are living in somewhere which is not using UTC±00:00 time, such as
-        China which is using UTC+08:00,and you want a time window with size of one day, and window
-        begins at every 00:00:00 of local time,you may use {@code of(Time.days(1),Time.hours(-8))}.
-        The parameter of offset is {@code Time.hours(-8))} since UTC+08:00 is 8 hours earlier than
-        UTC time.
-
-        :param size The size of the generated windows.
-        :param slide The slide interval of the generated windows.
-        :param offset The offset which window start would be shifted by.
-        :return The time policy.
-        """
-        if offset is None:
-            return SlidingProcessingTimeWindows(size.to_milliseconds(), slide.to_milliseconds(), 0)
-        else:
-            return SlidingProcessingTimeWindows(size.to_milliseconds(), slide.to_milliseconds(),
-                                                offset.to_milliseconds())
 
     def get_window_serializer(self) -> TypeSerializer[TimeWindow]:
         return TimeWindowSerializer()
@@ -1029,6 +1058,32 @@ class SlidingEventTimeWindows(WindowAssigner[T, TimeWindow]):
         self._offset = offset
         self._pane_size = math.gcd(size, slide)
 
+    @staticmethod
+    def of(size: Time, slide: Time, offset: Time = None) -> 'SlidingEventTimeWindows':
+        """
+        Creates a new :class:`SlidingEventTimeWindows` :class:`WindowAssigner` that assigns elements
+        to time windows based on the element timestamp and offset.
+
+        For example, if you want window a stream by hour,but window begins at the 15th minutes of
+        each hour, you can use of(Time.hours(1),Time.minutes(15)),then you will get time
+        windows start at 0:15:00,1:15:00,2:15:00,etc.
+
+        Rather than that, if you are living in somewhere which is not using UTC±00:00 time, such as
+        China which is using UTC+08:00, and you want a time window with size of one day, and window
+        begins at every 00:00:00 of local time,you may use of(Time.days(1),Time.hours(-8)).
+        The parameter of offset is Time.hours(-8) since UTC+08:00 is 8 hours earlier than UTC time.
+
+        :param size The size of the generated windows.
+        :param slide The slide interval of the generated windows.
+        :param offset The offset which window start would be shifted by.
+        :return The time policy.
+        """
+        if offset is None:
+            return SlidingEventTimeWindows(size.to_milliseconds(), slide.to_milliseconds(), 0)
+        else:
+            return SlidingEventTimeWindows(size.to_milliseconds(), slide.to_milliseconds(),
+                                           offset.to_milliseconds())
+
     def assign_windows(self,
                        element: T,
                        timestamp: int,
@@ -1047,33 +1102,6 @@ class SlidingEventTimeWindows(WindowAssigner[T, TimeWindow]):
 
     def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
         return EventTimeTrigger()
-
-    @staticmethod
-    def of(size: Time, slide: Time, offset: Time = None):
-        """
-        Creates a new :class:`SlidingEventTimeWindows` :class:`WindowAssigner` that assigns elements
-        to time windows based on the element timestamp and offset.
-
-        For example, if you want window a stream by hour,but window begins at the 15th minutes of
-        each hour, you can use {@code of(Time.hours(1),Time.minutes(15))},then you will get time
-        windows start at 0:15:00,1:15:00,2:15:00,etc.
-
-        Rather than that,if you are living in somewhere which is not using UTC±00:00 time, such as
-        China which is using UTC+08:00,and you want a time window with size of one day, and window
-        begins at every 00:00:00 of local time,you may use {@code of(Time.days(1),Time.hours(-8))}.
-        The parameter of offset is {@code Time.hours(-8))} since UTC+08:00 is 8 hours earlier than
-        UTC time.
-
-        :param size The size of the generated windows.
-        :param slide The slide interval of the generated windows.
-        :param offset The offset which window start would be shifted by.
-        :return The time policy.
-        """
-        if offset is None:
-            return SlidingEventTimeWindows(size.to_milliseconds(), slide.to_milliseconds(), 0)
-        else:
-            return SlidingEventTimeWindows(size.to_milliseconds(), slide.to_milliseconds(),
-                                           offset.to_milliseconds())
 
     def get_window_serializer(self) -> TypeSerializer[TimeWindow]:
         return TimeWindowSerializer()
@@ -1104,47 +1132,8 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
         self._session_gap = session_gap
 
-    def merge_windows(self,
-                      windows: Iterable[TimeWindow],
-                      callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
-        window_list = [w for w in windows]
-        window_list.sort()
-        window_merge_map = dict()  # type: MutableMapping[TimeWindow, Collection[TimeWindow]]
-        current_merge_key = None  # type: TimeWindow
-        current_merge_set = set()  # type: Set[TimeWindow]
-
-        for window in window_list:
-            if current_merge_key is None:
-                current_merge_key = window
-                current_merge_set.add(window)
-            elif current_merge_key.intersects(window):
-                current_merge_key = current_merge_key.cover(window)
-                current_merge_set.add(window)
-            else:
-                window_merge_map[current_merge_key] = current_merge_set
-                current_merge_key = window
-                current_merge_set = set()
-
-        if current_merge_key is not None:
-            window_merge_map[current_merge_key] = current_merge_set
-
-        for merge_key, merge_set in window_merge_map.items():
-            if len(merge_set) > 1:
-                callback.merge(merge_set, merge_key)
-
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
-        timestamp = context.get_current_processing_time()
-
-        return [TimeWindow(timestamp, timestamp + self._session_gap)]
-
-    def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
-        return ProcessingTimeTrigger()
-
     @staticmethod
-    def with_gap(size: Time):
+    def with_gap(size: Time) -> 'ProcessingTimeSessionWindows':
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on
         the element timestamp.
@@ -1155,16 +1144,31 @@ class ProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         return ProcessingTimeSessionWindows(size.to_milliseconds())
 
     @staticmethod
-    def with_dynamic_gap(session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
+    def with_dynamic_gap(
+            extractor: SessionWindowTimeGapExtractor) -> 'DynamicProcessingTimeSessionWindows':
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on the
         element timestamp.
 
-        :param session_window_time_gap_extractor: The extractor to use to extract the time gap
-                                                  from the input elements.
+        :param extractor: The extractor to use to extract the time gap from the input elements.
         :return: The policy.
         """
-        return DynamicProcessingTimeSessionWindows(session_window_time_gap_extractor)
+        return DynamicProcessingTimeSessionWindows(extractor)
+
+    def merge_windows(self,
+                      windows: Iterable[TimeWindow],
+                      callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
+        TimeWindow.merge_windows(windows, callback)
+
+    def assign_windows(self,
+                       element: T,
+                       timestamp: int,
+                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
+        timestamp = context.get_current_processing_time()
+        return [TimeWindow(timestamp, timestamp + self._session_gap)]
+
+    def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
+        return ProcessingTimeTrigger()
 
     def get_window_serializer(self) -> TypeSerializer[TimeWindow]:
         return TimeWindowSerializer()
@@ -1195,46 +1199,8 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
         self._session_gap = session_gap
 
-    def merge_windows(self,
-                      windows: Iterable[TimeWindow],
-                      callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
-        window_list = [w for w in windows]
-        window_list.sort()
-        window_merge_map = dict()  # type: MutableMapping[TimeWindow, Collection[TimeWindow]]
-        current_merge_key = None  # type: TimeWindow
-        current_merge_set = set()  # type: Set[TimeWindow]
-
-        for window in window_list:
-            if current_merge_key is None:
-                current_merge_key = window
-                current_merge_set.add(window)
-            elif current_merge_key.intersects(window):
-                current_merge_key = current_merge_key.cover(window)
-                current_merge_set.add(window)
-            else:
-                window_merge_map[current_merge_key] = current_merge_set
-                current_merge_key = window
-                current_merge_set = set()
-
-        if current_merge_key is not None:
-            window_merge_map[current_merge_key] = current_merge_set
-
-        for merge_key, merge_set in window_merge_map.items():
-            if len(merge_set) > 1:
-                callback.merge(merge_set, merge_key)
-
-    def assign_windows(self,
-                       element: T,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
-
-        return [TimeWindow(timestamp, timestamp + self._session_gap)]
-
-    def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
-        return EventTimeTrigger()
-
     @staticmethod
-    def with_gap(size: Time):
+    def with_gap(size: Time) -> 'EventTimeSessionWindows':
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions
         based on the element timestamp.
@@ -1245,16 +1211,30 @@ class EventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         return EventTimeSessionWindows(size.to_milliseconds())
 
     @staticmethod
-    def with_dynamic_gap(session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
+    def with_dynamic_gap(
+            extractor: SessionWindowTimeGapExtractor) -> 'DynamicEventTimeSessionWindows':
         """
         Creates a new SessionWindows WindowAssigner that assigns elements to sessions based on
         the element timestamp.
 
-        :param session_window_time_gap_extractor: The extractor to use to extract the time gap
-                                                  from the input elements.
+        :param extractor: The extractor to use to extract the time gap from the input elements.
         :return: The policy.
         """
-        return DynamicEventTimeSessionWindows(session_window_time_gap_extractor)
+        return DynamicEventTimeSessionWindows(extractor)
+
+    def merge_windows(self,
+                      windows: Iterable[TimeWindow],
+                      callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
+        TimeWindow.merge_windows(windows, callback)
+
+    def assign_windows(self,
+                       element: T,
+                       timestamp: int,
+                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
+        return [TimeWindow(timestamp, timestamp + self._session_gap)]
+
+    def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
+        return EventTimeTrigger()
 
     def get_window_serializer(self) -> TypeSerializer[TimeWindow]:
         return TimeWindowSerializer()
@@ -1276,8 +1256,7 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
     ::
 
         >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
-        ...     .window(DynamicProcessingTimeSessionWindows.with_dynamic_gap(
-        ...         SessionWindowTimeGapExtractor))
+        ...     .window(DynamicProcessingTimeSessionWindows.with_dynamic_gap(extractor))
     """
 
     def __init__(self,
@@ -1285,33 +1264,22 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
         self._session_gap = 0
         self._session_window_time_gap_extractor = session_window_time_gap_extractor
 
+    @staticmethod
+    def with_dynamic_gap(
+            extractor: SessionWindowTimeGapExtractor) -> 'DynamicProcessingTimeSessionWindows':
+        """
+        Creates a new SessionWindows WindowAssigner that assigns elements to sessions based
+        on the element timestamp.
+
+        :param extractor: The extractor to use to extract the time gap from the input elements.
+        :return: The policy.
+        """
+        return DynamicProcessingTimeSessionWindows(extractor)
+
     def merge_windows(self,
                       windows: Iterable[TimeWindow],
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
-        window_list = [w for w in windows]
-        window_list.sort()
-        window_merge_map = dict()  # type: MutableMapping[TimeWindow, Collection[TimeWindow]]
-        current_merge_key = None  # type: TimeWindow
-        current_merge_set = set()  # type: Set[TimeWindow]
-
-        for window in window_list:
-            if current_merge_key is None:
-                current_merge_key = window
-                current_merge_set.add(window)
-            elif current_merge_key.intersects(window):
-                current_merge_key = current_merge_key.cover(window)
-                current_merge_set.add(window)
-            else:
-                window_merge_map[current_merge_key] = current_merge_set
-                current_merge_key = window
-                current_merge_set = set()
-
-        if current_merge_key is not None:
-            window_merge_map[current_merge_key] = current_merge_set
-
-        for merge_key, merge_set in window_merge_map.items():
-            if len(merge_set) > 1:
-                callback.merge(merge_set, merge_key)
+        TimeWindow.merge_windows(windows, callback)
 
     def assign_windows(self,
                        element: T,
@@ -1326,18 +1294,6 @@ class DynamicProcessingTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
         return ProcessingTimeTrigger()
-
-    @staticmethod
-    def with_dynamic_gap(session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
-        """
-        Creates a new SessionWindows WindowAssigner that assigns elements to sessions based
-        on the element timestamp.
-
-        :param session_window_time_gap_extractor: The extractor to use to extract the time
-                                                  gap from the input elements.
-        :return: The policy.
-        """
-        return DynamicProcessingTimeSessionWindows(session_window_time_gap_extractor)
 
     def get_window_serializer(self) -> TypeSerializer[TimeWindow]:
         return TimeWindowSerializer()
@@ -1359,41 +1315,29 @@ class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
     ::
 
         >>> data_stream.key_by(lambda x: x[0], key_type=Types.STRING()) \\
-        ...     .window(DynamicEventTimeSessionWindows.with_dynamic_gap(
-        ...         SessionWindowTimeGapExtractor))
+        ...     .window(DynamicEventTimeSessionWindows.with_dynamic_gap(extractor))
     """
     def __init__(self,
                  session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
         self._session_gap = 0
         self._session_window_time_gap_extractor = session_window_time_gap_extractor
 
+    @staticmethod
+    def with_dynamic_gap(
+            extractor: SessionWindowTimeGapExtractor) -> 'DynamicEventTimeSessionWindows':
+        """
+        Creates a new SessionWindows WindowAssigner that assigns elements to sessions
+        based on the element timestamp.
+
+        :param extractor: The extractor to use to extract the time gap from the input elements.
+        :return: The policy.
+        """
+        return DynamicEventTimeSessionWindows(extractor)
+
     def merge_windows(self,
                       windows: Iterable[TimeWindow],
                       callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
-        window_list = [w for w in windows]
-        window_list.sort()
-        window_merge_map = dict()  # type: MutableMapping[TimeWindow, Collection[TimeWindow]]
-        current_merge_key = None  # type: TimeWindow
-        current_merge_set = set()  # type: Set[TimeWindow]
-
-        for window in window_list:
-            if current_merge_key is None:
-                current_merge_key = window
-                current_merge_set.add(window)
-            elif current_merge_key.intersects(window):
-                current_merge_key = current_merge_key.cover(window)
-                current_merge_set.add(window)
-            else:
-                window_merge_map[current_merge_key] = current_merge_set
-                current_merge_key = window
-                current_merge_set = set()
-
-        if current_merge_key is not None:
-            window_merge_map[current_merge_key] = current_merge_set
-
-        for merge_key, merge_set in window_merge_map.items():
-            if len(merge_set) > 1:
-                callback.merge(merge_set, merge_key)
+        TimeWindow.merge_windows(windows, callback)
 
     def assign_windows(self,
                        element: T,
@@ -1407,18 +1351,6 @@ class DynamicEventTimeSessionWindows(MergingWindowAssigner[T, TimeWindow]):
 
     def get_default_trigger(self, env) -> Trigger[T, TimeWindow]:
         return EventTimeTrigger()
-
-    @staticmethod
-    def with_dynamic_gap(session_window_time_gap_extractor: SessionWindowTimeGapExtractor):
-        """
-        Creates a new SessionWindows WindowAssigner that assigns elements to sessions
-        based on the element timestamp.
-
-        :param session_window_time_gap_extractor: The extractor to use to extract the
-                                                  time gap from the input elements.
-        :return: The policy.
-        """
-        return DynamicEventTimeSessionWindows(session_window_time_gap_extractor)
 
     def get_window_serializer(self) -> TypeSerializer[TimeWindow]:
         return TimeWindowSerializer()

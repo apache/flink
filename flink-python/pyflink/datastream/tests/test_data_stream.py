@@ -1202,7 +1202,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
     def test_event_time_dynamic_gap_session_window(self):
         self.env.set_parallelism(1)
         data_stream = self.env.from_collection([
-            ('hi', 1), ('hi', 2), ('hi', 3), ('hi', 4), ('hi', 8), ('hi', 9), ('hi', 15)],
+            ('hi', 1), ('hi', 2), ('hi', 3), ('hi', 4), ('hi', 9), ('hi', 9), ('hi', 15)],
             type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
         watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
             .with_timestamp_assigner(SecondColumnTimestampAssigner())
@@ -1215,7 +1215,7 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
 
         self.env.execute('test_event_time_dynamic_gap_session_window')
         results = self.test_sink.get_results()
-        expected = ['(hi,1)', '(hi,3)', '(hi,3)']
+        expected = ['(hi,3)', '(hi,4)']
         self.assert_equals_sorted(expected, results)
 
 
