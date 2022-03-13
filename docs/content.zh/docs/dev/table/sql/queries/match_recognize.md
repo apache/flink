@@ -84,7 +84,7 @@ Flink 的 `MATCH_RECOGNIZE` 子句实现是一个完整标准子集。仅支持�
 </dependency>
 ```
 
-或者，也可以将依赖项添加到集群的 classpath（查看 [dependency section]({{< ref "docs/dev/datastream/project-configuration" >}}) 获取更多相关依赖信息）。
+或者，也可以将依赖项添加到集群的 classpath（查看 [dependency section]({{< ref "docs/dev/configuration/overview" >}}) 获取更多相关依赖信息）。
 
 如果你想在 [SQL Client]({{< ref "docs/dev/table/sqlClient" >}}) 中使用 `MATCH_RECOGNIZE` 子句，你无需执行任何操作，因为默认情况下包含所有依赖项。
 
