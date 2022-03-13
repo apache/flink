@@ -117,6 +117,11 @@ import static org.apache.flink.util.Preconditions.checkState;
  * finished} state while any {@code in-progress} files are rolled back, so that they do not contain
  * data that arrived after the checkpoint from which we restore.
  *
+ * <p>FileSink also support compacting small files to accelerate the access speed of the resulted
+ * files. Compaction could be enabled via {@code enableCompact}. Once enabled, the compaction could
+ * only be disabled via calling {@code disableCompact} explicitly, otherwise there might be data
+ * loss.
+ *
  * @param <IN> Type of the elements in the input of the sink that are also the elements to be
  *     written to its output
  */
