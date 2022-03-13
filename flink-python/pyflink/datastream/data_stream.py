@@ -22,7 +22,8 @@ from typing import Callable, Union, List, cast
 from pyflink.common import typeinfo, ExecutionConfig, Row
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.window import (TimeWindowSerializer, CountWindowSerializer, WindowAssigner,
-                                       Trigger, WindowOperationDescriptor)
+                                       Trigger, WindowOperationDescriptor,
+                                       CountTumblingWindowAssigner, CountSlidingWindowAssigner)
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream.connectors import Sink
@@ -38,7 +39,6 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor
 from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.java_gateway import get_gateway
-
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
            'DataStreamSink', 'CloseableIterator']
@@ -825,6 +825,7 @@ class DataStream(object):
                 assert isinstance(value, Row)
                 return '{}[{}]'.format(value.get_row_kind(),
                                        ','.join([str(item) for item in value._values]))
+
             transformed_data_stream = DataStream(
                 self.map(python_obj_to_str_map_func,
                          output_type=Types.STRING())._j_data_stream)
@@ -1215,6 +1216,20 @@ class KeyedStream(DataStream):
         :return: The trigger windows data stream.
         """
         return WindowedStream(self, window_assigner)
+
+    def count_window(self, size: int, slide=0):
+        """
+        Windows this KeyedStream into tumbling or sliding count windows.
+
+        :param size: The size of the windows in number of elements.
+        :param slide: The slide interval in number of elements.
+
+        .. versionadded:: 1.16.0
+        """
+        if slide == 0:
+            return WindowedStream(self, CountTumblingWindowAssigner(size))
+        else:
+            return WindowedStream(self, CountSlidingWindowAssigner(size, slide))
 
     def union(self, *streams) -> 'DataStream':
         return self._values().union(*streams)

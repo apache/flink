@@ -19,26 +19,20 @@ import datetime
 import decimal
 import os
 import uuid
-from typing import Collection, Iterable
 
 from pyflink.common import Row, Configuration
 from pyflink.common.time import Time
-from pyflink.common.serializer import TypeSerializer
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
-from pyflink.datastream import (TimeCharacteristic, RuntimeContext, WindowAssigner, Trigger,
-                                TriggerResult, CountWindow, SlotSharingGroup)
+from pyflink.datastream import (TimeCharacteristic, RuntimeContext, SlotSharingGroup)
 from pyflink.datastream.data_stream import DataStream
 from pyflink.datastream.functions import (AggregateFunction, CoMapFunction, CoFlatMapFunction,
                                           MapFunction, FilterFunction, FlatMapFunction,
                                           KeyedCoProcessFunction, KeyedProcessFunction, KeySelector,
-                                          ProcessFunction, ProcessWindowFunction, ReduceFunction,
-                                          WindowFunction)
+                                          ProcessFunction, ReduceFunction)
 from pyflink.datastream.state import (ValueStateDescriptor, ListStateDescriptor, MapStateDescriptor,
                                       ReducingStateDescriptor, ReducingState, AggregatingState,
                                       AggregatingStateDescriptor, StateTtlConfig)
-from pyflink.datastream.window import (CountWindowSerializer, MergingWindowAssigner, TimeWindow,
-                                       TimeWindowSerializer)
 from pyflink.java_gateway import get_gateway
 from pyflink.datastream.tests.test_util import DataStreamTestSinkFunction
 from pyflink.testing.test_case_utils import PyFlinkBatchTestCase, PyFlinkStreamingTestCase
@@ -178,8 +172,8 @@ class DataStreamTests(object):
         ds_2 = ds_1.map(lambda x: x * 2)
 
         (ds_1.connect(ds_2).flat_map(MyCoFlatMapFunction(), output_type=Types.INT())
-             .connect(ds_2).map(MyCoMapFunction(), output_type=Types.INT())
-             .add_sink(self.test_sink))
+            .connect(ds_2).map(MyCoMapFunction(), output_type=Types.INT())
+            .add_sink(self.test_sink))
         self.env.execute("test_basic_co_operations_with_output_type")
         results = self.test_sink.get_results()
         expected = ['4', '5', '6', '7', '8', '3', '5', '7', '9', '11', '3', '5', '7', '9', '11']
@@ -505,7 +499,7 @@ class DataStreamTests(object):
     def test_basic_array_type_info(self):
         ds = self.env.from_collection([(1, [1.1, None, 1.30], [None, 'hi', 'flink']),
                                        (2, [None, 2.2, 2.3], ['hello', None, 'flink']),
-                                      (3, [3.1, 3.2, None], ['hello', 'hi', None])],
+                                       (3, [3.1, 3.2, None], ['hello', 'hi', None])],
                                       type_info=Types.ROW([Types.INT(),
                                                            Types.BASIC_ARRAY(Types.FLOAT()),
                                                            Types.BASIC_ARRAY(Types.STRING())]))
@@ -759,39 +753,6 @@ class DataStreamTests(object):
         self.env.execute('test_aggregating_state')
         results = self.test_sink.get_results()
         expected = ['(1,hi)', '(2,hello)', '(4,hi)', '(6,hello)', '(9,hi)', '(12,hello)']
-        self.assert_equals_sorted(expected, results)
-
-    def test_count_window(self):
-        self.env.set_parallelism(2)
-        data_stream = self.env.from_collection([
-            (1, 'hi'), (2, 'hello'), (3, 'hi'), (4, 'hello'), (5, 'hi'), (6, 'hello')],
-            type_info=Types.TUPLE([Types.INT(), Types.STRING()]))  # type: DataStream
-        data_stream.key_by(lambda x: x[1], key_type=Types.STRING()) \
-            .window(SimpleCountWindowAssigner()) \
-            .apply(SumWindowFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
-            .add_sink(self.test_sink)
-
-        self.env.execute('test_count_window')
-        results = self.test_sink.get_results()
-        expected = ['(hello,12)', '(hi,9)']
-        self.assert_equals_sorted(expected, results)
-
-    def test_time_window(self):
-        self.env.set_parallelism(1)
-        data_stream = self.env.from_collection([
-            ('hi', 1), ('hi', 2), ('hi', 3), ('hi', 6), ('hi', 8), ('hi', 9), ('hi', 15)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
-        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
-            .with_timestamp_assigner(SecondColumnTimestampAssigner())
-        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
-            .key_by(lambda x: x[0], key_type=Types.STRING()) \
-            .window(SimpleMergeTimeWindowAssigner()) \
-            .process(CountWindowProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
-            .add_sink(self.test_sink)
-
-        self.env.execute('test_time_window')
-        results = self.test_sink.get_results()
-        expected = ['(hi,1)', '(hi,1)', '(hi,2)', '(hi,3)']
         self.assert_equals_sorted(expected, results)
 
 
@@ -1090,8 +1051,8 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         ds = self.env.from_collection([(1, 'a'), (2, 'a'), (3, 'a'), (4, 'b')],
                                       type_info=Types.ROW([Types.INT(), Types.STRING()]))
         ds.key_by(lambda a: a[1]) \
-          .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
-          .add_sink(self.test_sink)
+            .reduce(lambda a, b: Row(a[0] + b[0], b[1])) \
+            .add_sink(self.test_sink)
         self.env.execute('reduce_function_test')
         results = self.test_sink.get_results()
         expected = ["+I[1, a]", "+I[3, a]", "+I[6, a]", "+I[4, b]"]
@@ -1305,156 +1266,3 @@ class SecondColumnTimestampAssigner(TimestampAssigner):
 
     def extract_timestamp(self, value, record_timestamp) -> int:
         return int(value[1])
-
-
-class SimpleCountWindowTrigger(Trigger[tuple, CountWindow]):
-
-    def __init__(self):
-        self._window_size = 3
-        self._count_state_descriptor = ReducingStateDescriptor(
-            "trigger_counter", lambda a, b: a + b, Types.BIG_INT())
-
-    def on_element(self,
-                   element: tuple,
-                   timestamp: int,
-                   window: CountWindow,
-                   ctx: Trigger.TriggerContext) -> TriggerResult:
-        state = ctx.get_partitioned_state(self._count_state_descriptor)  # type: ReducingState
-        state.add(1)
-        if state.get() >= self._window_size:
-            return TriggerResult.FIRE_AND_PURGE
-        else:
-            return TriggerResult.CONTINUE
-
-    def on_processing_time(self,
-                           time: int,
-                           window: CountWindow,
-                           ctx: Trigger.TriggerContext) -> TriggerResult:
-        return TriggerResult.CONTINUE
-
-    def on_event_time(self,
-                      time: int,
-                      window: CountWindow,
-                      ctx: Trigger.TriggerContext) -> TriggerResult:
-        return TriggerResult.CONTINUE
-
-    def on_merge(self, window: CountWindow, ctx: Trigger.OnMergeContext) -> None:
-        pass
-
-    def clear(self, window: CountWindow, ctx: Trigger.TriggerContext) -> None:
-        state = ctx.get_partitioned_state(self._count_state_descriptor)
-        state.clear()
-
-
-class SimpleCountWindowAssigner(WindowAssigner[tuple, CountWindow]):
-
-    def __init__(self):
-        self._window_id = 0
-        self._window_size = 3
-        self._counter_state_descriptor = ReducingStateDescriptor(
-            "assigner_counter", lambda a, b: a + b, Types.BIG_INT())
-
-    def assign_windows(self,
-                       element: tuple,
-                       timestamp: int,
-                       context: WindowAssigner.WindowAssignerContext) -> Collection[CountWindow]:
-        counter = context.get_runtime_context().get_reducing_state(
-            self._counter_state_descriptor)
-        if counter.get() is None:
-            counter.add(0)
-        result = [CountWindow(counter.get() // self._window_size)]
-        counter.add(1)
-        return result
-
-    def get_default_trigger(self, env) -> Trigger[tuple, CountWindow]:
-        return SimpleCountWindowTrigger()
-
-    def get_window_serializer(self) -> TypeSerializer[CountWindow]:
-        return CountWindowSerializer()
-
-    def is_event_time(self) -> bool:
-        return False
-
-
-class SumWindowFunction(WindowFunction[tuple, tuple, str, CountWindow]):
-
-    def apply(self, key: str, window: CountWindow, inputs: Iterable[tuple]):
-        result = 0
-        for i in inputs:
-            result += i[0]
-        return [(key, result)]
-
-
-class SimpleTimeWindowTrigger(Trigger[tuple, TimeWindow]):
-
-    def on_element(self,
-                   element: tuple,
-                   timestamp: int,
-                   window: TimeWindow,
-                   ctx: 'Trigger.TriggerContext') -> TriggerResult:
-        return TriggerResult.CONTINUE
-
-    def on_processing_time(self,
-                           time: int,
-                           window: TimeWindow,
-                           ctx: 'Trigger.TriggerContext') -> TriggerResult:
-        return TriggerResult.CONTINUE
-
-    def on_event_time(self,
-                      time: int,
-                      window: TimeWindow,
-                      ctx: 'Trigger.TriggerContext') -> TriggerResult:
-        if time >= window.max_timestamp():
-            return TriggerResult.FIRE_AND_PURGE
-        else:
-            return TriggerResult.CONTINUE
-
-    def on_merge(self,
-                 window: TimeWindow,
-                 ctx: 'Trigger.OnMergeContext') -> None:
-        pass
-
-    def clear(self,
-              window: TimeWindow,
-              ctx: 'Trigger.TriggerContext') -> None:
-        pass
-
-
-class SimpleMergeTimeWindowAssigner(MergingWindowAssigner[tuple, TimeWindow]):
-
-    def merge_windows(self,
-                      windows: Iterable[TimeWindow],
-                      callback: 'MergingWindowAssigner.MergeCallback[TimeWindow]') -> None:
-        window_list = [w for w in windows]
-        window_list.sort()
-        for i in range(1, len(window_list)):
-            if window_list[i - 1].end > window_list[i].start:
-                callback.merge([window_list[i - 1], window_list[i]],
-                               TimeWindow(window_list[i - 1].start, window_list[i].end))
-
-    def assign_windows(self,
-                       element: tuple,
-                       timestamp: int,
-                       context: 'WindowAssigner.WindowAssignerContext') -> Collection[TimeWindow]:
-        return [TimeWindow(timestamp, timestamp + 2)]
-
-    def get_default_trigger(self, env) -> Trigger[tuple, TimeWindow]:
-        return SimpleTimeWindowTrigger()
-
-    def get_window_serializer(self) -> TypeSerializer[TimeWindow]:
-        return TimeWindowSerializer()
-
-    def is_event_time(self) -> bool:
-        return True
-
-
-class CountWindowProcessFunction(ProcessWindowFunction[tuple, tuple, str, CountWindow]):
-
-    def process(self,
-                key: str,
-                content: ProcessWindowFunction.Context,
-                elements: Iterable[tuple]) -> Iterable[tuple]:
-        return [(key, len([e for e in elements]))]
-
-    def clear(self, context: ProcessWindowFunction.Context) -> None:
-        pass
