@@ -18,7 +18,6 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
@@ -49,6 +48,7 @@ import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.planner.delegation.hive.HiveOperationExecutor;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
+import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -224,7 +224,7 @@ public class HiveDialectITCase {
         assertThat(locationPath(hiveTable.getSd().getLocation())).isEqualTo(location);
         assertThat(hiveTable.getParameters().get("k1")).isEqualTo("v1");
         assertThat(hiveTable.getParameters())
-                .doesNotContainKey(SqlCreateHiveTable.TABLE_LOCATION_URI);
+                .doesNotContainKey(HiveParserConstants.TABLE_LOCATION_URI);
 
         tableEnv.executeSql("create table tbl2 (s struct<ts:timestamp,bin:binary>) stored as orc");
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl2"));

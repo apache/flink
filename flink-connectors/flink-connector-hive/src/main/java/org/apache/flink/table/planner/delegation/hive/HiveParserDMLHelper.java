@@ -31,7 +31,6 @@ import org.apache.flink.table.catalog.ContextResolvedTable;
 import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.catalog.ResolvedCatalogTable;
 import org.apache.flink.table.catalog.ResolvedSchema;
-import org.apache.flink.table.catalog.hive.factories.HiveCatalogFactoryOptions;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFToDecimal;
@@ -90,9 +89,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IDENTIFIER;
 import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_INSERT_DIRECTORY;
 import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IS_TO_LOCAL_DIRECTORY;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.TABLE_LOCATION_URI;
 
 /** A helper class to handle DMLs in hive dialect. */
 public class HiveParserDMLHelper {
@@ -350,7 +350,7 @@ public class HiveParserDMLHelper {
         HiveParserDDLSemanticAnalyzer.encodeStorageFormat(directoryDesc.getStorageFormat(), props);
         props.put(TABLE_LOCATION_URI, location);
 
-        props.put(FactoryUtil.CONNECTOR.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        props.put(FactoryUtil.CONNECTOR.key(), IDENTIFIER);
         // mark it's for insert into directory
         props.put(CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX + IS_INSERT_DIRECTORY, "true");
         // mark it's for insert into local directory or not

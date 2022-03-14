@@ -21,9 +21,6 @@ package org.apache.flink.table.catalog.hive;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
-import org.apache.flink.sql.parser.SqlPartitionUtils;
-import org.apache.flink.sql.parser.hive.ddl.SqlAddHivePartitions;
-import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.SqlDialect;
@@ -37,8 +34,6 @@ import org.apache.flink.table.utils.PartitionPathUtils;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.StringUtils;
 
-import org.apache.calcite.config.Lex;
-import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -248,20 +243,11 @@ public class HiveTestUtils {
             Table hiveTable = hiveCatalog.getHiveTable(tablePath);
             String addPartDDL = null;
             if (partitionSpec != null) {
+                LinkedHashMap<String, String> spec = getPartitionSpecMap(partitionSpec);
                 addPartDDL =
                         String.format(
                                 "alter table `%s`.`%s` add if not exists partition (%s)",
                                 dbName, tableName, partitionSpec);
-                // we need parser to parse the partition spec
-                SqlParser parser =
-                        SqlParser.create(
-                                addPartDDL,
-                                SqlParser.config()
-                                        .withParserFactory(FlinkHiveSqlParserImpl.FACTORY)
-                                        .withLex(Lex.JAVA));
-                SqlAddHivePartitions sqlAddPart = (SqlAddHivePartitions) parser.parseStmt();
-                LinkedHashMap<String, String> spec =
-                        SqlPartitionUtils.getPartitionKVs(sqlAddPart.getPartSpecs().get(0));
                 Path partLocation =
                         new Path(
                                 hiveTable.getSd().getLocation(),
@@ -290,6 +276,21 @@ public class HiveTestUtils {
                 }
             }
             return builder.toString();
+        }
+
+        private LinkedHashMap<String, String> getPartitionSpecMap(String partitionSpec) {
+            LinkedHashMap<String, String> partitionSpecMap = new LinkedHashMap<>();
+            String[] partitions = partitionSpec.split(",");
+
+            for (String partition : partitions) {
+                String[] keyValuePair = partition.split("=");
+                String key = keyValuePair[0].trim();
+                String val = keyValuePair[1].replace("'", "").trim();
+
+                partitionSpecMap.put(key, val);
+            }
+
+            return partitionSpecMap;
         }
 
         private String toText(Object obj, final int level) {

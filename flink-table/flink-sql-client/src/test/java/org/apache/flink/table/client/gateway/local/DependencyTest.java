@@ -22,7 +22,6 @@ import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.TableResult;
@@ -51,6 +50,7 @@ import org.apache.flink.table.factories.DynamicTableSourceFactory;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
@@ -297,7 +297,7 @@ class DependencyTest {
         private ResolvedCatalogTable createResolvedTable(
                 String[] fieldNames, DataType[] fieldDataTypes) {
             final Map<String, String> options = new HashMap<>();
-            options.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+            options.put(FactoryUtil.CONNECTOR.key(), HiveParserConstants.IDENTIFIER);
             final CatalogTable origin =
                     CatalogTable.of(
                             Schema.newBuilder().fromFields(fieldNames, fieldDataTypes).build(),

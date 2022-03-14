@@ -19,7 +19,6 @@
 package org.apache.flink.connectors.hive;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogDatabaseImpl;
@@ -40,6 +39,7 @@ import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.TableFactory;
 import org.apache.flink.table.factories.TableSinkFactoryContextImpl;
 import org.apache.flink.table.factories.TableSourceFactoryContextImpl;
+import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.sinks.StreamTableSink;
 import org.apache.flink.table.sinks.TableSink;
 import org.apache.flink.table.sources.StreamTableSource;
@@ -121,7 +121,7 @@ public class HiveTableFactoryTest {
 
         final Map<String, String> options =
                 Collections.singletonMap(
-                        FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+                        FactoryUtil.CONNECTOR.key(), HiveParserConstants.IDENTIFIER);
         final CatalogTable table =
                 new CatalogTableImpl(TableSchema.fromResolvedSchema(schema), options, "hive table");
         catalog.createTable(new ObjectPath("mydb", "mytable"), table, true);

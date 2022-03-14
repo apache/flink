@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.parse;
 
-import org.apache.flink.sql.parser.hive.impl.FlinkHiveSqlParserImpl;
 import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.table.api.SqlParserEOFException;
 import org.apache.flink.table.api.SqlParserException;
@@ -108,15 +107,7 @@ public class CalciteParser {
      */
     public SqlIdentifier parseIdentifier(String identifier) throws SqlParserException {
         try {
-            SqlAbstractParserImpl flinkParser = createFlinkParser(identifier);
-            if (flinkParser instanceof FlinkSqlParserImpl) {
-                return ((FlinkSqlParserImpl) flinkParser).TableApiIdentifier();
-            } else if (flinkParser instanceof FlinkHiveSqlParserImpl) {
-                return ((FlinkHiveSqlParserImpl) flinkParser).TableApiIdentifier();
-            } else {
-                throw new IllegalArgumentException(
-                        "Unrecognized sql parser type " + flinkParser.getClass().getName());
-            }
+            return createFlinkParser(identifier).TableApiIdentifier();
         } catch (Exception e) {
             throw new SqlParserException(
                     String.format("Invalid SQL identifier %s.", identifier), e);
@@ -130,9 +121,9 @@ public class CalciteParser {
      * <p>It is so that we can access specific parsing methods not accessible through the {@code
      * SqlParser}.
      */
-    private SqlAbstractParserImpl createFlinkParser(String expr) {
+    private FlinkSqlParserImpl createFlinkParser(String expr) {
         SourceStringReader reader = new SourceStringReader(expr);
-        SqlAbstractParserImpl parser = config.parserFactory().getParser(reader);
+        FlinkSqlParserImpl parser = (FlinkSqlParserImpl) config.parserFactory().getParser(reader);
         parser.setTabSize(1);
         parser.setQuotedCasing(config.quotedCasing());
         parser.setUnquotedCasing(config.unquotedCasing());

@@ -23,6 +23,7 @@ import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.factories.CatalogFactory;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,7 +44,7 @@ public class HiveCatalogFactory implements CatalogFactory {
 
     @Override
     public String factoryIdentifier() {
-        return HiveCatalogFactoryOptions.IDENTIFIER;
+        return HiveParserConstants.IDENTIFIER;
     }
 
     @Override

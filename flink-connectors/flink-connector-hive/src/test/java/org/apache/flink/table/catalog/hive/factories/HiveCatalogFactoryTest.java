@@ -25,6 +25,7 @@ import org.apache.flink.table.catalog.CommonCatalogOptions;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.testutils.executor.TestExecutorResource;
 import org.apache.flink.util.TestLogger;
 
@@ -71,7 +72,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
         final HiveCatalog expectedCatalog = HiveTestUtils.createHiveCatalog(catalogName, null);
 
         final Map<String, String> options = new HashMap<>();
-        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveParserConstants.IDENTIFIER);
         options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
 
         final Catalog actualCatalog =
@@ -101,7 +102,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
                         catalogName, CONF_DIR.getPath(), hadoopConfDir, null);
 
         final Map<String, String> options = new HashMap<>();
-        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveParserConstants.IDENTIFIER);
         options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
         options.put(HiveCatalogFactoryOptions.HADOOP_CONF_DIR.key(), hadoopConfDir);
 
@@ -119,7 +120,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
 
         final String hadoopConfDir = tempFolder.newFolder().getAbsolutePath();
         final Map<String, String> options = new HashMap<>();
-        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveParserConstants.IDENTIFIER);
         options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
         options.put(HiveCatalogFactoryOptions.HADOOP_CONF_DIR.key(), hadoopConfDir);
 
@@ -163,8 +164,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
         final HiveConf hiveConf;
         try {
             final Map<String, String> options = new HashMap<>();
-            options.put(
-                    CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+            options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveParserConstants.IDENTIFIER);
             options.put(HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(), CONF_DIR.getPath());
 
             final HiveCatalog hiveCatalog =
@@ -191,7 +191,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
         expectedException.expect(ValidationException.class);
 
         final Map<String, String> options = new HashMap<>();
-        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        options.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveParserConstants.IDENTIFIER);
 
         FactoryUtil.createCatalog(
                 "my_catalog", options, null, Thread.currentThread().getContextClassLoader());
@@ -200,7 +200,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
     @Test
     public void testCreateMultipleHiveCatalog() throws Exception {
         final Map<String, String> props1 = new HashMap<>();
-        props1.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        props1.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveParserConstants.IDENTIFIER);
         props1.put(
                 HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(),
                 Thread.currentThread()
@@ -209,7 +209,7 @@ public class HiveCatalogFactoryTest extends TestLogger {
                         .getPath());
 
         final Map<String, String> props2 = new HashMap<>();
-        props2.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveCatalogFactoryOptions.IDENTIFIER);
+        props2.put(CommonCatalogOptions.CATALOG_TYPE.key(), HiveParserConstants.IDENTIFIER);
         props2.put(
                 HiveCatalogFactoryOptions.HIVE_CONF_DIR.key(),
                 Thread.currentThread()

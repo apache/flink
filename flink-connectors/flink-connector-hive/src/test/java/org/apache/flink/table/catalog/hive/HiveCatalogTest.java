@@ -19,7 +19,6 @@
 package org.apache.flink.table.catalog.hive;
 
 import org.apache.flink.connector.datagen.table.DataGenTableSourceFactory;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.catalog.CatalogBaseTable;
@@ -33,6 +32,7 @@ import org.apache.flink.table.catalog.ObjectPath;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.factories.FactoryUtil;
 import org.apache.flink.table.factories.ManagedTableFactory;
+import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.resource.ResourceType;
 import org.apache.flink.table.resource.ResourceUri;
 
@@ -125,7 +125,7 @@ public class HiveCatalogTest {
         hiveCatalog.createTable(tablePath, originTable, false);
 
         Map<String, String> newOptions = getLegacyFileSystemConnectorOptions("/test_path");
-        newOptions.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+        newOptions.put(FactoryUtil.CONNECTOR.key(), HiveParserConstants.IDENTIFIER);
         CatalogTable newTable = new CatalogTableImpl(schema, newOptions, "Hive table");
         assertThatThrownBy(() -> hiveCatalog.alterTable(tablePath, newTable, false))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -160,7 +160,7 @@ public class HiveCatalogTest {
         hiveCatalog.createTable(tablePath, originTable, false);
 
         Map<String, String> newOptions = getLegacyFileSystemConnectorOptions("/test_path");
-        newOptions.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+        newOptions.put(FactoryUtil.CONNECTOR.key(), HiveParserConstants.IDENTIFIER);
         CatalogTable newTable = new CatalogTableImpl(schema, newOptions, "Hive table");
         assertThatThrownBy(() -> hiveCatalog.alterTable(tablePath, newTable, false))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -172,7 +172,7 @@ public class HiveCatalogTest {
     @Test
     public void testAlterHiveTableToFlinkManagedTable() throws Exception {
         Map<String, String> originOptions = getLegacyFileSystemConnectorOptions("/test_path");
-        originOptions.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+        originOptions.put(FactoryUtil.CONNECTOR.key(), HiveParserConstants.IDENTIFIER);
         CatalogTable originTable = new CatalogTableImpl(schema, originOptions, "Hive table");
         hiveCatalog.createTable(tablePath, originTable, false);
 
@@ -188,7 +188,7 @@ public class HiveCatalogTest {
     @Test
     public void testAlterHiveTableToFlinkNonManagedTable() throws Exception {
         Map<String, String> originOptions = getLegacyFileSystemConnectorOptions("/test_path");
-        originOptions.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+        originOptions.put(FactoryUtil.CONNECTOR.key(), HiveParserConstants.IDENTIFIER);
         CatalogTable originTable = new CatalogTableImpl(schema, originOptions, "Hive table");
         hiveCatalog.createTable(tablePath, originTable, false);
 
@@ -222,7 +222,7 @@ public class HiveCatalogTest {
     @Test
     public void testCreateHiveTable() {
         Map<String, String> options = getLegacyFileSystemConnectorOptions("/test_path");
-        options.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+        options.put(FactoryUtil.CONNECTOR.key(), HiveParserConstants.IDENTIFIER);
 
         Table hiveTable =
                 HiveTableUtil.instantiateHiveTable(

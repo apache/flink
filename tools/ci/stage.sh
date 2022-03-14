@@ -67,7 +67,6 @@ flink-dstl/flink-dstl-dfs,\
 MODULES_TABLE="\
 flink-table,\
 flink-table/flink-sql-parser,\
-flink-table/flink-sql-parser-hive,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\

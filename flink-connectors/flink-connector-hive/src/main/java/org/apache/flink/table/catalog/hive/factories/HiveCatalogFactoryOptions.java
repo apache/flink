@@ -29,8 +29,6 @@ import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 @Internal
 public final class HiveCatalogFactoryOptions {
 
-    public static final String IDENTIFIER = "hive";
-
     public static final ConfigOption<String> DEFAULT_DATABASE =
             ConfigOptions.key(CommonCatalogOptions.DEFAULT_DATABASE_KEY)
                     .stringType()

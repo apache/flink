@@ -24,6 +24,7 @@ import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
@@ -213,6 +214,16 @@ public class HiveParser extends ParserImpl {
             return processCmd(statement, hiveConf, hiveShim, (HiveCatalog) currentCatalog);
         } finally {
             HiveSessionState.clearSessionState();
+        }
+    }
+
+    @Override
+    public UnresolvedIdentifier parseIdentifier(String identifier) {
+        try {
+            return UnresolvedIdentifier.of(identifier.split("\\."));
+        } catch (Exception e) {
+            throw new SqlParserException(
+                    String.format("Invalid SQL identifier %s.", identifier), e);
         }
     }
 
