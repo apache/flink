@@ -64,7 +64,7 @@ FlinkCEP不是二进制发布包的一部分。在集群上执行如何链接它
 {{< tabs "4fef83d9-e4c5-4073-9607-4c8cde1ebf1e" >}}
 {{< tab "Java" >}}
 ```java
-DataStream<Event> input = ...
+DataStream<Event> input = ...;
 
 Pattern<Event, ?> pattern = Pattern.<Event>begin("start").where(
         new SimpleCondition<Event>() {
@@ -337,7 +337,7 @@ start.where(event => event.getName.startsWith("foo"))
 start.subtype(SubEvent.class).where(new SimpleCondition<SubEvent>() {
     @Override
     public boolean filter(SubEvent value) {
-        return ... // 一些判断条件
+        return ...; // 一些判断条件
     }
 });
 ```
@@ -358,12 +358,12 @@ start.subtype(classOf[SubEvent]).where(subEvent => ... /* 一些判断条件 */)
 pattern.where(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
-        return ... // 一些判断条件
+        return ...; // 一些判断条件
     }
 }).or(new SimpleCondition<Event>() {
     @Override
     public boolean filter(Event value) {
-        return ... // 一些判断条件
+        return ...; // 一些判断条件
     }
 });
 ```
@@ -1378,7 +1378,7 @@ pattern.within(Time.seconds(10))
 {{< tabs "e7240356-0fda-4a20-8b5a-7e4136753eca" >}}
 {{< tab "Java" >}}
 ```java
-AfterMatchSkipStrategy skipStrategy = ...
+AfterMatchSkipStrategy skipStrategy = ...;
 Pattern.begin("patternName", skipStrategy);
 ```
 {{< /tab >}}
@@ -1399,7 +1399,7 @@ Pattern.begin("patternName", skipStrategy)
 {{< tabs "48a6f23b-1861-4350-894d-0404d070cfb2" >}}
 {{< tab "Java" >}}
 ```java
-AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss()
+AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss();
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}
@@ -1418,9 +1418,9 @@ AfterMatchSkipStrategy.skipToFirst(patternName).throwExceptionOnMiss()
 {{< tabs "c412e6ab-033c-496c-b72f-b351c056e365" >}}
 {{< tab "Java" >}}
 ```java
-DataStream<Event> input = ...
-Pattern<Event, ?> pattern = ...
-EventComparator<Event> comparator = ... // 可选的
+DataStream<Event> input = ...;
+Pattern<Event, ?> pattern = ...;
+EventComparator<Event> comparator = ...; // 可选的
 
 PatternStream<Event> patternStream = CEP.pattern(input, pattern, comparator);
 ```
@@ -1651,9 +1651,9 @@ public interface TimeContext {
 {{< tabs "01929551-b785-41f4-ab0d-b6369ce3cc41" >}}
 {{< tab "Java" >}}
 ```java
-StreamExecutionEnvironment env = ...
+StreamExecutionEnvironment env = ...;
 
-DataStream<Event> input = ...
+DataStream<Event> input = ...;
 
 DataStream<Event> partitionedInput = input.keyBy(new KeySelector<Event, Integer>() {
 	@Override

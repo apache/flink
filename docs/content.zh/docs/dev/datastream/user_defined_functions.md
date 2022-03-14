@@ -209,7 +209,7 @@ this.numLines.add(1);
 最终整体结果会存储在由执行环境的 `execute()` 方法返回的 ```JobExecutionResult``` 对象中（当前只有等待作业完成后执行才起作用）。
 
 ```java
-myJobExecutionResult.getAccumulatorResult("num-lines")
+myJobExecutionResult.getAccumulatorResult("num-lines");
 ```
 
 单个作业的所有累加器共享一个命名空间。因此你可以在不同的操作 function 里面使用同一个累加器。Flink 会在内部将所有具有相同名称的累加器合并起来。

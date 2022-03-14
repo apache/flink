@@ -78,15 +78,15 @@ Pulsar 数据源提供了两种订阅 topic 或 topic 分区的方式。
 
 - Topic 列表，从这个 Topic 的所有分区上消费消息，例如：
   ```java
-  PulsarSource.builder().setTopics("some-topic1", "some-topic2")
+  PulsarSource.builder().setTopics("some-topic1", "some-topic2");
 
   // 从 topic "topic-a" 的 0 和 1 分区上消费
-  PulsarSource.builder().setTopics("topic-a-partition-0", "topic-a-partition-2")
+  PulsarSource.builder().setTopics("topic-a-partition-0", "topic-a-partition-2");
   ```
 
 - Topic 正则，连接器使用给定的正则表达式匹配出所有合规的 topic，例如：
   ```java
-  PulsarSource.builder().setTopicPattern("topic-*")
+  PulsarSource.builder().setTopicPattern("topic-*");
   ```
 
 #### Topic 名称简写
@@ -146,21 +146,21 @@ Topic 名称 | 是否分区
 - 使用 Pulsar 的 [Schema](https://pulsar.apache.org/docs/en/schema-understand/) 解析消息。
   ```java
   // 基础数据类型
-  PulsarDeserializationSchema.pulsarSchema(Schema)
+  PulsarDeserializationSchema.pulsarSchema(Schema);
 
   // 结构类型 (JSON, Protobuf, Avro, etc.)
-  PulsarDeserializationSchema.pulsarSchema(Schema, Class)
+  PulsarDeserializationSchema.pulsarSchema(Schema, Class);
 
   // 键值对类型
-  PulsarDeserializationSchema.pulsarSchema(Schema, Class, Class)
+  PulsarDeserializationSchema.pulsarSchema(Schema, Class, Class);
   ```
 - 使用 Flink 的 `DeserializationSchema` 解析消息。
   ```java
-  PulsarDeserializationSchema.flinkSchema(DeserializationSchema)
+  PulsarDeserializationSchema.flinkSchema(DeserializationSchema);
   ```
 - 使用 Flink 的 `TypeInformation` 解析消息。
   ```java
-  PulsarDeserializationSchema.flinkTypeInfo(TypeInformation, ExecutionConfig)
+  PulsarDeserializationSchema.flinkTypeInfo(TypeInformation, ExecutionConfig);
   ```
 
 Pulsar 的 `Message<byte[]>` 包含了很多 [额外的属性](https://pulsar.apache.org/docs/zh-CN/concepts-messaging/#%E6%B6%88%E6%81%AF)。
@@ -185,10 +185,10 @@ Flink 使用 `TypeInformation` 将解析出来的结果序列化传递到下游�
 
 ```java
 // 名为 "my-shared" 的共享订阅
-PulsarSource.builder().setSubscriptionName("my-shared")
+PulsarSource.builder().setSubscriptionName("my-shared");
 
 // 名为 "my-exclusive" 的独占订阅
-PulsarSource.builder().setSubscriptionName("my-exclusive").setSubscriptionType(SubscriptionType.Exclusive)
+PulsarSource.builder().setSubscriptionName("my-exclusive").setSubscriptionType(SubscriptionType.Exclusive);
 ```
 
 如果想在 Pulsar 连接器里面使用 `key 共享` 订阅，需要提供 `RangeGenerator` 实例。`RangeGenerator` 会生成一组消息 key 的 hash 范围，连接器会基于给定的范围来消费数据。
@@ -201,23 +201,23 @@ Pulsar 连接器也提供了一个名为 `UniformRangeGenerator` 的默认实现
 
 - 从 topic 里面最早的一条消息开始消费。
   ```java
-  StartCursor.earliest()
+  StartCursor.earliest();
   ```
 - 从 topic 里面最新的一条消息开始消费。
   ```java
-  StartCursor.latest()
+  StartCursor.latest();
   ```
 - 从给定的消息开始消费。
   ```java
-  StartCursor.fromMessageId(MessageId)
+  StartCursor.fromMessageId(MessageId);
   ```
 - 与前者不同的是，给定的消息可以跳过，再进行消费。
   ```java
-  StartCursor.fromMessageId(MessageId, boolean)
+  StartCursor.fromMessageId(MessageId, boolean);
   ```
 - 从给定的消息时间开始消费。
   ```java
-  StartCursor.fromMessageTime(long)
+  StartCursor.fromMessageTime(long);
   ```
 
 {{< hint info >}}
@@ -236,23 +236,23 @@ Pulsar 连接器同时支持流式和批的消费方式，默认情况下，连�
 
 - 永不停止。
   ```java
-  StopCursor.never()
+  StopCursor.never();
   ```
 - 停止于 Pulsar 启动时 topic 里面最新的那条数据。
   ```java
-  StopCursor.latest()
+  StopCursor.latest();
   ```
 - 停止于某条消息，结果里不包含此消息。
   ```java
-  StopCursor.atMessageId(MessageId)
+  StopCursor.atMessageId(MessageId);
   ```
 - 停止于某条消息之后，结果里包含此消息。
   ```java
-  StopCursor.afterMessageId(MessageId)
+  StopCursor.afterMessageId(MessageId);
   ```
 - 停止于某个给定的消息时间戳。
   ```java
-  StopCursor.atEventTime(long)
+  StopCursor.atEventTime(long);
   ```
 
 ### 其他配置项
@@ -305,7 +305,7 @@ PulsarSource.builder()
 默认情况下，连接器使用 Pulsar 的 `Message<byte[]>` 里面的时间作为解析结果的时间戳。用户可以使用 `WatermarkStrategy` 来自行解析出想要的消息时间，并向下游传递对应的水位线。
 
 ```java
-env.fromSource(pulsarSource, new CustomWatermarkStrategy(), "Pulsar Source With Custom Watermark Strategy")
+env.fromSource(pulsarSource, new CustomWatermarkStrategy(), "Pulsar Source With Custom Watermark Strategy");
 ```
 
 [这篇文档]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}}) 详细讲解了如何定义 `WatermarkStrategy`。

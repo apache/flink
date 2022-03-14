@@ -135,7 +135,7 @@ ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // 通过解析一个CSV文件来获取每个页面原始的rank值
 DataSet<Tuple2<Long, Double>> pagesWithRanks = env.readCsvFile(pagesInputPath)
-						   .types(Long.class, Double.class)
+						   .types(Long.class, Double.class);
 
 // 链接被编码为邻接表: (page-id, Array(neighbor-ids))
 DataSet<Tuple2<Long, Long[]>> pageLinkLists = getLinksDataSet(env);

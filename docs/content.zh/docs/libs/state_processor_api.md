@@ -262,7 +262,7 @@ class ClickCounter implements AggregateFunction<Click, Integer, Integer> {
 	}
 }
 
-DataStream<Click> clicks = . . . 
+DataStream<Click> clicks = ...;
 
 clicks
     .keyBy(click -> click.userId)

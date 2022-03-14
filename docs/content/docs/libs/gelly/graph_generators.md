@@ -304,7 +304,7 @@ two `endpoint` vertices with degree `1` and all midpoint vertices with degree
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-long vertexCount = 5
+long vertexCount = 5;
 
 Graph<LongValue, NullValue, NullValue> graph = new PathGraph(env, vertexCount)
     .generate();
@@ -417,7 +417,7 @@ An undirected graph containing isolated two-paths where every vertex has degree
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-long vertexPairCount = 4
+long vertexPairCount = 4;
 
 // note: configured with the number of vertex pairs
 Graph<LongValue, NullValue, NullValue> graph = new SingletonEdgeGraph(env, vertexPairCount)
