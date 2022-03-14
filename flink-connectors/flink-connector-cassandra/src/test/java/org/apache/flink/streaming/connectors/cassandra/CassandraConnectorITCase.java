@@ -86,6 +86,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
@@ -713,6 +714,19 @@ public class CassandraConnectorITCase
         }
         Assert.assertTrue(
                 "The input data was not completely written to Cassandra", input.isEmpty());
+    }
+
+    private static int retrialsCount = 0;
+
+    @Test
+    public void testRetrialAndDropTable() {
+        // should not fail with table exists upon retrial
+        // as @After method that drops the table is called upon retrials.
+        annotatePojoWithTable(KEYSPACE, TABLE_NAME_PREFIX + tableID);
+        if (retrialsCount < 2) {
+            retrialsCount++;
+            throw new NoHostAvailableException(new HashMap<>());
+        }
     }
 
     @Test
