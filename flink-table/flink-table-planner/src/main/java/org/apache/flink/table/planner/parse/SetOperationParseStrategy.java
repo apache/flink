@@ -35,7 +35,7 @@ public class SetOperationParseStrategy extends AbstractRegexParseStrategy {
     protected SetOperationParseStrategy() {
         super(
                 Pattern.compile(
-                        "SET(\\s+(?<key>[^'\\s]+)\\s*=\\s*('(?<quotedVal>[^']*)'|(?<val>[^;\\s]+)))?;?",
+                        "SET(\\s+(?<key>[^'\\s]+)\\s*=\\s*('(?<quotedVal>[^']*)'|(?<val>[^;\\s]+)))?\\s*;?",
                         DEFAULT_PATTERN_FLAGS));
     }
 

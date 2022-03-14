@@ -70,6 +70,9 @@ import org.apache.flink.table.operations.UseCatalogOperation;
 import org.apache.flink.table.operations.UseDatabaseOperation;
 import org.apache.flink.table.operations.UseModulesOperation;
 import org.apache.flink.table.operations.command.AddJarOperation;
+import org.apache.flink.table.operations.command.ClearOperation;
+import org.apache.flink.table.operations.command.HelpOperation;
+import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.RemoveJarOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
@@ -91,6 +94,7 @@ import org.apache.flink.table.planner.expressions.utils.Func0$;
 import org.apache.flink.table.planner.expressions.utils.Func1$;
 import org.apache.flink.table.planner.expressions.utils.Func8$;
 import org.apache.flink.table.planner.parse.CalciteParser;
+import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
@@ -98,9 +102,11 @@ import org.apache.flink.table.utils.ExpressionResolverMocks;
 
 import org.apache.calcite.sql.SqlNode;
 import org.assertj.core.api.HamcrestCondition;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import javax.annotation.Nullable;
 
@@ -170,7 +176,7 @@ public class SqlToOperationConverterTest {
         return plannerContext;
     }
 
-    @Before
+    @BeforeEach
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {
         catalogManager.initSchemaResolver(
                 isStreamingMode,
@@ -192,7 +198,7 @@ public class SqlToOperationConverterTest {
         catalog.createTable(path2, catalogTable, true);
     }
 
-    @After
+    @AfterEach
     public void after() throws TableNotExistException {
         final ObjectPath path1 = new ObjectPath(catalogManager.getCurrentDatabase(), "t1");
         final ObjectPath path2 = new ObjectPath(catalogManager.getCurrentDatabase(), "t2");
@@ -1687,6 +1693,38 @@ public class SqlToOperationConverterTest {
         assertThat(operation2).isInstanceOf(ResetOperation.class);
         assertThat(((ResetOperation) operation2).getKey()).isPresent();
         assertThat(((ResetOperation) operation2).getKey()).hasValue("test-key");
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"SET", "SET;", "SET ;", "SET\t;", "SET\n;"})
+    public void testSetCommands(String command) {
+        ExtendedParser extendedParser = new ExtendedParser();
+        assertThat(extendedParser.parse(command)).get().isInstanceOf(SetOperation.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"HELP", "HELP;", "HELP ;", "HELP\t;", "HELP\n;"})
+    public void testHelpCommands(String command) {
+        ExtendedParser extendedParser = new ExtendedParser();
+        assertThat(extendedParser.parse(command)).get().isInstanceOf(HelpOperation.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"CLEAR", "CLEAR;", "CLEAR ;", "CLEAR\t;", "CLEAR\n;"})
+    public void testClearCommands(String command) {
+        ExtendedParser extendedParser = new ExtendedParser();
+        assertThat(extendedParser.parse(command)).get().isInstanceOf(ClearOperation.class);
+    }
+
+    @ParameterizedTest
+    @ValueSource(
+            strings = {
+                "QUIT;", "QUIT;", "QUIT ;", "QUIT\t;", "QUIT\n;", "EXIT;", "EXIT ;", "EXIT\t;",
+                "EXIT\n;", "EXIT ; "
+            })
+    public void testQuitCommands(String command) {
+        ExtendedParser extendedParser = new ExtendedParser();
+        assertThat(extendedParser.parse(command)).get().isInstanceOf(QuitOperation.class);
     }
 
     // ~ Tool Methods ----------------------------------------------------------

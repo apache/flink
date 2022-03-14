@@ -31,6 +31,7 @@ import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.graph.StreamGraph;
@@ -89,14 +90,20 @@ public class StreamingExecutionFileSinkITCase extends FileSinkITBase {
             env.setRestartStrategy(RestartStrategies.noRestart());
         }
 
-        env.addSource(new StreamingExecutionTestSource(latchId, NUM_RECORDS, triggerFailover))
-                .setParallelism(NUM_SOURCES)
-                .sinkTo(createFileSink(path))
-                .setParallelism(NUM_SINKS);
+        DataStreamSink<Integer> sink =
+                env.addSource(
+                                new StreamingExecutionTestSource(
+                                        latchId, NUM_RECORDS, triggerFailover))
+                        .setParallelism(NUM_SOURCES)
+                        .sinkTo(createFileSink(path))
+                        .setParallelism(NUM_SINKS);
+        configureSink(sink);
 
         StreamGraph streamGraph = env.getStreamGraph();
         return streamGraph.getJobGraph();
     }
+
+    protected void configureSink(DataStreamSink<Integer> sink) {}
 
     // ------------------------ Streaming mode user functions ----------------------------------
 

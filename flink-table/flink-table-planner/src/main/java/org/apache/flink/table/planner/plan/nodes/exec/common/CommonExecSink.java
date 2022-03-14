@@ -177,7 +177,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             primaryKeys,
                             sinkParallelism,
                             inputParallelism,
-                            inputInsertOnly,
                             needMaterialization);
         }
 
@@ -352,7 +351,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             int[] primaryKeys,
             int sinkParallelism,
             int inputParallelism,
-            boolean inputInsertOnly,
             boolean needMaterialize) {
         final ExecutionConfigOptions.SinkKeyedShuffle sinkShuffleByPk =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE);
@@ -361,11 +359,13 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             case NONE:
                 break;
             case AUTO:
-                sinkKeyBy = inputInsertOnly && sinkParallelism != inputParallelism;
+                // should cover both insert-only and changelog input
+                sinkKeyBy = sinkParallelism != inputParallelism && sinkParallelism != 1;
                 break;
             case FORCE:
-                // single parallelism has no problem
-                sinkKeyBy = sinkParallelism != 1 || inputParallelism != 1;
+                // sink single parallelism has no problem (because none partitioner will cause worse
+                // disorder)
+                sinkKeyBy = sinkParallelism != 1;
                 break;
         }
         if (!sinkKeyBy && !needMaterialize) {

@@ -70,6 +70,44 @@ Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
 }]]>
     </Resource>
   </TestCase>
+  <TestCase name="testAppendStreamToSinkWithoutPkForceKeyBySingleParallelism">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name])
++- LogicalProject(id=[$0], city_name=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, source]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
++- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
++- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: source[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])",
+    "parallelism" : 4
+  }, {
+    "id" : ,
+    "type" : "Sink: sink[]",
+    "pact" : "Data Sink",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testAppendStreamToSinkWithPkAutoKeyBy">
     <Resource name="explain">
       <![CDATA[== Abstract Syntax Tree ==
@@ -287,6 +325,156 @@ Sink(table=[default_catalog.default_database.upsertSink], fields=[a, total_min],
          :     +- DataStreamScan(table=[[default_catalog, default_database, MyTable2]], fields=[d, e, f], changelogMode=[I])
          +- Calc(select=[i, j], changelogMode=[I])
             +- DataStreamScan(table=[[default_catalog, default_database, MyTable3]], fields=[i, j, k], changelogMode=[I])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogStreamToSinkWithPkDifferentParallelism">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name])
++- LogicalProject(id=[$0], city_name=[$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, source]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
++- DropUpdateBefore
+   +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])
++- DropUpdateBefore
+   +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: source[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name])",
+    "parallelism" : 1
+  }, {
+    "id" : ,
+    "type" : "DropUpdateBefore[]",
+    "pact" : "Operator",
+    "contents" : "[]:DropUpdateBefore",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "ConstraintEnforcer[]",
+    "pact" : "Operator",
+    "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[id])]",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: sink[]",
+    "pact" : "Data Sink",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name])",
+    "parallelism" : 2,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testChangelogStreamToSinkWithPkSingleParallelism">
+    <Resource name="explain">
+      <![CDATA[== Abstract Syntax Tree ==
+LogicalSink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, rn])
++- LogicalProject(id=[$0], city_name=[$1], ts=[$2], rn=[$3])
+   +- LogicalFilter(condition=[=($3, 1)])
+      +- LogicalProject(id=[$0], city_name=[$1], ts=[$2], rn=[ROW_NUMBER() OVER (PARTITION BY $0 ORDER BY $2 DESC NULLS LAST)])
+         +- LogicalTableScan(table=[[default_catalog, default_database, source]])
+
+== Optimized Physical Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, rn])
++- Calc(select=[id, city_name, ts, 1:BIGINT AS rn])
+   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[id], orderBy=[ts DESC], select=[id, city_name, ts])
+      +- Exchange(distribution=[hash[id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name, ts])
+
+== Optimized Execution Plan ==
+Sink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, rn])
++- Calc(select=[id, city_name, ts, 1 AS rn])
+   +- Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[id], orderBy=[ts DESC], select=[id, city_name, ts])
+      +- Exchange(distribution=[hash[id]])
+         +- TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name, ts])
+
+== Physical Execution Plan ==
+{
+  "nodes" : [ {
+    "id" : ,
+    "type" : "Source: source[]",
+    "pact" : "Data Source",
+    "contents" : "[]:TableSourceScan(table=[[default_catalog, default_database, source]], fields=[id, city_name, ts])",
+    "parallelism" : 4
+  }, {
+    "id" : ,
+    "type" : "Rank[]",
+    "pact" : "Operator",
+    "contents" : "[]:Rank(strategy=[AppendFastStrategy], rankType=[ROW_NUMBER], rankRange=[rankStart=1, rankEnd=1], partitionBy=[id], orderBy=[ts DESC], select=[id, city_name, ts])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "HASH",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Calc[]",
+    "pact" : "Operator",
+    "contents" : "[]:Calc(select=[id, city_name, ts, 1 AS rn])",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "ConstraintEnforcer[]",
+    "pact" : "Operator",
+    "contents" : "[]:ConstraintEnforcer[NotNullEnforcer(fields=[id])]",
+    "parallelism" : 4,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "FORWARD",
+      "side" : "second"
+    } ]
+  }, {
+    "id" : ,
+    "type" : "Sink: sink[]",
+    "pact" : "Data Sink",
+    "contents" : "[]:Sink(table=[default_catalog.default_database.sink], fields=[id, city_name, ts, rn])",
+    "parallelism" : 1,
+    "predecessors" : [ {
+      "id" : ,
+      "ship_strategy" : "REBALANCE",
+      "side" : "second"
+    } ]
+  } ]
+}]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testManagedTableSinkWithEnableCheckpointing">
+    <Resource name="ast">
+      <![CDATA[
+LogicalSink(table=[default_catalog.default_database.sink], fields=[a, b, c])
++- LogicalProject(a=[$0], b=[$1], c=[$2])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable]])
 ]]>
     </Resource>
   </TestCase>

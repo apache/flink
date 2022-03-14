@@ -91,11 +91,13 @@ public class CompactCoordinatorTest extends AbstractCompactTestBase {
             harness.setup();
             harness.open();
 
+            FileSinkCommittable passThroughCommittable = committable("0", "4", 5);
             FileSinkCommittable committable0 = committable("0", ".0", 5);
             FileSinkCommittable committable1 = committable("0", ".1", 6);
             FileSinkCommittable committable2 = committable("0", ".2", 5);
             FileSinkCommittable committable3 = committable("1", ".0", 5);
 
+            harness.processElement(message(passThroughCommittable));
             harness.processElement(message(committable0));
             harness.processElement(message(committable1));
 
@@ -117,6 +119,7 @@ public class CompactCoordinatorTest extends AbstractCompactTestBase {
             List<CompactorRequest> results = harness.extractOutputValues();
             Assert.assertEquals(3, results.size());
             assertToCompact(results.get(0), committable0, committable1);
+            assertToPassthrough(results.get(0), passThroughCommittable);
             assertToCompact(results.get(1), committable2);
             assertToCompact(results.get(2), committable3);
         }
