@@ -174,9 +174,8 @@ public class CumulativeSliceAssignerTest extends SliceAssignerTestBase {
 
         assertThat(mergeResultSlice(assigner, utcMills("1970-01-01T01:00:00")))
                 .isEqualTo(Long.valueOf(utcMills("1970-01-01T01:00:00")));
-        assertThat( // the first slice
-                        toBeMergedSlices(assigner, utcMills("1970-01-01T01:00:00")))
-                .isEmpty(); // the first slice
+        // the first slice
+        assertThat(toBeMergedSlices(assigner, utcMills("1970-01-01T01:00:00"))).isEmpty();
 
         assertThat(mergeResultSlice(assigner, utcMills("1970-01-01T02:00:00")))
                 .isEqualTo(Long.valueOf(utcMills("1970-01-01T01:00:00")));
@@ -200,9 +199,8 @@ public class CumulativeSliceAssignerTest extends SliceAssignerTestBase {
 
         assertThat(mergeResultSlice(assigner, utcMills("1970-01-01T06:00:00")))
                 .isEqualTo(Long.valueOf(utcMills("1970-01-01T06:00:00")));
-        assertThat( // the first slice
-                        toBeMergedSlices(assigner, utcMills("1970-01-01T06:00:00")))
-                .isEmpty(); // the first slice
+        // the first slice
+        assertThat(toBeMergedSlices(assigner, utcMills("1970-01-01T06:00:00"))).isEmpty();
 
         assertThat(mergeResultSlice(assigner, utcMills("1970-01-01T08:00:00")))
                 .isEqualTo(Long.valueOf(utcMills("1970-01-01T06:00:00")));
