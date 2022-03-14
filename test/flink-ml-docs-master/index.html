@@ -1,0 +1,547 @@
+
+<!DOCTYPE html>
+<html lang="en" dir=>
+
+<head>
+  <meta name="generator" content="Hugo 0.80.0" />
+  <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Flink ML: Apache Flink Machine Learning Library #  Flink ML is a library which provides machine learning (ML) APIs and infrastructures that simplify the building of ML pipelines. Users can implement ML algorithms with the standard ML APIs and further use these infrastructures to build ML pipelines for both training and inference jobs.
+Try Flink ML If you’re interested in playing around with Flink ML, check out our example codes.">
+<meta name="theme-color" content="#FFFFFF"><meta property="og:title" content="Apache Flink Machine Learning Library" />
+<meta property="og:description" content="" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="//nightlies.apache.org/flink/flink-ml-docs-master/" />
+
+<title>Apache Flink Machine Learning Library | Apache Flink Machine Learning Library</title>
+<link rel="manifest" href="/flink/flink-ml-docs-master/manifest.json">
+<link rel="icon" href="/flink/flink-ml-docs-master/favicon.png" type="image/x-icon">
+<link rel="stylesheet" href="/flink/flink-ml-docs-master/book.min.3bc4108a5b57c9a7e6fcae92ff69940435f8c46c4e1e4a311aedc9b2d8e06792.css" integrity="sha256-O8QQiltXyafm/K6S/2mUBDX4xGxOHkoxGu3JstjgZ5I=">
+<script defer src="/flink/flink-ml-docs-master/en.search.min.7cc0cbea985d8c65d6c84e0e55db14e9a9b81adacd30c0f8d0ec74e88f1ce056.js" integrity="sha256-fMDL6phdjGXWyE4OVdsU6am4GtrNMMD40Ox06I8c4FY="></script>
+<link rel="alternate" type="application/rss+xml" href="//nightlies.apache.org/flink/flink-ml-docs-master/index.xml" title="Apache Flink Machine Learning Library" />
+<!--
+Made with Book Theme
+https://github.com/alex-shpak/hugo-book
+-->
+
+  
+
+<link rel="stylesheet" type="text/css" href="//nightlies.apache.org/flink/flink-ml-docs-master/font-awesome/css/font-awesome.min.css">
+<script src="//nightlies.apache.org/flink/flink-ml-docs-master/js/anchor.min.js"></script>
+<script src="//nightlies.apache.org/flink/flink-ml-docs-master/js/flink.js"></script>
+
+
+  
+  <script>
+    var _paq = window._paq = window._paq || [];
+     
+     
+    _paq.push(['disableCookies']);
+     
+    _paq.push(["setDomains", ["*.flink.apache.org","*.nightlies.apache.org/flink"]]);
+    _paq.push(['trackPageView']);
+    _paq.push(['enableLinkTracking']);
+    (function() {
+      var u="//matomo.privacy.apache.org/";
+      _paq.push(['setTrackerUrl', u+'matomo.php']);
+      _paq.push(['setSiteId', '1']);
+      var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+      g.async=true; g.src=u+'matomo.js'; s.parentNode.insertBefore(g,s);
+    })();
+  </script>
+  
+</head>
+
+<body dir=>
+  <input type="checkbox" class="hidden toggle" id="menu-control" />
+  <input type="checkbox" class="hidden toggle" id="toc-control" />
+  <main class="container flex">
+    <aside class="book-menu">
+      
+  
+
+<nav>
+
+
+<a id="logo" href="//nightlies.apache.org/flink/flink-ml-docs-master">
+    <img width="70%" src="//nightlies.apache.org/flink/flink-ml-docs-master/navbar-brand-logo.jpg">
+</a>
+<p style="text-align:right">v2.1-SNAPSHOT</p>
+
+<div class="book-search">
+  <input type="text" id="book-search-input" placeholder="Search" aria-label="Search" maxlength="64" data-hotkeys="s/" />
+  <div class="book-search-spinner hidden"></div>
+  <ul id="book-search-results"></ul>
+</div>
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <input type="checkbox" id="section-1fbc0fc92eb1aa13e2a63390905198ab" class="toggle"  />
+    <label for="section-1fbc0fc92eb1aa13e2a63390905198ab" class="flex justify-between"><div style="font-weight:450;margin-bottom:0.5em"><i class="fa fa-rocket title appetizer" aria-hidden="true"></i>&nbsp;&nbsp;Try Flink ML</div><span>▾</span>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <a href="//nightlies.apache.org/flink/flink-ml-docs-master/docs/try-flink-ml/quick-start/" class="">Quick Start</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+  	<br/>
+  
+  
+    <input type="checkbox" id="section-75a1b849ec817b105e0397971f02e977" class="toggle"  />
+    <label for="section-75a1b849ec817b105e0397971f02e977" class="flex justify-between"><div style="font-weight:450;margin-bottom:0.5em"><i class="fa fa-code title maindish" aria-hidden="true"></i>&nbsp;&nbsp;Development</div><span>▾</span>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <a href="//nightlies.apache.org/flink/flink-ml-docs-master/docs/development/overview/" class="">Overview</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <a href="//nightlies.apache.org/flink/flink-ml-docs-master/docs/development/iteration/" class="">Iteration</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <a href="//nightlies.apache.org/flink/flink-ml-docs-master/docs/development/types/" class="">Data Types</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <input type="checkbox" id="section-785133350522f2b07b72730e0dfb22f4" class="toggle"  />
+    <label for="section-785133350522f2b07b72730e0dfb22f4" class="flex justify-between"><div style="font-weight:450;margin-bottom:0.5em"><i class="fa fa-book title maindish" aria-hidden="true"></i>&nbsp;&nbsp;Operators</div><span>▾</span>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <input type="checkbox" id="section-fb400053cc0b7e25c44f1513389948dd" class="toggle"  />
+    <label for="section-fb400053cc0b7e25c44f1513389948dd" class="flex justify-between">Feature Engineering<span>▾</span>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <a href="//nightlies.apache.org/flink/flink-ml-docs-master/docs/operators/feature/onehotencoder/" class="">One Hot Encoder</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <input type="checkbox" id="section-9008592a6c57822e6baaf6b20d537d60" class="toggle"  />
+    <label for="section-9008592a6c57822e6baaf6b20d537d60" class="flex justify-between">Classification<span>▾</span>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <a href="//nightlies.apache.org/flink/flink-ml-docs-master/docs/operators/classification/knn/" class="">KNN</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <a href="//nightlies.apache.org/flink/flink-ml-docs-master/docs/operators/classification/logisticregression/" class="">Logistic Regression</a>
+  
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <a href="//nightlies.apache.org/flink/flink-ml-docs-master/docs/operators/classification/naivebayes/" class="">Naive Bayes</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <input type="checkbox" id="section-5b48e953b63c31a291d9f6a273ec6605" class="toggle"  />
+    <label for="section-5b48e953b63c31a291d9f6a273ec6605" class="flex justify-between">Clustering<span>▾</span>
+    </label>
+  
+
+          
+  <ul>
+    
+      
+        <li>
+          
+  
+  
+
+  
+  
+    <a href="//nightlies.apache.org/flink/flink-ml-docs-master/docs/operators/clustering/kmeans/" class="">Kmeans</a>
+  
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+        </li>
+      
+    
+  </ul>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<br/>
+<hr class="menu-break">
+
+<a href="//flink.apache.org" style="color:black;margin-bottom:0.5em"><i class="link fa fa-external-link title" aria-hidden="true"></i> Project Homepage</a>
+<br/>
+
+<a href="//nightlies.apache.org/flink/flink-ml-docs-master/api/java/" style="color:black;margin-bottom:0.5em"><i class="link fa fa-external-link title" aria-hidden="true"></i> JavaDocs</a>
+<br/>
+
+<hr class="menu-break">
+<li style="list-style-type: none">
+  <br>
+  <input type="checkbox" id="section-version-picker" class="toggle">
+  <label for="section-version-picker" class="flex justify-between">
+     <div style="font-weight:450;margin-bottom:0.5em">Pick Docs Version</div>
+     <span>▾</span>
+  </label>
+  <ul>
+    <a href="//nightlies.apache.org/flink/flink-ml-docs-master">
+      2.1-SNAPSHOT (✓)
+    </a>
+    <hr class="menu-break">
+    
+      <li>
+        <a href="https://nightlies.apache.org/flink/flink-ml-docs-release-2.0">
+          v2.0
+        </a>
+      </li>
+    
+    <hr class="menu-break">
+    <li>
+      <a href="//nightlies.apache.org/flink/flink-ml-docs-master/versions">
+          All Versions
+      </a>
+    </li>
+  </ul>
+</li>
+
+
+
+
+
+
+
+
+
+</nav>
+
+
+
+
+  <script>(function(){var menu=document.querySelector("aside.book-menu nav");addEventListener("beforeunload",function(event){localStorage.setItem("menu.scrollTop",menu.scrollTop);});menu.scrollTop=localStorage.getItem("menu.scrollTop");})();</script>
+
+
+ 
+    </aside>
+
+    <div class="book-page">
+      <header class="book-header">
+        
+  <div class="flex align-center justify-between">
+  <label for="menu-control">
+    <img src="/flink/flink-ml-docs-master/svg/menu.svg" class="book-icon" alt="Menu" />
+  </label>
+
+  <strong>Apache Flink Machine Learning Library</strong>
+
+  <label for="toc-control">
+    
+  </label>
+</div>
+
+
+  
+ 
+      </header>
+
+      
+
+
+
+
+<article class="markdown">
+    <blockquote style="border-color:#f66">
+        This documentation is for an unreleased version of Apache Flink Machine Learning Library. We recommend you use the latest <a href="https://ci.apache.org/projects/flink/flink-ml-docs-stable/">stable version</a>.
+    </blockquote>
+</article>
+
+
+
+      
+  <article class="markdown"><!--
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership.  The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License.  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing,
+software distributed under the License is distributed on an
+"AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+KIND, either express or implied.  See the License for the
+specific language governing permissions and limitations
+under the License.
+-->
+<h1 id="flink-ml-apache-flink-machine-learning-library">
+  Flink ML: Apache Flink Machine Learning Library
+  <a class="anchor" href="#flink-ml-apache-flink-machine-learning-library">#</a>
+</h1>
+<p>Flink ML is a library which provides machine learning (ML) APIs and
+infrastructures that simplify the building of ML pipelines. Users can implement
+ML algorithms with the standard ML APIs and further use these infrastructures to
+build ML pipelines for both training and inference jobs.</p>
+<div class="book-columns flex flex-wrap">
+  
+  <div class="flex-even markdown-inner">
+    <h2 id="try-flink-ml">Try Flink ML</h2>
+<p>If you’re interested in playing around with Flink ML, check out our <a href="//nightlies.apache.org/flink/flink-ml-docs-master/docs/try-flink-ml/quick-start/">example
+codes</a>. It provides a step by
+step introduction to the APIs and guides you through real applications.
+  </div>
+  
+  <div class="flex-even markdown-inner">
+    <h2 id="get-help-with-flink-ml">Get Help with Flink ML</h2>
+<p>If you get stuck, check out our <a href="https://flink.apache.org/community.html">community support
+resources</a>. In particular, Apache
+Flink’s user mailing list is consistently ranked as one of the most active of
+any Apache project, and is a great way to get help quickly.
+  </div>
+  
+</div>
+
+<p>Flink ML is developed under the umbrella of <a href="https://flink.apache.org/">Apache
+Flink</a>.</p>
+</article>
+ 
+      
+
+      <footer class="book-footer">
+        
+  
+
+
+
+ 
+        
+      </footer>
+
+      
+  
+  <div class="book-comments">
+
+</div>
+  
+ 
+
+      <label for="menu-control" class="hidden book-menu-overlay"></label>
+    </div>
+
+    
+  </main>
+
+  
+</body>
+
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
