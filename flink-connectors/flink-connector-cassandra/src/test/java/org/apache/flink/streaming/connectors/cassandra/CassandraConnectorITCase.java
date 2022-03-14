@@ -62,7 +62,6 @@ import com.datastax.driver.mapping.annotations.Table;
 import net.bytebuddy.ByteBuddy;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Before;
@@ -177,8 +176,6 @@ public class CassandraConnectorITCase
                     + " int, "
                     + TUPLE_BATCHID_FIELD
                     + " int);";
-    private static final String DROP_TABLE_QUERY =
-            "DROP TABLE " + KEYSPACE + "." + TABLE_NAME_VARIABLE + " ;";
     private static final String INSERT_DATA_QUERY =
             "INSERT INTO "
                     + KEYSPACE
@@ -396,13 +393,6 @@ public class CassandraConnectorITCase
     public void createTable() {
         tableID = random.nextInt(Integer.MAX_VALUE);
         session.execute(injectTableName(CREATE_TABLE_QUERY));
-    }
-
-    @After
-    public void dropTable() {
-        // each Before updates the tableID and it is called even in case or retrials. So, we need to
-        // drop only the created table for this test
-        session.execute(injectTableName(DROP_TABLE_QUERY));
     }
 
     @AfterClass
