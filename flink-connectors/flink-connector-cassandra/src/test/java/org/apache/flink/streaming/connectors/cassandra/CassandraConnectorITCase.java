@@ -711,9 +711,7 @@ public class CassandraConnectorITCase
     private static int retrialsCount = 0;
 
     @Test
-    public void testRetrialAndDropTable() {
-        // should not fail with table exists upon retrial
-        // as @After method that drops the table is called upon retrials.
+    public void testRetrial() {
         annotatePojoWithTable(KEYSPACE, TABLE_NAME_PREFIX + tableID);
         if (retrialsCount < 2) {
             retrialsCount++;
