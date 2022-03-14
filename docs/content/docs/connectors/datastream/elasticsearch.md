@@ -287,7 +287,79 @@ val sinkBuilder = new Elasticsearch7SinkBuilder[String]
 
 Elasticsearch action requests may fail due to a variety of reasons, including
 temporarily saturated node queue capacity or malformed documents to be indexed.
-The Flink Elasticsearch Sink allows the user to retry requests by specifying a backoff-policy.
+The Flink Elasticsearch Sink allows the user to specify how request failures are handled, by simply implementing an ActionRequestFailureHandler and providing it to the constructor.
+
+Below is an example:
+
+{{< tabs "57f6c7c9-3a77-471d-8eed-aaad701fbfa6" >}}
+{{< tab "Java" >}}
+Elasticsearch 6:
+```java
+DataStream<String> input = ...;
+
+input.sinkTo(
+    new Elasticsearch6SinkBuilder<String>()
+        .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+        .setEmitter(
+        (element, context, indexer) ->
+        indexer.add(createIndexRequest(element)))
+        .setFailureHandler(new ActionRequestFailureHandler() {
+            @Override
+            void onFailure(ActionRequest action,
+                    Throwable failure,
+                    int restStatusCode,
+                    RequestIndexer indexer) throw Throwable {
+    
+                    if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
+                        // full queue; re-add document for indexing
+                        indexer.add(action);
+                    } else if (ExceptionUtils.findThrowable(failure, ElasticsearchParseException.class).isPresent()) {
+                        // malformed document; simply drop request without failing sink
+                    } else {
+                        // for all other failures, fail the sink
+                        // here the failure is simply rethrown, but users can also choose to throw custom exceptions
+                        throw failure;
+                    }
+            }
+        })
+        .build());
+```
+
+Elasticsearch 7:
+```java
+DataStream<String> input = ...;
+
+input.sinkTo(
+    new Elasticsearch7SinkBuilder<String>()
+        .setHosts(new HttpHost("127.0.0.1", 9200, "http"))
+        .setEmitter(
+        (element, context, indexer) ->
+        indexer.add(createIndexRequest(element)))
+        .setFailureHandler(new ActionRequestFailureHandler() {
+            @Override
+            void onFailure(ActionRequest action,
+                    Throwable failure,
+                    int restStatusCode,
+                    RequestIndexer indexer) throw Throwable {
+
+                    if (ExceptionUtils.findThrowable(failure, EsRejectedExecutionException.class).isPresent()) {
+                        // full queue; re-add document for indexing
+                        indexer.add(action);
+                    } else if (ExceptionUtils.findThrowable(failure, ElasticsearchParseException.class).isPresent()) {
+                        // malformed document; simply drop request without failing sink
+                    } else {
+                        // for all other failures, fail the sink
+                        // here the failure is simply rethrown, but users can also choose to throw custom exceptions
+                        throw failure;
+                    }
+            }
+        })
+        .build());
+```
+{{< /tab >}}
+{{< /tabs >}}
+
+Independent of the FailureHandler, you can also configure the bulk processor to retry requests by specifying a backoff-policy.
 
 Below is an example:
 

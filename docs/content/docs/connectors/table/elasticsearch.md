@@ -140,6 +140,21 @@ Connector Options
       <td>Password used to connect to Elasticsearch instance. If <code>username</code> is configured, this option must be configured with non-empty string as well.</td>
     </tr>
     <tr>
+      <td><h5>failure-handler</h5></td>
+      <td>optional</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">fail</td>
+      <td>String</td>
+      <td>Failure handling strategy in case a request to Elasticsearch fails. Valid strategies are:
+      <ul>
+        <li><code>fail</code>: throws an exception if a request fails and thus causes a job failure.</li>
+        <li><code>ignore</code>: ignores failures and drops the request.</li>
+        <li><code>retry-rejected</code>: re-adds requests that have failed due to queue capacity saturation.</li>
+        <li>custom class name: for failure handling with a ActionRequestFailureHandler subclass.</li>
+      </ul>
+      </td>
+    </tr>
+    <tr>
       <td><h5>sink.delivery-guarantee</h5></td>
       <td>optional</td>
       <td>no</td>
