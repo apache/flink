@@ -46,7 +46,7 @@ under the License.
 ```java
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-DataStream<String> text = [...]
+DataStream<String> text = [...];
 DataStream<Tuple2<String, Integer>> wordCounts = text
     .flatMap(new LineSplitter())
     .keyBy(value -> value.f0)
@@ -87,8 +87,8 @@ env.execute("Word Count Example")
 final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 env.setParallelism(3);
 
-DataStream<String> text = [...]
-DataStream<Tuple2<String, Integer>> wordCounts = [...]
+DataStream<String> text = [...];
+DataStream<Tuple2<String, Integer>> wordCounts = [...];
 wordCounts.print();
 
 env.execute("Word Count Example");

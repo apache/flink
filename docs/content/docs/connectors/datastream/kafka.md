@@ -73,19 +73,19 @@ The following properties are **required** for building a KafkaSource:
 Kafka source provide 3 ways of topic-partition subscription:
 - Topic list, subscribing messages from all partitions in a list of topics. For example:
   ```java
-  KafkaSource.builder().setTopics("topic-a", "topic-b")
+  KafkaSource.builder().setTopics("topic-a", "topic-b");
   ```
 - Topic pattern, subscribing messages from all topics whose name matches the provided regular
   expression. For example:
   ```java
-  KafkaSource.builder().setTopicPattern("topic.*")
+  KafkaSource.builder().setTopicPattern("topic.*");
   ```
 - Partition set, subscribing partitions in the provided partition set. For example:
   ```java
   final HashSet<TopicPartition> partitionSet = new HashSet<>(Arrays.asList(
           new TopicPartition("topic-a", 0),    // Partition 0 of topic "topic-a"
           new TopicPartition("topic-b", 5)));  // Partition 5 of topic "topic-b"
-  KafkaSource.builder().setPartitions(partitionSet)
+  KafkaSource.builder().setPartitions(partitionSet);
   ```
 ### Deserializer
 A deserializer is required for parsing Kafka messages. Deserializer (Deserialization schema) can be
@@ -121,7 +121,7 @@ KafkaSource.builder()
     // Start from earliest offset
     .setStartingOffsets(OffsetsInitializer.earliest())
     // Start from latest offset
-    .setStartingOffsets(OffsetsInitializer.latest())
+    .setStartingOffsets(OffsetsInitializer.latest());
 ```
 
 You can also implement a custom offsets initializer if built-in initializers above cannot fulfill
@@ -170,7 +170,7 @@ JAAS configuration:
 ```java
 KafkaSource.builder()
     .setProperty("sasl.mechanism", "PLAIN")
-    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";")
+    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";");
 ```
 
 ### Dynamic Partition Discovery
@@ -180,7 +180,7 @@ topic-partition subscribing pattern. To enable partition discovery, set a non-ne
 property ```partition.discovery.interval.ms```:
 ```java
 KafkaSource.builder()
-    .setProperty("partition.discovery.interval.ms", "10000") // discover new partitions per 10 seconds
+    .setProperty("partition.discovery.interval.ms", "10000"); // discover new partitions per 10 seconds
 ```
 {{< hint warning >}}
 Partition discovery is **disabled** by default. You need to explicitly set the partition discovery
@@ -192,7 +192,7 @@ By default, the record will use the timestamp embedded in Kafka ```ConsumerRecor
 time. You can define your own ```WatermarkStrategy``` for extract event time from the record itself,
 and emit watermark downstream:
 ```java
-env.fromSource(kafkaSource, new CustomWatermarkStrategy(), "Kafka Source With Custom Watermark Strategy")
+env.fromSource(kafkaSource, new CustomWatermarkStrategy(), "Kafka Source With Custom Watermark Strategy");
 ```
 [This documentation]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}}) describes
 details about how to define a ```WatermarkStrategy```.
@@ -361,7 +361,7 @@ Kafka sink provides a builder class to construct an instance of a KafkaSink. The
 shows how to write String records to a Kafka topic with a delivery guarantee of at least once.
 
 ```java
-DataStream<String> stream = ...
+DataStream<String> stream = ...;
         
 KafkaSink<String> sink = KafkaSink.<String>builder()
         .setBootstrapServers(brokers)

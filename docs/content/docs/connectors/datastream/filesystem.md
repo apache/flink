@@ -65,10 +65,10 @@ You can start building a File Source via one of the following API calls:
 {{< tab "Java" >}}
 ```java
 // reads the contents of a file from a file stream. 
-FileSource.forRecordStreamFormat(StreamFormat,Path...)
+FileSource.forRecordStreamFormat(StreamFormat,Path...);
         
 // reads batches of records from a file at a time
-FileSource.forBulkFileFormat(BulkFormat,Path...)
+FileSource.forBulkFileFormat(BulkFormat,Path...);
 ```
 {{< /tab >}}
 {{< /tabs >}}

@@ -68,10 +68,10 @@ under the License.
 {{< tab "Java" >}}
 ```java
 // 从文件流中读取文件内容
-FileSource.forRecordStreamFormat(StreamFormat,Path...)
+FileSource.forRecordStreamFormat(StreamFormat,Path...);
         
 // 从文件中一次读取一批记录
-FileSource.forBulkFileFormat(BulkFormat,Path...)
+FileSource.forBulkFileFormat(BulkFormat,Path...);
 ```
 {{< /tab >}}
 {{< /tabs >}}

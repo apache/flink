@@ -171,7 +171,7 @@ IterationState solution = getInitialSolution();
 while (!terminationCriterion()) {
 	(delta, workset) = step(workset, solution);
 
-	solution.update(delta)
+	solution.update(delta);
 }
 
 setFinalState(solution);

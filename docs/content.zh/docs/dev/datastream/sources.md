@@ -363,7 +363,7 @@ Source 的实现需要完成一部分*事件时间*分配和*水印生成*的工
 environment.fromSource(
     Source<OUT, ?, ?> source,
     WatermarkStrategy<OUT> timestampsAndWatermarks,
-    String sourceName)
+    String sourceName);
 ```
 
 `TimestampAssigner` 和 `WatermarkGenerator` 作为 `ReaderOutput`（或 `SourceOutput`）的一部分透明地运行，因此 Source 实现者不必实现任何时间戳提取和水印生成的代码。 
