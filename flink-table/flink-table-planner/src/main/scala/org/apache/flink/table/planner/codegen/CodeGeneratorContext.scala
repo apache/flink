@@ -428,10 +428,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
              |$fieldTerm.add(${element.resultTerm});
              |""".stripMargin
         } else if (element.literalValue.get == null) {
-          s"""
-             |${element.code}
-             |$fieldTerm.addNull();
-             |""".stripMargin
+          s"$fieldTerm.addNull();"
         }
       } else {
         s"""

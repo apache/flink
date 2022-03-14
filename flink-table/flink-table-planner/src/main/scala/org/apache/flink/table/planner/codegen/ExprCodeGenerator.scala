@@ -412,8 +412,8 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
   }
 
   override def visitLiteral(literal: RexLiteral): GeneratedExpression = {
-    val (flinkValue, logicalType) = RexLiteralUtil.toFlinkInternalValue(literal)
-    generateLiteral(ctx, flinkValue, logicalType)
+    val res = RexLiteralUtil.toFlinkInternalValue(literal)
+    generateLiteral(ctx, res.f0, res.f1)
   }
 
   override def visitCorrelVariable(correlVariable: RexCorrelVariable): GeneratedExpression = {

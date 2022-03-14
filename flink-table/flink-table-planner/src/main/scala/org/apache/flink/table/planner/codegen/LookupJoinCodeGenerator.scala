@@ -214,8 +214,8 @@ object LookupJoinCodeGenerator {
         .map(lookupKeys.get)
         .map {
           case constantKey: ConstantLookupKey =>
-            val (flinkValue, logicalType) = RexLiteralUtil.toFlinkInternalValue(constantKey.literal)
-            generateLiteral(ctx, flinkValue, logicalType)
+            val res = RexLiteralUtil.toFlinkInternalValue(constantKey.literal)
+            generateLiteral(ctx, res.f0, res.f1)
           case fieldKey: FieldRefLookupKey =>
             generateInputAccess(
               ctx,

@@ -78,7 +78,7 @@ object SearchOperatorGen {
         .asScala
         // We need to go through the generateLiteral to normalize the value from calcite
         .map(r => toFlinkInternalValue(r.lowerEndpoint, sargType))
-        // The elements are constant, we perform the cast at priori
+        // The elements are constant, we perform the cast immediately
         .map(CastRuleProvider.cast(toCastContext(ctx), sargType, commonType, _))
         .map(generateLiteral(ctx, _, commonType))
       if (sarg.containsNull) {

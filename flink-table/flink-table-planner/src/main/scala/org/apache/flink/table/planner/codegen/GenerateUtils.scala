@@ -307,10 +307,10 @@ object GenerateUtils {
   }
 
   /**
-   * This function accepts the Flink's internal type system.
+   * This function accepts the Flink's internal data structures.
    *
    * Check [[org.apache.flink.table.planner.plan.utils.RexLiteralUtil.toFlinkInternalValue]] to
-   * convert RexLiteral value to Flink's internal type system.
+   * convert RexLiteral value to Flink's internal data structures.
    */
   @tailrec
   def generateLiteral(
