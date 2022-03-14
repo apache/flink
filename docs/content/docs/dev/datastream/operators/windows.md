@@ -462,6 +462,17 @@ input
     .reduce { (v1, v2) => (v1._1, v1._2 + v2._2) }
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input: DataStream = ...
+
+input
+    .key_by(<key selector>)
+    .window(<window assigner>)
+    .reduce(lambda v1, v2: (v1[0], v1[1] + v2[1]),
+            output_type=Types.TUPLE([Types.STRING(), Types.LONG()]))
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 The above example sums up the second fields of the tuples for all elements in a window.

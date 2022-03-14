@@ -794,7 +794,6 @@ class DataStreamTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_time_window_reduce_passthrough(self):
-        self.env.set_parallelism(1)
         data_stream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
             type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
@@ -804,7 +803,7 @@ class DataStreamTests(object):
             .key_by(lambda x: x[0], key_type=Types.STRING()) \
             .window(SimpleMergeTimeWindowAssigner()) \
             .reduce(lambda a, b: (b[0], a[1] + b[1]),
-                    result_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+                    output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
             .add_sink(self.test_sink)
 
         self.env.execute('test_time_window_reduce_passthrough')
@@ -813,7 +812,6 @@ class DataStreamTests(object):
         self.assert_equals_sorted(expected, results)
 
     def test_time_window_reduce_process(self):
-        self.env.set_parallelism(1)
         data_stream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
             type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
@@ -837,7 +835,7 @@ class DataStreamTests(object):
             .window(SimpleMergeTimeWindowAssigner()) \
             .reduce(lambda a, b: (b[0], a[1] + b[1]),
                     window_function=MyProcessFunction(),
-                    result_type=Types.STRING()) \
+                    output_type=Types.STRING()) \
             .add_sink(self.test_sink)
 
         self.env.execute('test_time_window_reduce_process')
