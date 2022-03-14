@@ -35,7 +35,9 @@ import org.apache.flink.util.ExceptionUtils;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Comparator;
@@ -138,8 +140,15 @@ public class TestUtils {
                                     path.getFileName().toString().equals(METADATA_FILE_NAME))
                     .findAny()
                     .isPresent();
-        } catch (IOException e) {
-            ExceptionUtils.rethrow(e);
+        } catch (UncheckedIOException uncheckedIOException) {
+            // return false when the metadata file is in progress due to subsumed checkpoint
+            if (ExceptionUtils.findThrowable(uncheckedIOException, NoSuchFileException.class)
+                    .isPresent()) {
+                return false;
+            }
+            throw uncheckedIOException;
+        } catch (IOException ioException) {
+            ExceptionUtils.rethrow(ioException);
             return false; // should never happen
         }
     }
