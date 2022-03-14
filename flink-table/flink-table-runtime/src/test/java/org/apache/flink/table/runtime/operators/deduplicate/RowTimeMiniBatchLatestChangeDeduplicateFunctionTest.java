@@ -47,7 +47,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 11, 2L));
         testHarness.processElement(insertRecord("book", 13, 1L));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
         // bundle trigger emit.
         testHarness.processElement(insertRecord("book", 12, 1L));
         List<Object> expectedOutput = new ArrayList<>();
@@ -74,7 +74,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 11, 2L));
         testHarness.processElement(insertRecord("book", 13, 1L));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
         // bundle trigger emit.
         testHarness.processElement(insertRecord("book", 12, 1L));
         List<Object> expectedOutput = new ArrayList<>();
@@ -100,7 +100,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 11, 2L));
         testHarness.processElement(insertRecord("book", 13, 1L));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
         // bundle trigger emit.
         testHarness.processElement(insertRecord("book", 12, 1L));
         List<Object> expectedOutput = new ArrayList<>();
@@ -127,7 +127,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 11, 2L));
         testHarness.processElement(insertRecord("book", 13, 1L));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
         // bundle trigger emit.
         testHarness.processElement(insertRecord("book", 12, 1L));
         List<Object> expectedOutput = new ArrayList<>();
@@ -155,7 +155,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 11, 2L));
         testHarness.processElement(insertRecord("book", 13, 1L));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
         // bundle trigger emit.
         testHarness.processElement(insertRecord("book", 12, 1L));
         List<Object> expectedOutput = new ArrayList<>();
@@ -185,7 +185,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 11, 2L));
         testHarness.processElement(insertRecord("book", 13, 1L));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
         // bundle trigger emit.
         testHarness.processElement(insertRecord("book", 12, 1L));
         List<Object> expectedOutput = new ArrayList<>();
@@ -211,7 +211,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 11, 2L));
         testHarness.processElement(insertRecord("book", 13, 1L));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
         // bundle trigger emit.
         testHarness.processElement(insertRecord("book", 12, 1L));
         List<Object> expectedOutput = new ArrayList<>();
@@ -236,7 +236,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 11, 2L));
         testHarness.processElement(insertRecord("book", 13, 1L));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
         // bundle trigger emit.
         testHarness.processElement(insertRecord("book", 12, 1L));
         List<Object> expectedOutput = new ArrayList<>();
@@ -262,7 +262,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 11, 2L));
         testHarness.processElement(insertRecord("book", 13, 1L));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
         // bundle trigger emit.
         testHarness.processElement(insertRecord("book", 12, 1L));
         List<Object> expectedOutput = new ArrayList<>();
@@ -288,7 +288,7 @@ public class RowTimeMiniBatchLatestChangeDeduplicateFunctionTest
         testHarness.processElement(insertRecord("book", 11, 2L));
         testHarness.processElement(insertRecord("book", 13, 1L));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
         // bundle trigger emit.
         testHarness.processElement(insertRecord("book", 12, 1L));
         List<Object> expectedOutput = new ArrayList<>();

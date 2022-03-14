@@ -27,7 +27,6 @@ import java.util.Arrays;
 import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Check if the static methods defined in {@link BuiltInMethods} are valid. */
 class BuiltInMethodsTest {
@@ -43,9 +42,6 @@ class BuiltInMethodsTest {
     @ParameterizedTest
     @MethodSource
     void testMethodsAreAvailable(Method m) throws Exception {
-        assertThatThrownBy(() -> m.invoke(null))
-                .as("Method " + m.getName() + " throws an exception, perhaps a bad definition?")
-                .isNull();
         assertThat(m.invoke(null)).isNotNull();
     }
 }

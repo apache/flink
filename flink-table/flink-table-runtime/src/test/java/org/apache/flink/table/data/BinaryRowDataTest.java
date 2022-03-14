@@ -383,7 +383,7 @@ public class BinaryRowDataTest {
             writer.complete();
             hashCodes.add(row.hashCode());
         }
-        assertThat(hashCodes.size()).isGreaterThan(count * 0.997);
+        assertThat(hashCodes.size()).isGreaterThan((int) (count * 0.997));
     }
 
     @Test

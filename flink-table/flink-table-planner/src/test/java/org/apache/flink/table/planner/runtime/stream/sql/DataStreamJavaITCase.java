@@ -94,8 +94,6 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.sourceWatermark;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /** Tests for connecting to the {@link DataStream} API. */
 @RunWith(Parameterized.class)
@@ -669,10 +667,10 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         testResult(env.fromElements(3, 4, 5), 3, 4, 5);
 
         assertThat(TestValuesTableFactory.getResults("OutputTable1"))
-                .satisfies(matching(containsInAnyOrder("+I[1, a]", "+I[2, b]")));
+                .containsExactlyInAnyOrder("+I[1, a]", "+I[2, b]");
 
         assertThat(TestValuesTableFactory.getResults("OutputTable2"))
-                .satisfies(matching(containsInAnyOrder("+I[1]", "+I[2]", "+I[3]")));
+                .containsExactlyInAnyOrder("+I[1]", "+I[2]", "+I[3]");
     }
 
     @Test
@@ -874,7 +872,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
 
     private static void testResult(TableResult result, Row... expectedRows) {
         final List<Row> actualRows = CollectionUtil.iteratorToList(result.collect());
-        assertThat(actualRows).satisfies(matching(containsInAnyOrder(expectedRows)));
+        assertThat(actualRows).containsExactlyInAnyOrder(expectedRows);
     }
 
     @SafeVarargs
@@ -882,7 +880,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
             throws Exception {
         try (CloseableIterator<T> iterator = dataStream.executeAndCollect()) {
             final List<T> list = CollectionUtil.iteratorToList(iterator);
-            assertThat(list).satisfies(matching(containsInAnyOrder(expectedResult)));
+            assertThat(list).containsExactlyInAnyOrder(expectedResult);
         }
     }
 
@@ -910,7 +908,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                                 break;
                         }
                     });
-            assertThat(materializedResult).satisfies(matching(containsInAnyOrder(expectedResult)));
+            assertThat(materializedResult).containsExactlyInAnyOrder(expectedResult);
         }
     }
 

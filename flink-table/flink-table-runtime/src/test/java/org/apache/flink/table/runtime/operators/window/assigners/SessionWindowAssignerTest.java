@@ -32,10 +32,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.TreeSet;
 
-import static org.apache.flink.table.runtime.operators.window.WindowTestUtils.timeWindow;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.Matchers.anyCollection;
 import static org.mockito.Matchers.anyObject;
@@ -58,12 +55,11 @@ public class SessionWindowAssignerTest {
         SessionWindowAssigner assigner =
                 SessionWindowAssigner.withGap(Duration.ofMillis(sessionGap));
 
-        assertThat(assigner.assignWindows(ELEMENT, 0L))
-                .satisfies(matching(contains(timeWindow(0, sessionGap))));
+        assertThat(assigner.assignWindows(ELEMENT, 0L)).contains(new TimeWindow(0, sessionGap));
         assertThat(assigner.assignWindows(ELEMENT, 4999L))
-                .satisfies(matching(contains(timeWindow(4999, 4999 + sessionGap))));
+                .contains(new TimeWindow(4999, 4999 + sessionGap));
         assertThat(assigner.assignWindows(ELEMENT, 5000L))
-                .satisfies(matching(contains(timeWindow(5000, 5000 + sessionGap))));
+                .contains(new TimeWindow(5000, 5000 + sessionGap));
     }
 
     @SuppressWarnings("unchecked")

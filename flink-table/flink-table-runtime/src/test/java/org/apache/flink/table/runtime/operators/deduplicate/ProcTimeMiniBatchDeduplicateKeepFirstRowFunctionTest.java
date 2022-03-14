@@ -61,7 +61,7 @@ public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
         testHarness.processElement(insertRecord("book", 2L, 11));
 
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
 
         testHarness.processElement(insertRecord("book", 1L, 13));
 
@@ -84,7 +84,7 @@ public class ProcTimeMiniBatchDeduplicateKeepFirstRowFunctionTest
         testHarness.processElement(insertRecord("book", 1L, 12));
         testHarness.processElement(insertRecord("book", 2L, 11));
         // output is empty because bundle not trigger yet.
-        assertThat(testHarness.getOutput().isEmpty()).isTrue();
+        assertThat(testHarness.getOutput()).isEmpty();
         testHarness.processElement(insertRecord("book", 1L, 13));
 
         testHarness.setStateTtlProcessingTime(30);

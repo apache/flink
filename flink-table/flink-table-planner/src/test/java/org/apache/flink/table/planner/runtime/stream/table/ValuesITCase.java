@@ -39,7 +39,6 @@ import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -182,7 +181,7 @@ public class ValuesITCase extends StreamingTestBase {
                                         })));
 
         List<Row> actual = TestCollectionTableFactory.getResult();
-        assertThat(new HashSet<>(actual)).isEqualTo(new HashSet<>(expected));
+        assertThat(actual).containsExactlyInAnyOrderElementsOf(expected);
     }
 
     @Test
@@ -266,7 +265,7 @@ public class ValuesITCase extends StreamingTestBase {
         t.executeInsert("SinkTable").await();
 
         List<Row> actual = TestCollectionTableFactory.getResult();
-        assertThat(new HashSet<>(actual)).isEqualTo(new HashSet<>(data));
+        assertThat(actual).containsExactlyInAnyOrderElementsOf(data);
     }
 
     @Test
@@ -324,7 +323,7 @@ public class ValuesITCase extends StreamingTestBase {
                         Row.of(
                                 "2,2,2,2,2.2,2.2,2.2,false,02:02:02,0002-02-02,0002-02-02T02:02:02.000000002,"
                                         + "1970-01-01T00:00:00.002Z,2,[2],[2.2],{2=2.2}"));
-        assertThat(new HashSet<>(actual)).isEqualTo(new HashSet<>(expected));
+        assertThat(actual).containsExactlyInAnyOrderElementsOf(expected);
     }
 
     @Test

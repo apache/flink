@@ -30,11 +30,9 @@ import org.junit.rules.ExpectedException;
 
 import java.time.Duration;
 
-import static org.apache.flink.table.runtime.operators.window.WindowTestUtils.timeWindow;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /** Tests for {@link CumulativeWindowAssigner}. */
 public class CumulativeWindowAssignerTest {
@@ -43,32 +41,27 @@ public class CumulativeWindowAssignerTest {
 
     @Rule public ExpectedException thrown = ExpectedException.none();
 
-    @SuppressWarnings("unchecked")
     @Test
     public void testWindowAssignment() {
         CumulativeWindowAssigner assigner =
                 CumulativeWindowAssigner.of(Duration.ofMillis(5000), Duration.ofMillis(1000));
 
         assertThat(assigner.assignWindows(ELEMENT, 0L))
-                .satisfies(
-                        matching(
-                                containsInAnyOrder(
-                                        timeWindow(0, 1000),
-                                        timeWindow(0, 2000),
-                                        timeWindow(0, 3000),
-                                        timeWindow(0, 4000),
-                                        timeWindow(0, 5000))));
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(0, 1000),
+                        new TimeWindow(0, 2000),
+                        new TimeWindow(0, 3000),
+                        new TimeWindow(0, 4000),
+                        new TimeWindow(0, 5000));
         assertThat(assigner.assignWindows(ELEMENT, 4999L))
-                .satisfies(matching(contains(timeWindow(0, 5000))));
+                .satisfies(matching(contains(new TimeWindow(0, 5000))));
         assertThat(assigner.assignWindows(ELEMENT, 5000L))
-                .satisfies(
-                        matching(
-                                containsInAnyOrder(
-                                        timeWindow(5000, 6000),
-                                        timeWindow(5000, 7000),
-                                        timeWindow(5000, 8000),
-                                        timeWindow(5000, 9000),
-                                        timeWindow(5000, 10000))));
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(5000, 6000),
+                        new TimeWindow(5000, 7000),
+                        new TimeWindow(5000, 8000),
+                        new TimeWindow(5000, 9000),
+                        new TimeWindow(5000, 10000));
 
         // test pane
         assertThat(new TimeWindow(0, 1000)).isEqualTo(assigner.assignPane(ELEMENT, 0L));
@@ -77,22 +70,18 @@ public class CumulativeWindowAssignerTest {
         assertThat(new TimeWindow(5000, 6000)).isEqualTo(assigner.assignPane(ELEMENT, 5000L));
 
         assertThat(assigner.splitIntoPanes(new TimeWindow(0, 5000)))
-                .satisfies(
-                        matching(
-                                contains(
-                                        timeWindow(0, 1000),
-                                        timeWindow(1000, 2000),
-                                        timeWindow(2000, 3000),
-                                        timeWindow(3000, 4000),
-                                        timeWindow(4000, 5000))));
+                .contains(
+                        new TimeWindow(0, 1000),
+                        new TimeWindow(1000, 2000),
+                        new TimeWindow(2000, 3000),
+                        new TimeWindow(3000, 4000),
+                        new TimeWindow(4000, 5000));
 
         assertThat(assigner.splitIntoPanes(new TimeWindow(5000, 8000)))
-                .satisfies(
-                        matching(
-                                contains(
-                                        timeWindow(5000, 6000),
-                                        timeWindow(6000, 7000),
-                                        timeWindow(7000, 8000))));
+                .contains(
+                        new TimeWindow(5000, 6000),
+                        new TimeWindow(6000, 7000),
+                        new TimeWindow(7000, 8000));
 
         assertThat(new TimeWindow(0, 5000))
                 .isEqualTo(assigner.getLastWindow(new TimeWindow(4000, 5000)));
@@ -102,7 +91,6 @@ public class CumulativeWindowAssignerTest {
                 .isEqualTo(assigner.getLastWindow(new TimeWindow(7000, 8000)));
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     public void testWindowAssignmentWithOffset() {
         CumulativeWindowAssigner assigner =
@@ -110,25 +98,21 @@ public class CumulativeWindowAssignerTest {
                         .withOffset(Duration.ofMillis(100));
 
         assertThat(assigner.assignWindows(ELEMENT, 100L))
-                .satisfies(
-                        matching(
-                                containsInAnyOrder(
-                                        timeWindow(100, 1100),
-                                        timeWindow(100, 2100),
-                                        timeWindow(100, 3100),
-                                        timeWindow(100, 4100),
-                                        timeWindow(100, 5100))));
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(100, 1100),
+                        new TimeWindow(100, 2100),
+                        new TimeWindow(100, 3100),
+                        new TimeWindow(100, 4100),
+                        new TimeWindow(100, 5100));
         assertThat(assigner.assignWindows(ELEMENT, 5099L))
-                .satisfies(matching(contains(timeWindow(100, 5100))));
+                .satisfies(matching(contains(new TimeWindow(100, 5100))));
         assertThat(assigner.assignWindows(ELEMENT, 5100L))
-                .satisfies(
-                        matching(
-                                containsInAnyOrder(
-                                        timeWindow(5100, 6100),
-                                        timeWindow(5100, 7100),
-                                        timeWindow(5100, 8100),
-                                        timeWindow(5100, 9100),
-                                        timeWindow(5100, 10100))));
+                .containsExactlyInAnyOrder(
+                        new TimeWindow(5100, 6100),
+                        new TimeWindow(5100, 7100),
+                        new TimeWindow(5100, 8100),
+                        new TimeWindow(5100, 9100),
+                        new TimeWindow(5100, 10100));
 
         // test pane
         assertThat(new TimeWindow(100, 1100)).isEqualTo(assigner.assignPane(ELEMENT, 100L));
@@ -137,22 +121,18 @@ public class CumulativeWindowAssignerTest {
         assertThat(new TimeWindow(5100, 6100)).isEqualTo(assigner.assignPane(ELEMENT, 5100L));
 
         assertThat(assigner.splitIntoPanes(new TimeWindow(100, 5100)))
-                .satisfies(
-                        matching(
-                                contains(
-                                        timeWindow(100, 1100),
-                                        timeWindow(1100, 2100),
-                                        timeWindow(2100, 3100),
-                                        timeWindow(3100, 4100),
-                                        timeWindow(4100, 5100))));
+                .contains(
+                        new TimeWindow(100, 1100),
+                        new TimeWindow(1100, 2100),
+                        new TimeWindow(2100, 3100),
+                        new TimeWindow(3100, 4100),
+                        new TimeWindow(4100, 5100));
 
         assertThat(assigner.splitIntoPanes(new TimeWindow(5100, 8100)))
-                .satisfies(
-                        matching(
-                                contains(
-                                        timeWindow(5100, 6100),
-                                        timeWindow(6100, 7100),
-                                        timeWindow(7100, 8100))));
+                .contains(
+                        new TimeWindow(5100, 6100),
+                        new TimeWindow(6100, 7100),
+                        new TimeWindow(7100, 8100));
 
         assertThat(new TimeWindow(100, 5100))
                 .isEqualTo(assigner.getLastWindow(new TimeWindow(4100, 5100)));

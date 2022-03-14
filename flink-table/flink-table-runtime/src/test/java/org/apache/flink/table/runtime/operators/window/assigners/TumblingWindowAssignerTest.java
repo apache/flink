@@ -29,10 +29,7 @@ import org.junit.rules.ExpectedException;
 
 import java.time.Duration;
 
-import static org.apache.flink.table.runtime.operators.window.WindowTestUtils.timeWindow;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.Matchers.contains;
 
 /** Tests for {@link TumblingWindowAssigner}. */
 public class TumblingWindowAssignerTest {
@@ -44,12 +41,9 @@ public class TumblingWindowAssignerTest {
     public void testWindowAssignment() {
         TumblingWindowAssigner assigner = TumblingWindowAssigner.of(Duration.ofMillis(5000));
 
-        assertThat(assigner.assignWindows(ELEMENT, 0L))
-                .satisfies(matching(contains(timeWindow(0, 5000))));
-        assertThat(assigner.assignWindows(ELEMENT, 4999L))
-                .satisfies(matching(contains(timeWindow(0, 5000))));
-        assertThat(assigner.assignWindows(ELEMENT, 5000L))
-                .satisfies(matching(contains(timeWindow(5000, 10000))));
+        assertThat(assigner.assignWindows(ELEMENT, 0L)).contains(new TimeWindow(0, 5000));
+        assertThat(assigner.assignWindows(ELEMENT, 4999L)).contains(new TimeWindow(0, 5000));
+        assertThat(assigner.assignWindows(ELEMENT, 5000L)).contains(new TimeWindow(5000, 10000));
     }
 
     @Test
@@ -58,12 +52,9 @@ public class TumblingWindowAssignerTest {
                 TumblingWindowAssigner.of(Duration.ofMillis(5000))
                         .withOffset(Duration.ofMillis(100));
 
-        assertThat(assigner.assignWindows(ELEMENT, 100L))
-                .satisfies(matching(contains(timeWindow(100, 5100))));
-        assertThat(assigner.assignWindows(ELEMENT, 5099L))
-                .satisfies(matching(contains(timeWindow(100, 5100))));
-        assertThat(assigner.assignWindows(ELEMENT, 5100L))
-                .satisfies(matching(contains(timeWindow(5100, 10100))));
+        assertThat(assigner.assignWindows(ELEMENT, 100L)).contains(new TimeWindow(100, 5100));
+        assertThat(assigner.assignWindows(ELEMENT, 5099L)).contains(new TimeWindow(100, 5100));
+        assertThat(assigner.assignWindows(ELEMENT, 5100L)).contains(new TimeWindow(5100, 10100));
     }
 
     @Test

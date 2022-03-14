@@ -47,9 +47,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.hasSize;
 
 /** Test for {@link PushProjectIntoTableSourceScanRule}. */
 public class PushProjectIntoTableSourceScanRuleTest
@@ -279,7 +276,7 @@ public class PushProjectIntoTableSourceScanRuleTest
         util().tableEnv().createTable("T1", sourceDescriptor);
 
         util().verifyRelPlan("SELECT m1, metadata FROM T1");
-        assertThat(appliedKeys.get()).satisfies(matching(contains("m1", "m2")));
+        assertThat(appliedKeys.get()).contains("m1", "m2");
     }
 
     @Test
@@ -293,7 +290,7 @@ public class PushProjectIntoTableSourceScanRuleTest
         util().tableEnv().createTable("T2", sourceDescriptor);
 
         util().verifyRelPlan("SELECT m1, metadata FROM T2");
-        assertThat(appliedKeys.get()).satisfies(matching(contains("m1", "m2", "m3")));
+        assertThat(appliedKeys.get()).contains("m1", "m2", "m3");
     }
 
     @Test
@@ -307,7 +304,7 @@ public class PushProjectIntoTableSourceScanRuleTest
         util().tableEnv().createTable("T3", sourceDescriptor);
 
         util().verifyRelPlan("SELECT 1 FROM T3");
-        assertThat(appliedKeys.get()).satisfies(matching(hasSize(0)));
+        assertThat(appliedKeys.get()).hasSize(0);
     }
 
     @Test
@@ -321,7 +318,7 @@ public class PushProjectIntoTableSourceScanRuleTest
         util().tableEnv().createTable("T4", sourceDescriptor);
 
         util().verifyRelPlan("SELECT 1 FROM T4");
-        assertThat(appliedKeys.get()).satisfies(matching(contains("m1", "m2", "m3")));
+        assertThat(appliedKeys.get()).contains("m1", "m2", "m3");
     }
 
     @Test

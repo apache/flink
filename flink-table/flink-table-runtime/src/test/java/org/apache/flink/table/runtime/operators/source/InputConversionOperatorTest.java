@@ -33,15 +33,14 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.HamcrestCondition.matching;
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link InputConversionOperator}. */
 public class InputConversionOperatorTest {
 
     @Test
-    public void testInvalidRecords() throws Exception {
+    public void testInvalidRecords() {
         final InputConversionOperator<Row> operator =
                 new InputConversionOperator<>(
                         createConverter(DataTypes.ROW(DataTypes.FIELD("f", DataTypes.INT()))),
@@ -51,28 +50,29 @@ public class InputConversionOperatorTest {
                         true);
 
         // invalid record due to missing field
-        try {
-            operator.processElement(new StreamRecord<>(Row.ofKind(RowKind.INSERT)));
-        } catch (FlinkRuntimeException e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    containsMessage(
-                                            "Error during input conversion from external DataStream "
-                                                    + "API to internal Table API data structures")));
-        }
+        assertThatThrownBy(
+                        () ->
+                                operator.processElement(
+                                        new StreamRecord<>(Row.ofKind(RowKind.INSERT))))
+                .satisfies(
+                        anyCauseMatches(
+                                FlinkRuntimeException.class,
+                                "Error during input conversion from external DataStream "
+                                        + "API to internal Table API data structures"));
 
         // invalid row kind
-        try {
-            operator.processElement(new StreamRecord<>(Row.ofKind(RowKind.DELETE, 12)));
-        } catch (FlinkRuntimeException e) {
-            assertThat(e)
-                    .satisfies(matching(containsMessage("Conversion expects insert-only records")));
-        }
+        assertThatThrownBy(
+                        () ->
+                                operator.processElement(
+                                        new StreamRecord<>(Row.ofKind(RowKind.DELETE, 12))))
+                .satisfies(
+                        anyCauseMatches(
+                                FlinkRuntimeException.class,
+                                "Conversion expects insert-only records"));
     }
 
     @Test
-    public void testInvalidEventTime() throws Exception {
+    public void testInvalidEventTime() {
         final InputConversionOperator<Row> operator =
                 new InputConversionOperator<>(
                         createConverter(DataTypes.ROW(DataTypes.FIELD("f", DataTypes.INT()))),
@@ -80,15 +80,14 @@ public class InputConversionOperatorTest {
                         true,
                         false,
                         true);
-        try {
-            operator.processElement(new StreamRecord<>(Row.ofKind(RowKind.INSERT, 12)));
-        } catch (FlinkRuntimeException e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    containsMessage(
-                                            "Could not find timestamp in DataStream API record.")));
-        }
+        assertThatThrownBy(
+                        () ->
+                                operator.processElement(
+                                        new StreamRecord<>(Row.ofKind(RowKind.INSERT, 12))))
+                .satisfies(
+                        anyCauseMatches(
+                                FlinkRuntimeException.class,
+                                "Could not find timestamp in DataStream API record."));
     }
 
     @Test

@@ -26,7 +26,6 @@ import org.apache.flink.table.runtime.operators.window.assigners.MergingWindowAs
 import org.apache.flink.table.runtime.operators.window.assigners.SessionWindowAssigner;
 import org.apache.flink.table.runtime.operators.window.internal.MergingWindowSet;
 
-import org.hamcrest.core.Is;
 import org.junit.Test;
 
 import java.time.Duration;
@@ -42,9 +41,6 @@ import java.util.TreeSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.Matchers.anyOf;
-import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /**
  * Tests for verifying that {@link MergingWindowSet} correctly merges windows in various situations
@@ -118,9 +114,8 @@ public class MergingWindowSetTest {
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergeTarget()).isEqualTo(new TimeWindow(0, 5));
         assertThat(mergeFunction.stateWindow()).isEqualTo(new TimeWindow(0, 4));
-        assertThat(mergeFunction.mergeSources())
-                .satisfies(matching(containsInAnyOrder(new TimeWindow(0, 4))));
-        assertThat(mergeFunction.mergedStateWindows().isEmpty()).isTrue();
+        assertThat(mergeFunction.mergeSources()).containsExactlyInAnyOrder(new TimeWindow(0, 4));
+        assertThat(mergeFunction.mergedStateWindows()).isEmpty();
 
         mergeFunction.reset();
         assertThat(windowSet.addWindow(new TimeWindow(4, 6), mergeFunction))
@@ -128,9 +123,8 @@ public class MergingWindowSetTest {
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergeTarget()).isEqualTo(new TimeWindow(0, 6));
         assertThat(mergeFunction.stateWindow()).isEqualTo(new TimeWindow(0, 4));
-        assertThat(mergeFunction.mergeSources())
-                .satisfies(matching(containsInAnyOrder(new TimeWindow(0, 5))));
-        assertThat(mergeFunction.mergedStateWindows().isEmpty()).isTrue();
+        assertThat(mergeFunction.mergeSources()).containsExactlyInAnyOrder(new TimeWindow(0, 5));
+        assertThat(mergeFunction.mergedStateWindows()).isEmpty();
 
         assertThat(windowSet.getStateWindow(new TimeWindow(0, 6))).isEqualTo(new TimeWindow(0, 4));
 
@@ -176,9 +170,8 @@ public class MergingWindowSetTest {
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergeTarget()).isEqualTo(new TimeWindow(10, 14));
         assertThat(mergeFunction.stateWindow()).isEqualTo(new TimeWindow(11, 14));
-        assertThat(mergeFunction.mergeSources())
-                .satisfies(matching(containsInAnyOrder(new TimeWindow(11, 14))));
-        assertThat(mergeFunction.mergedStateWindows().isEmpty()).isTrue();
+        assertThat(mergeFunction.mergeSources()).containsExactlyInAnyOrder(new TimeWindow(11, 14));
+        assertThat(mergeFunction.mergedStateWindows()).isEmpty();
 
         mergeFunction.reset();
         assertThat(windowSet.addWindow(new TimeWindow(12, 15), mergeFunction))
@@ -186,9 +179,8 @@ public class MergingWindowSetTest {
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergeTarget()).isEqualTo(new TimeWindow(10, 15));
         assertThat(mergeFunction.stateWindow()).isEqualTo(new TimeWindow(11, 14));
-        assertThat(mergeFunction.mergeSources())
-                .satisfies(matching(containsInAnyOrder(new TimeWindow(10, 14))));
-        assertThat(mergeFunction.mergedStateWindows().isEmpty()).isTrue();
+        assertThat(mergeFunction.mergeSources()).containsExactlyInAnyOrder(new TimeWindow(10, 14));
+        assertThat(mergeFunction.mergedStateWindows()).isEmpty();
 
         mergeFunction.reset();
         assertThat(windowSet.addWindow(new TimeWindow(11, 14), mergeFunction))
@@ -247,19 +239,12 @@ public class MergingWindowSetTest {
                 .isEqualTo(new TimeWindow(5, 13));
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergeTarget()).isEqualTo(new TimeWindow(5, 13));
-        assertThat(mergeFunction.stateWindow())
-                .satisfies(
-                        matching(
-                                anyOf(Is.is(new TimeWindow(5, 8)), Is.is(new TimeWindow(10, 13)))));
+        assertThat(mergeFunction.stateWindow()).isIn(new TimeWindow(5, 8), new TimeWindow(10, 13));
         assertThat(mergeFunction.mergeSources())
-                .satisfies(
-                        matching(containsInAnyOrder(new TimeWindow(5, 8), new TimeWindow(10, 13))));
+                .containsExactlyInAnyOrder(new TimeWindow(5, 8), new TimeWindow(10, 13));
         assertThat(mergeFunction.mergedStateWindows())
-                .satisfies(
-                        matching(
-                                anyOf(
-                                        containsInAnyOrder(new TimeWindow(10, 13)),
-                                        containsInAnyOrder(new TimeWindow(5, 8)))));
+                .hasSize(1)
+                .containsAnyOf(new TimeWindow(10, 13), new TimeWindow(5, 8));
         assertThat(mergeFunction.mergedStateWindows()).doesNotContain(mergeFunction.mergeTarget());
 
         assertThat(windowSet.getStateWindow(new TimeWindow(0, 3))).isEqualTo(new TimeWindow(0, 3));
@@ -280,9 +265,7 @@ public class MergingWindowSetTest {
         assertThat(mergeFunction.hasMerged()).isFalse();
 
         assertThat(windowSet.getStateWindow(new TimeWindow(5, 13)))
-                .satisfies(
-                        matching(
-                                anyOf(Is.is(new TimeWindow(5, 8)), Is.is(new TimeWindow(10, 13)))));
+                .isIn(new TimeWindow(5, 8), new TimeWindow(10, 13));
 
         // add a window that merges all of them together
         mergeFunction.reset();
@@ -291,31 +274,16 @@ public class MergingWindowSetTest {
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergeTarget()).isEqualTo(new TimeWindow(0, 13));
         assertThat(mergeFunction.stateWindow())
-                .satisfies(
-                        matching(
-                                anyOf(
-                                        Is.is(new TimeWindow(0, 3)),
-                                        Is.is(new TimeWindow(5, 8)),
-                                        Is.is(new TimeWindow(10, 13)))));
+                .isIn(new TimeWindow(0, 3), new TimeWindow(5, 8), new TimeWindow(10, 13));
         assertThat(mergeFunction.mergeSources())
-                .satisfies(
-                        matching(containsInAnyOrder(new TimeWindow(0, 3), new TimeWindow(5, 13))));
+                .containsExactlyInAnyOrder(new TimeWindow(0, 3), new TimeWindow(5, 13));
         assertThat(mergeFunction.mergedStateWindows())
-                .satisfies(
-                        matching(
-                                anyOf(
-                                        containsInAnyOrder(new TimeWindow(0, 3)),
-                                        containsInAnyOrder(new TimeWindow(5, 8)),
-                                        containsInAnyOrder(new TimeWindow(10, 13)))));
+                .hasSize(1)
+                .containsAnyOf(new TimeWindow(0, 3), new TimeWindow(5, 8), new TimeWindow(10, 13));
         assertThat(mergeFunction.mergedStateWindows()).doesNotContain(mergeFunction.mergeTarget());
 
         assertThat(windowSet.getStateWindow(new TimeWindow(0, 13)))
-                .satisfies(
-                        matching(
-                                anyOf(
-                                        Is.is(new TimeWindow(0, 3)),
-                                        Is.is(new TimeWindow(5, 8)),
-                                        Is.is(new TimeWindow(10, 13)))));
+                .isIn(new TimeWindow(0, 3), new TimeWindow(5, 8), new TimeWindow(10, 13));
     }
 
     /** Test merging of a large new window that covers one existing windows. */
@@ -415,15 +383,10 @@ public class MergingWindowSetTest {
                 .isEqualTo(new TimeWindow(5, 13));
         assertThat(mergeFunction.hasMerged()).isTrue();
         assertThat(mergeFunction.mergedStateWindows())
-                .satisfies(
-                        matching(
-                                anyOf(
-                                        containsInAnyOrder(new TimeWindow(5, 8)),
-                                        containsInAnyOrder(new TimeWindow(10, 13)))));
+                .hasSize(1)
+                .containsAnyOf(new TimeWindow(5, 8), new TimeWindow(10, 13));
         assertThat(windowSet.getStateWindow(new TimeWindow(5, 13)))
-                .satisfies(
-                        matching(
-                                anyOf(Is.is(new TimeWindow(5, 8)), Is.is(new TimeWindow(10, 13)))));
+                .isIn(new TimeWindow(5, 8), new TimeWindow(10, 13));
     }
 
     // ---------------------------------------------------------------------------------------

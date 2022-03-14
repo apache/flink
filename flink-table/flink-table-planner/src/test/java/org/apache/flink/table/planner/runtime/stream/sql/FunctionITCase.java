@@ -65,12 +65,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.CoreMatchers.containsString;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /**
  * Tests for catalog and system functions in a table environment.
@@ -133,15 +129,11 @@ public class FunctionITCase extends StreamingTestBase {
         String ddl1 =
                 "create function default_catalog.database1.f3 as 'org.apache.flink.function.TestFunction'";
 
-        try {
-            tEnv().executeSql(ddl1);
-        } catch (Exception e) {
-            assertThat(
-                            "Could not execute CREATE CATALOG FUNCTION:"
-                                    + " (catalogFunction: [Optional[This is a user-defined function]], identifier:"
-                                    + " [`default_catalog`.`database1`.`f3`], ignoreIfExists: [false], isTemporary: [false])")
-                    .isEqualTo(e.getMessage());
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(ddl1))
+                .hasMessage(
+                        "Could not execute CREATE CATALOG FUNCTION:"
+                                + " (catalogFunction: [Optional[This is a user-defined function]], identifier:"
+                                + " [`default_catalog`.`database1`.`f3`], ignoreIfExists: [false], isTemporary: [false])");
     }
 
     @Test
@@ -172,26 +164,18 @@ public class FunctionITCase extends StreamingTestBase {
         assertThat(Arrays.asList(tEnv().listFunctions())).doesNotContain("f4");
 
         tEnv().executeSql(ddl1);
-        try {
-            tEnv().executeSql(ddl1);
-        } catch (Exception e) {
-            assertThat(e).isInstanceOf(ValidationException.class);
-            assertThat(e)
-                    .hasMessage(
-                            "Could not register temporary catalog function. A function 'default_catalog.default_database.f4' does already exist.");
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(ddl1))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Could not register temporary catalog function. A function 'default_catalog.default_database.f4' does already exist.");
 
         tEnv().executeSql(ddl3);
         tEnv().executeSql(ddl4);
-        try {
-            tEnv().executeSql(ddl3);
-        } catch (Exception e) {
-            assertThat(e).isInstanceOf(ValidationException.class);
-            assertThat(e)
-                    .hasMessage(
-                            "Temporary catalog function `default_catalog`.`default_database`.`f4`"
-                                    + " doesn't exist");
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(ddl3))
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
+                        "Temporary catalog function `default_catalog`.`default_database`.`f4`"
+                                + " doesn't exist");
     }
 
     @Test
@@ -239,28 +223,15 @@ public class FunctionITCase extends StreamingTestBase {
                 "ALTER FUNCTION default_catalog.db1.f4 "
                         + "as 'org.apache.flink.function.TestFunction'";
 
-        try {
-            tEnv().executeSql(alterUndefinedFunction);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat("Function default_database.f4 does not exist in Catalog default_catalog.")
-                    .isEqualTo(e.getMessage());
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(alterUndefinedFunction))
+                .hasMessage(
+                        "Function default_database.f4 does not exist in Catalog default_catalog.");
 
-        try {
-            tEnv().executeSql(alterFunctionInWrongCatalog);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e).hasMessage("Catalog catalog1 does not exist");
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(alterFunctionInWrongCatalog))
+                .hasMessage("Catalog catalog1 does not exist");
 
-        try {
-            tEnv().executeSql(alterFunctionInWrongDB);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat("Function db1.f4 does not exist" + " in Catalog default_catalog.")
-                    .isEqualTo(e.getMessage());
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(alterFunctionInWrongDB))
+                .hasMessage("Function db1.f4 does not exist in Catalog default_catalog.");
     }
 
     @Test
@@ -269,12 +240,8 @@ public class FunctionITCase extends StreamingTestBase {
                 "ALTER TEMPORARY FUNCTION default_catalog.default_database.f4"
                         + " as 'org.apache.flink.function.TestFunction'";
 
-        try {
-            tEnv().executeSql(alterTemporary);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e).hasMessage("Alter temporary catalog function is not supported");
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(alterTemporary))
+                .hasMessage("Alter temporary catalog function is not supported");
     }
 
     @Test
@@ -283,12 +250,8 @@ public class FunctionITCase extends StreamingTestBase {
                 "ALTER TEMPORARY SYSTEM FUNCTION default_catalog.default_database.f4"
                         + " as 'org.apache.flink.function.TestFunction'";
 
-        try {
-            tEnv().executeSql(alterTemporary);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e).hasMessage("Alter temporary system function is not supported");
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(alterTemporary))
+                .hasMessage("Alter temporary system function is not supported");
     }
 
     @Test
@@ -299,28 +262,15 @@ public class FunctionITCase extends StreamingTestBase {
 
         String dropFunctionInWrongDB = "DROP FUNCTION default_catalog.db1.f4";
 
-        try {
-            tEnv().executeSql(dropUndefinedFunction);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat("Function default_database.f4 does not exist in Catalog default_catalog.")
-                    .isEqualTo(e.getMessage());
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(dropUndefinedFunction))
+                .hasMessage(
+                        "Function default_database.f4 does not exist in Catalog default_catalog.");
 
-        try {
-            tEnv().executeSql(dropFunctionInWrongCatalog);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e).hasMessage("Catalog catalog1 does not exist");
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(dropFunctionInWrongCatalog))
+                .hasMessage("Catalog catalog1 does not exist");
 
-        try {
-            tEnv().executeSql(dropFunctionInWrongDB);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat("Function db1.f4 does not exist in Catalog default_catalog.")
-                    .isEqualTo(e.getMessage());
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(dropFunctionInWrongDB))
+                .hasMessage("Function db1.f4 does not exist in Catalog default_catalog.");
     }
 
     @Test
@@ -330,33 +280,18 @@ public class FunctionITCase extends StreamingTestBase {
         String dropFunctionInWrongCatalog = "DROP TEMPORARY FUNCTION catalog1.default_database.f4";
         String dropFunctionInWrongDB = "DROP TEMPORARY FUNCTION default_catalog.db1.f4";
 
-        try {
-            tEnv().executeSql(dropUndefinedFunction);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(
-                            "Temporary catalog function"
-                                    + " `default_catalog`.`default_database`.`f4` doesn't exist")
-                    .isEqualTo(e.getMessage());
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(dropUndefinedFunction))
+                .hasMessage(
+                        "Temporary catalog function `default_catalog`.`default_database`.`f4` doesn't exist");
 
-        try {
-            tEnv().executeSql(dropFunctionInWrongCatalog);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(
-                            "Temporary catalog function "
-                                    + "`catalog1`.`default_database`.`f4` doesn't exist")
-                    .isEqualTo(e.getMessage());
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(dropFunctionInWrongCatalog))
+                .hasMessage(
+                        "Temporary catalog function `catalog1`.`default_database`.`f4` doesn't exist");
 
-        try {
-            tEnv().executeSql(dropFunctionInWrongDB);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat("Temporary catalog function " + "`default_catalog`.`db1`.`f4` doesn't exist")
-                    .isEqualTo(e.getMessage());
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(dropFunctionInWrongDB))
+                .hasMessage(
+                        "Temporary catalog function "
+                                + "`default_catalog`.`db1`.`f4` doesn't exist");
     }
 
     @Test
@@ -400,13 +335,9 @@ public class FunctionITCase extends StreamingTestBase {
         tEnv().executeSql(ddl2);
         tEnv().executeSql(ddl3);
 
-        try {
-            tEnv().executeSql(ddl2);
-        } catch (Exception e) {
-            assertThat(
-                            "Could not drop temporary system function. A function named 'f5' doesn't exist.")
-                    .isEqualTo(e.getMessage());
-        }
+        assertThatThrownBy(() -> tEnv().executeSql(ddl2))
+                .hasMessage(
+                        "Could not drop temporary system function. A function named 'f5' doesn't exist.");
     }
 
     @Test
@@ -763,8 +694,7 @@ public class FunctionITCase extends StreamingTestBase {
                                 + "  FROM SourceTable)")
                 .await();
 
-        assertThat(TestCollectionTableFactory.getResult())
-                .satisfies(matching(containsInAnyOrder(sinkData)));
+        assertThat(TestCollectionTableFactory.getResult()).containsExactlyInAnyOrder(sinkData);
     }
 
     @Test
@@ -800,24 +730,20 @@ public class FunctionITCase extends StreamingTestBase {
     }
 
     @Test
-    public void testInvalidCustomScalarFunction() throws Exception {
+    public void testInvalidCustomScalarFunction() {
         tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
 
         tEnv().createTemporarySystemFunction("CustomScalarFunction", CustomScalarFunction.class);
-        try {
-            tEnv().executeSql("INSERT INTO SinkTable SELECT CustomScalarFunction('test')").await();
-            fail("unknown failure");
-        } catch (ValidationException e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    hasMessage(
-                                            equalTo(
-                                                    "Could not find an implementation method 'eval' in class '"
-                                                            + CustomScalarFunction.class.getName()
-                                                            + "' for function 'CustomScalarFunction' that matches the following signature:\n"
-                                                            + "java.lang.String eval(java.lang.String)"))));
-        }
+        assertThatThrownBy(
+                        () ->
+                                tEnv().executeSql(
+                                                "INSERT INTO SinkTable SELECT CustomScalarFunction('test')")
+                                        .await())
+                .hasMessage(
+                        "Could not find an implementation method 'eval' in class '"
+                                + CustomScalarFunction.class.getName()
+                                + "' for function 'CustomScalarFunction' that matches the following signature:\n"
+                                + "java.lang.String eval(java.lang.String)");
     }
 
     @Test
@@ -892,8 +818,7 @@ public class FunctionITCase extends StreamingTestBase {
                                 + "SELECT CAST(T3.i AS STRING) FROM TABLE(DynamicTableFunction(CAST(NULL AS INT))) AS T3(i)")
                 .await();
 
-        assertThat(TestCollectionTableFactory.getResult())
-                .satisfies(matching(containsInAnyOrder(sinkData)));
+        assertThat(TestCollectionTableFactory.getResult()).containsExactlyInAnyOrder(sinkData);
     }
 
     @Test
@@ -903,36 +828,26 @@ public class FunctionITCase extends StreamingTestBase {
 
         tEnv().createTemporarySystemFunction(
                         "PrimitiveScalarFunction", PrimitiveScalarFunction.class);
-        try {
-            tEnv().executeSql(
-                            "INSERT INTO SinkTable "
-                                    + "SELECT * FROM TABLE(PrimitiveScalarFunction(1, 2, '3'))");
-            fail("unknown failure");
-        } catch (ValidationException e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    hasMessage(
-                                            containsString(
-                                                    "SQL validation failed. Function 'PrimitiveScalarFunction' cannot be used as a table function."))));
-        }
+        assertThatThrownBy(
+                        () ->
+                                tEnv().executeSql(
+                                                "INSERT INTO SinkTable "
+                                                        + "SELECT * FROM TABLE(PrimitiveScalarFunction(1, 2, '3'))"))
+                .hasMessageContaining(
+                        "SQL validation failed. Function 'PrimitiveScalarFunction' cannot be used as a table function.");
     }
 
     @Test
     public void testInvalidUseOfSystemScalarFunction() {
         tEnv().executeSql("CREATE TABLE SinkTable(s STRING) WITH ('connector' = 'COLLECTION')");
 
-        try {
-            tEnv().explainSql("INSERT INTO SinkTable " + "SELECT * FROM TABLE(MD5('3'))");
-            fail("unknown failure");
-        } catch (ValidationException e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    hasMessage(
-                                            containsString(
-                                                    "Currently, only table functions can be used in a correlate operation."))));
-        }
+        assertThatThrownBy(
+                        () ->
+                                tEnv().explainSql(
+                                                "INSERT INTO SinkTable "
+                                                        + "SELECT * FROM TABLE(MD5('3'))"))
+                .hasMessageContaining(
+                        "Currently, only table functions can be used in a correlate operation.");
     }
 
     @Test
@@ -944,17 +859,13 @@ public class FunctionITCase extends StreamingTestBase {
 
         tEnv().createTemporarySystemFunction("RowTableFunction", RowTableFunction.class);
 
-        try {
-            tEnv().explainSql("INSERT INTO SinkTable " + "SELECT RowTableFunction('test')");
-            fail("unknown failure");
-        } catch (ValidationException e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    hasMessage(
-                                            containsString(
-                                                    "Currently, only scalar functions can be used in a projection or filter operation."))));
-        }
+        assertThatThrownBy(
+                        () ->
+                                tEnv().explainSql(
+                                                "INSERT INTO SinkTable "
+                                                        + "SELECT RowTableFunction('test')"))
+                .hasMessageContaining(
+                        "Currently, only scalar functions can be used in a projection or filter operation.");
     }
 
     @Test

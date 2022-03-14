@@ -61,7 +61,7 @@ public class CatalogITCase {
         tableEnv.executeSql(ddl);
 
         assertThat(tableEnv.getCatalog(name)).isPresent();
-        assertThat(tableEnv.getCatalog(name).get()).isInstanceOf(GenericInMemoryCatalog.class);
+        assertThat(tableEnv.getCatalog(name)).containsInstanceOf(GenericInMemoryCatalog.class);
     }
 
     @Test

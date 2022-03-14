@@ -164,11 +164,7 @@ public class DataFormatConvertersTest {
             converter.toInternal(anotherValue);
         }
 
-        assertThat(
-                        Arrays.deepEquals(
-                                new Object[] {converter.toExternal(innerValue)},
-                                new Object[] {value}))
-                .isTrue();
+        assertThat(converter.toExternal(innerValue)).isEqualTo(value);
     }
 
     private static DataFormatConverter getConverter(DataType dataType) {
@@ -177,11 +173,7 @@ public class DataFormatConvertersTest {
 
     private static void testDataType(DataType dataType, Object value) {
         DataFormatConverter converter = getConverter(dataType);
-        assertThat(
-                        Arrays.deepEquals(
-                                new Object[] {converter.toExternal(converter.toInternal(value))},
-                                new Object[] {value}))
-                .isTrue();
+        assertThat(converter.toExternal(converter.toInternal(value))).isEqualTo(value);
     }
 
     @Test
@@ -205,14 +197,9 @@ public class DataFormatConvertersTest {
         {
             DataFormatConverter converter = getConverter(Types.BIG_DEC);
             assertThat(
-                            Arrays.deepEquals(
-                                    new Object[] {
-                                        converter.toInternal(
-                                                converter.toExternal(
-                                                        DecimalDataUtils.castFrom(5, 19, 18)))
-                                    },
-                                    new Object[] {DecimalDataUtils.castFrom(5, 19, 18)}))
-                    .isTrue();
+                            converter.toInternal(
+                                    converter.toExternal(DecimalDataUtils.castFrom(5, 19, 18))))
+                    .isEqualTo(DecimalDataUtils.castFrom(5, 19, 18));
         }
 
         test(new ListTypeInfo<>(Types.STRING), null);

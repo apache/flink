@@ -58,13 +58,12 @@ import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
 import static org.apache.flink.table.data.TimestampData.fromEpochMillis;
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
 import static org.apache.flink.table.runtime.util.TimeWindowUtil.toUtcTimestampMills;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for window aggregate operators created by {@link SlicingWindowAggOperatorBuilder}. */
 @RunWith(Parameterized.class)
@@ -780,23 +779,18 @@ public class SlicingWindowAggOperatorTest {
                         2, shiftTimeZone, Duration.ofSeconds(3), Duration.ofSeconds(1));
         final SumAndCountAggsFunction aggsFunction = new SumAndCountAggsFunction(assigner);
 
-        try {
-            // hopping window without specifying count star index
-            SlicingWindowAggOperatorBuilder.builder()
-                    .inputSerializer(INPUT_ROW_SER)
-                    .shiftTimeZone(shiftTimeZone)
-                    .keySerializer(KEY_SER)
-                    .assigner(assigner)
-                    .aggregate(wrapGenerated(aggsFunction), ACC_SER)
-                    .build();
-            fail("should fail");
-        } catch (Exception e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    containsMessage(
-                                            "Hopping window requires a COUNT(*) in the aggregate functions.")));
-        }
+        // hopping window without specifying count star index
+        assertThatThrownBy(
+                        () ->
+                                SlicingWindowAggOperatorBuilder.builder()
+                                        .inputSerializer(INPUT_ROW_SER)
+                                        .shiftTimeZone(shiftTimeZone)
+                                        .keySerializer(KEY_SER)
+                                        .assigner(assigner)
+                                        .aggregate(wrapGenerated(aggsFunction), ACC_SER)
+                                        .build())
+                .hasMessageContaining(
+                        "Hopping window requires a COUNT(*) in the aggregate functions.");
     }
 
     /** Get the timestamp in mills by given epoch mills and timezone. */

@@ -396,8 +396,7 @@ public class DataStructureConvertersTest {
                         simulateSerialization(DataStructureConverters.getConverter(toDataType));
                 toConverter.open(DataStructureConvertersTest.class.getClassLoader());
 
-                assertThat(new Object[] {toConverter.toExternalOrNull(internalValue)})
-                        .isEqualTo(new Object[] {to.getValue()});
+                assertThat(toConverter.toExternalOrNull(internalValue)).isEqualTo(to.getValue());
             }
         }
     }

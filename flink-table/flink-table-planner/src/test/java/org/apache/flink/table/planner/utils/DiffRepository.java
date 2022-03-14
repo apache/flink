@@ -17,11 +17,11 @@
 
 package org.apache.flink.table.planner.utils;
 
-// End DiffRepository.javaimport static org.assertj.core.api.Assertions.assertThat;
 import org.apache.calcite.avatica.util.Spaces;
 import org.apache.calcite.util.Pair;
 import org.apache.calcite.util.Util;
 import org.apache.calcite.util.XmlOutput;
+import org.junit.Assert;
 import org.junit.ComparisonFailure;
 import org.w3c.dom.CDATASection;
 import org.w3c.dom.Comment;
@@ -287,7 +287,7 @@ public class DiffRepository {
             if (tag == null) {
                 tag = token;
             }
-            assertThat(token).startsWith(tag);
+            assert token.startsWith(tag) : "token '" + token + "' does not match tag '" + tag + "'";
             String expanded = get(testCaseName, token);
             if (expanded == null) {
                 // Token is not specified. Return the original text: this will
@@ -317,7 +317,7 @@ public class DiffRepository {
      * @param value Value of the resource
      */
     public synchronized void set(String testCaseName, String resourceName, String value) {
-        assertThat(resourceName).isNotNull();
+        assert resourceName != null;
         update(testCaseName, resourceName, value);
     }
 
@@ -435,7 +435,7 @@ public class DiffRepository {
                 // for largish snippets
                 String expected2Canonical = expected2.replace(Util.LINE_SEPARATOR, "\n");
                 String actualCanonical = actual.replace(Util.LINE_SEPARATOR, "\n");
-                assertThat(actualCanonical).as(tag).isEqualTo(expected2Canonical);
+                Assert.assertEquals(tag, expected2Canonical, actualCanonical);
             } catch (ComparisonFailure e) {
                 amend(testCaseName, expected, actual);
                 throw e;

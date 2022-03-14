@@ -35,7 +35,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.source.DynamicTableSource;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RowData;
-import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.util.InstantiationUtil;
 
@@ -47,9 +46,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link DataGenTableSourceFactory}. */
 public class DataGenTableSourceFactoryTest {
@@ -173,11 +173,9 @@ public class DataGenTableSourceFactoryTest {
         for (int i = 0; i < results.size(); i++) {
             RowData row = results.get(i);
             assertThat(row.getString(0).toString().length()).isEqualTo(20);
-            long f1 = row.getLong(1);
-            assertThat(f1 >= 10 && f1 <= 100).isTrue();
+            assertThat(row.getLong(1)).isBetween(10L, 100L);
             assertThat(row.getLong(2)).isEqualTo(i + 50);
-            final TimestampData f3 = row.getTimestamp(3, 3);
-            assertThat(f3.getMillisecond() >= begin - 5000 && f3.getMillisecond() <= end).isTrue();
+            assertThat(row.getTimestamp(3, 3).getMillisecond()).isBetween(begin - 5000, end);
         }
     }
 
@@ -244,160 +242,160 @@ public class DataGenTableSourceFactoryTest {
 
     @Test
     public void testLackStartForSequence() {
-        try {
-            DescriptorProperties descriptor = new DescriptorProperties();
-            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-            descriptor.putString(
-                    DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
-                    DataGenConnectorOptionsUtil.SEQUENCE);
-            descriptor.putLong(
-                    DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.END,
-                    100);
+        assertThatThrownBy(
+                        () -> {
+                            DescriptorProperties descriptor = new DescriptorProperties();
+                            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+                            descriptor.putString(
+                                    DataGenConnectorOptionsUtil.FIELDS
+                                            + ".f0."
+                                            + DataGenConnectorOptionsUtil.KIND,
+                                    DataGenConnectorOptionsUtil.SEQUENCE);
+                            descriptor.putLong(
+                                    DataGenConnectorOptionsUtil.FIELDS
+                                            + ".f0."
+                                            + DataGenConnectorOptionsUtil.END,
+                                    100);
 
-            createTableSource(
-                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                    descriptor.asMap());
-        } catch (ValidationException e) {
-            Throwable cause = e.getCause();
-            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
-            assertThat(cause.getMessage())
-                    .as(cause.getMessage())
-                    .contains(
-                            "Could not find required property 'fields.f0.start' for sequence generator.");
-            return;
-        }
-        fail("Should fail by ValidationException.");
+                            createTableSource(
+                                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
+                                    descriptor.asMap());
+                        })
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Could not find required property 'fields.f0.start' for sequence generator."));
     }
 
     @Test
     public void testLackEndForSequence() {
-        try {
-            DescriptorProperties descriptor = new DescriptorProperties();
-            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-            descriptor.putString(
-                    DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
-                    DataGenConnectorOptionsUtil.SEQUENCE);
-            descriptor.putLong(
-                    DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.START,
-                    0);
+        assertThatThrownBy(
+                        () -> {
+                            DescriptorProperties descriptor = new DescriptorProperties();
+                            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+                            descriptor.putString(
+                                    DataGenConnectorOptionsUtil.FIELDS
+                                            + ".f0."
+                                            + DataGenConnectorOptionsUtil.KIND,
+                                    DataGenConnectorOptionsUtil.SEQUENCE);
+                            descriptor.putLong(
+                                    DataGenConnectorOptionsUtil.FIELDS
+                                            + ".f0."
+                                            + DataGenConnectorOptionsUtil.START,
+                                    0);
 
-            createTableSource(
-                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                    descriptor.asMap());
-        } catch (ValidationException e) {
-            Throwable cause = e.getCause();
-            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
-            assertThat(cause.getMessage())
-                    .as(cause.getMessage())
-                    .contains(
-                            "Could not find required property 'fields.f0.end' for sequence generator.");
-            return;
-        }
-        fail("Should fail by ValidationException.");
+                            createTableSource(
+                                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
+                                    descriptor.asMap());
+                        })
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Could not find required property 'fields.f0.end' for sequence generator."));
     }
 
     @Test
     public void testWrongKey() {
-        try {
-            DescriptorProperties descriptor = new DescriptorProperties();
-            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-            descriptor.putLong("wrong-rows-per-second", 1);
+        assertThatThrownBy(
+                        () -> {
+                            DescriptorProperties descriptor = new DescriptorProperties();
+                            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+                            descriptor.putLong("wrong-rows-per-second", 1);
 
-            createTableSource(
-                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                    descriptor.asMap());
-        } catch (ValidationException e) {
-            Throwable cause = e.getCause();
-            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
-            assertThat(cause.getMessage())
-                    .as(cause.getMessage())
-                    .contains("Unsupported options:\n\nwrong-rows-per-second");
-            return;
-        }
-        fail("Should fail by ValidationException.");
+                            createTableSource(
+                                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
+                                    descriptor.asMap());
+                        })
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Unsupported options:\n\nwrong-rows-per-second"));
     }
 
     @Test
     public void testWrongStartInRandom() {
-        try {
-            DescriptorProperties descriptor = new DescriptorProperties();
-            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-            descriptor.putString(
-                    DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
-                    DataGenConnectorOptionsUtil.RANDOM);
-            descriptor.putLong(
-                    DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.START,
-                    0);
+        assertThatThrownBy(
+                        () -> {
+                            DescriptorProperties descriptor = new DescriptorProperties();
+                            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+                            descriptor.putString(
+                                    DataGenConnectorOptionsUtil.FIELDS
+                                            + ".f0."
+                                            + DataGenConnectorOptionsUtil.KIND,
+                                    DataGenConnectorOptionsUtil.RANDOM);
+                            descriptor.putLong(
+                                    DataGenConnectorOptionsUtil.FIELDS
+                                            + ".f0."
+                                            + DataGenConnectorOptionsUtil.START,
+                                    0);
 
-            createTableSource(
-                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                    descriptor.asMap());
-        } catch (ValidationException e) {
-            Throwable cause = e.getCause();
-            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
-            assertThat(cause.getMessage())
-                    .as(cause.getMessage())
-                    .contains("Unsupported options:\n\nfields.f0.start");
-            return;
-        }
-        fail("Should fail by ValidationException.");
+                            createTableSource(
+                                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
+                                    descriptor.asMap());
+                        })
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Unsupported options:\n\nfields.f0.start"));
     }
 
     @Test
     public void testWrongLenInRandomLong() {
-        try {
-            DescriptorProperties descriptor = new DescriptorProperties();
-            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-            descriptor.putString(
-                    DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
-                    DataGenConnectorOptionsUtil.RANDOM);
-            descriptor.putInt(
-                    DataGenConnectorOptionsUtil.FIELDS
-                            + ".f0."
-                            + DataGenConnectorOptionsUtil.LENGTH,
-                    100);
+        assertThatThrownBy(
+                        () -> {
+                            DescriptorProperties descriptor = new DescriptorProperties();
+                            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+                            descriptor.putString(
+                                    DataGenConnectorOptionsUtil.FIELDS
+                                            + ".f0."
+                                            + DataGenConnectorOptionsUtil.KIND,
+                                    DataGenConnectorOptionsUtil.RANDOM);
+                            descriptor.putInt(
+                                    DataGenConnectorOptionsUtil.FIELDS
+                                            + ".f0."
+                                            + DataGenConnectorOptionsUtil.LENGTH,
+                                    100);
 
-            createTableSource(
-                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                    descriptor.asMap());
-        } catch (ValidationException e) {
-            Throwable cause = e.getCause();
-            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
-            assertThat(cause.getMessage())
-                    .as(cause.getMessage())
-                    .contains("Unsupported options:\n\nfields.f0.length");
-            return;
-        }
-        fail("Should fail by ValidationException.");
+                            createTableSource(
+                                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
+                                    descriptor.asMap());
+                        })
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Unsupported options:\n\nfields.f0.length"));
     }
 
     @Test
     public void testWrongTypes() {
-        try {
-            DescriptorProperties descriptor = new DescriptorProperties();
-            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
-            descriptor.putString(
-                    DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.KIND,
-                    DataGenConnectorOptionsUtil.SEQUENCE);
-            descriptor.putString(
-                    DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.START,
-                    "Wrong");
-            descriptor.putString(
-                    DataGenConnectorOptionsUtil.FIELDS + ".f0." + DataGenConnectorOptionsUtil.END,
-                    "Wrong");
+        assertThatThrownBy(
+                        () -> {
+                            DescriptorProperties descriptor = new DescriptorProperties();
+                            descriptor.putString(FactoryUtil.CONNECTOR.key(), "datagen");
+                            descriptor.putString(
+                                    DataGenConnectorOptionsUtil.FIELDS
+                                            + ".f0."
+                                            + DataGenConnectorOptionsUtil.KIND,
+                                    DataGenConnectorOptionsUtil.SEQUENCE);
+                            descriptor.putString(
+                                    DataGenConnectorOptionsUtil.FIELDS
+                                            + ".f0."
+                                            + DataGenConnectorOptionsUtil.START,
+                                    "Wrong");
+                            descriptor.putString(
+                                    DataGenConnectorOptionsUtil.FIELDS
+                                            + ".f0."
+                                            + DataGenConnectorOptionsUtil.END,
+                                    "Wrong");
 
-            createTableSource(
-                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
-                    descriptor.asMap());
-        } catch (ValidationException e) {
-            Throwable cause = e.getCause();
-            assertThat(cause).as(cause.toString()).isInstanceOf(IllegalArgumentException.class);
-            assertThat(cause.getMessage())
-                    .as(cause.getMessage())
-                    .contains("Could not parse value 'Wrong' for key 'fields.f0.start'");
-            return;
-        }
-        fail("Should fail by ValidationException.");
+                            createTableSource(
+                                    ResolvedSchema.of(Column.physical("f0", DataTypes.BIGINT())),
+                                    descriptor.asMap());
+                        })
+                .satisfies(
+                        anyCauseMatches(
+                                ValidationException.class,
+                                "Could not parse value 'Wrong' for key 'fields.f0.start'"));
     }
 
     private static class TestContext implements SourceFunction.SourceContext<RowData> {

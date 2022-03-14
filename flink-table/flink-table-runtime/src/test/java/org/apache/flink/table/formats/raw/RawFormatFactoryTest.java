@@ -45,10 +45,7 @@ import java.util.function.Consumer;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
-import static org.assertj.core.api.HamcrestCondition.matching;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link RawFormatFactory}. */
 public class RawFormatFactoryTest extends TestLogger {
@@ -112,19 +109,11 @@ public class RawFormatFactoryTest extends TestLogger {
                 "The 'raw' format only supports single physical column. "
                         + "However the defined schema contains multiple physical columns: [`f0` STRING, `f1` BIGINT]";
 
-        try {
-            createDeserializationSchema(invalidSchema, getBasicOptions());
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e).satisfies(matching(hasMessage(equalTo(expectedError))));
-        }
+        assertThatThrownBy(() -> createDeserializationSchema(invalidSchema, getBasicOptions()))
+                .hasMessage(expectedError);
 
-        try {
-            createSerializationSchema(invalidSchema, getBasicOptions());
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e).satisfies(matching(hasMessage(equalTo(expectedError))));
-        }
+        assertThatThrownBy(() -> createSerializationSchema(invalidSchema, getBasicOptions()))
+                .hasMessage(expectedError);
     }
 
     @Test
@@ -137,21 +126,11 @@ public class RawFormatFactoryTest extends TestLogger {
 
         String expectedError = "Unsupported 'raw.charset' name: UNKNOWN.";
 
-        try {
-            createDeserializationSchema(SCHEMA, tableOptions);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e.getCause().getCause())
-                    .satisfies(matching(hasMessage(equalTo(expectedError))));
-        }
+        assertThatThrownBy(() -> createDeserializationSchema(SCHEMA, tableOptions))
+                .hasMessage(expectedError);
 
-        try {
-            createSerializationSchema(SCHEMA, tableOptions);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e.getCause().getCause())
-                    .satisfies(matching(hasMessage(equalTo(expectedError))));
-        }
+        assertThatThrownBy(() -> createSerializationSchema(SCHEMA, tableOptions))
+                .hasMessage(expectedError);
     }
 
     @Test
@@ -166,54 +145,34 @@ public class RawFormatFactoryTest extends TestLogger {
                 "Unsupported endianness name: BIG_ENDIAN. "
                         + "Valid values of 'raw.endianness' option are 'big-endian' and 'little-endian'.";
 
-        try {
-            createDeserializationSchema(SCHEMA, tableOptions);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e.getCause().getCause())
-                    .satisfies(matching(hasMessage(equalTo(expectedError))));
-        }
+        assertThatThrownBy(() -> createDeserializationSchema(SCHEMA, tableOptions))
+                .hasMessage(expectedError);
 
-        try {
-            createSerializationSchema(SCHEMA, tableOptions);
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e.getCause().getCause())
-                    .satisfies(matching(hasMessage(equalTo(expectedError))));
-        }
+        assertThatThrownBy(() -> createSerializationSchema(SCHEMA, tableOptions))
+                .hasMessage(expectedError);
     }
 
     @Test
     public void testInvalidFieldTypes() {
-        try {
-            createDeserializationSchema(
-                    ResolvedSchema.of(Column.physical("field1", DataTypes.TIMESTAMP(3))),
-                    getBasicOptions());
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    hasMessage(
-                                            equalTo(
-                                                    "The 'raw' format doesn't supports 'TIMESTAMP(3)' as column type."))));
-        }
+        assertThatThrownBy(
+                        () ->
+                                createDeserializationSchema(
+                                        ResolvedSchema.of(
+                                                Column.physical("field1", DataTypes.TIMESTAMP(3))),
+                                        getBasicOptions()))
+                .hasMessage("The 'raw' format doesn't supports 'TIMESTAMP(3)' as column type.");
 
-        try {
-            createDeserializationSchema(
-                    ResolvedSchema.of(
-                            Column.physical(
-                                    "field1", DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))),
-                    getBasicOptions());
-            fail("unknown failure");
-        } catch (Exception e) {
-            assertThat(e)
-                    .satisfies(
-                            matching(
-                                    hasMessage(
-                                            equalTo(
-                                                    "The 'raw' format doesn't supports 'MAP<INT, STRING>' as column type."))));
-        }
+        assertThatThrownBy(
+                        () ->
+                                createDeserializationSchema(
+                                        ResolvedSchema.of(
+                                                Column.physical(
+                                                        "field1",
+                                                        DataTypes.MAP(
+                                                                DataTypes.INT(),
+                                                                DataTypes.STRING()))),
+                                        getBasicOptions()))
+                .hasMessage("The 'raw' format doesn't supports 'MAP<INT, STRING>' as column type.");
     }
 
     // ------------------------------------------------------------------------

@@ -27,7 +27,7 @@ import org.junit.Test;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Tests for {@link TableOperatorWrapper}. */
 public class TableOperatorWrapperTest extends MultipleInputTestBase {
@@ -48,18 +48,18 @@ public class TableOperatorWrapperTest extends MultipleInputTestBase {
         wrapper3.addInput(wrapper1, 1);
         wrapper3.addInput(wrapper2, 2);
 
-        assertThat(wrapper1.getInputEdges().isEmpty()).isTrue();
-        assertThat(wrapper1.getInputWrappers().isEmpty()).isTrue();
+        assertThat(wrapper1.getInputEdges()).isEmpty();
+        assertThat(wrapper1.getInputWrappers()).isEmpty();
         assertThat(wrapper1.getOutputWrappers()).containsExactly(wrapper3);
         assertThat(wrapper1.getOutputEdges()).containsExactly(new Edge(wrapper1, wrapper3, 1));
 
-        assertThat(wrapper2.getInputEdges().isEmpty()).isTrue();
-        assertThat(wrapper2.getInputWrappers().isEmpty()).isTrue();
+        assertThat(wrapper2.getInputEdges()).isEmpty();
+        assertThat(wrapper2.getInputWrappers()).isEmpty();
         assertThat(wrapper2.getOutputWrappers()).containsExactly(wrapper3);
         assertThat(wrapper2.getOutputEdges()).containsExactly(new Edge(wrapper2, wrapper3, 2));
 
-        assertThat(wrapper3.getOutputEdges().isEmpty()).isTrue();
-        assertThat(wrapper3.getOutputWrappers().isEmpty()).isTrue();
+        assertThat(wrapper3.getOutputEdges()).isEmpty();
+        assertThat(wrapper3.getOutputWrappers()).isEmpty();
         assertThat(wrapper3.getInputWrappers()).isEqualTo(Arrays.asList(wrapper1, wrapper2));
         assertThat(wrapper3.getInputEdges())
                 .isEqualTo(
@@ -78,12 +78,8 @@ public class TableOperatorWrapperTest extends MultipleInputTestBase {
         assertThat(wrapper.getStreamOperator()).isEqualTo(operator);
 
         // create operator again, will throw exception
-        try {
-            wrapper.createOperator(parameters);
-            fail("This should not happen");
-        } catch (Exception e) {
-            assertThat(e.getMessage()).contains("This operator has been initialized");
-        }
+        assertThatThrownBy(() -> wrapper.createOperator(parameters))
+                .hasMessageContaining("This operator has been initialized");
     }
 
     @Test
@@ -109,7 +105,7 @@ public class TableOperatorWrapperTest extends MultipleInputTestBase {
         // initialized status
         assertThat(inOperator1.isEnd()).isFalse();
         assertThat(inOperator2.isEnd()).isFalse();
-        assertThat(outOperator.getEndInputs().isEmpty()).isTrue();
+        assertThat(outOperator.getEndInputs()).isEmpty();
 
         // end first input
         wrapper1.endOperatorInput(1);

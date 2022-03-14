@@ -144,9 +144,7 @@ public abstract class CatalogTest {
         catalog.createDatabase(db1, createAnotherDb(), true);
 
         CatalogTestUtil.checkEquals(cd1, catalog.getDatabase(db1));
-        assertThat(dbs).hasSize(2);
-        assertThat(new HashSet<>(dbs))
-                .isEqualTo(new HashSet<>(Arrays.asList(db1, catalog.getDefaultDatabase())));
+        assertThat(dbs).containsExactlyInAnyOrder(db1, catalog.getDefaultDatabase());
     }
 
     @Test
@@ -587,7 +585,7 @@ public abstract class CatalogTest {
     public void testListView() throws Exception {
         catalog.createDatabase(db1, createDb(), false);
 
-        assertThat(catalog.listTables(db1).isEmpty()).isTrue();
+        assertThat(catalog.listTables(db1)).isEmpty();
 
         catalog.createTable(path1, createView(), false);
         catalog.createTable(path3, createTable(), false);
@@ -774,7 +772,7 @@ public abstract class CatalogTest {
         catalog.createDatabase(db1, createDb(), false);
         catalog.createTable(path1, createPartitionedTable(), false);
 
-        assertThat(catalog.listPartitions(path1).isEmpty()).isTrue();
+        assertThat(catalog.listPartitions(path1)).isEmpty();
 
         catalog.createPartition(path1, createPartitionSpec(), createPartition(), false);
 
