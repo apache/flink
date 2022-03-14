@@ -10,8 +10,8 @@ jobs:
         uses: burnett01/rsync-deployments@5.2
         with:
           switches: -avzr
-          path: test/
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/testing
+          path: test/*
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
           remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
           remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
