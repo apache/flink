@@ -282,6 +282,6 @@ public class AdaptiveSchedulerClusterITCase extends TestLogger {
 
                     return executionJobVertex.getParallelism() == targetParallelism;
                 },
-                Deadline.fromNow(Duration.ofSeconds(10)));
+                Deadline.fromNow(Duration.ofMinutes(5)));
     }
 }
