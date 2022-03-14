@@ -18,13 +18,10 @@
 
 package org.apache.flink.test.util;
 
-import org.apache.flink.api.common.JobID;
-import org.apache.flink.client.ClientUtils;
 import org.apache.flink.client.program.ClusterClient;
 import org.apache.flink.core.execution.JobClient;
 import org.apache.flink.runtime.checkpoint.Checkpoints;
 import org.apache.flink.runtime.checkpoint.metadata.CheckpointMetadata;
-import org.apache.flink.runtime.client.JobInitializationException;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.filesystem.AbstractFsCheckpointStorageAccess;
@@ -87,16 +84,6 @@ public class TestUtils {
                 .thenCompose(client::requestJobResult)
                 .get()
                 .toJobExecutionResult(classLoader);
-    }
-
-    public static void waitUntilJobInitializationFinished(
-            JobID id, MiniClusterWithClientResource miniCluster, ClassLoader userCodeClassloader)
-            throws JobInitializationException {
-        ClusterClient<?> clusterClient = miniCluster.getClusterClient();
-        ClientUtils.waitUntilJobInitializationFinished(
-                () -> clusterClient.getJobStatus(id).get(),
-                () -> clusterClient.requestJobResult(id).get(),
-                userCodeClassloader);
     }
 
     public static CheckpointMetadata loadCheckpointMetadata(String savepointPath)
