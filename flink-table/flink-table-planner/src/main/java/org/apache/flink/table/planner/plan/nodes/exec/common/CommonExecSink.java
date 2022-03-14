@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -491,7 +492,9 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
             final Transformation<?> transformation =
                     DataStreamSink.forSinkV1(
-                                    dataStream, ((SinkProvider) runtimeProvider).createSink())
+                                    dataStream,
+                                    ((SinkProvider) runtimeProvider).createSink(),
+                                    CustomSinkOperatorUidHashes.DEFAULT)
                             .getTransformation();
             transformation.setParallelism(sinkParallelism);
             sinkMeta.fill(transformation);
@@ -503,7 +506,9 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
             final Transformation<?> transformation =
                     DataStreamSink.forSink(
-                                    dataStream, ((SinkV2Provider) runtimeProvider).createSink())
+                                    dataStream,
+                                    ((SinkV2Provider) runtimeProvider).createSink(),
+                                    CustomSinkOperatorUidHashes.DEFAULT)
                             .getTransformation();
             transformation.setParallelism(sinkParallelism);
             sinkMeta.fill(transformation);

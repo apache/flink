@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.connector.sink2.Sink;
 import org.apache.flink.api.connector.sink2.SinkWriter;
 import org.apache.flink.api.dag.Transformation;
+import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.operators.ChainingStrategy;
 
@@ -47,6 +48,7 @@ public class SinkTransformation<InputT, OutputT> extends PhysicalTransformation<
     private final DataStream<InputT> inputStream;
     private final Sink<InputT> sink;
     private final Transformation<InputT> input;
+    private final CustomSinkOperatorUidHashes customSinkOperatorUidHashes;
 
     private ChainingStrategy chainingStrategy;
 
@@ -55,11 +57,13 @@ public class SinkTransformation<InputT, OutputT> extends PhysicalTransformation<
             Sink<InputT> sink,
             TypeInformation<OutputT> outputType,
             String name,
-            int parallelism) {
+            int parallelism,
+            CustomSinkOperatorUidHashes customSinkOperatorUidHashes) {
         super(name, outputType, parallelism);
         this.inputStream = checkNotNull(inputStream);
         this.sink = checkNotNull(sink);
         this.input = inputStream.getTransformation();
+        this.customSinkOperatorUidHashes = checkNotNull(customSinkOperatorUidHashes);
     }
 
     @Override
@@ -91,5 +95,9 @@ public class SinkTransformation<InputT, OutputT> extends PhysicalTransformation<
 
     public Sink<InputT> getSink() {
         return sink;
+    }
+
+    public CustomSinkOperatorUidHashes getSinkOperatorsUidHashes() {
+        return customSinkOperatorUidHashes;
     }
 }

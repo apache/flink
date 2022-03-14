@@ -31,6 +31,7 @@ import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
 import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
+import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.graph.TransformationTranslator;
@@ -257,7 +258,10 @@ public class SinkTransformationTranslator<Input, Output>
             List<Transformation<?>> expandedTransformations =
                     transformations.subList(numTransformsBefore, transformations.size());
 
+            final CustomSinkOperatorUidHashes operatorsUidHashes =
+                    transformation.getSinkOperatorsUidHashes();
             for (Transformation<?> subTransformation : expandedTransformations) {
+
                 String subUid = subTransformation.getUid();
                 if (isExpandedTopology && subUid != null && !subUid.isEmpty()) {
                     checkState(
@@ -267,6 +271,18 @@ public class SinkTransformationTranslator<Input, Output>
                                     + " requires to set a uid since its customized topology"
                                     + " has set uid for some operators.");
                 }
+
+                // Set the operator uid hashes to support stateful upgrades without prior uids
+                setOperatorUidHashIfPossible(
+                        subTransformation, WRITER_NAME, operatorsUidHashes.getWriterUidHash());
+                setOperatorUidHashIfPossible(
+                        subTransformation,
+                        COMMITTER_NAME,
+                        operatorsUidHashes.getCommitterUidHash());
+                setOperatorUidHashIfPossible(
+                        subTransformation,
+                        StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME,
+                        operatorsUidHashes.getGlobalCommitterUidHash());
 
                 concatUid(
                         subTransformation,
@@ -321,6 +337,16 @@ public class SinkTransformationTranslator<Input, Output>
             executionEnvironment.setParallelism(environmentParallelism);
 
             return result;
+        }
+
+        private void setOperatorUidHashIfPossible(
+                Transformation<?> transformation,
+                String writerName,
+                @Nullable String operatorUidHash) {
+            if (operatorUidHash == null || !transformation.getName().equals(writerName)) {
+                return;
+            }
+            transformation.setUidHash(operatorUidHash);
         }
 
         private void concatUid(
