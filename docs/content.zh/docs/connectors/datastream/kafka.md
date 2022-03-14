@@ -74,18 +74,18 @@ env.fromSource(source, WatermarkStrategy.noWatermarks(), "Kafka Source");
 Kafka Source 提供了 3 种 Topic / Partition 的订阅方式：
 - Topic 列表，订阅 Topic 列表中所有 Partition 的消息：
   ```java
-  KafkaSource.builder().setTopics("topic-a", "topic-b")
+  KafkaSource.builder().setTopics("topic-a", "topic-b");
   ```
 - 正则表达式匹配，订阅与正则表达式所匹配的 Topic 下的所有 Partition：
   ```java
-  KafkaSource.builder().setTopicPattern("topic.*")
+  KafkaSource.builder().setTopicPattern("topic.*");
   ```
 - Partition 列表，订阅指定的 Partition：
   ```java
   final HashSet<TopicPartition> partitionSet = new HashSet<>(Arrays.asList(
           new TopicPartition("topic-a", 0),    // Partition 0 of topic "topic-a"
           new TopicPartition("topic-b", 5)));  // Partition 5 of topic "topic-b"
-  KafkaSource.builder().setPartitions(partitionSet)
+  KafkaSource.builder().setPartitions(partitionSet);
   ```
 ### 消息解析
 代码中需要提供一个反序列化器（Deserializer）来对 Kafka 的消息进行解析。
@@ -119,7 +119,7 @@ KafkaSource.builder()
     // 从最早位点开始消费
     .setStartingOffsets(OffsetsInitializer.earliest())
     // 从最末尾位点开始消费
-    .setStartingOffsets(OffsetsInitializer.latest())
+    .setStartingOffsets(OffsetsInitializer.latest());
 ```
 如果内置的初始化器不能满足需求，也可以实现自定义的位点初始化器（```OffsetsInitializer```）。
 
@@ -153,7 +153,7 @@ Kafka consumer 的配置可以参考 [Apache Kafka 文档](http://kafka.apache.o
 ```java
 KafkaSource.builder()
     .setProperty("sasl.mechanism", "PLAIN")
-    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";")
+    .setProperty("sasl.jaas.config", "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"username\" password=\"password\";");
 ```
 
 ### 动态分区检查
@@ -162,7 +162,7 @@ KafkaSource.builder()
 
 ```java
 KafkaSource.builder()
-    .setProperty("partition.discovery.interval.ms", "10000") // 每 10 秒检查一次新分区
+    .setProperty("partition.discovery.interval.ms", "10000"); // 每 10 秒检查一次新分区
 ```
 {{< hint warning >}}
 分区检查功能默认**不开启**。需要显式地设置分区检查间隔才能启用此功能。
@@ -172,7 +172,7 @@ KafkaSource.builder()
 默认情况下，Kafka Source 使用 Kafka 消息中的时间戳作为事件时间。您可以定义自己的水印策略（Watermark Strategy）
 以从消息中提取事件时间，并向下游发送水印：
 ```java
-env.fromSource(kafkaSource, new CustomWatermarkStrategy(), "Kafka Source With Custom Watermark Strategy")
+env.fromSource(kafkaSource, new CustomWatermarkStrategy(), "Kafka Source With Custom Watermark Strategy");
 ```
 [这篇文档]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}})描述了如何自定义水印策略（```WatermarkStrategy```）。
 
@@ -314,7 +314,7 @@ Kafka sink 提供了构建类来创建 ```KafkaSink``` 的实例。以下代码�
 topic：
 
 ```java
-DataStream<String> stream = ...
+DataStream<String> stream = ...;
         
 KafkaSink<String> sink = KafkaSink.<String>builder()
         .setBootstrapServers(brokers)

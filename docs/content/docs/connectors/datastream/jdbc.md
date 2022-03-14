@@ -73,7 +73,7 @@ JdbcExecutionOptions.builder()
         .withBatchIntervalMs(200)             // optional: default = 0, meaning no time-based execution is done
         .withBatchSize(1000)                  // optional: default = 5000 values
         .withMaxRetries(5)                    // optional: default = 3 
-.build()
+.build();
 ```
 
 A JDBC batch is executed as soon as one of the following conditions is true:
@@ -184,7 +184,7 @@ In such cases, please use the following API to construct `JdbcExactlyOnceOptions
 ```java
 JdbcExactlyOnceOptions.builder()
 .withTransactionPerConnection(true)
-.build()
+.build();
 ```
 This will make Flink use a separate connection for every XA transaction. This may require adjusting connection limits.
 For PostgreSQL and MySQL, this can be done by increasing `max_connections`.

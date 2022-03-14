@@ -46,7 +46,7 @@ Table 和 SQL API 的默认配置能够确保结果准确，同时也提供可�
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 // access flink configuration
 TableConfig configuration = tEnv.getConfig();
