@@ -23,12 +23,6 @@ import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.hadoop.mapred.utils.HadoopUtils;
 import org.apache.flink.connectors.hive.HiveDynamicTableFactory;
 import org.apache.flink.connectors.hive.HiveTableFactory;
-import org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils;
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase;
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner;
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.api.TableSchema;
 import org.apache.flink.table.api.constraints.UniqueConstraint;
 import org.apache.flink.table.catalog.AbstractCatalog;
@@ -78,6 +72,8 @@ import org.apache.flink.table.factories.Factory;
 import org.apache.flink.table.factories.FunctionDefinitionFactory;
 import org.apache.flink.table.factories.ManagedTableFactory;
 import org.apache.flink.table.factories.TableFactory;
+import org.apache.flink.table.planner.delegation.hive.HiveDDLUtils;
+import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.hadoop.conf.Configuration;
@@ -121,22 +117,23 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_NAME;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_TYPE;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_COL_CASCADE;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_TABLE_OP;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_COLS;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_CONSTRAINT_TRAITS;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
 import static org.apache.flink.table.catalog.CatalogPropertiesUtil.FLINK_PROPERTY_PREFIX;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveIntStat;
 import static org.apache.flink.table.catalog.hive.util.HiveStatsUtil.parsePositiveLongStat;
 import static org.apache.flink.table.catalog.hive.util.HiveTableUtil.getHadoopConfiguration;
 import static org.apache.flink.table.descriptors.ConnectorDescriptorValidator.CONNECTOR_TYPE;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.ALTER_COL_CASCADE;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.ALTER_DATABASE_OP;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.ALTER_TABLE_OP;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.DATABASE_OWNER_NAME;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.DATABASE_OWNER_TYPE;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.NOT_NULL_COLS;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.NOT_NULL_CONSTRAINT_TRAITS;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.PK_CONSTRAINT_TRAIT;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.STORED_AS_FILE_FORMAT;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserEnums.AlterDatabaseOp;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserEnums.AlterTableOp;
 import static org.apache.flink.table.utils.PartitionPathUtils.unescapePathName;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
@@ -341,7 +338,7 @@ public class HiveCatalog extends AbstractCatalog {
 
         Map<String, String> properties = new HashMap<>(hiveDatabase.getParameters());
 
-        properties.put(SqlCreateHiveDatabase.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
+        properties.put(HiveParserConstants.DATABASE_LOCATION_URI, hiveDatabase.getLocationUri());
 
         return new CatalogDatabaseImpl(properties, hiveDatabase.getDescription());
     }
@@ -356,7 +353,7 @@ public class HiveCatalog extends AbstractCatalog {
 
         Map<String, String> properties = database.getProperties();
 
-        String dbLocationUri = properties.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
+        String dbLocationUri = properties.remove(HiveParserConstants.DATABASE_LOCATION_URI);
 
         Database hiveDatabase =
                 new Database(databaseName, database.getComment(), dbLocationUri, properties);
@@ -723,7 +720,7 @@ public class HiveCatalog extends AbstractCatalog {
             }
             // for hive table, we add the connector property
             if (isHiveTable) {
-                table.getParameters().put(CONNECTOR.key(), IDENTIFIER);
+                table.getParameters().put(CONNECTOR.key(), HiveParserConstants.IDENTIFIER);
             }
             return table;
         } catch (NoSuchObjectException e) {
@@ -1008,7 +1005,7 @@ public class HiveCatalog extends AbstractCatalog {
             Map<String, String> properties = hivePartition.getParameters();
 
             properties.put(
-                    SqlCreateHiveTable.TABLE_LOCATION_URI, hivePartition.getSd().getLocation());
+                    HiveParserConstants.TABLE_LOCATION_URI, hivePartition.getSd().getLocation());
 
             String comment = properties.remove(HiveCatalogConfig.COMMENT);
 
@@ -1108,7 +1105,7 @@ public class HiveCatalog extends AbstractCatalog {
         // TODO: handle GenericCatalogPartition
         StorageDescriptor sd = hiveTable.getSd().deepCopy();
         sd.setLocation(
-                catalogPartition.getProperties().remove(SqlCreateHiveTable.TABLE_LOCATION_URI));
+                catalogPartition.getProperties().remove(HiveParserConstants.TABLE_LOCATION_URI));
 
         Map<String, String> properties = new HashMap<>(catalogPartition.getProperties());
         String comment = catalogPartition.getComment();
@@ -1680,7 +1677,7 @@ public class HiveCatalog extends AbstractCatalog {
 
     @Internal
     public static boolean isHiveTable(Map<String, String> properties) {
-        return IDENTIFIER.equalsIgnoreCase(properties.get(CONNECTOR.key()));
+        return HiveParserConstants.IDENTIFIER.equalsIgnoreCase(properties.get(CONNECTOR.key()));
     }
 
     private static void disallowChangeCatalogTableType(
@@ -1768,11 +1765,10 @@ public class HiveCatalog extends AbstractCatalog {
         String opStr = newParams.remove(ALTER_DATABASE_OP);
         if (opStr == null) {
             // by default is to alter db properties
-            opStr = SqlAlterHiveDatabase.AlterHiveDatabaseOp.CHANGE_PROPS.name();
+            opStr = AlterDatabaseOp.CHANGE_PROPS.name();
         }
-        String newLocation = newParams.remove(SqlCreateHiveDatabase.DATABASE_LOCATION_URI);
-        SqlAlterHiveDatabase.AlterHiveDatabaseOp op =
-                SqlAlterHiveDatabase.AlterHiveDatabaseOp.valueOf(opStr);
+        String newLocation = newParams.remove(HiveParserConstants.DATABASE_LOCATION_URI);
+        AlterDatabaseOp op = AlterDatabaseOp.valueOf(opStr);
         switch (op) {
             case CHANGE_PROPS:
                 hiveDB.setParameters(newParams);
@@ -1785,10 +1781,10 @@ public class HiveCatalog extends AbstractCatalog {
                 String ownerType = newParams.remove(DATABASE_OWNER_TYPE);
                 hiveDB.setOwnerName(ownerName);
                 switch (ownerType) {
-                    case SqlAlterHiveDatabaseOwner.ROLE_OWNER:
+                    case HiveParserConstants.ROLE_OWNER:
                         hiveDB.setOwnerType(PrincipalType.ROLE);
                         break;
-                    case SqlAlterHiveDatabaseOwner.USER_OWNER:
+                    case HiveParserConstants.USER_OWNER:
                         hiveDB.setOwnerType(PrincipalType.USER);
                         break;
                     default:

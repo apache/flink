@@ -19,10 +19,9 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.annotation.Internal;
+import org.apache.flink.sql.parser.impl.FlinkSqlParserImpl;
 import org.apache.flink.sql.parser.validate.FlinkSqlConformance;
-import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableConfig;
-import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.FunctionCatalog;
 import org.apache.flink.table.module.ModuleManager;
@@ -66,10 +65,8 @@ import org.apache.calcite.rel.type.RelDataTypeSystem;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlOperatorTable;
 import org.apache.calcite.sql.dialect.AnsiSqlDialect;
-import org.apache.calcite.sql.dialect.HiveSqlDialect;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.sql.util.SqlOperatorTables;
-import org.apache.calcite.sql.validate.SqlConformance;
 import org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.calcite.tools.Frameworks;
@@ -258,38 +255,12 @@ public class PlannerContext {
                         // we use Java lex because back ticks are easier than double quotes in
                         // programming
                         // and cases are preserved
-                        () -> {
-                            SqlConformance conformance = getSqlConformance();
-                            return SqlParser.config()
-                                    .withParserFactory(FlinkSqlParserFactories.create(conformance))
-                                    .withConformance(conformance)
-                                    .withLex(Lex.JAVA)
-                                    .withIdentifierMaxLength(256);
-                        });
-    }
-
-    private FlinkSqlConformance getSqlConformance() {
-        SqlDialect sqlDialect = tableConfig.getSqlDialect();
-        switch (sqlDialect) {
-            case HIVE:
-                return FlinkSqlConformance.HIVE;
-            case DEFAULT:
-                return FlinkSqlConformance.DEFAULT;
-            default:
-                throw new TableException("Unsupported SQL dialect: " + sqlDialect);
-        }
-    }
-
-    private org.apache.calcite.sql.SqlDialect getCalciteSqlDialect() {
-        SqlDialect sqlDialect = tableConfig.getSqlDialect();
-        switch (sqlDialect) {
-            case HIVE:
-                return HiveSqlDialect.DEFAULT;
-            case DEFAULT:
-                return AnsiSqlDialect.DEFAULT;
-            default:
-                throw new TableException("Unsupported SQL dialect: " + sqlDialect);
-        }
+                        () ->
+                                SqlParser.config()
+                                        .withParserFactory(FlinkSqlParserImpl.FACTORY)
+                                        .withConformance(FlinkSqlConformance.DEFAULT)
+                                        .withLex(Lex.JAVA)
+                                        .withIdentifierMaxLength(256));
     }
 
     /**
@@ -351,7 +322,7 @@ public class PlannerContext {
                     checkNotNull(frameworkConfig),
                     checkNotNull(typeFactory),
                     checkNotNull(cluster),
-                    checkNotNull(getCalciteSqlDialect()),
+                    checkNotNull(AnsiSqlDialect.DEFAULT),
                     inputRowType,
                     outputType);
         }

@@ -18,8 +18,6 @@
 
 package org.apache.flink.table.catalog.hive;
 
-import org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable;
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.Schema;
@@ -48,6 +46,7 @@ import org.apache.flink.table.catalog.stats.CatalogColumnStatisticsDataString;
 import org.apache.flink.table.catalog.stats.CatalogTableStatistics;
 import org.apache.flink.table.catalog.stats.Date;
 import org.apache.flink.table.factories.FactoryUtil;
+import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.StringUtils;
@@ -68,8 +67,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.ALTER_TABLE_OP;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserEnums.AlterTableOp;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -155,7 +155,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         hiveView.setDbName(path3.getDatabaseName());
         hiveView.setTableName(path3.getObjectName());
         hiveView.getParameters().remove(CatalogPropertiesUtil.IS_GENERIC);
-        hiveView.getParameters().put(CONNECTOR.key(), IDENTIFIER);
+        hiveView.getParameters().put(CONNECTOR.key(), HiveParserConstants.IDENTIFIER);
 
         ((HiveCatalog) catalog).client.createTable(hiveView);
         baseTable = catalog.getTable(path3);
@@ -296,10 +296,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
 
         CatalogPartition another = createPartition();
         another.getProperties().put("k", "v");
-        another.getProperties()
-                .put(
-                        SqlAlterHiveTable.ALTER_TABLE_OP,
-                        SqlAlterHiveTable.AlterTableOp.CHANGE_TBL_PROPS.name());
+        another.getProperties().put(ALTER_TABLE_OP, AlterTableOp.CHANGE_TBL_PROPS.name());
 
         catalog.alterPartition(path1, createPartitionSpec(), another, false);
 
@@ -316,7 +313,7 @@ public class HiveCatalogHiveMetadataTest extends HiveCatalogMetadataTestBase {
         catalog.dropTable(path1, true);
 
         Map<String, String> properties = new HashMap<>();
-        properties.put(FactoryUtil.CONNECTOR.key(), SqlCreateHiveTable.IDENTIFIER);
+        properties.put(FactoryUtil.CONNECTOR.key(), HiveParserConstants.IDENTIFIER);
         properties.put(StatsSetupConst.ROW_COUNT, String.valueOf(inputStat));
         properties.put(StatsSetupConst.NUM_FILES, String.valueOf(inputStat));
         properties.put(StatsSetupConst.TOTAL_SIZE, String.valueOf(inputStat));

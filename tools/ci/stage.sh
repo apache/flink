@@ -57,7 +57,6 @@ flink-libraries/flink-state-processing-api"
 
 MODULES_TABLE="\
 flink-table/flink-sql-parser,\
-flink-table/flink-sql-parser-hive,\
 flink-table/flink-table-common,\
 flink-table/flink-table-api-java,\
 flink-table/flink-table-api-scala,\

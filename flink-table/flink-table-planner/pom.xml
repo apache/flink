@@ -82,17 +82,6 @@ under the License.
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.flink</groupId>
-			<artifactId>flink-sql-parser-hive</artifactId>
-			<version>${project.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>org.apache.calcite</groupId>
-					<artifactId>calcite-core</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
 
 		<!-- Table Runtime (not included in the uber) -->
 
@@ -350,7 +339,6 @@ under the License.
 
 							<!-- flink-table-planner dependencies -->
 							<include>org.apache.flink:flink-sql-parser</include>
-							<include>org.apache.flink:flink-sql-parser-hive</include>
 
 							<!-- For legacy string expressions in Table API -->
 							<include>org.scala-lang.modules:scala-parser-combinators_${scala.binary.version}</include>

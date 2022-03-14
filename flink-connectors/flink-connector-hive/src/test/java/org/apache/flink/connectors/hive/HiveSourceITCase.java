@@ -42,8 +42,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.IDENTIFIER;
 import static org.apache.flink.table.factories.FactoryUtil.CONNECTOR;
+import static org.apache.flink.table.planner.delegation.hive.HiveParserConstants.IDENTIFIER;
 import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link HiveSource}. */

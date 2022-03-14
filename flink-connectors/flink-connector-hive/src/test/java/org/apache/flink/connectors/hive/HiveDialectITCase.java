@@ -18,7 +18,6 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable;
 import org.apache.flink.table.HiveVersionTestUtil;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.api.TableEnvironment;
@@ -42,6 +41,7 @@ import org.apache.flink.table.operations.command.QuitOperation;
 import org.apache.flink.table.operations.command.ResetOperation;
 import org.apache.flink.table.operations.command.SetOperation;
 import org.apache.flink.table.planner.delegation.hive.HiveParser;
+import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
@@ -205,7 +205,7 @@ public class HiveDialectITCase {
         assertEquals(1, hiveTable.getPartitionKeysSize());
         assertEquals(location, locationPath(hiveTable.getSd().getLocation()));
         assertEquals("v1", hiveTable.getParameters().get("k1"));
-        assertFalse(hiveTable.getParameters().containsKey(SqlCreateHiveTable.TABLE_LOCATION_URI));
+        assertFalse(hiveTable.getParameters().containsKey(HiveParserConstants.TABLE_LOCATION_URI));
 
         tableEnv.executeSql("create table tbl2 (s struct<ts:timestamp,bin:binary>) stored as orc");
         hiveTable = hiveCatalog.getHiveTable(new ObjectPath("default", "tbl2"));
@@ -358,6 +358,17 @@ public class HiveDialectITCase {
         assertEquals(
                 "[+I[1, 0, static], +I[1, 1, a], +I[1, 2, b], +I[1, 3, c], +I[2, 0, static], +I[2, 1, b], +I[3, 0, static], +I[3, 1, c]]",
                 results.toString());
+    }
+
+    @Test
+    public void testInsertOverwrite() throws Exception {
+        tableEnv.executeSql("create table src (x int,y string)");
+        tableEnv.executeSql("insert into src values (1,'a'),(2,'b'),(3,'c')").await();
+        tableEnv.executeSql("create table dest2 (x int) partitioned by (p1 int,p2 string)");
+        tableEnv.executeSql("insert overwrite table dest2 partition (p1,p2) select 1,x,y from src")
+                .await();
+        List<Row> results = queryResult(tableEnv.sqlQuery("select * from dest2"));
+        System.out.println(results);
     }
 
     @Test

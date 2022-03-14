@@ -23,13 +23,7 @@ import org.apache.calcite.sql.validate.SqlConformance;
 /** Sql conformance used for flink to set specific sql dialect parser. * */
 public enum FlinkSqlConformance implements SqlConformance {
     /** Calcite's default SQL behavior. */
-    DEFAULT,
-
-    /**
-     * Conformance value that instructs Calcite to use SQL semantics consistent with the Apache
-     * HIVE, but ignoring its more inconvenient or controversial dicta.
-     */
-    HIVE;
+    DEFAULT;
 
     @Override
     public boolean isLiberal() {
@@ -58,24 +52,12 @@ public enum FlinkSqlConformance implements SqlConformance {
 
     @Override
     public boolean isSortByOrdinal() {
-        switch (this) {
-            case DEFAULT:
-            case HIVE:
-                return true;
-            default:
-                return false;
-        }
+        return true;
     }
 
     @Override
     public boolean isSortByAlias() {
-        switch (this) {
-            case DEFAULT:
-            case HIVE:
-                return true;
-            default:
-                return false;
-        }
+        return true;
     }
 
     @Override
@@ -135,11 +117,7 @@ public enum FlinkSqlConformance implements SqlConformance {
 
     @Override
     public boolean allowExplicitRowValueConstructor() {
-        switch (this) {
-            case DEFAULT:
-                return true;
-        }
-        return false;
+        return true;
     }
 
     @Override
