@@ -202,7 +202,7 @@ DataSet<Tuple2<String, Integer>> out = in.project(2,0);
 Note that the Java compiler cannot infer the return type of `project` operator. This can cause a problem if you call another operator on a result of `project` operator such as:
 
 ```java
-DataSet<Tuple5<String,String,String,String,String>> ds = ....
+DataSet<Tuple5<String,String,String,String,String>> ds = ....;
 DataSet<Tuple1<String>> ds2 = ds.project(0).distinct(0);
 ```
 

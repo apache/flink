@@ -70,7 +70,7 @@ Catalog 是可扩展的，用户可以通过实现 `Catalog` 接口来开发自�
 {{< tabs "88ed733a-cf54-4676-9685-7d77d3cc9771" >}}
 {{< tab "Java" >}}
 ```java
-TableEnvironment tableEnv = ...
+TableEnvironment tableEnv = ...;
 
 // Create a HiveCatalog 
 Catalog catalog = new HiveCatalog("myhive", null, "<path_of_hive_conf>");

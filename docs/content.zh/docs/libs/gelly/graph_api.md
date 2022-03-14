@@ -96,9 +96,9 @@ You can create a `Graph` in the following ways:
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-DataSet<Vertex<String, Long>> vertices = ...
+DataSet<Vertex<String, Long>> vertices = ...;
 
-DataSet<Edge<String, Double>> edges = ...
+DataSet<Edge<String, Double>> edges = ...;
 
 Graph<String, Long, Double> graph = Graph.fromDataSet(vertices, edges, env);
 ```
@@ -231,9 +231,9 @@ val simpleGraph = Graph.fromCsvReader[Long, Double, NullValue](
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-List<Vertex<Long, Long>> vertexList = new ArrayList...
+List<Vertex<Long, Long>> vertexList = new ArrayList...;
 
-List<Edge<Long, String>> edgeList = new ArrayList...
+List<Edge<Long, String>> edgeList = new ArrayList...;
 
 Graph<Long, Long, String> graph = Graph.fromCollection(vertexList, edgeList, env);
 ```
@@ -428,7 +428,7 @@ val updatedGraph = graph.translateGraphIds(id => id.toString)
 {{< tabs "b33fe8f8-8a53-4710-9379-8d2f912a3105" >}}
 {{< tab "Java" >}}
 ```java
-Graph<Long, Long, Long> graph = ...
+Graph<Long, Long, Long> graph = ...;
 
 graph.subgraph(
 		new FilterFunction<Vertex<Long, Long>>() {
@@ -467,7 +467,7 @@ Note that if the input dataset contains a key multiple times, all Gelly join met
 {{< tabs "219b4d15-4be2-4bbf-a3ea-4155d3f6ba27" >}}
 {{< tab "Java" >}}
 ```java
-Graph<Long, Double, Double> network = ...
+Graph<Long, Double, Double> network = ...;
 
 DataSet<Tuple2<Long, LongValue>> vertexOutDegrees = network.outDegrees();
 
@@ -519,11 +519,11 @@ val networkWithWeights = network.joinWithEdgesOnSource(vertexOutDegrees, (v1: Do
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // create first graph from edges {(1, 3, 12) (1, 3, 13), (1, 3, 13)}
-List<Edge<Long, Long>> edges1 = ...
+List<Edge<Long, Long>> edges1 = ...;
 Graph<Long, NullValue, Long> graph1 = Graph.fromCollection(edges1, env);
 
 // create second graph from edges {(1, 3, 13)}
-List<Edge<Long, Long>> edges2 = ...
+List<Edge<Long, Long>> edges2 = ...;
 Graph<Long, NullValue, Long> graph2 = Graph.fromCollection(edges2, env);
 
 // Using distinct = true results in {(1,3,13)}
@@ -638,7 +638,7 @@ The following code will collect the out-edges for each vertex and apply the `Sel
 {{< tabs "8ab0141f-ed3d-4372-bfab-7f78ed6d7d5f" >}}
 {{< tab "Java" >}}
 ```java
-Graph<Long, Long, Double> graph = ...
+Graph<Long, Long, Double> graph = ...;
 
 DataSet<Tuple2<Long, Double>> minWeights = graph.reduceOnEdges(new SelectMinWeight(), EdgeDirection.OUT);
 
@@ -677,7 +677,7 @@ Similarly, assume that you would like to compute the sum of the values of all in
 {{< tabs "67e6fe66-aef8-46b8-8e80-2762dd5c3f02" >}}
 {{< tab "Java" >}}
 ```java
-Graph<Long, Long, Double> graph = ...
+Graph<Long, Long, Double> graph = ...;
 
 DataSet<Tuple2<Long, Long>> verticesWithSum = graph.reduceOnNeighbors(new SumValues(), EdgeDirection.IN);
 
@@ -720,7 +720,7 @@ For example, the following code will output all the vertex pairs which are conne
 {{< tabs "2cf7a021-b67a-42dc-912f-ef79f36314b2" >}}
 {{< tab "Java" >}}
 ```java
-Graph<Long, Long, Double> graph = ...
+Graph<Long, Long, Double> graph = ...;
 
 DataSet<Tuple2<Vertex<Long, Long>, Vertex<Long, Long>>> vertexPairs = graph.groupReduceOnNeighbors(new SelectLargeWeightNeighbors(), EdgeDirection.OUT);
 
@@ -783,10 +783,10 @@ also exist in the vertex IDs set.
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
 // create a list of vertices with IDs = {1, 2, 3, 4, 5}
-List<Vertex<Long, Long>> vertices = ...
+List<Vertex<Long, Long>> vertices = ...;
 
 // create a list of edges with IDs = {(1, 2) (1, 3), (2, 4), (5, 6)}
-List<Edge<Long, Long>> edges = ...
+List<Edge<Long, Long>> edges = ...;
 
 Graph<Long, Long, Long> graph = Graph.fromCollection(vertices, edges, env);
 

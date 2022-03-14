@@ -123,7 +123,7 @@ env.getCheckpointConfig().setExternalizedCheckpointCleanup(
 env.getCheckpointConfig().enableUnalignedCheckpoints();
 
 // sets the checkpoint storage where checkpoint snapshots will be written
-env.getCheckpointConfig().setCheckpointStorage("hdfs:///my/checkpoint/dir")
+env.getCheckpointConfig().setCheckpointStorage("hdfs:///my/checkpoint/dir");
 
 // enable checkpointing with finished tasks
 Configuration config = new Configuration();
