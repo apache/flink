@@ -386,8 +386,10 @@ public class CassandraConnectorITCase
             }
         }
         session.execute(CREATE_KEYSPACE_QUERY);
-        session.execute(
-                CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_NAME_PREFIX + "initial"));
+        /*
+                session.execute(
+                        CREATE_TABLE_QUERY.replace(TABLE_NAME_VARIABLE, TABLE_NAME_PREFIX + "initial"));
+        */
     }
 
     @Before
