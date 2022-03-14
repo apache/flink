@@ -30,6 +30,7 @@ import org.apache.flink.configuration.WritableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.OptimizerConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
+import org.apache.flink.table.delegation.Executor;
 import org.apache.flink.util.Preconditions;
 
 import java.math.MathContext;
@@ -44,6 +45,29 @@ import static java.time.ZoneId.SHORT_IDS;
 /**
  * Configuration for the current {@link TableEnvironment} session to adjust Table & SQL API
  * programs.
+ *
+ * <p>This class is a pure API class that abstracts configuration from various sources. Currently,
+ * configuration can be set in any of the following layers (in the given order):
+ *
+ * <ol>
+ *   <li>{@code flink-conf.yaml},
+ *   <li>CLI parameters,
+ *   <li>{@code StreamExecutionEnvironment} when bridging to DataStream API,
+ *   <li>{@link EnvironmentSettings.Builder#withConfiguration(Configuration)} / {@link
+ *       TableEnvironment#create(Configuration)},
+ *   <li>and {@link TableConfig#set(ConfigOption, Object)} / {@link TableConfig#set(String,
+ *       String)}.
+ * </ol>
+ *
+ * <p>The latter two represent the application-specific part of the configuration. They initialize
+ * and directly modify {@link TableConfig#getConfiguration()}. Other layers represent the
+ * configuration of the execution context and are immutable.
+ *
+ * <p>The getters {@link #get(ConfigOption)} and {@link #getOptional(ConfigOption)} give read-only
+ * access to the full configuration. However, application-specific configuration has precedence.
+ * Configuration of outer layers is used for defaults and fallbacks. The setters {@link
+ * #set(ConfigOption, Object)} and {@link #set(String, String)} will only affect
+ * application-specific configuration.
  *
  * <p>For common or important configuration options, this class provides getters and setters methods
  * with detailed inline documentation.
@@ -72,13 +96,18 @@ import static java.time.ZoneId.SHORT_IDS;
  */
 @PublicEvolving
 public final class TableConfig implements WritableConfig, ReadableConfig {
+
+    // Note to implementers:
+    // TableConfig is a ReadableConfig which is built once the TableEnvironment is created and
+    // contains both the configuration defined in the execution context (flink-conf.yaml + CLI
+    // params), stored in rootConfiguration, but also any extra configuration defined by the user in
+    // the application, which has precedence over the execution configuration.
     //
-    // TableConfig is also a ReadableConfig which is built once the TableEnvironment is created and
-    // contains both the configuration defined in the environment (flink-conf.yaml + CLI params),
-    // stored in rootConfiguration, but also any extra configuration defined by the user in the
-    // application, which has precedence over the environment configuration. This way, any consumer
-    // of TableConfig cat get the complete view of the configuration (environment + user defined) by
-    // calling the get() and getOptional() methods.
+    // This way, any consumer of TableConfig can get the complete view of the configuration
+    // (environment + user-defined/application-specific) by calling the get() and getOptional()
+    // methods.
+    //
+    // The set() methods only impact the application-specific configuration.
 
     /** Defines if all fields need to be checked for NULL first. */
     private Boolean nullCheck = true;
@@ -92,13 +121,17 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
      */
     private MathContext decimalContext = MathContext.DECIMAL128;
 
-    /** A configuration object to hold all key/value configuration. */
+    /**
+     * A configuration object to hold all configuration that has been set specifically in the Table
+     * API. It does not contain configuration from outer layers.
+     */
     private final Configuration configuration = new Configuration();
 
+    /** Configuration adopted from the outer layer (i.e. the {@link Executor}). */
     private ReadableConfig rootConfiguration = new Configuration();
 
     /**
-     * Sets a value for the given {@link ConfigOption}.
+     * Sets an application-specific value for the given {@link ConfigOption}.
      *
      * <p>This method should be preferred over {@link #set(String, String)} as it is type-safe,
      * avoids unnecessary parsing of the value, and provides inline documentation.
@@ -117,7 +150,7 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
     }
 
     /**
-     * Sets a string-based value for the given string-based key.
+     * Sets an application-specific string-based value for the given string-based key.
      *
      * <p>The value will be parsed by the framework on access.
      *
@@ -134,11 +167,33 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This method gives read-only access to the full configuration. However,
+     * application-specific configuration has precedence. Configuration of outer layers is used for
+     * defaults and fallbacks. See the docs of {@link TableConfig} for more information.
+     *
+     * @param option metadata of the option to read
+     * @param <T> type of the value to read
+     * @return read value or {@link ConfigOption#defaultValue()} if not found
+     */
     @Override
     public <T> T get(ConfigOption<T> option) {
         return configuration.getOptional(option).orElseGet(() -> rootConfiguration.get(option));
     }
 
+    /**
+     * {@inheritDoc}
+     *
+     * <p>This method gives read-only access to the full configuration. However,
+     * application-specific configuration has precedence. Configuration of outer layers is used for
+     * defaults and fallbacks. See the docs of {@link TableConfig} for more information.
+     *
+     * @param option metadata of the option to read
+     * @param <T> type of the value to read
+     * @return read value or {@link Optional#empty()} if not found
+     */
     @Override
     public <T> Optional<T> getOptional(ConfigOption<T> option) {
         final Optional<T> tableValue = configuration.getOptional(option);
@@ -148,25 +203,17 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
         return rootConfiguration.getOptional(option);
     }
 
-    /** Gives direct access to the underlying key-value map for advanced configuration. */
+    /**
+     * Gives direct access to the underlying application-specific key-value map for advanced
+     * configuration.
+     */
     public Configuration getConfiguration() {
         return configuration;
     }
 
     /**
-     * Sets the given key-value configuration as {@link #rootConfiguration}, which contains any
-     * configuration set in the environment ({@code flink-conf.yaml} + {@code CLI} parameters.
-     *
-     * @param rootConfiguration key-value root configuration to be set
-     */
-    @Internal
-    public void setRootConfiguration(ReadableConfig rootConfiguration) {
-        this.rootConfiguration = rootConfiguration;
-    }
-
-    /**
-     * Adds the given key-value configuration to the underlying configuration. It overwrites
-     * existing keys.
+     * Adds the given key-value configuration to the underlying application-specific configuration.
+     * It overwrites existing keys.
      *
      * @param configuration key-value configuration to be added
      */
@@ -440,6 +487,17 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
                         .orElseGet(HashMap::new);
         params.put(key, value);
         set(PipelineOptions.GLOBAL_JOB_PARAMETERS, params);
+    }
+
+    /**
+     * Sets the given configuration as {@link #rootConfiguration}, which contains any configuration
+     * set in the execution context. See the docs of {@link TableConfig} for more information.
+     *
+     * @param rootConfiguration root configuration to be set
+     */
+    @Internal
+    public void setRootConfiguration(ReadableConfig rootConfiguration) {
+        this.rootConfiguration = rootConfiguration;
     }
 
     public static TableConfig getDefault() {
