@@ -172,7 +172,7 @@ public class RandomSortMergeOuterJoinTest {
                 RandomSortMergeInnerJoinTest.transformToBinary(myJoin(operator, input1, input2)));
 
         // assert that each expected match was seen
-        assertThat(expectedMatchesMap).noneSatisfy((i, e) -> assertThat(e).isEmpty());
+        assertThat(expectedMatchesMap).allSatisfy((i, e) -> assertThat(e).isEmpty());
     }
 
     public LinkedBlockingQueue<Object> myJoin(

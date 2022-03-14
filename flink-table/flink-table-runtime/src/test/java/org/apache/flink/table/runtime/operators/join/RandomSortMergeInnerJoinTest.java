@@ -126,7 +126,7 @@ public class RandomSortMergeInnerJoinTest {
         match(expectedMatchesMap, transformToBinary(join(operator, input1, input2)));
 
         // assert that each expected match was seen
-        assertThat(expectedMatchesMap).noneSatisfy((i, e) -> assertThat(e).isEmpty());
+        assertThat(expectedMatchesMap).allSatisfy((i, e) -> assertThat(e).isEmpty());
     }
 
     @Test
@@ -199,7 +199,7 @@ public class RandomSortMergeInnerJoinTest {
         match(expectedMatchesMap, transformToBinary(join(operator, input1, input2)));
 
         // assert that each expected match was seen
-        assertThat(expectedMatchesMap).noneSatisfy((i, e) -> assertThat(e).isEmpty());
+        assertThat(expectedMatchesMap).allSatisfy((i, e) -> assertThat(e).isEmpty());
     }
 
     public static void match(
