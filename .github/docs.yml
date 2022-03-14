@@ -1,0 +1,21 @@
+on:
+  push:
+    branches: [experiment_gha_docs]
+jobs:
+  upload_to_nightlies:
+    runs-on: ubuntu-latest
+    env:
+      INFILE: docs/ghactions-publish-rsync.md
+      OUTFILE: docs/ghactions-publish-rsync.html
+    steps:
+      - uses: actions/checkout@master
+      - name: rsync
+        uses: burnett01/rsync-deployments@5.2
+        with:
+          switches: -avzr
+          path: test/
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink
+          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
+          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
+          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
+          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
