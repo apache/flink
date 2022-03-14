@@ -9,7 +9,7 @@ jobs:
       - name: rsync
         uses: burnett01/rsync-deployments@5.2
         with:
-          switches: --archive --verbose --compress --delete --exclude=*/ --exclude='*.html' --exclude='*.md'--dry-run
+          switches: --archive --verbose --compress --delete --exclude=*/ --exclude="*.html" --exclude="*.md" --exclude="*.ico" --dry-run
           path: test/
           remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
