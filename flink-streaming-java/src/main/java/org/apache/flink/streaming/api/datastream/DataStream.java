@@ -1250,10 +1250,27 @@ public class DataStream<T> {
      */
     @PublicEvolving
     public DataStreamSink<T> sinkTo(org.apache.flink.api.connector.sink.Sink<T, ?, ?, ?> sink) {
+        return this.sinkTo(sink, CustomSinkOperatorUidHashes.DEFAULT);
+    }
+
+    /**
+     * Adds the given {@link Sink} to this DataStream. Only streams with sinks added will be
+     * executed once the {@link StreamExecutionEnvironment#execute()} method is called.
+     *
+     * <p>This method is intended to be used only to recover a snapshot where no uids have been set
+     * before taking the snapshot.
+     *
+     * @param sink The user defined sink.
+     * @return The closed DataStream.
+     */
+    @PublicEvolving
+    public DataStreamSink<T> sinkTo(
+            org.apache.flink.api.connector.sink.Sink<T, ?, ?, ?> sink,
+            CustomSinkOperatorUidHashes customSinkOperatorUidHashes) {
         // read the output type of the input Transform to coax out errors about MissingTypeInfo
         transformation.getOutputType();
 
-        return DataStreamSink.forSinkV1(this, sink);
+        return DataStreamSink.forSinkV1(this, sink, customSinkOperatorUidHashes);
     }
 
     /**
@@ -1265,10 +1282,27 @@ public class DataStream<T> {
      */
     @PublicEvolving
     public DataStreamSink<T> sinkTo(Sink<T> sink) {
+        return this.sinkTo(sink, CustomSinkOperatorUidHashes.DEFAULT);
+    }
+
+    /**
+     * Adds the given {@link Sink} to this DataStream. Only streams with sinks added will be
+     * executed once the {@link StreamExecutionEnvironment#execute()} method is called.
+     *
+     * <p>This method is intended to be used only to recover a snapshot where no uids have been set
+     * before taking the snapshot.
+     *
+     * @param customSinkOperatorUidHashes operator hashes to support state binding
+     * @param sink The user defined sink.
+     * @return The closed DataStream.
+     */
+    @PublicEvolving
+    public DataStreamSink<T> sinkTo(
+            Sink<T> sink, CustomSinkOperatorUidHashes customSinkOperatorUidHashes) {
         // read the output type of the input Transform to coax out errors about MissingTypeInfo
         transformation.getOutputType();
 
-        return DataStreamSink.forSink(this, sink);
+        return DataStreamSink.forSink(this, sink, customSinkOperatorUidHashes);
     }
 
     /**
