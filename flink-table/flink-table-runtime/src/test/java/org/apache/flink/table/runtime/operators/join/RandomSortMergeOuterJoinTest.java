@@ -34,7 +34,6 @@ import org.apache.flink.runtime.operators.testutils.TestData.TupleGeneratorItera
 import org.apache.flink.streaming.api.operators.StreamOperator;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -44,6 +43,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import static org.assertj.core.api.Assertions.fail;
 
 /** Random test for sort merge outer join. */
 public class RandomSortMergeOuterJoinTest {
@@ -177,12 +178,12 @@ public class RandomSortMergeOuterJoinTest {
             // assert that each expected match was seen
             for (Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
                 if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
+                    fail("Collection for key " + entry.getKey() + " is not empty");
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 

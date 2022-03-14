@@ -31,7 +31,7 @@ import org.junit.Test;
 import java.io.IOException;
 import java.util.Random;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link CompressedHeaderlessChannelReaderInputView} and {@link
@@ -74,7 +74,7 @@ public class CompressedHeaderlessChannelTest {
                             channel, ioManager, compressionFactory, BUFFER_SIZE, blockCount);
 
             for (int i = 0; i < testRounds; i++) {
-                assertEquals(i, inputView.readInt());
+                assertThat(inputView.readInt()).isEqualTo(i);
             }
             inputView.close();
         }

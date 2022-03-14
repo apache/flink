@@ -48,8 +48,7 @@ import java.util.stream.Stream;
 import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.range;
 import static org.apache.flink.table.api.Expressions.withColumns;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** End to end tests for {@link org.apache.flink.table.api.TableEnvironment#fromValues}. */
 public class ValuesITCase extends StreamingTestBase {
@@ -183,7 +182,7 @@ public class ValuesITCase extends StreamingTestBase {
                                         })));
 
         List<Row> actual = TestCollectionTableFactory.getResult();
-        assertThat(new HashSet<>(actual), equalTo(new HashSet<>(expected)));
+        assertThat(new HashSet<>(actual)).isEqualTo(new HashSet<>(expected));
     }
 
     @Test
@@ -267,7 +266,7 @@ public class ValuesITCase extends StreamingTestBase {
         t.executeInsert("SinkTable").await();
 
         List<Row> actual = TestCollectionTableFactory.getResult();
-        assertThat(new HashSet<>(actual), equalTo(new HashSet<>(data)));
+        assertThat(new HashSet<>(actual)).isEqualTo(new HashSet<>(data));
     }
 
     @Test
@@ -325,7 +324,7 @@ public class ValuesITCase extends StreamingTestBase {
                         Row.of(
                                 "2,2,2,2,2.2,2.2,2.2,false,02:02:02,0002-02-02,0002-02-02T02:02:02.000000002,"
                                         + "1970-01-01T00:00:00.002Z,2,[2],[2.2],{2=2.2}"));
-        assertThat(new HashSet<>(actual), equalTo(new HashSet<>(expected)));
+        assertThat(new HashSet<>(actual)).isEqualTo(new HashSet<>(expected));
     }
 
     @Test
@@ -341,7 +340,7 @@ public class ValuesITCase extends StreamingTestBase {
                 CollectionUtil.iteratorToList(
                         tEnv().executeSql("select * from values_t").collect());
 
-        assertThat(results, equalTo(Collections.singletonList(row)));
+        assertThat(results).containsExactly(row);
     }
 
     /**

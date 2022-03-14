@@ -25,7 +25,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test PartitionSpec json ser/de. */
 public class PartitionSpecSerdeTest {
@@ -34,15 +34,17 @@ public class PartitionSpecSerdeTest {
     public void testPartitionSpec() throws JsonProcessingException {
         PartitionSpec spec = new PartitionSpec(new int[] {1, 2, 3});
         ObjectMapper mapper = new ObjectMapper();
-        assertEquals(spec, mapper.readValue(mapper.writeValueAsString(spec), PartitionSpec.class));
+        assertThat(mapper.readValue(mapper.writeValueAsString(spec), PartitionSpec.class))
+                .isEqualTo(spec);
     }
 
     @Test
     public void testAllInOne() throws JsonProcessingException {
         ObjectMapper mapper = new ObjectMapper();
-        assertEquals(
-                PartitionSpec.ALL_IN_ONE,
-                mapper.readValue(
-                        mapper.writeValueAsString(PartitionSpec.ALL_IN_ONE), PartitionSpec.class));
+        assertThat(
+                        mapper.readValue(
+                                mapper.writeValueAsString(PartitionSpec.ALL_IN_ONE),
+                                PartitionSpec.class))
+                .isEqualTo(PartitionSpec.ALL_IN_ONE);
     }
 }

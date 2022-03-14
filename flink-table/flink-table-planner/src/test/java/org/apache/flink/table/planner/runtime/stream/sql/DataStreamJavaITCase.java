@@ -93,10 +93,9 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.sourceWatermark;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
 
 /** Tests for connecting to the {@link DataStream} API. */
 @RunWith(Parameterized.class)
@@ -250,17 +249,17 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         final DataStream<Tuple2<DayOfWeek, ZoneOffset>> dataStream = env.fromCollection(rawRecords);
 
         // verify incoming type information
-        assertThat(dataStream.getType(), instanceOf(TupleTypeInfo.class));
+        assertThat(dataStream.getType()).isInstanceOf(TupleTypeInfo.class);
         final TupleTypeInfo<?> tupleInfo = (TupleTypeInfo<?>) dataStream.getType();
-        assertThat(tupleInfo.getFieldTypes()[0], instanceOf(EnumTypeInfo.class));
-        assertThat(tupleInfo.getFieldTypes()[1], instanceOf(GenericTypeInfo.class));
+        assertThat(tupleInfo.getFieldTypes()[0]).isInstanceOf(EnumTypeInfo.class);
+        assertThat(tupleInfo.getFieldTypes()[1]).isInstanceOf(GenericTypeInfo.class);
 
         final Table table = tableEnv.fromDataStream(dataStream);
 
         // verify schema conversion
         final List<DataType> columnDataTypes = table.getResolvedSchema().getColumnDataTypes();
-        assertThat(columnDataTypes.get(0).getLogicalType(), instanceOf(RawType.class));
-        assertThat(columnDataTypes.get(1).getLogicalType(), instanceOf(RawType.class));
+        assertThat(columnDataTypes.get(0).getLogicalType()).isInstanceOf(RawType.class);
+        assertThat(columnDataTypes.get(1).getLogicalType()).isInstanceOf(RawType.class);
 
         // test reverse operation
         testResult(
@@ -669,13 +668,11 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         // submits all source-to-sink pipelines
         testResult(env.fromElements(3, 4, 5), 3, 4, 5);
 
-        assertThat(
-                TestValuesTableFactory.getResults("OutputTable1"),
-                containsInAnyOrder("+I[1, a]", "+I[2, b]"));
+        assertThat(TestValuesTableFactory.getResults("OutputTable1"))
+                .satisfies(matching(containsInAnyOrder("+I[1, a]", "+I[2, b]")));
 
-        assertThat(
-                TestValuesTableFactory.getResults("OutputTable2"),
-                containsInAnyOrder("+I[1]", "+I[2]", "+I[3]"));
+        assertThat(TestValuesTableFactory.getResults("OutputTable2"))
+                .satisfies(matching(containsInAnyOrder("+I[1]", "+I[2]", "+I[3]")));
     }
 
     @Test
@@ -864,20 +861,20 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     private static void testSchema(Table table, Column... expectedColumns) {
-        assertEquals(ResolvedSchema.of(expectedColumns), table.getResolvedSchema());
+        assertThat(table.getResolvedSchema()).isEqualTo(ResolvedSchema.of(expectedColumns));
     }
 
     private static void testSchema(Table table, ResolvedSchema expectedSchema) {
-        assertEquals(expectedSchema, table.getResolvedSchema());
+        assertThat(table.getResolvedSchema()).isEqualTo(expectedSchema);
     }
 
     private static void testSchema(TableResult result, Column... expectedColumns) {
-        assertEquals(ResolvedSchema.of(expectedColumns), result.getResolvedSchema());
+        assertThat(result.getResolvedSchema()).isEqualTo(ResolvedSchema.of(expectedColumns));
     }
 
     private static void testResult(TableResult result, Row... expectedRows) {
         final List<Row> actualRows = CollectionUtil.iteratorToList(result.collect());
-        assertThat(actualRows, containsInAnyOrder(expectedRows));
+        assertThat(actualRows).satisfies(matching(containsInAnyOrder(expectedRows)));
     }
 
     @SafeVarargs
@@ -885,7 +882,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
             throws Exception {
         try (CloseableIterator<T> iterator = dataStream.executeAndCollect()) {
             final List<T> list = CollectionUtil.iteratorToList(iterator);
-            assertThat(list, containsInAnyOrder(expectedResult));
+            assertThat(list).satisfies(matching(containsInAnyOrder(expectedResult)));
         }
     }
 
@@ -900,7 +897,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         switch (kind) {
                             case UPDATE_AFTER:
                                 final Object primaryKeyValue = row.getField(primaryKeyPos);
-                                assert primaryKeyValue != null;
+                                assertThat(primaryKeyValue).isNotNull();
                                 materializedResult.removeIf(
                                         r -> primaryKeyValue.equals(r.getField(primaryKeyPos)));
                                 // fall through
@@ -913,7 +910,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                                 break;
                         }
                     });
-            assertThat(materializedResult, containsInAnyOrder(expectedResult));
+            assertThat(materializedResult).satisfies(matching(containsInAnyOrder(expectedResult)));
         }
     }
 

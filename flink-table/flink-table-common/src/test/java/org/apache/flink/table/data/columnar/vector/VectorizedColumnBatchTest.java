@@ -39,8 +39,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test {@link VectorizedColumnBatch}. */
 public class VectorizedColumnBatchTest {
@@ -164,7 +163,7 @@ public class VectorizedColumnBatchTest {
                     @Override
                     public TimestampData getTimestamp(int colId, int precision) {
                         byte[] bytes = vector10.getBytes(colId).getBytes();
-                        assert bytes.length == 12;
+                        assertThat(bytes).hasSize(12);
                         long nanoOfDay = 0;
                         for (int i = 0; i < 8; i++) {
                             nanoOfDay <<= 8;
@@ -235,25 +234,25 @@ public class VectorizedColumnBatchTest {
 
         for (int i = 0; i < batch.getNumRows(); i++) {
             ColumnarRowData row = new ColumnarRowData(batch, i);
-            assertEquals(row.getBoolean(0), i % 2 == 0);
-            assertEquals(row.getString(1).toString(), String.valueOf(i));
-            assertEquals(row.getByte(2), (byte) i);
-            assertEquals(row.getDouble(3), i, 0);
-            assertEquals(row.getFloat(4), (float) i, 0);
-            assertEquals(row.getInt(5), i);
-            assertEquals(row.getLong(6), i);
-            assertEquals(row.getShort(7), (short) i);
-            assertEquals(row.getTimestamp(8, 3).getMillisecond(), i);
-            assertEquals(row.getTimestamp(9, 6).getMillisecond(), i);
-            assertEquals(row.getTimestamp(10, 9).getMillisecond(), i * 1000L + 123);
-            assertEquals(row.getTimestamp(10, 9).getNanoOfMillisecond(), 456789);
-            assertEquals(row.getDecimal(11, 10, 0).toUnscaledLong(), i);
+            assertThat(i % 2 == 0).isEqualTo(row.getBoolean(0));
+            assertThat(String.valueOf(i)).isEqualTo(row.getString(1).toString());
+            assertThat((byte) i).isEqualTo(row.getByte(2));
+            assertThat(i).isEqualTo(row.getDouble(3));
+            assertThat((float) i).isEqualTo(row.getFloat(4));
+            assertThat(i).isEqualTo(row.getInt(5));
+            assertThat(i).isEqualTo(row.getLong(6));
+            assertThat((short) i).isEqualTo(row.getShort(7));
+            assertThat(i).isEqualTo(row.getTimestamp(8, 3).getMillisecond());
+            assertThat(i).isEqualTo(row.getTimestamp(9, 6).getMillisecond());
+            assertThat(i * 1000L + 123).isEqualTo(row.getTimestamp(10, 9).getMillisecond());
+            assertThat(456789).isEqualTo(row.getTimestamp(10, 9).getNanoOfMillisecond());
+            assertThat(i).isEqualTo(row.getDecimal(11, 10, 0).toUnscaledLong());
             for (int j = 0; j < ARRAY_SIZE; j++) {
-                assertEquals(row.getArray(12).getInt(j), i * ARRAY_SIZE + j);
+                assertThat(i * ARRAY_SIZE + j).isEqualTo(row.getArray(12).getInt(j));
             }
         }
 
-        assertEquals(VECTOR_SIZE, batch.getNumRows());
+        assertThat(batch.getNumRows()).isEqualTo(VECTOR_SIZE);
     }
 
     @Test
@@ -278,11 +277,11 @@ public class VectorizedColumnBatchTest {
 
         for (int i = 0; i < VECTOR_SIZE; i++) {
             ColumnarRowData row = new ColumnarRowData(batch, i);
-            assertTrue(row.isNullAt(0));
+            assertThat(row.isNullAt(0)).isTrue();
             if (i % 2 == 0) {
-                assertTrue(row.isNullAt(1));
+                assertThat(row.isNullAt(1)).isTrue();
             } else {
-                assertEquals(row.getInt(1), i);
+                assertThat(i).isEqualTo(row.getInt(1));
             }
         }
     }
@@ -305,9 +304,9 @@ public class VectorizedColumnBatchTest {
         for (int i = 0; i < VECTOR_SIZE; i++) {
             ColumnarRowData row = new ColumnarRowData(batch, i);
             if (i % 2 == 0) {
-                assertEquals(row.getInt(0), 1998);
+                assertThat(1998).isEqualTo(row.getInt(0));
             } else {
-                assertEquals(row.getInt(0), 9998);
+                assertThat(9998).isEqualTo(row.getInt(0));
             }
         }
     }

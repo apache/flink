@@ -39,10 +39,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for GenericInMemoryCatalog. */
 public class GenericInMemoryCatalogTest extends CatalogTestBase {
@@ -63,12 +60,12 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
         CatalogPartitionSpec catalogPartitionSpec = createPartitionSpec();
         catalog.createPartition(path1, catalogPartitionSpec, catalogPartition, false);
 
-        assertTrue(catalog.tableExists(path1));
+        assertThat(catalog.tableExists(path1)).isTrue();
 
         catalog.dropTable(path1, false);
 
-        assertFalse(catalog.tableExists(path1));
-        assertFalse(catalog.partitionExists(path1, catalogPartitionSpec));
+        assertThat(catalog.tableExists(path1)).isFalse();
+        assertThat(catalog.partitionExists(path1, catalogPartitionSpec)).isFalse();
     }
 
     @Test
@@ -81,14 +78,14 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
         catalog.createPartition(path1, catalogPartitionSpec, catalogPartition, false);
 
         CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path1));
-        assertTrue(catalog.partitionExists(path1, catalogPartitionSpec));
+        assertThat(catalog.partitionExists(path1, catalogPartitionSpec)).isTrue();
 
         catalog.renameTable(path1, t2, false);
 
         CatalogTestUtil.checkEquals(table, (CatalogTable) catalog.getTable(path3));
-        assertTrue(catalog.partitionExists(path3, catalogPartitionSpec));
-        assertFalse(catalog.tableExists(path1));
-        assertFalse(catalog.partitionExists(path1, catalogPartitionSpec));
+        assertThat(catalog.partitionExists(path3, catalogPartitionSpec)).isTrue();
+        assertThat(catalog.tableExists(path1)).isFalse();
+        assertThat(catalog.partitionExists(path1, catalogPartitionSpec)).isFalse();
     }
 
     // ------ statistics ------
@@ -193,7 +190,7 @@ public class GenericInMemoryCatalogTest extends CatalogTestBase {
             tableEnv.registerCatalog(TEST_CATALOG_NAME, new MyCatalog(TEST_CATALOG_NAME));
         } catch (CatalogException e) {
         }
-        assertThat(tableEnv.getCatalog(TEST_CATALOG_NAME).isPresent(), equalTo(false));
+        assertThat(tableEnv.getCatalog(TEST_CATALOG_NAME)).isNotPresent();
     }
 
     class MyCatalog extends GenericInMemoryCatalog {

@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DescriptorProperties}. */
 public class DescriptorPropertiesTest {
@@ -62,9 +62,9 @@ public class DescriptorPropertiesTest {
         properties3.putString("hello3", "14");
         properties3.putString("hello2", "13");
 
-        assertEquals(properties1, properties2);
+        assertThat(properties2).isEqualTo(properties1);
 
-        assertEquals(properties1, properties3);
+        assertThat(properties3).isEqualTo(properties1);
     }
 
     @Test
@@ -84,7 +84,8 @@ public class DescriptorPropertiesTest {
 
         testArrayValidation(properties, 1, Integer.MAX_VALUE);
 
-        assertEquals(Arrays.asList(12, 42, 66), properties.getArray(ARRAY_KEY, properties::getInt));
+        assertThat(properties.getArray(ARRAY_KEY, properties::getInt))
+                .isEqualTo(Arrays.asList(12, 42, 66));
     }
 
     @Test
@@ -94,8 +95,8 @@ public class DescriptorPropertiesTest {
 
         testArrayValidation(properties, 1, Integer.MAX_VALUE);
 
-        assertEquals(
-                Collections.singletonList(12), properties.getArray(ARRAY_KEY, properties::getInt));
+        assertThat(properties.getArray(ARRAY_KEY, properties::getInt))
+                .isEqualTo(Collections.singletonList(12));
     }
 
     @Test(expected = ValidationException.class)
@@ -146,7 +147,7 @@ public class DescriptorPropertiesTest {
         DescriptorProperties expected = new DescriptorProperties();
         expected.putString("hello2", "13");
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     @Test
@@ -163,7 +164,7 @@ public class DescriptorPropertiesTest {
         expected.putString("prefix.hello2", "13");
         expected.putString("prefix.hello3", "14");
 
-        assertEquals(expected.asMap(), actual);
+        assertThat(actual).isEqualTo(expected.asMap());
     }
 
     @Test
@@ -237,10 +238,10 @@ public class DescriptorPropertiesTest {
         expected.put("schema.primary-key.name", "constraint1");
         expected.put("schema.primary-key.columns", "f0,f2");
 
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
 
         TableSchema restored = properties.getTableSchema("schema");
-        assertEquals(schema, restored);
+        assertThat(restored).isEqualTo(schema);
     }
 
     @Test
@@ -287,7 +288,7 @@ public class DescriptorPropertiesTest {
                         .field("f9", Types.POJO(LogicalTypeParserTest.MyPojo.class))
                         .build();
 
-        assertEquals(expected, restored);
+        assertThat(restored).isEqualTo(expected);
     }
 
     private void testArrayValidation(

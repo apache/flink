@@ -51,7 +51,6 @@ import java.util.stream.Collectors;
 import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
 
 /** The base class for json plan testing. */
 public abstract class JsonPlanTestBase extends AbstractTestBase {
@@ -264,7 +263,7 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
     protected void assertResult(List<String> expected, List<String> actual) {
         Collections.sort(expected);
         Collections.sort(actual);
-        assertEquals(expected, actual);
+        assertThat(actual).isEqualTo(expected);
     }
 
     protected List<String> readLines(File path) throws IOException {

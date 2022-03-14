@@ -34,7 +34,8 @@ import org.junit.Test;
 import javax.annotation.Nullable;
 
 import static org.apache.flink.core.testutils.FlinkMatchers.containsMessage;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for {@link InputConversionOperator}. */
 public class InputConversionOperatorTest {
@@ -53,18 +54,20 @@ public class InputConversionOperatorTest {
         try {
             operator.processElement(new StreamRecord<>(Row.ofKind(RowKind.INSERT)));
         } catch (FlinkRuntimeException e) {
-            assertThat(
-                    e,
-                    containsMessage(
-                            "Error during input conversion from external DataStream "
-                                    + "API to internal Table API data structures"));
+            assertThat(e)
+                    .satisfies(
+                            matching(
+                                    containsMessage(
+                                            "Error during input conversion from external DataStream "
+                                                    + "API to internal Table API data structures")));
         }
 
         // invalid row kind
         try {
             operator.processElement(new StreamRecord<>(Row.ofKind(RowKind.DELETE, 12)));
         } catch (FlinkRuntimeException e) {
-            assertThat(e, containsMessage("Conversion expects insert-only records"));
+            assertThat(e)
+                    .satisfies(matching(containsMessage("Conversion expects insert-only records")));
         }
     }
 
@@ -80,7 +83,11 @@ public class InputConversionOperatorTest {
         try {
             operator.processElement(new StreamRecord<>(Row.ofKind(RowKind.INSERT, 12)));
         } catch (FlinkRuntimeException e) {
-            assertThat(e, containsMessage("Could not find timestamp in DataStream API record."));
+            assertThat(e)
+                    .satisfies(
+                            matching(
+                                    containsMessage(
+                                            "Could not find timestamp in DataStream API record.")));
         }
     }
 

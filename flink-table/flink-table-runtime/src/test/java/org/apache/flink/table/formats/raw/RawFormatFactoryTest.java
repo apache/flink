@@ -44,11 +44,10 @@ import java.util.function.Consumer;
 
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /** Tests for {@link RawFormatFactory}. */
@@ -70,13 +69,13 @@ public class RawFormatFactoryTest extends TestLogger {
                         ROW_TYPE.getTypeAt(0), InternalTypeInfo.of(ROW_TYPE), "UTF-8", true);
         DeserializationSchema<RowData> actualDeser =
                 createDeserializationSchema(SCHEMA, tableOptions);
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         // test serialization
         final RawFormatSerializationSchema expectedSer =
                 new RawFormatSerializationSchema(ROW_TYPE.getTypeAt(0), "UTF-8", true);
         SerializationSchema<RowData> actualSer = createSerializationSchema(SCHEMA, tableOptions);
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
@@ -94,13 +93,13 @@ public class RawFormatFactoryTest extends TestLogger {
                         ROW_TYPE.getTypeAt(0), InternalTypeInfo.of(ROW_TYPE), "UTF-16", false);
         DeserializationSchema<RowData> actualDeser =
                 createDeserializationSchema(SCHEMA, tableOptions);
-        assertEquals(expectedDeser, actualDeser);
+        assertThat(actualDeser).isEqualTo(expectedDeser);
 
         // test serialization
         final RawFormatSerializationSchema expectedSer =
                 new RawFormatSerializationSchema(ROW_TYPE.getTypeAt(0), "UTF-16", false);
         SerializationSchema<RowData> actualSer = createSerializationSchema(SCHEMA, tableOptions);
-        assertEquals(expectedSer, actualSer);
+        assertThat(actualSer).isEqualTo(expectedSer);
     }
 
     @Test
@@ -115,16 +114,16 @@ public class RawFormatFactoryTest extends TestLogger {
 
         try {
             createDeserializationSchema(invalidSchema, getBasicOptions());
-            fail();
+            fail("unknown failure");
         } catch (Exception e) {
-            assertThat(e, hasMessage(equalTo(expectedError)));
+            assertThat(e).satisfies(matching(hasMessage(equalTo(expectedError))));
         }
 
         try {
             createSerializationSchema(invalidSchema, getBasicOptions());
-            fail();
+            fail("unknown failure");
         } catch (Exception e) {
-            assertThat(e, hasMessage(equalTo(expectedError)));
+            assertThat(e).satisfies(matching(hasMessage(equalTo(expectedError))));
         }
     }
 
@@ -140,16 +139,18 @@ public class RawFormatFactoryTest extends TestLogger {
 
         try {
             createDeserializationSchema(SCHEMA, tableOptions);
-            fail();
+            fail("unknown failure");
         } catch (Exception e) {
-            assertThat(e.getCause().getCause(), hasMessage(equalTo(expectedError)));
+            assertThat(e.getCause().getCause())
+                    .satisfies(matching(hasMessage(equalTo(expectedError))));
         }
 
         try {
             createSerializationSchema(SCHEMA, tableOptions);
-            fail();
+            fail("unknown failure");
         } catch (Exception e) {
-            assertThat(e.getCause().getCause(), hasMessage(equalTo(expectedError)));
+            assertThat(e.getCause().getCause())
+                    .satisfies(matching(hasMessage(equalTo(expectedError))));
         }
     }
 
@@ -167,16 +168,18 @@ public class RawFormatFactoryTest extends TestLogger {
 
         try {
             createDeserializationSchema(SCHEMA, tableOptions);
-            fail();
+            fail("unknown failure");
         } catch (Exception e) {
-            assertThat(e.getCause().getCause(), hasMessage(equalTo(expectedError)));
+            assertThat(e.getCause().getCause())
+                    .satisfies(matching(hasMessage(equalTo(expectedError))));
         }
 
         try {
             createSerializationSchema(SCHEMA, tableOptions);
-            fail();
+            fail("unknown failure");
         } catch (Exception e) {
-            assertThat(e.getCause().getCause(), hasMessage(equalTo(expectedError)));
+            assertThat(e.getCause().getCause())
+                    .satisfies(matching(hasMessage(equalTo(expectedError))));
         }
     }
 
@@ -186,13 +189,14 @@ public class RawFormatFactoryTest extends TestLogger {
             createDeserializationSchema(
                     ResolvedSchema.of(Column.physical("field1", DataTypes.TIMESTAMP(3))),
                     getBasicOptions());
-            fail();
+            fail("unknown failure");
         } catch (Exception e) {
-            assertThat(
-                    e,
-                    hasMessage(
-                            equalTo(
-                                    "The 'raw' format doesn't supports 'TIMESTAMP(3)' as column type.")));
+            assertThat(e)
+                    .satisfies(
+                            matching(
+                                    hasMessage(
+                                            equalTo(
+                                                    "The 'raw' format doesn't supports 'TIMESTAMP(3)' as column type."))));
         }
 
         try {
@@ -201,13 +205,14 @@ public class RawFormatFactoryTest extends TestLogger {
                             Column.physical(
                                     "field1", DataTypes.MAP(DataTypes.INT(), DataTypes.STRING()))),
                     getBasicOptions());
-            fail();
+            fail("unknown failure");
         } catch (Exception e) {
-            assertThat(
-                    e,
-                    hasMessage(
-                            equalTo(
-                                    "The 'raw' format doesn't supports 'MAP<INT, STRING>' as column type.")));
+            assertThat(e)
+                    .satisfies(
+                            matching(
+                                    hasMessage(
+                                            equalTo(
+                                                    "The 'raw' format doesn't supports 'MAP<INT, STRING>' as column type."))));
         }
     }
 
@@ -218,7 +223,7 @@ public class RawFormatFactoryTest extends TestLogger {
     private static DeserializationSchema<RowData> createDeserializationSchema(
             ResolvedSchema schema, Map<String, String> options) {
         final DynamicTableSource actualSource = createTableSource(schema, options);
-        assertThat(actualSource, instanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class));
+        assertThat(actualSource).isInstanceOf(TestDynamicTableFactory.DynamicTableSourceMock.class);
         TestDynamicTableFactory.DynamicTableSourceMock scanSourceMock =
                 (TestDynamicTableFactory.DynamicTableSourceMock) actualSource;
 
@@ -229,7 +234,7 @@ public class RawFormatFactoryTest extends TestLogger {
     private static SerializationSchema<RowData> createSerializationSchema(
             ResolvedSchema schema, Map<String, String> options) {
         final DynamicTableSink actualSink = createTableSink(schema, options);
-        assertThat(actualSink, instanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class));
+        assertThat(actualSink).isInstanceOf(TestDynamicTableFactory.DynamicTableSinkMock.class);
         TestDynamicTableFactory.DynamicTableSinkMock sinkMock =
                 (TestDynamicTableFactory.DynamicTableSinkMock) actualSink;
 

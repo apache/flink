@@ -38,7 +38,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test LookupKey json ser/de. */
 public class LookupKeySerdeTest {
@@ -83,7 +83,7 @@ public class LookupKeySerdeTest {
                     objectReader.readValue(
                             objectWriter.writeValueAsString(lookupKey),
                             LookupJoinUtil.LookupKey.class);
-            assertEquals(lookupKey, result);
+            assertThat(result).isEqualTo(lookupKey);
         }
     }
 }

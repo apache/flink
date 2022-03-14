@@ -47,7 +47,6 @@ import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.util.MutableObjectIterator;
 
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -60,6 +59,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Test for sort merge inner join. */
 @RunWith(Parameterized.class)
@@ -125,9 +127,9 @@ public class RandomSortMergeInnerJoinTest {
 
         // assert that each expected match was seen
         for (Map.Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
-            Assert.assertTrue(
-                    "Collection for key " + entry.getKey() + " is not empty",
-                    entry.getValue().isEmpty());
+            assertThat(entry.getValue().isEmpty())
+                    .as("Collection for key " + entry.getKey() + " is not empty")
+                    .isTrue();
         }
     }
 
@@ -204,12 +206,12 @@ public class RandomSortMergeInnerJoinTest {
             // assert that each expected match was seen
             for (Map.Entry<Integer, Collection<Match>> entry : expectedMatchesMap.entrySet()) {
                 if (!entry.getValue().isEmpty()) {
-                    Assert.fail("Collection for key " + entry.getKey() + " is not empty");
+                    fail("Collection for key " + entry.getKey() + " is not empty");
                 }
             }
         } catch (Exception e) {
             e.printStackTrace();
-            Assert.fail("An exception occurred during the test: " + e.getMessage());
+            fail("An exception occurred during the test: " + e.getMessage());
         }
     }
 
@@ -225,12 +227,12 @@ public class RandomSortMergeInnerJoinTest {
 
             Collection<Match> matches = expectedMatchesMap.get(key);
             if (matches == null) {
-                Assert.fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
+                fail("Match " + key + " - " + value1 + ":" + value2 + " is unexpected.");
             }
 
             boolean contained = matches.remove(new Match(value1, value2));
             if (!contained) {
-                Assert.fail(
+                fail(
                         "Produced match was not contained: "
                                 + key
                                 + " - "

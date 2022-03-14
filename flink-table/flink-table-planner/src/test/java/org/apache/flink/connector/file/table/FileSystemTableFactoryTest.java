@@ -37,10 +37,9 @@ import static org.apache.flink.connector.file.table.FileSystemConnectorOptions.S
 import static org.apache.flink.core.testutils.FlinkMatchers.containsCause;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for {@link FileSystemTableFactory}. */
 public class FileSystemTableFactoryTest {
@@ -62,10 +61,10 @@ public class FileSystemTableFactoryTest {
         descriptor.putString("testcsv.my_option", "my_value");
 
         DynamicTableSource source = createTableSource(SCHEMA, descriptor.asMap());
-        assertTrue(source instanceof FileSystemTableSource);
+        assertThat(source).isInstanceOf(FileSystemTableSource.class);
 
         DynamicTableSink sink = createTableSink(SCHEMA, descriptor.asMap());
-        assertTrue(sink instanceof FileSystemTableSink);
+        assertThat(sink).isInstanceOf(FileSystemTableSink.class);
     }
 
     @Test
@@ -78,10 +77,10 @@ public class FileSystemTableFactoryTest {
             createTableSource(SCHEMA, descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            assertTrue(cause.toString(), cause instanceof ValidationException);
-            assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage().contains("Missing required options are:\n\nformat"));
+            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains("Missing required options are:\n\nformat");
             return;
         }
 
@@ -98,10 +97,10 @@ public class FileSystemTableFactoryTest {
             createTableSink(SCHEMA, descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            assertTrue(cause.toString(), cause instanceof ValidationException);
-            assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage().contains("Missing required options are:\n\nformat"));
+            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains("Missing required options are:\n\nformat");
             return;
         }
 
@@ -120,10 +119,10 @@ public class FileSystemTableFactoryTest {
             createTableSource(SCHEMA, descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            assertTrue(cause.toString(), cause instanceof ValidationException);
-            assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage().contains("Unsupported options:\n\nmy_option"));
+            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains("Unsupported options:\n\nmy_option");
             return;
         }
 
@@ -142,10 +141,10 @@ public class FileSystemTableFactoryTest {
             createTableSink(SCHEMA, descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            assertTrue(cause.toString(), cause instanceof ValidationException);
-            assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage().contains("Unsupported options:\n\nmy_option"));
+            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains("Unsupported options:\n\nmy_option");
             return;
         }
 
@@ -164,14 +163,13 @@ public class FileSystemTableFactoryTest {
             createTableSource(SCHEMA, descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            assertTrue(cause.toString(), cause instanceof ValidationException);
-            assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage()
-                            .contains(
-                                    "The supported watermark time zone is either a full name such "
-                                            + "as 'America/Los_Angeles', or a custom time zone id such "
-                                            + "as 'GMT-08:00', but configured time zone is 'UTC+8'."));
+            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains(
+                            "The supported watermark time zone is either a full name such "
+                                    + "as 'America/Los_Angeles', or a custom time zone id such "
+                                    + "as 'GMT-08:00', but configured time zone is 'UTC+8'.");
             return;
         }
 
@@ -193,14 +191,14 @@ public class FileSystemTableFactoryTest {
             createTableSource(SCHEMA, descriptor.asMap());
             fail("Should fail");
         } catch (Exception e) {
-            assertThat(e.getCause(), containsCause(expected));
+            assertThat(e.getCause()).satisfies(matching(containsCause(expected)));
         }
 
         try {
             createTableSink(SCHEMA, descriptor.asMap());
             fail("Should fail");
         } catch (Exception e) {
-            assertThat(e.getCause(), containsCause(expected));
+            assertThat(e.getCause()).satisfies(matching(containsCause(expected)));
         }
     }
 
@@ -221,14 +219,14 @@ public class FileSystemTableFactoryTest {
             createTableSource(SCHEMA, descriptor.asMap());
             fail("Should fail");
         } catch (Exception e) {
-            assertThat(e.getCause().getCause(), containsCause(expected));
+            assertThat(e.getCause().getCause()).satisfies(matching(containsCause(expected)));
         }
 
         try {
             createTableSink(SCHEMA, descriptor.asMap());
             fail("Should fail");
         } catch (Exception e) {
-            assertThat(e.getCause().getCause(), containsCause(expected));
+            assertThat(e.getCause().getCause()).satisfies(matching(containsCause(expected)));
         }
     }
 
@@ -241,7 +239,7 @@ public class FileSystemTableFactoryTest {
         descriptor.put("testcsv.my_option", "my_value");
 
         DynamicTableSource source = createTableSource(SCHEMA, descriptor);
-        assertTrue(source instanceof FileSystemTableSource);
+        assertThat(source).isInstanceOf(FileSystemTableSource.class);
 
         Map<String, DataType> readableMetadata = new HashMap<>();
         readableMetadata.put("file.path", DataTypes.STRING().notNull());
@@ -249,6 +247,7 @@ public class FileSystemTableFactoryTest {
         readableMetadata.put("file.size", DataTypes.BIGINT().notNull());
         readableMetadata.put("file.modification-time", DataTypes.TIMESTAMP_LTZ(3).notNull());
 
-        assertEquals(readableMetadata, ((FileSystemTableSource) source).listReadableMetadata());
+        assertThat(((FileSystemTableSource) source).listReadableMetadata())
+                .isEqualTo(readableMetadata);
     }
 }

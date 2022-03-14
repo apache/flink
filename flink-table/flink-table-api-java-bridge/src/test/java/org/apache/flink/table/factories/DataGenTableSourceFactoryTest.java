@@ -39,7 +39,6 @@ import org.apache.flink.table.data.TimestampData;
 import org.apache.flink.table.descriptors.DescriptorProperties;
 import org.apache.flink.util.InstantiationUtil;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -49,7 +48,8 @@ import java.util.List;
 import java.util.Set;
 
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link DataGenTableSourceFactory}. */
 public class DataGenTableSourceFactoryTest {
@@ -117,13 +117,13 @@ public class DataGenTableSourceFactoryTest {
         descriptor.putString("fields.f10.max", String.valueOf(Double.MAX_VALUE));
 
         List<RowData> results = runGenerator(schema, descriptor);
-        Assert.assertEquals("Failed to generate all rows", 10, results.size());
+        assertThat(results).as("Failed to generate all rows").hasSize(10);
 
         for (RowData row : results) {
             for (int i = 0; i < row.getArity(); i++) {
-                Assert.assertFalse(
-                        "Column " + schema.getColumnNames().get(i) + " should not be null",
-                        row.isNullAt(i));
+                assertThat(row.isNullAt(i))
+                        .as("Column " + schema.getColumnNames().get(i) + " should not be null")
+                        .isFalse();
             }
         }
     }
@@ -169,15 +169,15 @@ public class DataGenTableSourceFactoryTest {
         List<RowData> results = runGenerator(SCHEMA, descriptor);
         final long end = System.currentTimeMillis();
 
-        Assert.assertEquals(11, results.size());
+        assertThat(results).hasSize(11);
         for (int i = 0; i < results.size(); i++) {
             RowData row = results.get(i);
-            Assert.assertEquals(20, row.getString(0).toString().length());
+            assertThat(row.getString(0).toString().length()).isEqualTo(20);
             long f1 = row.getLong(1);
-            Assert.assertTrue(f1 >= 10 && f1 <= 100);
-            Assert.assertEquals(i + 50, row.getLong(2));
+            assertThat(f1 >= 10 && f1 <= 100).isTrue();
+            assertThat(row.getLong(2)).isEqualTo(i + 50);
             final TimestampData f3 = row.getTimestamp(3, 3);
-            Assert.assertTrue(f3.getMillisecond() >= begin - 5000 && f3.getMillisecond() <= end);
+            assertThat(f3.getMillisecond() >= begin - 5000 && f3.getMillisecond() <= end).isTrue();
         }
     }
 
@@ -185,7 +185,7 @@ public class DataGenTableSourceFactoryTest {
             throws Exception {
         DynamicTableSource source = createTableSource(schema, descriptor.asMap());
 
-        assertTrue(source instanceof DataGenTableSource);
+        assertThat(source).isInstanceOf(DataGenTableSource.class);
 
         DataGenTableSource dataGenTableSource = (DataGenTableSource) source;
         DataGeneratorSource<RowData> gen = dataGenTableSource.createSource();
@@ -259,15 +259,14 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage()
-                            .contains(
-                                    "Could not find required property 'fields.f0.start' for sequence generator."));
+            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains(
+                            "Could not find required property 'fields.f0.start' for sequence generator.");
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        fail("Should fail by ValidationException.");
     }
 
     @Test
@@ -287,15 +286,14 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage()
-                            .contains(
-                                    "Could not find required property 'fields.f0.end' for sequence generator."));
+            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains(
+                            "Could not find required property 'fields.f0.end' for sequence generator.");
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        fail("Should fail by ValidationException.");
     }
 
     @Test
@@ -310,13 +308,13 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage().contains("Unsupported options:\n\nwrong-rows-per-second"));
+            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains("Unsupported options:\n\nwrong-rows-per-second");
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        fail("Should fail by ValidationException.");
     }
 
     @Test
@@ -336,13 +334,13 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage().contains("Unsupported options:\n\nfields.f0.start"));
+            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains("Unsupported options:\n\nfields.f0.start");
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        fail("Should fail by ValidationException.");
     }
 
     @Test
@@ -364,13 +362,13 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage().contains("Unsupported options:\n\nfields.f0.length"));
+            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains("Unsupported options:\n\nfields.f0.length");
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        fail("Should fail by ValidationException.");
     }
 
     @Test
@@ -393,14 +391,13 @@ public class DataGenTableSourceFactoryTest {
                     descriptor.asMap());
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof IllegalArgumentException);
-            Assert.assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage()
-                            .contains("Could not parse value 'Wrong' for key 'fields.f0.start'"));
+            assertThat(cause).as(cause.toString()).isInstanceOf(IllegalArgumentException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains("Could not parse value 'Wrong' for key 'fields.f0.start'");
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        fail("Should fail by ValidationException.");
     }
 
     private static class TestContext implements SourceFunction.SourceContext<RowData> {

@@ -54,10 +54,10 @@ import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.api.DataTypes.ROW;
 import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIME;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.junit.Assert.assertThat;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 
 /** Tests for {@link TypeMappingUtils}. */
@@ -77,7 +77,7 @@ public class TypeMappingUtilsTest {
                         ROW(FIELD("f0", DataTypes.STRING()), FIELD("f1", DataTypes.BIGINT())),
                         Function.identity());
 
-        assertThat(indices, equalTo(new int[] {1, 0}));
+        assertThat(indices).isEqualTo(new int[] {1, 0});
     }
 
     @Test
@@ -129,7 +129,7 @@ public class TypeMappingUtilsTest {
                         ROW(FIELD("f0", TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC))),
                         Function.identity());
 
-        assertThat(indices, equalTo(new int[] {0}));
+        assertThat(indices).isEqualTo(new int[] {0});
     }
 
     @Test
@@ -154,7 +154,7 @@ public class TypeMappingUtilsTest {
                         ROW(FIELD("f0", TypeConversions.fromLegacyInfoToDataType(Types.BIG_DEC))),
                         Function.identity());
 
-        assertThat(indices, equalTo(new int[] {0}));
+        assertThat(indices).isEqualTo(new int[] {0});
     }
 
     @Test
@@ -179,7 +179,7 @@ public class TypeMappingUtilsTest {
                                                 FIELD("physical_f1_1", STRING())))),
                         Function.identity());
 
-        assertThat(indices, equalTo(new int[] {0, 1}));
+        assertThat(indices).isEqualTo(new int[] {0, 1});
     }
 
     @Test
@@ -214,7 +214,7 @@ public class TypeMappingUtilsTest {
                                 Types.TUPLE(Types.STRING, Types.LONG)),
                         Function.identity());
 
-        assertThat(indices, equalTo(new int[] {1, 0}));
+        assertThat(indices).isEqualTo(new int[] {1, 0});
     }
 
     @Test
@@ -239,7 +239,7 @@ public class TypeMappingUtilsTest {
                             }
                         });
 
-        assertThat(indices, equalTo(new int[] {1, 0}));
+        assertThat(indices).isEqualTo(new int[] {1, 0});
     }
 
     @Test
@@ -259,7 +259,7 @@ public class TypeMappingUtilsTest {
                         false,
                         Function.identity());
 
-        assertThat(indices, equalTo(new int[] {0, -3, -4}));
+        assertThat(indices).isEqualTo(new int[] {0, -3, -4});
     }
 
     @Test
@@ -279,7 +279,7 @@ public class TypeMappingUtilsTest {
                         true,
                         Function.identity());
 
-        assertThat(indices, equalTo(new int[] {0, -1, -2}));
+        assertThat(indices).isEqualTo(new int[] {0, -1, -2});
     }
 
     @Test
@@ -301,7 +301,7 @@ public class TypeMappingUtilsTest {
                         true,
                         Function.identity());
 
-        assertThat(indices, equalTo(new int[] {1, -1, -2}));
+        assertThat(indices).isEqualTo(new int[] {1, -1, -2});
     }
 
     @Test

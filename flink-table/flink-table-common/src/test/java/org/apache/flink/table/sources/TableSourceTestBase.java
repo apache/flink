@@ -23,10 +23,8 @@ import org.apache.flink.table.api.TableSchema;
 
 import org.junit.Test;
 
-import static org.hamcrest.CoreMatchers.equalTo;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.CoreMatchers.not;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assume.assumeThat;
 
 /** Collection of tests that verify assumptions that table sources should meet. */
@@ -56,7 +54,7 @@ public abstract class TableSourceTestBase {
         ProjectableTableSource<?> projectableTableSource = (ProjectableTableSource<?>) source;
 
         TableSource<?> newTableSource = projectableTableSource.projectFields(new int[0]);
-        assertThat(newTableSource.explainSource(), not(equalTo(source.explainSource())));
+        assertThat(newTableSource.explainSource()).isNotEqualTo(source.explainSource());
     }
 
     /**
@@ -79,7 +77,7 @@ public abstract class TableSourceTestBase {
         ProjectableTableSource<?> projectableTableSource = (ProjectableTableSource<?>) source;
 
         TableSource<?> newTableSource = projectableTableSource.projectFields(new int[] {0, 2});
-        assertThat(newTableSource.explainSource(), not(equalTo(source.explainSource())));
-        assertThat(newTableSource.getTableSchema(), equalTo(source.getTableSchema()));
+        assertThat(newTableSource.explainSource()).isNotEqualTo(source.explainSource());
+        assertThat(newTableSource.getTableSchema()).isEqualTo(source.getTableSchema());
     }
 }

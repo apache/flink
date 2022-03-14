@@ -34,8 +34,8 @@ import java.util.HashMap;
 
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_CATALOG;
 import static org.apache.flink.table.utils.CatalogManagerMocks.DEFAULT_DATABASE;
-import static org.hamcrest.CoreMatchers.instanceOf;
-import static org.hamcrest.MatcherAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 
 /** Tests for {@link DatabaseCalciteSchema}. */
@@ -56,10 +56,9 @@ public class DatabaseCalciteSchemaTest {
                 false);
 
         final Table table = calciteSchema.getTable(TABLE_NAME);
-        assertThat(table, instanceOf(CatalogSchemaTable.class));
-        assertThat(
-                ((CatalogSchemaTable) table).getStatistic().getUniqueKeys().iterator().next(),
-                containsInAnyOrder("a", "b"));
+        assertThat(table).isInstanceOf(CatalogSchemaTable.class);
+        assertThat(((CatalogSchemaTable) table).getStatistic().getUniqueKeys().iterator().next())
+                .satisfies(matching(containsInAnyOrder("a", "b")));
     }
 
     @Test
@@ -75,10 +74,9 @@ public class DatabaseCalciteSchemaTest {
                 false);
 
         final Table table = calciteSchema.getTable(TABLE_NAME);
-        assertThat(table, instanceOf(CatalogSchemaTable.class));
-        assertThat(
-                ((CatalogSchemaTable) table).getStatistic().getUniqueKeys().iterator().next(),
-                containsInAnyOrder("a", "b"));
+        assertThat(table).isInstanceOf(CatalogSchemaTable.class);
+        assertThat(((CatalogSchemaTable) table).getStatistic().getUniqueKeys().iterator().next())
+                .satisfies(matching(containsInAnyOrder("a", "b")));
     }
 
     private CatalogBaseTable createTable() {

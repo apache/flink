@@ -48,7 +48,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LogicalWindow} serialization and deserialization. */
 @RunWith(Parameterized.class)
@@ -130,9 +130,9 @@ public class LogicalWindowSerdeTest {
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
-        assertEquals(
-                objectReader.readValue(
-                        objectWriter.writeValueAsString(window), LogicalWindow.class),
-                window);
+        assertThat(window)
+                .isEqualTo(
+                        objectReader.readValue(
+                                objectWriter.writeValueAsString(window), LogicalWindow.class));
     }
 }
