@@ -56,6 +56,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.CoreOptions;
 import org.apache.flink.configuration.DeploymentOptions;
 import org.apache.flink.configuration.ExecutionOptions;
+import org.apache.flink.configuration.JobManagerOptions;
 import org.apache.flink.configuration.MemorySize;
 import org.apache.flink.configuration.PipelineOptions;
 import org.apache.flink.configuration.ReadableConfig;
@@ -1772,9 +1773,23 @@ public class StreamExecutionEnvironment {
                         + ContinuousFileMonitoringFunction.MIN_MONITORING_INTERVAL
                         + " ms.");
 
+        int readerParallelism = getParallelism();
+
+        boolean useDynamicGraphSourceParallelism =
+                readerParallelism == ExecutionConfig.PARALLELISM_DEFAULT
+                        && getConfig().isDynamicGraph();
+
+        if (useDynamicGraphSourceParallelism) {
+            readerParallelism =
+                    getConfiguration()
+                            .get(
+                                    JobManagerOptions
+                                            .ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM);
+        }
+
         ContinuousFileMonitoringFunction<OUT> monitoringFunction =
                 new ContinuousFileMonitoringFunction<>(
-                        inputFormat, monitoringMode, getParallelism(), interval);
+                        inputFormat, monitoringMode, readerParallelism, interval);
 
         ContinuousFileReaderOperatorFactory<OUT, TimestampedFileInputSplit> factory =
                 new ContinuousFileReaderOperatorFactory<>(inputFormat);
@@ -1787,6 +1802,10 @@ public class StreamExecutionEnvironment {
         SingleOutputStreamOperator<OUT> source =
                 addSource(monitoringFunction, sourceName, null, boundedness)
                         .transform("Split Reader: " + sourceName, typeInfo, factory);
+
+        if (useDynamicGraphSourceParallelism) {
+            source.setParallelism(readerParallelism);
+        }
 
         return new DataStreamSource<>(source);
     }

@@ -49,6 +49,7 @@ import org.apache.flink.streaming.api.operators.OutputFormatOperatorFactory;
 import org.apache.flink.streaming.api.operators.SourceOperatorFactory;
 import org.apache.flink.streaming.api.operators.StreamOperatorFactory;
 import org.apache.flink.streaming.api.transformations.StreamExchangeMode;
+import org.apache.flink.streaming.runtime.partitioner.ForwardForConsecutiveHashPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardForUnspecifiedPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.ForwardPartitioner;
 import org.apache.flink.streaming.runtime.partitioner.RebalancePartitioner;
@@ -677,7 +678,8 @@ public class StreamGraph implements Pipeline {
             partitioner = new RebalancePartitioner<Object>();
         }
 
-        if (partitioner instanceof ForwardPartitioner) {
+        if (partitioner instanceof ForwardPartitioner
+                && !(partitioner instanceof ForwardForConsecutiveHashPartitioner)) {
             if (upstreamNode.getParallelism() != downstreamNode.getParallelism()) {
                 throw new UnsupportedOperationException(
                         "Forward partitioning does not allow "

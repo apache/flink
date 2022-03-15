@@ -18,6 +18,7 @@
 
 package org.apache.flink.hdfstests;
 
+import org.apache.flink.api.common.RuntimeExecutionMode;
 import org.apache.flink.api.common.io.FilePathFilter;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.io.TextInputFormat;
@@ -25,17 +26,22 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.TypeExtractor;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.CoreOptions;
+import org.apache.flink.configuration.JobManagerOptions;
+import org.apache.flink.core.fs.FileInputSplit;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileMonitoringFunction;
+import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperator;
 import org.apache.flink.streaming.api.functions.source.ContinuousFileReaderOperatorFactory;
 import org.apache.flink.streaming.api.functions.source.FileProcessingMode;
 import org.apache.flink.streaming.api.functions.source.TimestampedFileInputSplit;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.util.ExceptionUtils;
 
+import net.jcip.annotations.GuardedBy;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.hdfs.MiniDFSCluster;
@@ -56,6 +62,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 
 /**
@@ -204,6 +212,47 @@ public class ContinuousFileProcessingITCase extends AbstractTestBase {
         }
 
         jobFuture.get();
+    }
+
+    @Test
+    public void testProcessingWithAdaptiveBatchScheduler() throws Exception {
+        final Configuration configuration = new Configuration();
+        configuration.set(JobManagerOptions.ADAPTIVE_BATCH_SCHEDULER_DEFAULT_SOURCE_PARALLELISM, 5);
+        configuration.set(CoreOptions.DEFAULT_PARALLELISM, -1);
+        configuration.set(
+                JobManagerOptions.SCHEDULER, JobManagerOptions.SchedulerType.AdaptiveBatch);
+
+        StreamExecutionEnvironment env =
+                StreamExecutionEnvironment.getExecutionEnvironment(configuration);
+        env.setRuntimeMode(RuntimeExecutionMode.BATCH);
+
+        final String fileContent = "line1\n" + "line2\n" + "line3\n" + "line4\n" + "line5\n";
+        final String filePath = createTempFile("test_adaptive_file", fileContent);
+
+        env.createInput(new TestInputFormat(new Path(filePath))).name("TextSource");
+        env.execute();
+
+        assertThat(TestInputFormat.splitCount.size(), is(5));
+    }
+
+    private static final class TestInputFormat extends TextInputFormat {
+        private static final long serialVersionUID = 1L;
+        private static final Object resultLock = new Object();
+
+        @GuardedBy("resultLock")
+        private static final Map<Integer, Integer> splitCount = new HashMap<>();
+
+        public TestInputFormat(Path filePath) {
+            super(filePath);
+        }
+
+        @Override
+        protected void initializeSplit(FileInputSplit split, Long state) throws IOException {
+            synchronized (resultLock) {
+                splitCount.merge(getRuntimeContext().getIndexOfThisSubtask(), 1, Integer::sum);
+            }
+            super.initializeSplit(split, state);
+        }
     }
 
     private static class TestingSinkFunction extends RichSinkFunction<String> {
