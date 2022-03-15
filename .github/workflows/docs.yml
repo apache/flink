@@ -5,13 +5,8 @@ jobs:
   build-documentation:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@master
-      - name: Build docker image
+      - uses: actions/checkout@v2
+      - name: Print current branch
         run: |
-          docker build -t docs docs/docker
-      - name: Build documentation
-        run: |
-          docker run  --rm --volume "$PWD:/root/flink" docs bash -c "cd /root/flink && ./docs/ci.sh"
-      - name: Upload documentation
-        run: |
-          echo "success"
+          currentBranch=$(git branch --show-current)
+          echo "${currentBranch}"
