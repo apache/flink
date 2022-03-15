@@ -29,8 +29,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Base class for watermark assigner operator test. */
 public abstract class WatermarkAssignerOperatorTestBase {
@@ -40,11 +39,11 @@ public abstract class WatermarkAssignerOperatorTestBase {
         if (element instanceof StreamRecord) {
             @SuppressWarnings("unchecked")
             StreamRecord<RowData> record = (StreamRecord<RowData>) element;
-            assertEquals(nextElementValue, record.getValue().getLong(0));
+            assertThat(record.getValue().getLong(0)).isEqualTo(nextElementValue);
             return new Tuple2<>(nextElementValue + 1, currentWatermark);
         } else if (element instanceof Watermark) {
             long wt = ((Watermark) element).getTimestamp();
-            assertTrue(wt > currentWatermark);
+            assertThat(wt).isGreaterThan(currentWatermark);
             return new Tuple2<>(nextElementValue, wt);
         } else {
             throw new IllegalArgumentException("unrecognized element: " + element);

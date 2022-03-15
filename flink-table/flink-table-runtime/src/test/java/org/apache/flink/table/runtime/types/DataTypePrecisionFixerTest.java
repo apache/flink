@@ -48,7 +48,7 @@ import java.util.List;
 import static org.apache.flink.table.api.DataTypes.FIELD;
 import static org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType;
 import static org.apache.flink.util.Preconditions.checkNotNull;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link DataTypePrecisionFixer}. */
 @RunWith(Parameterized.class)
@@ -124,7 +124,7 @@ public class DataTypePrecisionFixerTest {
     public void testPrecisionFixing() {
         DataType dataType = fromLegacyInfoToDataType(testSpec.typeInfo);
         DataType newDataType = dataType.accept(new DataTypePrecisionFixer(testSpec.logicalType));
-        assertEquals(testSpec.expectedType, newDataType);
+        assertThat(newDataType).isEqualTo(testSpec.expectedType);
     }
 
     // --------------------------------------------------------------------------------------------

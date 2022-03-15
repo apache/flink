@@ -60,9 +60,7 @@ import static org.apache.flink.table.api.DataTypes.STRING;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.Assert.assertFalse;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for functions that access nested fields/elements of composite/collection types. */
 @RunWith(Suite.class)
@@ -184,8 +182,8 @@ public class ConstructedAccessFunctionsITCase {
                     env.executeSql(
                             "SELECT CustomScalarFunction(1, CustomScalarFunction(1).nested)");
             try (CloseableIterator<Row> it = result.collect()) {
-                assertThat(it.next(), equalTo(Row.of(2L)));
-                assertFalse(it.hasNext());
+                assertThat(it.next()).isEqualTo(Row.of(2L));
+                assertThat(it.hasNext()).isFalse();
             }
         }
 
@@ -200,16 +198,15 @@ public class ConstructedAccessFunctionsITCase {
                             "SELECT t.b, t.a FROM "
                                     + "(SELECT * FROM (VALUES(1))), "
                                     + "LATERAL TABLE(RowTableFunction()) AS t(a, b)");
-            assertThat(
-                    result.getResolvedSchema(),
-                    equalTo(
+            assertThat(result.getResolvedSchema())
+                    .isEqualTo(
                             ResolvedSchema.of(
                                     Column.physical(
                                             "b", DataTypes.ARRAY(DataTypes.STRING()).notNull()),
-                                    Column.physical("a", DataTypes.STRING()))));
+                                    Column.physical("a", DataTypes.STRING())));
             try (CloseableIterator<Row> it = result.collect()) {
-                assertThat(it.next(), equalTo(Row.of(new String[] {"A", "B"}, "A")));
-                assertFalse(it.hasNext());
+                assertThat(it.next()).isEqualTo(Row.of(new String[] {"A", "B"}, "A"));
+                assertThat(it.hasNext()).isFalse();
             }
         }
 
@@ -244,8 +241,8 @@ public class ConstructedAccessFunctionsITCase {
                                             call(CustomScalarFunction.class, 1).get("nested")))
                             .execute();
             try (CloseableIterator<Row> it = result.collect()) {
-                assertThat(it.next(), equalTo(Row.of(2L)));
-                assertFalse(it.hasNext());
+                assertThat(it.next()).isEqualTo(Row.of(2L));
+                assertThat(it.hasNext()).isFalse();
             }
         }
 
@@ -269,16 +266,15 @@ public class ConstructedAccessFunctionsITCase {
                             .select($("f0").flatten())
                             .execute();
 
-            assertThat(
-                    result.getResolvedSchema(),
-                    equalTo(
+            assertThat(result.getResolvedSchema())
+                    .isEqualTo(
                             ResolvedSchema.of(
                                     Column.physical("f0$nested0", BIGINT().nullable()),
-                                    Column.physical("f0$nested1", STRING().nullable()))));
+                                    Column.physical("f0$nested1", STRING().nullable())));
 
             try (CloseableIterator<Row> it = result.collect()) {
-                assertThat(it.next(), equalTo(Row.of(1L, "ABC")));
-                assertFalse(it.hasNext());
+                assertThat(it.next()).isEqualTo(Row.of(1L, "ABC"));
+                assertThat(it.hasNext()).isFalse();
             }
         }
 
@@ -300,20 +296,19 @@ public class ConstructedAccessFunctionsITCase {
                     data.select(call(PojoConstructorScalarFunction.class, $("*")).flatten())
                             .execute();
 
-            assertThat(
-                    result.getResolvedSchema(),
-                    equalTo(
+            assertThat(result.getResolvedSchema())
+                    .isEqualTo(
                             ResolvedSchema.of(
                                     Column.physical("_c0", INT().bridgedTo(int.class)),
                                     Column.physical("_c1", TIMESTAMP(3)),
                                     Column.physical("_c2", STRING()),
                                     Column.physical(
                                             "_c3",
-                                            ROW(FIELD("ri", INT()), FIELD("rs", STRING()))))));
+                                            ROW(FIELD("ri", INT()), FIELD("rs", STRING())))));
 
             try (CloseableIterator<Row> it = result.collect()) {
-                assertThat(it.next(), equalTo(row));
-                assertFalse(it.hasNext());
+                assertThat(it.next()).isEqualTo(row);
+                assertThat(it.hasNext()).isFalse();
             }
         }
     }

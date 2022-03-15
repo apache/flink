@@ -59,7 +59,7 @@ import java.util.stream.Collectors;
 
 import static org.apache.flink.table.types.DataType.getFieldCount;
 import static org.apache.flink.table.types.DataType.getFieldDataTypes;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test base for testing aggregate {@link BuiltInFunctionDefinition built-in functions}. */
 @RunWith(Parameterized.class)
@@ -133,10 +133,11 @@ public class BuiltInAggregateFunctionTestBase {
                         .sorted(Comparator.comparing(Objects::toString))
                         .collect(Collectors.toList());
 
-        assertEquals(
-                String.format("%n%nExpected:%n%s%n%nActual:%n%s", sortedExpectedRows, actualRows),
-                sortedExpectedRows,
-                actualRows);
+        assertThat(actualRows)
+                .as(
+                        String.format(
+                                "%n%nExpected:%n%s%n%nActual:%n%s", sortedExpectedRows, actualRows))
+                .isEqualTo(sortedExpectedRows);
     }
 
     private static List<Row> materializeResult(TableResult tableResult) {
@@ -266,8 +267,9 @@ public class BuiltInAggregateFunctionTestBase {
                 final DataType actualRowType =
                         tableResult.getResolvedSchema().toSourceRowDataType();
 
-                assertEquals(getFieldCount(expectedRowType), getFieldCount(actualRowType));
-                assertEquals(getFieldDataTypes(expectedRowType), getFieldDataTypes(actualRowType));
+                assertThat(getFieldCount(actualRowType)).isEqualTo(getFieldCount(expectedRowType));
+                assertThat(getFieldDataTypes(actualRowType))
+                        .isEqualTo(getFieldDataTypes(expectedRowType));
             }
 
             if (expectedRows != null) {

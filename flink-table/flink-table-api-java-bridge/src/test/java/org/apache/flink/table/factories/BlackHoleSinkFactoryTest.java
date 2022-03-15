@@ -26,7 +26,6 @@ import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.connector.sink.DynamicTableSink;
 import org.apache.flink.table.connector.sink.abilities.SupportsPartitioning;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -35,8 +34,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Tests for {@link BlackHoleTableSinkFactory}. */
 public class BlackHoleSinkFactoryTest {
@@ -55,8 +54,8 @@ public class BlackHoleSinkFactoryTest {
         List<String> partitionKeys = Arrays.asList("f0", "f1");
         DynamicTableSink sink = createTableSink(SCHEMA, partitionKeys, properties);
 
-        assertEquals("BlackHole", sink.asSummaryString());
-        assertTrue(sink instanceof SupportsPartitioning);
+        assertThat(sink.asSummaryString()).isEqualTo("BlackHole");
+        assertThat(sink).isInstanceOf(SupportsPartitioning.class);
     }
 
     @Test
@@ -68,12 +67,12 @@ public class BlackHoleSinkFactoryTest {
             createTableSink(SCHEMA, properties);
         } catch (ValidationException e) {
             Throwable cause = e.getCause();
-            Assert.assertTrue(cause.toString(), cause instanceof ValidationException);
-            Assert.assertTrue(
-                    cause.getMessage(),
-                    cause.getMessage().contains("Unsupported options:\n\nunknown-key"));
+            assertThat(cause).as(cause.toString()).isInstanceOf(ValidationException.class);
+            assertThat(cause.getMessage())
+                    .as(cause.getMessage())
+                    .contains("Unsupported options:\n\nunknown-key");
             return;
         }
-        Assert.fail("Should fail by ValidationException.");
+        fail("Should fail by ValidationException.");
     }
 }

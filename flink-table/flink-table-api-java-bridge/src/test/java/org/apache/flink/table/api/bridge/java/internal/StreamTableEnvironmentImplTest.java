@@ -38,7 +38,7 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link StreamTableEnvironmentImpl}. */
 public class StreamTableEnvironmentImplTest {
@@ -54,7 +54,7 @@ public class StreamTableEnvironmentImplTest {
         Table table = tEnv.fromDataStream(elements);
         tEnv.toAppendStream(table, Row.class);
 
-        assertEquals(minRetention, tEnv.getConfig().getIdleStateRetention());
+        assertThat(tEnv.getConfig().getIdleStateRetention()).isEqualTo(minRetention);
     }
 
     @Test
@@ -69,7 +69,7 @@ public class StreamTableEnvironmentImplTest {
         Table table = tEnv.fromDataStream(elements);
         tEnv.toRetractStream(table, Row.class);
 
-        assertEquals(minRetention, tEnv.getConfig().getIdleStateRetention());
+        assertThat(tEnv.getConfig().getIdleStateRetention()).isEqualTo(minRetention);
     }
 
     private StreamTableEnvironmentImpl getStreamTableEnvironment(

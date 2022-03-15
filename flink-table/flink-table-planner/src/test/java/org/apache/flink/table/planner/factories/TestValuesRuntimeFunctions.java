@@ -64,6 +64,7 @@ import java.util.concurrent.Executors;
 
 import static org.apache.flink.table.planner.factories.TestValuesTableFactory.RESOURCE_COUNTER;
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Runtime function implementations for {@link TestValuesTableFactory}. */
 final class TestValuesRuntimeFunctions {
@@ -326,7 +327,7 @@ final class TestValuesRuntimeFunctions {
             RowKind kind = value.getRowKind();
             if (value.getRowKind() == RowKind.INSERT) {
                 Row row = (Row) converter.toExternal(value);
-                assert row != null;
+                assertThat(row).isNotNull();
                 if (rowtimeIndex >= 0) {
                     // currently, rowtime attribute always uses 3 precision
                     TimestampData rowtime = value.getTimestamp(rowtimeIndex, 3);
@@ -389,7 +390,7 @@ final class TestValuesRuntimeFunctions {
             RowKind kind = value.getRowKind();
 
             Row row = (Row) converter.toExternal(value);
-            assert row != null;
+            assertThat(row).isNotNull();
 
             synchronized (LOCK) {
                 if (RowUtils.USE_LEGACY_TO_STRING) {
@@ -472,7 +473,7 @@ final class TestValuesRuntimeFunctions {
         public void invoke(RowData value, Context context) throws Exception {
             RowKind kind = value.getRowKind();
             Row row = (Row) converter.toExternal(value);
-            assert row != null;
+            assertThat(row).isNotNull();
             synchronized (LOCK) {
                 localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
                 if (kind == RowKind.INSERT || kind == RowKind.UPDATE_AFTER) {
@@ -524,7 +525,7 @@ final class TestValuesRuntimeFunctions {
             RowKind kind = value.getRowKind();
             if (value.getRowKind() == RowKind.INSERT) {
                 Row row = (Row) converter.toExternal(value);
-                assert row != null;
+                assertThat(row).isNotNull();
                 synchronized (LOCK) {
                     localRawResult.add(kind.shortString() + "(" + row.toString() + ")");
                 }

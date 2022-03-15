@@ -33,7 +33,6 @@ import java.time.Duration;
 import java.util.concurrent.ExecutionException;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link TableEnvironment} that require a planner. */
 public class EnvironmentTest {
@@ -60,9 +59,9 @@ public class EnvironmentTest {
         Table table = tEnv.sqlQuery("SELECT * FROM test");
         tEnv.toAppendStream(table, Row.class);
 
-        assertEquals(128, env.getParallelism());
-        assertEquals(800, env.getConfig().getAutoWatermarkInterval());
-        assertEquals(30000, env.getCheckpointConfig().getCheckpointInterval());
+        assertThat(env.getParallelism()).isEqualTo(128);
+        assertThat(env.getConfig().getAutoWatermarkInterval()).isEqualTo(800);
+        assertThat(env.getCheckpointConfig().getCheckpointInterval()).isEqualTo(30000);
     }
 
     @Test

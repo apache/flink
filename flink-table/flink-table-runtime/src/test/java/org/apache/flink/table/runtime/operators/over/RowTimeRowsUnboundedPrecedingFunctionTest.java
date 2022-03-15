@@ -27,7 +27,7 @@ import org.apache.flink.table.data.RowData;
 import org.junit.Test;
 
 import static org.apache.flink.table.runtime.util.StreamRecordUtils.insertRecord;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link RowTimeRowsUnboundedPrecedingFunction}. */
 public class RowTimeRowsUnboundedPrecedingFunctionTest extends RowTimeOverWindowTestBase {
@@ -57,6 +57,6 @@ public class RowTimeRowsUnboundedPrecedingFunctionTest extends RowTimeOverWindow
         // late record
         testHarness.processElement(insertRecord("key", 1L, 400L));
 
-        assertEquals(1L, counter.getCount());
+        assertThat(counter.getCount()).isEqualTo(1L);
     }
 }

@@ -28,7 +28,7 @@ import org.apache.flink.table.types.logical.RowType;
 import org.apache.commons.lang3.RandomStringUtils;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Utils for testing data formats. */
 public class DataFormatTestUtil {
@@ -93,7 +93,7 @@ public class DataFormatTestUtil {
             posInSeg = 0;
         }
         multiSegRow160.pointTo(segments, baseOffset, 160);
-        assertEquals(row160, multiSegRow160);
+        assertThat(multiSegRow160).isEqualTo(row160);
         return multiSegRow160;
     }
 

@@ -41,8 +41,6 @@ import org.apache.calcite.rex.RexBuilder;
 import org.apache.calcite.rex.RexInputRef;
 import org.apache.calcite.rex.RexNode;
 import org.apache.calcite.sql.fun.SqlStdOperatorTable;
-import org.hamcrest.MatcherAssert;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -54,6 +52,10 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 import java.util.function.Consumer;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.fail;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for code generations with code splitting. */
 public class CodeSplitTest {
@@ -97,7 +99,7 @@ public class CodeSplitTest {
                                             tableConfig, joinCondition, rowType, rowType)
                                     .newInstance(classLoader);
                     for (int i = 0; i < 100; i++) {
-                        Assert.assertEquals(result, instance.apply(rowData1, rowData2));
+                        assertThat(instance.apply(rowData1, rowData2)).isEqualTo(result);
                     }
                 };
         runTest(consumer);
@@ -128,7 +130,7 @@ public class CodeSplitTest {
                                             hashFields)
                                     .newInstance(classLoader);
                     for (int i = 0; i < 100; i++) {
-                        Assert.assertEquals(-1433414860, instance.hashCode(rowData));
+                        assertThat(instance.hashCode(rowData)).isEqualTo(-1433414860);
                     }
                 };
         runTest(consumer);
@@ -166,7 +168,7 @@ public class CodeSplitTest {
                             ComparatorCodeGenerator.gen(tableConfig, "", rowType, sortSpec)
                                     .newInstance(classLoader);
                     for (int i = 0; i < 100; i++) {
-                        Assert.assertEquals(result, instance.compare(rowData1, rowData2));
+                        assertThat(instance.compare(rowData1, rowData2)).isEqualTo(result);
                     }
                 };
         runTest(consumer);
@@ -206,7 +208,7 @@ public class CodeSplitTest {
                                             order.stream().mapToInt(i -> i).toArray())
                                     .newInstance(classLoader);
                     for (int i = 0; i < 100; i++) {
-                        Assert.assertEquals(output, instance.apply(input));
+                        assertThat(instance.apply(input)).isEqualTo(output);
                     }
                 };
         runTest(consumer);
@@ -237,9 +239,9 @@ public class CodeSplitTest {
                                 public void write(int b) throws IOException {}
                             }));
             consumer.accept(noSplitTableConfig);
-            Assert.fail("Expecting compiler exception");
+            fail("Expecting compiler exception");
         } catch (Exception e) {
-            MatcherAssert.assertThat(e, FlinkMatchers.containsMessage("grows beyond 64 KB"));
+            assertThat(e).satisfies(matching(FlinkMatchers.containsMessage("grows beyond 64 KB")));
         } finally {
             // set stdout back
             System.setOut(originalStdOut);

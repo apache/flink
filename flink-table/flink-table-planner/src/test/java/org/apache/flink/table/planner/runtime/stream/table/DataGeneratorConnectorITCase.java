@@ -22,11 +22,12 @@ import org.apache.flink.table.planner.runtime.utils.BatchTestBase;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CloseableIterator;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** IT case for data generator source. */
 public class DataGeneratorConnectorITCase extends BatchTestBase {
@@ -69,6 +70,6 @@ public class DataGeneratorConnectorITCase extends BatchTestBase {
             }
         }
 
-        Assert.assertEquals("Unexpected number of results", 10, results.size());
+        assertThat(results).as("Unexpected number of results").hasSize(10);
     }
 }

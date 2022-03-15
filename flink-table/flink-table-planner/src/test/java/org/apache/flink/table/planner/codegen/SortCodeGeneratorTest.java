@@ -75,7 +75,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.MutableObjectIterator;
 
 import org.apache.commons.lang3.RandomStringUtils;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.math.BigDecimal;
@@ -89,7 +88,8 @@ import java.util.concurrent.ThreadLocalRandom;
 
 import static org.apache.flink.table.types.logical.LogicalTypeRoot.INTEGER;
 import static org.apache.flink.table.utils.RawValueDataAsserter.equivalent;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Random test for sort code generator. */
 public class SortCodeGeneratorTest {
@@ -611,23 +611,25 @@ public class SortCodeGeneratorTest {
             for (int j = 0; j < keys.length; j++) {
                 boolean isNull1 = data.get(i).isNullAt(keys[j]);
                 boolean isNull2 = result.get(i).isNullAt(keys[j]);
-                Assert.assertEquals(msg, isNull1, isNull2);
+                assertThat(isNull2).as(msg).isEqualTo(isNull1);
                 if (!isNull1 || !isNull2) {
                     RowData.FieldGetter fieldGetter =
                             RowData.createFieldGetter(keyTypes[j], keys[j]);
                     Object o1 = fieldGetter.getFieldOrNull(data.get(i));
                     Object o2 = fieldGetter.getFieldOrNull(result.get(i));
                     if (keyTypes[j] instanceof VarBinaryType) {
-                        Assert.assertArrayEquals(msg, (byte[]) o1, (byte[]) o2);
+                        assertThat((byte[]) o2).as(msg).isEqualTo((byte[]) o1);
                     } else if (keyTypes[j] instanceof TypeInformationRawType) {
-                        assertThat(
-                                msg,
-                                (RawValueData) o1,
-                                equivalent(
-                                        (RawValueData) o2,
-                                        new RawValueDataSerializer<>(IntSerializer.INSTANCE)));
+                        assertThat((RawValueData) o1)
+                                .as(msg)
+                                .satisfies(
+                                        matching(
+                                                equivalent(
+                                                        (RawValueData) o2,
+                                                        new RawValueDataSerializer<>(
+                                                                IntSerializer.INSTANCE))));
                     } else {
-                        Assert.assertEquals(msg, o1, o2);
+                        assertThat(o2).as(msg).isEqualTo(o1);
                     }
                 }
             }

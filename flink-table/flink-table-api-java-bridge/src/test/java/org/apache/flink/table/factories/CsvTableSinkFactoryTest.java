@@ -36,8 +36,7 @@ import java.util.Map;
 
 import static org.apache.flink.table.descriptors.OldCsvValidator.FORMAT_FIELDS;
 import static org.apache.flink.table.descriptors.Schema.SCHEMA;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for CsvTableSourceFactory and CsvTableSinkFactory. */
 @RunWith(Parameterized.class)
@@ -71,8 +70,8 @@ public class CsvTableSinkFactoryTest {
         descriptor.putString("update-mode", "append");
         TableSink sink = createTableSink(descriptor);
 
-        assertTrue(sink instanceof CsvTableSink);
-        assertEquals(testingSchema.toRowDataType(), sink.getConsumedDataType());
+        assertThat(sink).isInstanceOf(CsvTableSink.class);
+        assertThat(sink.getConsumedDataType()).isEqualTo(testingSchema.toRowDataType());
     }
 
     @Test
@@ -80,8 +79,8 @@ public class CsvTableSinkFactoryTest {
         DescriptorProperties descriptor = createDescriptor(testingSchema);
         TableSink sink = createTableSink(descriptor);
 
-        assertTrue(sink instanceof CsvTableSink);
-        assertEquals(testingSchema.toRowDataType(), sink.getConsumedDataType());
+        assertThat(sink).isInstanceOf(CsvTableSink.class);
+        assertThat(sink.getConsumedDataType()).isEqualTo(testingSchema.toRowDataType());
     }
 
     @Test
@@ -90,8 +89,8 @@ public class CsvTableSinkFactoryTest {
         descriptor.putString("update-mode", "append");
         TableSource sink = createTableSource(descriptor);
 
-        assertTrue(sink instanceof CsvTableSource);
-        assertEquals(testingSchema.toRowDataType(), sink.getProducedDataType());
+        assertThat(sink).isInstanceOf(CsvTableSource.class);
+        assertThat(sink.getProducedDataType()).isEqualTo(testingSchema.toRowDataType());
     }
 
     @Test
@@ -99,8 +98,8 @@ public class CsvTableSinkFactoryTest {
         DescriptorProperties descriptor = createDescriptor(testingSchema);
         TableSource sink = createTableSource(descriptor);
 
-        assertTrue(sink instanceof CsvTableSource);
-        assertEquals(testingSchema.toRowDataType(), sink.getProducedDataType());
+        assertThat(sink).isInstanceOf(CsvTableSource.class);
+        assertThat(sink.getProducedDataType()).isEqualTo(testingSchema.toRowDataType());
     }
 
     private DescriptorProperties createDescriptor(TableSchema schema) {
