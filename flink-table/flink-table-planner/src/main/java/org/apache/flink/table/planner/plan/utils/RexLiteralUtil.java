@@ -88,15 +88,18 @@ public class RexLiteralUtil {
                 if (value instanceof String) {
                     return BinaryStringData.fromString((String) value);
                 }
+                break;
             case BOOLEAN:
                 if (value instanceof Boolean) {
                     return value;
                 }
+                break;
             case BINARY:
             case VARBINARY:
                 if (value instanceof ByteString) {
                     return ((ByteString) value).getBytes();
                 }
+                break;
             case DECIMAL:
                 if (value instanceof BigDecimal) {
                     return DecimalData.fromBigDecimal(
@@ -104,30 +107,39 @@ public class RexLiteralUtil {
                             LogicalTypeChecks.getPrecision(valueType),
                             LogicalTypeChecks.getScale(valueType));
                 }
+                break;
             case TINYINT:
                 if (value instanceof Number) {
                     return ((Number) value).byteValue();
                 }
+                break;
             case SMALLINT:
                 if (value instanceof Number) {
                     return ((Number) value).shortValue();
                 }
+                break;
             case INTEGER:
+            case INTERVAL_YEAR_MONTH:
                 if (value instanceof Number) {
                     return ((Number) value).intValue();
                 }
+                break;
             case BIGINT:
+            case INTERVAL_DAY_TIME:
                 if (value instanceof Number) {
                     return ((Number) value).longValue();
                 }
+                break;
             case FLOAT:
                 if (value instanceof Number) {
                     return ((Number) value).floatValue();
                 }
+                break;
             case DOUBLE:
                 if (value instanceof Number) {
                     return ((Number) value).doubleValue();
                 }
+                break;
             case DATE:
                 if (value instanceof DateString) {
                     return ((DateString) value).getDaysSinceEpoch();
@@ -135,6 +147,7 @@ public class RexLiteralUtil {
                 if (value instanceof Number) {
                     return ((Number) value).intValue();
                 }
+                break;
             case TIME_WITHOUT_TIME_ZONE:
                 if (value instanceof TimeString) {
                     return ((TimeString) value).getMillisOfDay();
@@ -142,11 +155,13 @@ public class RexLiteralUtil {
                 if (value instanceof Number) {
                     return ((Number) value).intValue();
                 }
+                break;
             case TIMESTAMP_WITHOUT_TIME_ZONE:
                 if (value instanceof TimestampString) {
                     return TimestampData.fromLocalDateTime(
                             toLocalDateTime((TimestampString) value));
                 }
+                break;
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
                 if (value instanceof TimestampString) {
                     return TimestampData.fromInstant(
@@ -154,20 +169,14 @@ public class RexLiteralUtil {
                                     .atOffset(ZoneOffset.UTC)
                                     .toInstant());
                 }
-            case INTERVAL_YEAR_MONTH:
-                if (value instanceof Number) {
-                    return ((Number) value).intValue();
-                }
-            case INTERVAL_DAY_TIME:
-                if (value instanceof Number) {
-                    return ((Number) value).longValue();
-                }
+                break;
             case DISTINCT_TYPE:
                 return toFlinkInternalValue(value, ((DistinctType) valueType).getSourceType());
             case SYMBOL:
                 if (value instanceof Enum) {
                     return value;
                 }
+                break;
             case TIMESTAMP_WITH_TIME_ZONE:
             case ARRAY:
             case MULTISET:
@@ -177,10 +186,8 @@ public class RexLiteralUtil {
             case NULL:
             case UNRESOLVED:
                 throw new CodeGenException("Type not supported: " + valueType);
-
-            default:
-                throw new IllegalStateException(
-                        "Unexpected class " + value.getClass() + " for value of type " + valueType);
         }
+        throw new IllegalStateException(
+                "Unexpected class " + value.getClass() + " for value of type " + valueType);
     }
 }
