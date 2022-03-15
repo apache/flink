@@ -76,14 +76,16 @@ Flink 提供了两种高可用服务实现：
 
 ## JobResultStore
 
-In order to preserve a job's scheduling status across failover events and prevent erroneous
-re-execution of globally terminated (i.e. finished, cancelled or failed) jobs, Flink persists
-status of terminated jobs to a filesystem using the JobResultStore.
-The JobResultStore allows job results to outlive a finished job, and can be used by
-Flink components involved in the recovery of a highly-available cluster in order to
-determine whether a job should be subject to recovery.
+The JobResultStore is used to archive the final result of a job that reached a globally-terminal
+state (i.e. finished, cancelled or failed). The data is stored on a file system (see
+[job-result-store.storage-path]({{< ref "docs/deployment/config#job-result-store-storage-path" >}})).
+Entries in this store are marked as dirty as long as the corresponding job wasn't cleaned up properly
+(artifacts are found in the job's subfolder in [high-availability.storageDir]({{< ref "docs/deployment/config#high-availability-storagedir" >}})).
 
-The JobResultStore has sensible defaults for its behaviour, such as result storage
-location, but these can be [configured]({{< ref "docs/deployment/config#high-availability" >}}).
+Dirty entries are subject to cleanup, i.e. the corresponding job is either cleaned up by Flink at
+the moment or will be picked up for cleanup as part of a recovery. The entries will be deleted as
+soon as the cleanup succeeds. Check the JobResultStore configuration parameters under
+[HA configuration options]({{< ref "docs/deployment/config#high-availability" >}}) for further
+details on how to adapt the behavior.
 
 {{< top >}}
