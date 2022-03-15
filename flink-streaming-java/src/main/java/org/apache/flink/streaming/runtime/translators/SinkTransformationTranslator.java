@@ -355,9 +355,10 @@ public class SinkTransformationTranslator<Input, Output>
                 BiConsumer<Transformation<?>, String> setter,
                 @Nullable String transformationName) {
             if (transformationName != null && getter.apply(transformation) != null) {
-                // Use the same uid pattern than for Sink V1
+                // Use the same uid pattern than for Sink V1. We deliberately decided to use the uid
+                // pattern of Flink 1.13 because 1.14 did not have a dedicated committer operator.
                 if (transformationName.equals(COMMITTER_NAME)) {
-                    final String committerFormat = "Sink %s Committer";
+                    final String committerFormat = "Sink Committer: %s";
                     setter.accept(
                             subTransformation,
                             String.format(committerFormat, getter.apply(transformation)));
@@ -369,7 +370,7 @@ public class SinkTransformationTranslator<Input, Output>
                     return;
                 }
 
-                // Use the same uid pattern than for Sink V1
+                // Use the same uid pattern than for Sink V1 in Flink 1.14.
                 if (transformationName.equals(
                         StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME)) {
                     final String committerFormat = "Sink %s Global Committer";
