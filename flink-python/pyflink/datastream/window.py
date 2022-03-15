@@ -15,12 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from abc import ABC, abstractmethod
 from enum import Enum
 from io import BytesIO
 from typing import TypeVar, Generic, Iterable, Collection
 
+from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.common.serializer import TypeSerializer
 from pyflink.datastream.functions import RuntimeContext, InternalWindowFunction
 from pyflink.datastream.state import StateDescriptor, State
@@ -35,8 +35,6 @@ __all__ = ['Window',
            'Trigger',
            'TimeWindowSerializer',
            'CountWindowSerializer']
-
-MAX_LONG_VALUE = sys.maxsize
 
 
 def long_to_int_with_bit_mixing(x: int) -> int:

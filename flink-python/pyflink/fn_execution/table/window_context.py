@@ -15,12 +15,12 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List, Iterable
 
 from apache_beam.coders import Coder
 
+from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.datastream.state import StateDescriptor, State, ValueStateDescriptor, \
     ListStateDescriptor, MapStateDescriptor
 from pyflink.datastream.window import TimeWindow, CountWindow
@@ -28,8 +28,6 @@ from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTime
 from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
 from pyflink.fn_execution.internal_state import InternalMergingState
 from pyflink.fn_execution.state_impl import RemoteKeyedStateBackend
-
-MAX_LONG_VALUE = sys.maxsize
 
 K = TypeVar('K')
 W = TypeVar('W', TimeWindow, CountWindow)
