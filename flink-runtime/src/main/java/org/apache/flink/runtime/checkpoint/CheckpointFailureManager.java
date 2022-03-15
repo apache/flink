@@ -104,12 +104,20 @@ public class CheckpointFailureManager {
                         : pendingCheckpoint.getCheckpointID();
         updateStatsAfterCheckpointFailed(pendingCheckpointStats, statsTracker, exception);
 
-        LOG.warn(
-                "Failed to trigger or complete checkpoint {} for job {}. ({} consecutive failed attempts so far)",
-                checkpointId == UNKNOWN_CHECKPOINT_ID ? "UNKNOWN_CHECKPOINT_ID" : checkpointId,
-                job,
-                continuousFailureCounter.get(),
-                exception);
+        if (CheckpointFailureReason.NOT_ALL_REQUIRED_TASKS_RUNNING.equals(
+                exception.getCheckpointFailureReason())) {
+            LOG.info(
+                    "Failed to trigger checkpoint for job {} since {}.",
+                    job,
+                    exception.getMessage());
+        } else {
+            LOG.warn(
+                    "Failed to trigger or complete checkpoint {} for job {}. ({} consecutive failed attempts so far)",
+                    checkpointId == UNKNOWN_CHECKPOINT_ID ? "UNKNOWN_CHECKPOINT_ID" : checkpointId,
+                    job,
+                    continuousFailureCounter.get(),
+                    exception);
+        }
         if (isJobManagerFailure(exception, executionAttemptID)) {
             handleJobLevelCheckpointException(checkpointProperties, exception, checkpointId);
         } else {
