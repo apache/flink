@@ -20,11 +20,13 @@ on:
 jobs:
   build-documentation:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        branch: [experiment_gha_docs]
     steps:
       - uses: actions/checkout@master
+      - name: Set branch environment variable
+        run: |
+          currentBranch=$(git branch --show-current)
+
+          echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
       - name: Build docker image
         run: |
           docker build -t docs docs/docker
@@ -36,7 +38,7 @@ jobs:
         with:
           switches: --archive --verbose --compress
           path: docs/target/
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/testing-flink-docs-${{ matrix.branch }}/
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/testing-flink-docs-${{ env.flink_branch }}/
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
           remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
           remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
