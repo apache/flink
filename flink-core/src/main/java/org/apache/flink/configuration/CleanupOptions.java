@@ -93,7 +93,9 @@ public class CleanupOptions {
                                                                             Collectors.joining(
                                                                                     ", "))
                                                             + ": Cleanup is only performed once. No retry "
-                                                            + "will be initiated in case of failure.",
+                                                            + "will be initiated in case of failure. The job "
+                                                            + "artifacts (and the job's JobResultStore entry) have "
+                                                            + "to be cleaned up manually in case of a failure.",
                                                     NONE_PARAM_VALUES.stream()
                                                             .map(TextElement::code)
                                                             .collect(Collectors.toList())
@@ -105,7 +107,9 @@ public class CleanupOptions {
                                                     "%s, %s: Cleanup attempts will be separated by a fixed "
                                                             + "interval up to the point where the cleanup is "
                                                             + "considered successful or a set amount of retries "
-                                                            + "is reached.",
+                                                            + "is reached. Reaching the configured limit means that "
+                                                            + "the job artifacts (and the job's JobResultStore entry) "
+                                                            + "might need to be cleaned up manually.",
                                                     code(FIXED_DELAY_LABEL),
                                                     code(
                                                             extractAlphaNumericCharacters(
@@ -115,7 +119,9 @@ public class CleanupOptions {
                                                             + "triggers the cleanup with an exponentially "
                                                             + "increasing delay up to the point where the "
                                                             + "cleanup succeeded or a set amount of retries "
-                                                            + "is reached.",
+                                                            + "is reached. Reaching the configured limit means that "
+                                                            + "the job artifacts (and the job's JobResultStore entry) "
+                                                            + "might need to be cleaned up manually.",
                                                     code(EXPONENTIAL_DELAY_LABEL),
                                                     code(
                                                             extractAlphaNumericCharacters(
@@ -133,7 +139,10 @@ public class CleanupOptions {
                             Description.builder()
                                     .text(
                                             "The number of times that Flink retries the cleanup "
-                                                    + "before giving up if %s has been set to %s.",
+                                                    + "before giving up if %s has been set to %s. "
+                                                    + "Reaching the configured limit means that "
+                                                    + "the job artifacts (and the job's JobResultStore entry) "
+                                                    + "might need to be cleaned up manually.",
                                             code(CLEANUP_STRATEGY_PARAM), code(FIXED_DELAY_LABEL))
                                     .build());
 
@@ -188,8 +197,11 @@ public class CleanupOptions {
                             Description.builder()
                                     .text(
                                             "The number of times a failed cleanup is retried "
-                                                    + "if %s has been set to %s. (no value means: "
-                                                    + "infinitely).",
+                                                    + "if %s has been set to %s. Reaching the "
+                                                    + "configured limit means that the job artifacts "
+                                                    + "(and the job's JobResultStore entry) "
+                                                    + "might need to be cleaned up manually. "
+                                                    + "Setting no value corresponds to unlimited retries.",
                                             code(CLEANUP_STRATEGY_PARAM),
                                             code(EXPONENTIAL_DELAY_LABEL))
                                     .build());
