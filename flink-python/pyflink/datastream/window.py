@@ -22,6 +22,7 @@ from io import BytesIO
 from typing import TypeVar, Generic, Iterable, Collection, Any, cast
 
 from pyflink.common import Time, Types
+from pyflink.common.constants import MAX_LONG_VALUE, MIN_LONG_VALUE
 from pyflink.common.serializer import TypeSerializer
 from pyflink.datastream.functions import RuntimeContext, InternalWindowFunction
 from pyflink.datastream.state import StateDescriptor, ReducingStateDescriptor, \
@@ -51,15 +52,6 @@ __all__ = ['Window',
            'TimeWindowSerializer',
            'CountWindowSerializer',
            'SessionWindowTimeGapExtractor']
-
-"""
-A constant holding the maximum value a long can have, 2^63 – 1.
-"""
-MAX_LONG_VALUE = 0x7fffffffffffffff
-"""
-A constant holding the minimum value a long can have, -2^63
-"""
-MIN_LONG_VALUE = - MAX_LONG_VALUE - 1
 
 
 def long_to_int_with_bit_mixing(x: int) -> int:

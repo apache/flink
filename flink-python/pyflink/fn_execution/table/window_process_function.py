@@ -15,17 +15,15 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from abc import abstractmethod, ABC
 from typing import Generic, List, Iterable, Dict, Set
 
 from pyflink.common import Row
+from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.datastream.state import MapState
 from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
     MergingWindowAssigner
 from pyflink.fn_execution.table.window_context import Context, K, W
-
-MAX_LONG_VALUE = sys.maxsize
 
 
 def join_row(left: List, right: List):
