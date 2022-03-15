@@ -42,6 +42,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.messages.Acknowledge;
 import org.apache.flink.runtime.messages.webmonitor.JobDetails;
+import org.apache.flink.runtime.messages.webmonitor.JobStatusInfo;
 import org.apache.flink.runtime.messages.webmonitor.MultipleJobsDetails;
 import org.apache.flink.runtime.operators.coordination.CoordinationRequest;
 import org.apache.flink.runtime.operators.coordination.CoordinationResponse;
@@ -71,10 +72,9 @@ import org.apache.flink.runtime.rest.messages.RequestBody;
 import org.apache.flink.runtime.rest.messages.ResponseBody;
 import org.apache.flink.runtime.rest.messages.TriggerId;
 import org.apache.flink.runtime.rest.messages.TriggerIdPathParameter;
-import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
-import org.apache.flink.runtime.rest.messages.job.JobDetailsInfo;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobExecutionResultResponseBody;
+import org.apache.flink.runtime.rest.messages.job.JobStatusInfoHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitHeaders;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitRequestBody;
 import org.apache.flink.runtime.rest.messages.job.JobSubmitResponseBody;
@@ -924,11 +924,11 @@ public class RestClusterClientTest extends TestLogger {
      */
     @Test
     public void testNotShowSuspendedJobStatus() throws Exception {
-        final List<JobDetailsInfo> jobDetails = new ArrayList<>();
-        jobDetails.add(buildJobDetail(JobStatus.SUSPENDED));
-        jobDetails.add(buildJobDetail(JobStatus.RUNNING));
+        final List<JobStatusInfo> jobStatusInfo = new ArrayList<>();
+        jobStatusInfo.add(new JobStatusInfo(JobStatus.SUSPENDED));
+        jobStatusInfo.add(new JobStatusInfo(JobStatus.RUNNING));
         final TestJobStatusHandler jobStatusHandler =
-                new TestJobStatusHandler(jobDetails.iterator());
+                new TestJobStatusHandler(jobStatusInfo.iterator());
 
         try (TestRestServerEndpoint restServerEndpoint =
                 createRestServerEndpoint(jobStatusHandler)) {
@@ -941,23 +941,6 @@ public class RestClusterClientTest extends TestLogger {
                 restClusterClient.close();
             }
         }
-    }
-
-    private JobDetailsInfo buildJobDetail(JobStatus jobStatus) {
-        return new JobDetailsInfo(
-                jobId,
-                "testJob",
-                true,
-                jobStatus,
-                1L,
-                2L,
-                1L,
-                8888L,
-                1984L,
-                new HashMap<>(),
-                new ArrayList<>(),
-                new HashMap<>(),
-                "{\"id\":\"1234\"}");
     }
 
     private class TestClientCoordinationHandler
@@ -1095,25 +1078,25 @@ public class RestClusterClientTest extends TestLogger {
     }
 
     private class TestJobStatusHandler
-            extends TestHandler<EmptyRequestBody, JobDetailsInfo, JobMessageParameters> {
+            extends TestHandler<EmptyRequestBody, JobStatusInfo, JobMessageParameters> {
 
-        private final Iterator<JobDetailsInfo> jobDetailsInfo;
+        private final Iterator<JobStatusInfo> jobStatusInfo;
 
-        private TestJobStatusHandler(@Nonnull Iterator<JobDetailsInfo> jobDetailsInfo) {
-            super(JobDetailsHeaders.getInstance());
-            checkState(jobDetailsInfo.hasNext(), "Job details are empty");
-            this.jobDetailsInfo = checkNotNull(jobDetailsInfo);
+        private TestJobStatusHandler(@Nonnull Iterator<JobStatusInfo> jobStatusInfo) {
+            super(JobStatusInfoHeaders.getInstance());
+            checkState(jobStatusInfo.hasNext(), "Job status are empty");
+            this.jobStatusInfo = checkNotNull(jobStatusInfo);
         }
 
         @Override
-        protected CompletableFuture<JobDetailsInfo> handleRequest(
+        protected CompletableFuture<JobStatusInfo> handleRequest(
                 @Nonnull HandlerRequest<EmptyRequestBody> request,
                 @Nonnull DispatcherGateway gateway)
                 throws RestHandlerException {
-            if (!jobDetailsInfo.hasNext()) {
-                throw new IllegalStateException("More job details were requested than configured");
+            if (!jobStatusInfo.hasNext()) {
+                throw new IllegalStateException("More job status were requested than configured");
             }
-            return CompletableFuture.completedFuture(jobDetailsInfo.next());
+            return CompletableFuture.completedFuture(jobStatusInfo.next());
         }
     }
 
