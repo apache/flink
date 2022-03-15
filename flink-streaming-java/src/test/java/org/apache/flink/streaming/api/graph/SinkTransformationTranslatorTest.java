@@ -293,6 +293,29 @@ public class SinkTransformationTranslatorTest extends TestLogger {
         assertEquals(findGlobalCommitter(streamGraph).getUserHash(), globalCommitterHash);
     }
 
+    /**
+     * When ever you need to change something in this test case please think about possible state
+     * upgrade problems introduced by your changes.
+     */
+    @Test
+    public void testSettingOperatorUids() {
+        final String sinkUid = "f6b178ce445dc3ffaa06bad27a51fead";
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStreamSource<Integer> src = env.fromElements(1, 2);
+        src.sinkTo(TestSink.newBuilder().setDefaultCommitter().setDefaultGlobalCommitter().build())
+                .name(NAME)
+                .uid(sinkUid);
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        assertEquals(findWriter(streamGraph).getTransformationUID(), sinkUid);
+        assertEquals(
+                findCommitter(streamGraph).getTransformationUID(),
+                String.format("Sink Committer: %s", sinkUid));
+        assertEquals(
+                findGlobalCommitter(streamGraph).getTransformationUID(),
+                String.format("Sink %s Global Committer", sinkUid));
+    }
+
     private void validateTopology(
             StreamNode src,
             Class<?> srcOutTypeInfo,
