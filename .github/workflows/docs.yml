@@ -51,7 +51,7 @@ jobs:
           remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
           remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
       - name: Upload documentation alias
-        if: env.flink_alias != ""
+        if: env.flink_alias != ''
         uses: burnett01/rsync-deployments@5.2
         with:
           switches: --archive --verbose --compress
