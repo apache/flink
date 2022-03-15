@@ -72,7 +72,7 @@ public class PostgresDialect extends AbstractDialect {
         List tempList = Arrays.asList(uniqueKeyFields);
         String updateClause =
                 Arrays.stream(fieldNames)
-                        .filter(f ->! tempList.contains(f))
+                        .filter(f -> !tempList.contains(f))
                         .map(f -> quoteIdentifier(f) + "=EXCLUDED." + quoteIdentifier(f))
                         .collect(Collectors.joining(", "));
         return Optional.of(
