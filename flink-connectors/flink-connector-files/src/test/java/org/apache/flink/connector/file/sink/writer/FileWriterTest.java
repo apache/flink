@@ -283,16 +283,19 @@ public class FileWriterTest {
     public void testNumberRecordsOutCounter() throws IOException, InterruptedException {
         final OperatorIOMetricGroup operatorIOMetricGroup =
                 UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup().getIOMetricGroup();
+        final SinkWriterMetricGroup sinkWriterMetricGroup =
+                InternalSinkWriterMetricGroup.mock(
+                        metricListener.getMetricGroup(), operatorIOMetricGroup);
         File outDir = TEMP_FOLDER.newFolder();
         Path path = new Path(outDir.toURI());
-        Counter recordsCounter = operatorIOMetricGroup.getNumRecordsOutCounter();
+        Counter recordsCounter = sinkWriterMetricGroup.getNumRecordsSendCounter();
         SinkWriter.Context context = new ContextImpl();
         FileWriter<String> fileWriter =
                 createWriter(
                         path,
                         DefaultRollingPolicy.builder().build(),
                         new OutputFileConfig("part-", ""),
-                        operatorIOMetricGroup);
+                        sinkWriterMetricGroup);
 
         assertEquals(0, recordsCounter.getCount());
         fileWriter.write("1", context);
@@ -432,13 +435,8 @@ public class FileWriterTest {
             Path basePath,
             RollingPolicy<String, String> rollingPolicy,
             OutputFileConfig outputFileConfig,
-            OperatorIOMetricGroup operatorIOMetricGroup)
+            SinkWriterMetricGroup sinkWriterMetricGroup)
             throws IOException {
-        final SinkWriterMetricGroup sinkWriterMetricGroup =
-                operatorIOMetricGroup == null
-                        ? InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup())
-                        : InternalSinkWriterMetricGroup.mock(
-                                metricListener.getMetricGroup(), operatorIOMetricGroup);
         return new FileWriter<>(
                 basePath,
                 sinkWriterMetricGroup,
@@ -458,7 +456,11 @@ public class FileWriterTest {
             RollingPolicy<String, String> rollingPolicy,
             OutputFileConfig outputFileConfig)
             throws IOException {
-        return createWriter(basePath, rollingPolicy, outputFileConfig, null);
+        return createWriter(
+                basePath,
+                rollingPolicy,
+                outputFileConfig,
+                InternalSinkWriterMetricGroup.mock(metricListener.getMetricGroup()));
     }
 
     private FileWriter<String> createWriter(
