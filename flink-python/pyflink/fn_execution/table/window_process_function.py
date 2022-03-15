@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from abc import abstractmethod, ABC
 from typing import Generic, List, Iterable, Dict, Set
 
@@ -25,7 +24,10 @@ from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWind
     MergingWindowAssigner
 from pyflink.fn_execution.table.window_context import Context, K, W
 
-MAX_LONG_VALUE = sys.maxsize
+"""
+A constant holding the maximum value a long can have, 2^63 – 1.
+"""
+MAX_LONG_VALUE = 0x7fffffffffffffff
 
 
 def join_row(left: List, right: List):

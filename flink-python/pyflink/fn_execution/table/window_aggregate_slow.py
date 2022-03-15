@@ -16,7 +16,6 @@
 # limitations under the License.
 ################################################################################
 import datetime
-import sys
 from abc import ABC, abstractmethod
 from typing import TypeVar, Generic, List, Dict
 
@@ -37,7 +36,10 @@ from pyflink.fn_execution.table.window_process_function import GeneralWindowProc
 from pyflink.fn_execution.table.window_trigger import Trigger
 from pyflink.table.udf import ImperativeAggregateFunction, FunctionContext
 
-MAX_LONG_VALUE = sys.maxsize
+"""
+A constant holding the maximum value a long can have, 2^63 – 1.
+"""
+MAX_LONG_VALUE = 0x7fffffffffffffff
 
 N = TypeVar('N')
 

@@ -15,15 +15,20 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 import time
 from abc import abstractmethod
 from decimal import Decimal
 
 from pyflink.table import AggregateFunction, MapView, ListView
 
-MAX_LONG_VALUE = sys.maxsize
-MIN_LONG_VALUE = -MAX_LONG_VALUE - 1
+"""
+A constant holding the maximum value a long can have, 2^63 – 1.
+"""
+MAX_LONG_VALUE = 0x7fffffffffffffff
+"""
+A constant holding the minimum value a long can have, -2^63
+"""
+MIN_LONG_VALUE = - MAX_LONG_VALUE - 1
 
 
 class AvgAggFunction(AggregateFunction):

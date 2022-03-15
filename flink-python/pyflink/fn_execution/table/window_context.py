@@ -15,7 +15,6 @@
 #  See the License for the specific language governing permissions and
 # limitations under the License.
 ################################################################################
-import sys
 from abc import ABC, abstractmethod
 from typing import Generic, TypeVar, List, Iterable
 
@@ -26,7 +25,10 @@ from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTime
 from pyflink.fn_execution.coders import from_type_info, MapCoder, GenericArrayCoder
 from pyflink.fn_execution.internal_state import InternalMergingState
 
-MAX_LONG_VALUE = sys.maxsize
+"""
+A constant holding the maximum value a long can have, 2^63 – 1.
+"""
+MAX_LONG_VALUE = 0x7fffffffffffffff
 
 K = TypeVar('K')
 W = TypeVar('W', TimeWindow, CountWindow)
