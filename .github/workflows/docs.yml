@@ -2,7 +2,7 @@ on:
   push:
     branches: [experiment_gha_docs]
 jobs:
-  upload_to_nightlies:
+  build-documentation:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
@@ -11,7 +11,7 @@ jobs:
           docker build -t docs docs/docker
       - name: Build documentation
         run: |
-          docker run  --rm --volume "$PWD:/root/flink" -it docs bash -c "cd /root/flink && ./docs/ci.sh"
+          docker run  --rm --volume "$PWD:/root/flink" docs bash -c "cd /root/flink && ./docs/ci.sh"
       - name: Upload documentation
         run: |
           echo "success"
