@@ -12,7 +12,7 @@
             <td><h5>cleanup-strategy.fixed-delay.attempts</h5></td>
             <td style="word-wrap: break-word;">1</td>
             <td>Integer</td>
-            <td>The number of times that Flink retries the cleanup before giving up if <code class="highlighter-rouge">cleanup-strategy</code> has been set to <code class="highlighter-rouge">fixed-delay</code>.</td>
+            <td>The number of times that Flink retries the cleanup before giving up if <code class="highlighter-rouge">cleanup-strategy</code> has been set to <code class="highlighter-rouge">fixed-delay</code>. Reaching the configured limit means that the job artifacts (and the job's JobResultStore entry) might need to be cleaned up manually.</td>
         </tr>
         <tr>
             <td><h5>cleanup-strategy.fixed-delay.delay</h5></td>
