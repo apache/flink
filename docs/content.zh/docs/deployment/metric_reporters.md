@@ -207,7 +207,7 @@ PrometheusPushGatewayReporter 采集器将运行指标发送给 [Pushgateway](ht
 
 更多使用方法可查看 [Prometheus 的文档](https://prometheus.io/docs/practices/pushing/)
 
-<a name="statsD"></a>
+<a name="statsd"></a>
 
 ### StatsD
 #### (org.apache.flink.metrics.statsd.StatsDReporter)
