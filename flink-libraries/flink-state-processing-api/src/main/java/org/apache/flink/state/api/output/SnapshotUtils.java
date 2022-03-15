@@ -52,13 +52,12 @@ public final class SnapshotUtils {
             boolean isExactlyOnceMode,
             boolean isUnalignedCheckpoint,
             Configuration configuration,
-            Path savepointPath,
-            SavepointFormatType savepointFormatType)
+            Path savepointPath)
             throws Exception {
 
         CheckpointOptions options =
                 CheckpointOptions.forConfig(
-                        SavepointType.savepoint(savepointFormatType),
+                        SavepointType.savepoint(SavepointFormatType.CANONICAL),
                         AbstractFsCheckpointStorageAccess.encodePathAsReference(savepointPath),
                         isExactlyOnceMode,
                         isUnalignedCheckpoint,
@@ -76,27 +75,6 @@ public final class SnapshotUtils {
 
         operator.notifyCheckpointComplete(CHECKPOINT_ID);
         return new TaggedOperatorSubtaskState(index, state);
-    }
-
-    public static <OUT, OP extends StreamOperator<OUT>> TaggedOperatorSubtaskState snapshot(
-            OP operator,
-            int index,
-            long timestamp,
-            boolean isExactlyOnceMode,
-            boolean isUnalignedCheckpoint,
-            Configuration configuration,
-            Path savepointPath)
-            throws Exception {
-
-        return snapshot(
-                operator,
-                index,
-                timestamp,
-                isExactlyOnceMode,
-                isUnalignedCheckpoint,
-                configuration,
-                savepointPath,
-                SavepointFormatType.DEFAULT);
     }
 
     private static CheckpointStreamFactory createStreamFactory(
