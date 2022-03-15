@@ -167,7 +167,7 @@ The JobManager ensures consistency during recovery across TaskManagers. For the 
 
 {{< generated/common_high_availability_section >}}
 
-**Options for the Job Result Store in high-availability setups**
+**Options for the JobResultStore in high-availability setups**
 
 {{< generated/common_high_availability_jrs_section >}}
 
