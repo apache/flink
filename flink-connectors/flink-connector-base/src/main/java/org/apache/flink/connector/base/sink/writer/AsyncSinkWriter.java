@@ -69,10 +69,10 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
     private final SinkWriterMetricGroup metrics;
 
     /* Counter for number of bytes this sink has attempted to send to the destination. */
-    private final Counter numBytesOutCounter;
+    private final Counter numBytesSendCounter;
 
     /* Counter for number of records this sink has attempted to send to the destination. */
-    private final Counter numRecordsOutCounter;
+    private final Counter numRecordsSendCounter;
 
     /**
      * Rate limiting strategy {@code inflightMessages} at any given time, {@code
@@ -295,8 +295,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
 
         this.metrics = context.metricGroup();
         this.metrics.setCurrentSendTimeGauge(() -> this.ackTime - this.lastSendTimestamp);
-        this.numBytesOutCounter = this.metrics.getIOMetricGroup().getNumBytesOutCounter();
-        this.numRecordsOutCounter = this.metrics.getIOMetricGroup().getNumRecordsOutCounter();
+        this.numBytesSendCounter = this.metrics.getNumBytesSendCounter();
+        this.numRecordsSendCounter = this.metrics.getNumRecordsSendCounter();
 
         this.fatalExceptionCons =
                 exception ->
@@ -417,8 +417,8 @@ public abstract class AsyncSinkWriter<InputT, RequestEntryT extends Serializable
             batchSizeBytes += requestEntrySize;
         }
 
-        numRecordsOutCounter.inc(batch.size());
-        numBytesOutCounter.inc(batchSizeBytes);
+        numRecordsSendCounter.inc(batch.size());
+        numBytesSendCounter.inc(batchSizeBytes);
 
         return batch;
     }
