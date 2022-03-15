@@ -6,13 +6,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@master
-      - name: rsync
-        uses: burnett01/rsync-deployments@5.2
-        with:
-          switches: --archive --verbose --compress
-          path: test/
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink
-          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
-          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
-          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
-          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+      - name: Build docker image
+        run: |
+          docker build -t docs docs/docker
+      - name: Build documentation
+        run: |
+          docker run  --rm --volume "$PWD:/root/flink" -it docs bash -c "cd /root/flink && ./docs/ci.sh"
+      - name: Upload documentation
+        run: |
+          echo "success"
