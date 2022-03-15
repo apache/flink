@@ -217,7 +217,7 @@ class CleanupRetryStrategyFactoryTest {
 
         testExponentialBackoffDelayRetryStrategyCreation(
                 config,
-                CleanupOptions.CLEANUP_STRATEGY_FIXED_DELAY_DELAY.defaultValue(),
+                CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF.defaultValue(),
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF.defaultValue(),
                 customMaxAttempts);
     }
