@@ -27,6 +27,13 @@ jobs:
           currentBranch=$(git branch --show-current)
 
           echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
+          echo "flink_alias=supertest" >> ${GITHUB_ENV}
+
+          if [ "${currentBranch} = "master" ]; then
+            echo "flink_alias=release-1.15" >> ${GITHUB_ENV}
+          elif [ "${currentBranch} = "release-1.14" ]; then
+            echo "flink_alias=stable" >> ${GITHUB_ENV}
+          fi
       - name: Build docker image
         run: |
           docker build -t docs docs/docker
@@ -39,6 +46,17 @@ jobs:
           switches: --archive --verbose --compress
           path: docs/target/
           remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/testing-flink-docs-${{ env.flink_branch }}/
+          remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
+          remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
+          remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
+          remote_key: ${{ secrets.NIGHTLIES_RSYNC_KEY }}
+      - name: Upload documentation alias
+        if: env.flink_alias != ""
+        uses: burnett01/rsync-deployments@5.2
+        with:
+          switches: --archive --verbose --compress
+          path: docs/target/
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/testing-flink-docs-${{ env.flink_alias }}/
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
           remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
           remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
