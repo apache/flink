@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.api.bridge.scala.internal
 
-import org.apache.flink.annotation.{Internal, VisibleForTesting}
+import org.apache.flink.annotation.Internal
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.streaming.api.TimeCharacteristic
