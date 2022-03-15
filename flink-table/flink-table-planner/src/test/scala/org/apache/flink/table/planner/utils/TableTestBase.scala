@@ -105,14 +105,14 @@ abstract class TableTestBase {
   @Rule
   def name: TestName = testName
 
-  def streamTestUtil(conf: TableConfig = new TableConfig): StreamTableTestUtil =
+  def streamTestUtil(conf: TableConfig = TableConfig.getDefault): StreamTableTestUtil =
     StreamTableTestUtil(this, conf = conf)
 
   def scalaStreamTestUtil(): ScalaStreamTableTestUtil = ScalaStreamTableTestUtil(this)
 
   def javaStreamTestUtil(): JavaStreamTableTestUtil = JavaStreamTableTestUtil(this)
 
-  def batchTestUtil(conf: TableConfig = new TableConfig): BatchTableTestUtil =
+  def batchTestUtil(conf: TableConfig = TableConfig.getDefault): BatchTableTestUtil =
     BatchTableTestUtil(this, conf = conf)
 
   def scalaBatchTestUtil(): ScalaBatchTableTestUtil = ScalaBatchTableTestUtil(this)
@@ -1222,7 +1222,7 @@ abstract class JavaTableTestUtil(
 case class StreamTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None,
-    conf: TableConfig = new TableConfig)
+    conf: TableConfig = TableConfig.getDefault)
   extends TableTestUtil(test, isStreamingMode = true, catalogManager, conf) {
 
   /**
@@ -1342,7 +1342,7 @@ case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUti
 case class BatchTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None,
-    conf: TableConfig = new TableConfig)
+    conf: TableConfig = TableConfig.getDefault)
   extends TableTestUtil(test, isStreamingMode = false, catalogManager, conf) {
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {

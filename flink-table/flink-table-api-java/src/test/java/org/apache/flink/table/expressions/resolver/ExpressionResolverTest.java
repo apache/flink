@@ -350,7 +350,7 @@ public class ExpressionResolverTest {
 
         public ExpressionResolver getResolver() {
             return ExpressionResolver.resolverFor(
-                            new TableConfig(),
+                            TableConfig.getDefault(),
                             name -> Optional.empty(),
                             new FunctionLookupMock(functions),
                             new DataTypeFactoryMock(),

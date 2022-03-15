@@ -49,8 +49,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Tests for {@link MultipleInputNodeCreationProcessor}. */
 public class MultipleInputNodeCreationProcessorTest extends TableTestBase {
 
-    private final BatchTableTestUtil batchUtil = batchTestUtil(new TableConfig());
-    private final StreamTableTestUtil streamUtil = streamTestUtil(new TableConfig());
+    private final BatchTableTestUtil batchUtil = batchTestUtil(TableConfig.getDefault());
+    private final StreamTableTestUtil streamUtil = streamTestUtil(TableConfig.getDefault());
 
     @Test
     public void testIsChainableDataStreamSource() {

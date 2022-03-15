@@ -34,7 +34,7 @@ import org.junit.Test;
 
 /** Test for {@link ProjectWatermarkAssignerTransposeRule}. */
 public class ProjectWatermarkAssignerTransposeRuleTest extends TableTestBase {
-    private final StreamTableTestUtil util = streamTestUtil(new TableConfig());
+    private final StreamTableTestUtil util = streamTestUtil(TableConfig.getDefault());
 
     @Before
     public void setup() {

@@ -121,7 +121,7 @@ public class TemporalTableSourceSpecSerdeTest {
                 false);
 
         SerdeContext serdeCtx =
-                JsonSerdeTestUtil.configuredSerdeContext(catalogManager, new TableConfig());
+                JsonSerdeTestUtil.configuredSerdeContext(catalogManager, TableConfig.getDefault());
 
         String json = JsonSerdeTestUtil.toJson(serdeCtx, spec);
         TemporalTableSourceSpec actual =

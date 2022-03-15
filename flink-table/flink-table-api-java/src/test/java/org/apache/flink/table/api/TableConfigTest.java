@@ -34,8 +34,8 @@ public class TableConfigTest {
 
     @Rule public ExpectedException expectedException = ExpectedException.none();
 
-    private static TableConfig configByMethod = new TableConfig();
-    private static TableConfig configByConfiguration = new TableConfig();
+    private static TableConfig configByMethod = TableConfig.getDefault();
+    private static TableConfig configByConfiguration = TableConfig.getDefault();
     private static Configuration configuration = new Configuration();
 
     @Test

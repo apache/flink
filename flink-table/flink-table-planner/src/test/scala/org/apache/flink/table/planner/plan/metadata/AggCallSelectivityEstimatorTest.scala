@@ -77,7 +77,7 @@ class AggCallSelectivityEstimatorTest {
 
   private def mockScan(
       statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): TableScan = {
-    val tableConfig = new TableConfig
+    val tableConfig = TableConfig.getDefault
     val moduleManager = new ModuleManager
     val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val rootSchema = CalciteSchema.createRootSchema(true, false).plus()
