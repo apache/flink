@@ -92,7 +92,23 @@ drop catalog default_catalog;
 # test database
 # ==========================================================================
 
+create catalog catalog0 with ('type'='generic_in_memory');
+[INFO] Execute statement succeed.
+!info
+
 create database db1;
+[INFO] Execute statement succeed.
+!info
+
+create database catalog0.db1;
+[INFO] Execute statement succeed.
+!info
+
+create database catalog0.db1_1;
+[INFO] Execute statement succeed.
+!info
+
+create database catalog0.pre_db;
 [INFO] Execute statement succeed.
 !info
 
@@ -102,6 +118,89 @@ show databases;
 +---------------+
 |       default |
 |           db1 |
++---------------+
+2 rows in set
+!ok
+
+show databases in catalog0;
++---------------+
+| database name |
++---------------+
+|       default |
+|           db1 |
+|         db1_1 |
+|        pre_db |
++---------------+
+4 rows in set
+!ok
+
+show databases from catalog0;
++---------------+
+| database name |
++---------------+
+|       default |
+|           db1 |
+|         db1_1 |
+|        pre_db |
++---------------+
+4 rows in set
+!ok
+
+show databases from catalog0 like 'db1';
++---------------+
+| database name |
++---------------+
+|           db1 |
++---------------+
+1 row in set
+!ok
+
+show databases in catalog0 not like 'pre%';
++---------------+
+| database name |
++---------------+
+|       default |
+|           db1 |
+|         db1_1 |
++---------------+
+3 rows in set
+!ok
+
+show databases in catalog0 like '%db%';
++---------------+
+| database name |
++---------------+
+|           db1 |
+|         db1_1 |
+|        pre_db |
++---------------+
+3 rows in set
+!ok
+
+show databases in catalog0 like '_re%';
++---------------+
+| database name |
++---------------+
+|        pre_db |
++---------------+
+1 row in set
+!ok
+
+show databases like 'db%';
++---------------+
+| database name |
++---------------+
+|           db1 |
++---------------+
+1 row in set
+!ok
+
+show databases in catalog0 like 'db%';
++---------------+
+| database name |
++---------------+
+|           db1 |
+|         db1_1 |
 +---------------+
 2 rows in set
 !ok

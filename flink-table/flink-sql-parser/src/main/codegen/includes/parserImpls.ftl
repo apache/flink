@@ -146,11 +146,34 @@ SqlDrop SqlDropCatalog(Span s, boolean replace) :
 */
 SqlShowDatabases SqlShowDatabases() :
 {
+    String prep = null;
+    SqlIdentifier catalogName = null;
+    SqlCharStringLiteral likeLiteral = null;
+    boolean notLike = false;
 }
 {
     <SHOW> <DATABASES>
+    [
+        ( <FROM> { prep = "FROM"; } | <IN> { prep = "IN"; } )
+        {
+            catalogName = CompoundIdentifier();
+        }
+    ]
+    [
+        [
+            <NOT>
+            {
+                notLike = true;
+            }
+        ]
+        <LIKE>  <QUOTED_STRING>
+        {
+            String likeCondition = SqlParserUtil.parseString(token.image);
+            likeLiteral = SqlLiteral.createCharString(likeCondition, getPos());
+        }
+    ]
     {
-        return new SqlShowDatabases(getPos());
+        return new SqlShowDatabases(getPos(), prep, catalogName, notLike, likeLiteral);
     }
 }
 

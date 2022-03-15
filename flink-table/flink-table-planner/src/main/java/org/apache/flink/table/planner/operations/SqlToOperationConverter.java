@@ -929,7 +929,22 @@ public class SqlToOperationConverter {
 
     /** Convert SHOW DATABASES statement. */
     private Operation convertShowDatabases(SqlShowDatabases sqlShowDatabases) {
-        return new ShowDatabasesOperation();
+        if (sqlShowDatabases.getPreposition() == null) {
+            return new ShowDatabasesOperation(
+                    sqlShowDatabases.getLikeSqlPattern(),
+                    sqlShowDatabases.isWithLike(),
+                    sqlShowDatabases.isNotLike());
+        }
+        final String catalogName =
+                sqlShowDatabases.getCatalogName() == null
+                        ? catalogManager.getCurrentCatalog()
+                        : sqlShowDatabases.getCatalogName();
+        return new ShowDatabasesOperation(
+                catalogName,
+                sqlShowDatabases.getLikeSqlPattern(),
+                sqlShowDatabases.isWithLike(),
+                sqlShowDatabases.isNotLike(),
+                sqlShowDatabases.getPreposition());
     }
 
     /** Convert SHOW CURRENT DATABASE statement. */

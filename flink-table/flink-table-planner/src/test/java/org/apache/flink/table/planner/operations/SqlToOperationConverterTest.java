@@ -57,6 +57,7 @@ import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.LoadModuleOperation;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
+import org.apache.flink.table.operations.ShowDatabasesOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation;
 import org.apache.flink.table.operations.ShowFunctionsOperation.FunctionScope;
 import org.apache.flink.table.operations.ShowModulesOperation;
@@ -1663,6 +1664,41 @@ public class SqlToOperationConverterTest {
         assertThat(operation).isInstanceOf(ShowJarsOperation.class);
         final ShowJarsOperation showModulesOperation = (ShowJarsOperation) operation;
         assertThat(showModulesOperation.asSummaryString()).isEqualTo("SHOW JARS");
+    }
+
+    @Test
+    public void testShowDatabase() {
+        Operation operation = parse("SHOW DATABASES like 't%'", SqlDialect.DEFAULT);
+        assert operation instanceof ShowDatabasesOperation;
+
+        ShowDatabasesOperation showTablesOperation = (ShowDatabasesOperation) operation;
+        assertThat(showTablesOperation.getCatalogName()).isNull();
+        assertThat(showTablesOperation.isNotLike()).isFalse();
+        assertThat(showTablesOperation.getLikePattern()).isEqualTo("t%");
+
+        showTablesOperation = (ShowDatabasesOperation) parse("SHOW DATABASES", SqlDialect.DEFAULT);
+        assertThat(showTablesOperation.getCatalogName()).isNull();
+        assertThat(showTablesOperation.isNotLike()).isFalse();
+        assertThat(showTablesOperation.getLikePattern()).isNull();
+
+        showTablesOperation =
+                (ShowDatabasesOperation) parse("SHOW DATABASES IN catalog1", SqlDialect.DEFAULT);
+        assertThat(showTablesOperation.getCatalogName()).isEqualTo("catalog1");
+        assertThat(showTablesOperation.isNotLike()).isFalse();
+        assertThat(showTablesOperation.getLikePattern()).isNull();
+
+        showTablesOperation =
+                (ShowDatabasesOperation) parse("SHOW DATABASES FROM catalog1", SqlDialect.DEFAULT);
+        assertThat(showTablesOperation.getCatalogName()).isEqualTo("catalog1");
+        assertThat(showTablesOperation.isNotLike()).isFalse();
+        assertThat(showTablesOperation.getLikePattern()).isNull();
+
+        showTablesOperation =
+                (ShowDatabasesOperation)
+                        parse("SHOW DATABASES FROM catalog1 NOT LIKE 'a'", SqlDialect.DEFAULT);
+        assertThat(showTablesOperation.getCatalogName()).isEqualTo("catalog1");
+        assertThat(showTablesOperation.isNotLike()).isTrue();
+        assertThat(showTablesOperation.getLikePattern()).isEqualTo("a");
     }
 
     @Test

@@ -19,6 +19,8 @@
 package org.apache.flink.sql.parser.dql;
 
 import org.apache.calcite.sql.SqlCall;
+import org.apache.calcite.sql.SqlCharStringLiteral;
+import org.apache.calcite.sql.SqlIdentifier;
 import org.apache.calcite.sql.SqlKind;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.SqlOperator;
@@ -28,6 +30,7 @@ import org.apache.calcite.sql.parser.SqlParserPos;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /** SHOW Databases sql call. */
 public class SqlShowDatabases extends SqlCall {
@@ -35,8 +38,26 @@ public class SqlShowDatabases extends SqlCall {
     public static final SqlSpecialOperator OPERATOR =
             new SqlSpecialOperator("SHOW DATABASES", SqlKind.OTHER);
 
+    private String preposition;
+    private boolean notLike;
+    private SqlIdentifier catalogName;
+    private SqlCharStringLiteral likeLiteral;
+
     public SqlShowDatabases(SqlParserPos pos) {
         super(pos);
+    }
+
+    public SqlShowDatabases(
+            SqlParserPos pos,
+            String preposition,
+            SqlIdentifier catalogName,
+            boolean notLike,
+            SqlCharStringLiteral likeLiteral) {
+        super(pos);
+        this.preposition = preposition;
+        this.catalogName = catalogName;
+        this.notLike = notLike;
+        this.likeLiteral = likeLiteral;
     }
 
     @Override
@@ -49,8 +70,44 @@ public class SqlShowDatabases extends SqlCall {
         return Collections.EMPTY_LIST;
     }
 
+    public String getCatalogName() {
+        return Objects.isNull(this.catalogName) ? null : catalogName.getSimple();
+    }
+
+    public boolean isNotLike() {
+        return notLike;
+    }
+
+    public String getPreposition() {
+        return preposition;
+    }
+
+    public String getLikeSqlPattern() {
+        return Objects.isNull(this.likeLiteral) ? null : likeLiteral.getValueAs(String.class);
+    }
+
+    public SqlCharStringLiteral getLikeLiteral() {
+        return likeLiteral;
+    }
+
+    public boolean isWithLike() {
+        return Objects.nonNull(likeLiteral);
+    }
+
     @Override
     public void unparse(SqlWriter writer, int leftPrec, int rightPrec) {
-        writer.keyword("SHOW DATABASES");
+        if (Objects.isNull(preposition)) {
+            writer.keyword("SHOW DATABASES");
+        } else if (Objects.nonNull(catalogName)) {
+            writer.keyword("SHOW DATABASES " + this.preposition);
+            catalogName.unparse(writer, leftPrec, rightPrec);
+        }
+        if (isWithLike()) {
+            if (notLike) {
+                writer.keyword(String.format("NOT LIKE '%s'", getLikeSqlPattern()));
+            } else {
+                writer.keyword(String.format("LIKE '%s'", getLikeSqlPattern()));
+            }
+        }
     }
 }

@@ -504,10 +504,68 @@ Show current catalog.
 ## SHOW DATABASES
 
 ```sql
-SHOW DATABASES
+SHOW DATABASES [ ( FROM | IN ) catalog_name ] [ [NOT] LIKE regex_pattern ]
 ```
 
-Show all databases in the current catalog.
+Show all databases for an optionally specified catalog. If no catalog is specified then the databases are returned from the current catalog. Additionally, the output of this statement may be filtered by an optional matching pattern.
+
+**LIKE**
+Show all databases with optional `LIKE` clause, whose name is whether similar to the `<sql_like_pattern>`.
+
+The syntax of sql pattern in `LIKE` clause is the same as that of `MySQL` dialect.
+* `%` matches any number of characters, even zero characters, `\%` matches one `%` character.
+* `_` matches exactly one character, `\_` matches one `_` character.
+
+### SHOW DATABASES EXAMPLES
+
+Assumes that we have a catalog named `catalog1` (current catalog) which has databases named `db_1` and `my_db_2`:
+
+- Shows all databases of the given catalog.
+
+```sql
+show databases from catalog1;
+-- show databases from catalog1;
+-- show databases in catalog1;
+-- show databases;
++------------+
+| table name |
++------------+
+|       db_1 |
+|    my_db_2 |
++------------+
+2 rows in set
+```
+
+- Shows all database of the given catalog, which are similar to the given sql pattern.
+
+```sql
+show databases from catalog1 like 'my%';
+-- show databases from catalog1 like 'my%';
+-- show databases in catalog1 like 'my%';
+-- show databases like 'my%';
+-- show databases like '_y%';
++------------+
+| table name |
++------------+
+|    my_db_2 |
++------------+
+1 row in set
+```
+
+- Shows all databases of the given catalog, which are not similar to the given sql pattern.
+
+```sql
+show databases from catalog1 like 'my%';
+-- show databases from catalog1 like 'my%';
+-- show databases in catalog1 like 'my%';
+-- show databases like 'my%';
++------------+
+| table name |
++------------+
+|       db_1 |
++------------+
+1 row in set
+```
 
 ## SHOW CURRENT DATABASE
 

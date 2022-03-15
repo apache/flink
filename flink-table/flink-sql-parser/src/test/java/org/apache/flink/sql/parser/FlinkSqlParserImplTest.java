@@ -100,6 +100,20 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
     @Test
     public void testShowDataBases() {
         sql("show databases").ok("SHOW DATABASES");
+        sql("show databases like '%'").ok("SHOW DATABASES LIKE '%'");
+        sql("show databases not like '%'").ok("SHOW DATABASES NOT LIKE '%'");
+        sql("show databases from catalog1").ok("SHOW DATABASES FROM `CATALOG1`");
+        sql("show databases in catalog1").ok("SHOW DATABASES IN `CATALOG1`");
+        sql("show databases in catalog1 like '%'").ok("SHOW DATABASES IN `CATALOG1` LIKE '%'");
+        sql("show databases in catalog1 not like '%'")
+                .ok("SHOW DATABASES IN `CATALOG1` NOT LIKE '%'");
+
+        sql("show databases ^catalog1^")
+                .fails("(?s).*Encountered \"catalog1\" at line 1, column 16.\n.*");
+        sql("show databases ^search^ catalog1")
+                .fails("(?s).*Encountered \"search\" at line 1, column 16.\n.*");
+        sql("show databases from catalog1 ^likes^ '%t'")
+                .fails("(?s).*Encountered \"likes\" at line 1, column 30.\n.*");
     }
 
     @Test

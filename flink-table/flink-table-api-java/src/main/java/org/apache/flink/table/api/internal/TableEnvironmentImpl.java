@@ -169,6 +169,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import static org.apache.flink.table.api.config.TableConfigOptions.TABLE_DML_SYNC;
@@ -562,11 +563,26 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
     @Override
     public String[] listDatabases() {
-        return catalogManager
-                .getCatalog(catalogManager.getCurrentCatalog())
-                .get()
-                .listDatabases()
-                .toArray(new String[0]);
+        return listDatabases(catalogManager.getCurrentCatalog());
+    }
+
+    @Override
+    public String[] listDatabases(String catalogName) {
+        return catalogManager.getCatalog(catalogName).get().listDatabases().stream()
+                .toArray(String[]::new);
+    }
+
+    public String[] listDatabases(String catalogName, boolean notLike, String likePattern) {
+        final String catalog =
+                catalogName == null ? catalogManager.getCurrentCatalog() : catalogName;
+        final Stream<String> allDatabases =
+                catalogManager.getCatalog(catalog).get().listDatabases().stream();
+        if (likePattern != null) {
+            return allDatabases
+                    .filter(database -> notLike != SqlLikeUtils.like(database, likePattern))
+                    .toArray(String[]::new);
+        }
+        return allDatabases.toArray(String[]::new);
     }
 
     @Override
@@ -1192,7 +1208,13 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
             return buildShowResult(
                     "current catalog name", new String[] {catalogManager.getCurrentCatalog()});
         } else if (operation instanceof ShowDatabasesOperation) {
-            return buildShowResult("database name", listDatabases());
+            ShowDatabasesOperation showDatabasesOperation = (ShowDatabasesOperation) operation;
+            return buildShowResult(
+                    "database name",
+                    listDatabases(
+                            showDatabasesOperation.getCatalogName(),
+                            showDatabasesOperation.isNotLike(),
+                            showDatabasesOperation.getLikePattern()));
         } else if (operation instanceof ShowCurrentDatabaseOperation) {
             return buildShowResult(
                     "current database name", new String[] {catalogManager.getCurrentDatabase()});

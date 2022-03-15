@@ -504,10 +504,67 @@ SHOW CURRENT CATALOG
 ## SHOW DATABASES
 
 ```sql
-SHOW DATABASES
+SHOW DATABASES [ ( FROM | IN ) catalog_name ] [ [NOT] LIKE regex_pattern ]
 ```
 
-展示当前 catalog 中所有的 database。
+展示指定 catalog (可选) 下的所有 database. 如果不指定 catalog 那将返回当前 catalog 下的所有 database. 另外, 语句的执行结果可通过模式匹配进行过滤.
+
+**LIKE**
+
+根据可选的 `LIKE` 语句展示给定表中与 `<sql_like_pattern>` 是否模糊相似的所有 database。
+
+`LIKE` 子句中 sql 正则式的语法与 `MySQL` 方言中的语法相同。
+
+### SHOW DATABASES EXAMPLES
+
+假设我们有一个名为 `catalog1` (当前 catalog) 的 catalog，其中包含名为 `db_1` 和 `my_db_2` 的 database：
+
+- 展示指定 catalog 下所有的 database。
+
+```sql
+show databases from catalog1;
+-- show databases from catalog1;
+-- show databases in catalog1;
+-- show databases;
++------------+
+| table name |
++------------+
+|       db_1 |
+|    my_db_2 |
++------------+
+2 rows in set
+```
+
+- 展示指定 catalog 下所有与给定模式匹配的 database。
+
+```sql
+show databases from catalog1 like 'my%';
+-- show databases from catalog1 like 'my%';
+-- show databases in catalog1 like 'my%';
+-- show databases like 'my%';
+-- show databases like '_y%';
++------------+
+| table name |
++------------+
+|    my_db_2 |
++------------+
+1 row in set
+```
+
+- 展示指定 catalog 下所有与给定模式不匹配的 database 。
+
+```sql
+show databases from catalog1 not like 'my%';
+-- show databases from catalog1 not like 'my%';
+-- show databases in catalog1 not like 'my%';
+-- show databases not like 'my%';
++------------+
+| table name |
++------------+
+|       db_1 |
++------------+
+1 row in set
+```
 
 ## SHOW CURRENT DATABASE
 
