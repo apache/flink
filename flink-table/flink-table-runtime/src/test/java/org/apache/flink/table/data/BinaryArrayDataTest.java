@@ -136,17 +136,17 @@ public class BinaryArrayDataTest {
             writer.complete();
 
             assertThat(array.isNullAt(0)).isTrue();
-            assertThat(array.getByte(1)).isEqualTo(25);
+            assertThat(array.getByte(1)).isEqualTo((byte) 25);
             array.setByte(0, (byte) 5);
-            assertThat(array.getByte(0)).isEqualTo(5);
+            assertThat(array.getByte(0)).isEqualTo((byte) 5);
             array.setNullByte(0);
             assertThat(array.isNullAt(0)).isTrue();
 
             BinaryArrayData newArray = splitArray(array);
             assertThat(newArray.isNullAt(0)).isTrue();
-            assertThat(newArray.getByte(1)).isEqualTo(25);
+            assertThat(newArray.getByte(1)).isEqualTo((byte) 25);
             newArray.setByte(0, (byte) 5);
-            assertThat(newArray.getByte(0)).isEqualTo(5);
+            assertThat(newArray.getByte(0)).isEqualTo((byte) 5);
             newArray.setNullByte(0);
             assertThat(newArray.isNullAt(0)).isTrue();
 
@@ -164,17 +164,17 @@ public class BinaryArrayDataTest {
             writer.complete();
 
             assertThat(array.isNullAt(0)).isTrue();
-            assertThat(array.getShort(1)).isEqualTo(25);
+            assertThat(array.getShort(1)).isEqualTo((short) 25);
             array.setShort(0, (short) 5);
-            assertThat(array.getShort(0)).isEqualTo(5);
+            assertThat(array.getShort(0)).isEqualTo((short) 5);
             array.setNullShort(0);
             assertThat(array.isNullAt(0)).isTrue();
 
             BinaryArrayData newArray = splitArray(array);
             assertThat(newArray.isNullAt(0)).isTrue();
-            assertThat(newArray.getShort(1)).isEqualTo(25);
+            assertThat(newArray.getShort(1)).isEqualTo((short) 25);
             newArray.setShort(0, (short) 5);
-            assertThat(newArray.getShort(0)).isEqualTo(5);
+            assertThat(newArray.getShort(0)).isEqualTo((short) 5);
             newArray.setNullShort(0);
             assertThat(newArray.isNullAt(0)).isTrue();
 
@@ -248,17 +248,17 @@ public class BinaryArrayDataTest {
             writer.complete();
 
             assertThat(array.isNullAt(0)).isTrue();
-            assertThat(25).isEqualTo(array.getFloat(1));
+            assertThat(array.getFloat(1)).isEqualTo(25f);
             array.setFloat(0, 5);
-            assertThat(5).isEqualTo(array.getFloat(0));
+            assertThat(array.getFloat(0)).isEqualTo(5f);
             array.setNullFloat(0);
             assertThat(array.isNullAt(0)).isTrue();
 
             BinaryArrayData newArray = splitArray(array);
             assertThat(newArray.isNullAt(0)).isTrue();
-            assertThat(25).isEqualTo(newArray.getFloat(1));
+            assertThat(newArray.getFloat(1)).isEqualTo(25f);
             newArray.setFloat(0, 5);
-            assertThat(5).isEqualTo(newArray.getFloat(0));
+            assertThat(newArray.getFloat(0)).isEqualTo(5f);
             newArray.setNullFloat(0);
             assertThat(newArray.isNullAt(0)).isTrue();
 
@@ -276,17 +276,17 @@ public class BinaryArrayDataTest {
             writer.complete();
 
             assertThat(array.isNullAt(0)).isTrue();
-            assertThat(25).isEqualTo(array.getDouble(1));
+            assertThat(array.getDouble(1)).isEqualTo(25d);
             array.setDouble(0, 5);
-            assertThat(5).isEqualTo(array.getDouble(0));
+            assertThat(array.getDouble(0)).isEqualTo(5d);
             array.setNullDouble(0);
             assertThat(array.isNullAt(0)).isTrue();
 
             BinaryArrayData newArray = splitArray(array);
             assertThat(newArray.isNullAt(0)).isTrue();
-            assertThat(25).isEqualTo(newArray.getDouble(1));
+            assertThat(newArray.getDouble(1)).isEqualTo(25d);
             newArray.setDouble(0, 5);
-            assertThat(5).isEqualTo(newArray.getDouble(0));
+            assertThat(newArray.getDouble(0)).isEqualTo(5d);
             newArray.setNullDouble(0);
             assertThat(newArray.isNullAt(0)).isTrue();
 
@@ -426,19 +426,19 @@ public class BinaryArrayDataTest {
         writer.complete();
 
         short[] shorts = array.toShortArray();
-        assertThat(shorts[0]).isEqualTo(5);
-        assertThat(shorts[1]).isEqualTo(10);
-        assertThat(shorts[2]).isEqualTo(15);
+        assertThat(shorts[0]).isEqualTo((short) 5);
+        assertThat(shorts[1]).isEqualTo((short) 10);
+        assertThat(shorts[2]).isEqualTo((short) 15);
 
         MemorySegment[] segments = splitBytes(writer.getSegments().getArray(), 3);
         array.pointTo(segments, 3, array.getSizeInBytes());
-        assertThat(array.getShort(0)).isEqualTo(5);
-        assertThat(array.getShort(1)).isEqualTo(10);
-        assertThat(array.getShort(2)).isEqualTo(15);
+        assertThat(array.getShort(0)).isEqualTo((short) 5);
+        assertThat(array.getShort(1)).isEqualTo((short) 10);
+        assertThat(array.getShort(2)).isEqualTo((short) 15);
         short[] shorts2 = array.toShortArray();
-        assertThat(shorts2[0]).isEqualTo(5);
-        assertThat(shorts2[1]).isEqualTo(10);
-        assertThat(shorts2[2]).isEqualTo(15);
+        assertThat(shorts2[0]).isEqualTo((short) 5);
+        assertThat(shorts2[1]).isEqualTo((short) 10);
+        assertThat(shorts2[2]).isEqualTo((short) 15);
     }
 
     @Test

@@ -107,18 +107,18 @@ public class ColumnVectorTest {
             vector.setByte(i, (byte) i);
         }
         for (int i = 0; i < SIZE; i++) {
-            assertThat(vector.getByte(i)).isEqualTo(i);
+            assertThat(vector.getByte(i)).isEqualTo((byte) i);
         }
 
         vector.fill((byte) 22);
         for (int i = 0; i < SIZE; i++) {
-            assertThat(vector.getByte(i)).isEqualTo(22);
+            assertThat(vector.getByte(i)).isEqualTo((byte) 22);
         }
 
         vector.setDictionary(new TestDictionary(IntStream.range(0, SIZE).boxed().toArray()));
         setRangeDictIds(vector);
         for (int i = 0; i < SIZE; i++) {
-            assertThat(vector.getByte(i)).isEqualTo(i);
+            assertThat(vector.getByte(i)).isEqualTo((byte) i);
         }
     }
 
@@ -130,18 +130,18 @@ public class ColumnVectorTest {
             vector.setShort(i, (short) i);
         }
         for (int i = 0; i < SIZE; i++) {
-            assertThat(vector.getShort(i)).isEqualTo(i);
+            assertThat(vector.getShort(i)).isEqualTo((short) i);
         }
 
         vector.fill((short) 22);
         for (int i = 0; i < SIZE; i++) {
-            assertThat(vector.getShort(i)).isEqualTo(22);
+            assertThat(vector.getShort(i)).isEqualTo((short) 22);
         }
 
         vector.setDictionary(new TestDictionary(IntStream.range(0, SIZE).boxed().toArray()));
         setRangeDictIds(vector);
         for (int i = 0; i < SIZE; i++) {
-            assertThat(vector.getShort(i)).isEqualTo(i);
+            assertThat(vector.getShort(i)).isEqualTo((short) i);
         }
     }
 

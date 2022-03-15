@@ -393,9 +393,7 @@ public class DataGenTableSourceFactoryTest {
                                     descriptor.asMap());
                         })
                 .satisfies(
-                        anyCauseMatches(
-                                ValidationException.class,
-                                "Could not parse value 'Wrong' for key 'fields.f0.start'"));
+                        anyCauseMatches("Could not parse value 'Wrong' for key 'fields.f0.start'"));
     }
 
     private static class TestContext implements SourceFunction.SourceContext<RowData> {

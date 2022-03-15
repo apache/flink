@@ -234,21 +234,21 @@ public class VectorizedColumnBatchTest {
 
         for (int i = 0; i < batch.getNumRows(); i++) {
             ColumnarRowData row = new ColumnarRowData(batch, i);
-            assertThat(i % 2 == 0).isEqualTo(row.getBoolean(0));
-            assertThat(String.valueOf(i)).isEqualTo(row.getString(1).toString());
-            assertThat((byte) i).isEqualTo(row.getByte(2));
-            assertThat(i).isEqualTo(row.getDouble(3));
+            assertThat(row.getBoolean(0)).isEqualTo(i % 2 == 0);
+            assertThat(row.getString(1).toString()).isEqualTo(String.valueOf(i));
+            assertThat(row.getByte(2)).isEqualTo((byte) i);
+            assertThat(row.getDouble(3)).isEqualTo(i);
             assertThat((float) i).isEqualTo(row.getFloat(4));
-            assertThat(i).isEqualTo(row.getInt(5));
-            assertThat(i).isEqualTo(row.getLong(6));
-            assertThat((short) i).isEqualTo(row.getShort(7));
-            assertThat(i).isEqualTo(row.getTimestamp(8, 3).getMillisecond());
-            assertThat(i).isEqualTo(row.getTimestamp(9, 6).getMillisecond());
-            assertThat(i * 1000L + 123).isEqualTo(row.getTimestamp(10, 9).getMillisecond());
-            assertThat(456789).isEqualTo(row.getTimestamp(10, 9).getNanoOfMillisecond());
-            assertThat(i).isEqualTo(row.getDecimal(11, 10, 0).toUnscaledLong());
+            assertThat(row.getInt(5)).isEqualTo(i);
+            assertThat(row.getLong(6)).isEqualTo(i);
+            assertThat(row.getShort(7)).isEqualTo((short) i);
+            assertThat(row.getTimestamp(8, 3).getMillisecond()).isEqualTo(i);
+            assertThat(row.getTimestamp(9, 6).getMillisecond()).isEqualTo(i);
+            assertThat(row.getTimestamp(10, 9).getMillisecond()).isEqualTo(i * 1000L + 123);
+            assertThat(row.getTimestamp(10, 9).getNanoOfMillisecond()).isEqualTo(456789);
+            assertThat(row.getDecimal(11, 10, 0).toUnscaledLong()).isEqualTo(i);
             for (int j = 0; j < ARRAY_SIZE; j++) {
-                assertThat(i * ARRAY_SIZE + j).isEqualTo(row.getArray(12).getInt(j));
+                assertThat(row.getArray(12).getInt(j)).isEqualTo(i * ARRAY_SIZE + j);
             }
         }
 

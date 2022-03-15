@@ -42,6 +42,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSink;
 import static org.apache.flink.table.factories.utils.FactoryMocks.createTableSource;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -127,10 +128,10 @@ public class RawFormatFactoryTest extends TestLogger {
         String expectedError = "Unsupported 'raw.charset' name: UNKNOWN.";
 
         assertThatThrownBy(() -> createDeserializationSchema(SCHEMA, tableOptions))
-                .hasMessage(expectedError);
+                .satisfies(anyCauseMatches(expectedError));
 
         assertThatThrownBy(() -> createSerializationSchema(SCHEMA, tableOptions))
-                .hasMessage(expectedError);
+                .satisfies(anyCauseMatches(expectedError));
     }
 
     @Test
@@ -146,10 +147,10 @@ public class RawFormatFactoryTest extends TestLogger {
                         + "Valid values of 'raw.endianness' option are 'big-endian' and 'little-endian'.";
 
         assertThatThrownBy(() -> createDeserializationSchema(SCHEMA, tableOptions))
-                .hasMessage(expectedError);
+                .satisfies(anyCauseMatches(expectedError));
 
         assertThatThrownBy(() -> createSerializationSchema(SCHEMA, tableOptions))
-                .hasMessage(expectedError);
+                .satisfies(anyCauseMatches(expectedError));
     }
 
     @Test

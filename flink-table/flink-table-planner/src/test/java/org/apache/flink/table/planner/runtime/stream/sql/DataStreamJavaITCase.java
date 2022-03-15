@@ -50,10 +50,15 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.RawType;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Row;
@@ -62,6 +67,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -77,6 +83,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -291,7 +298,13 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                                 Column.physical("f0", BIGINT().notNull()),
                                 Column.physical("f1", INT().notNull()),
                                 Column.physical("f2", STRING()),
-                                Column.metadata("rowtime", TIMESTAMP_LTZ(3), null, false)),
+                                Column.metadata(
+                                        "rowtime",
+                                        new AtomicDataType(
+                                                new LocalZonedTimestampType(
+                                                        true, TimestampKind.ROWTIME, 3)),
+                                        null,
+                                        false)),
                         Collections.singletonList(
                                 WatermarkSpec.of(
                                         "rowtime",
@@ -539,7 +552,10 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 table,
                 new ResolvedSchema(
                         Arrays.asList(
-                                Column.physical("f0", TIMESTAMP(3)),
+                                Column.physical(
+                                        "f0",
+                                        new AtomicDataType(
+                                                new TimestampType(true, TimestampKind.ROWTIME, 3))),
                                 Column.physical("f1", STRING())),
                         Collections.singletonList(
                                 WatermarkSpec.of(
@@ -863,7 +879,15 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     private static void testSchema(Table table, ResolvedSchema expectedSchema) {
-        assertThat(table.getResolvedSchema()).isEqualTo(expectedSchema);
+        assertThat(expectedSchema)
+                .usingRecursiveComparison(
+                        RecursiveComparisonConfiguration.builder()
+                                .withComparatorForType(
+                                        Comparator.comparing(
+                                                ResolvedExpression::asSerializableString),
+                                        ResolvedExpression.class)
+                                .build())
+                .isEqualTo(table.getResolvedSchema());
     }
 
     private static void testSchema(TableResult result, Column... expectedColumns) {

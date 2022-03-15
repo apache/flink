@@ -116,11 +116,11 @@ public class BinaryRowDataTest {
         row.setByte(6, (byte) 66);
         row.setFloat(7, 77f);
 
-        assertThat((long) row.getDouble(3)).isEqualTo(33d);
+        assertThat((long) row.getDouble(3)).isEqualTo(33L);
         assertThat(row.getInt(1)).isEqualTo(11);
         assertThat(row.isNullAt(0)).isTrue();
-        assertThat(row.getShort(5)).isEqualTo(55);
-        assertThat(row.getLong(2)).isEqualTo(22);
+        assertThat(row.getShort(5)).isEqualTo((short) 55);
+        assertThat(row.getLong(2)).isEqualTo(22L);
         assertThat(row.getBoolean(4)).isTrue();
         assertThat(row.getByte(6)).isEqualTo((byte) 66);
         assertThat(row.getFloat(7)).isEqualTo(77f);

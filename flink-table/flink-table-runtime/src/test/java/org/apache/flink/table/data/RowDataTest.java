@@ -219,12 +219,12 @@ public class RowDataTest {
 
         // test get
         assertThat(row.getBoolean(0)).isTrue();
-        assertThat(row.getByte(1)).isEqualTo(1);
-        assertThat(row.getShort(2)).isEqualTo(2);
+        assertThat(row.getByte(1)).isEqualTo((byte) 1);
+        assertThat(row.getShort(2)).isEqualTo((short) 2);
         assertThat(row.getInt(3)).isEqualTo(3);
-        assertThat(row.getLong(4)).isEqualTo(4);
-        assertThat((int) row.getFloat(5)).isEqualTo(5);
-        assertThat((int) row.getDouble(6)).isEqualTo(6);
+        assertThat(row.getLong(4)).isEqualTo(4L);
+        assertThat(row.getFloat(5)).isEqualTo(5f);
+        assertThat(row.getDouble(6)).isEqualTo(6d);
         assertThat(row.getString(8)).isEqualTo(str);
         assertThat(row.getRawValue(9)).satisfies(matching(equivalent(generic, genericSerializer)));
         assertThat(row.getDecimal(10, 5, 0)).isEqualTo(decimal1);
@@ -251,17 +251,17 @@ public class RowDataTest {
         setter.setBoolean(0, false);
         assertThat(row.getBoolean(0)).isFalse();
         setter.setByte(1, (byte) 2);
-        assertThat(row.getByte(1)).isEqualTo(2);
+        assertThat(row.getByte(1)).isEqualTo((byte) 2);
         setter.setShort(2, (short) 3);
-        assertThat(row.getShort(2)).isEqualTo(3);
+        assertThat(row.getShort(2)).isEqualTo((short) 3);
         setter.setInt(3, 4);
         assertThat(row.getInt(3)).isEqualTo(4);
         setter.setLong(4, 5);
-        assertThat(row.getLong(4)).isEqualTo(5);
+        assertThat(row.getLong(4)).isEqualTo(5L);
         setter.setFloat(5, 6);
-        assertThat((int) row.getFloat(5)).isEqualTo(6);
+        assertThat(row.getFloat(5)).isEqualTo(6f);
         setter.setDouble(6, 7);
-        assertThat((int) row.getDouble(6)).isEqualTo(7);
+        assertThat(row.getDouble(6)).isEqualTo(7d);
         setter.setDecimal(10, DecimalData.fromUnscaledLong(11, 5, 0), 5);
         assertThat(row.getDecimal(10, 5, 0)).isEqualTo(DecimalData.fromUnscaledLong(11, 5, 0));
         setter.setDecimal(11, DecimalData.fromBigDecimal(new BigDecimal(12), 20, 0), 20);
