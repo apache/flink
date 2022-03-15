@@ -131,10 +131,11 @@ public class CleanupOptions {
                                                     + "retry strategy with the given default values.")
                                     .build());
 
+    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> CLEANUP_STRATEGY_FIXED_DELAY_ATTEMPTS =
             ConfigOptions.key(createFixedDelayParameterPrefix("attempts"))
                     .intType()
-                    .defaultValue(1)
+                    .defaultValue(Integer.MAX_VALUE)
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -149,7 +150,7 @@ public class CleanupOptions {
     public static final ConfigOption<Duration> CLEANUP_STRATEGY_FIXED_DELAY_DELAY =
             ConfigOptions.key(createFixedDelayParameterPrefix("delay"))
                     .durationType()
-                    .defaultValue(Duration.ofSeconds(1))
+                    .defaultValue(Duration.ofMinutes(1))
                     .withDescription(
                             Description.builder()
                                     .text(

@@ -20,6 +20,7 @@ package org.apache.flink.runtime.dispatcher.cleanup;
 
 import org.apache.flink.configuration.CleanupOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.util.concurrent.FixedRetryStrategy;
 import org.apache.flink.util.concurrent.RetryStrategy;
@@ -115,8 +116,11 @@ class CleanupRetryStrategyFactoryTest {
     public void testFixedDelayStrategyWithCustomMaxAttempts() {
         final Configuration config =
                 createConfigurationWithRetryStrategy(CleanupOptions.FIXED_DELAY_LABEL);
-        final int customMaxAttempts =
-                CleanupOptions.CLEANUP_STRATEGY_FIXED_DELAY_ATTEMPTS.defaultValue() + 2;
+        final int customMaxAttempts = 1;
+        Preconditions.checkArgument(
+                customMaxAttempts
+                        != CleanupOptions.CLEANUP_STRATEGY_FIXED_DELAY_ATTEMPTS.defaultValue(),
+                "The custom value should be different from the default value to make it possible that the overwritten value is selected.");
         config.set(CleanupOptions.CLEANUP_STRATEGY_FIXED_DELAY_ATTEMPTS, customMaxAttempts);
 
         testFixedDelayStrategyCreation(
