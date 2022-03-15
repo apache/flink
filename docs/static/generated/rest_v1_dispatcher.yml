@@ -1751,6 +1751,11 @@ components:
           type: string
         cancel-job:
           type: boolean
+        formatType:
+          type: string
+          enum:
+          - CANONICAL
+          - NATIVE
         triggerId:
           $ref: '#/components/schemas/TriggerId'
     ThreadDumpInfo:
@@ -1812,6 +1817,9 @@ components:
         latest_ack_timestamp:
           type: integer
           format: int64
+        checkpointed_size:
+          type: integer
+          format: int64
         state_size:
           type: integer
           format: int64
@@ -1858,6 +1866,9 @@ components:
           type: integer
           format: int64
         latest_ack_timestamp:
+          type: integer
+          format: int64
+        checkpointed_size:
           type: integer
           format: int64
         state_size:
@@ -2157,6 +2168,9 @@ components:
           end_to_end_duration:
             type: integer
             format: int64
+          checkpointed_size:
+            type: integer
+            format: int64
           state_size:
             type: integer
             format: int64
@@ -2368,6 +2382,11 @@ components:
           type: string
         drain:
           type: boolean
+        formatType:
+          type: string
+          enum:
+          - CANONICAL
+          - NATIVE
         triggerId:
           $ref: '#/components/schemas/TriggerId'
     DashboardConfiguration:
@@ -2604,6 +2623,9 @@ components:
         latest_ack_timestamp:
           type: integer
           format: int64
+        checkpointed_size:
+          type: integer
+          format: int64
         state_size:
           type: integer
           format: int64
@@ -2818,6 +2840,8 @@ components:
     Summary:
       type: object
       properties:
+        checkpointed_size:
+          $ref: '#/components/schemas/StatsSummaryDto'
         state_size:
           $ref: '#/components/schemas/StatsSummaryDto'
         end_to_end_duration:
