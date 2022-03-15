@@ -795,6 +795,23 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AsynchronousOperationResult'
+  /jobs/{jobid}/status:
+    get:
+      description: Returns the current status of a job execution.
+      parameters:
+      - name: jobid
+        in: path
+        description: 32-character hexadecimal string value that identifies a job.
+        required: true
+        schema:
+          $ref: '#/components/schemas/JobID'
+      responses:
+        "200":
+          description: The request was successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobStatusInfo'
   /jobs/{jobid}/stop:
     post:
       description: "Stops a job with a savepoint. Optionally, it can also emit a MAX_WATERMARK\
@@ -1841,6 +1858,23 @@ components:
         num_acknowledged_subtasks:
           type: integer
           format: int32
+    JobStatusInfo:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+          - INITIALIZING
+          - CREATED
+          - RUNNING
+          - FAILING
+          - FAILED
+          - CANCELLING
+          - CANCELED
+          - FINISHED
+          - RESTARTING
+          - SUSPENDED
+          - RECONCILING
     JobAccumulator:
       type: object
     JobID:
