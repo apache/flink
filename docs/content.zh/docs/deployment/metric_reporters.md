@@ -72,12 +72,9 @@ metrics.reporter.my_other_reporter.port: 10000
 
 接下来的部分列出了 Flink 支持的采集器。
 
-<a name="JMX"></a>
+<a name="jmx"></a>
 
 ### JMX
-
-<a name="org.apache.flink.metrics.jmx.JMXReporter"></a>
-
 #### (org.apache.flink.metrics.jmx.JMXReporter)
 
 JMX 发送器默认可直接使用，无需引入其他依赖。
@@ -107,12 +104,9 @@ metrics.reporter.jmx.port: 8789
 
 总结来说，”域“标注出了某个指标的类，“key-property”列表标注出了该指标的一个（或者多个）实例。
 
-<a name="Graphite"></a>
+<a name="graphite"></a>
 
 ### Graphite
-
-<a name="org.apache.flink.metrics.graphite.GraphiteReporter"></a>
-
 #### (org.apache.flink.metrics.graphite.GraphiteReporter)
 
 参数：
@@ -130,12 +124,9 @@ metrics.reporter.grph.port: 2003
 metrics.reporter.grph.protocol: TCP
 metrics.reporter.grph.interval: 60 SECONDS
 ```
-<a name="InfluxDB"></a>
+<a name="influxdb"></a>
 
 ### InfluxDB
-
-<a name="org.apache.flink.metrics.influxdb.InfluxdbReporter"></a>
-
 #### (org.apache.flink.metrics.influxdb.InfluxdbReporter)
 
 使用 InfluxDB 发送器需要将 `/opt/flink-metrics-influxdb-{{< version >}}.jar` 拷贝到 `plugins/influxdb` 目录下。
@@ -164,12 +155,9 @@ metrics.reporter.influxdb.interval: 60 SECONDS
 InfluxDB 采集器会使用 http 协议按照将指标发送到 InfluxDB 服务器。指标的保留策略可通过配置指定，或按照 InfluxDB 服务端的保留策略决定。
 所有的 Flink 运行指标变量（见 [List of all Variables]({{< ref "zh/docs/ops/metrics" >}}#list-of-all-variables)）都会按照 tag 形式上报给 InfluxDB。
 
-<a name="Prometheus"></a>
+<a name="prometheus"></a>
 
 ### Prometheus
-
-<a name="org.apache.flink.metrics.prometheus.PrometheusReporter"></a>
-
 #### (org.apache.flink.metrics.prometheus.PrometheusReporter)
 
 参数：
@@ -194,12 +182,9 @@ Flink 指标类型与 Prometheus 指标类型对应关系如下：
 
 所有的 Flink 运行指标变量（见 [List of all Variables]({{< ref "zh/docs/ops/metrics" >}}#list-of-all-variables)）都会按照 label 形式上报给 Prometheus。
 
-<a name="PrometheusPushGateway"></a>
+<a name="prometheuspushgateway"></a>
 
 ### PrometheusPushGateway
-
-<a name="org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter"></a>
-
 #### (org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter)
 
 参数：
@@ -222,12 +207,9 @@ PrometheusPushGatewayReporter 采集器将运行指标发送给 [Pushgateway](ht
 
 更多使用方法可查看 [Prometheus 的文档](https://prometheus.io/docs/practices/pushing/)
 
-<a name="StatsD"></a>
+<a name="statsD"></a>
 
 ### StatsD
-
-<a name="org.apache.flink.metrics.statsd.StatsDReporter"></a>
-
 #### (org.apache.flink.metrics.statsd.StatsDReporter)
 
 参数：
@@ -244,12 +226,9 @@ metrics.reporter.stsd.port: 8125
 metrics.reporter.stsd.interval: 60 SECONDS
 ```
 
-<a name="Datadog"></a>
+<a name="datadog"></a>
 
 ### Datadog
-
-<a name="org.apache.flink.metrics.datadog.DatadogHttpReporter"></a>
-
 #### (org.apache.flink.metrics.datadog.DatadogHttpReporter)
 
 注意，使用 Datadog 时候，Flink 运行指标中的任何变量，例如`<host>`、`<job_name>`、 `<tm_id>`、 `<subtask_index>`、`<task_name>`、 `<operator_name>`，都会被当作`host:localhost`、`job_name:myjobname` 这样的 tag 发送。
@@ -280,12 +259,9 @@ metrics.reporter.dghttp.maxMetricsPerRequest: 2000
 metrics.reporter.dghttp.interval: 60 SECONDS
 ```
 
-<a name="Slf4j"></a>
+<a name="slf4j"></a>
 
 ### Slf4j
-
-<a name="org.apache.flink.metrics.slf4j.Slf4jReporter"></a>
-
 #### (org.apache.flink.metrics.slf4j.Slf4jReporter)
 
 配置示例:
