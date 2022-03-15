@@ -45,7 +45,7 @@ import java.util
  * TODO refactor the metadata test to extract the common logic for all related tests.
  */
 class RelNodeTestBase {
-  val tableConfig = new TableConfig()
+  val tableConfig = TableConfig.getDefault()
   val rootSchema: SchemaPlus = CalciteSchema.createRootSchema(true, false).plus()
   val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
   val moduleManager = new ModuleManager

@@ -128,11 +128,11 @@ public class PlannerMocks {
     }
 
     public static PlannerMocks create() {
-        return new PlannerMocks(new TableConfig());
+        return new PlannerMocks(TableConfig.getDefault());
     }
 
     public static PlannerMocks create(Configuration configuration) {
-        TableConfig tableConfig = new TableConfig();
+        TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.addConfiguration(configuration);
         return new PlannerMocks(tableConfig);
     }

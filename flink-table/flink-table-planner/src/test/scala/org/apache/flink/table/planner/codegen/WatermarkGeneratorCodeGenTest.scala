@@ -57,7 +57,7 @@ import org.junit.Test
 class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
 
   // mock FlinkPlannerImpl to avoid discovering TableEnvironment and Executor.
-  val config = new TableConfig
+  val config = TableConfig.getDefault
   val moduleManager = new ModuleManager
   val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
   val functionCatalog = new FunctionCatalog(config, catalogManager, moduleManager)

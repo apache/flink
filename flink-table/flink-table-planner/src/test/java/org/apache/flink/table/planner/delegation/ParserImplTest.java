@@ -50,7 +50,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 public class ParserImplTest {
 
     private final boolean isStreamingMode = false;
-    private final TableConfig tableConfig = new TableConfig();
+    private final TableConfig tableConfig = TableConfig.getDefault();
     private final Catalog catalog = new GenericInMemoryCatalog("MockCatalog", "default");
     private final CatalogManager catalogManager =
             CatalogManagerMocks.preparedCatalogManager().defaultCatalog("builtin", catalog).build();

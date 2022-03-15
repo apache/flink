@@ -278,7 +278,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final Executor executor = executorFactory.create(settings.getConfiguration());
 
         // use configuration to init table config
-        final TableConfig tableConfig = new TableConfig();
+        final TableConfig tableConfig = TableConfig.getDefault();
         tableConfig.setRootConfiguration(executor.getConfiguration());
         tableConfig.addConfiguration(settings.getConfiguration());
 

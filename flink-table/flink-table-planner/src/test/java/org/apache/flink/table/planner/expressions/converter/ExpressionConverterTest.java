@@ -56,7 +56,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** Test for {@link ExpressionConverter}. */
 public class ExpressionConverterTest {
 
-    private final TableConfig tableConfig = new TableConfig();
+    private final TableConfig tableConfig = TableConfig.getDefault();
     private final CatalogManager catalogManager = CatalogManagerMocks.createEmptyCatalogManager();
     private final ModuleManager moduleManager = new ModuleManager();
     private final PlannerContext plannerContext =
