@@ -323,7 +323,7 @@ public class DispatcherCleanupITCase extends AbstractDispatcherTest {
                 haServices.getJobGraphStore().getJobIds(),
                 equalTo(Collections.singleton(jobId)));
         assertThat(
-                "The JobResultStore has this job marked as dirty.",
+                "The JobResultStore should have this job marked as dirty.",
                 haServices.getJobResultStore().getDirtyResults().stream()
                         .map(JobResult::getJobId)
                         .collect(Collectors.toSet()),
