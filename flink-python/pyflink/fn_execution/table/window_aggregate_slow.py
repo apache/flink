@@ -32,14 +32,11 @@ from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWind
     MergingWindowAssigner
 from pyflink.fn_execution.table.window_context import WindowContext, TriggerContext, K, W
 from pyflink.fn_execution.table.window_process_function import GeneralWindowProcessFunction, \
-    InternalWindowProcessFunction, PanedWindowProcessFunction, MergingWindowProcessFunction
+    InternalWindowProcessFunction, PanedWindowProcessFunction, MergingWindowProcessFunction, \
+    MAX_LONG_VALUE
 from pyflink.fn_execution.table.window_trigger import Trigger
 from pyflink.table.udf import ImperativeAggregateFunction, FunctionContext
 
-"""
-A constant holding the maximum value a long can have, 2^63 – 1.
-"""
-MAX_LONG_VALUE = 0x7fffffffffffffff
 
 N = TypeVar('N')
 

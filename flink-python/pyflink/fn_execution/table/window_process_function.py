@@ -19,15 +19,11 @@ from abc import abstractmethod, ABC
 from typing import Generic, List, Iterable, Dict, Set
 
 from pyflink.common import Row
+from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.datastream.state import MapState
 from pyflink.fn_execution.table.window_assigner import WindowAssigner, PanedWindowAssigner, \
     MergingWindowAssigner
 from pyflink.fn_execution.table.window_context import Context, K, W
-
-"""
-A constant holding the maximum value a long can have, 2^63 – 1.
-"""
-MAX_LONG_VALUE = 0x7fffffffffffffff
 
 
 def join_row(left: List, right: List):
