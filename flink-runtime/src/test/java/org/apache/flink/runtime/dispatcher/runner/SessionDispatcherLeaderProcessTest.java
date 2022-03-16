@@ -238,6 +238,65 @@ public class SessionDispatcherLeaderProcessTest {
     }
 
     @Test
+    public void testRecoveryWhileJobGraphRecoveryIsScheduledConcurrently() throws Exception {
+        final JobResult dirtyJobResult =
+                TestingJobResultStore.createSuccessfulJobResult(new JobID());
+
+        OneShotLatch recoveryInitiatedLatch = new OneShotLatch();
+        OneShotLatch jobGraphAddedLatch = new OneShotLatch();
+
+        jobGraphStore =
+                TestingJobGraphStore.newBuilder()
+                        // mimic behavior when recovering a JobGraph that is marked for deletion
+                        .setRecoverJobGraphFunction((jobId, jobs) -> null)
+                        .build();
+
+        jobResultStore =
+                TestingJobResultStore.builder()
+                        .withGetDirtyResultsSupplier(
+                                () -> {
+                                    recoveryInitiatedLatch.trigger();
+                                    try {
+                                        jobGraphAddedLatch.await();
+                                    } catch (InterruptedException e) {
+                                        Thread.currentThread().interrupt();
+                                    }
+                                    return Collections.singleton(dirtyJobResult);
+                                })
+                        .build();
+
+        final CompletableFuture<Collection<JobGraph>> recoveredJobGraphsFuture =
+                new CompletableFuture<>();
+        final CompletableFuture<Collection<JobResult>> recoveredDirtyJobResultsFuture =
+                new CompletableFuture<>();
+        dispatcherServiceFactory =
+                (ignoredDispatcherId,
+                        recoveredJobs,
+                        recoveredDirtyJobResults,
+                        ignoredJobGraphWriter,
+                        ignoredJobResultStore) -> {
+                    recoveredJobGraphsFuture.complete(recoveredJobs);
+                    recoveredDirtyJobResultsFuture.complete(recoveredDirtyJobResults);
+                    return TestingDispatcherGatewayService.newBuilder().build();
+                };
+
+        try (final SessionDispatcherLeaderProcess dispatcherLeaderProcess =
+                createDispatcherLeaderProcess()) {
+            dispatcherLeaderProcess.start();
+
+            // start returns without the initial recovery being completed
+            // mimic ZK message about an added jobgraph while the recovery is ongoing
+            recoveryInitiatedLatch.await();
+            dispatcherLeaderProcess.onAddedJobGraph(dirtyJobResult.getJobId());
+            jobGraphAddedLatch.trigger();
+
+            assertThat(recoveredJobGraphsFuture).isCompletedWithValue(Collections.emptyList());
+            assertThat(recoveredDirtyJobResultsFuture)
+                    .isCompletedWithValue(Collections.singleton(dirtyJobResult));
+        }
+    }
+
+    @Test
     public void closeAsync_stopsJobGraphStoreAndDispatcher() throws Exception {
         final CompletableFuture<Void> jobGraphStopFuture = new CompletableFuture<>();
         jobGraphStore =
