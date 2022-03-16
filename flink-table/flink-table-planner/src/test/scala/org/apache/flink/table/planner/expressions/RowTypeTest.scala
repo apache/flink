@@ -30,11 +30,7 @@ class RowTypeTest extends RowTypeTestBase {
   def testRowLiteral(): Unit = {
 
     // primitive literal
-    testAllApis(
-      row(1, "foo", true),
-      "row(1, 'foo', true)",
-      "ROW(1, 'foo', true)",
-      "(1, foo, TRUE)")
+    testAllApis(row(1, "foo", true), "ROW(1, 'foo', true)", "(1, foo, TRUE)")
 
     // special literal
     testTableApi(
@@ -49,7 +45,7 @@ class RowTypeTest extends RowTypeTestBase {
       "(1985-04-11, 14:15:16, 1985-04-11 14:15:16, 0.1, [1, 2, 3], {foo=bar}, (1, TRUE))")
     testSqlApi(
       "ROW(DATE '1985-04-11', TIME '14:15:16', TIMESTAMP '1985-04-11 14:15:16', " +
-          "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
+        "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
       "(1985-04-11, 14:15:16, 1985-04-11 14:15:16, 0.1, [1, 2, 3], {foo=bar}, (1, TRUE))")
 
     testSqlApi(
@@ -57,76 +53,33 @@ class RowTypeTest extends RowTypeTestBase {
         "CAST(0.1 AS DECIMAL(2, 1)), ARRAY[1, 2, 3], MAP['foo', 'bar'], row(1, true))",
       "(1985-04-11, 14:15:16, 1985-04-11 14:15:16.123456, 0.1, [1, 2, 3], {foo=bar}, (1, TRUE))")
 
-    testAllApis(
-      row(1 + 1, 2 * 3, nullOf(DataTypes.STRING())),
-      "row(1 + 1, 2 * 3, Null(STRING))",
-      "ROW(1 + 1, 2 * 3, NULLIF(1, 1))",
-      "(2, 6, NULL)"
-    )
+    testAllApis(row(1 + 1, 2 * 3, nullOf(DataTypes.STRING())), "ROW(1 + 1, 2 * 3, NULLIF(1, 1))",
+      "(2, 6, NULL)")
 
     testSqlApi("(1, 'foo', true)", "(1, foo, TRUE)")
   }
 
   @Test
   def testRowField(): Unit = {
-    testAllApis(
-      row('f0, 'f1),
-      "row(f0, f1)",
-      "(f0, f1)",
-      "(NULL, 1)"
-    )
+    testAllApis(row('f0, 'f1), "(f0, f1)", "(NULL, 1)")
 
-    testAllApis(
-      'f2,
-      "f2",
-      "f2",
-      "(2, foo, TRUE)"
-    )
+    testAllApis('f2, "f2", "(2, foo, TRUE)")
 
-    testAllApis(
-      row('f2, 'f5),
-      "row(f2, f5)",
-      "(f2, f5)",
-      "((2, foo, TRUE), (foo, NULL))"
-    )
+    testAllApis(row('f2, 'f5), "(f2, f5)", "((2, foo, TRUE), (foo, NULL))")
 
-    testAllApis(
-      'f4,
-      "f4",
-      "f4",
-      "(1984-03-12, 0.00000000, [1, 2, 3])"
-    )
+    testAllApis('f4, "f4", "(1984-03-12, 0.00000000, [1, 2, 3])")
 
-    testAllApis(
-      row('f1, "foo", true),
-      "row(f1, 'foo', true)",
-      "(f1, 'foo',true)",
-      "(1, foo, TRUE)"
-    )
+    testAllApis(row('f1, "foo", true), "(f1, 'foo',true)", "(1, foo, TRUE)")
   }
 
   @Test
   def testRowOperations(): Unit = {
-    testAllApis(
-      'f5.get("f0"),
-      "f5.get('f0')",
-      "f5.f0",
-      "foo"
-    )
+    testAllApis('f5.get("f0"), "f5.f0", "foo")
 
-    testAllApis(
-      'f3.get("f1").get("f2"),
-      "f3.get('f1').get('f2')",
-      "f3.f1.f2",
-      "TRUE"
-    )
+    testAllApis('f3.get("f1").get("f2"), "f3.f1.f2", "TRUE")
 
     // SQL API for row value constructor follow by field access is not supported
-    testTableApi(
-      row('f1, 'f6, 'f2).get("f1").get("f1"),
-      "row(f1, f6, f2).get('f1').get('f1')",
-      "NULL"
-    )
+    testTableApi(row('f1, 'f6, 'f2).get("f1").get("f1"), "NULL")
   }
 
   @Test

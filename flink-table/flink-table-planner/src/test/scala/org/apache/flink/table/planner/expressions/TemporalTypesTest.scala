@@ -397,8 +397,8 @@ class TemporalTypesTest extends ExpressionTestBase {
       castToTimestampExceptionMsg)
 
     testExpectedSqlException(
-    "CAST(CAST(123 as DECIMAL(5, 2)) AS TIMESTAMP)",
-        castToTimestampExceptionMsg)
+      "CAST(CAST(123 as DECIMAL(5, 2)) AS TIMESTAMP)",
+      castToTimestampExceptionMsg)
 
     testExpectedSqlException(
       "CAST(TIMESTAMP '1970-01-01 00:02:03' AS TINYINT)",
@@ -699,7 +699,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   }
 
   @Test
-  def testSelectNullValues(): Unit ={
+  def testSelectNullValues(): Unit = {
     testAllApis(
       'f11,
       "f11",
@@ -1090,7 +1090,7 @@ class TemporalTypesTest extends ExpressionTestBase {
   @Test
   def testConvertTZ(): Unit = {
     testSqlApi("CONVERT_TZ('2018-03-14 11:00:00', 'UTC', 'Asia/Shanghai')",
-               "2018-03-14 19:00:00")
+      "2018-03-14 19:00:00")
   }
 
   @Test

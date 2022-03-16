@@ -27,23 +27,23 @@ class MapTypeValidationTest extends MapTypeTestBase {
 
   @Test(expected = classOf[ValidationException])
   def testWrongKeyType(): Unit = {
-    testAllApis('f2.at(12), "f2.at(12)", "f2[12]", "FAIL")
+    testAllApis('f2.at(12), "f2[12]", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testIncorrectMapTypeComparison(): Unit = {
-    testAllApis('f1 === 'f3, "f1 === f3", "f1 = f3", "FAIL")
+    testAllApis('f1 === 'f3, "f1 = f3", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testUnsupportedComparisonType(): Unit = {
-    testAllApis('f6 !== 'f2, "f6 !== f2", "f6 != f2", "FAIL")
+    testAllApis('f6 !== 'f2, "f6 != f2", "FAIL")
     testSqlApi("f6 <> f2", "FAIL")
   }
 
   @Test(expected = classOf[ValidationException])
   def testEmptyMap(): Unit = {
-    testAllApis("FAIL", "map()", "MAP[]", "FAIL")
+    testAllApis("FAIL", "MAP[]", "FAIL")
     testSqlApi("MAP[]", "FAIL")
   }
 

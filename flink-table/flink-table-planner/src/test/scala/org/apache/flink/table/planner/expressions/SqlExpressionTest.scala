@@ -25,15 +25,15 @@ import org.apache.flink.types.Row
 import org.junit.Test
 
 /**
-  * Tests all SQL expressions that are currently supported according to the documentation.
-  * This tests should be kept in sync with the documentation to reduce confusion due to the
-  * large amount of SQL functions.
-  *
-  * The tests do not test every parameter combination of a function.
-  * They are rather a function existence test and simple functional test.
-  *
-  * The tests are split up and ordered like the sections in the documentation.
-  */
+ * Tests all SQL expressions that are currently supported according to the documentation.
+ * This tests should be kept in sync with the documentation to reduce confusion due to the
+ * large amount of SQL functions.
+ *
+ * The tests do not test every parameter combination of a function.
+ * They are rather a function existence test and simple functional test.
+ *
+ * The tests are split up and ordered like the sections in the documentation.
+ */
 class SqlExpressionTest extends ExpressionTestBase {
 
   @Test
@@ -120,7 +120,7 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("TANH(2.5)", "0.9866142981514303")
     testSqlApi("DEGREES(0.5)", "28.64788975654116")
     testSqlApi("RADIANS(0.5)", "0.008726646259971648")
-    testSqlApi("SIGN(-1.1)", "-1.0")  // calcite: SIGN(Decimal(p,s)) => Decimal(p,s)
+    testSqlApi("SIGN(-1.1)", "-1.0") // calcite: SIGN(Decimal(p,s)) => Decimal(p,s)
     testSqlApi("ROUND(-12.345, 2)", "-12.35")
     testSqlApi("PI()", "3.141592653589793")
     testSqlApi("E()", "2.718281828459045")
