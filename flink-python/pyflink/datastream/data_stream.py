@@ -20,10 +20,6 @@ import uuid
 from typing import Callable, Union, List, cast
 
 from pyflink.common import typeinfo, ExecutionConfig, Row
-from pyflink.datastream.slot_sharing_group import SlotSharingGroup
-from pyflink.datastream.window import (TimeWindowSerializer, CountWindowSerializer, WindowAssigner,
-                                       Trigger, WindowOperationDescriptor,
-                                       CountTumblingWindowAssigner, CountSlidingWindowAssigner)
 from pyflink.common.typeinfo import RowTypeInfo, Types, TypeInformation, _from_java_type
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream.connectors import Sink
@@ -43,8 +39,9 @@ from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
     StateDescriptor, ReducingStateDescriptor
 from pyflink.datastream.utils import convert_to_python_obj
-from pyflink.datastream.window import (TimeWindowSerializer, CountWindowSerializer, WindowAssigner,
-                                       Trigger, WindowOperationDescriptor)
+from pyflink.datastream.window import (CountTumblingWindowAssigner, CountSlidingWindowAssigner,
+                                       CountWindowSerializer, TimeWindowSerializer, Trigger,
+                                       WindowAssigner, WindowOperationDescriptor)
 from pyflink.java_gateway import get_gateway
 
 __all__ = ['CloseableIterator', 'DataStream', 'KeyedStream', 'ConnectedStreams', 'WindowedStream',
@@ -1388,7 +1385,7 @@ class WindowedStream(object):
         """
         if window_function is None:
             internal_window_function = InternalSingleValueWindowFunction(
-                PassThroughWindowFunction())
+                PassThroughWindowFunction())  # type: InternalWindowFunction
             if output_type is None:
                 output_type = self.get_input_type()
         elif isinstance(window_function, WindowFunction):

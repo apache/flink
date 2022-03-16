@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-from typing import Iterable
+from typing import Iterable, Tuple
 
 from pyflink.common.time import Time
 from pyflink.common.typeinfo import Types
@@ -146,6 +146,60 @@ class WindowTests(PyFlinkStreamingTestCase):
         self.env.execute('test_event_time_dynamic_gap_session_window')
         results = self.test_sink.get_results()
         expected = ['(hi,3)', '(hi,4)']
+        self.assert_equals_sorted(expected, results)
+
+    def test_window_reduce_passthrough(self):
+        data_stream = self.env.from_collection([
+            ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
+            .reduce(lambda a, b: (b[0], a[1] + b[1]),
+                    output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_time_window_reduce_passthrough')
+        results = self.test_sink.get_results()
+        expected = ['(a,3)', '(a,6)', '(a,15)', '(b,3)', '(b,17)']
+        self.assert_equals_sorted(expected, results)
+
+    def test_window_reduce_process(self):
+        data_stream = self.env.from_collection([
+            ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        class MyProcessFunction(ProcessWindowFunction):
+
+            def clear(self, context: 'ProcessWindowFunction.Context') -> None:
+                pass
+
+            def process(self, key, context: 'ProcessWindowFunction.Context',
+                        elements: Iterable[Tuple[str, int]]) -> Iterable[str]:
+                yield "current window start at {}, reduce result {}".format(
+                    context.window().start,
+                    next(iter(elements)),
+                )
+
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
+            .reduce(lambda a, b: (b[0], a[1] + b[1]),
+                    window_function=MyProcessFunction(),
+                    output_type=Types.STRING()) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_time_window_reduce_process')
+        results = self.test_sink.get_results()
+        expected = ["current window start at 1, reduce result ('a', 3)",
+                    "current window start at 15, reduce result ('a', 15)",
+                    "current window start at 3, reduce result ('b', 3)",
+                    "current window start at 6, reduce result ('a', 6)",
+                    "current window start at 8, reduce result ('b', 17)"]
         self.assert_equals_sorted(expected, results)
 
 

@@ -979,9 +979,9 @@ class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
         pass
 
 
-class PassThroughWindowFunction(WindowFunction):
+class PassThroughWindowFunction(WindowFunction[IN, IN, KEY, W]):
 
-    def apply(self, key: KEY, window: W, inputs: Iterable[IN]) -> Iterable[OUT]:
+    def apply(self, key: KEY, window: W, inputs: Iterable[IN]) -> Iterable[IN]:
         yield from inputs
 
 
