@@ -67,6 +67,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
         ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
         config.setStatePartitioner(0, keySelector);
         config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+        config.serializeAllConfigs();
     }
 
     public KeyedOneInputStreamOperatorTestHarness(
@@ -96,6 +97,7 @@ public class KeyedOneInputStreamOperatorTestHarness<K, IN, OUT>
         ClosureCleaner.clean(keySelector, ExecutionConfig.ClosureCleanerLevel.RECURSIVE, false);
         config.setStatePartitioner(0, keySelector);
         config.setStateKeySerializer(keyType.createSerializer(executionConfig));
+        config.serializeAllConfigs();
     }
 
     public int numKeyedStateEntries() {

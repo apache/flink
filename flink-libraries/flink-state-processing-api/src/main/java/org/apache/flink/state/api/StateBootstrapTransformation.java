@@ -223,6 +223,7 @@ public class StateBootstrapTransformation<T> {
         // This means leaving this stateBackend unwrapped.
         config.setChangelogStateBackendEnabled(TernaryBoolean.FALSE);
         config.setManagedMemoryFractionOperatorOfUseCase(ManagedMemoryUseCase.STATE_BACKEND, 1.0);
+        config.serializeAllConfigs();
         return config;
     }
 

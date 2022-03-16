@@ -83,7 +83,7 @@ public class OperatorChainTest {
             final StreamConfig cfg = new StreamConfig(new Configuration());
             cfg.setOperatorID(new OperatorID());
             cfg.setStateKeySerializer(new StringSerializer());
-
+            cfg.serializeAllConfigs();
             final List<StreamOperatorWrapper<?, ?>> operatorWrappers = new ArrayList<>();
 
             // initial output goes to nowhere
