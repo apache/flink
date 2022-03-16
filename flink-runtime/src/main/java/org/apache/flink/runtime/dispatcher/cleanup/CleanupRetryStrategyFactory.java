@@ -78,9 +78,7 @@ public enum CleanupRetryStrategyFactory {
         final Duration maxDelay =
                 configuration.get(CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF);
         final int maxAttempts =
-                configuration.getInteger(
-                        CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS,
-                        Integer.MAX_VALUE);
+                configuration.get(CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS);
 
         return new ExponentialBackoffRetryStrategy(maxAttempts, minDelay, maxDelay);
     }
