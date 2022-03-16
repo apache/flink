@@ -444,7 +444,7 @@ public final class Expressions {
     }
 
     /**
-     * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
+     * Returns a pseudorandom integer value between 0 (inclusive) and the specified value
      * (exclusive).
      */
     public static ApiExpression randInteger(Object bound) {
@@ -452,7 +452,7 @@ public final class Expressions {
     }
 
     /**
-     * Returns a pseudorandom integer value between 0.0 (inclusive) and the specified value
+     * Returns a pseudorandom integer value between 0 (inclusive) and the specified value
      * (exclusive) with a initial seed. Two randInteger() functions will return identical sequences
      * of numbers if they have same initial seed and same bound.
      */
