@@ -27,9 +27,9 @@ jobs:
 
           echo "flink_branch=${currentBranch}" >> ${GITHUB_ENV}
 
-          if [ "${currentBranch} = "master" ]; then
+          if [ "${currentBranch}" = "master" ]; then
             echo "flink_alias=release-1.16" >> ${GITHUB_ENV}
-          elif [ "${currentBranch} = "release-1.14" ]; then
+          elif [ "${currentBranch}" = "release-1.14" ]; then
             echo "flink_alias=stable" >> ${GITHUB_ENV}
           fi
       - name: Build documentation
