@@ -46,6 +46,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -290,9 +291,15 @@ public class SessionDispatcherLeaderProcessTest {
             dispatcherLeaderProcess.onAddedJobGraph(dirtyJobResult.getJobId());
             jobGraphAddedLatch.trigger();
 
-            assertThat(recoveredJobGraphsFuture).isCompletedWithValue(Collections.emptyList());
+            assertThat(recoveredJobGraphsFuture)
+                    .succeedsWithin(Duration.ofHours(1))
+                    .satisfies(recovedJobGraphs -> assertThat(recovedJobGraphs).isEmpty());
             assertThat(recoveredDirtyJobResultsFuture)
-                    .isCompletedWithValue(Collections.singleton(dirtyJobResult));
+                    .succeedsWithin(Duration.ofHours(1))
+                    .satisfies(
+                            recoveredDirtyJobResults ->
+                                    assertThat(recoveredDirtyJobResults)
+                                            .containsExactly(dirtyJobResult));
         }
     }
 
