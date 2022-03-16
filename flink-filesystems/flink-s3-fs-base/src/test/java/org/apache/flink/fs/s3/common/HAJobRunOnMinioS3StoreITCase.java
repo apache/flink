@@ -128,8 +128,7 @@ public abstract class HAJobRunOnMinioS3StoreITCase extends AbstractHAJobRunITCas
                                             FileSystemJobResultStore
                                                     ::hasValidDirtyJobResultStoreEntryExtension);
                 },
-                2000L
-		);
+                2000L);
 
         final S3ObjectSummary objRef = Iterables.getOnlyElement(getObjectsFromJobResultStore());
         assertThat(objRef.getKey())
