@@ -42,14 +42,12 @@ public class TestingLeaderBase {
     public void waitForLeader(long timeout) throws Exception {
         throwExceptionIfNotNull();
 
-        final String errorMsg = "Contender was not elected as the leader within " + timeout + "ms";
         CommonTestUtils.waitUntilCondition(
                 () -> {
                     final LeaderInformation leader =
                             leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
                     return leader != null && !leader.isEmpty();
-                },
-                errorMsg);
+                });
 
         isLeader = true;
     }
@@ -57,26 +55,22 @@ public class TestingLeaderBase {
     public void waitForRevokeLeader(long timeout) throws Exception {
         throwExceptionIfNotNull();
 
-        final String errorMsg = "Contender was not revoked within " + timeout + "ms";
         CommonTestUtils.waitUntilCondition(
                 () -> {
                     final LeaderInformation leader =
                             leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
                     return leader != null && leader.isEmpty();
-                },
-                errorMsg);
+                });
 
         isLeader = false;
     }
 
     public void waitForError(long timeout) throws Exception {
-        final String errorMsg = "Contender did not see an exception with " + timeout + "ms";
         CommonTestUtils.waitUntilCondition(
                 () -> {
                     error = errorQueue.poll(timeout, TimeUnit.MILLISECONDS);
                     return error != null;
-                },
-                errorMsg);
+                });
     }
 
     public void handleError(Throwable ex) {

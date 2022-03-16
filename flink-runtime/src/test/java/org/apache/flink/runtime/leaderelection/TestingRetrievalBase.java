@@ -46,16 +46,13 @@ public class TestingRetrievalBase {
     public String waitForNewLeader(long timeout) throws Exception {
         throwExceptionIfNotNull();
 
-        final String errorMsg =
-                "Listener was not notified about a new leader within " + timeout + "ms";
         CommonTestUtils.waitUntilCondition(
                 () -> {
                     leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
                     return leader != null
                             && !leader.isEmpty()
                             && !leader.getLeaderAddress().equals(oldAddress);
-                },
-                errorMsg);
+                });
 
         oldAddress = leader.getLeaderAddress();
 
@@ -65,26 +62,21 @@ public class TestingRetrievalBase {
     public void waitForEmptyLeaderInformation(long timeout) throws Exception {
         throwExceptionIfNotNull();
 
-        final String errorMsg =
-                "Listener was not notified about an empty leader within " + timeout + "ms";
         CommonTestUtils.waitUntilCondition(
                 () -> {
                     leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
                     return leader != null && leader.isEmpty();
-                },
-                errorMsg);
+                });
 
         oldAddress = null;
     }
 
     public void waitForError(long timeout) throws Exception {
-        final String errorMsg = "Listener did not see an exception with " + timeout + "ms";
         CommonTestUtils.waitUntilCondition(
                 () -> {
                     error = errorQueue.poll(timeout, TimeUnit.MILLISECONDS);
                     return error != null;
-                },
-                errorMsg);
+                });
     }
 
     public void handleError(Throwable ex) {

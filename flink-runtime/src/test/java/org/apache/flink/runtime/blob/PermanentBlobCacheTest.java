@@ -105,9 +105,7 @@ public class PermanentBlobCacheTest {
         try (final PermanentBlobCache permanentBlobCache =
                 new PermanentBlobCache(
                         configuration, storageDirectory.toFile(), new VoidBlobStore(), null)) {
-            CommonTestUtils.waitUntilCondition(
-                    () -> !blobFile.exists(),
-                    "The permanent blob file was not cleaned up automatically.");
+            CommonTestUtils.waitUntilCondition(() -> !blobFile.exists());
         }
     }
 }

@@ -379,9 +379,7 @@ public class BlobServerCleanupTest extends TestLogger {
 
         try (final BlobServer blobServer =
                 createTestInstance(temporaryFolder.getAbsolutePath(), cleanupInterval)) {
-            CommonTestUtils.waitUntilCondition(
-                    () -> !blob.exists(),
-                    "The transient blob has not been cleaned up automatically.");
+            CommonTestUtils.waitUntilCondition(() -> !blob.exists());
         }
     }
 
