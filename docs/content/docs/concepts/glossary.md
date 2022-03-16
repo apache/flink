@@ -76,13 +76,16 @@ input streams up to (but not past) both barriers.
 
 #### Batch Processing
 
-When the processing and analysis happens on a set of data that have already been stored over a period 
-of time. The results are usually not available in real-time. Flink executes batch programs as a special 
-case of streaming programs.
+This is the processing and analysis on a set of data that have already been stored over a period 
+of time (i.e. in groups or batches). The results are usually not available in real-time. Flink 
+executes batch programs as a special case of streaming programs.
 
 #### Bounded Streams
 
-#### Category
+Bounded [DataStreams](#datastream) have a defined start and end. They can be processed by ingesting 
+all data before performing any computations. Ordered ingestion is not required to process bounded streams 
+because a bounded data set can always be sorted. Processing of bounded streams is also known as 
+[batch processing](#batch-processing).
 
 #### Checkpoint
 
@@ -126,7 +129,8 @@ to implement streaming joins.
 
 #### Connectors
 
-#### Data Parallelism
+Connectors allow [Flink applications](#(flink)-applications) to read from and write to various external 
+systems. They support multiple formats in order to encode and decode data to match Flink’s data structures.
 
 #### Dataflow
 
@@ -138,6 +142,9 @@ This is a collection of data in a Flink application. You can think of them as im
 of data that can contain duplicates. This data can either be finite or unbounded.
 
 #### Directed Acyclic Graph (DAG)
+
+This is a graph that is directed and without cycles connecting the other edges. It can be used to 
+conceptually represent a [dataflow](#dataflow) where you never look back to previous events.
 
 #### Dispatcher
 
@@ -177,6 +184,11 @@ Flink normally retains only the n-most-recent checkpoints (n being configurable)
 and deletes them when a job is cancelled. 
 
 You can manually resume from an externalized checkpoint. 
+
+#### Format
+
+A table format is a storage format that defines how to map binary data onto table columns.
+Flink comes with a variety of built-in output formats that can be used with table [connectors](#connector).
 
 #### Ingestion Time
 
@@ -305,7 +317,11 @@ and increases overall throughput while decreasing latency. The chaining behavior
 
 #### Operator State
 
+See [non-keyed state](#non-keyed-state).
+
 #### Parallelism 
+
+This is a technique for making programs run faster by performing several computations simultaneously.
 
 #### Partition
 
@@ -330,6 +346,8 @@ type as a POJO type (and allows “by-name” field referencing) if the followin
 - all non-static, non-transient fields in the class (and all superclasses) are either public (and 
   non-final) or have public getter- and setter- methods that follow the Java naming conventions for 
   getters and setters
+  
+Flink analyzes the structure of POJO types and can process POJOs more efficiently than general types.
 
 #### Process Functions
 
@@ -386,9 +404,21 @@ A [snapshot](#snapshot) triggered manually by a user (or an API call) for some o
 such as a stateful redeploy/upgrade/rescaling. Savepoints are always complete and aligned and are 
 optimized for operational flexibility.
 
+#### Scalar
+
+A scalar refers to a single value. This is in contrast to a set of values. 
+
 #### Schema
 
+This refers to the organization or structure of data as a blueprint. 
+
 #### Serialization
+
+This is the process of turning a data element in memory into a stream of bytes so that you can more 
+efficiently store it on disk or send it over the network.
+
+Flink handles data types and serialization in a unique way, containing its own type descriptors, 
+generic type extraction, and type serialization framework.
 
 #### Session Cluster
 
@@ -405,12 +435,21 @@ certain period of time (i.e. when a gap of inactivity occurred).
 
 #### Shuffling
 
+This is a process of redistributing data across [partitions](#partition) (aka repartitioning) that 
+may or may not cause moving data across JVM processes or over the network.
+
 #### Side Outputs
 
 This is an extra output stream from a Flink operator. Beyond error reporting, side outputs are also 
 a good way to implement an n-way split of a stream.
 
 #### Sink
+
+A sink is a component that consumes incoming processed [DataStreams](#datastream) from Flink and 
+forwards them to files, sockets, external systems, or print them. 
+
+A few predefined data sinks are built into Flink, such as support for writing to files, to stdout/stderr, 
+and to sockets.
 
 #### Sliding Window
 
@@ -433,7 +472,15 @@ Flink uses a variant of the Chandy-Lamport algorithm known as asynchronous barri
 
 #### Source
 
+This is the source of the data that gets piped into a [Flink application](#(flink)-application) to be 
+processed. As long as data keeps flowing in, Flink can keep performing calculations. 
+
+A few basic data sources are built into Flink and are always available, such as reading from files, 
+directories, sockets, and ingesting data from collections and iterators. 
+
 #### Spilling
+
+This is a technique where state data is spilled to disk before JVM heap memory is exhausted.
 
 #### State Backend
 
@@ -469,7 +516,14 @@ by Flink's runtime. Tasks encapsulate exactly one parallel instance of an [opera
 
 #### Task Chaining
 
+This is an optimization where Flink puts two subsequent [transformations](#transformation) in the same thread, if possible. 
+
 #### Task Parallelism
+
+This is the number of parallel instances of a task. A [Flink application](#(flink)-application) consists 
+of multiple [tasks](#task) ([transformations](#transformation), [operators](#operator), [sources](#source), 
+[sinks](#sink)). A task is split into several parallel instances for execution and each parallel instance 
+processes a subset of the task's input data. 
 
 #### Task Slot
 
@@ -516,6 +570,9 @@ A composite data type that has a finite ordered list of immutable elements.
 
 #### Unbounded streams
 
+Unbounded [DataStreams](#datastream) have a start but no defined end. They do not terminate, provide 
+data as it is generated, and must be continuously processed. 
+
 #### (User-Defined) Functions
 
 Functions are implemented by the user and encapsulate the application logic of a [Flink application](#(flink)-application). 
@@ -523,9 +580,17 @@ Most functions are wrapped by a corresponding [operator](#operator).
 
 #### User-Defined Aggregate Function (UDAF)
 
+This type of user-defined function aggregates multiple values into a single value.
+
 #### User-Defined Scalar Function (UDSF)
 
+This type of user-defined function maps zero, one, or more [scalar](#scalar) values to a new scalar value.
+
 #### User-Defined Table-valued Function (UDTF)
+
+This type of user-defined function uses zero, one, or multiple [scalar](#scalar) values as input parameters 
+(including variable-length parameters). A UDTF returns any number of rows, rather than a single value. 
+The returned rows can consist of one or more columns.
 
 #### ValueState<T>
 
@@ -548,17 +613,17 @@ DatasStream.
 
 #### Windows
 
-Flink features very expressive window semantics.
+These are vital to processing unbounded streams. Windows split the [DataStream](#datastream) into 
+“buckets” of finite size, over which computations can be applied. 
 
-used to compute aggregates on unbounded streams,
-
-Windows can be time driven (example: every 30 seconds) or data driven (example: every 100 elements).
+Flink features very expressive window semantics. Windows can be time-driven (i.e. every 30 seconds) 
+or data-driven (i.e. every 100 elements).
 
 #### Window Assigner
 
-An abstraction that assigns events to windows and creates new window objects as necessary. Flink has 
-several built-in types of window assigners. 
+This is an abstraction that assigns [events](#event) to [windows](#window) and creates new window 
+objects as necessary. Flink has several built-in types of window assigners. 
 
 #### Window Function 
 
-An abstraction that is applied to the events that are assigned to a window.
+This is an abstraction that is applied to the [events](#event) that are assigned to a [window](#window).
