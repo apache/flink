@@ -249,12 +249,10 @@ public class DefaultJobGraphStore<R extends ResourceVersion<R>>
                 () -> {
                     LOG.debug("Removing job graph {} from {}.", jobId, jobGraphStateHandleStore);
 
-                    if (addedJobGraphs.contains(jobId)) {
-                        final String name = jobGraphStoreUtil.jobIDToName(jobId);
-                        releaseAndRemoveOrThrowCompletionException(jobId, name);
+                    final String name = jobGraphStoreUtil.jobIDToName(jobId);
+                    releaseAndRemoveOrThrowCompletionException(jobId, name);
 
-                        addedJobGraphs.remove(jobId);
-                    }
+                    addedJobGraphs.remove(jobId);
 
                     LOG.info("Removed job graph {} from {}.", jobId, jobGraphStateHandleStore);
                 },
