@@ -25,6 +25,8 @@ import org.apache.flink.table.expressions.Expression;
 import java.util.List;
 import java.util.Optional;
 
+import static org.apache.flink.table.expressions.ApiExpressionUtils.unresolvedRef;
+
 /** Partially defined over window with (optional) partitioning, order, and preceding. */
 @PublicEvolving
 public final class OverWindowPartitionedOrderedPreceding {
@@ -48,7 +50,7 @@ public final class OverWindowPartitionedOrderedPreceding {
      * @return the fully defined over window
      */
     public OverWindow as(String alias) {
-        return as(ExpressionParser.INSTANCE.parseExpression(alias));
+        return as(unresolvedRef(alias));
     }
 
     /**
