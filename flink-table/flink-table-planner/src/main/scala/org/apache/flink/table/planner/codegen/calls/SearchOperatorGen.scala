@@ -82,14 +82,14 @@ object SearchOperatorGen {
         .map(CastRuleProvider.cast(toCastContext(ctx), sargType, commonType, _))
         .map(generateLiteral(ctx, _, commonType))
       if (sarg.containsNull) {
-        haystack += generateNullLiteral(commonType, ctx.nullCheck)
+        haystack += generateNullLiteral(commonType)
       }
       val setTerm = ctx.addReusableHashSet(haystack.toSeq, commonType)
       val negation = if (sarg.isComplementedPoints) "!" else ""
 
       val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
 
-      val operatorCode = if (ctx.nullCheck) {
+      val operatorCode =
         s"""
            |${needle.code}
            |// --- Begin SEARCH ${target.resultTerm}
@@ -101,15 +101,6 @@ object SearchOperatorGen {
            |}
            |// --- End SEARCH ${target.resultTerm}
            |""".stripMargin.trim
-      }
-      else {
-        s"""
-           |${needle.code}
-           |// --- Begin SEARCH ${target.resultTerm}
-           |boolean $resultTerm = $negation$setTerm.contains(${needle.resultTerm});
-           |// --- End SEARCH ${target.resultTerm}
-           |""".stripMargin.trim
-      }
 
       GeneratedExpression(resultTerm, nullTerm, operatorCode, new BooleanType())
     } else {
@@ -127,11 +118,11 @@ object SearchOperatorGen {
         .map(RangeSets.map(_, rangeToExpression))
 
       if (sarg.containsNull) {
-        rangeChecks = Seq(generateIsNull(ctx, target)) ++ rangeChecks
+        rangeChecks = Seq(generateIsNull(target)) ++ rangeChecks
       }
 
       val generatedRangeChecks = rangeChecks
-        .reduce((left, right) => generateOr(ctx, left, right))
+        .reduce((left, right) => generateOr(left, right))
 
       // Add the target expression code
       val finalCode =
@@ -194,7 +185,6 @@ object SearchOperatorGen {
      */
     override def closed(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        ctx,
         generateComparison(ctx, "<=", lit(lower), target),
         generateComparison(ctx, "<=", target, lit(upper))
       )
@@ -205,7 +195,6 @@ object SearchOperatorGen {
      */
     override def closedOpen(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        ctx,
         generateComparison(ctx, "<=", lit(lower), target),
         generateComparison(ctx, "<", target, lit(upper))
       )
@@ -216,7 +205,6 @@ object SearchOperatorGen {
      */
     override def openClosed(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        ctx,
         generateComparison(ctx, "<", lit(lower), target),
         generateComparison(ctx, "<=", target, lit(upper))
       )
@@ -227,7 +215,6 @@ object SearchOperatorGen {
      */
     override def open(lower: C, upper: C): GeneratedExpression = {
       generateAnd(
-        ctx,
         generateComparison(ctx, "<", lit(lower), target),
         generateComparison(ctx, "<", target, lit(upper))
       )

@@ -372,8 +372,7 @@ class MatchCodeGenerator(
         // attribute is proctime indicator.
         // We use a null literal and generate a timestamp when we need it.
         generateNullLiteral(
-          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3),
-          ctx.nullCheck)
+          new LocalZonedTimestampType(true, TimestampKind.PROCTIME, 3))
 
       case MATCH_ROWTIME =>
         generateRowtimeAccess(
@@ -640,7 +639,7 @@ class MatchCodeGenerator(
       ctx.addReusablePerRecordStatement(codeForAgg)
 
       val defaultValue = primitiveDefaultValue(singleAggResultType)
-      val codeForSingleAgg = if (ctx.nullCheck) {
+      val codeForSingleAgg =
         j"""
            |boolean $singleAggNullTerm;
            |$primitiveSingleAggResultTypeTerm $singleAggResultTerm;
@@ -653,12 +652,6 @@ class MatchCodeGenerator(
            |  $singleAggResultTerm = $defaultValue;
            |}
            |""".stripMargin
-      } else {
-        j"""
-           |$primitiveSingleAggResultTypeTerm $singleAggResultTerm =
-           |    ($boxedSingleAggResultTypeTerm) $allAggRowTerm.getField(${aggregates.size});
-           |""".stripMargin
-      }
 
       ctx.addReusablePerRecordStatement(codeForSingleAgg)
 

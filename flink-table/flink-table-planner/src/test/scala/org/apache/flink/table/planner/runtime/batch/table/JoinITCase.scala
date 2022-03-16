@@ -326,8 +326,6 @@ class JoinITCase extends BatchTestBase {
 
   @Test
   def testFullJoinWithNonEquiJoinPred(): Unit = {
-    tEnv.getConfig.setNullCheck(true)
-
     val ds1 = CollectionBatchExecTable.get3TupleDataSet(tEnv, "a, b, c")
     val ds2 = CollectionBatchExecTable.get5TupleDataSet(tEnv, "d, e, f, g, h")
 

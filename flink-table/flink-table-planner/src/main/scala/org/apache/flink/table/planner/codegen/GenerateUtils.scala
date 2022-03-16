@@ -82,7 +82,7 @@ object GenerateUtils {
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val defaultValue = primitiveDefaultValue(returnType)
     val isResultNullable = resultNullable || (isReference(returnType) && !isTemporal(returnType))
-    val nullTermCode = if (ctx.nullCheck && isResultNullable) {
+    val nullTermCode = if (isResultNullable) {
       s"$nullTerm = ($resultTerm == null);"
     } else {
       ""
@@ -107,7 +107,7 @@ object GenerateUtils {
          |""".stripMargin
     }
 
-    val resultCode = if (ctx.nullCheck && operands.nonEmpty) {
+    val resultCode = if (operands.nonEmpty) {
       s"""
          |${operands.map(_.code).mkString("\n")}
          |$nullTerm = ${operands.map(_.nullTerm).mkString(" || ")};
@@ -117,18 +117,12 @@ object GenerateUtils {
          |  $nullTermCode
          |}
          |""".stripMargin
-    } else if (ctx.nullCheck && operands.isEmpty) {
+    } else {
       s"""
          |${operands.map(_.code).mkString("\n")}
          |$nullTerm = false;
          |$wrappedResultAssignment
          |$nullTermCode
-         |""".stripMargin
-    } else {
-      s"""
-         |$nullTerm = false;
-         |${operands.map(_.code).mkString("\n")}
-         |$wrappedResultAssignment
          |""".stripMargin
     }
 
@@ -169,7 +163,7 @@ object GenerateUtils {
     val nullTerm = ctx.addReusableLocalVariable("boolean", "isNull")
     val resultTerm = ctx.addReusableLocalVariable(resultTypeTerm, "result")
     val isResultNullable = resultNullable || (isReference(returnType) && !isTemporal(returnType))
-    val nullTermCode = if (ctx.nullCheck && isResultNullable) {
+    val nullTermCode = if (isResultNullable) {
       s"$nullTerm = ($resultTerm == null);"
     } else {
       s"$nullTerm = false;"
@@ -199,7 +193,7 @@ object GenerateUtils {
          |""".stripMargin
     }
 
-    val resultCode = if (ctx.nullCheck) {
+    val resultCode = if (resultNullable) {
       s"""
          |${operands.map(_.code).mkString("\n")}
          |$wrappedResultAssignment
@@ -215,7 +209,6 @@ object GenerateUtils {
          |$nullTermCode
        """.stripMargin
     }
-
 
     GeneratedExpression(resultTerm, nullTerm, resultCode, returnType)
   }
@@ -277,12 +270,7 @@ object GenerateUtils {
       s"$recordTerm = new $typeTerm();"
   }
 
-  def generateNullLiteral(
-      resultType: LogicalType,
-      nullCheck: Boolean): GeneratedExpression = {
-    if (!nullCheck) {
-      throw new CodeGenException("Null literals are not allowed if nullCheck is disabled.")
-    }
+  def generateNullLiteral(resultType: LogicalType): GeneratedExpression = {
     val defaultValue = primitiveDefaultValue(resultType)
     val resultTypeTerm = primitiveTypeTermForType(resultType)
     GeneratedExpression(
@@ -318,7 +306,7 @@ object GenerateUtils {
       literalValue: Any,
       literalType: LogicalType): GeneratedExpression = {
     if (literalValue == null) {
-      return generateNullLiteral(literalType, ctx.nullCheck)
+      return generateNullLiteral(literalType)
     }
     literalType.getTypeRoot match {
       // For strings, binary and decimal, we add the literal as reusable field,
@@ -557,7 +545,7 @@ object GenerateUtils {
       (resultTypeTerm, "result"),
       ("boolean", "isNull"))
 
-    val wrappedCode = if (ctx.nullCheck) {
+    val wrappedCode =
       s"""
          |$nullTerm = $inputTerm == null;
          |$resultTerm = $defaultValue;
@@ -565,11 +553,6 @@ object GenerateUtils {
          |  $resultTerm = $inputUnboxingTerm;
          |}
          |""".stripMargin.trim
-    } else {
-      s"""
-         |$resultTerm = $inputUnboxingTerm;
-         |""".stripMargin.trim
-    }
 
     GeneratedExpression(resultTerm, nullTerm, wrappedCode, inputType)
   }
@@ -613,7 +596,7 @@ object GenerateUtils {
           (resultTypeTerm, "field"),
           ("boolean", "isNull"))
 
-        val inputCode = if (ctx.nullCheck) {
+        val inputCode =
           s"""
              |$nullTerm = $inputTerm.isNullAt($index);
              |$fieldTerm = $defaultValue;
@@ -621,12 +604,7 @@ object GenerateUtils {
              |  $fieldTerm = $readCode;
              |}
            """.stripMargin.trim
-        } else {
-          s"""
-             |$nullTerm = false;
-             |$fieldTerm = $readCode;
-           """.stripMargin
-        }
+
         GeneratedExpression(fieldTerm, nullTerm, inputCode, fieldType)
 
       case DISTINCT_TYPE =>

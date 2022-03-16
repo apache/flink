@@ -43,7 +43,7 @@ import org.apache.flink.table.utils.DateTimeUtils.MILLIS_PER_DAY
 import org.apache.flink.util.Preconditions.checkArgument
 
 import java.time.ZoneId
-import java.util.Arrays.asList
+
 import scala.collection.JavaConversions._
 
 /**
@@ -449,8 +449,8 @@ object ScalarOperatorGens {
       left: GeneratedExpression,
       right: GeneratedExpression)
     : GeneratedExpression = {
-    generateOr(ctx,
-      generateAnd(ctx, generateIsNull(ctx, left), generateIsNull(ctx, right)),
+    generateOr(
+      generateAnd(generateIsNull(left), generateIsNull(right)),
       generateEquals(ctx, left, right))
   }
 
@@ -579,13 +579,11 @@ object ScalarOperatorGens {
     }
   }
 
-  def generateIsNull(
-      ctx: CodeGeneratorContext,
-      operand: GeneratedExpression): GeneratedExpression = {
-    if (ctx.nullCheck) {
+  def generateIsNull(operand: GeneratedExpression): GeneratedExpression = {
+    if (operand.resultType.isNullable) {
       GeneratedExpression(operand.nullTerm, NEVER_NULL, operand.code, new BooleanType(false))
     }
-    else if (!ctx.nullCheck && isReference(operand.resultType)) {
+    else if (isReference(operand.resultType)) {
       val resultTerm = newName("isNull")
       val operatorCode =
         s"""
@@ -599,10 +597,8 @@ object ScalarOperatorGens {
     }
   }
 
-  def generateIsNotNull(
-      ctx: CodeGeneratorContext,
-      operand: GeneratedExpression): GeneratedExpression = {
-    if (ctx.nullCheck) {
+  def generateIsNotNull(operand: GeneratedExpression): GeneratedExpression = {
+    if (operand.resultType.isNullable) {
       val resultTerm = newName("result")
       val operatorCode =
         s"""
@@ -611,7 +607,7 @@ object ScalarOperatorGens {
            |""".stripMargin.trim
       GeneratedExpression(resultTerm, NEVER_NULL, operatorCode, new BooleanType(false))
     }
-    else if (!ctx.nullCheck && isReference(operand.resultType)) {
+    else if (isReference(operand.resultType)) {
       val resultTerm = newName("result")
       val operatorCode =
         s"""
@@ -625,13 +621,10 @@ object ScalarOperatorGens {
     }
   }
 
-  def generateAnd(
-      ctx: CodeGeneratorContext,
-      left: GeneratedExpression,
-      right: GeneratedExpression): GeneratedExpression = {
+  def generateAnd(left: GeneratedExpression, right: GeneratedExpression): GeneratedExpression = {
     val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
 
-    val operatorCode = if (ctx.nullCheck) {
+    val operatorCode =
       // Three-valued logic:
       // no Unknown -> Two-valued logic
       // True && Unknown -> Unknown
@@ -675,28 +668,14 @@ object ScalarOperatorGens {
          |  }
          |}
        """.stripMargin.trim
-    }
-    else {
-      s"""
-         |${left.code}
-         |boolean $resultTerm = false;
-         |if (${left.resultTerm}) {
-         |  ${right.code}
-         |  $resultTerm = ${right.resultTerm};
-         |}
-         |""".stripMargin.trim
-    }
 
     GeneratedExpression(resultTerm, nullTerm, operatorCode, new BooleanType())
   }
 
-  def generateOr(
-      ctx: CodeGeneratorContext,
-      left: GeneratedExpression,
-      right: GeneratedExpression): GeneratedExpression = {
+  def generateOr(left: GeneratedExpression, right: GeneratedExpression): GeneratedExpression = {
     val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
 
-    val operatorCode = if (ctx.nullCheck) {
+    val operatorCode =
       // Three-valued logic:
       // no Unknown -> Two-valued logic
       // True || Unknown -> True
@@ -707,14 +686,14 @@ object ScalarOperatorGens {
       s"""
          |${left.code}
          |
-        |boolean $resultTerm = true;
+         |boolean $resultTerm = true;
          |boolean $nullTerm = false;
          |if (!${left.nullTerm} && ${left.resultTerm}) {
          |  // left expr is true, skip right expr
          |} else {
          |  ${right.code}
          |
-        |  if (!${left.nullTerm} && !${right.nullTerm}) {
+         |  if (!${left.nullTerm} && !${right.nullTerm}) {
          |    $resultTerm = ${left.resultTerm} || ${right.resultTerm};
          |    $nullTerm = false;
          |  }
@@ -740,17 +719,6 @@ object ScalarOperatorGens {
          |  }
          |}
          |""".stripMargin.trim
-    }
-    else {
-      s"""
-         |${left.code}
-         |boolean $resultTerm = true;
-         |if (!${left.resultTerm}) {
-         |  ${right.code}
-         |  $resultTerm = ${right.resultTerm};
-         |}
-         |""".stripMargin.trim
-    }
 
     GeneratedExpression(resultTerm, nullTerm, operatorCode, new BooleanType())
   }
@@ -869,12 +837,7 @@ object ScalarOperatorGens {
     val rule = CastRuleProvider.resolve(operand.resultType, targetType)
     rule match {
       case codeGeneratorCastRule: CodeGeneratorCastRule[_, _] =>
-        // Make sure to force nullability checks in case ctx.nullCheck is enabled
-        val inputType = if (ctx.nullCheck) {
-          operand.resultType.copy(true)
-        } else {
-          operand.resultType
-        }
+        val inputType = operand.resultType.copy(true)
 
         // Generate the code block
         val castCodeBlock = codeGeneratorCastRule.generateCodeBlock(
@@ -969,7 +932,7 @@ object ScalarOperatorGens {
       val resultTypeTerm = primitiveTypeTermForType(resultType)
       val defaultValue = primitiveDefaultValue(resultType)
 
-      val operatorCode = if (ctx.nullCheck) {
+      val operatorCode =
         s"""
            |${condition.code}
            |$resultTypeTerm $resultTerm = $defaultValue;
@@ -989,21 +952,6 @@ object ScalarOperatorGens {
            |  }
            |}
            |""".stripMargin.trim
-      }
-      else {
-        s"""
-           |${condition.code}
-           |$resultTypeTerm $resultTerm;
-           |if (${condition.resultTerm}) {
-           |  ${trueAction.code}
-           |  $resultTerm = ${trueAction.resultTerm};
-           |}
-           |else {
-           |  ${falseAction.code}
-           |  $resultTerm = ${falseAction.resultTerm};
-           |}
-           |""".stripMargin.trim
-      }
 
       GeneratedExpression(resultTerm, nullTerm, operatorCode, resultType)
     }
@@ -1041,7 +989,7 @@ object ScalarOperatorGens {
     val resultTypeTerm = primitiveTypeTermForType(access.resultType)
     val defaultValue = primitiveDefaultValue(access.resultType)
 
-    val resultCode = if (ctx.nullCheck) {
+    val resultCode =
       s"""
          |${operands.map(_.code).mkString("\n")}
          |$resultTypeTerm $resultTerm;
@@ -1056,14 +1004,6 @@ object ScalarOperatorGens {
          |  $nullTerm = ${access.nullTerm};
          |}
          |""".stripMargin
-    } else {
-      s"""
-         |${operands.map(_.code).mkString("\n")}
-         |${access.code}
-         |$resultTypeTerm $resultTerm = ${access.resultTerm};
-         |""".stripMargin
-    }
-
 
     GeneratedExpression(
       resultTerm,
@@ -1105,7 +1045,7 @@ object ScalarOperatorGens {
           val tpe = fieldTypes(idx)
           if (element.literal) {
             ""
-          } else if(ctx.nullCheck) {
+          } else if (tpe.isNullable) {
             s"""
                |${element.code}
                |if (${element.nullTerm}) {
@@ -1152,7 +1092,7 @@ object ScalarOperatorGens {
     val writeCode = elements.zipWithIndex.map {
       case (element, idx) =>
         val tpe = fieldTypes(idx)
-        if (ctx.nullCheck) {
+        if (tpe.isNullable) {
           s"""
              |${element.code}
              |if (${element.nullTerm}) {
@@ -1207,7 +1147,7 @@ object ScalarOperatorGens {
           }
         }
         val array = generateLiteralArray(ctx, arrayType, mapped)
-        val code = generatePrimitiveArrayUpdateCode(ctx, array.resultTerm, elementType, elements)
+        val code = generatePrimitiveArrayUpdateCode(array.resultTerm, elementType, elements)
         GeneratedExpression(array.resultTerm, GeneratedExpression.NEVER_NULL, code, arrayType)
       } else {
         // generate general array
@@ -1217,14 +1157,13 @@ object ScalarOperatorGens {
   }
 
   private def generatePrimitiveArrayUpdateCode(
-      ctx: CodeGeneratorContext,
       arrayTerm: String,
       elementType: LogicalType,
       elements: Seq[GeneratedExpression]): String = {
     elements.zipWithIndex.map { case (element, idx) =>
       if (element.literal) {
         ""
-      } else if (ctx.nullCheck) {
+      } else if (elementType.isNullable) {
         s"""
            |${element.code}
            |if (${element.nullTerm}) {
@@ -1299,7 +1238,6 @@ object ScalarOperatorGens {
    * @see [[org.apache.calcite.sql.fun.SqlStdOperatorTable.ITEM]]
    */
   def generateArrayElementAt(
-      ctx: CodeGeneratorContext,
       array: GeneratedExpression,
       index: GeneratedExpression): GeneratedExpression = {
     val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
@@ -1329,9 +1267,7 @@ object ScalarOperatorGens {
     GeneratedExpression(resultTerm, nullTerm, arrayAccessCode, componentInfo)
   }
 
-  def generateArrayElement(
-      ctx: CodeGeneratorContext,
-      array: GeneratedExpression): GeneratedExpression = {
+  def generateArrayElement(array: GeneratedExpression): GeneratedExpression = {
     val Seq(resultTerm, nullTerm) = newNames("result", "isNull")
     val resultType = array.resultType.asInstanceOf[ArrayType].getElementType
     val resultTypeTerm = primitiveTypeTermForType(resultType)
@@ -1457,10 +1393,8 @@ object ScalarOperatorGens {
       // there are some non-literal primitive fields need to update
       val keyArrayTerm = newName("keyArray")
       val valueArrayTerm = newName("valueArray")
-      val keyUpdate = generatePrimitiveArrayUpdateCode(
-        ctx, keyArrayTerm, keyType, keyElements)
-      val valueUpdate = generatePrimitiveArrayUpdateCode(
-        ctx, valueArrayTerm, valueType, valueElements)
+      val keyUpdate = generatePrimitiveArrayUpdateCode(keyArrayTerm, keyType, keyElements)
+      val valueUpdate = generatePrimitiveArrayUpdateCode(valueArrayTerm, valueType, valueElements)
       s"""
          |$BINARY_ARRAY $keyArrayTerm = $binaryMap.keyArray();
          |$keyUpdate
@@ -1597,7 +1531,7 @@ object ScalarOperatorGens {
      resultType: LogicalType): GeneratedExpression = {
     checkArgument(literalExpr.literal)
     if (java.lang.Boolean.valueOf(literalExpr.nullTerm)) {
-      return generateNullLiteral(resultType, nullCheck = true)
+      return generateNullLiteral(resultType)
     }
 
     val castExecutor = CastRuleProvider.create(

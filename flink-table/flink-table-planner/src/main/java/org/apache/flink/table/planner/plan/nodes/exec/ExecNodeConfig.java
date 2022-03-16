@@ -56,8 +56,6 @@ public final class ExecNodeConfig implements ReadableConfig {
         this.nodeConfig = nodeConfig;
         this.originalTableConfig = tableConfig;
         this.tableConfig = TableConfig.getDefault();
-        this.tableConfig.setNullCheck(tableConfig.getNullCheck());
-        this.tableConfig.setDecimalContext(tableConfig.getDecimalContext());
         this.tableConfig.addConfiguration(tableConfig.getConfiguration());
         this.tableConfig.addConfiguration((Configuration) nodeConfig);
     }
