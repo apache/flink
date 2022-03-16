@@ -15,22 +15,23 @@
 
 name: "Build documentation"
 on:
-  workflow_dispatch:
-    inputs:
-      branch:
-        required: true
-        type: choice
+  schedule:
+    - cron: '0 0 * * *' # Deploy every day
+
+jobs:
+  build-documentation:
+    if: github.repository == 'apache/flink'
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 1
+      matrix:
+        branch:
           - master
           - release-1.15
           - release-1.14
           - release-1.13
-jobs:
-  build-documentation:
-    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-        with:
-          ref: ${{ github.event.inputs.branch }}
       - name: Set branch environment variable
         run: |
           currentBranch=$(git branch --show-current)
