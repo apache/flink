@@ -224,6 +224,18 @@ public class ZooKeeperStateHandleStoreTest extends TestLogger {
     }
 
     @Test
+    public void testCleanupOfNonExistingState() throws Exception {
+        final ZooKeeperStateHandleStore<TestingLongStateHandleHelper.LongStateHandle> testInstance =
+                new ZooKeeperStateHandleStore<>(
+                        ZOOKEEPER.getClient(), new TestingLongStateHandleHelper());
+
+        final String pathInZooKeeper = "/testCleanupOfNonExistingState";
+
+        assertTrue(testInstance.releaseAndTryRemove(pathInZooKeeper));
+        assertFalse(testInstance.exists(pathInZooKeeper).isExisting());
+    }
+
+    @Test
     public void testRepeatableCleanupWithLockOnNode() throws Exception {
         final CuratorFramework client =
                 ZooKeeperUtils.useNamespaceAndEnsurePath(
