@@ -438,6 +438,7 @@ public class StreamTaskTest extends TestLogger {
         cfg.setOperatorID(new OperatorID(4711L, 42L));
         cfg.setStreamOperator(new SlowlyDeserializingOperator());
         cfg.setTimeCharacteristic(TimeCharacteristic.ProcessingTime);
+        cfg.serializeAllConfigs();
 
         final TaskManagerActions taskManagerActions = spy(new NoOpTaskManagerActions());
         try (NettyShuffleEnvironment shuffleEnvironment =
@@ -1154,6 +1155,7 @@ public class StreamTaskTest extends TestLogger {
         StreamConfig streamConfig = new StreamConfig(taskConfiguration);
         streamConfig.setStreamOperator(new StreamMap<>(value -> value));
         streamConfig.setOperatorID(new OperatorID());
+        streamConfig.serializeAllConfigs();
         try (MockEnvironment mockEnvironment =
                 new MockEnvironmentBuilder().setTaskConfiguration(taskConfiguration).build()) {
 
@@ -1956,7 +1958,7 @@ public class StreamTaskTest extends TestLogger {
             Configuration taskManagerConfig,
             Executor executor)
             throws Exception {
-
+        taskConfig.serializeAllConfigs();
         return new TestTaskBuilder(shuffleEnvironment)
                 .setTaskManagerConfig(taskManagerConfig)
                 .setInvokable(invokable)

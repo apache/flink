@@ -1014,7 +1014,8 @@ public class OneInputStreamTaskTest extends TestLogger {
         }
 
         streamConfig.setChainedOutputs(outputEdges);
-        streamConfig.setTransitiveChainedTaskConfigs(chainedTaskConfigs);
+        chainedTaskConfigs.values().forEach(StreamConfig::serializeAllConfigs);
+        streamConfig.setAndSerializeTransitiveChainedTaskConfigs(chainedTaskConfigs);
     }
 
     private static class IdentityKeySelector<IN> implements KeySelector<IN, IN> {
