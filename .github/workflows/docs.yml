@@ -40,7 +40,7 @@ jobs:
         with:
           switches: --archive --compress
           path: docs/target/
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/testing-flink-docs-${{ env.flink_branch }}/
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_branch }}/
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
           remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
           remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
@@ -51,7 +51,7 @@ jobs:
         with:
           switches: --archive --compress
           path: docs/target/
-          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/testing-flink-docs-${{ env.flink_alias }}/
+          remote_path: ${{ secrets.NIGHTLIES_RSYNC_PATH }}/flink/flink-docs-${{ env.flink_alias }}/
           remote_host: ${{ secrets.NIGHTLIES_RSYNC_HOST }}
           remote_port: ${{ secrets.NIGHTLIES_RSYNC_PORT }}
           remote_user: ${{ secrets.NIGHTLIES_RSYNC_USER }}
