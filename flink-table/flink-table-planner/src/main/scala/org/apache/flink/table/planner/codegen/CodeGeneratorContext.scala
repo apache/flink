@@ -145,9 +145,6 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   def getReusableInputUnboxingExprs(inputTerm: String, index: Int): Option[GeneratedExpression] =
     reusableInputUnboxingExprs.get((inputTerm, index))
 
-  def nullCheck: Boolean = tableConfig.getNullCheck
-
-
   /**
     * Add a line comment to [[reusableHeaderComments]] list which will be concatenated
     * into a single class header comment.
@@ -677,7 +674,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
          |""".stripMargin
 
     val fieldInit = seedExpr match {
-      case Some(s) if nullCheck =>
+      case Some(s) =>
         s"""
            |${s.code}
            |if (!${s.nullTerm}) {
@@ -686,11 +683,6 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
            |else {
            |  $fieldTerm = new java.util.Random();
            |}
-           |""".stripMargin
-      case Some(s) =>
-        s"""
-           |${s.code}
-           |$fieldTerm = new java.util.Random(${s.resultTerm});
            |""".stripMargin
       case _ =>
         s"""
@@ -968,7 +960,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
          |  throw new RuntimeException("Unsupported algorithm.");
          |}
          |""".stripMargin
-    val nullableInit = if (nullCheck) {
+    val nullableInit =
       s"""
          |${constant.code}
          |if (${constant.nullTerm}) {
@@ -977,12 +969,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
          |  $init
          |}
          |""".stripMargin
-    } else {
-      s"""
-         |${constant.code}
-         |$init
-         |""".stripMargin
-    }
+
     reusableInitStatements.add(nullableInit)
 
     fieldTerm

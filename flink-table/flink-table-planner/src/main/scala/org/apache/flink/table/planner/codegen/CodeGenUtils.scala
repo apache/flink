@@ -491,40 +491,27 @@ object CodeGenUtils {
         case Some(writer) =>
           // use writer to set field
           val writeField = binaryWriterWriteField(ctx, indexTerm, fieldTerm, writer, fieldType)
-          if (ctx.nullCheck) {
-            s"""
-               |${fieldExpr.code}
-               |if (${fieldExpr.nullTerm}) {
-               |  ${binaryWriterWriteNull(indexTerm, writer, fieldType)};
-               |} else {
-               |  $writeField;
-               |}
-             """.stripMargin
-          } else {
-            s"""
-               |${fieldExpr.code}
-               |$writeField;
-             """.stripMargin
-          }
+          s"""
+             |${fieldExpr.code}
+             |if (${fieldExpr.nullTerm}) {
+             |  ${binaryWriterWriteNull(indexTerm, writer, fieldType)};
+             |} else {
+             |  $writeField;
+             |}
+           """.stripMargin
 
         case None =>
           // directly set field to BinaryRowData, this depends on all the fields are fixed length
           val writeField = binaryRowFieldSetAccess(indexTerm, rowTerm, fieldType, fieldTerm)
-          if (ctx.nullCheck) {
-            s"""
-               |${fieldExpr.code}
-               |if (${fieldExpr.nullTerm}) {
-               |  ${binaryRowSetNull(indexTerm, rowTerm, fieldType)};
-               |} else {
-               |  $writeField;
-               |}
-             """.stripMargin
-          } else {
-            s"""
-               |${fieldExpr.code}
-               |$writeField;
-             """.stripMargin
-          }
+
+          s"""
+             |${fieldExpr.code}
+             |if (${fieldExpr.nullTerm}) {
+             |  ${binaryRowSetNull(indexTerm, rowTerm, fieldType)};
+             |} else {
+             |  $writeField;
+             |}
+           """.stripMargin
       }
     } else if (rowClass == classOf[GenericRowData] || rowClass == classOf[BoxedWrapperRowData]) {
       val writeField = if (rowClass == classOf[GenericRowData]) {
@@ -538,7 +525,7 @@ object CodeGenUtils {
         s"$rowTerm.setNullAt($indexTerm)"
       }
 
-      if (ctx.nullCheck) {
+      if (fieldType.isNullable) {
         s"""
            |${fieldExpr.code}
            |if (${fieldExpr.nullTerm}) {
