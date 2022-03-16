@@ -99,6 +99,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
     private long lastCompletedCheckpointId;
     private UUID backendUID;
     private final long writeBatchSize;
+    private final double overlapFractionThreshold;
 
     private boolean isKeySerializerCompatibilityChecked;
 
@@ -120,7 +121,8 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
             @Nonnull Collection<KeyedStateHandle> restoreStateHandles,
             @Nonnull RocksDbTtlCompactFiltersManager ttlCompactFiltersManager,
             @Nonnegative long writeBatchSize,
-            Long writeBufferManagerCapacity) {
+            Long writeBufferManagerCapacity,
+            double overlapFractionThreshold) {
         this.rocksHandle =
                 new RocksDBHandle(
                         kvStateInformation,
@@ -136,6 +138,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         this.lastCompletedCheckpointId = -1L;
         this.backendUID = UUID.randomUUID();
         this.writeBatchSize = writeBatchSize;
+        this.overlapFractionThreshold = overlapFractionThreshold;
         this.restoreStateHandles = restoreStateHandles;
         this.cancelStreamRegistry = cancelStreamRegistry;
         this.keyGroupRange = keyGroupRange;
@@ -284,7 +287,7 @@ public class RocksDBIncrementalRestoreOperation<K> implements RocksDBRestoreOper
         // Prepare for restore with rescaling
         KeyedStateHandle initialHandle =
                 RocksDBIncrementalCheckpointUtils.chooseTheBestStateHandleForInitial(
-                        restoreStateHandles, keyGroupRange);
+                        restoreStateHandles, keyGroupRange, overlapFractionThreshold);
 
         // Init base DB instance
         if (initialHandle != null) {
