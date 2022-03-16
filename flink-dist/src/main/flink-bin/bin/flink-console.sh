@@ -98,7 +98,8 @@ id=$([ -f "$pid" ] && echo $(wc -l < "$pid") || echo "0")
 FLINK_LOG_PREFIX="${FLINK_LOG_DIR}/flink-${FLINK_IDENT_STRING}-${SERVICE}-${id}-${HOSTNAME}"
 log="${FLINK_LOG_PREFIX}.log"
 
-log_setting=("-Dlog.file=${log}" "-Dlog4j.configuration=file:${FLINK_CONF_DIR}/log4j-console.properties" "-Dlog4j.configurationFile=file:${FLINK_CONF_DIR}/log4j-console.properties" "-Dlogback.configurationFile=file:${FLINK_CONF_DIR}/logback-console.xml")
+LOG4J_FILE_NAME=${LOG4J_FILE_NAME:-"log4j-console.properties"}
+log_setting=("-Dlog.file=${log}" "-Dlog4j.configuration=file:${FLINK_CONF_DIR}/${LOG4J_FILE_NAME}" "-Dlog4j.configurationFile=file:${FLINK_CONF_DIR}/${LOG4J_FILE_NAME}" "-Dlogback.configurationFile=file:${FLINK_CONF_DIR}/logback-console.xml")
 
 echo "Starting $SERVICE as a console application on host $HOSTNAME."
 
