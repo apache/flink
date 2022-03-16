@@ -209,11 +209,7 @@ public class KubernetesResourceManagerDriverTest
                                             new KubernetesTooOldResourceVersionException(
                                                     new Exception("too old resource version")));
                             // Verify the old watch is closed and a new one is created
-                            CommonTestUtils.waitUntilCondition(
-                                    () -> getPodsWatches().size() == 2,
-                                    String.format(
-                                            "New watch is not created in %s seconds.",
-                                            TIMEOUT_SEC));
+                            CommonTestUtils.waitUntilCondition(() -> getPodsWatches().size() == 2);
                             assertThat(getPodsWatches().get(0).isClosed(), is(true));
                             assertThat(getPodsWatches().get(1).isClosed(), is(false));
                         });
