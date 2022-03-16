@@ -94,7 +94,7 @@ object CollectorCodeGenerator {
     """.stripMargin
 
     new GeneratedCollector(
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   /**
@@ -157,7 +157,7 @@ object CollectorCodeGenerator {
     """.stripMargin
 
     new GeneratedCollector(
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   def addToContext(

@@ -148,8 +148,7 @@ public class StreamExecJoin extends ExecNodeBase<RowData>
                 JoinUtil.analyzeJoinInput(rightTypeInfo, rightJoinKey, rightUniqueKeys);
 
         GeneratedJoinCondition generatedCondition =
-                JoinUtil.generateConditionFunction(
-                        config.getTableConfig(), joinSpec, leftType, rightType);
+                JoinUtil.generateConditionFunction(config, joinSpec, leftType, rightType);
 
         long minRetentionTime = config.getStateRetentionTime();
 

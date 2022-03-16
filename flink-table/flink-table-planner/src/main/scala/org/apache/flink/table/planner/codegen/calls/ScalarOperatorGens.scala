@@ -30,6 +30,7 @@ import org.apache.flink.table.planner.codegen.GeneratedExpression.{ALWAYS_NULL, 
 import org.apache.flink.table.planner.codegen.{CodeGenException, CodeGeneratorContext, GeneratedExpression}
 import org.apache.flink.table.planner.functions.casting.{CastRule, CastRuleProvider, CodeGeneratorCastRule, ExpressionCodeGeneratorCastRule}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
+import org.apache.flink.table.planner.utils.TableConfigUtils
 import org.apache.flink.table.runtime.functions.SqlFunctionUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils
 import org.apache.flink.table.runtime.types.PlannerTypeUtils.{isInteroperable, isPrimitive}
@@ -831,7 +832,7 @@ object ScalarOperatorGens {
     ctx.addReusableHeaderComment(
       s"Using option '${ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR.key()}':" +
         s"'${isLegacyCastBehaviourEnabled(ctx)}'")
-    ctx.addReusableHeaderComment("Timezone: " + ctx.tableConfig.getLocalTimeZone)
+    ctx.addReusableHeaderComment("Timezone: " + ctx.tableConfig)
 
     // Try to use the new cast rules
     val rule = CastRuleProvider.resolve(operand.resultType, targetType)
@@ -1778,14 +1779,13 @@ object ScalarOperatorGens {
     new CastRule.Context {
       override def legacyBehaviour(): Boolean = isLegacyCastBehaviourEnabled(ctx)
 
-      override def getSessionZoneId: ZoneId = ctx.tableConfig.getLocalTimeZone
+      override def getSessionZoneId: ZoneId = TableConfigUtils.getLocalTimeZone(ctx.tableConfig)
 
       override def getClassLoader: ClassLoader = Thread.currentThread().getContextClassLoader
     }
   }
 
   private def isLegacyCastBehaviourEnabled(ctx: CodeGeneratorContext) = {
-    ctx.tableConfig
-      .getConfiguration.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR).isEnabled
+    ctx.tableConfig.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR).isEnabled
   }
 }

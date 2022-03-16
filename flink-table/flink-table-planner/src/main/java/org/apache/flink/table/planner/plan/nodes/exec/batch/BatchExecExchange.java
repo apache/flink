@@ -203,10 +203,7 @@ public class BatchExecExchange extends CommonExecExchange implements BatchExecNo
                         .toArray(String[]::new);
         return new BinaryHashPartitioner(
                 HashCodeGenerator.generateRowHash(
-                        new CodeGeneratorContext(config.getTableConfig()),
-                        inputType,
-                        "HashPartitioner",
-                        keys),
+                        new CodeGeneratorContext(config), inputType, "HashPartitioner", keys),
                 fieldNames);
     }
 

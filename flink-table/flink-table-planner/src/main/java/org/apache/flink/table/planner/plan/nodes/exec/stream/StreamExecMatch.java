@@ -34,7 +34,6 @@ import org.apache.flink.cep.pattern.conditions.IterativeCondition;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.streaming.api.transformations.OneInputTransformation;
 import org.apache.flink.streaming.api.windowing.time.Time;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.planner.codegen.CodeGenUtils;
@@ -153,8 +152,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
                 translateOrder(inputTransform, inputRowType, config);
 
         final Tuple2<Pattern<RowData, RowData>, List<String>> cepPatternAndNames =
-                translatePattern(
-                        matchSpec, config.getTableConfig(), planner.getRelBuilder(), inputRowType);
+                translatePattern(matchSpec, config, planner.getRelBuilder(), inputRowType);
         final Pattern<RowData, RowData> cepPattern = cepPatternAndNames.f0;
 
         // TODO remove this once it is supported in CEP library
@@ -188,7 +186,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
                 NFACompiler.compileFactory(cepPattern, false);
         final MatchCodeGenerator generator =
                 new MatchCodeGenerator(
-                        new CodeGeneratorContext(config.getTableConfig()),
+                        new CodeGeneratorContext(config),
                         planner.getRelBuilder(),
                         false, // nullableInput
                         JavaScalaConversionUtil.toScala(cepPatternAndNames.f1),
@@ -258,7 +256,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         if (orderKeys.getFieldIndices().length > 1) {
             GeneratedRecordComparator rowComparator =
                     ComparatorCodeGenerator.gen(
-                            config.getTableConfig(), "RowDataComparator", inputRowType, orderKeys);
+                            config, "RowDataComparator", inputRowType, orderKeys);
             return new RowDataEventComparator(rowComparator);
         } else {
             return null;
@@ -300,11 +298,11 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
     @VisibleForTesting
     public static Tuple2<Pattern<RowData, RowData>, List<String>> translatePattern(
             MatchSpec matchSpec,
-            TableConfig tableConfig,
+            ReadableConfig config,
             RelBuilder relBuilder,
             RowType inputRowType) {
         final PatternVisitor patternVisitor =
-                new PatternVisitor(tableConfig, relBuilder, inputRowType, matchSpec);
+                new PatternVisitor(config, relBuilder, inputRowType, matchSpec);
 
         final Pattern<RowData, RowData> cepPattern;
         if (matchSpec.getInterval().isPresent()) {
@@ -329,7 +327,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
 
     /** The visitor to traverse the pattern RexNode. */
     private static class PatternVisitor extends RexDefaultVisitor<Pattern<RowData, RowData>> {
-        private final TableConfig tableConfig;
+        private final ReadableConfig config;
         private final RelBuilder relBuilder;
         private final RowType inputRowType;
         private final MatchSpec matchSpec;
@@ -337,11 +335,11 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
         private Pattern<RowData, RowData> pattern;
 
         public PatternVisitor(
-                TableConfig tableConfig,
+                ReadableConfig config,
                 RelBuilder relBuilder,
                 RowType inputRowType,
                 MatchSpec matchSpec) {
-            this.tableConfig = tableConfig;
+            this.config = config;
             this.relBuilder = relBuilder;
             this.inputRowType = inputRowType;
             this.matchSpec = matchSpec;
@@ -357,7 +355,7 @@ public class StreamExecMatch extends ExecNodeBase<RowData>
             if (patternDefinition != null) {
                 MatchCodeGenerator generator =
                         new MatchCodeGenerator(
-                                new CodeGeneratorContext(tableConfig),
+                                new CodeGeneratorContext(config),
                                 relBuilder,
                                 false, // nullableInput
                                 JavaScalaConversionUtil.toScala(new ArrayList<>(names)),

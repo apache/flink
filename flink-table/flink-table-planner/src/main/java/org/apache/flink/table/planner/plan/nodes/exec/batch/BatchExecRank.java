@@ -88,12 +88,12 @@ public class BatchExecRank extends ExecNodeBase<RowData> implements InputSortedE
         RankOperator operator =
                 new RankOperator(
                         ComparatorCodeGenerator.gen(
-                                config.getTableConfig(),
+                                config,
                                 "PartitionByComparator",
                                 inputType,
                                 SortUtil.getAscendingSortSpec(partitionFields)),
                         ComparatorCodeGenerator.gen(
-                                config.getTableConfig(),
+                                config,
                                 "OrderByComparator",
                                 inputType,
                                 SortUtil.getAscendingSortSpec(sortFields)),

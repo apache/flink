@@ -18,9 +18,9 @@
 package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.{FlatMapFunction, Function}
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.streaming.api.functions.async.AsyncFunction
-import org.apache.flink.table.api.{TableConfig, ValidationException}
+import org.apache.flink.table.api.ValidationException
 import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.connector.source.{LookupTableSource, ScanTableSource}
 import org.apache.flink.table.data.utils.JoinedRowData
@@ -65,7 +65,7 @@ object LookupJoinCodeGenerator {
     * Generates a lookup function ([[TableFunction]])
     */
   def generateSyncLookupFunction(
-      tableConfig: TableConfig,
+      tableConfig: ReadableConfig,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
@@ -105,7 +105,7 @@ object LookupJoinCodeGenerator {
     * Generates a async lookup function ([[AsyncTableFunction]])
     */
   def generateAsyncLookupFunction(
-      tableConfig: TableConfig,
+      tableConfig: ReadableConfig,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
@@ -134,7 +134,7 @@ object LookupJoinCodeGenerator {
 
   private def generateLookupFunction[F <: Function](
       generatedClass: Class[F],
-      tableConfig: TableConfig,
+      tableConfig: ReadableConfig,
       dataTypeFactory: DataTypeFactory,
       inputType: LogicalType,
       tableSourceType: LogicalType,
@@ -162,7 +162,7 @@ object LookupJoinCodeGenerator {
       lookupFunction,
       callContext,
       classOf[PlannerBase].getClassLoader,
-      tableConfig.getConfiguration)
+      tableConfig)
 
     val inference = createLookupTypeInference(
       dataTypeFactory,
@@ -408,7 +408,7 @@ object LookupJoinCodeGenerator {
     """.stripMargin
 
     new GeneratedCollector(
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   /**
@@ -423,7 +423,7 @@ object LookupJoinCodeGenerator {
     * @return instance of GeneratedCollector
     */
   def generateTableAsyncCollector(
-      tableConfig: TableConfig,
+      tableConfig: ReadableConfig,
       name: String,
       leftInputType: RowType,
       collectedType: RowType,
@@ -499,7 +499,7 @@ object LookupJoinCodeGenerator {
     """.stripMargin
 
     new GeneratedResultFuture(
-      funcName, funcCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      funcName, funcCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   /**
@@ -507,7 +507,7 @@ object LookupJoinCodeGenerator {
     * to projection/filter the dimension table results
     */
   def generateCalcMapFunction(
-      tableConfig: TableConfig,
+      tableConfig: ReadableConfig,
       projection: Seq[RexNode],
       condition: RexNode,
       outputType: RelDataType,

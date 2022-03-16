@@ -18,9 +18,8 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.configuration.Configuration
+import org.apache.flink.configuration.{Configuration, ReadableConfig}
 import org.apache.flink.metrics.Gauge
-import org.apache.flink.table.api.TableConfig
 import org.apache.flink.table.data.utils.JoinedRowData
 import org.apache.flink.table.data.{RowData, TimestampData}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
@@ -30,7 +29,7 @@ import org.apache.flink.table.runtime.hashtable.{LongHashPartition, LongHybridHa
 import org.apache.flink.table.runtime.operators.CodeGenOperatorFactory
 import org.apache.flink.table.runtime.operators.join.HashJoinType
 import org.apache.flink.table.runtime.typeutils.BinaryRowDataSerializer
-import org.apache.flink.table.types.logical.LogicalTypeRoot.{TIMESTAMP_WITHOUT_TIME_ZONE, _}
+import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
 
 /**
@@ -92,7 +91,7 @@ object LongHashJoinGenerator {
      """.stripMargin, anyNullTerm)
   }
 
-  def genProjection(tableConfig: TableConfig, types: Array[LogicalType]): GeneratedProjection = {
+  def genProjection(tableConfig: ReadableConfig, types: Array[LogicalType]): GeneratedProjection = {
     val rowType = RowType.of(types: _*)
     ProjectionCodeGenerator.generateProjection(
       CodeGeneratorContext.apply(tableConfig),
@@ -103,7 +102,7 @@ object LongHashJoinGenerator {
   }
 
   def gen(
-      tableConfig: TableConfig,
+      tableConfig: ReadableConfig,
       hashJoinType: HashJoinType,
       keyType: RowType,
       buildType: RowType,
