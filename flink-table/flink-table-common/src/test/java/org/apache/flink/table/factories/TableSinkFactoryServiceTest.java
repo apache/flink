@@ -32,7 +32,7 @@ import static org.apache.flink.table.factories.TestTableSinkFactory.FORMAT_PATH;
 import static org.apache.flink.table.factories.TestTableSinkFactory.FORMAT_TYPE_VALUE_TEST;
 import static org.apache.flink.table.factories.TestTableSinkFactory.REQUIRED_TEST;
 import static org.apache.flink.table.factories.TestTableSinkFactory.REQUIRED_TEST_VALUE;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for testing table sink discovery using {@link TableFactoryService}. The tests assume the
@@ -45,9 +45,8 @@ public class TableSinkFactoryServiceTest {
     @Test
     public void testValidProperties() {
         Map<String, String> props = properties();
-        assertTrue(
-                TableFactoryService.find(TableSinkFactory.class, props)
-                        instanceof TestTableSinkFactory);
+        assertThat(TableFactoryService.find(TableSinkFactory.class, props))
+                .isInstanceOf(TestTableSinkFactory.class);
     }
 
     @Test
@@ -63,9 +62,8 @@ public class TableSinkFactoryServiceTest {
         Map<String, String> props = properties();
         props.put(CONNECTOR_PROPERTY_VERSION, "2");
         // the table source should still be found
-        assertTrue(
-                TableFactoryService.find(TableSinkFactory.class, props)
-                        instanceof TestTableSinkFactory);
+        assertThat(TableFactoryService.find(TableSinkFactory.class, props))
+                .isInstanceOf(TestTableSinkFactory.class);
     }
 
     @Test

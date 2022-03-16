@@ -39,10 +39,11 @@ import org.junit.rules.ExpectedException;
 import java.util.Arrays;
 import java.util.List;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 import static org.hamcrest.CoreMatchers.allOf;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.Matchers.empty;
-import static org.junit.Assert.assertThat;
 
 /** Tests for parsing and validating {@link SqlTableLike} clause. */
 public class CreateTableLikeTest {
@@ -55,7 +56,8 @@ public class CreateTableLikeTest {
                 createFlinkParser("CREATE TABLE t (\n" + "   a STRING\n" + ")\n" + "LIKE b")
                         .parseStmt();
 
-        assertThat(actualNode, hasLikeClause(allOf(pointsTo("b"), hasNoOptions())));
+        assertThat(actualNode)
+                .satisfies(matching(hasLikeClause(allOf(pointsTo("b"), hasNoOptions()))));
     }
 
     @Test
@@ -74,23 +76,28 @@ public class CreateTableLikeTest {
                                         + ")")
                         .parseStmt();
 
-        assertThat(
-                actualNode,
-                hasLikeClause(
-                        allOf(
-                                pointsTo("b"),
-                                hasOptions(
-                                        option(MergingStrategy.EXCLUDING, FeatureOption.PARTITIONS),
-                                        option(
-                                                MergingStrategy.EXCLUDING,
-                                                FeatureOption.CONSTRAINTS),
-                                        option(MergingStrategy.EXCLUDING, FeatureOption.WATERMARKS),
-                                        option(
-                                                MergingStrategy.OVERWRITING,
-                                                FeatureOption.GENERATED),
-                                        option(
-                                                MergingStrategy.OVERWRITING,
-                                                FeatureOption.OPTIONS)))));
+        assertThat(actualNode)
+                .satisfies(
+                        matching(
+                                hasLikeClause(
+                                        allOf(
+                                                pointsTo("b"),
+                                                hasOptions(
+                                                        option(
+                                                                MergingStrategy.EXCLUDING,
+                                                                FeatureOption.PARTITIONS),
+                                                        option(
+                                                                MergingStrategy.EXCLUDING,
+                                                                FeatureOption.CONSTRAINTS),
+                                                        option(
+                                                                MergingStrategy.EXCLUDING,
+                                                                FeatureOption.WATERMARKS),
+                                                        option(
+                                                                MergingStrategy.OVERWRITING,
+                                                                FeatureOption.GENERATED),
+                                                        option(
+                                                                MergingStrategy.OVERWRITING,
+                                                                FeatureOption.OPTIONS))))));
     }
 
     @Test

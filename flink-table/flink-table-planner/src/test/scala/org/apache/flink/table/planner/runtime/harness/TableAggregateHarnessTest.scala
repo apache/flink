@@ -49,8 +49,7 @@ class TableAggregateHarnessTest(mode: StateBackendMode) extends HarnessTestBase(
   override def before(): Unit = {
     super.before()
     val setting = EnvironmentSettings.newInstance().inStreamingMode().build()
-    val config = new TestTableConfig
-    this.tEnv = StreamTableEnvironmentImpl.create(env, setting, config)
+    this.tEnv = StreamTableEnvironmentImpl.create(env, setting)
   }
 
   val data = new mutable.MutableList[(Int, Int)]

@@ -33,9 +33,9 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.parallel.Execution;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.fail;
 import static org.junit.jupiter.api.parallel.ExecutionMode.CONCURRENT;
 
 /** FlinkSqlParserImpl tests. * */
@@ -1712,12 +1712,12 @@ public class FlinkSqlParserImplTest extends SqlParserTest {
                         createTable.validate();
                         fail("expected exception");
                     } catch (SqlValidateException e) {
-                        assertEquals(failMsg, e.getMessage());
+                        assertThat(e).hasMessage(failMsg);
                     }
                 }
                 if (expectedColumnSql != null && item instanceof SqlCreateTable) {
-                    assertEquals(
-                            expectedColumnSql, ((SqlCreateTable) createTable).getColumnSqlString());
+                    assertThat(((SqlCreateTable) createTable).getColumnSqlString())
+                            .isEqualTo(expectedColumnSql);
                 }
                 return true;
             } else {

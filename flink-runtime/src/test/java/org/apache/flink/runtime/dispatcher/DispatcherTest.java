@@ -207,11 +207,26 @@ public class DispatcherTest extends AbstractDispatcherTest {
     }
 
     @Test
-    public void testDuplicateJobSubmissionWithGloballyTerminatedJobId() throws Exception {
+    public void testDuplicateJobSubmissionWithGloballyTerminatedButDirtyJob() throws Exception {
         final JobResult jobResult =
                 TestingJobResultStore.createJobResult(
                         jobGraph.getJobID(), ApplicationStatus.SUCCEEDED);
         haServices.getJobResultStore().createDirtyResult(new JobResultEntry(jobResult));
+        assertDuplicateJobSubmission();
+    }
+
+    @Test
+    public void testDuplicateJobSubmissionWithGloballyTerminatedAndCleanedJob() throws Exception {
+        final JobResult jobResult =
+                TestingJobResultStore.createJobResult(
+                        jobGraph.getJobID(), ApplicationStatus.SUCCEEDED);
+        haServices.getJobResultStore().createDirtyResult(new JobResultEntry(jobResult));
+        haServices.getJobResultStore().markResultAsClean(jobGraph.getJobID());
+
+        assertDuplicateJobSubmission();
+    }
+
+    private void assertDuplicateJobSubmission() throws Exception {
         dispatcher =
                 createAndStartDispatcher(
                         heartbeatServices,

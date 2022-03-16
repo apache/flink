@@ -25,6 +25,7 @@ import org.apache.flink.runtime.state.SnapshotResult;
 import org.apache.flink.runtime.state.StateObject;
 import org.apache.flink.runtime.state.changelog.SequenceNumber;
 import org.apache.flink.runtime.taskmanager.AsyncExceptionHandler;
+import org.apache.flink.util.MathUtils;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 
@@ -33,6 +34,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -73,6 +75,8 @@ class PeriodicMaterializationManager implements Closeable {
     /** Whether PeriodicMaterializationManager is started. */
     private boolean started = false;
 
+    private final long initialDelay;
+
     PeriodicMaterializationManager(
             MailboxExecutor mailboxExecutor,
             ExecutorService asyncOperationsThreadPool,
@@ -80,7 +84,8 @@ class PeriodicMaterializationManager implements Closeable {
             AsyncExceptionHandler asyncExceptionHandler,
             ChangelogKeyedStateBackend<?> keyedStateBackend,
             long periodicMaterializeDelay,
-            int allowedNumberOfFailures) {
+            int allowedNumberOfFailures,
+            String operatorSubtaskId) {
         this.mailboxExecutor = checkNotNull(mailboxExecutor);
         this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
         this.subtaskName = checkNotNull(subtaskName);
@@ -95,6 +100,10 @@ class PeriodicMaterializationManager implements Closeable {
                 Executors.newSingleThreadScheduledExecutor(
                         new ExecutorThreadFactory(
                                 "periodic-materialization-scheduler-" + subtaskName));
+
+        this.initialDelay =
+                // randomize initial delay to avoid thundering herd problem
+                MathUtils.murmurHash(operatorSubtaskId.hashCode()) % periodicMaterializeDelay;
     }
 
     public void start() {
@@ -104,7 +113,7 @@ class PeriodicMaterializationManager implements Closeable {
 
             LOG.info("Task {} starts periodic materialization", subtaskName);
 
-            scheduleNextMaterialization();
+            scheduleNextMaterialization(initialDelay);
         }
     }
 
@@ -166,6 +175,10 @@ class PeriodicMaterializationManager implements Closeable {
                                         subtaskName,
                                         upTo);
 
+                                scheduleNextMaterialization();
+                            } else if (throwable instanceof CancellationException) {
+                                // can happen e.g. due to task cancellation
+                                LOG.info("materialization cancelled", throwable);
                                 scheduleNextMaterialization();
                             } else {
                                 // if failed
@@ -240,8 +253,12 @@ class PeriodicMaterializationManager implements Closeable {
         }
     }
 
+    private void scheduleNextMaterialization() {
+        scheduleNextMaterialization(0);
+    }
+
     // task thread and asyncOperationsThreadPool can access this method
-    private synchronized void scheduleNextMaterialization() {
+    private synchronized void scheduleNextMaterialization(long offset) {
         if (started && !periodicExecutor.isShutdown()) {
 
             LOG.info(
@@ -250,7 +267,9 @@ class PeriodicMaterializationManager implements Closeable {
                     periodicMaterializeDelay / 1000);
 
             periodicExecutor.schedule(
-                    this::triggerMaterialization, periodicMaterializeDelay, TimeUnit.MILLISECONDS);
+                    this::triggerMaterialization,
+                    periodicMaterializeDelay + offset,
+                    TimeUnit.MILLISECONDS);
         }
     }
 

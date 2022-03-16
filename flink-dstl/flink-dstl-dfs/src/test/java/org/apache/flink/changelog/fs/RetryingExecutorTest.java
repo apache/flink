@@ -17,22 +17,32 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.api.common.time.Deadline;
+import org.apache.flink.changelog.fs.RetryingExecutor.RetriableAction;
 import org.apache.flink.core.testutils.CompletedScheduledFuture;
 import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
+import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
 import org.junit.Test;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
+import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
 import static org.apache.flink.changelog.fs.UnregisteredChangelogStorageMetricGroup.createUnregisteredChangelogStorageMetricGroup;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
@@ -53,6 +63,62 @@ public class RetryingExecutorTest {
     @Test
     public void testFixedRetryLimit() throws Exception {
         testPolicy(5, RetryPolicy.fixed(5, 0, 0), FAILING_TASK);
+    }
+
+    @Test
+    public void testDiscardOnTimeout() throws Exception {
+        int timeoutMs = 5;
+        int numAttempts = 7;
+        int successfulAttempt = numAttempts - 1;
+        List<Integer> completed = new CopyOnWriteArrayList<>();
+        List<Integer> discarded = new CopyOnWriteArrayList<>();
+        AtomicBoolean executionBlocked = new AtomicBoolean(true);
+        Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
+        try (RetryingExecutor executor =
+                new RetryingExecutor(
+                        numAttempts,
+                        createUnregisteredChangelogStorageMetricGroup().getAttemptsPerUpload())) {
+            executor.execute(
+                    RetryPolicy.fixed(numAttempts, timeoutMs, 0),
+                    new RetriableAction<Integer>() {
+                        private final AtomicInteger attemptsCounter = new AtomicInteger(0);
+
+                        @Override
+                        public Integer tryExecute() throws Exception {
+                            int attempt = attemptsCounter.getAndIncrement();
+                            if (attempt < successfulAttempt) {
+                                while (executionBlocked.get()) {
+                                    Thread.sleep(10);
+                                }
+                            }
+                            return attempt;
+                        }
+
+                        @Override
+                        public void completeWithResult(Integer result) {
+                            completed.add(result);
+                        }
+
+                        @Override
+                        public void discardResult(Integer result) {
+                            discarded.add(result);
+                        }
+
+                        @Override
+                        public void handleFailure(Throwable throwable) {}
+                    });
+            while (completed.isEmpty() && deadline.hasTimeLeft()) {
+                Thread.sleep(10);
+            }
+            executionBlocked.set(false);
+            while (discarded.size() < successfulAttempt && deadline.hasTimeLeft()) {
+                Thread.sleep(10);
+            }
+        }
+        assertEquals(singletonList(successfulAttempt), completed);
+        assertEquals(
+                IntStream.range(0, successfulAttempt).boxed().collect(toList()),
+                discarded.stream().sorted().collect(toList()));
     }
 
     @Test
@@ -170,15 +236,35 @@ public class RetryingExecutorTest {
                         createUnregisteredChangelogStorageMetricGroup().getAttemptsPerUpload())) {
             executor.execute(
                     policy,
-                    () -> {
-                        try {
-                            task.accept(attemptsMade.incrementAndGet());
-                        } finally {
-                            firstAttemptCompletedLatch.countDown();
-                        }
-                    });
+                    runnableToAction(
+                            () -> {
+                                try {
+                                    task.accept(attemptsMade.incrementAndGet());
+                                } finally {
+                                    firstAttemptCompletedLatch.countDown();
+                                }
+                            }));
             firstAttemptCompletedLatch.await(); // before closing executor
         }
         assertEquals(expectedAttempts, attemptsMade.get());
+    }
+
+    private static RetriableAction<?> runnableToAction(RunnableWithException action) {
+        return new RetriableAction<Object>() {
+            @Override
+            public Object tryExecute() throws Exception {
+                action.run();
+                return null;
+            }
+
+            @Override
+            public void completeWithResult(Object o) {}
+
+            @Override
+            public void discardResult(Object o) {}
+
+            @Override
+            public void handleFailure(Throwable throwable) {}
+        };
     }
 }

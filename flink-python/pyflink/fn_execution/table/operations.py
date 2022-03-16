@@ -365,7 +365,11 @@ class AbstractStreamGroupAggregateOperation(BaseStatefulOperation):
                 row = input_data[1]
             self.group_agg_function.process_element(row)
         else:
-            self.group_agg_function.on_timer(input_data[3])
+            if has_cython:
+                timer = InternalRow.from_row(input_data[3])
+            else:
+                timer = input_data[3]
+            self.group_agg_function.on_timer(timer)
 
     @abc.abstractmethod
     def create_process_function(self, user_defined_aggs, input_extractors, filter_args,

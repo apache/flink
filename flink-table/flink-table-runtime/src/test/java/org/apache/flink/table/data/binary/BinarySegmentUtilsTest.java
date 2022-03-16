@@ -22,14 +22,10 @@ import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.table.data.util.DataFormatTestUtil;
 
-import org.junit.Assert;
 import org.junit.Test;
 
 import static org.apache.flink.table.data.binary.BinaryRowDataUtil.BYTE_ARRAY_BASE_OFFSET;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test for {@link BinarySegmentUtils}, most is covered by {@link
@@ -45,7 +41,7 @@ public class BinarySegmentUtilsTest {
         segments[1] = MemorySegmentFactory.wrap(new byte[] {6, 12, 15});
 
         byte[] bytes = BinarySegmentUtils.copyToBytes(segments, 4, 2);
-        Assert.assertArrayEquals(new byte[] {12, 15}, bytes);
+        assertThat(bytes).isEqualTo(new byte[] {12, 15});
     }
 
     @Test
@@ -60,10 +56,10 @@ public class BinarySegmentUtilsTest {
         segments2[0] = MemorySegmentFactory.wrap(new byte[] {6, 0, 2, 5});
         segments2[1] = MemorySegmentFactory.wrap(new byte[] {6, 12, 15, 18});
 
-        assertTrue(BinarySegmentUtils.equalsMultiSegments(segments1, 0, segments2, 0, 0));
-        assertTrue(BinarySegmentUtils.equals(segments1, 0, segments2, 1, 3));
-        assertTrue(BinarySegmentUtils.equals(segments1, 0, segments2, 1, 6));
-        assertFalse(BinarySegmentUtils.equals(segments1, 0, segments2, 1, 7));
+        assertThat(BinarySegmentUtils.equalsMultiSegments(segments1, 0, segments2, 0, 0)).isTrue();
+        assertThat(BinarySegmentUtils.equals(segments1, 0, segments2, 1, 3)).isTrue();
+        assertThat(BinarySegmentUtils.equals(segments1, 0, segments2, 1, 6)).isTrue();
+        assertThat(BinarySegmentUtils.equals(segments1, 0, segments2, 1, 7)).isFalse();
     }
 
     @Test
@@ -74,9 +70,9 @@ public class BinarySegmentUtilsTest {
         bytes2[3] = 81;
         bytes2[4] = 81;
 
-        assertTrue(BinaryRowDataUtil.byteArrayEquals(bytes1, bytes2, 4));
-        assertFalse(BinaryRowDataUtil.byteArrayEquals(bytes1, bytes2, 5));
-        assertTrue(BinaryRowDataUtil.byteArrayEquals(bytes1, bytes2, 0));
+        assertThat(BinaryRowDataUtil.byteArrayEquals(bytes1, bytes2, 4)).isTrue();
+        assertThat(BinaryRowDataUtil.byteArrayEquals(bytes1, bytes2, 5)).isFalse();
+        assertThat(BinaryRowDataUtil.byteArrayEquals(bytes1, bytes2, 0)).isTrue();
     }
 
     @Test
@@ -86,18 +82,19 @@ public class BinarySegmentUtilsTest {
         BinaryRowData varRow160 = DataFormatTestUtil.getMultiSeg160BytesBinaryRow(row160);
         BinaryRowData varRow160InOne = DataFormatTestUtil.getMultiSeg160BytesInOneSegRow(row160);
 
-        assertEquals(row160, varRow160InOne);
-        assertEquals(varRow160, varRow160InOne);
-        assertEquals(row160, varRow160);
-        assertEquals(varRow160InOne, varRow160);
+        assertThat(varRow160InOne).isEqualTo(row160);
+        assertThat(varRow160InOne).isEqualTo(varRow160);
+        assertThat(varRow160).isEqualTo(row160);
+        assertThat(varRow160).isEqualTo(varRow160InOne);
 
-        assertNotEquals(row24, row160);
-        assertNotEquals(row24, varRow160);
-        assertNotEquals(row24, varRow160InOne);
+        assertThat(row160).isNotEqualTo(row24);
+        assertThat(varRow160).isNotEqualTo(row24);
+        assertThat(varRow160InOne).isNotEqualTo(row24);
 
-        assertTrue(BinarySegmentUtils.equals(row24.getSegments(), 0, row160.getSegments(), 0, 0));
-        assertTrue(
-                BinarySegmentUtils.equals(row24.getSegments(), 0, varRow160.getSegments(), 0, 0));
+        assertThat(BinarySegmentUtils.equals(row24.getSegments(), 0, row160.getSegments(), 0, 0))
+                .isTrue();
+        assertThat(BinarySegmentUtils.equals(row24.getSegments(), 0, varRow160.getSegments(), 0, 0))
+                .isTrue();
 
         // test var segs
         MemorySegment[] segments1 = new MemorySegment[2];
@@ -109,14 +106,14 @@ public class BinarySegmentUtilsTest {
         segments2[2] = MemorySegmentFactory.wrap(new byte[16]);
 
         segments1[0].put(9, (byte) 1);
-        assertFalse(BinarySegmentUtils.equals(segments1, 0, segments2, 14, 14));
+        assertThat(BinarySegmentUtils.equals(segments1, 0, segments2, 14, 14)).isFalse();
         segments2[1].put(7, (byte) 1);
-        assertTrue(BinarySegmentUtils.equals(segments1, 0, segments2, 14, 14));
-        assertTrue(BinarySegmentUtils.equals(segments1, 2, segments2, 16, 14));
-        assertTrue(BinarySegmentUtils.equals(segments1, 2, segments2, 16, 16));
+        assertThat(BinarySegmentUtils.equals(segments1, 0, segments2, 14, 14)).isTrue();
+        assertThat(BinarySegmentUtils.equals(segments1, 2, segments2, 16, 14)).isTrue();
+        assertThat(BinarySegmentUtils.equals(segments1, 2, segments2, 16, 16)).isTrue();
 
         segments2[2].put(7, (byte) 1);
-        assertTrue(BinarySegmentUtils.equals(segments1, 2, segments2, 32, 14));
+        assertThat(BinarySegmentUtils.equals(segments1, 2, segments2, 32, 14)).isTrue();
     }
 
     @Test
@@ -132,7 +129,7 @@ public class BinarySegmentUtilsTest {
             MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToBytes(segments1, 0, bytes, 0, 64);
-            assertTrue(BinarySegmentUtils.equals(segments1, 0, segments2, 0, 64));
+            assertThat(BinarySegmentUtils.equals(segments1, 0, segments2, 0, 64)).isTrue();
         }
 
         {
@@ -140,7 +137,7 @@ public class BinarySegmentUtilsTest {
             MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToBytes(segments1, 32, bytes, 0, 14);
-            assertTrue(BinarySegmentUtils.equals(segments1, 32, segments2, 0, 14));
+            assertThat(BinarySegmentUtils.equals(segments1, 32, segments2, 0, 14)).isTrue();
         }
 
         {
@@ -148,7 +145,7 @@ public class BinarySegmentUtilsTest {
             MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToBytes(segments1, 34, bytes, 0, 14);
-            assertTrue(BinarySegmentUtils.equals(segments1, 34, segments2, 0, 14));
+            assertThat(BinarySegmentUtils.equals(segments1, 34, segments2, 0, 14)).isTrue();
         }
     }
 
@@ -165,7 +162,7 @@ public class BinarySegmentUtilsTest {
             MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToUnsafe(segments1, 0, bytes, BYTE_ARRAY_BASE_OFFSET, 64);
-            assertTrue(BinarySegmentUtils.equals(segments1, 0, segments2, 0, 64));
+            assertThat(BinarySegmentUtils.equals(segments1, 0, segments2, 0, 64)).isTrue();
         }
 
         {
@@ -173,7 +170,7 @@ public class BinarySegmentUtilsTest {
             MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToUnsafe(segments1, 32, bytes, BYTE_ARRAY_BASE_OFFSET, 14);
-            assertTrue(BinarySegmentUtils.equals(segments1, 32, segments2, 0, 14));
+            assertThat(BinarySegmentUtils.equals(segments1, 32, segments2, 0, 14)).isTrue();
         }
 
         {
@@ -181,7 +178,7 @@ public class BinarySegmentUtilsTest {
             MemorySegment[] segments2 = new MemorySegment[] {MemorySegmentFactory.wrap(bytes)};
 
             BinarySegmentUtils.copyToUnsafe(segments1, 34, bytes, BYTE_ARRAY_BASE_OFFSET, 14);
-            assertTrue(BinarySegmentUtils.equals(segments1, 34, segments2, 0, 14));
+            assertThat(BinarySegmentUtils.equals(segments1, 34, segments2, 0, 14)).isTrue();
         }
     }
 
@@ -195,7 +192,7 @@ public class BinarySegmentUtilsTest {
         segments2[1] = MemorySegmentFactory.wrap(new byte[16]);
         segments2[2] = MemorySegmentFactory.wrap(new byte[16]);
 
-        assertEquals(34, BinarySegmentUtils.find(segments1, 34, 0, segments2, 0, 0));
-        assertEquals(-1, BinarySegmentUtils.find(segments1, 34, 0, segments2, 0, 15));
+        assertThat(BinarySegmentUtils.find(segments1, 34, 0, segments2, 0, 0)).isEqualTo(34);
+        assertThat(BinarySegmentUtils.find(segments1, 34, 0, segments2, 0, 15)).isEqualTo(-1);
     }
 }

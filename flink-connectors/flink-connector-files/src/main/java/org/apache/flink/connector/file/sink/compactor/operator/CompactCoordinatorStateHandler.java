@@ -21,6 +21,9 @@ package org.apache.flink.connector.file.sink.compactor.operator;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.connector.file.sink.FileSinkCommittable;
+import org.apache.flink.connector.file.sink.compactor.FileCompactStrategy;
+import org.apache.flink.connector.file.sink.compactor.operator.CompactCoordinator.CompactTrigger;
+import org.apache.flink.connector.file.sink.compactor.operator.CompactCoordinator.CompactTriggerResult;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 import org.apache.flink.runtime.state.StateInitializationContext;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
@@ -70,6 +73,11 @@ public class CompactCoordinatorStateHandler
                                 .getListState(REMAINING_COMMITTABLE_RAW_STATES_DESC),
                         committableSerializer);
 
+        // A default trigger to judge whether a pending file should be compacted or passed through
+        CompactTrigger trigger =
+                new CompactTrigger(
+                        FileCompactStrategy.Builder.newBuilder().setSizeThreshold(0).build());
+
         Iterable<FileSinkCommittable> stateRemaining = remainingCommittableState.get();
         if (stateRemaining != null) {
             for (FileSinkCommittable committable : stateRemaining) {
@@ -77,7 +85,12 @@ public class CompactCoordinatorStateHandler
                 // compacting is not available now
                 String bucketId = committable.getBucketId();
                 CompactorRequest request = new CompactorRequest(bucketId);
-                request.addToCompact(committable);
+                if (committable.hasPendingFile()
+                        && trigger.onElement(committable) != CompactTriggerResult.PASS_THROUGH) {
+                    request.addToCompact(committable);
+                } else {
+                    request.addToPassthrough(committable);
+                }
                 output.collect(new StreamRecord<>(Either.Right(request)));
             }
         }

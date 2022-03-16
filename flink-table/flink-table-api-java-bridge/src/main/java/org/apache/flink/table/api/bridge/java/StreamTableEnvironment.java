@@ -31,7 +31,6 @@ import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.Schema;
 import org.apache.flink.table.api.StatementSet;
 import org.apache.flink.table.api.Table;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.bridge.java.internal.StreamTableEnvironmentImpl;
 import org.apache.flink.table.connector.ChangelogMode;
@@ -92,9 +91,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
      *     TableEnvironment}.
      */
     static StreamTableEnvironment create(StreamExecutionEnvironment executionEnvironment) {
-        return create(
-                executionEnvironment,
-                EnvironmentSettings.fromConfiguration(executionEnvironment.getConfiguration()));
+        return create(executionEnvironment, EnvironmentSettings.newInstance().build());
     }
 
     /**
@@ -122,43 +119,7 @@ public interface StreamTableEnvironment extends TableEnvironment {
      */
     static StreamTableEnvironment create(
             StreamExecutionEnvironment executionEnvironment, EnvironmentSettings settings) {
-        TableConfig tableConfig = new TableConfig();
-        tableConfig.addConfiguration(settings.toConfiguration());
-        return StreamTableEnvironmentImpl.create(executionEnvironment, settings, tableConfig);
-    }
-
-    /**
-     * Creates a table environment that is the entry point and central context for creating Table
-     * and SQL API programs that integrate with the Java-specific {@link DataStream} API.
-     *
-     * <p>It is unified for bounded and unbounded data processing.
-     *
-     * <p>A stream table environment is responsible for:
-     *
-     * <ul>
-     *   <li>Convert a {@link DataStream} into {@link Table} and vice-versa.
-     *   <li>Connecting to external systems.
-     *   <li>Registering and retrieving {@link Table}s and other meta objects from a catalog.
-     *   <li>Executing SQL statements.
-     *   <li>Offering further configuration options.
-     * </ul>
-     *
-     * <p>Note: If you don't intend to use the {@link DataStream} API, {@link TableEnvironment} is
-     * meant for pure table programs.
-     *
-     * @param executionEnvironment The Java {@link StreamExecutionEnvironment} of the {@link
-     *     TableEnvironment}.
-     * @param tableConfig The configuration of the {@link TableEnvironment}.
-     * @deprecated Use {@link #create(StreamExecutionEnvironment)} and {@link #getConfig()} for
-     *     manipulating {@link TableConfig}.
-     */
-    @Deprecated
-    static StreamTableEnvironment create(
-            StreamExecutionEnvironment executionEnvironment, TableConfig tableConfig) {
-        return StreamTableEnvironmentImpl.create(
-                executionEnvironment,
-                EnvironmentSettings.fromConfiguration(tableConfig.getConfiguration()),
-                tableConfig);
+        return StreamTableEnvironmentImpl.create(executionEnvironment, settings);
     }
 
     /**

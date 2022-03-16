@@ -108,6 +108,10 @@ check_shaded_artifacts_connector_elasticsearch 6
 EXIT_CODE=$(($EXIT_CODE+$?))
 check_shaded_artifacts_connector_elasticsearch 7
 EXIT_CODE=$(($EXIT_CODE+$?))
+check_one_per_package_file_connector_base
+EXIT_CODE=$(($EXIT_CODE+$?))
+check_relocated_file_connector_base
+EXIT_CODE=$(($EXIT_CODE+$?))
 
 echo "============ Run license check ============"
 

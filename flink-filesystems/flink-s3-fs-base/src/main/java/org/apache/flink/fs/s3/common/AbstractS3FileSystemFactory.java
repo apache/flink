@@ -152,7 +152,7 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
             final int maxConcurrentUploads = flinkConfig.getInteger(MAX_CONCURRENT_UPLOADS);
             final S3AccessHelper s3AccessHelper = getS3AccessHelper(fs);
 
-            return new FlinkS3FileSystem(
+            return createFlinkFileSystem(
                     fs,
                     localTmpDirectory,
                     entropyInjectionKey,
@@ -165,6 +165,24 @@ public abstract class AbstractS3FileSystemFactory implements FileSystemFactory {
         } catch (Exception e) {
             throw new IOException(e.getMessage(), e);
         }
+    }
+
+    protected FileSystem createFlinkFileSystem(
+            org.apache.hadoop.fs.FileSystem fs,
+            String localTmpDirectory,
+            String entropyInjectionKey,
+            int numEntropyChars,
+            S3AccessHelper s3AccessHelper,
+            long s3minPartSize,
+            int maxConcurrentUploads) {
+        return new FlinkS3FileSystem(
+                fs,
+                localTmpDirectory,
+                entropyInjectionKey,
+                numEntropyChars,
+                s3AccessHelper,
+                s3minPartSize,
+                maxConcurrentUploads);
     }
 
     protected abstract org.apache.hadoop.fs.FileSystem createHadoopFileSystem();

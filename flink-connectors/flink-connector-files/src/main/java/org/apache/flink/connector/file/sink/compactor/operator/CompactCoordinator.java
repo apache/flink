@@ -209,7 +209,7 @@ public class CompactCoordinator extends AbstractStreamOperator<CompactorRequest>
         PASS_THROUGH
     }
 
-    private static class CompactTrigger {
+    static class CompactTrigger {
         private final long threshold;
         private final int numCheckpointsBeforeCompaction;
 
@@ -222,10 +222,6 @@ public class CompactCoordinator extends AbstractStreamOperator<CompactorRequest>
         }
 
         public CompactTriggerResult onElement(FileSinkCommittable committable) {
-            if (threshold < 0) {
-                return CompactTriggerResult.CONTINUE;
-            }
-
             PendingFileRecoverable file = committable.getPendingFile();
             if (file == null) {
                 return CompactTriggerResult.PASS_THROUGH;
@@ -242,6 +238,10 @@ public class CompactCoordinator extends AbstractStreamOperator<CompactorRequest>
             if (curSize < 0) {
                 // unrecognized committable, can not compact, pass through directly
                 return CompactTriggerResult.PASS_THROUGH;
+            }
+
+            if (threshold < 0) {
+                return CompactTriggerResult.CONTINUE;
             }
 
             size += curSize;

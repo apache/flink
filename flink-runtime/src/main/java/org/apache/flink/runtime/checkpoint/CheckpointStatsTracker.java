@@ -310,6 +310,9 @@ public class CheckpointStatsTracker {
     static final String LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC = "lastCheckpointSize";
 
     @VisibleForTesting
+    static final String LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC = "lastCheckpointFullSize";
+
+    @VisibleForTesting
     static final String LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC = "lastCheckpointDuration";
 
     @VisibleForTesting
@@ -341,6 +344,9 @@ public class CheckpointStatsTracker {
                 new LatestRestoredCheckpointTimestampGauge());
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_SIZE_METRIC, new LatestCompletedCheckpointSizeGauge());
+        metricGroup.gauge(
+                LATEST_COMPLETED_CHECKPOINT_FULL_SIZE_METRIC,
+                new LatestCompletedCheckpointFullSizeGauge());
         metricGroup.gauge(
                 LATEST_COMPLETED_CHECKPOINT_DURATION_METRIC,
                 new LatestCompletedCheckpointDurationGauge());
@@ -396,6 +402,18 @@ public class CheckpointStatsTracker {
     }
 
     private class LatestCompletedCheckpointSizeGauge implements Gauge<Long> {
+        @Override
+        public Long getValue() {
+            CompletedCheckpointStats completed = latestCompletedCheckpoint;
+            if (completed != null) {
+                return completed.getCheckpointedSize();
+            } else {
+                return -1L;
+            }
+        }
+    }
+
+    private class LatestCompletedCheckpointFullSizeGauge implements Gauge<Long> {
         @Override
         public Long getValue() {
             CompletedCheckpointStats completed = latestCompletedCheckpoint;

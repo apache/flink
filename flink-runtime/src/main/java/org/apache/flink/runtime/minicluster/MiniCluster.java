@@ -39,7 +39,6 @@ import org.apache.flink.runtime.blob.BlobUtils;
 import org.apache.flink.runtime.client.ClientUtils;
 import org.apache.flink.runtime.client.JobExecutionException;
 import org.apache.flink.runtime.client.JobStatusMessage;
-import org.apache.flink.runtime.clusterframework.ApplicationStatus;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.dispatcher.DispatcherGateway;
 import org.apache.flink.runtime.dispatcher.DispatcherId;
@@ -56,7 +55,9 @@ import org.apache.flink.runtime.executiongraph.ArchivedExecutionGraph;
 import org.apache.flink.runtime.externalresource.ExternalResourceInfoProvider;
 import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
+import org.apache.flink.runtime.highavailability.HighAvailabilityServicesFactory;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServicesUtils;
+import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServices;
 import org.apache.flink.runtime.highavailability.nonha.embedded.EmbeddedHaServicesWithLeadershipControl;
 import org.apache.flink.runtime.highavailability.nonha.embedded.HaLeadershipControl;
 import org.apache.flink.runtime.jobgraph.JobGraph;
@@ -64,6 +65,7 @@ import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointConfigOptions;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
 import org.apache.flink.runtime.jobmaster.JobResult;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalService;
 import org.apache.flink.runtime.messages.Acknowledge;
@@ -101,12 +103,14 @@ import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.ExponentialBackoffRetryStrategy;
 import org.apache.flink.util.concurrent.FutureUtils;
+import org.apache.flink.util.function.BiFunctionWithException;
 import org.apache.flink.util.function.FunctionUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 
 import java.io.IOException;
@@ -171,6 +175,9 @@ public class MiniCluster implements AutoCloseableAsync {
 
     @GuardedBy("lock")
     private final Collection<RpcService> rpcServices;
+
+    @GuardedBy("lock")
+    private HighAvailabilityServicesFactory haServicesFactory;
 
     @GuardedBy("lock")
     private HighAvailabilityServices haServices;
@@ -395,6 +402,9 @@ public class MiniCluster implements AutoCloseableAsync {
                         Executors.newFixedThreadPool(
                                 ClusterEntrypointUtils.getPoolSize(configuration),
                                 new ExecutorThreadFactory("mini-cluster-io"));
+
+                haServicesFactory = createHighAvailabilityServicesFactory(configuration);
+
                 haServices = createHighAvailabilityServices(configuration, ioExecutor);
 
                 blobServer =
@@ -479,28 +489,17 @@ public class MiniCluster implements AutoCloseableAsync {
                 createDispatcherResourceManagerComponents(
                         configuration,
                         dispatcherResourceManagerComponentRpcServiceFactory,
-                        haServices,
                         blobServer,
                         heartbeatServices,
                         metricRegistry,
                         metricQueryServiceRetriever,
                         new ShutDownFatalErrorHandler()));
 
-        final Collection<CompletableFuture<ApplicationStatus>> shutDownFutures =
-                new ArrayList<>(dispatcherResourceManagerComponents.size());
-
-        for (DispatcherResourceManagerComponent dispatcherResourceManagerComponent :
-                dispatcherResourceManagerComponents) {
-            final CompletableFuture<ApplicationStatus> shutDownFuture =
-                    dispatcherResourceManagerComponent.getShutDownFuture();
-            FutureUtils.assertNoException(
-                    shutDownFuture.thenCompose(
-                            applicationStatus ->
-                                    dispatcherResourceManagerComponent.stopApplication(
-                                            applicationStatus, null)));
-            shutDownFutures.add(shutDownFuture);
-        }
-        FutureUtils.completeAll(shutDownFutures).whenComplete((ignored, exception) -> closeAsync());
+        FutureUtils.completeAll(
+                        dispatcherResourceManagerComponents.stream()
+                                .map(DispatcherResourceManagerComponent::getShutDownFuture)
+                                .collect(Collectors.toList()))
+                .whenComplete((ignored, exception) -> closeAsync());
     }
 
     @VisibleForTesting
@@ -508,7 +507,6 @@ public class MiniCluster implements AutoCloseableAsync {
             createDispatcherResourceManagerComponents(
                     Configuration configuration,
                     RpcServiceFactory rpcServiceFactory,
-                    HighAvailabilityServices haServices,
                     BlobServer blobServer,
                     HeartbeatServices heartbeatServices,
                     MetricRegistry metricRegistry,
@@ -517,7 +515,8 @@ public class MiniCluster implements AutoCloseableAsync {
                     throws Exception {
         DispatcherResourceManagerComponentFactory dispatcherResourceManagerComponentFactory =
                 createDispatcherResourceManagerComponentFactory();
-        return Collections.singleton(
+
+        final DispatcherResourceManagerComponent dispatcherResourceManagerComponent =
                 dispatcherResourceManagerComponentFactory.create(
                         configuration,
                         ResourceID.generate(),
@@ -529,7 +528,15 @@ public class MiniCluster implements AutoCloseableAsync {
                         metricRegistry,
                         new MemoryExecutionGraphInfoStore(),
                         metricQueryServiceRetriever,
-                        fatalErrorHandler));
+                        fatalErrorHandler);
+        FutureUtils.assertNoException(
+                dispatcherResourceManagerComponent
+                        .getShutDownFuture()
+                        .thenCompose(
+                                applicationStatus ->
+                                        dispatcherResourceManagerComponent.stopApplication(
+                                                applicationStatus, null)));
+        return Collections.singleton(dispatcherResourceManagerComponent);
     }
 
     protected DispatcherResourceManagerComponentFactory
@@ -538,20 +545,42 @@ public class MiniCluster implements AutoCloseableAsync {
                 StandaloneResourceManagerFactory.getInstance());
     }
 
+    private HighAvailabilityServicesFactory createHighAvailabilityServicesFactory(
+            Configuration configuration) {
+        final HaServices customMiniClusterHaServicesMode = miniClusterConfiguration.getHaServices();
+        if (customMiniClusterHaServicesMode == HaServices.WITH_LEADERSHIP_CONTROL) {
+            // special feature of MiniClusters to allow the control of leadership
+            // EmbeddedLeaderElection requires a single instance for leader election across multiple
+            // JobManager instances on the same JVM (after FLINK-24038 was introduced); therefore,
+            // SingletonHighAvailabilityServicesFactory is utilized here
+            return new SingletonHighAvailabilityServicesFactory(
+                    (config, embeddedLeaderElectionExecutor) ->
+                            new EmbeddedHaServicesWithLeadershipControl(
+                                    embeddedLeaderElectionExecutor));
+        } else if (customMiniClusterHaServicesMode != HaServices.CONFIGURED) {
+            throw new IllegalConfigurationException(
+                    "Unknown HA Services Mode configured in MiniCluster configuration: "
+                            + customMiniClusterHaServicesMode);
+        }
+
+        final HighAvailabilityMode highAvailabilityMode =
+                HighAvailabilityMode.fromConfig(configuration);
+        if (highAvailabilityMode == HighAvailabilityMode.NONE) {
+            // basic EmbeddedLeaderElection requires a single instance for leader election across
+            // multiple JobManager instances on the same JVM (after FLINK-24038 was introduced);
+            // therefore, SingletonHighAvailabilityServicesFactory is utilized here
+            return new SingletonHighAvailabilityServicesFactory(
+                    (config, embeddedLeaderElectionExecutor) ->
+                            new EmbeddedHaServices(embeddedLeaderElectionExecutor));
+        } else {
+            return new RegularHighAvailabilityServicesFactory();
+        }
+    }
+
     @VisibleForTesting
     protected HighAvailabilityServices createHighAvailabilityServices(
             Configuration configuration, Executor executor) throws Exception {
-        LOG.info("Starting high-availability services");
-        final HaServices haServices = miniClusterConfiguration.getHaServices();
-        switch (haServices) {
-            case WITH_LEADERSHIP_CONTROL:
-                return new EmbeddedHaServicesWithLeadershipControl(executor);
-            case CONFIGURED:
-                return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
-                        configuration, executor, new ShutDownFatalErrorHandler());
-            default:
-                throw new IllegalConfigurationException("Unknown HA Services " + haServices);
-        }
+        return haServicesFactory.createHAServices(configuration, executor);
     }
 
     /**
@@ -569,6 +598,10 @@ public class MiniCluster implements AutoCloseableAsync {
                     ? Optional.of((HaLeadershipControl) haServices)
                     : Optional.empty();
         }
+    }
+
+    protected HighAvailabilityServices getHaServices() {
+        return haServices;
     }
 
     /**
@@ -715,14 +748,14 @@ public class MiniCluster implements AutoCloseableAsync {
         return miniClusterConfiguration.getConfiguration();
     }
 
-    // HACK: temporary hack to make the randomized changelog state backend tests work with forced
+    // HACK: temporary hack to make the changelog state backend tests work with forced
     // full snapshots. This option should be removed once changelog state backend supports forced
     // full snapshots
-    @Internal private boolean overrideRestoreModeForRandomizedChangelogStateBackend;
+    @Internal private boolean overrideRestoreModeForChangelogStateBackend;
 
     @Internal
-    public void overrideRestoreModeForRandomizedChangelogStateBackend() {
-        this.overrideRestoreModeForRandomizedChangelogStateBackend = true;
+    public void overrideRestoreModeForChangelogStateBackend() {
+        this.overrideRestoreModeForChangelogStateBackend = true;
     }
 
     @GuardedBy("lock")
@@ -942,7 +975,7 @@ public class MiniCluster implements AutoCloseableAsync {
         // Dispatcher. This means that any mutations to the JG can affect the Dispatcher behaviour,
         // so we rather clone it to guard against this.
         final JobGraph clonedJobGraph = cloneJobGraph(jobGraph);
-        checkRestoreModeForRandomizedChangelogStateBackend(clonedJobGraph);
+        checkRestoreModeForChangelogStateBackend(clonedJobGraph);
         final CompletableFuture<DispatcherGateway> dispatcherGatewayFuture =
                 getDispatcherGatewayFuture();
         final CompletableFuture<InetSocketAddress> blobServerAddressFuture =
@@ -963,10 +996,10 @@ public class MiniCluster implements AutoCloseableAsync {
     // HACK: temporary hack to make the randomized changelog state backend tests work with forced
     // full snapshots. This option should be removed once changelog state backend supports forced
     // full snapshots
-    private void checkRestoreModeForRandomizedChangelogStateBackend(JobGraph jobGraph) {
+    private void checkRestoreModeForChangelogStateBackend(JobGraph jobGraph) {
         final SavepointRestoreSettings savepointRestoreSettings =
                 jobGraph.getSavepointRestoreSettings();
-        if (overrideRestoreModeForRandomizedChangelogStateBackend
+        if (overrideRestoreModeForChangelogStateBackend
                 && savepointRestoreSettings.getRestoreMode() == RestoreMode.NO_CLAIM) {
             final Configuration conf = new Configuration();
             SavepointRestoreSettings.toConfiguration(savepointRestoreSettings, conf);
@@ -1397,5 +1430,46 @@ public class MiniCluster implements AutoCloseableAsync {
          * Enabling this feature disables {@link HighAvailabilityOptions#HA_MODE} option.
          */
         WITH_LEADERSHIP_CONTROL
+    }
+
+    /**
+     * SingletonHighAvailabilityServicesFactory is used for scenarios that are not truly high
+     * available and rely on having a single HighAvailabilityServices object.
+     */
+    private static class SingletonHighAvailabilityServicesFactory
+            implements HighAvailabilityServicesFactory {
+
+        private final BiFunctionWithException<
+                        Configuration, Executor, HighAvailabilityServices, Exception>
+                creationCallback;
+
+        @Nullable private HighAvailabilityServices haServices;
+
+        public SingletonHighAvailabilityServicesFactory(
+                BiFunctionWithException<
+                                Configuration, Executor, HighAvailabilityServices, Exception>
+                        creationCallback) {
+            this.creationCallback = creationCallback;
+        }
+
+        @Override
+        public HighAvailabilityServices createHAServices(
+                Configuration configuration, Executor executor) throws Exception {
+            if (haServices == null) {
+                haServices = creationCallback.apply(configuration, executor);
+            }
+
+            return this.haServices;
+        }
+    }
+
+    private class RegularHighAvailabilityServicesFactory
+            implements HighAvailabilityServicesFactory {
+        @Override
+        public HighAvailabilityServices createHAServices(
+                Configuration configuration, Executor executor) throws Exception {
+            return HighAvailabilityServicesUtils.createAvailableOrEmbeddedServices(
+                    configuration, executor, new ShutDownFatalErrorHandler());
+        }
     }
 }

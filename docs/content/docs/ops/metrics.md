@@ -1200,7 +1200,12 @@ Note that for failed checkpoints, metrics are updated on a best efforts basis an
     </tr>
     <tr>
       <td>lastCheckpointSize</td>
-      <td>The total size of the last checkpoint (in bytes).</td>
+      <td>The checkpointed size of the last checkpoint (in bytes), this metric could be different from lastCheckpointFullSize if incremental checkpoint or changelog is enabled.</td>
+      <td>Gauge</td>
+    </tr>
+    <tr>
+      <td>lastCheckpointFullSize</td>
+      <td>The full size of the last checkpoint (in bytes).</td>
       <td>Gauge</td>
     </tr>
     <tr>
@@ -1487,9 +1492,8 @@ Note that the metrics are only available via reporters.
       <td>
         The current drift from the minimal watermark emitted by all sources/tasks/splits that belong
         to the same watermark group.
-
-        Note: Available only when watermark alignment is enabled and the first common watermark is
-        announced. You can configure the update interval in the WatermarkStrategy.
+        <p><strong>Note:</strong> Available only when watermark alignment is enabled and the first common watermark is
+        announced. You can configure the update interval in the WatermarkStrategy.</p>
       </td>
       <td>Gauge</td>
     </tr>
@@ -1612,7 +1616,15 @@ Please refer to [Kafka monitoring]({{< ref "docs/connectors/datastream/kafka" >}
   <tbody>
     <tr>
       <th rowspan="1">Operator</th>
-      <td>numRecordsOutErrors</td>
+      <td>numRecordsOutErrors (deprecated, please use numRecordsSendErrors)</td>
+      <td>Number of rejected record writes.</td>
+      <td>Counter</td>
+    </tr>
+  </tbody>
+  <tbody>
+    <tr>
+      <th rowspan="1">Operator</th>
+      <td>numRecordsSendErrors</td>
       <td>Number of rejected record writes.</td>
       <td>Counter</td>
     </tr>

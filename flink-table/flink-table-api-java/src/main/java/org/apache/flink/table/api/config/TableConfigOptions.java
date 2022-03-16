@@ -41,6 +41,24 @@ public class TableConfigOptions {
     private TableConfigOptions() {}
 
     @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<String> TABLE_CATALOG_NAME =
+            key("table.builtin-catalog-name")
+                    .stringType()
+                    .defaultValue("default_catalog")
+                    .withDescription(
+                            "The name of the initial catalog to be created when "
+                                    + "instantiating a TableEnvironment.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
+    public static final ConfigOption<String> TABLE_DATABASE_NAME =
+            key("table.builtin-database-name")
+                    .stringType()
+                    .defaultValue("default_database")
+                    .withDescription(
+                            "The name of the default database in the initial catalog to be created "
+                                    + "when instantiating TableEnvironment.");
+
+    @Documentation.TableOption(execMode = Documentation.ExecMode.BATCH_STREAMING)
     public static final ConfigOption<Boolean> TABLE_DML_SYNC =
             key("table.dml-sync")
                     .booleanType()

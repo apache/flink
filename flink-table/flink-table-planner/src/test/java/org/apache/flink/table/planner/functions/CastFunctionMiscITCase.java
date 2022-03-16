@@ -52,6 +52,7 @@ import static org.apache.flink.table.api.Expressions.call;
 import static org.apache.flink.table.api.Expressions.row;
 import static org.apache.flink.util.CollectionUtil.entry;
 import static org.apache.flink.util.CollectionUtil.map;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link BuiltInFunctionDefinitions#CAST} regarding {@link DataTypes#ROW}. */
 public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
@@ -286,8 +287,8 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
     /** Function that return the first field of the input row. */
     public static class RowToFirstField extends ScalarFunction {
         public Integer eval(@DataTypeHint("ROW<i INT, s STRING>") Row row) {
-            assert row.getField(0) instanceof Integer;
-            assert row.getField(1) instanceof String;
+            assertThat(row.getField(0)).isInstanceOf(Integer.class);
+            assertThat(row.getField(1)).isInstanceOf(String.class);
             return (Integer) row.getField(0);
         }
     }
@@ -296,8 +297,8 @@ public class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
     public static class NestedRowToFirstField extends ScalarFunction {
         public @DataTypeHint("ROW<i INT, d DOUBLE>") Row eval(
                 @DataTypeHint("ROW<r ROW<i INT, d DOUBLE>, s STRING>") Row row) {
-            assert row.getField(0) instanceof Row;
-            assert row.getField(1) instanceof String;
+            assertThat(row.getField(0)).isInstanceOf(Row.class);
+            assertThat(row.getField(1)).isInstanceOf(String.class);
             return (Row) row.getField(0);
         }
     }

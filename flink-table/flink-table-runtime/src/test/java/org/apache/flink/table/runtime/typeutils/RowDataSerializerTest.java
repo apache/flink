@@ -41,7 +41,6 @@ import org.apache.flink.table.types.logical.RawType;
 import org.apache.flink.table.types.logical.VarCharType;
 import org.apache.flink.testutils.DeeplyEqualsChecker;
 
-import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -53,6 +52,7 @@ import java.util.Collection;
 import java.util.Objects;
 
 import static org.apache.flink.table.data.StringData.fromString;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link RowDataSerializer}. */
 @RunWith(Parameterized.class)
@@ -312,7 +312,7 @@ public class RowDataSerializerTest extends SerializerTestInstance<RowData> {
                         (RowDataSerializer) serializer.duplicate(),
                         (RowDataSerializer) serializer.duplicate(),
                         checkClass);
-        Assert.assertTrue(equals);
+        assertThat(equals).isTrue();
     }
 
     @Test

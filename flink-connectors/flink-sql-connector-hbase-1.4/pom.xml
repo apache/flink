@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
@@ -113,6 +113,10 @@ under the License.
 								</filter>
 							</filters>
 							<relocations>
+								<relocation>
+									<pattern>org.apache.flink.connector.base</pattern>
+									<shadedPattern>org.apache.flink.connector.sql.hbase14.shaded.org.apache.flink.connector.base</shadedPattern>
+								</relocation>
 								<!-- Force relocation of all HBase dependencies. -->
 								<relocation>
 									<pattern>org.apache.zookeeper</pattern>

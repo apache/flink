@@ -257,9 +257,18 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         notifier.notifyReadyAsync(callable, handler);
     }
 
+    /** {@inheritDoc} If the runnable throws an Exception, the corresponding job is failed. */
     @Override
     public void runInCoordinatorThread(Runnable runnable) {
-        coordinatorExecutor.execute(runnable);
+        // when using a ScheduledThreadPool, uncaught exception handler catches only
+        // exceptions thrown by the threadPool, so manually call it when the exception is
+        // thrown by the runnable
+        coordinatorExecutor.execute(
+                new ThrowableCatchingRunnable(
+                        throwable ->
+                                coordinatorThreadFactory.uncaughtException(
+                                        Thread.currentThread(), throwable),
+                        runnable));
     }
 
     @Override

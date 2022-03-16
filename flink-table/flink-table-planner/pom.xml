@@ -23,7 +23,7 @@ under the License.
 	<parent>
 		<groupId>org.apache.flink</groupId>
 		<artifactId>flink-table</artifactId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 
@@ -434,8 +434,7 @@ under the License.
 								<include>**/*ITCase.*</include>
 							</includes>
 							<!-- override reuseForks to true to reduce testing time -->
-							<!-- temporarily set to false because the test consume too many resources -->
-							<reuseForks>false</reuseForks>
+							<reuseForks>true</reuseForks>
 						</configuration>
 					</execution>
 				</executions>

@@ -210,7 +210,7 @@ public class FsStateChangelogWriterTest {
                 new FsStateChangelogWriter(
                         UUID.randomUUID(),
                         KeyGroupRange.of(KEY_GROUP, KEY_GROUP),
-                        uploader,
+                        StateChangeUploadScheduler.directScheduler(uploader),
                         appendPersistThreshold)) {
             test.accept(writer, uploader);
         }

@@ -26,7 +26,7 @@ import org.apache.flink.table.api.ValidationException;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TypeStringUtils}. */
 public class TypeStringUtilsTest {
@@ -96,20 +96,25 @@ public class TypeStringUtilsTest {
                 Types.OBJECT_ARRAY(TypeExtractor.createTypeInfo(TestPojo.class)));
 
         // test escaping
-        assertEquals(
-                Types.ROW_NAMED(
-                        new String[] {"he         \nllo", "world"}, Types.BIG_DEC, Types.BYTE),
-                TypeStringUtils.readTypeInfo("ROW<`he         \nllo` DECIMAL, world TINYINT>"));
+        assertThat(TypeStringUtils.readTypeInfo("ROW<`he         \nllo` DECIMAL, world TINYINT>"))
+                .isEqualTo(
+                        Types.ROW_NAMED(
+                                new String[] {"he         \nllo", "world"},
+                                Types.BIG_DEC,
+                                Types.BYTE));
 
-        assertEquals(
-                Types.ROW_NAMED(new String[] {"he`llo", "world"}, Types.BIG_DEC, Types.BYTE),
-                TypeStringUtils.readTypeInfo("ROW<`he``llo` DECIMAL, world TINYINT>"));
+        assertThat(TypeStringUtils.readTypeInfo("ROW<`he``llo` DECIMAL, world TINYINT>"))
+                .isEqualTo(
+                        Types.ROW_NAMED(
+                                new String[] {"he`llo", "world"}, Types.BIG_DEC, Types.BYTE));
 
         // test backward compatibility with brackets ()
-        assertEquals(
-                Types.ROW_NAMED(
-                        new String[] {"he         \nllo", "world"}, Types.BIG_DEC, Types.BYTE),
-                TypeStringUtils.readTypeInfo("ROW(`he         \nllo` DECIMAL, world TINYINT)"));
+        assertThat(TypeStringUtils.readTypeInfo("ROW(`he         \nllo` DECIMAL, world TINYINT)"))
+                .isEqualTo(
+                        Types.ROW_NAMED(
+                                new String[] {"he         \nllo", "world"},
+                                Types.BIG_DEC,
+                                Types.BYTE));
 
         // test nesting
         testReadAndWrite(
@@ -149,15 +154,15 @@ public class TypeStringUtilsTest {
 
     private void testReadAndWrite(String expected, TypeInformation<?> type) {
         // test read from string
-        assertEquals(type, TypeStringUtils.readTypeInfo(expected));
+        assertThat(TypeStringUtils.readTypeInfo(expected)).isEqualTo(type);
 
         // test write to string
-        assertEquals(expected, TypeStringUtils.writeTypeInfo(type));
+        assertThat(TypeStringUtils.writeTypeInfo(type)).isEqualTo(expected);
     }
 
     private void testWrite(String expected, TypeInformation<?> type) {
         // test write to string
-        assertEquals(expected, TypeStringUtils.writeTypeInfo(type));
+        assertThat(TypeStringUtils.writeTypeInfo(type)).isEqualTo(expected);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -45,9 +45,8 @@ import java.util.List;
 import java.util.Objects;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Unit test for {@link AvroParquetRecordFormat} and {@link
@@ -84,6 +83,7 @@ class AvroParquetRecordFormatTest {
                         .parse(
                                 "{\"type\": \"record\", "
                                         + "\"name\": \"User\", "
+                                        + "\"namespace\": \"org.apache.flink.formats.parquet.avro.AvroParquetRecordFormatTest\", "
                                         + "\"fields\": [\n"
                                         + "        {\"name\": \"name\", \"type\": \"string\" },\n"
                                         + "        {\"name\": \"favoriteNumber\",  \"type\": [\"int\", \"null\"] },\n"
@@ -94,6 +94,7 @@ class AvroParquetRecordFormatTest {
         userRecords.add(createUser("Peter", 1, "red"));
         userRecords.add(createUser("Tom", 2, "yellow"));
         userRecords.add(createUser("Jack", 3, "green"));
+        userRecords.add(createUser("Max", null, null));
 
         userPath = new Path(temporaryFolder.resolve(USER_PARQUET_FILE).toUri());
         createParquetFile(AvroParquetWriters.forGenericRecord(schema), userPath, userRecords);
@@ -120,9 +121,9 @@ class AvroParquetRecordFormatTest {
                         addressPath,
                         0,
                         addressPath.getFileSystem().getFileStatus(addressPath).getLen());
-        for (Address address : addressRecords) {
-            Address address1 = Objects.requireNonNull(reader.read());
-            assertEquals(address1, address);
+        for (Address expected : addressRecords) {
+            Address address = Objects.requireNonNull(reader.read());
+            assertThat(address).isEqualTo(expected);
         }
     }
 
@@ -135,8 +136,22 @@ class AvroParquetRecordFormatTest {
                         datumPath,
                         0,
                         datumPath.getFileSystem().getFileStatus(datumPath).getLen());
-        for (Datum datum : datumRecords) {
-            assertEquals(Objects.requireNonNull(reader.read()), datum);
+        for (Datum expected : datumRecords) {
+            assertThat(reader.read()).isNotNull().isEqualTo(expected);
+        }
+    }
+
+    @Test
+    void testReflectReadFromGenericRecords() throws IOException {
+        StreamFormat.Reader<User> reader =
+                createReader(
+                        AvroParquetReaders.forReflectRecord(User.class),
+                        new Configuration(),
+                        userPath,
+                        0,
+                        userPath.getFileSystem().getFileStatus(userPath).getLen());
+        for (GenericRecord expected : userRecords) {
+            assertUserEquals(reader.read(), expected);
         }
     }
 
@@ -149,37 +164,37 @@ class AvroParquetRecordFormatTest {
                         userPath,
                         0,
                         userPath.getFileSystem().getFileStatus(userPath).getLen());
-        for (GenericRecord record : userRecords) {
-            assertUserEquals(Objects.requireNonNull(reader.read()), record);
+        for (GenericRecord expected : userRecords) {
+            assertUserEquals(reader.read(), expected);
         }
     }
 
     /** Expect exception since splitting is not supported now. */
     @Test
     void testCreateGenericReaderWithSplitting() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        createReader(
-                                AvroParquetReaders.forGenericRecord(schema),
-                                new Configuration(),
-                                userPath,
-                                5,
-                                5));
+        assertThatThrownBy(
+                        () ->
+                                createReader(
+                                        AvroParquetReaders.forGenericRecord(schema),
+                                        new Configuration(),
+                                        userPath,
+                                        5,
+                                        5))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void testRestoreGenericReaderWithWrongOffset() {
-        assertThrows(
-                IllegalArgumentException.class,
-                () ->
-                        restoreReader(
-                                AvroParquetReaders.forGenericRecord(schema),
-                                new Configuration(),
-                                userPath,
-                                10,
-                                0,
-                                userPath.getFileSystem().getFileStatus(userPath).getLen()));
+        assertThatThrownBy(
+                        () ->
+                                restoreReader(
+                                        AvroParquetReaders.forGenericRecord(schema),
+                                        new Configuration(),
+                                        userPath,
+                                        10,
+                                        0,
+                                        userPath.getFileSystem().getFileStatus(userPath).getLen()))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -192,40 +207,40 @@ class AvroParquetRecordFormatTest {
                         CheckpointedPosition.NO_OFFSET,
                         0,
                         userPath.getFileSystem().getFileStatus(userPath).getLen());
-        for (GenericRecord record : userRecords) {
-            assertUserEquals(Objects.requireNonNull(reader.read()), record);
+        for (GenericRecord expected : userRecords) {
+            assertUserEquals(reader.read(), expected);
         }
     }
 
     @Test
     void testSplittable() {
-        assertFalse(AvroParquetReaders.forGenericRecord(schema).isSplittable());
+        assertThat(AvroParquetReaders.forGenericRecord(schema).isSplittable()).isFalse();
     }
 
     @Test
     void getProducedType() {
-        assertEquals(
-                AvroParquetReaders.forGenericRecord(schema).getProducedType().getTypeClass(),
-                GenericRecord.class);
+        assertThat(AvroParquetReaders.forGenericRecord(schema).getProducedType().getTypeClass())
+                .isEqualTo(GenericRecord.class);
     }
 
     @Test
     void getDataModel() {
-        assertEquals(
-                ((AvroParquetRecordFormat) AvroParquetReaders.forGenericRecord(schema))
-                        .getDataModel()
-                        .getClass(),
-                GenericData.class);
-        assertEquals(
-                ((AvroParquetRecordFormat) AvroParquetReaders.forSpecificRecord(Address.class))
-                        .getDataModel()
-                        .getClass(),
-                SpecificData.class);
-        assertEquals(
-                ((AvroParquetRecordFormat) AvroParquetReaders.forReflectRecord(Datum.class))
-                        .getDataModel()
-                        .getClass(),
-                ReflectData.class);
+        assertThat(
+                        ((AvroParquetRecordFormat) AvroParquetReaders.forGenericRecord(schema))
+                                .getDataModel()
+                                .getClass())
+                .isEqualTo(GenericData.class);
+        assertThat(
+                        ((AvroParquetRecordFormat)
+                                        AvroParquetReaders.forSpecificRecord(Address.class))
+                                .getDataModel()
+                                .getClass())
+                .isEqualTo(SpecificData.class);
+        assertThat(
+                        ((AvroParquetRecordFormat) AvroParquetReaders.forReflectRecord(Datum.class))
+                                .getDataModel()
+                                .getClass())
+                .isEqualTo(ReflectData.class);
     }
 
     // ------------------------------------------------------------------------
@@ -300,18 +315,36 @@ class AvroParquetRecordFormatTest {
         writer.finish();
     }
 
-    private static GenericRecord createUser(String name, int favoriteNumber, String favoriteColor) {
+    private static GenericRecord createUser(
+            String name, Integer favoriteNumber, String favoriteColor) {
         GenericRecord record = new GenericData.Record(schema);
         record.put("name", name);
-        record.put("favoriteNumber", favoriteNumber);
-        record.put("favoriteColor", favoriteColor);
+        if (favoriteNumber != null) {
+            record.put("favoriteNumber", favoriteNumber);
+        }
+
+        if (favoriteColor != null) {
+            record.put("favoriteColor", favoriteColor);
+        }
+
         return record;
     }
 
     private void assertUserEquals(GenericRecord user, GenericRecord expected) {
-        assertEquals(user.get("name").toString(), expected.get("name"));
-        assertEquals(user.get("favoriteNumber"), expected.get("favoriteNumber"));
-        assertEquals(user.get("favoriteColor").toString(), expected.get("favoriteColor"));
+        assertThat(user).isNotNull();
+        assertThat(String.valueOf(user.get("name"))).isEqualTo(expected.get("name"));
+        assertThat(user.get("favoriteNumber")).isEqualTo(expected.get("favoriteNumber"));
+        // TODO use CharSequence.compare(...,...) after migrating to Java 11
+        assertThat(String.valueOf(user.get("favoriteColor")))
+                .isEqualTo(String.valueOf(expected.get("favoriteColor")));
+    }
+
+    private void assertUserEquals(User user, GenericRecord expected) {
+        assertThat(user).isNotNull();
+        assertThat(String.valueOf(user.getName())).isNotNull().isEqualTo(expected.get("name"));
+        assertThat(user.getFavoriteNumber()).isEqualTo(expected.get("favoriteNumber"));
+        assertThat(String.valueOf(user.getFavoriteColor()))
+                .isEqualTo(String.valueOf(expected.get("favoriteColor")));
     }
 
     private static List<Address> createAddressList() {
@@ -323,5 +356,31 @@ class AvroParquetRecordFormatTest {
 
     private static List<Datum> createDatumList() {
         return Arrays.asList(new Datum("a", 1), new Datum("b", 2), new Datum("c", 3));
+    }
+
+    public static final class User {
+        private String name;
+        private Integer favoriteNumber;
+        private String favoriteColor;
+
+        public User() {}
+
+        public User(String name, Integer favoriteNumber, String favoriteColor) {
+            this.name = name;
+            this.favoriteNumber = favoriteNumber;
+            this.favoriteColor = favoriteColor;
+        }
+
+        public String getName() {
+            return name;
+        }
+
+        public Integer getFavoriteNumber() {
+            return favoriteNumber;
+        }
+
+        public String getFavoriteColor() {
+            return favoriteColor;
+        }
     }
 }

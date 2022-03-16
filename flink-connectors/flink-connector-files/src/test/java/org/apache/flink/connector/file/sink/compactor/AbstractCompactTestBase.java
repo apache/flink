@@ -19,6 +19,7 @@
 package org.apache.flink.connector.file.sink.compactor;
 
 import org.apache.flink.core.fs.Path;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -29,7 +30,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 
 /** Test base for compact operators. */
-public abstract class AbstractCompactTestBase {
+public abstract class AbstractCompactTestBase extends TestLogger {
 
     @ClassRule public static final TemporaryFolder TEMP_FOLDER = new TemporaryFolder();
 

@@ -46,7 +46,6 @@ import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.testutils.junit.SharedObjects;
 import org.apache.flink.testutils.junit.SharedReference;
 import org.apache.flink.types.Row;
-import org.apache.flink.util.ExceptionUtils;
 
 import org.jetbrains.annotations.NotNull;
 import org.junit.Before;
@@ -64,12 +63,12 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import static org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches;
 import static org.apache.flink.table.api.DataTypes.INT;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_NOT_NULL_ENFORCER;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_SINK_TYPE_LENGTH_ENFORCER;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThrows;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /** Test for {@link CommonExecSink}. */
 @RunWith(Parameterized.class)
@@ -202,8 +201,8 @@ public class CommonExecSinkITCase extends AbstractTestBase {
         tableEnv.executeSql(sqlStmt).await();
         final List<Integer> fetchedRows =
                 fetched.get().stream().map(r -> r.getInt(0)).sorted().collect(Collectors.toList());
-        assertEquals(fetchedRows.get(0).intValue(), 1);
-        assertEquals(fetchedRows.get(1).intValue(), 2);
+        assertThat(fetchedRows.get(0).intValue()).isEqualTo(1);
+        assertThat(fetchedRows.get(1).intValue()).isEqualTo(2);
     }
 
     @Test
@@ -382,29 +381,22 @@ public class CommonExecSinkITCase extends AbstractTestBase {
                         .build());
 
         // Default config - ignore (no trim)
-        final ExecutionException ee =
-                assertThrows(
-                        ExecutionException.class,
-                        () -> tableEnv.executeSql("INSERT INTO T1 SELECT * FROM T1").await());
-        assertThat(
-                        ExceptionUtils.findThrowableWithMessage(
-                                        ee,
-                                        "Column 'b' is NOT NULL, however, a null value is being written into it. "
-                                                + "You can set job configuration 'table.exec.sink.not-null-enforcer'='DROP' "
-                                                + "to suppress this exception and drop such records silently.")
-                                .isPresent())
-                .isTrue();
+        assertThatThrownBy(() -> tableEnv.executeSql("INSERT INTO T1 SELECT * FROM T1").await())
+                .isInstanceOf(ExecutionException.class)
+                .satisfies(
+                        anyCauseMatches(
+                                "Column 'b' is NOT NULL, however, a null value is being written into it. "
+                                        + "You can set job configuration 'table.exec.sink.not-null-enforcer'='DROP' "
+                                        + "to suppress this exception and drop such records silently."));
 
         // Test not including a NOT NULL column
         results.get().clear();
-        final ValidationException ve =
-                assertThrows(
-                        ValidationException.class,
+        assertThatThrownBy(
                         () ->
                                 tableEnv.executeSql("INSERT INTO T1(a, b) SELECT (a, b) FROM T1")
-                                        .await());
-        assertThat(ve.getMessage())
-                .isEqualTo(
+                                        .await())
+                .isInstanceOf(ValidationException.class)
+                .hasMessage(
                         "SQL validation failed. At line 0, column 0: Column 'c' has no default "
                                 + "value and does not allow NULLs");
 
@@ -570,9 +562,10 @@ public class CommonExecSinkITCase extends AbstractTestBase {
 
     private static void assertTimestampResults(
             SharedReference<List<Long>> timestamps, List<Row> rows) {
-        assertEquals(rows.size(), timestamps.get().size());
+        assertThat(timestamps.get()).hasSize(rows.size());
         for (int i = 0; i < rows.size(); i++) {
-            assertEquals(rows.get(i).getField(2), Instant.ofEpochMilli(timestamps.get().get(i)));
+            assertThat(Instant.ofEpochMilli(timestamps.get().get(i)))
+                    .isEqualTo(rows.get(i).getField(2));
         }
     }
 

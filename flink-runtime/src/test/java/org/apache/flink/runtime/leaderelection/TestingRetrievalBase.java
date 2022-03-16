@@ -110,7 +110,6 @@ public class TestingRetrievalBase {
 
     public void offerToLeaderQueue(LeaderInformation leaderInformation) {
         leaderEventQueue.offer(leaderInformation);
-        this.leader = leaderInformation;
     }
 
     public int getLeaderEventQueueSize() {

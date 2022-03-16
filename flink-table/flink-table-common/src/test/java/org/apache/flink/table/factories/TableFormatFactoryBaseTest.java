@@ -26,7 +26,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link TableFormatFactoryBase}. */
 public class TableFormatFactoryBaseTest {
@@ -53,7 +53,7 @@ public class TableFormatFactoryBaseTest {
                         .field("csvField", Types.STRING) // aliased
                         .field("abcField", Types.STRING)
                         .build();
-        assertEquals(expectedSchema, actualSchema);
+        assertThat(actualSchema).isEqualTo(expectedSchema);
     }
 
     @Test
@@ -80,6 +80,6 @@ public class TableFormatFactoryBaseTest {
                         .field("abcField", Types.STRING)
                         .field("myTime", Types.SQL_TIMESTAMP)
                         .build();
-        assertEquals(expectedSchema, actualSchema);
+        assertThat(actualSchema).isEqualTo(expectedSchema);
     }
 }

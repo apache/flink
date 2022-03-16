@@ -41,8 +41,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.apache.flink.table.api.DataTypes.FIELD;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for {@link LegacyTypeInfoDataTypeConverter}. */
 @RunWith(Parameterized.class)
@@ -133,14 +132,13 @@ public class LegacyTypeInfoDataTypeConverterTest {
 
     @Test
     public void testTypeInfoToDataTypeConversion() {
-        assertThat(
-                LegacyTypeInfoDataTypeConverter.toDataType(inputTypeInfo),
-                equalTo(dataType.nullable()));
+        assertThat(LegacyTypeInfoDataTypeConverter.toDataType(inputTypeInfo))
+                .isEqualTo(dataType.nullable());
     }
 
     @Test
     public void testDataTypeToTypeInfoConversion() {
-        assertThat(
-                LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(dataType), equalTo(inputTypeInfo));
+        assertThat(LegacyTypeInfoDataTypeConverter.toLegacyTypeInfo(dataType))
+                .isEqualTo(inputTypeInfo);
     }
 }

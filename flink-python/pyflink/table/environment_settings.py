@@ -50,6 +50,15 @@ class EnvironmentSettings(object):
             gateway = get_gateway()
             self._j_builder = gateway.jvm.EnvironmentSettings.Builder()
 
+        def with_configuration(self, config: Configuration) -> 'EnvironmentSettings.Builder':
+            """
+            Creates the EnvironmentSetting with specified Configuration.
+
+            :return: EnvironmentSettings.
+            """
+            self._j_builder = self._j_builder.withConfiguration(config._j_configuration)
+            return self
+
         def in_batch_mode(self) -> 'EnvironmentSettings.Builder':
             """
             Sets that the components should work in a batch mode. Streaming mode by default.
@@ -155,8 +164,19 @@ class EnvironmentSettings(object):
         Convert to `pyflink.common.Configuration`.
 
         :return: Configuration with specified value.
+
+        .. note:: Deprecated in 1.15. Please use
+                :func:`EnvironmentSettings.get_configuration` instead.
         """
         return Configuration(j_configuration=self._j_environment_settings.toConfiguration())
+
+    def get_configuration(self) -> Configuration:
+        """
+        Get the underlying `pyflink.common.Configuration`.
+
+        :return: Configuration with specified value.
+        """
+        return Configuration(j_configuration=self._j_environment_settings.getConfiguration())
 
     @staticmethod
     def new_instance() -> 'EnvironmentSettings.Builder':
@@ -173,6 +193,9 @@ class EnvironmentSettings(object):
         Creates the EnvironmentSetting with specified Configuration.
 
         :return: EnvironmentSettings.
+
+        .. note:: Deprecated in 1.15. Please use
+                :func:`EnvironmentSettings.Builder.with_configuration` instead.
         """
         return EnvironmentSettings(
             get_gateway().jvm.EnvironmentSettings.fromConfiguration(config._j_configuration))

@@ -17,6 +17,7 @@
 
 package org.apache.flink.changelog.fs;
 
+import org.apache.flink.changelog.fs.StateChangeUploader.UploadTasksResult;
 import org.apache.flink.metrics.Histogram;
 import org.apache.flink.runtime.io.AvailabilityProvider;
 import org.apache.flink.runtime.io.AvailabilityProvider.AvailabilityHelper;
@@ -46,12 +47,13 @@ import static org.apache.flink.util.Preconditions.checkArgument;
 import static org.apache.flink.util.Preconditions.checkState;
 
 /**
- * A {@link StateChangeUploader} that waits for some configured amount of time before passing the
- * accumulated state changes to the actual store.
+ * A {@link StateChangeUploadScheduler} that waits for some configured amount of time before passing
+ * the accumulated state changes to the actual store.
  */
 @ThreadSafe
-class BatchingStateChangeUploader implements StateChangeUploader {
-    private static final Logger LOG = LoggerFactory.getLogger(BatchingStateChangeUploader.class);
+class BatchingStateChangeUploadScheduler implements StateChangeUploadScheduler {
+    private static final Logger LOG =
+            LoggerFactory.getLogger(BatchingStateChangeUploadScheduler.class);
 
     private final RetryingExecutor retryingExecutor;
     private final RetryPolicy retryPolicy;
@@ -97,7 +99,7 @@ class BatchingStateChangeUploader implements StateChangeUploader {
 
     private final Histogram uploadBatchSizes;
 
-    BatchingStateChangeUploader(
+    BatchingStateChangeUploadScheduler(
             long persistDelayMs,
             long sizeThresholdBytes,
             RetryPolicy retryPolicy,
@@ -116,7 +118,7 @@ class BatchingStateChangeUploader implements StateChangeUploader {
                 metricGroup);
     }
 
-    BatchingStateChangeUploader(
+    BatchingStateChangeUploadScheduler(
             long persistDelayMs,
             long sizeThresholdBytes,
             long maxBytesInFlight,
@@ -225,7 +227,7 @@ class BatchingStateChangeUploader implements StateChangeUploader {
                 return;
             }
             uploadBatchSizes.update(tasks.size());
-            retryingExecutor.execute(retryPolicy, () -> delegate.upload(tasks));
+            retryingExecutor.execute(retryPolicy, asRetriableAction(tasks));
         } catch (Throwable t) {
             tasks.forEach(task -> task.fail(t));
             if (findThrowable(t, IOException.class).isPresent()) {
@@ -271,14 +273,14 @@ class BatchingStateChangeUploader implements StateChangeUploader {
                     try {
                         releaseCapacity(size);
                     } finally {
-                        uploadTask.successCallback.accept(result);
+                        uploadTask.complete(result);
                     }
                 },
                 (result, error) -> {
                     try {
                         releaseCapacity(size);
                     } finally {
-                        uploadTask.failureCallback.accept(result, error);
+                        uploadTask.fail(error);
                     }
                 });
     }
@@ -291,5 +293,30 @@ class BatchingStateChangeUploader implements StateChangeUploader {
         // the task will either be notified about availability immediately;
         // or back-pressured hard trying to seize capacity in upload()
         return availabilityHelper;
+    }
+
+    private RetryingExecutor.RetriableAction<UploadTasksResult> asRetriableAction(
+            Collection<UploadTask> tasks) {
+        return new RetryingExecutor.RetriableAction<UploadTasksResult>() {
+            @Override
+            public UploadTasksResult tryExecute() throws Exception {
+                return delegate.upload(tasks);
+            }
+
+            @Override
+            public void completeWithResult(UploadTasksResult uploadTasksResult) {
+                uploadTasksResult.complete();
+            }
+
+            @Override
+            public void discardResult(UploadTasksResult uploadTasksResult) throws Exception {
+                uploadTasksResult.discard();
+            }
+
+            @Override
+            public void handleFailure(Throwable throwable) {
+                tasks.forEach(task -> task.fail(throwable));
+            }
+        };
     }
 }

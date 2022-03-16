@@ -54,7 +54,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.configuration.ExecutionOptions.RUNTIME_MODE;
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Contains basic tests for the {@link CliResultView}. */
 public class CliResultViewTest {
@@ -130,9 +130,9 @@ public class CliResultViewTest {
             }
         }
 
-        assertTrue(
-                "Invalid number of cancellations.",
-                cancellationCounterLatch.await(10, TimeUnit.SECONDS));
+        assertThat(cancellationCounterLatch.await(10, TimeUnit.SECONDS))
+                .as("Invalid number of cancellations.")
+                .isTrue();
     }
 
     private static final class MockExecutor implements Executor {

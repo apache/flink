@@ -18,7 +18,6 @@
 package org.apache.flink.table.api.bridge.scala
 
 import org.apache.flink.annotation.PublicEvolving
-import org.apache.flink.api.common.JobExecutionResult
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.common.typeutils.CompositeType
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
@@ -869,9 +868,7 @@ object StreamTableEnvironment {
     *                             [[TableEnvironment]].
     */
   def create(executionEnvironment: StreamExecutionEnvironment): StreamTableEnvironment = {
-    create(
-      executionEnvironment,
-      EnvironmentSettings.fromConfiguration(executionEnvironment.getConfiguration))
+    create(executionEnvironment, EnvironmentSettings.newInstance().build)
   }
 
   /**
@@ -899,43 +896,6 @@ object StreamTableEnvironment {
       executionEnvironment: StreamExecutionEnvironment,
       settings: EnvironmentSettings)
     : StreamTableEnvironment = {
-    val config = new TableConfig()
-    config.addConfiguration(settings.toConfiguration)
-    StreamTableEnvironmentImpl
-      .create(executionEnvironment, settings, config)
-  }
-
-  /**
-    * Creates a table environment that is the entry point and central context for creating Table and
-    * SQL API programs that integrate with the Scala-specific [[DataStream]] API.
-    *
-    * It is unified for bounded and unbounded data processing.
-    *
-    * A stream table environment is responsible for:
-    *
-    * - Convert a [[DataStream]] into [[Table]] and vice-versa.
-    * - Connecting to external systems.
-    * - Registering and retrieving [[Table]]s and other meta objects from a catalog.
-    * - Executing SQL statements.
-    * - Offering further configuration options.
-    *
-    * Note: If you don't intend to use the [[DataStream]] API, [[TableEnvironment]] is meant for
-    * pure table programs.
-    *
-    * @param executionEnvironment The Scala [[StreamExecutionEnvironment]] of the
-    *                             [[TableEnvironment]].
-    * @param tableConfig The configuration of the [[TableEnvironment]].
-    * @deprecated Use [[create(StreamExecutionEnvironment)]] and
-    *             [[StreamTableEnvironment#getConfig()]] for manipulating the [[TableConfig]].
-    */
-  @deprecated
-  def create(executionEnvironment: StreamExecutionEnvironment, tableConfig: TableConfig)
-    : StreamTableEnvironment = {
-
-    StreamTableEnvironmentImpl
-      .create(
-        executionEnvironment,
-        EnvironmentSettings.fromConfiguration(tableConfig.getConfiguration),
-        tableConfig)
+    StreamTableEnvironmentImpl.create(executionEnvironment, settings)
   }
 }

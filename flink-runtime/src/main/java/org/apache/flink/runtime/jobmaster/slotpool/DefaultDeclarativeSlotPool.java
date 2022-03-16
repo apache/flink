@@ -238,23 +238,32 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
             TaskManagerLocation taskManagerLocation,
             TaskManagerGateway taskManagerGateway,
             long currentTime) {
+        // This method exists to allow slots to be re-offered by recovered TMs while the job is in a
+        // restarting state (where it usually hasn't set any requirements).
+        // For this to work with the book-keeping of this class these slots are "matched" against
+        // the ResourceProfile.ANY, which in practice isn't used.
+        // If such a slot is then later reserved the mapping is updated accordingly.
+        // While this approach does have the downside of somewhat hiding this special case, it
+        // does allow the slot timeouts or releases to work as if the case didn't exist at all.
+
         LOG.debug("Register slots {} from TaskManager {}.", slots, taskManagerLocation);
         internalOfferSlots(
                 slots,
                 taskManagerLocation,
                 taskManagerGateway,
                 currentTime,
-                this::matchWithOutstandingRequirementOrSelf);
+                this::matchWithOutstandingRequirementOrWildcard);
     }
 
-    private Optional<ResourceProfile> matchWithOutstandingRequirementOrSelf(
+    private Optional<ResourceProfile> matchWithOutstandingRequirementOrWildcard(
             ResourceProfile resourceProfile) {
         final Optional<ResourceProfile> match = matchWithOutstandingRequirement(resourceProfile);
 
         if (match.isPresent()) {
             return match;
         } else {
-            return Optional.of(resourceProfile);
+            // use ANY as wildcard as there is no practical purpose for a slot with 0 resources
+            return Optional.of(ResourceProfile.ANY);
         }
     }
 
@@ -343,17 +352,26 @@ public class DefaultDeclarativeSlotPool implements DeclarativeSlotPool {
 
         if (!previouslyMatchedResourceProfile.equals(requiredSlotProfile)) {
             // slots can be reserved for a requirement that is not in line with the mapping we
-            // computed when the slot was
-            // offered, so we have to update the mapping adjust the requirements accordingly to
-            // ensure we still request enough slots to
-            // be able to fulfill the total requirements
-            LOG.debug(
-                    "Adjusting requirements because a slot was reserved for a different requirement than initially assumed. Slot={} assumedRequirement={} actualRequirement={}",
-                    allocationId,
-                    previouslyMatchedResourceProfile,
-                    requiredSlotProfile);
+            // computed when the slot was offered, so we have to update the mapping
             updateSlotToRequirementProfileMapping(allocationId, requiredSlotProfile);
-            adjustRequirements(previouslyMatchedResourceProfile, requiredSlotProfile);
+            if (previouslyMatchedResourceProfile == ResourceProfile.ANY) {
+                LOG.debug(
+                        "Re-matched slot offer {} to requirement {}.",
+                        allocationId,
+                        requiredSlotProfile);
+            } else {
+                // adjust the requirements accordingly to ensure we still request enough slots to
+                // be able to fulfill the total requirements
+                // If the previous profile was ANY, then the slot was accepted without
+                // being matched against a resource requirement; thus no update is needed.
+
+                LOG.debug(
+                        "Adjusting requirements because a slot was reserved for a different requirement than initially assumed. Slot={} assumedRequirement={} actualRequirement={}",
+                        allocationId,
+                        previouslyMatchedResourceProfile,
+                        requiredSlotProfile);
+                adjustRequirements(previouslyMatchedResourceProfile, requiredSlotProfile);
+            }
         }
 
         return allocatedSlot;

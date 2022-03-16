@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.sink2.TwoPhaseCommittingSink;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessage;
 import org.apache.flink.streaming.api.connector.sink2.CommittableMessageTypeInfo;
+import org.apache.flink.streaming.api.connector.sink2.StandardSinkTopologies;
 import org.apache.flink.streaming.api.connector.sink2.WithPostCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreCommitTopology;
 import org.apache.flink.streaming.api.connector.sink2.WithPreWriteTopology;
@@ -49,6 +50,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+
+import static org.apache.flink.util.Preconditions.checkState;
 
 /**
  * A {@link org.apache.flink.streaming.api.graph.TransformationTranslator} for the {@link
@@ -128,7 +131,9 @@ public class SinkTransformationTranslator<Input, Output>
             if (sink instanceof WithPreWriteTopology) {
                 prewritten =
                         adjustTransformations(
-                                prewritten, ((WithPreWriteTopology<T>) sink)::addPreWriteTopology);
+                                prewritten,
+                                ((WithPreWriteTopology<T>) sink)::addPreWriteTopology,
+                                true);
             }
 
             if (sink instanceof TwoPhaseCommittingSink) {
@@ -140,7 +145,8 @@ public class SinkTransformationTranslator<Input, Output>
                                 input.transform(
                                         WRITER_NAME,
                                         CommittableMessageTypeInfo.noOutput(),
-                                        new SinkWriterOperatorFactory<>(sink)));
+                                        new SinkWriterOperatorFactory<>(sink)),
+                        false);
             }
 
             final List<Transformation<?>> sinkTransformations =
@@ -171,7 +177,8 @@ public class SinkTransformationTranslator<Input, Output>
                                     input.transform(
                                             WRITER_NAME,
                                             typeInformation,
-                                            new SinkWriterOperatorFactory<>(sink)));
+                                            new SinkWriterOperatorFactory<>(sink)),
+                            false);
 
             DataStream<CommittableMessage<CommT>> precommitted = addFailOverRegion(written);
 
@@ -179,7 +186,8 @@ public class SinkTransformationTranslator<Input, Output>
                 precommitted =
                         adjustTransformations(
                                 precommitted,
-                                ((WithPreCommitTopology<T, CommT>) sink)::addPreCommitTopology);
+                                ((WithPreCommitTopology<T, CommT>) sink)::addPreCommitTopology,
+                                true);
             }
 
             DataStream<CommittableMessage<CommT>> committed =
@@ -192,7 +200,8 @@ public class SinkTransformationTranslator<Input, Output>
                                             new CommitterOperatorFactory<>(
                                                     committingSink,
                                                     isBatchMode,
-                                                    isCheckpointingEnabled)));
+                                                    isCheckpointingEnabled)),
+                            false);
 
             if (sink instanceof WithPostCommitTopology) {
                 DataStream<CommittableMessage<CommT>> postcommitted = addFailOverRegion(committed);
@@ -201,7 +210,8 @@ public class SinkTransformationTranslator<Input, Output>
                         pc -> {
                             ((WithPostCommitTopology<T, CommT>) sink).addPostCommitTopology(pc);
                             return null;
-                        });
+                        },
+                        true);
             }
         }
 
@@ -232,7 +242,9 @@ public class SinkTransformationTranslator<Input, Output>
          * customized parallelism value at environment level.
          */
         private <I, R> R adjustTransformations(
-                DataStream<I> inputStream, Function<DataStream<I>, R> action) {
+                DataStream<I> inputStream,
+                Function<DataStream<I>, R> action,
+                boolean isExpandedTopology) {
 
             // Reset the environment parallelism temporarily before adjusting transformations,
             // we can therefore be aware of any customized parallelism of the sub topology
@@ -246,6 +258,16 @@ public class SinkTransformationTranslator<Input, Output>
                     transformations.subList(numTransformsBefore, transformations.size());
 
             for (Transformation<?> subTransformation : expandedTransformations) {
+                String subUid = subTransformation.getUid();
+                if (isExpandedTopology && subUid != null && !subUid.isEmpty()) {
+                    checkState(
+                            transformation.getUid() != null && !transformation.getUid().isEmpty(),
+                            "Sink "
+                                    + transformation.getName()
+                                    + " requires to set a uid since its customized topology"
+                                    + " has set uid for some operators.");
+                }
+
                 concatUid(
                         subTransformation,
                         Transformation::getUid,
@@ -307,15 +329,27 @@ public class SinkTransformationTranslator<Input, Output>
                 BiConsumer<Transformation<?>, String> setter,
                 @Nullable String transformationName) {
             if (transformationName != null && getter.apply(transformation) != null) {
+                // Use the same uid pattern than for Sink V1
                 if (transformationName.equals(COMMITTER_NAME)) {
+                    final String committerFormat = "Sink %s Committer";
                     setter.accept(
                             subTransformation,
-                            getter.apply(transformation) + ": " + COMMITTER_NAME);
+                            String.format(committerFormat, getter.apply(transformation)));
                     return;
                 }
                 // Set the writer operator uid to the sinks uid to support state migrations
                 if (transformationName.equals(WRITER_NAME)) {
                     setter.accept(subTransformation, getter.apply(transformation));
+                    return;
+                }
+
+                // Use the same uid pattern than for Sink V1
+                if (transformationName.equals(
+                        StandardSinkTopologies.GLOBAL_COMMITTER_TRANSFORMATION_NAME)) {
+                    final String committerFormat = "Sink %s Global Committer";
+                    setter.accept(
+                            subTransformation,
+                            String.format(committerFormat, getter.apply(transformation)));
                     return;
                 }
             }

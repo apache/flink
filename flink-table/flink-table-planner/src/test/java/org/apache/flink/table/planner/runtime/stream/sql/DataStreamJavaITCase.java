@@ -50,10 +50,15 @@ import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.WatermarkSpec;
 import org.apache.flink.table.connector.ChangelogMode;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.logical.LocalZonedTimestampType;
 import org.apache.flink.table.types.logical.RawType;
+import org.apache.flink.table.types.logical.TimestampKind;
+import org.apache.flink.table.types.logical.TimestampType;
 import org.apache.flink.test.util.AbstractTestBase;
 import org.apache.flink.types.Either;
 import org.apache.flink.types.Row;
@@ -62,6 +67,7 @@ import org.apache.flink.util.CloseableIterator;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.Collector;
 
+import org.assertj.core.api.recursive.comparison.RecursiveComparisonConfiguration;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -77,6 +83,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
@@ -93,10 +100,7 @@ import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.sourceWatermark;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.hamcrest.Matchers.instanceOf;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for connecting to the {@link DataStream} API. */
 @RunWith(Parameterized.class)
@@ -250,17 +254,17 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         final DataStream<Tuple2<DayOfWeek, ZoneOffset>> dataStream = env.fromCollection(rawRecords);
 
         // verify incoming type information
-        assertThat(dataStream.getType(), instanceOf(TupleTypeInfo.class));
+        assertThat(dataStream.getType()).isInstanceOf(TupleTypeInfo.class);
         final TupleTypeInfo<?> tupleInfo = (TupleTypeInfo<?>) dataStream.getType();
-        assertThat(tupleInfo.getFieldTypes()[0], instanceOf(EnumTypeInfo.class));
-        assertThat(tupleInfo.getFieldTypes()[1], instanceOf(GenericTypeInfo.class));
+        assertThat(tupleInfo.getFieldTypes()[0]).isInstanceOf(EnumTypeInfo.class);
+        assertThat(tupleInfo.getFieldTypes()[1]).isInstanceOf(GenericTypeInfo.class);
 
         final Table table = tableEnv.fromDataStream(dataStream);
 
         // verify schema conversion
         final List<DataType> columnDataTypes = table.getResolvedSchema().getColumnDataTypes();
-        assertThat(columnDataTypes.get(0).getLogicalType(), instanceOf(RawType.class));
-        assertThat(columnDataTypes.get(1).getLogicalType(), instanceOf(RawType.class));
+        assertThat(columnDataTypes.get(0).getLogicalType()).isInstanceOf(RawType.class);
+        assertThat(columnDataTypes.get(1).getLogicalType()).isInstanceOf(RawType.class);
 
         // test reverse operation
         testResult(
@@ -294,7 +298,13 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                                 Column.physical("f0", BIGINT().notNull()),
                                 Column.physical("f1", INT().notNull()),
                                 Column.physical("f2", STRING()),
-                                Column.metadata("rowtime", TIMESTAMP_LTZ(3), null, false)),
+                                Column.metadata(
+                                        "rowtime",
+                                        new AtomicDataType(
+                                                new LocalZonedTimestampType(
+                                                        true, TimestampKind.ROWTIME, 3)),
+                                        null,
+                                        false)),
                         Collections.singletonList(
                                 WatermarkSpec.of(
                                         "rowtime",
@@ -542,7 +552,10 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                 table,
                 new ResolvedSchema(
                         Arrays.asList(
-                                Column.physical("f0", TIMESTAMP(3)),
+                                Column.physical(
+                                        "f0",
+                                        new AtomicDataType(
+                                                new TimestampType(true, TimestampKind.ROWTIME, 3))),
                                 Column.physical("f1", STRING())),
                         Collections.singletonList(
                                 WatermarkSpec.of(
@@ -669,13 +682,11 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         // submits all source-to-sink pipelines
         testResult(env.fromElements(3, 4, 5), 3, 4, 5);
 
-        assertThat(
-                TestValuesTableFactory.getResults("OutputTable1"),
-                containsInAnyOrder("+I[1, a]", "+I[2, b]"));
+        assertThat(TestValuesTableFactory.getResults("OutputTable1"))
+                .containsExactlyInAnyOrder("+I[1, a]", "+I[2, b]");
 
-        assertThat(
-                TestValuesTableFactory.getResults("OutputTable2"),
-                containsInAnyOrder("+I[1]", "+I[2]", "+I[3]"));
+        assertThat(TestValuesTableFactory.getResults("OutputTable2"))
+                .containsExactlyInAnyOrder("+I[1]", "+I[2]", "+I[3]");
     }
 
     @Test
@@ -864,20 +875,28 @@ public class DataStreamJavaITCase extends AbstractTestBase {
     }
 
     private static void testSchema(Table table, Column... expectedColumns) {
-        assertEquals(ResolvedSchema.of(expectedColumns), table.getResolvedSchema());
+        assertThat(table.getResolvedSchema()).isEqualTo(ResolvedSchema.of(expectedColumns));
     }
 
     private static void testSchema(Table table, ResolvedSchema expectedSchema) {
-        assertEquals(expectedSchema, table.getResolvedSchema());
+        assertThat(expectedSchema)
+                .usingRecursiveComparison(
+                        RecursiveComparisonConfiguration.builder()
+                                .withComparatorForType(
+                                        Comparator.comparing(
+                                                ResolvedExpression::asSerializableString),
+                                        ResolvedExpression.class)
+                                .build())
+                .isEqualTo(table.getResolvedSchema());
     }
 
     private static void testSchema(TableResult result, Column... expectedColumns) {
-        assertEquals(ResolvedSchema.of(expectedColumns), result.getResolvedSchema());
+        assertThat(result.getResolvedSchema()).isEqualTo(ResolvedSchema.of(expectedColumns));
     }
 
     private static void testResult(TableResult result, Row... expectedRows) {
         final List<Row> actualRows = CollectionUtil.iteratorToList(result.collect());
-        assertThat(actualRows, containsInAnyOrder(expectedRows));
+        assertThat(actualRows).containsExactlyInAnyOrder(expectedRows);
     }
 
     @SafeVarargs
@@ -885,7 +904,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
             throws Exception {
         try (CloseableIterator<T> iterator = dataStream.executeAndCollect()) {
             final List<T> list = CollectionUtil.iteratorToList(iterator);
-            assertThat(list, containsInAnyOrder(expectedResult));
+            assertThat(list).containsExactlyInAnyOrder(expectedResult);
         }
     }
 
@@ -900,7 +919,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                         switch (kind) {
                             case UPDATE_AFTER:
                                 final Object primaryKeyValue = row.getField(primaryKeyPos);
-                                assert primaryKeyValue != null;
+                                assertThat(primaryKeyValue).isNotNull();
                                 materializedResult.removeIf(
                                         r -> primaryKeyValue.equals(r.getField(primaryKeyPos)));
                                 // fall through
@@ -913,7 +932,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
                                 break;
                         }
                     });
-            assertThat(materializedResult, containsInAnyOrder(expectedResult));
+            assertThat(materializedResult).containsExactlyInAnyOrder(expectedResult);
         }
     }
 

@@ -1025,7 +1025,9 @@ val fileSink: FileSink[Integer] =
   这种类型的 `CompactingFileWriter` 会逐条读出输入文件的记录用户，然后和`FileWriter`一样写入输出文件中。`CompactingFileWriter` 的一个例子是 {{< javadoc file="org/apache/flink/connector/file/sink/compactor/RecordWiseFileCompactor.html" name="RecordWiseFileCompactor">}} ，它从给定的文件中读出记录并写出到 `CompactingFileWriter` 中。用户需要指定如何从原始文件中读出记录。
 
 {{< hint info >}}
-**重要** 如果启用了文件合并功能，文件可见的时间会被延长。
+**注意事项1** 一旦启用了文件合并功能，此后若需要再关闭，必须在构建`FileSink`时显式调用`disableCompact`方法。
+
+**注意事项2** 如果启用了文件合并功能，文件可见的时间会被延长。
 {{< /hint >}}
 
 <a name="important-considerations"></a>

@@ -23,7 +23,7 @@
 	<parent>
 		<artifactId>flink-connectors</artifactId>
 		<groupId>org.apache.flink</groupId>
-		<version>1.15-SNAPSHOT</version>
+		<version>1.16-SNAPSHOT</version>
 		<relativePath>..</relativePath>
 	</parent>
 	<modelVersion>4.0.0</modelVersion>
@@ -54,7 +54,6 @@
 						<configuration>
 							<artifactSet>
 								<includes>
-									<include>org.apache.flink:flink-connector-base</include>
 									<include>org.apache.flink:flink-connector-aws-base</include>
 									<include>org.apache.flink:flink-connector-aws-kinesis-firehose</include>
 									<include>software.amazon.awssdk:*</include>

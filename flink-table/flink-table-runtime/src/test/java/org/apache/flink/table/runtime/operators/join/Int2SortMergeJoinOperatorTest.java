@@ -48,7 +48,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 import static org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest.joinAndAssert;
-import static org.junit.Assert.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** Random test for {@link SortMergeJoinOperator}. */
 @RunWith(Parameterized.class)

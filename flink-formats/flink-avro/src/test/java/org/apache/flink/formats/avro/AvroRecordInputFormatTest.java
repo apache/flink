@@ -48,9 +48,9 @@ import org.apache.avro.io.DatumWriter;
 import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.util.Utf8;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -68,11 +68,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.data.MapEntry.entry;
 
 /**
  * Test the avro input format. (The testcase is mostly the getting started tutorial of avro)
@@ -103,7 +100,7 @@ public class AvroRecordInputFormatTest {
     static final String TEST_STATE = "London";
     static final String TEST_ZIP = "NW1 6XE";
 
-    private Schema userSchema = new User().getSchema();
+    private final Schema userSchema = new User().getSchema();
 
     public static void writeTestFile(File testFile) throws IOException {
         ArrayList<CharSequence> stringArray = new ArrayList<>();
@@ -199,7 +196,7 @@ public class AvroRecordInputFormatTest {
         dataFileWriter.close();
     }
 
-    @Before
+    @BeforeEach
     public void createFiles() throws IOException {
         testFile = File.createTempFile("AvroInputFormatTest", null);
         writeTestFile(testFile);
@@ -207,7 +204,7 @@ public class AvroRecordInputFormatTest {
 
     /** Test if the AvroInputFormat is able to properly read data from an Avro file. */
     @Test
-    public void testDeserialization() throws IOException {
+    void testDeserialization() throws IOException {
         Configuration parameters = new Configuration();
 
         AvroInputFormat<User> format =
@@ -215,52 +212,46 @@ public class AvroRecordInputFormatTest {
 
         format.configure(parameters);
         FileInputSplit[] splits = format.createInputSplits(1);
-        assertEquals(splits.length, 1);
+        assertThat(splits).hasSize(1);
         format.open(splits[0]);
 
         User u = format.nextRecord(null);
-        assertNotNull(u);
+        assertThat(u).isNotNull();
 
         String name = u.getName().toString();
-        assertNotNull("empty record", name);
-        assertEquals("name not equal", TEST_NAME, name);
+        assertThat(name).isEqualTo(TEST_NAME);
 
         // check arrays
         List<CharSequence> sl = u.getTypeArrayString();
-        assertEquals("element 0 not equal", TEST_ARRAY_STRING_1, sl.get(0).toString());
-        assertEquals("element 1 not equal", TEST_ARRAY_STRING_2, sl.get(1).toString());
+        assertThat(sl.get(0).toString()).isEqualTo(TEST_ARRAY_STRING_1);
+        assertThat(sl.get(1).toString()).isEqualTo(TEST_ARRAY_STRING_2);
 
         List<Boolean> bl = u.getTypeArrayBoolean();
-        assertEquals("element 0 not equal", TEST_ARRAY_BOOLEAN_1, bl.get(0));
-        assertEquals("element 1 not equal", TEST_ARRAY_BOOLEAN_2, bl.get(1));
+        assertThat(bl).containsExactly(TEST_ARRAY_BOOLEAN_1, TEST_ARRAY_BOOLEAN_2);
 
         // check enums
         Colors enumValue = u.getTypeEnum();
-        assertEquals("enum not equal", TEST_ENUM_COLOR, enumValue);
+        assertThat(enumValue).isEqualTo(TEST_ENUM_COLOR);
 
         // check maps
         Map<CharSequence, Long> lm = u.getTypeMap();
-        assertEquals(
-                "map value of key 1 not equal",
-                TEST_MAP_VALUE1,
-                lm.get(new Utf8(TEST_MAP_KEY1)).longValue());
-        assertEquals(
-                "map value of key 2 not equal",
-                TEST_MAP_VALUE2,
-                lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
+        assertThat(lm)
+                .containsOnly(
+                        entry(new Utf8(TEST_MAP_KEY1), TEST_MAP_VALUE1),
+                        entry(new Utf8(TEST_MAP_KEY2), TEST_MAP_VALUE2));
 
-        assertFalse("expecting second element", format.reachedEnd());
-        assertNotNull("expecting second element", format.nextRecord(u));
+        assertThat(format.reachedEnd()).as("expecting second element").isFalse();
+        assertThat(format.nextRecord(u)).as("expecting second element").isNotNull();
 
-        assertNull(format.nextRecord(u));
-        assertTrue(format.reachedEnd());
+        assertThat(format.nextRecord(u)).isNull();
+        assertThat(format.reachedEnd()).isTrue();
 
         format.close();
     }
 
     /** Test if the AvroInputFormat is able to properly read data from an Avro file. */
     @Test
-    public void testDeserializationReuseAvroRecordFalse() throws IOException {
+    void testDeserializationReuseAvroRecordFalse() throws IOException {
         Configuration parameters = new Configuration();
 
         AvroInputFormat<User> format =
@@ -269,45 +260,39 @@ public class AvroRecordInputFormatTest {
 
         format.configure(parameters);
         FileInputSplit[] splits = format.createInputSplits(1);
-        assertEquals(splits.length, 1);
+        assertThat(splits).hasSize(1);
         format.open(splits[0]);
 
         User u = format.nextRecord(null);
-        assertNotNull(u);
+        assertThat(u).isNotNull();
 
         String name = u.getName().toString();
-        assertNotNull("empty record", name);
-        assertEquals("name not equal", TEST_NAME, name);
+        assertThat(name).isEqualTo(TEST_NAME);
 
         // check arrays
         List<CharSequence> sl = u.getTypeArrayString();
-        assertEquals("element 0 not equal", TEST_ARRAY_STRING_1, sl.get(0).toString());
-        assertEquals("element 1 not equal", TEST_ARRAY_STRING_2, sl.get(1).toString());
+        assertThat(sl.get(0).toString()).isEqualTo(TEST_ARRAY_STRING_1);
+        assertThat(sl.get(1).toString()).isEqualTo(TEST_ARRAY_STRING_2);
 
         List<Boolean> bl = u.getTypeArrayBoolean();
-        assertEquals("element 0 not equal", TEST_ARRAY_BOOLEAN_1, bl.get(0));
-        assertEquals("element 1 not equal", TEST_ARRAY_BOOLEAN_2, bl.get(1));
+        assertThat(bl).containsExactly(TEST_ARRAY_BOOLEAN_1, TEST_ARRAY_BOOLEAN_2);
 
         // check enums
         Colors enumValue = u.getTypeEnum();
-        assertEquals("enum not equal", TEST_ENUM_COLOR, enumValue);
+        assertThat(enumValue).isEqualTo(TEST_ENUM_COLOR);
 
         // check maps
         Map<CharSequence, Long> lm = u.getTypeMap();
-        assertEquals(
-                "map value of key 1 not equal",
-                TEST_MAP_VALUE1,
-                lm.get(new Utf8(TEST_MAP_KEY1)).longValue());
-        assertEquals(
-                "map value of key 2 not equal",
-                TEST_MAP_VALUE2,
-                lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
+        assertThat(lm)
+                .containsOnly(
+                        entry(new Utf8(TEST_MAP_KEY1), TEST_MAP_VALUE1),
+                        entry(new Utf8(TEST_MAP_KEY2), TEST_MAP_VALUE2));
 
-        assertFalse("expecting second element", format.reachedEnd());
-        assertNotNull("expecting second element", format.nextRecord(u));
+        assertThat(format.reachedEnd()).as("expecting second element").isFalse();
+        assertThat(format.nextRecord(u)).as("expecting second element").isNotNull();
 
-        assertNull(format.nextRecord(u));
-        assertTrue(format.reachedEnd());
+        assertThat(format.nextRecord(u)).isNull();
+        assertThat(format.reachedEnd()).isTrue();
 
         format.close();
     }
@@ -321,7 +306,7 @@ public class AvroRecordInputFormatTest {
      * <p>It is not recommended to use GenericData.Record with Flink. Use generated POJOs instead.
      */
     @Test
-    public void testDeserializeToGenericType() throws IOException {
+    void testDeserializeToGenericType() throws IOException {
         DatumReader<GenericData.Record> datumReader = new GenericDatumReader<>(userSchema);
 
         try (FileReader<GenericData.Record> dataFileReader =
@@ -331,28 +316,25 @@ public class AvroRecordInputFormatTest {
             dataFileReader.next(rec);
 
             // check if record has been read correctly
-            assertNotNull(rec);
-            assertEquals("name not equal", TEST_NAME, rec.get("name").toString());
-            assertEquals(
-                    "enum not equal", TEST_ENUM_COLOR.toString(), rec.get("type_enum").toString());
-            assertEquals(null, rec.get("type_long_test")); // it is null for the first record.
+            assertThat(rec).isNotNull();
+            assertThat(rec.get("name").toString()).isEqualTo(TEST_NAME);
+            assertThat(rec.get("type_enum").toString()).isEqualTo(TEST_ENUM_COLOR.toString());
+            assertThat(rec.get("type_long_test")).isNull(); // it is null for the first record.
 
             // now serialize it with our framework:
             TypeInformation<GenericData.Record> te =
                     TypeExtractor.createTypeInfo(GenericData.Record.class);
 
             ExecutionConfig ec = new ExecutionConfig();
-            assertEquals(GenericTypeInfo.class, te.getClass());
+            assertThat(te).isExactlyInstanceOf(GenericTypeInfo.class);
 
             Serializers.recursivelyRegisterType(te.getTypeClass(), ec, new HashSet<>());
 
             TypeSerializer<GenericData.Record> tser = te.createSerializer(ec);
-            assertEquals(1, ec.getDefaultKryoSerializerClasses().size());
-            assertTrue(
-                    ec.getDefaultKryoSerializerClasses().containsKey(Schema.class)
-                            && ec.getDefaultKryoSerializerClasses()
-                                    .get(Schema.class)
-                                    .equals(AvroKryoSerializerUtils.AvroSchemaSerializer.class));
+            assertThat(ec.getDefaultKryoSerializerClasses())
+                    .hasSize(1)
+                    .containsEntry(
+                            Schema.class, AvroKryoSerializerUtils.AvroSchemaSerializer.class);
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             try (DataOutputViewStreamWrapper outView = new DataOutputViewStreamWrapper(out)) {
@@ -366,19 +348,16 @@ public class AvroRecordInputFormatTest {
             }
 
             // check if it is still the same
-            assertNotNull(newRec);
-            assertEquals(
-                    "enum not equal",
-                    TEST_ENUM_COLOR.toString(),
-                    newRec.get("type_enum").toString());
-            assertEquals("name not equal", TEST_NAME, newRec.get("name").toString());
-            assertEquals(null, newRec.get("type_long_test"));
+            assertThat(newRec).isNotNull();
+            assertThat(newRec.get("name").toString()).isEqualTo(TEST_NAME);
+            assertThat(newRec.get("type_enum").toString()).isEqualTo(TEST_ENUM_COLOR.toString());
+            assertThat(newRec.get("type_long_test")).isNull();
         }
     }
 
     /** This test validates proper serialization with specific (generated POJO) types. */
     @Test
-    public void testDeserializeToSpecificType() throws IOException {
+    void testDeserializeToSpecificType() throws IOException {
 
         DatumReader<User> datumReader = new SpecificDatumReader<>(userSchema);
 
@@ -386,16 +365,15 @@ public class AvroRecordInputFormatTest {
             User rec = dataFileReader.next();
 
             // check if record has been read correctly
-            assertNotNull(rec);
-            assertEquals("name not equal", TEST_NAME, rec.get("name").toString());
-            assertEquals(
-                    "enum not equal", TEST_ENUM_COLOR.toString(), rec.get("type_enum").toString());
+            assertThat(rec).isNotNull();
+            assertThat(rec.get("name").toString()).isEqualTo(TEST_NAME);
+            assertThat(rec.get("type_enum").toString()).isEqualTo(TEST_ENUM_COLOR.toString());
 
             // now serialize it with our framework:
             ExecutionConfig ec = new ExecutionConfig();
             TypeInformation<User> te = TypeExtractor.createTypeInfo(User.class);
 
-            assertEquals(AvroTypeInfo.class, te.getClass());
+            assertThat(te).isExactlyInstanceOf(AvroTypeInfo.class);
             TypeSerializer<User> tser = te.createSerializer(ec);
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -410,10 +388,9 @@ public class AvroRecordInputFormatTest {
             }
 
             // check if it is still the same
-            assertNotNull(newRec);
-            assertEquals("name not equal", TEST_NAME, newRec.getName().toString());
-            assertEquals(
-                    "enum not equal", TEST_ENUM_COLOR.toString(), newRec.getTypeEnum().toString());
+            assertThat(newRec).isNotNull();
+            assertThat(newRec.get("name").toString()).isEqualTo(TEST_NAME);
+            assertThat(newRec.get("type_enum").toString()).isEqualTo(TEST_ENUM_COLOR.toString());
         }
     }
 
@@ -422,7 +399,7 @@ public class AvroRecordInputFormatTest {
      * GenericRecord.
      */
     @Test
-    public void testDeserializationGenericRecord() throws IOException {
+    void testDeserializationGenericRecord() throws IOException {
         Configuration parameters = new Configuration();
 
         AvroInputFormat<GenericRecord> format =
@@ -445,46 +422,40 @@ public class AvroRecordInputFormatTest {
         try {
             format.configure(parameters);
             FileInputSplit[] splits = format.createInputSplits(1);
-            assertEquals(splits.length, 1);
+            assertThat(splits).hasSize(1);
             format.open(splits[0]);
 
             GenericRecord u = format.nextRecord(null);
-            assertNotNull(u);
-            assertEquals("The schemas should be equal", userSchema, u.getSchema());
+            assertThat(u).isNotNull();
+            assertThat(u.getSchema()).isEqualTo(userSchema);
 
             String name = u.get("name").toString();
-            assertNotNull("empty record", name);
-            assertEquals("name not equal", TEST_NAME, name);
+            assertThat(name).isEqualTo(TEST_NAME);
 
             // check arrays
             List<CharSequence> sl = (List<CharSequence>) u.get("type_array_string");
-            assertEquals("element 0 not equal", TEST_ARRAY_STRING_1, sl.get(0).toString());
-            assertEquals("element 1 not equal", TEST_ARRAY_STRING_2, sl.get(1).toString());
+            assertThat(sl.get(0).toString()).isEqualTo(TEST_ARRAY_STRING_1);
+            assertThat(sl.get(1).toString()).isEqualTo(TEST_ARRAY_STRING_2);
 
             List<Boolean> bl = (List<Boolean>) u.get("type_array_boolean");
-            assertEquals("element 0 not equal", TEST_ARRAY_BOOLEAN_1, bl.get(0));
-            assertEquals("element 1 not equal", TEST_ARRAY_BOOLEAN_2, bl.get(1));
+            assertThat(bl).containsExactly(TEST_ARRAY_BOOLEAN_1, TEST_ARRAY_BOOLEAN_2);
 
             // check enums
             GenericData.EnumSymbol enumValue = (GenericData.EnumSymbol) u.get("type_enum");
-            assertEquals("enum not equal", TEST_ENUM_COLOR.toString(), enumValue.toString());
+            assertThat(enumValue).isEqualTo(TEST_ENUM_COLOR);
 
             // check maps
             Map<CharSequence, Long> lm = (Map<CharSequence, Long>) u.get("type_map");
-            assertEquals(
-                    "map value of key 1 not equal",
-                    TEST_MAP_VALUE1,
-                    lm.get(new Utf8(TEST_MAP_KEY1)).longValue());
-            assertEquals(
-                    "map value of key 2 not equal",
-                    TEST_MAP_VALUE2,
-                    lm.get(new Utf8(TEST_MAP_KEY2)).longValue());
+            assertThat(lm)
+                    .containsOnly(
+                            entry(new Utf8(TEST_MAP_KEY1), TEST_MAP_VALUE1),
+                            entry(new Utf8(TEST_MAP_KEY2), TEST_MAP_VALUE2));
 
-            assertFalse("expecting second element", format.reachedEnd());
-            assertNotNull("expecting second element", format.nextRecord(u));
+            assertThat(format.reachedEnd()).as("expecting second element").isFalse();
+            assertThat(format.nextRecord(u)).as("expecting second element").isNotNull();
 
-            assertNull(format.nextRecord(u));
-            assertTrue(format.reachedEnd());
+            assertThat(format.nextRecord(u)).isNull();
+            assertThat(format.reachedEnd()).isTrue();
         } finally {
             format.close();
         }
@@ -497,7 +468,7 @@ public class AvroRecordInputFormatTest {
      * @throws IOException if there is an error
      */
     @Test
-    public void testDeserializationGenericRecordReuseAvroValueFalse() throws IOException {
+    void testDeserializationGenericRecordReuseAvroValueFalse() throws IOException {
         Configuration parameters = new Configuration();
 
         AvroInputFormat<GenericRecord> format =
@@ -509,7 +480,7 @@ public class AvroRecordInputFormatTest {
     }
 
     @SuppressWarnings("ResultOfMethodCallIgnored")
-    @After
+    @AfterEach
     public void deleteFiles() {
         testFile.delete();
     }
