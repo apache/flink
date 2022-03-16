@@ -21,6 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
@@ -190,10 +191,11 @@ public class CleanupOptions {
                                             code(EXPONENTIAL_DELAY_LABEL))
                                     .build());
 
+    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS =
             ConfigOptions.key(createExponentialBackoffParameterPrefix("attempts"))
                     .intType()
-                    .noDefaultValue()
+                    .defaultValue(Integer.MAX_VALUE)
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -201,8 +203,7 @@ public class CleanupOptions {
                                                     + "if %s has been set to %s. Reaching the "
                                                     + "configured limit means that the job artifacts "
                                                     + "(and the job's JobResultStore entry) "
-                                                    + "might need to be cleaned up manually. "
-                                                    + "Setting no value corresponds to unlimited retries.",
+                                                    + "might need to be cleaned up manually.",
                                             code(CLEANUP_STRATEGY_PARAM),
                                             code(EXPONENTIAL_DELAY_LABEL))
                                     .build());
