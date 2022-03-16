@@ -78,10 +78,13 @@ public interface PulsarDeserializationSchema<T> extends Serializable, ResultType
      */
     void deserialize(Message<?> message, Collector<T> out) throws Exception;
 
-    /** @return The related Pulsar Schema for this serializer. */
-    default Schema<T> schema() {
-        throw new UnsupportedOperationException(
-                "Implement this method if you need Pulsar schema evolution.");
+    /**
+     * By default, deserializers will decode bytes array message.
+     *
+     * @return The related Pulsar Schema for this serializer.
+     */
+    default Schema<?> schema() {
+        return Schema.BYTES;
     }
 
     /**

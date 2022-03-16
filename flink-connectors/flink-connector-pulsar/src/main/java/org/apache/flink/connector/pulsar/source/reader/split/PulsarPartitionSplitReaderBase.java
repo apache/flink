@@ -120,13 +120,7 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
                 collector.setMessage(message);
 
                 // Deserialize message by DeserializationSchema or Pulsar Schema.
-                if (sourceConfiguration.isEnableSchemaEvolution()) {
-                    @SuppressWarnings("unchecked")
-                    OUT value = (OUT) message.getValue();
-                    collector.collect(value);
-                } else {
-                    deserializationSchema.deserialize(message, collector);
-                }
+                deserializationSchema.deserialize(message, collector);
 
                 // Acknowledge message if needed.
                 finishedPollMessage(message);
@@ -221,12 +215,7 @@ abstract class PulsarPartitionSplitReaderBase<OUT>
     }
 
     protected Consumer<?> createPulsarConsumer(TopicPartition partition) {
-        Schema<?> schema;
-        if (sourceConfiguration.isEnableSchemaEvolution()) {
-            schema = deserializationSchema.schema();
-        } else {
-            schema = Schema.BYTES;
-        }
+        Schema<?> schema = deserializationSchema.schema();
 
         ConsumerBuilder<?> consumerBuilder =
                 createConsumerBuilder(pulsarClient, schema, sourceConfiguration);

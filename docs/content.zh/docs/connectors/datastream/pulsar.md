@@ -155,6 +155,19 @@ Pulsar Source 提供了两种订阅 Topic 或 Topic 分区的方式。
   PulsarDeserializationSchema.flinkTypeInfo(TypeInformation, ExecutionConfig);
   ```
 
+如果使用 KeyValue 或者 Struct 类型的Schema, 那么 pulsar `Schema` 讲不会含有类型类信息， 但 `PulsarSchemaTypeInformation` 需要通过传入类型类信息来构造。因此我们提供的API支持用户传入类型类信息。
+
+例子如下:
+
+```java
+  // Primitive 类型: 不需要提供类型信息
+  PulsarDeserializationSchema.pulsarSchema(Schema.INT32);
+  // Struct 类型 (JSON, Protobuf, Avro, 等等.)
+  PulsarDeserializationSchema.pulsarSchema(Schema.AVRO(SomeClass), SomeClass.class);
+  // KeyValue 类型
+  PulsarDeserializationSchema.pulsarSchema(Schema.KeyValue(Schema.INT32, Schema.AVRO(SomeClass)), Integer.class, SomeClass.class);
+```
+
 Pulsar 的 `Message<byte[]>` 包含了很多 [额外的属性](https://pulsar.apache.org/docs/zh-CN/concepts-messaging/#%E6%B6%88%E6%81%AF)。例如，消息的 key、消息发送时间、消息生产时间、用户在消息上自定义的键值对属性等。可以使用 `Message<byte[]>` 接口来获取这些属性。
 
 如果用户需要基于这些额外的属性来解析一条消息，可以实现 `PulsarDeserializationSchema` 接口。并一定要确保 `PulsarDeserializationSchema.getProducedType()` 方法返回的 `TypeInformation` 是正确的结果。Flink 使用 `TypeInformation` 将解析出来的结果序列化传递到下游算子。

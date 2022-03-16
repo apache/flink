@@ -55,7 +55,6 @@ class PulsarDeserializationSchemaWrapper<T> implements PulsarDeserializationSche
     public void deserialize(Message<?> message, Collector<T> out) throws Exception {
         byte[] bytes = message.getData();
         T instance = deserializationSchema.deserialize(bytes);
-
         out.collect(instance);
     }
 
