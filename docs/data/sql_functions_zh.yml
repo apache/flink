@@ -271,11 +271,11 @@ arithmetic:
       如果两个 RAND 函数具有相同的初始种子，它们将返回相同的数字序列。
   - sql: RAND_INTEGER(INT)
     table: randInteger(INT)
-    description: 返回 [0.0, INT) 范围内的伪随机双精度值。
+    description: 返回 [0, INT) 范围内的伪随机整数。
   - sql: RAND_INTEGER(INT1, INT2)
     table: randInteger(INT1, INT2)
     description: |
-      返回范围为 [0.0, INT2) 的伪随机双精度值，初始种子为 INT1。
+      返回范围为 [0, INT2) 的伪随机整数，初始种子为 INT1。
       如果两个 RAND_INTGER 函数具有相同的初始种子和边界，它们将返回相同的数字序列。
   - sql: UUID()
     table: uuid()
