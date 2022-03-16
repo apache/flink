@@ -117,8 +117,7 @@ public interface StateHandleStore<T extends Serializable, R extends ResourceVers
 
     /**
      * Releases the lock for the given state handle and tries to remove the state handle if it is no
-     * longer locked. It returns the {@link RetrievableStateHandle} stored under the given state
-     * node if any. Also the state on the external storage will be discarded.
+     * longer locked. Also the state on the external storage will be discarded.
      *
      * @param name Key name in ConfigMap or child path name in ZooKeeper
      * @return {@code true} if the state handle is removed (also if it didn't exist in the first
