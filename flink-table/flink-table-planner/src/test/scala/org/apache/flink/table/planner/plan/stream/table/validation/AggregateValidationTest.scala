@@ -80,7 +80,7 @@ class AggregateValidationTest extends TableTestBase {
       .groupBy('a)
       .aggregate('b.sum as 'd)
       // must fail. Cannot use TableFunction in select after aggregate
-      .select("func('abc')")
+      .select(call("func", "abc"))
 
     util.verifyExecPlan(resultTable)
   }
@@ -106,16 +106,6 @@ class AggregateValidationTest extends TableTestBase {
       // must fail. Only AggregateFunction can be used in aggregate
       .aggregate(call("func", $"c") as "d")
       .select('a, 'd)
-  }
-
-  @Test(expected = classOf[RuntimeException])
-  def testMultipleAggregateExpressionInAggregate(): Unit = {
-    util.addFunction("func", new TableFunc0)
-    val table = util.addTableSource[(Long, Int, String)]('a, 'b, 'c)
-    table
-      .groupBy('a)
-      // must fail. Only one AggregateFunction can be used in aggregate
-      .aggregate("sum(c), count(b)")
   }
 
   @Test

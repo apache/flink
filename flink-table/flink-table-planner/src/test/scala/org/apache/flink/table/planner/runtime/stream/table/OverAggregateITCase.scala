@@ -491,7 +491,7 @@ class OverAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTest
 
     val windowedTable = table.select($"a", $"b", $"c", $"d", $"e", $"proctime")
       .window(Over
-        .partitionBy($("a"))
+        .partitionBy($"a")
         .orderBy($("proctime"))
         .preceding(Expressions.rowInterval(4L))
         .following(Expressions.CURRENT_ROW)

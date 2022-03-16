@@ -37,7 +37,6 @@ import org.apache.flink.table.catalog.GenericInMemoryCatalog;
 import org.apache.flink.table.catalog.SchemaTranslator;
 import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.delegation.Executor;
-import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.delegation.Planner;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.factories.PlannerFactoryUtil;
@@ -56,7 +55,6 @@ import org.apache.flink.types.Row;
 import org.apache.flink.util.Preconditions;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Optional;
 
 /**
@@ -285,12 +283,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     }
 
     @Override
-    public <T> Table fromDataStream(DataStream<T> dataStream, String fields) {
-        List<Expression> expressions = ExpressionParser.INSTANCE.parseExpressionList(fields);
-        return fromDataStream(dataStream, expressions.toArray(new Expression[0]));
-    }
-
-    @Override
     public <T> Table fromDataStream(DataStream<T> dataStream, Expression... fields) {
         return createTable(asQueryOperation(dataStream, Optional.of(Arrays.asList(fields))));
     }
@@ -298,16 +290,6 @@ public final class StreamTableEnvironmentImpl extends AbstractStreamTableEnviron
     @Override
     public <T> void registerDataStream(String name, DataStream<T> dataStream) {
         createTemporaryView(name, dataStream);
-    }
-
-    @Override
-    public <T> void registerDataStream(String name, DataStream<T> dataStream, String fields) {
-        createTemporaryView(name, dataStream, fields);
-    }
-
-    @Override
-    public <T> void createTemporaryView(String path, DataStream<T> dataStream, String fields) {
-        createTemporaryView(path, fromDataStream(dataStream, fields));
     }
 
     @Override

@@ -18,27 +18,29 @@
 
 package org.apache.flink.table.planner.runtime.utils
 
+import org.apache.flink.table.api._
 import org.apache.flink.annotation.VisibleForTesting
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.io.CollectionInputFormat
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.table.api.internal.TableEnvironmentImpl
 import org.apache.flink.table.api.{Table, TableEnvironment}
-import org.apache.flink.table.delegation.ExpressionParser
+import org.apache.flink.table.expressions.Expression
 import org.apache.flink.table.planner.delegation.PlannerBase
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.utils.TableTestUtil
 
 import _root_.java.util.UUID
+
 import _root_.scala.collection.JavaConverters._
 import scala.reflect.ClassTag
 
 object BatchTableEnvUtil {
 
-  def parseFieldNames(fields: String): Array[String] = {
+  def parseFieldNames(fields: String): Array[Expression] = {
     if (fields != null) {
-      fields.replace(" ", "").split(",")
+      fields.replace(" ", "").split(",").map($)
     } else {
       null
     }
@@ -193,7 +195,7 @@ object BatchTableEnvUtil {
       tableName: String,
       data: Iterable[T],
       typeInfo: TypeInformation[T],
-      fieldNames: Option[Array[String]],
+      fields: Option[Array[Expression]],
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
     val execEnv = getPlanner(tEnv).getExecEnv
@@ -203,7 +205,7 @@ object BatchTableEnvUtil {
       typeInfo)
     boundedStream.forceNonParallel()
     registerBoundedStreamInternal(
-      tEnv, tableName, boundedStream, fieldNames, fieldNullables, statistic)
+      tEnv, tableName, boundedStream, fields, fieldNullables, statistic)
   }
 
   /**
@@ -218,11 +220,9 @@ object BatchTableEnvUtil {
       tEnv: TableEnvironment,
       name: String,
       boundedStream: DataStream[T],
-      fieldNames: Option[Array[String]],
+      fields: Option[Array[Expression]],
       fieldNullables: Option[Array[Boolean]],
       statistic: Option[FlinkStatistic]): Unit = {
-    val fields = fieldNames.map((f: Array[String]) =>
-      f.map(ExpressionParser.INSTANCE.parseExpression))
     // for tests we know that this stream is definitely bounded
     ExecNodeUtil.makeLegacySourceTransformationsBounded(boundedStream.getTransformation)
     TableTestUtil.createTemporaryView(
@@ -244,7 +244,7 @@ object BatchTableEnvUtil {
       tableName: String,
       data: Iterable[T],
       typeInfo: TypeInformation[T],
-      fieldNames: Array[String],
+      fields: Array[Expression],
       statistic: Option[FlinkStatistic]): Table = {
     CollectionInputFormat.checkCollection(data.asJavaCollection, typeInfo.getTypeClass)
     val execEnv = getPlanner(tEnv).getExecEnv
@@ -254,7 +254,7 @@ object BatchTableEnvUtil {
       typeInfo)
     boundedStream.setParallelism(1)
     val name = if (tableName == null) UUID.randomUUID().toString else tableName
-    registerBoundedStreamInternal(tEnv, name, boundedStream, Option(fieldNames), None, statistic)
+    registerBoundedStreamInternal(tEnv, name, boundedStream, Option(fields), None, statistic)
     tEnv.from("`" + name + "`")
   }
 

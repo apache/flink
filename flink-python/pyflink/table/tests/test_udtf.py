@@ -19,6 +19,7 @@ import unittest
 
 from pyflink.table import DataTypes
 from pyflink.table.udf import TableFunction, udtf, ScalarFunction, udf
+from pyflink.table.expressions import col
 from pyflink.testing import source_sink_utils
 from pyflink.testing.test_case_utils import PyFlinkStreamTableTestCase, \
     PyFlinkBatchTableTestCase
@@ -37,9 +38,9 @@ class UserDefinedTableFunctionTests(object):
         t = self.t_env.from_elements([(1, 1, 3), (2, 1, 6), (3, 2, 9)], ['a', 'b', 'c'])
         t = t.join_lateral(multi_emit((t.a + t.a) / 2, multi_num(t.b)).alias('x', 'y'))
         t = t.left_outer_join_lateral(condition_multi_emit(t.x, t.y).alias('m')) \
-            .select("x, y, m")
+            .select(t.x, t.y, col("m"))
         t = t.left_outer_join_lateral(identity(t.m).alias('n')) \
-            .select("x, y, n")
+            .select(t.x, t.y, col("n"))
         actual = self._get_output(t)
         self.assert_equals(actual,
                            ["+I[1, 0, null]", "+I[1, 1, null]", "+I[2, 0, null]", "+I[2, 1, null]",

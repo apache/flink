@@ -403,7 +403,7 @@ class StreamExecutionEnvironmentTests(PyFlinkTestCase):
         from pyflink.table.expressions import col
         add_three = udf(plus_three, result_type=DataTypes.BIGINT())
 
-        tab = t_env.from_data_stream(ds, 'a') \
+        tab = t_env.from_data_stream(ds, col('a')) \
                    .select(add_three(col('a')))
         t_env.to_append_stream(tab, Types.ROW([Types.LONG()])) \
              .map(lambda i: i[0]) \

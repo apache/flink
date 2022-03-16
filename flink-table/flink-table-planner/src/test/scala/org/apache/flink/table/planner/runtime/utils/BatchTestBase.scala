@@ -424,7 +424,7 @@ class BatchTestBase extends BatchAbstractTestBase {
 
   def registerRange(name: String, start: Long, end: Long): Unit = {
     BatchTableEnvUtil.registerBoundedStreamInternal(
-      tEnv, name, newRangeSource(start, end), Some[Array[String]](Array[String]("id")), None, None)
+      tEnv, name, newRangeSource(start, end), Some(Array($"id")), None, None)
   }
 
   def newRangeSource(start: Long, end: Long): DataStream[RowData] = {

@@ -183,12 +183,6 @@ under the License.
 			</exclusions>
 		</dependency>
 
-		<dependency>
-			<!-- For legacy string expressions in Table API -->
-			<groupId>org.scala-lang.modules</groupId>
-			<artifactId>scala-parser-combinators_${scala.binary.version}</artifactId>
-		</dependency>
-
 		<!-- Test dependencies -->
 
 		<dependency>
@@ -351,9 +345,6 @@ under the License.
 							<!-- flink-table-planner dependencies -->
 							<include>org.apache.flink:flink-sql-parser</include>
 							<include>org.apache.flink:flink-sql-parser-hive</include>
-
-							<!-- For legacy string expressions in Table API -->
-							<include>org.scala-lang.modules:scala-parser-combinators_${scala.binary.version}</include>
 						</includes>
 					</artifactSet>
 					<relocations>

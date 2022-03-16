@@ -1706,9 +1706,9 @@ class StreamTableEnvironment(TableEnvironment):
 
     def from_data_stream(self,
                          data_stream: DataStream,
-                         *fields_or_schema: Union[str, Expression, Schema]) -> Table:
+                         *fields_or_schema: Union[Expression, Schema]) -> Table:
         """
-        1. When fields_or_schema is a str or a sequence of Expression:
+        1. When fields_or_schema is a sequence of Expression:
 
             Converts the given DataStream into a Table with specified field names.
 
@@ -1825,12 +1825,6 @@ class StreamTableEnvironment(TableEnvironment):
         elif all(isinstance(f, Expression) for f in fields_or_schema):
             return Table(j_table=self._j_tenv.fromDataStream(
                 j_data_stream, to_expression_jarray(fields_or_schema)), t_env=self)
-        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
-            warnings.warn(
-                "Deprecated in 1.12. Use from_data_stream(DataStream, *Expression) instead.",
-                DeprecationWarning)
-            return Table(j_table=self._j_tenv.fromDataStream(
-                j_data_stream, fields_or_schema[0]), t_env=self)
         elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
             return Table(j_table=self._j_tenv.fromDataStream(
                 j_data_stream, fields_or_schema[0]._j_schema), t_env=self)

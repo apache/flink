@@ -307,9 +307,8 @@ class CalcITCase extends BatchTestBase {
 
   @Test
   def testUserDefinedScalarFunction() {
-    registerFunction("hashCode", HashCode)
     val table = BatchTableEnvUtil.fromElements(tEnv, "a", "b", "c")
-    val result = table.select("f0.hashCode()")
+    val result = table.select(HashCode($"f0"))
     val results = executeQuery(result)
     val expected = "97\n98\n99"
     TestBaseUtils.compareResultAsText(results.asJava, expected)
