@@ -65,7 +65,7 @@ class CleanupRetryStrategyFactoryTest {
                 new Configuration(),
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF.defaultValue(),
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF.defaultValue(),
-                Integer.MAX_VALUE);
+                CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS.defaultValue());
     }
 
     private static Configuration createConfigurationWithRetryStrategy(String configValue) {
@@ -162,7 +162,7 @@ class CleanupRetryStrategyFactoryTest {
                 config,
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF.defaultValue(),
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF.defaultValue(),
-                Integer.MAX_VALUE);
+                CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS.defaultValue());
     }
 
     @Test
@@ -180,7 +180,7 @@ class CleanupRetryStrategyFactoryTest {
                 config,
                 customMinDelay,
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_BACKOFF.defaultValue(),
-                Integer.MAX_VALUE);
+                CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS.defaultValue());
     }
 
     @Test
@@ -197,7 +197,7 @@ class CleanupRetryStrategyFactoryTest {
                 config,
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_INITIAL_BACKOFF.defaultValue(),
                 customMaxDelay,
-                Integer.MAX_VALUE);
+                CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS.defaultValue());
     }
 
     @Test
@@ -207,6 +207,11 @@ class CleanupRetryStrategyFactoryTest {
         // 13 is the minimum we can use for this test; otherwise, assertMaxDelay would fail due to a
         // Precondition in ExponentialBackoffRetryStrategy
         final int customMaxAttempts = 13;
+        Preconditions.checkArgument(
+                customMaxAttempts
+                        != CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS
+                                .defaultValue(),
+                "The custom value should be different from the default value to make it possible that the overwritten value is selected.");
         config.set(
                 CleanupOptions.CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS, customMaxAttempts);
 
