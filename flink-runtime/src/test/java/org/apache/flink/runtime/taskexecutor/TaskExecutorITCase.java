@@ -21,7 +21,6 @@ package org.apache.flink.runtime.taskexecutor;
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.execution.Environment;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.executiongraph.AccessExecution;
@@ -137,9 +136,7 @@ public class TaskExecutorITCase extends TestLogger {
         assertThat(jobResultFuture.isDone(), is(false));
 
         CommonTestUtils.waitUntilCondition(
-                jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())),
-                Deadline.fromNow(TESTING_TIMEOUT),
-                50L);
+                jobIsRunning(() -> miniCluster.getExecutionGraph(jobGraph.getJobID())), 50L);
 
         return jobResultFuture;
     }

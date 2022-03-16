@@ -20,7 +20,6 @@ package org.apache.flink.yarn;
 
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.deployment.ClusterDeploymentException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.program.ClusterClient;
@@ -262,8 +261,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
                             yarnClient.getApplicationReport(applicationId);
                     return applicationReport.getCurrentApplicationAttemptId().getAttemptId()
                             >= attemptId;
-                },
-                Deadline.fromNow(TIMEOUT));
+                });
         log.info("Attempt {} id detected.", attemptId);
     }
 
@@ -319,8 +317,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
                                         EnumSet.of(
                                                 YarnApplicationState.KILLED,
                                                 YarnApplicationState.FINISHED))
-                                .isEmpty(),
-                Deadline.fromNow(TIMEOUT));
+                                .isEmpty());
     }
 
     private void waitForJobTermination(
@@ -389,8 +386,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
                 () -> {
                     final Set<Integer> curPids = getApplicationMasterPids(processName);
                     return origPids.stream().noneMatch(curPids::contains);
-                },
-                Deadline.fromNow(TIMEOUT));
+                });
     }
 
     private Set<Integer> getApplicationMasterPids(final String processName)
@@ -417,8 +413,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
                             && jobDetails.getJobVertexInfos().stream()
                                     .map(toExecutionState())
                                     .allMatch(isRunning());
-                },
-                Deadline.fromNow(TIMEOUT));
+                });
     }
 
     private static Function<JobDetailsInfo.JobVertexDetailsInfo, ExecutionState>
@@ -436,8 +431,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
             final int expectedFullRestarts)
             throws Exception {
         CommonTestUtils.waitUntilCondition(
-                () -> getJobFullRestarts(restClusterClient, jobId) >= expectedFullRestarts,
-                Deadline.fromNow(TIMEOUT));
+                () -> getJobFullRestarts(restClusterClient, jobId) >= expectedFullRestarts);
     }
 
     private static int getJobFullRestarts(

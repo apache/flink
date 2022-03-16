@@ -23,7 +23,6 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.api.connector.source.Source;
@@ -77,7 +76,6 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_COLLECT_DATA_TIMEOUT;
-import static org.apache.flink.connector.testframe.utils.ConnectorTestConstants.DEFAULT_JOB_STATUS_CHANGE_TIMEOUT;
 import static org.apache.flink.connector.testframe.utils.MetricQuerier.getJobDetails;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.terminateJob;
 import static org.apache.flink.runtime.testutils.CommonTestUtils.waitForAllTaskRunning;
@@ -159,10 +157,7 @@ public abstract class SourceTestSuiteBase<T> {
         }
 
         // Step 5: Clean up
-        waitForJobStatus(
-                jobClient,
-                Collections.singletonList(JobStatus.FINISHED),
-                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
     }
 
     /**
@@ -346,10 +341,7 @@ public abstract class SourceTestSuiteBase<T> {
                         .stopWithSavepoint(
                                 true, testEnv.getCheckpointUri(), SavepointFormatType.CANONICAL)
                         .get(30, TimeUnit.SECONDS);
-        waitForJobStatus(
-                jobClient,
-                Collections.singletonList(JobStatus.FINISHED),
-                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
 
         // Step 5: Generate new test data
         final List<List<T>> newTestRecordCollections = new ArrayList<>();
@@ -380,10 +372,7 @@ public abstract class SourceTestSuiteBase<T> {
 
         final JobClient restartJobClient = restartEnv.executeAsync("Restart Test");
 
-        waitForJobStatus(
-                restartJobClient,
-                Collections.singletonList(JobStatus.RUNNING),
-                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+        waitForJobStatus(restartJobClient, Collections.singletonList(JobStatus.RUNNING));
 
         try {
             iterator.setJobClient(restartJobClient);
@@ -458,8 +447,7 @@ public abstract class SourceTestSuiteBase<T> {
                             getJobDetails(
                                     new RestClient(new Configuration(), executorService),
                                     testEnv.getRestEndpoint(),
-                                    jobClient.getJobID()),
-                    Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+                                    jobClient.getJobID()));
 
             waitUntilCondition(
                     () -> {
@@ -475,8 +463,7 @@ public abstract class SourceTestSuiteBase<T> {
                             // skip failed assert try
                             return false;
                         }
-                    },
-                    Deadline.fromNow(DEFAULT_COLLECT_DATA_TIMEOUT));
+                    });
         } finally {
             // Clean up
             executorService.shutdown();
@@ -539,10 +526,7 @@ public abstract class SourceTestSuiteBase<T> {
         }
 
         // Step 5: Clean up
-        waitForJobStatus(
-                jobClient,
-                Collections.singletonList(JobStatus.FINISHED),
-                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.FINISHED));
     }
 
     /**
@@ -614,10 +598,7 @@ public abstract class SourceTestSuiteBase<T> {
         controller.triggerTaskManagerFailover(jobClient, () -> {});
 
         LOG.info("Waiting for job recovering from failure");
-        waitForJobStatus(
-                jobClient,
-                Collections.singletonList(JobStatus.RUNNING),
-                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.RUNNING));
 
         // Step 6: Write test data again to external system
         List<T> testRecordsAfterFailure =
@@ -639,10 +620,7 @@ public abstract class SourceTestSuiteBase<T> {
 
         // Step 8: Clean up
         terminateJob(jobClient);
-        waitForJobStatus(
-                jobClient,
-                Collections.singletonList(JobStatus.CANCELED),
-                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.CANCELED));
         iterator.close();
     }
 
@@ -790,10 +768,7 @@ public abstract class SourceTestSuiteBase<T> {
 
     private void killJob(JobClient jobClient) throws Exception {
         terminateJob(jobClient);
-        waitForJobStatus(
-                jobClient,
-                Collections.singletonList(JobStatus.CANCELED),
-                Deadline.fromNow(DEFAULT_JOB_STATUS_CHANGE_TIMEOUT));
+        waitForJobStatus(jobClient, Collections.singletonList(JobStatus.CANCELED));
     }
 
     /** Builder class for constructing {@link CollectResultIterator} of collect sink. */

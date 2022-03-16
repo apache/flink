@@ -23,7 +23,6 @@ import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
@@ -60,8 +59,6 @@ import org.junit.rules.TemporaryFolder;
 import javax.annotation.Nullable;
 
 import java.io.File;
-import java.time.Duration;
-import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.concurrent.CompletableFuture;
@@ -179,9 +176,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
             assertThat(e, containsCause(FlinkException.class));
         }
         // expect job to run again (maybe restart)
-        CommonTestUtils.waitUntilCondition(
-                () -> client.getJobStatus().get() == JobStatus.RUNNING,
-                Deadline.fromNow(Duration.of(1, ChronoUnit.MINUTES)));
+        CommonTestUtils.waitUntilCondition(() -> client.getJobStatus().get() == JobStatus.RUNNING);
     }
 
     @Test
@@ -206,9 +201,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
             assertThat(e, containsCause(FlinkException.class));
         }
         // expect job to run again (maybe restart)
-        CommonTestUtils.waitUntilCondition(
-                () -> client.getJobStatus().get() == JobStatus.RUNNING,
-                Deadline.fromNow(Duration.of(1, ChronoUnit.MINUTES)));
+        CommonTestUtils.waitUntilCondition(() -> client.getJobStatus().get() == JobStatus.RUNNING);
     }
 
     @Test
@@ -243,9 +236,7 @@ public class AdaptiveSchedulerITCase extends TestLogger {
         // ensure failed savepoint files have been removed from the directory.
         // We execute this in a retry loop with a timeout, because the savepoint deletion happens
         // asynchronously and is not bound to the job lifecycle. See FLINK-22493 for more details.
-        CommonTestUtils.waitUntilCondition(
-                () -> isDirectoryEmpty(savepointDirectory),
-                Deadline.fromNow(Duration.ofSeconds(10)));
+        CommonTestUtils.waitUntilCondition(() -> isDirectoryEmpty(savepointDirectory));
 
         // trigger second savepoint
         final String savepoint =
@@ -259,7 +250,6 @@ public class AdaptiveSchedulerITCase extends TestLogger {
 
     @Test
     public void testExceptionHistoryIsRetrievableFromTheRestAPI() throws Exception {
-        final Deadline deadline = Deadline.fromNow(Duration.ofMinutes(1));
         final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(PARALLELISM);
         env.enableCheckpointing(20L, CheckpointingMode.EXACTLY_ONCE);
@@ -281,11 +271,9 @@ public class AdaptiveSchedulerITCase extends TestLogger {
                             exceptionsFuture.get();
                     return jobExceptionsInfoWithHistory.getExceptionHistory().getEntries().size()
                             > 0;
-                },
-                deadline);
+                });
         jobClient.cancel().get();
-        CommonTestUtils.waitForJobStatus(
-                jobClient, Collections.singletonList(JobStatus.CANCELED), deadline);
+        CommonTestUtils.waitForJobStatus(jobClient, Collections.singletonList(JobStatus.CANCELED));
     }
 
     private boolean isDirectoryEmpty(File directory) {

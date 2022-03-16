@@ -279,7 +279,6 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
     }
 
     private void waitForJob() throws Exception {
-        Deadline deadline = Deadline.fromNow(Duration.ofMinutes(5));
         JobID jobID = jobGraph.getJobID();
         CommonTestUtils.waitForAllTaskRunning(
                 () ->
@@ -287,7 +286,6 @@ public class JobMasterStopWithSavepointITCase extends AbstractTestBase {
                                 .getMiniCluster()
                                 .getExecutionGraph(jobID)
                                 .get(60, TimeUnit.SECONDS),
-                deadline,
                 false);
     }
 

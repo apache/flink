@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.blob;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.configuration.BlobServerOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
@@ -33,7 +32,6 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.time.Duration;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -92,9 +90,7 @@ public class TransientBlobCacheTest {
 
         try (final TransientBlobCache transientBlobCache =
                 new TransientBlobCache(configuration, storageDirectory.toFile(), null)) {
-            CommonTestUtils.waitUntilCondition(
-                    () -> !blobFile.exists(),
-                    Deadline.fromNow(Duration.ofSeconds(cleanupInterval * 5L)));
+            CommonTestUtils.waitUntilCondition(() -> !blobFile.exists());
         }
     }
 }

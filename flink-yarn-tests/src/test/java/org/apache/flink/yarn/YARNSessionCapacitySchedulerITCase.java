@@ -18,7 +18,6 @@
 
 package org.apache.flink.yarn;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.client.cli.CliFrontend;
 import org.apache.flink.configuration.Configuration;
@@ -390,16 +389,14 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
 
     private static void waitForTaskManagerRegistration(
             final String host, final int port, final Duration waitDuration) throws Exception {
-        CommonTestUtils.waitUntilCondition(
-                () -> getNumberOfTaskManagers(host, port) > 0, Deadline.fromNow(waitDuration));
+        CommonTestUtils.waitUntilCondition(() -> getNumberOfTaskManagers(host, port) > 0);
     }
 
     private static void assertNumberOfSlotsPerTask(
             final String host, final int port, final int slotsNumber) throws Exception {
         try {
             CommonTestUtils.waitUntilCondition(
-                    () -> getNumberOfSlotsPerTaskManager(host, port) == slotsNumber,
-                    Deadline.fromNow(Duration.ofSeconds(30)));
+                    () -> getNumberOfSlotsPerTaskManager(host, port) == slotsNumber);
         } catch (final TimeoutException e) {
             final int currentNumberOfSlots = getNumberOfSlotsPerTaskManager(host, port);
             fail(

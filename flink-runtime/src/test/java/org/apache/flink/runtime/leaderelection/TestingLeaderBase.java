@@ -18,13 +18,11 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -51,7 +49,6 @@ public class TestingLeaderBase {
                             leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
                     return leader != null && !leader.isEmpty();
                 },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
                 errorMsg);
 
         isLeader = true;
@@ -67,7 +64,6 @@ public class TestingLeaderBase {
                             leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
                     return leader != null && leader.isEmpty();
                 },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
                 errorMsg);
 
         isLeader = false;
@@ -80,7 +76,6 @@ public class TestingLeaderBase {
                     error = errorQueue.poll(timeout, TimeUnit.MILLISECONDS);
                     return error != null;
                 },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
                 errorMsg);
     }
 

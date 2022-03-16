@@ -18,14 +18,12 @@
 
 package org.apache.flink.runtime.leaderelection;
 
-import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.runtime.leaderretrieval.LeaderRetrievalListener;
 import org.apache.flink.runtime.testutils.CommonTestUtils;
 import org.apache.flink.util.ExceptionUtils;
 
 import javax.annotation.Nullable;
 
-import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -57,7 +55,6 @@ public class TestingRetrievalBase {
                             && !leader.isEmpty()
                             && !leader.getLeaderAddress().equals(oldAddress);
                 },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
                 errorMsg);
 
         oldAddress = leader.getLeaderAddress();
@@ -75,7 +72,6 @@ public class TestingRetrievalBase {
                     leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
                     return leader != null && leader.isEmpty();
                 },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
                 errorMsg);
 
         oldAddress = null;
@@ -88,7 +84,6 @@ public class TestingRetrievalBase {
                     error = errorQueue.poll(timeout, TimeUnit.MILLISECONDS);
                     return error != null;
                 },
-                Deadline.fromNow(Duration.ofMillis(timeout)),
                 errorMsg);
     }
 

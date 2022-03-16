@@ -159,8 +159,7 @@ public class MiniClusterResource extends ExternalResource {
                                                                 .isGloballyTerminalState())
                                         .count();
                         return unfinishedJobs == 0;
-                    },
-                    jobCancellationDeadline);
+                    });
 
             if (waitUntilSlotsAreFreed) {
                 CommonTestUtils.waitUntilCondition(
@@ -169,8 +168,7 @@ public class MiniClusterResource extends ExternalResource {
                                     miniCluster.getResourceOverview().get();
                             return resourceOverview.getNumberRegisteredSlots()
                                     == resourceOverview.getNumberFreeSlots();
-                        },
-                        jobCancellationDeadline);
+                        });
             }
         } catch (Exception e) {
             log.warn("Exception while shutting down remaining jobs.", e);
