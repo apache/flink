@@ -19,7 +19,6 @@
 package org.apache.flink.table.api;
 
 import org.apache.flink.annotation.PublicEvolving;
-import org.apache.flink.table.delegation.ExpressionParser;
 import org.apache.flink.table.expressions.Expression;
 
 import java.util.List;
@@ -61,18 +60,6 @@ public final class OverWindowPartitionedOrderedPreceding {
      */
     public OverWindow as(Expression alias) {
         return new OverWindow(alias, partitionBy, orderBy, preceding, optionalFollowing);
-    }
-
-    /**
-     * Set the following offset (based on time or row-count intervals) for over window.
-     *
-     * @param following following offset that relative to the current row.
-     * @return an over window with defined following
-     * @deprecated use {@link #following(Expression)}
-     */
-    @Deprecated
-    public OverWindowPartitionedOrderedPreceding following(String following) {
-        return this.following(ExpressionParser.INSTANCE.parseExpression(following));
     }
 
     /**
