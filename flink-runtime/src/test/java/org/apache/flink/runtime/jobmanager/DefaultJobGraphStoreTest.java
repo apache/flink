@@ -41,8 +41,8 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
@@ -51,6 +51,7 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 
 /**
@@ -220,14 +221,22 @@ public class DefaultJobGraphStoreTest extends TestLogger {
                 .globalCleanupAsync(testingJobGraph.getJobID(), Executors.directExecutor())
                 .join();
 
-        try {
-            removeFuture.get(timeout, TimeUnit.MILLISECONDS);
-            fail(
-                    "We should get an expected timeout because we are removing a non-existed job graph.");
-        } catch (TimeoutException ex) {
-            // expected
-        }
-        assertThat(removeFuture.isDone(), is(false));
+        assertThat(removeFuture.isDone(), is(true));
+    }
+
+    @Test
+    public void testGlobalCleanupFailsIfRemovalReturnsFalse() throws Exception {
+        final TestingStateHandleStore<JobGraph> stateHandleStore =
+                builder.setRemoveFunction(name -> false).build();
+
+        final JobGraphStore jobGraphStore = createAndStartJobGraphStore(stateHandleStore);
+        assertThrows(
+                ExecutionException.class,
+                () ->
+                        jobGraphStore
+                                .globalCleanupAsync(
+                                        testingJobGraph.getJobID(), Executors.directExecutor())
+                                .get());
     }
 
     @Test

@@ -121,7 +121,8 @@ public interface StateHandleStore<T extends Serializable, R extends ResourceVers
      * node if any. Also the state on the external storage will be discarded.
      *
      * @param name Key name in ConfigMap or child path name in ZooKeeper
-     * @return True if the state handle could be removed.
+     * @return {@code true} if the state handle is removed (also if it didn't exist in the first
+     *     place); otherwise {@code false}.
      * @throws Exception if releasing, removing the handles or discarding the state failed
      */
     boolean releaseAndTryRemove(String name) throws Exception;
