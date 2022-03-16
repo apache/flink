@@ -266,7 +266,7 @@ public class StreamExecPythonOverAggregate extends ExecNodeBase<RowData>
                                 .project(outputRowType);
         GeneratedProjection generatedProjection =
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(config.getTableConfig()),
+                        CodeGeneratorContext.apply(config),
                         "UdafInputProjection",
                         inputRowType,
                         userDefinedFunctionInputType,

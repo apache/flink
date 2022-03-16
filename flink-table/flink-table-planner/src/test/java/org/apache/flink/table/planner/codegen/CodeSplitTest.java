@@ -18,8 +18,9 @@
 
 package org.apache.flink.table.planner.codegen;
 
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.core.testutils.FlinkMatchers;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
@@ -92,7 +93,7 @@ public class CodeSplitTest {
             rowData1.setField(random.nextInt(numFields), 1);
         }
 
-        Consumer<TableConfig> consumer =
+        Consumer<ReadableConfig> consumer =
                 tableConfig -> {
                     JoinCondition instance =
                             JoinUtil.generateConditionFunction(
@@ -120,7 +121,7 @@ public class CodeSplitTest {
             rowData.setField(i, i);
         }
 
-        Consumer<TableConfig> consumer =
+        Consumer<ReadableConfig> consumer =
                 tableConfig -> {
                     HashFunction instance =
                             HashCodeGenerator.generateRowHash(
@@ -162,7 +163,7 @@ public class CodeSplitTest {
             rowData1.setField(random.nextInt(numFields), 100);
         }
 
-        Consumer<TableConfig> consumer =
+        Consumer<ReadableConfig> consumer =
                 tableConfig -> {
                     RecordComparator instance =
                             ComparatorCodeGenerator.gen(tableConfig, "", rowType, sortSpec)
@@ -197,7 +198,7 @@ public class CodeSplitTest {
         }
         outputWriter.complete();
 
-        Consumer<TableConfig> consumer =
+        Consumer<ReadableConfig> consumer =
                 tableConfig -> {
                     Projection instance =
                             ProjectionCodeGenerator.generateProjection(
@@ -220,13 +221,13 @@ public class CodeSplitTest {
         return RowType.of(fieldTypes);
     }
 
-    private void runTest(Consumer<TableConfig> consumer) {
-        TableConfig splitTableConfig = new TableConfig();
+    private void runTest(Consumer<ReadableConfig> consumer) {
+        Configuration splitTableConfig = new Configuration();
         splitTableConfig.set(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, 4000);
         splitTableConfig.set(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, 10000);
         consumer.accept(splitTableConfig);
 
-        TableConfig noSplitTableConfig = new TableConfig();
+        Configuration noSplitTableConfig = new Configuration();
         noSplitTableConfig.set(TableConfigOptions.MAX_LENGTH_GENERATED_CODE, Integer.MAX_VALUE);
         noSplitTableConfig.set(TableConfigOptions.MAX_MEMBERS_GENERATED_CODE, Integer.MAX_VALUE);
         PrintStream originalStdOut = System.out;

@@ -33,10 +33,10 @@ import org.apache.flink.table.runtime.context.ExecutionContext
 import org.apache.flink.table.runtime.dataview.DataViewSpec
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions.fromLegacyInfoToDataType
+import org.powermock.api.mockito.PowerMockito.{mock, when}
 
 import org.apache.calcite.rel.core.AggregateCall
 import org.apache.calcite.tools.RelBuilder
-import org.powermock.api.mockito.PowerMockito.{mock, when}
 
 /**
   * Agg test base to mock agg information and etc.
@@ -110,7 +110,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
 
   val aggInfoList = AggregateInfoList(
     Array(aggInfo1, aggInfo2, aggInfo3), None, countStarInserted = false, Array())
-  val ctx = new CodeGeneratorContext(tEnv.getConfig)
+  val ctx = new CodeGeneratorContext(tEnv.getConfig.getConfiguration)
   val classLoader: ClassLoader = Thread.currentThread().getContextClassLoader
   val context: ExecutionContext = mock(classOf[ExecutionContext])
   when(context, "getRuntimeContext").thenReturn(mock(classOf[RuntimeContext]))

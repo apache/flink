@@ -23,7 +23,7 @@ import org.apache.flink.table.api.TableException
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.data.binary.BinaryRowData
-import org.apache.flink.table.data.util.DataFormatConverters.{getConverterForDataType, DataFormatConverter}
+import org.apache.flink.table.data.util.DataFormatConverters.{DataFormatConverter, getConverterForDataType}
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions
 import org.apache.flink.table.planner.calcite.{FlinkTypeFactory, RexDistinctKeyVariable, RexFieldVariable}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
@@ -668,7 +668,7 @@ class ExprCodeGenerator(ctx: CodeGeneratorContext, nullableInput: Boolean)
       // casting
       case CAST =>
         generateCast(ctx, operands.head, resultType, nullOnFailure = ctx.tableConfig
-          .getConfiguration.get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR).isEnabled)
+          .get(ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR).isEnabled)
 
       case TRY_CAST =>
         generateCast(ctx, operands.head, resultType, nullOnFailure = true)

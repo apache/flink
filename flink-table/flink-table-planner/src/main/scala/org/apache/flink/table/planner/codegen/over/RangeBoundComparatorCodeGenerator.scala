@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.over
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
@@ -46,7 +46,7 @@ import java.math.BigDecimal
   */
 class RangeBoundComparatorCodeGenerator(
     relBuilder: RelBuilder,
-    tableConfig: TableConfig,
+    tableConfig: ReadableConfig,
     inputType: RowType,
     bound: Any,
     key: Int = -1,
@@ -123,7 +123,7 @@ class RangeBoundComparatorCodeGenerator(
       """.stripMargin
 
     new GeneratedRecordComparator(
-      className, code, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      className, code, ctx.references.toArray, ctx.tableConfig)
   }
 
   private def getComparatorCode(inputValue: String, currentValue: String): String = {

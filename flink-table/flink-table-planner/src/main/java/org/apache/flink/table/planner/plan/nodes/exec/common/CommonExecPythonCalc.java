@@ -248,13 +248,13 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                                 udfInputType,
                                 udfOutputType,
                                 ProjectionCodeGenerator.generateProjection(
-                                        CodeGeneratorContext.apply(config.getTableConfig()),
+                                        CodeGeneratorContext.apply(config),
                                         "UdfInputProjection",
                                         inputType,
                                         udfInputType,
                                         udfInputOffsets),
                                 ProjectionCodeGenerator.generateProjection(
-                                        CodeGeneratorContext.apply(config.getTableConfig()),
+                                        CodeGeneratorContext.apply(config),
                                         "ForwardedFieldProjection",
                                         inputType,
                                         forwardedFieldType,
@@ -279,7 +279,7 @@ public abstract class CommonExecPythonCalc extends ExecNodeBase<RowData>
                                     udfOutputType,
                                     udfInputOffsets,
                                     ProjectionCodeGenerator.generateProjection(
-                                            CodeGeneratorContext.apply(config.getTableConfig()),
+                                            CodeGeneratorContext.apply(config),
                                             "ForwardedFieldProjection",
                                             inputType,
                                             forwardedFieldType,

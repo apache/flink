@@ -164,19 +164,19 @@ public class BatchExecPythonGroupAggregate extends ExecNodeBase<RowData>
                             udfInputType,
                             udfOutputType,
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(config.getTableConfig()),
+                                    CodeGeneratorContext.apply(config),
                                     "UdafInputProjection",
                                     inputRowType,
                                     udfInputType,
                                     udafInputOffsets),
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(config.getTableConfig()),
+                                    CodeGeneratorContext.apply(config),
                                     "GroupKey",
                                     inputRowType,
                                     (RowType) Projection.of(grouping).project(inputRowType),
                                     grouping),
                             ProjectionCodeGenerator.generateProjection(
-                                    CodeGeneratorContext.apply(config.getTableConfig()),
+                                    CodeGeneratorContext.apply(config),
                                     "GroupSet",
                                     inputRowType,
                                     (RowType) Projection.of(auxGrouping).project(inputRowType),

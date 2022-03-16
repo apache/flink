@@ -105,7 +105,7 @@ public class StreamExecDataStreamScan extends ExecNodeBase<RowData>
                 resetElement = "";
             }
             final CodeGeneratorContext ctx =
-                    new CodeGeneratorContext(config.getTableConfig())
+                    new CodeGeneratorContext(config)
                             .setOperatorBaseClass(TableStreamOperator.class);
             transformation =
                     ScanUtil.convertToInternalRow(

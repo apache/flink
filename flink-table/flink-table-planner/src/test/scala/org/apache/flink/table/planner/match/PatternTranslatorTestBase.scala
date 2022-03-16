@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.`match`
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.cep.pattern.Pattern
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.datastream.{DataStream => JDataStream}
 import org.apache.flink.streaming.api.scala.{DataStream, StreamExecutionEnvironment}
 import org.apache.flink.table.api._
@@ -37,13 +38,14 @@ import org.apache.flink.table.planner.utils.TableTestUtil
 import org.apache.flink.table.types.logical.{IntType, RowType}
 import org.apache.flink.types.Row
 import org.apache.flink.util.TestLogger
+import org.mockito.Mockito.{mock, when}
 
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.tools.RelBuilder
+
 import org.junit.Assert._
 import org.junit.rules.ExpectedException
 import org.junit.{ComparisonFailure, Rule}
-import org.mockito.Mockito.{mock, when}
 
 abstract class PatternTranslatorTestBase extends TestLogger {
 
@@ -105,7 +107,7 @@ abstract class PatternTranslatorTestBase extends TestLogger {
     val dataMatch = optimized.asInstanceOf[StreamPhysicalMatch]
     val p = StreamExecMatch.translatePattern(
       MatchUtil.createMatchSpec(dataMatch.logicalMatch),
-      new TableConfig,
+      new Configuration,
       context._1,
       testTableRowType).f0
 

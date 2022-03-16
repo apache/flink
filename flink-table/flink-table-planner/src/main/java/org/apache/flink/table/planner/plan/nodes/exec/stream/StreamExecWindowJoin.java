@@ -156,8 +156,7 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
         final InternalTypeInfo<RowData> rightTypeInfo = InternalTypeInfo.of(rightType);
 
         GeneratedJoinCondition generatedCondition =
-                JoinUtil.generateConditionFunction(
-                        config.getTableConfig(), joinSpec, leftType, rightType);
+                JoinUtil.generateConditionFunction(config, joinSpec, leftType, rightType);
 
         ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(

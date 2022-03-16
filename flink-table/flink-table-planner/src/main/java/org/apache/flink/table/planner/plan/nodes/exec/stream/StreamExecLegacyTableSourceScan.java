@@ -99,7 +99,7 @@ public class StreamExecLegacyTableSourceScan extends CommonExecLegacyTableSource
             }
 
             final CodeGeneratorContext ctx =
-                    new CodeGeneratorContext(config.getTableConfig())
+                    new CodeGeneratorContext(config)
                             .setOperatorBaseClass(TableStreamOperator.class);
             // the produced type may not carry the correct precision user defined in DDL, because
             // it may be converted from legacy type. Fix precision using logical schema from DDL.

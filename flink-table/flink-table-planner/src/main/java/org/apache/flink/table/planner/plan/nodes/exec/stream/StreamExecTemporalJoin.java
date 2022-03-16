@@ -210,7 +210,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
 
         // input must not be nullable, because the runtime join function will make sure
         // the code-generated function won't process null inputs
-        final CodeGeneratorContext ctx = new CodeGeneratorContext(config.getTableConfig());
+        final CodeGeneratorContext ctx = new CodeGeneratorContext(config);
         final ExprCodeGenerator exprGenerator =
                 new ExprCodeGenerator(ctx, false)
                         .bindInput(

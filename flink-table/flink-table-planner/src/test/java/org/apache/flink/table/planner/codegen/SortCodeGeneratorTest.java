@@ -24,11 +24,11 @@ import org.apache.flink.api.common.typeutils.TypeComparator;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.api.java.typeutils.RowTypeInfo;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.memory.MemorySegment;
 import org.apache.flink.core.memory.MemorySegmentFactory;
 import org.apache.flink.runtime.operators.sort.QuickSort;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.data.DecimalData;
 import org.apache.flink.table.data.GenericRowData;
 import org.apache.flink.table.data.RawValueData;
@@ -638,7 +638,8 @@ public class SortCodeGeneratorTest {
 
     public static Tuple2<NormalizedKeyComputer, RecordComparator> getSortBaseWithNulls(
             String namePrefix, RowType inputType, SortSpec sortSpec) {
-        SortCodeGenerator generator = new SortCodeGenerator(new TableConfig(), inputType, sortSpec);
+        SortCodeGenerator generator =
+                new SortCodeGenerator(new Configuration(), inputType, sortSpec);
         GeneratedNormalizedKeyComputer computer =
                 generator.generateNormalizedKeyComputer(namePrefix + "Computer");
         GeneratedRecordComparator comparator =

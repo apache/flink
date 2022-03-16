@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.calls.ScalarOperatorGens.generateEquals
@@ -42,7 +42,7 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
 
   def generateRecordEqualiser(name: String): GeneratedRecordEqualiser = {
     // ignore time zone
-    val ctx = CodeGeneratorContext(new TableConfig)
+    val ctx = CodeGeneratorContext(new Configuration)
     val className = newName(name)
 
     val equalsMethodCodes = for (idx <- fieldTypes.indices) yield generateEqualsMethod(ctx, idx)
@@ -80,7 +80,7 @@ class EqualiserCodeGenerator(fieldTypes: Array[LogicalType]) {
       """.stripMargin
 
     new GeneratedRecordEqualiser(
-      className, classCode, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      className, classCode, ctx.references.toArray, ctx.tableConfig)
   }
 
   private def getEqualsMethodName(idx: Int) = s"""equalsAtIndex$idx"""

@@ -20,25 +20,25 @@ package org.apache.flink.table.planner.codegen
 
 import org.apache.flink.api.common.functions.{Function, RuntimeContext}
 import org.apache.flink.api.common.typeutils.TypeSerializer
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.data.GenericRowData
 import org.apache.flink.table.data.conversion.{DataStructureConverter, DataStructureConverters}
 import org.apache.flink.table.functions.{FunctionContext, UserDefinedFunction}
 import org.apache.flink.table.planner.codegen.CodeGenUtils._
 import org.apache.flink.table.planner.codegen.GenerateUtils.generateRecordStatement
-import org.apache.flink.table.planner.utils.InternalConfigOptions
-import org.apache.flink.table.utils.DateTimeUtils
+import org.apache.flink.table.planner.utils.{InternalConfigOptions, TableConfigUtils}
 import org.apache.flink.table.runtime.operators.TableStreamOperator
 import org.apache.flink.table.runtime.typeutils.{ExternalSerializer, InternalSerializers}
 import org.apache.flink.table.runtime.util.collections._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.table.types.logical.LogicalTypeRoot._
 import org.apache.flink.table.types.logical._
+import org.apache.flink.table.utils.DateTimeUtils
 import org.apache.flink.util.InstantiationUtil
 
+import java.time.ZoneId
 import java.util.TimeZone
 import java.util.function.{Supplier => JSupplier}
-import java.time.ZoneId
 
 import scala.collection.mutable
 
@@ -46,7 +46,7 @@ import scala.collection.mutable
   * The context for code generator, maintaining various reusable statements that could be insert
   * into different code sections in the final generated class.
   */
-class CodeGeneratorContext(val tableConfig: TableConfig) {
+class CodeGeneratorContext(val tableConfig: ReadableConfig) {
 
   // holding a list of objects that could be used passed into generated class
   val references: mutable.ArrayBuffer[AnyRef] = new mutable.ArrayBuffer[AnyRef]()
@@ -486,7 +486,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   def addReusableQueryLevelCurrentTimestamp(): String = {
     val fieldTerm = s"queryStartTimestamp"
 
-    val queryStartEpoch = tableConfig.getConfiguration
+    val queryStartEpoch = tableConfig
       .getOptional(InternalConfigOptions.TABLE_QUERY_START_EPOCH_TIME)
       .orElseThrow(
         new JSupplier[Throwable] {
@@ -541,7 +541,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
   def addReusableQueryLevelLocalDateTime(): String = {
     val fieldTerm = s"queryStartLocaltimestamp"
 
-    val queryStartLocalTimestamp = tableConfig.getConfiguration
+    val queryStartLocalTimestamp = tableConfig
       .getOptional(InternalConfigOptions.TABLE_QUERY_START_LOCAL_TIME)
       .orElseThrow(
         new JSupplier[Throwable] {
@@ -638,7 +638,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
     * Adds a reusable TimeZone to the member area of the generated class.
     */
   def addReusableSessionTimeZone(): String = {
-    val zoneID = TimeZone.getTimeZone(tableConfig.getLocalTimeZone).getID
+    val zoneID = TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig)).getID
     val stmt =
       s"""private static final java.util.TimeZone $DEFAULT_TIMEZONE_TERM =
          |                 java.util.TimeZone.getTimeZone("$zoneID");""".stripMargin
@@ -977,7 +977,7 @@ class CodeGeneratorContext(val tableConfig: TableConfig) {
 }
 
 object CodeGeneratorContext {
-  def apply(tableConfig: TableConfig): CodeGeneratorContext = {
+  def apply(tableConfig: ReadableConfig): CodeGeneratorContext = {
     new CodeGeneratorContext(tableConfig)
   }
 }

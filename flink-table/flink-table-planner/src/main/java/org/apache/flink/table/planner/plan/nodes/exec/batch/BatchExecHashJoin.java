@@ -112,22 +112,19 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
 
         GeneratedJoinCondition condFunc =
                 JoinUtil.generateConditionFunction(
-                        config.getTableConfig(),
-                        joinSpec.getNonEquiCondition().orElse(null),
-                        leftType,
-                        rightType);
+                        config, joinSpec.getNonEquiCondition().orElse(null), leftType, rightType);
 
         // projection for equals
         GeneratedProjection leftProj =
                 ProjectionCodeGenerator.generateProjection(
-                        new CodeGeneratorContext(config.getTableConfig()),
+                        new CodeGeneratorContext(config),
                         "HashJoinLeftProjection",
                         leftType,
                         keyType,
                         leftKeys);
         GeneratedProjection rightProj =
                 ProjectionCodeGenerator.generateProjection(
-                        new CodeGeneratorContext(config.getTableConfig()),
+                        new CodeGeneratorContext(config),
                         "HashJoinRightProjection",
                         rightType,
                         keyType,
@@ -186,7 +183,7 @@ public class BatchExecHashJoin extends ExecNodeBase<RowData>
         if (LongHashJoinGenerator.support(hashJoinType, keyType, joinSpec.getFilterNulls())) {
             operator =
                     LongHashJoinGenerator.gen(
-                            config.getTableConfig(),
+                            config,
                             hashJoinType,
                             keyType,
                             buildType,
