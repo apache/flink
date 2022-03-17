@@ -331,18 +331,6 @@ public class SessionContext {
     }
 
     private void updateClassLoaderAndDependencies(Collection<URL> newDependencies) {
-        // merge the jar in config with the jar maintained in session
-        Set<URL> jarsInConfig;
-        try {
-            jarsInConfig =
-                    new HashSet<>(
-                            ConfigUtils.decodeListFromConfig(
-                                    sessionConfiguration, PipelineOptions.JARS, URL::new));
-        } catch (MalformedURLException e) {
-            throw new SqlExecutionException(
-                    "Failed to parse the option `pipeline.jars` in configuration.", e);
-        }
-        jarsInConfig.addAll(newDependencies);
         ConfigUtils.encodeCollectionToConfig(
                 sessionConfiguration,
                 PipelineOptions.JARS,
