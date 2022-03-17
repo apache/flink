@@ -69,7 +69,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -576,15 +575,7 @@ public class ZooKeeperLeaderElectionTest extends TestLogger {
             // make sure that the leader node has been deleted
             deletedFuture.get(timeout, TimeUnit.MILLISECONDS);
 
-            try {
-                retrievalEventHandler.waitForNewLeader(1000L);
-
-                fail(
-                        "TimeoutException was expected because there is no leader registered and "
-                                + "thus there shouldn't be any leader information in ZooKeeper.");
-            } catch (TimeoutException e) {
-                // that was expected
-            }
+            retrievalEventHandler.waitForEmptyLeaderInformation(1000L);
         } finally {
             electionEventHandler.close();
             if (leaderRetrievalDriver != null) {
