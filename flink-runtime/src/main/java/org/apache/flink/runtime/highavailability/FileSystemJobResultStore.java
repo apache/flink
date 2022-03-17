@@ -114,7 +114,7 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
      * @return A path for a dirty entry for the given the Job ID.
      */
     private Path constructDirtyPath(JobID jobId) {
-        return new Path(this.basePath.getPath(), jobId.toString() + DIRTY_FILE_EXTENSION);
+        return constructEntryPath(jobId.toString() + DIRTY_FILE_EXTENSION);
     }
 
     /**
@@ -125,7 +125,12 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
      * @return A path for a clean entry for the given the Job ID.
      */
     private Path constructCleanPath(JobID jobId) {
-        return new Path(this.basePath.getPath(), jobId.toString() + ".json");
+        return constructEntryPath(jobId.toString() + ".json");
+    }
+
+    @VisibleForTesting
+    Path constructEntryPath(String fileName) {
+        return new Path(this.basePath, fileName);
     }
 
     @Override
