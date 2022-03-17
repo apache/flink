@@ -32,16 +32,15 @@ import org.apache.flink.util.function.FunctionWithException;
 
 import org.apache.flink.shaded.guava30.com.google.common.collect.Iterables;
 
-import org.hamcrest.Matcher;
+import org.assertj.core.api.AbstractDoubleAssert;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 
 import static org.apache.flink.api.common.typeinfo.BasicTypeInfo.INT_TYPE_INFO;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Common base class for testing source tasks. */
 public class SourceStreamTaskTestBase {
@@ -49,7 +48,7 @@ public class SourceStreamTaskTestBase {
             FunctionWithException<Environment, ? extends StreamTask<Integer, ?>, Exception>
                     taskFactory,
             StreamOperatorFactory<?> operatorFactory,
-            Matcher<Double> busyTimeMatcher)
+            Consumer<AbstractDoubleAssert<?>> busyTimeMatcher)
             throws Exception {
         long sleepTime = 42;
 
@@ -73,26 +72,24 @@ public class SourceStreamTaskTestBase {
             OneShotLatch checkpointAcknowledgeLatch = new OneShotLatch();
             harness.getCheckpointResponder().setAcknowledgeLatch(checkpointAcknowledgeLatch);
 
-            assertFalse(triggerFuture.isDone());
+            assertThat(triggerFuture).isNotDone();
             Thread.sleep(sleepTime);
             while (!triggerFuture.isDone()) {
                 harness.streamTask.runMailboxStep();
             }
             Gauge<Long> checkpointStartDelayGauge =
                     (Gauge<Long>) metrics.get(MetricNames.CHECKPOINT_START_DELAY_TIME);
-            assertThat(
-                    checkpointStartDelayGauge.getValue(),
-                    greaterThanOrEqualTo(sleepTime * 1_000_000));
+            assertThat(checkpointStartDelayGauge.getValue())
+                    .isGreaterThanOrEqualTo(sleepTime * 1_000_000);
             Gauge<Double> busyTimeGauge = (Gauge<Double>) metrics.get(MetricNames.TASK_BUSY_TIME);
-            assertThat(busyTimeGauge.getValue(), busyTimeMatcher);
+            busyTimeMatcher.accept(assertThat(busyTimeGauge.getValue()));
 
             checkpointAcknowledgeLatch.await();
             TestCheckpointResponder.AcknowledgeReport acknowledgeReport =
                     Iterables.getOnlyElement(
                             harness.getCheckpointResponder().getAcknowledgeReports());
-            assertThat(
-                    acknowledgeReport.getCheckpointMetrics().getCheckpointStartDelayNanos(),
-                    greaterThanOrEqualTo(sleepTime * 1_000_000));
+            assertThat(acknowledgeReport.getCheckpointMetrics().getCheckpointStartDelayNanos())
+                    .isGreaterThanOrEqualTo(sleepTime * 1_000_000);
         }
     }
 }
