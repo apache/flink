@@ -336,7 +336,7 @@ public final class ExtractionUtils {
     public static Optional<Class<?>> extractSimpleGeneric(
             Class<?> baseClass, Class<?> clazz, int pos) {
         try {
-            if (clazz.getSuperclass() != baseClass) {
+            if (!baseClass.isAssignableFrom(clazz)) {
                 return Optional.empty();
             }
             final Type t =
