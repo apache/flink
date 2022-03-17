@@ -147,7 +147,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
 
         for (JobID jobId : jobIds) {
             if (!recoveredDirtyJobResults.contains(jobId)) {
-                recoveredJobGraphs.add(recoverJob(jobId));
+                tryRecoverJob(jobId).ifPresent(recoveredJobGraphs::add);
             }
         }
 
@@ -164,10 +164,16 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
         }
     }
 
-    private JobGraph recoverJob(JobID jobId) {
+    private Optional<JobGraph> tryRecoverJob(JobID jobId) {
         log.info("Trying to recover job with job id {}.", jobId);
         try {
-            return jobGraphStore.recoverJobGraph(jobId);
+            final JobGraph jobGraph = jobGraphStore.recoverJobGraph(jobId);
+            if (jobGraph == null) {
+                log.info(
+                        "Skipping recovery of job with job id {}, because it already finished in a previous execution",
+                        jobId);
+            }
+            return Optional.ofNullable(jobGraph);
         } catch (Exception e) {
             throw new FlinkRuntimeException(
                     String.format("Could not recover job with job id %s.", jobId), e);
@@ -264,7 +270,7 @@ public class SessionDispatcherLeaderProcess extends AbstractDispatcherLeaderProc
     }
 
     private Optional<JobGraph> recoverJobIfRunning(JobID jobId) {
-        return supplyUnsynchronizedIfRunning(() -> recoverJob(jobId));
+        return supplyUnsynchronizedIfRunning(() -> tryRecoverJob(jobId)).flatMap(x -> x);
     }
 
     @Override
