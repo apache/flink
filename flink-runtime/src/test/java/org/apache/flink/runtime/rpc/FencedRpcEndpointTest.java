@@ -110,6 +110,7 @@ public class FencedRpcEndpointTest {
             assertEquals(newFencingToken, fencedTestingEndpoint.getFencingToken());
         } finally {
             RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
+            fencedTestingEndpoint.validateResourceClosed();
         }
     }
 
@@ -178,6 +179,7 @@ public class FencedRpcEndpointTest {
 
         } finally {
             RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
+            fencedTestingEndpoint.validateResourceClosed();
         }
     }
 
@@ -245,6 +247,7 @@ public class FencedRpcEndpointTest {
             }
         } finally {
             RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
+            fencedTestingEndpoint.validateResourceClosed();
         }
     }
 
@@ -294,6 +297,7 @@ public class FencedRpcEndpointTest {
 
         } finally {
             RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
+            fencedTestingEndpoint.validateResourceClosed();
         }
     }
 
@@ -335,6 +339,7 @@ public class FencedRpcEndpointTest {
             }
         } finally {
             RpcUtils.terminateRpcEndpoint(fencedTestingEndpoint, timeout);
+            fencedTestingEndpoint.validateResourceClosed();
         }
     }
 
