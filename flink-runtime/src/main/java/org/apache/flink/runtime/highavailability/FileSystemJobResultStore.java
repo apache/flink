@@ -125,7 +125,7 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
      * @return A path for a clean entry for the given the Job ID.
      */
     private Path constructCleanPath(JobID jobId) {
-        return constructEntryPath(jobId.toString() + ".json");
+        return constructEntryPath(jobId.toString() + FILE_EXTENSION);
     }
 
     @VisibleForTesting
