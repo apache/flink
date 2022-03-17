@@ -59,7 +59,8 @@ import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.LifeCycleMonitor.LifeCyclePhase;
 import org.apache.flink.util.SerializedValue;
 
-import org.junit.Test;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -75,29 +76,24 @@ import java.util.function.Supplier;
 import java.util.stream.IntStream;
 
 import static org.apache.flink.streaming.util.TestHarnessUtil.assertOutputEquals;
-import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.lessThanOrEqualTo;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for verifying that the {@link SourceOperator} as a task input can be integrated well with
  * {@link org.apache.flink.streaming.runtime.io.StreamOneInputProcessor}.
  */
-public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
+class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
+
     private static final OperatorID OPERATOR_ID = new OperatorID();
     private static final int NUM_RECORDS = 10;
 
     @Test
-    public void testMetrics() throws Exception {
+    void testMetrics() throws Exception {
         testMetrics(
                 SourceOperatorStreamTask::new,
                 new SourceOperatorFactory<>(
                         new MockSource(Boundedness.BOUNDED, 1), WatermarkStrategy.noWatermarks()),
-                lessThanOrEqualTo(1_000_000d));
+                busyTime -> busyTime.isLessThanOrEqualTo(1_000_000d));
     }
 
     /**
@@ -105,7 +101,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
      * operators.
      */
     @Test
-    public void testSnapshotAndRestore() throws Exception {
+    void testSnapshotAndRestore() throws Exception {
         // process NUM_RECORDS records and take a snapshot.
         TaskStateSnapshot taskStateSnapshot =
                 executeAndWaitForCheckpoint(1, null, IntStream.range(0, NUM_RECORDS));
@@ -116,7 +112,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
     }
 
     @Test
-    public void testSnapshotAndAdvanceToEndOfEventTime() throws Exception {
+    void testSnapshotAndAdvanceToEndOfEventTime() throws Exception {
         final int checkpointId = 1;
         try (StreamTaskMailboxTestHarness<Integer> testHarness =
                 createTestHarness(checkpointId, null)) {
@@ -139,7 +135,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
     }
 
     @Test
-    public void testEmittingMaxWatermarkAfterReadingAllRecords() throws Exception {
+    void testEmittingMaxWatermarkAfterReadingAllRecords() throws Exception {
         try (StreamTaskMailboxTestHarness<Integer> testHarness = createTestHarness()) {
             testHarness.processAll();
             testHarness.finishProcessing();
@@ -147,22 +143,22 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             Queue<Object> expectedOutput = new LinkedList<>();
             expectedOutput.add(Watermark.MAX_WATERMARK);
             expectedOutput.add(new EndOfData(StopMode.DRAIN));
-            assertThat(testHarness.getOutput().toArray(), equalTo(expectedOutput.toArray()));
+            assertThat(testHarness.getOutput().toArray()).isEqualTo(expectedOutput.toArray());
         }
     }
 
     @Test
-    public void testNotEmittingMaxWatermarkAfterCancelling() throws Exception {
+    void testNotEmittingMaxWatermarkAfterCancelling() throws Exception {
         try (StreamTaskMailboxTestHarness<Integer> testHarness = createTestHarness()) {
             testHarness.getStreamTask().cancel();
             testHarness.finishProcessing();
 
-            assertThat(testHarness.getOutput(), hasSize(0));
+            assertThat(testHarness.getOutput()).hasSize(0);
         }
     }
 
     @Test
-    public void testExternallyInducedSource() throws Exception {
+    void testExternallyInducedSource() throws Exception {
         final int numEventsBeforeCheckpoint = 10;
         final int totalNumEvents = 20;
         TestingExternallyInducedSourceReader testingReader =
@@ -176,17 +172,18 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
             testHarness.processAll();
 
-            assertEquals(totalNumEvents, runtimeTestingReader.numEmittedEvents);
-            assertTrue(runtimeTestingReader.checkpointed);
-            assertEquals(
-                    TestingExternallyInducedSourceReader.CHECKPOINT_ID,
-                    runtimeTestingReader.checkpointedId);
-            assertEquals(numEventsBeforeCheckpoint, runtimeTestingReader.checkpointedAt);
+            assertThat(runtimeTestingReader.numEmittedEvents).isEqualTo(totalNumEvents);
+            assertThat(runtimeTestingReader.checkpointed).isTrue();
+            assertThat(runtimeTestingReader.checkpointedId)
+                    .isEqualTo(TestingExternallyInducedSourceReader.CHECKPOINT_ID);
+            assertThat(runtimeTestingReader.checkpointedAt).isEqualTo(numEventsBeforeCheckpoint);
+            Assertions.assertThat(testHarness.getOutput())
+                    .contains(new CheckpointBarrier(2, 2, checkpointOptions));
         }
     }
 
     @Test
-    public void testSkipExecutionIfFinishedOnRestore() throws Exception {
+    void testSkipExecutionIfFinishedOnRestore() throws Exception {
         TaskStateSnapshot taskStateSnapshot = TaskStateSnapshot.FINISHED_ON_RESTORE;
 
         LifeCycleMonitorSource testingSource =
@@ -215,7 +212,8 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
             testHarness.getStreamTask().invoke();
             testHarness.processAll();
-            assertThat(output, contains(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN)));
+            assertThat(output)
+                    .containsExactly(Watermark.MAX_WATERMARK, new EndOfData(StopMode.DRAIN));
 
             LifeCycleMonitorSourceReader sourceReader =
                     (LifeCycleMonitorSourceReader)
@@ -226,7 +224,7 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
     }
 
     @Test
-    public void testTriggeringStopWithSavepointWithDrain() throws Exception {
+    void testTriggeringStopWithSavepointWithDrain() throws Exception {
         SourceOperatorFactory<Integer> sourceOperatorFactory =
                 new SourceOperatorFactory<>(
                         new MockSource(Boundedness.CONTINUOUS_UNBOUNDED, 2),
@@ -271,9 +269,9 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             testHarness.waitForTaskCompletion();
             testHarness.finishProcessing();
 
-            assertTrue(triggerResult.isDone());
-            assertTrue(triggerResult.get());
-            assertTrue(checkpointCompleted.isDone());
+            assertThat(triggerResult.isDone()).isTrue();
+            assertThat(triggerResult.get()).isTrue();
+            assertThat(checkpointCompleted.isDone()).isTrue();
         }
     }
 
@@ -304,7 +302,8 @@ public class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
             expectedOutput.add(
                     new CheckpointBarrier(checkpointId, checkpointId, checkpointOptions));
 
-            assertEquals(checkpointId, testHarness.taskStateManager.getReportedCheckpointId());
+            assertThat(testHarness.taskStateManager.getReportedCheckpointId())
+                    .isEqualTo(checkpointId);
             assertOutputEquals("Output was not correct.", expectedOutput, testHarness.getOutput());
 
             return testHarness.taskStateManager.getLastJobManagerTaskStateSnapshot();
