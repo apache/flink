@@ -1174,6 +1174,92 @@ class KeyedStream(DataStream):
         return self.process(FilterKeyedProcessFunctionAdapter(func), self._original_data_type_info)\
             .name("Filter")
 
+    def sum(self, position_to_sum: Union[int, str]) -> 'DataStream':
+        """
+        Applies an aggregation that gives a rolling sum of the data stream at the
+        given position grouped by the given key. An independent aggregate is kept
+        per key.
+
+        Example:
+        ::
+            Tuple data to sum:
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('b', 1), ('b', 5)])
+            >>> ds.key_by(lambda x: x[0]).sum(1)
+
+            Row data to sum:
+            >>> ds = self.env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            >>>                                type_info=Types.ROW([Types.STRING(), Types.INT()]))
+            >>> ds.key_by(lambda x: x[0]).sum(1)
+
+            Row data with fields name to sum:
+            >>> ds = self.env.from_collection(
+            >>>     [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            >>>     type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
+            >>> )
+            >>> ds.key_by(lambda x: x[0]).sum("value")
+
+        :param position_to_sum:
+            The field position in the data points to sum, type can be int or str.
+            This is applicable to Tuple types, and {pyflink.common.types.Row} types.
+        :return: The transformed DataStream.
+        """
+        if not isinstance(position_to_sum, int) and not isinstance(position_to_sum, str):
+            raise TypeError("The input must be a int or str type for locate the value to sum")
+
+        output_type = _from_java_type(self._original_data_type_info.get_java_type_info())
+
+        class SumKeyedProcessFunctionAdapter(KeyedProcessFunction):
+
+            def __init__(self, position_to_sum):
+                self._pos = position_to_sum
+                self._sum_value_state = None    # type: ValueState
+
+            def open(self, runtime_context: RuntimeContext):
+                self._sum_value_state = runtime_context.get_state(
+                    ValueStateDescriptor("_sum_state" + str(uuid.uuid4()), output_type))
+                from pyflink.fn_execution.datastream.runtime_context import StreamingRuntimeContext
+                self._in_batch_execution_mode = \
+                    cast(StreamingRuntimeContext, runtime_context)._in_batch_execution_mode
+
+            def close(self):
+                pass
+
+            def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
+                from numbers import Number
+                if not isinstance(value[self._pos], Number):
+                    raise TypeError("The value to sum by given position must be of numeric type; "
+                                    f"actual {type(value[self._pos])}, expected Number")
+
+                sum_value: Union[tuple, Row] = self._sum_value_state.value()
+                if sum_value is not None:
+                    if isinstance(value, tuple):
+                        sum_value_list = list(sum_value)
+                        sum_value_list[self._pos] = sum_value[self._pos] + value[self._pos]
+                        sum_value = tuple(sum_value_list)
+                    elif isinstance(value, Row):
+                        sum_value[self._pos] = sum_value[self._pos] + value[self._pos]
+                    else:
+                        raise TypeError("Sum operator only process the data of "
+                                        "Tuple type and {pyflink.common.types.Row} type. "
+                                        f"Actual type: {type(value)}")
+                else:
+                    # register a timer for emitting the result at the end when this is the
+                    # first input for this key
+                    if self._in_batch_execution_mode:
+                        ctx.timer_service().register_event_time_timer(0x7fffffffffffffff)
+                    sum_value = value
+                self._sum_value_state.update(sum_value)
+                if not self._in_batch_execution_mode:
+                    yield sum_value
+
+            def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
+                current_value = self._sum_value_state.value()
+                if current_value is not None:
+                    yield current_value
+
+        return self.process(SumKeyedProcessFunctionAdapter(position_to_sum), output_type) \
+            .name("Sum")
+
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         return self._values().add_sink(sink_func)
 
