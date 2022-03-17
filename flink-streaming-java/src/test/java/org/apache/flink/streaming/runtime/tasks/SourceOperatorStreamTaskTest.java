@@ -38,6 +38,7 @@ import org.apache.flink.core.io.InputStatus;
 import org.apache.flink.runtime.checkpoint.CheckpointMetaData;
 import org.apache.flink.runtime.checkpoint.CheckpointMetrics;
 import org.apache.flink.runtime.checkpoint.CheckpointOptions;
+import org.apache.flink.runtime.checkpoint.CheckpointType;
 import org.apache.flink.runtime.checkpoint.SavepointType;
 import org.apache.flink.runtime.checkpoint.TaskStateSnapshot;
 import org.apache.flink.runtime.executiongraph.ExecutionAttemptID;
@@ -61,6 +62,8 @@ import org.apache.flink.util.SerializedValue;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
 import java.io.Serializable;
@@ -74,6 +77,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.function.Supplier;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static org.apache.flink.streaming.util.TestHarnessUtil.assertOutputEquals;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -86,6 +90,10 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
 
     private static final OperatorID OPERATOR_ID = new OperatorID();
     private static final int NUM_RECORDS = 10;
+    public static final CheckpointStorageLocationReference SAVEPOINT_LOCATION =
+            new CheckpointStorageLocationReference("Savepoint".getBytes());
+    public static final CheckpointStorageLocationReference CHECKPOINT_LOCATION =
+            new CheckpointStorageLocationReference("Checkpoint".getBytes());
 
     @Test
     void testMetrics() throws Exception {
@@ -157,8 +165,35 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
         }
     }
 
-    @Test
-    void testExternallyInducedSource() throws Exception {
+    static Stream<?> provideExternallyInducedParameters() {
+        return Stream.of(
+                        CheckpointOptions.alignedNoTimeout(
+                                SavepointType.savepoint(SavepointFormatType.CANONICAL),
+                                SAVEPOINT_LOCATION),
+                        CheckpointOptions.alignedNoTimeout(
+                                SavepointType.terminate(SavepointFormatType.CANONICAL),
+                                SAVEPOINT_LOCATION),
+                        CheckpointOptions.alignedNoTimeout(
+                                SavepointType.suspend(SavepointFormatType.CANONICAL),
+                                SAVEPOINT_LOCATION),
+                        CheckpointOptions.alignedNoTimeout(
+                                CheckpointType.CHECKPOINT, CHECKPOINT_LOCATION),
+                        CheckpointOptions.alignedWithTimeout(
+                                CheckpointType.CHECKPOINT, CHECKPOINT_LOCATION, 123L),
+                        CheckpointOptions.unaligned(CheckpointType.CHECKPOINT, CHECKPOINT_LOCATION),
+                        CheckpointOptions.notExactlyOnce(
+                                CheckpointType.CHECKPOINT, CHECKPOINT_LOCATION))
+                .flatMap(
+                        options ->
+                                Stream.of(
+                                        new Object[] {options, true},
+                                        new Object[] {options, false}));
+    }
+
+    @ParameterizedTest
+    @MethodSource("provideExternallyInducedParameters")
+    void testExternallyInducedSource(CheckpointOptions checkpointOptions, boolean rpcFirst)
+            throws Exception {
         final int numEventsBeforeCheckpoint = 10;
         final int totalNumEvents = 20;
         TestingExternallyInducedSourceReader testingReader =
@@ -170,15 +205,47 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
                             ((SourceOperator) testHarness.getStreamTask().mainOperator)
                                     .getSourceReader();
 
-            testHarness.processAll();
+            CheckpointMetaData checkpointMetaData =
+                    new CheckpointMetaData(TestingExternallyInducedSourceReader.CHECKPOINT_ID, 2);
+            if (rpcFirst) {
+                testHarness.streamTask.triggerCheckpointAsync(
+                        checkpointMetaData, checkpointOptions);
+                testHarness.processAll();
+            } else {
+                do {
+                    testHarness.processSingleStep();
+                } while (!runtimeTestingReader.shouldTriggerCheckpoint().isPresent());
+                // stream task should block when trigger received but no RPC
+                assertThat(testHarness.streamTask.inputProcessor.isAvailable()).isFalse();
+                CompletableFuture<Boolean> triggerCheckpointAsync =
+                        testHarness.streamTask.triggerCheckpointAsync(
+                                checkpointMetaData, checkpointOptions);
+                // process mails until checkpoint has been processed
+                while (!triggerCheckpointAsync.isDone()) {
+                    testHarness.processSingleStep();
+                }
+                // stream task should be unblocked now
+                assertThat(testHarness.streamTask.inputProcessor.isAvailable()).isTrue();
+                testHarness.processAll();
+            }
 
-            assertThat(runtimeTestingReader.numEmittedEvents).isEqualTo(totalNumEvents);
+            int expectedEvents =
+                    checkpointOptions.getCheckpointType().isSavepoint()
+                                    && ((SavepointType) checkpointOptions.getCheckpointType())
+                                            .isSynchronous()
+                            ? numEventsBeforeCheckpoint
+                            : totalNumEvents;
+            assertThat(runtimeTestingReader.numEmittedEvents).isEqualTo(expectedEvents);
             assertThat(runtimeTestingReader.checkpointed).isTrue();
             assertThat(runtimeTestingReader.checkpointedId)
                     .isEqualTo(TestingExternallyInducedSourceReader.CHECKPOINT_ID);
             assertThat(runtimeTestingReader.checkpointedAt).isEqualTo(numEventsBeforeCheckpoint);
             Assertions.assertThat(testHarness.getOutput())
-                    .contains(new CheckpointBarrier(2, 2, checkpointOptions));
+                    .contains(
+                            new CheckpointBarrier(
+                                    checkpointMetaData.getCheckpointId(),
+                                    checkpointMetaData.getTimestamp(),
+                                    checkpointOptions));
         }
     }
 
@@ -262,7 +329,7 @@ class SourceOperatorStreamTaskTest extends SourceStreamTaskTestBase {
                             new CheckpointMetaData(2, 2),
                             CheckpointOptions.alignedNoTimeout(
                                     SavepointType.terminate(SavepointFormatType.CANONICAL),
-                                    CheckpointStorageLocationReference.getDefault()));
+                                    SAVEPOINT_LOCATION));
             checkpointCompleted.whenComplete(
                     (ignored, exception) ->
                             testHarness.streamTask.notifyCheckpointCompleteAsync(2));
