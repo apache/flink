@@ -35,7 +35,6 @@ import static org.apache.flink.shaded.guava30.com.google.common.collect.Iterable
 import static org.apache.flink.util.ExceptionUtils.rethrowIOException;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** {@link FsStateChangelogWriter} test. */
 class FsStateChangelogWriterTest {
@@ -142,39 +141,37 @@ class FsStateChangelogWriterTest {
     }
 
     @Test
-    void testPersistFailure() throws Exception {
+    void testPersistFailure() {
         assertThatThrownBy(
-                        () -> {
-                            withWriter(
-                                    (writer, uploader) -> {
-                                        byte[] bytes = getBytes();
-                                        SequenceNumber sqn = append(writer, bytes);
-                                        CompletableFuture<ChangelogStateHandleStreamImpl> future =
-                                                writer.persist(sqn);
-                                        uploader.failUpload(new RuntimeException("test"));
-                                        try {
-                                            future.get();
-                                        } catch (ExecutionException e) {
-                                            rethrowIOException(e.getCause());
-                                        }
-                                    });
-                        })
+                        () ->
+                                withWriter(
+                                        (writer, uploader) -> {
+                                            byte[] bytes = getBytes();
+                                            SequenceNumber sqn = append(writer, bytes);
+                                            CompletableFuture<ChangelogStateHandleStreamImpl>
+                                                    future = writer.persist(sqn);
+                                            uploader.failUpload(new RuntimeException("test"));
+                                            try {
+                                                future.get();
+                                            } catch (ExecutionException e) {
+                                                rethrowIOException(e.getCause());
+                                            }
+                                        }))
                 .isInstanceOf(IOException.class);
     }
 
     @Test
-    void testPersistFailedChanges() throws Exception {
+    void testPersistFailedChanges() {
         assertThatThrownBy(
-                        () -> {
-                            withWriter(
-                                    (writer, uploader) -> {
-                                        byte[] bytes = getBytes();
-                                        SequenceNumber sqn = append(writer, bytes);
-                                        writer.persist(sqn); // future result ignored
-                                        uploader.failUpload(new RuntimeException("test"));
-                                        writer.persist(sqn); // should fail right away
-                                    });
-                        })
+                        () ->
+                                withWriter(
+                                        (writer, uploader) -> {
+                                            byte[] bytes = getBytes();
+                                            SequenceNumber sqn = append(writer, bytes);
+                                            writer.persist(sqn); // future result ignored
+                                            uploader.failUpload(new RuntimeException("test"));
+                                            writer.persist(sqn); // should fail right away
+                                        }))
                 .isInstanceOf(IOException.class);
     }
 
@@ -195,16 +192,15 @@ class FsStateChangelogWriterTest {
     }
 
     @Test
-    void testTruncate() throws Exception {
+    void testTruncate() {
         assertThatThrownBy(
-                        () -> {
-                            withWriter(
-                                    (writer, uploader) -> {
-                                        SequenceNumber sqn = append(writer, getBytes());
-                                        writer.truncate(sqn.next());
-                                        writer.persist(sqn);
-                                    });
-                        })
+                        () ->
+                                withWriter(
+                                        (writer, uploader) -> {
+                                            SequenceNumber sqn = append(writer, getBytes());
+                                            writer.truncate(sqn.next());
+                                            writer.persist(sqn);
+                                        }))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -254,6 +250,6 @@ class FsStateChangelogWriterTest {
     }
 
     private static void assertNoUpload(TestingStateChangeUploader uploader, String message) {
-        assertTrue(uploader.getUploaded().isEmpty(), message);
+        assertThat(uploader.getUploaded()).isEmpty();
     }
 }

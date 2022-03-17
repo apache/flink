@@ -105,7 +105,7 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
 
     private void assertByteMapsEqual(
             Map<Integer, List<byte[]>> expected, Map<Integer, List<byte[]>> actual) {
-        assertThat(actual.size()).isEqualTo(expected.size());
+        assertThat(actual).hasSameSizeAs(expected);
         for (Map.Entry<Integer, List<byte[]>> e : expected.entrySet()) {
             List<byte[]> expectedList = e.getValue();
             List<byte[]> actualList = actual.get(e.getKey());

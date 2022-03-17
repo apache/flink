@@ -37,7 +37,6 @@ import java.io.File;
 import java.util.stream.Stream;
 
 import static org.apache.flink.changelog.fs.UnregisteredChangelogStorageMetricGroup.createUnregisteredChangelogStorageMetricGroup;
-import static org.apache.flink.util.TempDirUtils.newFolderIn;
 
 /** {@link FsStateChangelogStorage} test. */
 public class FsStateChangelogStorageTest extends StateChangelogStorageTest {
@@ -50,7 +49,7 @@ public class FsStateChangelogStorageTest extends StateChangelogStorageTest {
     protected StateChangelogStorage<?> getFactory(boolean compression, File temporaryFolder)
             throws IOException {
         return new FsStateChangelogStorage(
-                Path.fromLocalFile(newFolderIn(temporaryFolder)),
+                Path.fromLocalFile(temporaryFolder),
                 compression,
                 1024 * 1024 * 10,
                 createUnregisteredChangelogStorageMetricGroup());

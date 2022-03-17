@@ -24,6 +24,7 @@ import org.apache.flink.runtime.testutils.DirectScheduledExecutorService;
 import org.apache.flink.util.function.RunnableWithException;
 import org.apache.flink.util.function.ThrowingConsumer;
 
+import org.assertj.core.data.Percentage;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -45,8 +46,7 @@ import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 import static org.apache.flink.changelog.fs.UnregisteredChangelogStorageMetricGroup.createUnregisteredChangelogStorageMetricGroup;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** {@link RetryingExecutor} test. */
 class RetryingExecutorTest {
@@ -209,11 +209,9 @@ class RetryingExecutorTest {
                     }
                 },
                 Executors.newScheduledThreadPool(2));
-        assertEquals(
-                timeout,
-                ((double) secondStart.get() - firstStart.get()) / 1_000_000,
-                timeout
-                        * 0.75d /* future completion can be delayed arbitrarily causing start delta be less than timeout */);
+        /* future completion can be delayed arbitrarily causing start delta be less than timeout */
+        assertThat(((double) secondStart.get() - firstStart.get()) / 1_000_000)
+                .isCloseTo(timeout, Percentage.withPercentage(75));
     }
 
     private void testPolicy(

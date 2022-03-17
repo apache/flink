@@ -34,9 +34,11 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -46,14 +48,12 @@ import static org.apache.flink.changelog.fs.ChangelogStorageMetricGroup.CHANGELO
 import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredTaskManagerJobMetricGroup;
 import static org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups.createUnregisteredTaskManagerMetricGroup;
 import static org.apache.flink.runtime.state.KeyGroupRange.EMPTY_KEY_GROUP_RANGE;
-import static org.apache.flink.util.TempDirUtils.newFileIn;
-import static org.apache.flink.util.TempDirUtils.newFolderIn;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** {@link ChangelogStorageMetricGroup} test. */
 public class ChangelogStorageMetricsTest {
 
-    @TempDir File temporaryFolder;
+    @TempDir java.nio.file.Path tempFolder;
 
     @Test
     void testUploadsCounter() throws Exception {
@@ -62,7 +62,7 @@ public class ChangelogStorageMetricsTest {
 
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(
-                        Path.fromLocalFile(temporaryFolder), false, 100, metrics)) {
+                        Path.fromLocalFile(tempFolder.toFile()), false, 100, metrics)) {
             FsStateChangelogWriter writer = createWriter(storage);
             int numUploads = 5;
             for (int i = 0; i < numUploads; i++) {
@@ -82,7 +82,7 @@ public class ChangelogStorageMetricsTest {
 
         try (FsStateChangelogStorage storage =
                 new FsStateChangelogStorage(
-                        Path.fromLocalFile(temporaryFolder), false, 100, metrics)) {
+                        Path.fromLocalFile(tempFolder.toFile()), false, 100, metrics)) {
             FsStateChangelogWriter writer = createWriter(storage);
 
             // upload single byte to infer header size
@@ -104,7 +104,8 @@ public class ChangelogStorageMetricsTest {
 
     @Test
     void testUploadFailuresCounter() throws Exception {
-        File file = newFileIn(temporaryFolder); // using file instead of folder will cause a failure
+        // using file instead of folder will cause a failure
+        File file = Files.createTempFile(tempFolder, UUID.randomUUID().toString(), "").toFile();
         ChangelogStorageMetricGroup metrics =
                 new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
         try (FsStateChangelogStorage storage =
@@ -131,7 +132,7 @@ public class ChangelogStorageMetricsTest {
 
         ChangelogStorageMetricGroup metrics =
                 new ChangelogStorageMetricGroup(createUnregisteredTaskManagerJobMetricGroup());
-        Path basePath = Path.fromLocalFile(newFolderIn(temporaryFolder));
+        Path basePath = Path.fromLocalFile(tempFolder.toFile());
         StateChangeFsUploader uploader =
                 new StateChangeFsUploader(basePath, basePath.getFileSystem(), false, 100, metrics);
         ManuallyTriggeredScheduledExecutorService scheduler =
@@ -230,7 +231,7 @@ public class ChangelogStorageMetricsTest {
                                 new JobID(),
                                 "test"));
 
-        Path path = Path.fromLocalFile(newFolderIn(temporaryFolder));
+        Path path = Path.fromLocalFile(tempFolder.toFile());
         StateChangeFsUploader delegate =
                 new StateChangeFsUploader(path, path.getFileSystem(), false, 100, metrics);
         ManuallyTriggeredScheduledExecutorService scheduler =

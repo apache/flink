@@ -58,7 +58,7 @@ import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.rethrow;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.fail;
 
 /** {@link BatchingStateChangeUploadScheduler} test. */
 class BatchingStateChangeUploadSchedulerTest {
@@ -246,7 +246,7 @@ class BatchingStateChangeUploadSchedulerTest {
     }
 
     @Test
-    void testErrorHandling() throws Exception {
+    void testErrorHandling() {
         assertThatThrownBy(
                         () -> {
                             TestingStateChangeUploader probe = new TestingStateChangeUploader();

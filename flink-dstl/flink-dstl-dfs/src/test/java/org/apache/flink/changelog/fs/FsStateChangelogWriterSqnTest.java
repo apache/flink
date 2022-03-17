@@ -31,7 +31,7 @@ import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.apache.flink.changelog.fs.FsStateChangelogWriterSqnTest.WriterSqnTestSettings.of;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test of incrementing {@link SequenceNumber sequence numbers} by {@link FsStateChangelogWriter}.
@@ -84,12 +84,11 @@ public class FsStateChangelogWriterSqnTest {
                 append(writer);
             }
             test.action.accept(writer);
-            assertEquals(
-                    test.expectIncrement
-                            ? writer.initialSequenceNumber().next()
-                            : writer.initialSequenceNumber(),
-                    writer.lastAppendedSqnUnsafe(),
-                    test.getMessage());
+            assertThat(writer.lastAppendedSqnUnsafe())
+                    .isEqualTo(
+                            test.expectIncrement
+                                    ? writer.initialSequenceNumber().next()
+                                    : writer.initialSequenceNumber());
         }
     }
 
