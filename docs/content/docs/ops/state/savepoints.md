@@ -270,7 +270,7 @@ Therefore, it is possible Flink leaves an empty savepoints directory if it was r
 
 **LEGACY**
 
-The legacy is mode is how Flink worked until 1.15. In this mode Flink will never delete the initial
+The legacy mode is how Flink worked until 1.15. In this mode Flink will never delete the initial
 checkpoint. At the same time, it is not clear if a user can ever delete it as well. The problem here,
 is that Flink might immediately build an incremental checkpoint on top of the restored one. Therefore,
 subsequent checkpoints depend on the restored checkpoint. Overall, the ownership is not well-defined.
