@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 # test pyflink shell environment
+from pyflink.table.expressions import lit
 from pyflink.shell import s_env, st_env, DataTypes
 from pyflink.table.schema import Schema
 from pyflink.table.table_descriptor import TableDescriptor, FormatDescriptor
@@ -45,7 +46,7 @@ st_env.create_temporary_table("csv_sink", TableDescriptor.for_connector("filesys
         .build())
     .build())
 
-t.select("a + 1, b, c").execute_insert("csv_sink").wait()
+t.select(t.a + lit(1), t.b, t.c).execute_insert("csv_sink").wait()
 
 with open(os.path.join(sink_path, os.listdir(sink_path)[0]), 'r') as f:
     lines = f.read()

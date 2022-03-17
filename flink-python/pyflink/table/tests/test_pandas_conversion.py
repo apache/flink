@@ -156,7 +156,7 @@ class PandasConversionITTests(PandasConversionTestBase):
         import numpy as np
         assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int16([2])}))
 
-        result_pdf = table.group_by("f2").select("max(f1) as f2").to_pandas()
+        result_pdf = table.group_by(table.f2).select(table.f1.max.alias('f2')).to_pandas()
         assert_frame_equal(result_pdf, pd.DataFrame(data={'f2': np.int8([1, 1])}))
 
     def assert_equal_field(self, expected_field, result_field):
