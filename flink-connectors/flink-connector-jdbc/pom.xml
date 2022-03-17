@@ -38,7 +38,6 @@ under the License.
 	<properties>
 		<postgres.version>42.2.10</postgres.version>
 		<oracle.version>19.3.0.0</oracle.version>
-		<otj-pg-embedded.version>0.13.4</otj-pg-embedded.version>
 	</properties>
 
 	<dependencies>
@@ -125,12 +124,6 @@ under the License.
 		</dependency>
 
 		<!-- Postgres tests -->
-		<dependency>
-			<groupId>com.opentable.components</groupId>
-			<artifactId>otj-pg-embedded</artifactId>
-			<version>${otj-pg-embedded.version}</version>
-			<scope>test</scope>
-		</dependency>
 		<dependency>
 			<groupId>org.testcontainers</groupId>
 			<artifactId>postgresql</artifactId>
