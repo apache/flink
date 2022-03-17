@@ -37,7 +37,6 @@ import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils
 import org.apache.flink.table.planner.connectors.DynamicSinkUtils.validateSchemaAndApplyImplicitCast
 import org.apache.flink.table.planner.delegation.ParserFactory.DefaultParserContext
-import org.apache.flink.table.planner.expressions.PlannerTypeInferenceUtilImpl
 import org.apache.flink.table.planner.hint.FlinkHints
 import org.apache.flink.table.planner.operations.PlannerQueryOperation
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalLegacySink
@@ -98,9 +97,6 @@ abstract class PlannerBase(
     val catalogManager: CatalogManager,
     isStreamingMode: Boolean)
   extends Planner {
-
-  // temporary utility until we don't use planner expressions anymore
-  functionCatalog.setPlannerTypeInferenceUtil(PlannerTypeInferenceUtilImpl.INSTANCE)
 
   private var parser: Parser = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect

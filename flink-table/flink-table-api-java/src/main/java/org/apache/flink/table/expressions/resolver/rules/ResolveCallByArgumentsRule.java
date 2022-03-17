@@ -24,7 +24,6 @@ import org.apache.flink.api.common.typeutils.CompositeType;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.DataTypeFactory;
-import org.apache.flink.table.delegation.PlannerTypeInferenceUtil;
 import org.apache.flink.table.expressions.CallExpression;
 import org.apache.flink.table.expressions.Expression;
 import org.apache.flink.table.expressions.ResolvedExpression;
@@ -161,7 +160,7 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                                                     newInference,
                                                     resolvedArgs,
                                                     surroundingInfo))
-                            .orElseGet(() -> runLegacyTypeInference(unresolvedCall, resolvedArgs)));
+                            .get());
         }
 
         @Override
@@ -268,20 +267,6 @@ final class ResolveCallByArgumentsRule implements ResolverRule {
                                     resolvedArgs,
                                     resolutionContext.isGroupedAggregation()),
                             surroundingInfo);
-
-            final List<ResolvedExpression> adaptedArguments =
-                    adaptArguments(inferenceResult, resolvedArgs);
-
-            return unresolvedCall.resolve(adaptedArguments, inferenceResult.getOutputDataType());
-        }
-
-        private ResolvedExpression runLegacyTypeInference(
-                UnresolvedCallExpression unresolvedCall, List<ResolvedExpression> resolvedArgs) {
-
-            final PlannerTypeInferenceUtil util =
-                    resolutionContext.functionLookup().getPlannerTypeInferenceUtil();
-
-            final Result inferenceResult = util.runTypeInference(unresolvedCall, resolvedArgs);
 
             final List<ResolvedExpression> adaptedArguments =
                     adaptArguments(inferenceResult, resolvedArgs);
