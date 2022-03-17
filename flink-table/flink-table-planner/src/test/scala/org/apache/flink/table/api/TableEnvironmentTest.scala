@@ -364,6 +364,24 @@ class TableEnvironmentTest {
       .hasMessageContaining("View '`default_catalog`.`default_database`.`my_view`' " +
       "cannot be enriched with new options. Hints can only be applied to tables.")
       .isInstanceOf(classOf[ValidationException])
+
+    assertThatThrownBy(
+      () => tableEnv.executeSql(
+      "CREATE TEMPORARY VIEW your_view AS " +
+        "SELECT c FROM my_view /*+ OPTIONS('is-bounded' = 'true') */"))
+      .hasMessageContaining("View '`default_catalog`.`default_database`.`my_view`' " +
+      "cannot be enriched with new options. Hints can only be applied to tables.")
+      .isInstanceOf(classOf[ValidationException])
+
+    tableEnv.executeSql(
+      "CREATE TEMPORARY VIEW your_view AS SELECT c FROM my_view ")
+
+    assertThatThrownBy(
+      () => tableEnv.executeSql("SELECT * FROM your_view /*+ OPTIONS('is-bounded' = 'true') */"))
+      .hasMessageContaining("View '`default_catalog`.`default_database`.`your_view`' " +
+      "cannot be enriched with new options. Hints can only be applied to tables.")
+      .isInstanceOf(classOf[ValidationException])
+
   }
 
   @Test
