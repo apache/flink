@@ -140,12 +140,29 @@ Connector Options
       <td>Password used to connect to Elasticsearch instance. If <code>username</code> is configured, this option must be configured with non-empty string as well.</td>
     </tr>
     <tr>
-      <td><h5>sink.delivery-guarantee</h5></td>
+      <td><h5>failure-handler</h5></td>
       <td>optional</td>
-      <td>no</td>
-      <td style="word-wrap: break-word;">AT_LEAST_ONCE</td>
+      <td>yes</td>
+      <td style="word-wrap: break-word;">fail</td>
       <td>String</td>
-      <td>Optional delivery guarantee when committing. Valid values are <code>NONE</code> or <code>AT_LEAST_ONCE</code>.</td>
+      <td>Failure handling strategy in case a request to Elasticsearch fails. Valid strategies are:
+      <ul>
+        <li><code>fail</code>: throws an exception if a request fails and thus causes a job failure.</li>
+        <li><code>ignore</code>: ignores failures and drops the request.</li>
+        <li><code>retry-rejected</code>: re-adds requests that have failed due to queue capacity saturation.</li>
+        <li>custom class name: for failure handling with a ActionRequestFailureHandler subclass.</li>
+      </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><h5>sink.flush-on-checkpoint</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>Flush on checkpoint or not. When disabled, a sink will not wait for all pending action requests
+       to be acknowledged by Elasticsearch on checkpoints. Thus, a sink does NOT provide any strong
+       guarantees for at-least-once delivery of action requests.
+      </td>
     </tr>
     <tr>
       <td><h5>sink.bulk-flush.max-actions</h5></td>
@@ -182,11 +199,11 @@ Connector Options
       <td><h5>sink.bulk-flush.backoff.strategy</h5></td>
       <td>optional</td>
       <td>yes</td>
-      <td style="word-wrap: break-word;">NONE</td>
+      <td style="word-wrap: break-word;">DISABLED</td>
       <td>String</td>
       <td>Specify how to perform retries if any flush actions failed due to a temporary request error. Valid strategies are:
       <ul>
-        <li><code>NONE</code>: no retry performed, i.e. fail after the first request error.</li>
+        <li><code>DISABLED</code>: no retry performed, i.e. fail after the first request error.</li>
         <li><code>CONSTANT</code>: wait for backoff delay between retries.</li>
         <li><code>EXPONENTIAL</code>: initially wait for backoff delay and increase exponentially between retries.</li>
       </ul>
@@ -209,12 +226,12 @@ Connector Options
       <td>Delay between each backoff attempt. For <code>CONSTANT</code> backoff, this is simply the delay between each retry. For <code>EXPONENTIAL</code> backoff, this is the initial base delay.</td>
     </tr>
     <tr>
-      <td><h5>sink.parallelism</h5></td>
+      <td><h5>connection.max-retry-timeout</h5></td>
       <td>optional</td>
       <td>no</td>
       <td style="word-wrap: break-word;">(none)</td>
-      <td>Integer</td>
-      <td>Defines the parallelism of the Elasticsearch sink operator. By default, the parallelism is determined by the framework using the same parallelism of the upstream chained operator.</td>
+      <td>Duration</td>
+      <td>Maximum timeout between retries.</td>
     </tr>
     <tr>
       <td><h5>connection.path-prefix</h5></td>
@@ -223,40 +240,6 @@ Connector Options
       <td style="word-wrap: break-word;">(none)</td>
       <td>String</td>
       <td>Prefix string to be added to every REST communication, e.g., <code>'/v1'</code>.</td>
-    </tr>
-    <tr>
-      <td><h5>connection.request-timeout</h5></td>
-      <td>optional</td>
-      <td>yes</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>Duration</td>
-      <td>The timeout in milliseconds for requesting a connection from the connection manager.
-        The timeout must be larger than or equal to 0.
-        A timeout value of zero is interpreted as an infinite timeout.
-      </td>
-    </tr>
-    <tr>
-      <td><h5>connection.timeout</h5></td>
-      <td>optional</td>
-      <td>yes</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>Duration</td>
-      <td>The timeout in milliseconds for establishing a connection.
-        The timeout must be larger than or equal to 0.
-        A timeout value of zero is interpreted as an infinite timeout.
-      </td>
-    </tr>
-    <tr>
-      <td><h5>socket.timeout</h5></td>
-      <td>optional</td>
-      <td>yes</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>Duration</td>
-      <td>The socket timeout (SO_TIMEOUT) for waiting for data or, put differently,
-        a maximum period inactivity between two consecutive data packets.
-        The timeout must be larger than or equal to 0.
-        A timeout value of zero is interpreted as an infinite timeout.
-      </td>
     </tr>
     <tr>
       <td><h5>format</h5></td>
@@ -301,7 +284,7 @@ For example, if the option value is `'myusers-{log_ts|yyyy-MM-dd}'`, then a reco
 You can also use `'{now()|date_format_string}'` to convert the current system time to the format specified by `date_format_string`. The corresponding time type of `now()` is `TIMESTAMP_WITH_LTZ`.
 When formatting the system time as a string, the time zone configured in the session through `table.local-time-zone` will be used. You can use `NOW()`, `now()`, `CURRENT_TIMESTAMP`, `current_timestamp`.
 
-**NOTE:**  When using the dynamic index generated by the current system time, for changelog stream, there is no guarantee that the records with the same primary key can generate the same index name. 
+**NOTE:**  When using the dynamic index generated by the current system time, for changelog stream, there is no guarantee that the records with the same primary key can generate the same index name.
 Therefore, the dynamic index based on the system time can only support append only stream.
 
 Data Type Mapping
