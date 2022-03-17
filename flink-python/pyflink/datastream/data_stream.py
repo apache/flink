@@ -1372,16 +1372,16 @@ class WindowedStream(object):
         Example:
         ::
 
-            >>> ds.key_by(lambda x: x[1]) \
-                    .window(TumblingEventTimeWindow.of(Time.seconds(5))) \
-                    .reduce(lambda a, b: a[0] + b[0], b[1])
+            >>> ds.key_by(lambda x: x[1]) \\
+            ...     .window(TumblingEventTimeWindows.of(Time.seconds(5))) \\
+            ...     .reduce(lambda a, b: a[0] + b[0], b[1])
 
         :param reduce_function: The reduce function.
         :param window_function: The window function.
         :param output_type: Type information for the result type of the window function.
         :return: The data stream that is the result of applying the reduce function to the window.
 
-        .. versionadded:: 1.16
+        .. versionadded:: 1.16.0
         """
         if window_function is None:
             internal_window_function = InternalSingleValueWindowFunction(
@@ -1426,7 +1426,7 @@ class WindowedStream(object):
 
     def process(self,
                 process_window_function: ProcessWindowFunction,
-                output_type: TypeInformation = None):
+                output_type: TypeInformation = None) -> DataStream:
         """
         Applies the given window function to each window. The window function is called for each
         evaluation of the window for each key individually. The output of the window function is

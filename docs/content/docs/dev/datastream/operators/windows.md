@@ -464,11 +464,11 @@ input
 {{< /tab >}}
 {{< tab "Python" >}}
 ```python
-input: DataStream = ...
+input = ...  # type: DataStream
 
-input
-    .key_by(<key selector>)
-    .window(<window assigner>)
+input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
     .reduce(lambda v1, v2: (v1[0], v1[1] + v2[1]),
             output_type=Types.TUPLE([Types.STRING(), Types.LONG()]))
 ```
