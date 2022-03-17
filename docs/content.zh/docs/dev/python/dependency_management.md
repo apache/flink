@@ -53,6 +53,9 @@ If third-party JARs are used, you can specify the JARs in the Python Table API a
 # NOTE: Only local file URLs (start with "file://") are supported.
 table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/udf.jar")
 
+# It looks like the following on Windows:
+table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///E:/my/jar/path/connector.jar;file:///E:/my/jar/path/udf.jar")
+
 # Specify a list of URLs via "pipeline.classpaths". The URLs are separated by ";" 
 # and will be added to the classpath during job execution.
 # NOTE: The paths must specify a protocol (e.g. file://) and users should ensure that the URLs are accessible on both the client and the cluster.
@@ -65,6 +68,9 @@ or in the Python DataStream API as following:
 # Use the add_jars() to add local jars and the jars will be uploaded to the cluster.
 # NOTE: Only local file URLs (start with "file://") are supported.
 stream_execution_environment.add_jars("file:///my/jar/path/connector1.jar", "file:///my/jar/path/connector2.jar")
+
+# It looks like the following on Windows:
+stream_execution_environment.add_jars("file:///E:/my/jar/path/connector1.jar", "file:///E:/my/jar/path/connector2.jar")
 
 # Use the add_classpaths() to add the dependent jars URLs into the classpath.
 # The URLs will also be added to the classpath of both the client and the cluster.
