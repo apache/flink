@@ -51,10 +51,31 @@ public class FileSystemJobResultStoreTestInternal {
 
     @TempDir File temporaryFolder;
 
+    private Path basePath;
+
     @BeforeEach
     public void setupTest() throws IOException {
-        Path path = new Path(temporaryFolder.toURI());
-        fileSystemJobResultStore = new FileSystemJobResultStore(path.getFileSystem(), path, false);
+        basePath = new Path(temporaryFolder.toURI());
+        fileSystemJobResultStore =
+                new FileSystemJobResultStore(basePath.getFileSystem(), basePath, false);
+    }
+
+    @Test
+    public void testValidEntryPathCreation() {
+        final Path entryParent =
+                fileSystemJobResultStore.constructEntryPath("random-name").getParent();
+        assertThat(entryParent)
+                .extracting(FileSystemJobResultStoreTestInternal::stripSucceedingSlash)
+                .isEqualTo(stripSucceedingSlash(basePath));
+    }
+
+    private static String stripSucceedingSlash(Path path) {
+        final String uriStr = path.toUri().toString();
+        if (uriStr.charAt(uriStr.length() - 1) == '/') {
+            return uriStr.substring(0, uriStr.length() - 1);
+        }
+
+        return uriStr;
     }
 
     @Test
