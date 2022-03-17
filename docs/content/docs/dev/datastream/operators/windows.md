@@ -60,6 +60,7 @@ for the rest of the page.
 
 In the above, the commands in square brackets ([...]) are optional. This reveals that Flink allows you to customize your
 windowing logic in many different ways so that it best fits your needs.
+{{< hint info >}} Note: Non-Keyed windows is still not supported in Python DataStream API. {{< /hint >}}
 
 
 
@@ -185,6 +186,29 @@ input
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+# tumbling event-time windows
+input
+    .key_by(<key selector>)
+    .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+    .<windowed transformation>(<window function>)
+
+# tumbling processing-time windows
+input
+    .key_by(<key selector>)
+    .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+    .<windowed transformation>(<window function>)
+
+# daily tumbling event-time windows offset by -8 hours.
+input
+    .key_by(<key selector>)
+    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8)))
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 Time intervals can be specified by using one of `Time.milliseconds(x)`, `Time.seconds(x)`,
@@ -258,6 +282,29 @@ input
 // sliding processing-time windows offset by -8 hours
 input
     .keyBy(<key selector>)
+    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+# sliding event-time windows
+input
+    .key_by(<key selector>)
+    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .<windowed transformation>(<window function>)
+
+# sliding processing-time windows
+input
+    .key_by(<key selector>)
+    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5)))
+    .<windowed transformation>(<window function>)
+
+# sliding processing-time windows offset by -8 hours
+input
+    .key_by(<key selector>)
     .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
     .<windowed transformation>(<window function>)
 ```
@@ -358,6 +405,41 @@ input
         // determine and return session gap
       }
     }))
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+class MySessionWindowTimeGapExtractor(SessionWindowTimeGapExtractor):
+
+    def extract(self, element: tuple) -> int:
+        # determine and return session gap
+
+# event-time session windows with static gap
+input
+    .key_by(<key selector>)
+    .window(EventTimeSessionWindows.with_gap(Time.minutes(10)))
+    .<windowed transformation>(<window function>)
+
+# event-time session windows with dynamic gap
+input
+    .key_by(<key selector>)
+    .window(EventTimeSessionWindows.with_dynamic_gap(MySessionWindowTimeGapExtractor()))
+    .<windowed transformation>(<window function>)
+
+# processing-time session windows with static gap
+input
+    .key_by(<key selector>)
+    .window(ProcessingTimeSessionWindows.with_gap(Time.minutes(10)))
+    .<windowed transformation>(<window function>)
+
+
+# processing-time session windows with dynamic gap
+input
+    .key_by(<key selector>)
+    .window(DynamicProcessingTimeSessionWindows.with_dynamic_gap(MySessionWindowTimeGapExtractor()))
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
