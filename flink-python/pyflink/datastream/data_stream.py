@@ -1174,6 +1174,90 @@ class KeyedStream(DataStream):
         return self.process(FilterKeyedProcessFunctionAdapter(func), self._original_data_type_info)\
             .name("Filter")
 
+    def sum(self, position_to_sum: Union[int, str] = 0) -> 'DataStream':
+        """
+        Applies an aggregation that gives a rolling sum of the data stream at the given position
+        grouped by the given key. An independent aggregate is kept per key.
+
+        Example(Tuple data to sum):
+        ::
+
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('b', 1), ('b', 5)])
+            >>> ds.key_by(lambda x: x[0]).sum(1)
+
+        Example(Row data to sum):
+        ::
+
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            ...                          type_info=Types.ROW([Types.STRING(), Types.INT()]))
+            >>> ds.key_by(lambda x: x[0]).sum(1)
+
+        Example(Row data with fields name to sum):
+        ::
+
+            >>> ds = env.from_collection(
+            ...     [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            ...     type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
+            ... )
+            >>> ds.key_by(lambda x: x[0]).sum("value")
+
+        :param position_to_sum: The field position in the data points to sum, type can be int which
+                                indicates the index of the column to operate on or str which
+                                indicates the name of the column to operate on.
+        :return: The transformed DataStream.
+
+        .. versionadded:: 1.16.0
+        """
+        if not isinstance(position_to_sum, int) and not isinstance(position_to_sum, str):
+            raise TypeError("The field position must be of int or str type "
+                            "to locate the value to sum")
+
+        class SumReduceFunction(ReduceFunction):
+
+            def __init__(self, position_to_sum):
+                self._pos = position_to_sum
+                self._reduce_func = None
+
+            def reduce(self, value1, value2):
+                from numbers import Number
+
+                def init_reduce_func(value_to_check):
+                    if isinstance(value_to_check, tuple):
+                        def reduce_func(v1, v2):
+                            v1_list = list(v1)
+                            v1_list[self._pos] = v1[self._pos] + v2[self._pos]
+                            return tuple(v1_list)
+                        self._reduce_func = reduce_func
+                    elif isinstance(value_to_check, (list, Row)):
+                        def reduce_func(v1, v2):
+                            v1[self._pos] = v1[self._pos] + v2[self._pos]
+                            return v1
+                        self._reduce_func = reduce_func
+                    elif isinstance(value_to_check, Number):
+                        if self._pos != 0:
+                            raise TypeError(
+                                "The %s field selected on a basic type. A field expression on a "
+                                "basic type can only select the 0th field (which means selecting "
+                                "the entire basic type)." % self._pos)
+
+                        def reduce_func(v1, v2):
+                            return v1 + v2
+                        self._reduce_func = reduce_func
+                    else:
+                        raise TypeError("Sum operator only processes data of "
+                                        "Tuple, Row, List or Number type. "
+                                        "Actual data type: %s" % type(value_to_check))
+
+                if not isinstance(value2, Number) and not isinstance(value2[self._pos], Number):
+                    raise TypeError("The field to sum by must be of numeric type, actual type: %s"
+                                    % type(value2[self._pos]))
+
+                if not self._reduce_func:
+                    init_reduce_func(value2)
+                return self._reduce_func(value1, value2)
+
+        return self.reduce(SumReduceFunction(position_to_sum))
+
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         return self._values().add_sink(sink_func)
 
@@ -1223,7 +1307,7 @@ class KeyedStream(DataStream):
         """
         return WindowedStream(self, window_assigner)
 
-    def count_window(self, size: int, slide=0):
+    def count_window(self, size: int, slide: int = 0):
         """
         Windows this KeyedStream into tumbling or sliding count windows.
 

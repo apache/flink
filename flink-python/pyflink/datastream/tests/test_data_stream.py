@@ -1072,6 +1072,27 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         expected = ['+I[a, 0]', '+I[ab, 0]', '+I[c, 1]', '+I[cd, 1]', '+I[cde, 1]']
         self.assert_equals_sorted(expected, results)
 
+    def test_keyed_sum(self):
+        self.env.set_parallelism(1)
+        ds = self.env.from_collection(
+            [(1, 1), (1, 2), (1, 3), (2, 5), (2, 1)],
+            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+        )
+
+        ds.key_by(lambda x: x[0]) \
+            .sum("v2") \
+            .key_by(lambda x: x[0]) \
+            .sum(1) \
+            .map(lambda x: (x[1], x[0]), output_type=Types.TUPLE([Types.INT(), Types.INT()])) \
+            .key_by(lambda x: x[1]) \
+            .sum() \
+            .add_sink(self.test_sink)
+
+        self.env.execute("key_by_sum_test_stream")
+        results = self.test_sink.get_results(False)
+        expected = ['(1,1)', '(5,1)', '(15,1)', '(5,2)', '(16,2)']
+        self.assert_equals_sorted(expected, results)
+
     def test_function_with_error(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 1)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
@@ -1177,6 +1198,41 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         results = self.test_sink.get_results(False)
         expected = ['+I[ab, 0]', '+I[cde, 1]']
         self.assert_equals_sorted(expected, results)
+
+    def test_keyed_sum(self):
+        ds = self.env.from_collection(
+            [(1, 1), (1, 2), (1, 3), (5, 1), (5, 5)],
+            type_info=Types.ROW_NAMED(["v1", "v2"], [Types.INT(), Types.INT()])
+        )
+
+        def flat_map_func1(data):
+            for i in data:
+                yield 12, i
+
+        def flat_map_func2(data):
+            for i in data:
+                yield i
+
+        # First sum operator: Test Row type data and pass in field names.
+        # Second sum operator: Test Row type data and use parameter default value: 0.
+        # Third sum operator: Test Tuple type data and pass in field index number.
+        # Fourthly sum operator: Test Number(int) type data.
+        ds.key_by(lambda x: x[0]) \
+            .sum("v2") \
+            .key_by(lambda x: x[1]) \
+            .sum() \
+            .flat_map(flat_map_func1, output_type=Types.TUPLE([Types.INT(), Types.INT()])) \
+            .key_by(lambda x: x[0]) \
+            .sum(1) \
+            .flat_map(flat_map_func2, output_type=Types.INT()) \
+            .key_by(lambda x: x) \
+            .sum() \
+            .add_sink(self.test_sink)
+
+        self.env.execute("key_by_sum_test_batch")
+        results = self.test_sink.get_results(False)
+        expected = ['24']
+        self.assertEqual(expected, results)
 
 
 class MyKeySelector(KeySelector):
