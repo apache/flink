@@ -1180,22 +1180,26 @@ class KeyedStream(DataStream):
         given position grouped by the given key. An independent aggregate is kept
         per key.
 
-        Example:
+        Example(Tuple data to sum):
         ::
-            Tuple data to sum:
+
             >>> ds = env.from_collection([('a', 1), ('a', 2), ('b', 1), ('b', 5)])
             >>> ds.key_by(lambda x: x[0]).sum(1)
 
-            Row data to sum:
+        Example(Row data to sum):
+        ::
+
             >>> ds = self.env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
-            >>>                                type_info=Types.ROW([Types.STRING(), Types.INT()]))
+            ...                                type_info=Types.ROW([Types.STRING(), Types.INT()]))
             >>> ds.key_by(lambda x: x[0]).sum(1)
 
-            Row data with fields name to sum:
+        Example(Row data with fields name to sum):
+        ::
+
             >>> ds = self.env.from_collection(
-            >>>     [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
-            >>>     type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
-            >>> )
+            ...     [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            ...     type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
+            ... )
             >>> ds.key_by(lambda x: x[0]).sum("value")
 
         :param position_to_sum:
@@ -1230,7 +1234,7 @@ class KeyedStream(DataStream):
                     raise TypeError("The value to sum by given position must be of numeric type; "
                                     f"actual {type(value[self._pos])}, expected Number")
 
-                sum_value: Union[tuple, Row] = self._sum_value_state.value()
+                sum_value = self._sum_value_state.value()
                 if sum_value is not None:
                     if isinstance(value, tuple):
                         sum_value_list = list(sum_value)
