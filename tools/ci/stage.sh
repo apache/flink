@@ -104,7 +104,6 @@ flink-connectors/flink-connector-elasticsearch7,\
 flink-connectors/flink-sql-connector-elasticsearch6,\
 flink-connectors/flink-sql-connector-elasticsearch7,\
 flink-connectors/flink-connector-elasticsearch-base,\
-flink-connectors/flink-connector-nifi,\
 flink-connectors/flink-connector-rabbitmq,\
 flink-connectors/flink-connector-kinesis,\
 flink-connectors/flink-connector-aws-kinesis-streams,\
