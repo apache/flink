@@ -58,6 +58,7 @@ under the License.
 						<configuration>
 							<artifactSet>
 								<includes>
+									<include>org.apache.flink:flink-connector-base</include>
 									<include>org.apache.flink:flink-connector-kinesis</include>
 									<include>com.fasterxml.jackson.core:jackson-core</include>
 									<include>com.fasterxml.jackson.core:jackson-databind</include>

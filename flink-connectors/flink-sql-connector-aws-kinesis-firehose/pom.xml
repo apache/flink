@@ -54,6 +54,7 @@
 						<configuration>
 							<artifactSet>
 								<includes>
+									<include>org.apache.flink:flink-connector-base</include>
 									<include>org.apache.flink:flink-connector-aws-base</include>
 									<include>org.apache.flink:flink-connector-aws-kinesis-firehose</include>
 									<include>software.amazon.awssdk:*</include>
