@@ -126,6 +126,10 @@ public class TimestampsAndWatermarksOperator<T> extends AbstractStreamOperator<T
         }
     }
 
+    /** Override the base implementation to completely ignore statuses propagated from upstream. */
+    @Override
+    public void processWatermarkStatus(WatermarkStatus watermarkStatus) throws Exception {}
+
     @Override
     public void finish() throws Exception {
         super.finish();
