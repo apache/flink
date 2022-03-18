@@ -1669,7 +1669,13 @@ class StreamTableEnvironment(TableEnvironment):
             >>> table_config.set_null_check(False)
             >>> table_env = StreamTableEnvironment.create(env, table_config)
             # create with StreamExecutionEnvironment and EnvironmentSettings.
-            >>> environment_settings = EnvironmentSettings.in_streaming_mode()
+            >>> configuration = Configuration()
+            >>> configuration.set_string('execution.buffer-timeout', '1 min')
+            >>> environment_settings = EnvironmentSettings
+            >>>     .new_instance()
+            >>>     .in_streaming_mode()
+            >>>     .with_configuration(configuration)
+            >>>     .build()
             >>> table_env = StreamTableEnvironment.create(
             ...     env, environment_settings=environment_settings)
             # create with EnvironmentSettings.
