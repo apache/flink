@@ -455,56 +455,6 @@ class DataStreamTests(object):
         expected = ['+I[c, 1]', '+I[e, 2]']
         self.assert_equals_sorted(expected, results)
 
-    def test_keyed_sum_with_tuple_type(self):
-        ds = self.env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
-                                      type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
-        keyed_stream = ds.key_by(lambda x: x[0], key_type=Types.STRING())
-
-        keyed_stream.sum(1)\
-            .add_sink(self.test_sink)
-        self.env.execute('key_by_sum_test_with_tuple_type')
-        results = self.test_sink.get_results(False)
-        if self.__class__ == StreamingModeDataStreamTests:
-            expected = ['(a,1)', '(a,3)', '(a,6)', '(b,1)', '(b,3)']
-            self.assert_equals_sorted(expected, results)
-        else:   # Test in batch mode
-            expected = ['(a,6)', '(b,3)']
-            self.assert_equals_sorted(expected, results)
-
-    def test_keyed_sum_with_row_type(self):
-        ds = self.env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
-                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
-        keyed_stream = ds.key_by(lambda x: x[0], key_type=Types.STRING())
-
-        keyed_stream.sum(1) \
-            .add_sink(self.test_sink)
-        self.env.execute('key_by_sum_test_with_row_type')
-        results = self.test_sink.get_results(False)
-        if self.__class__ == StreamingModeDataStreamTests:
-            expected = ['+I[a, 1]', '+I[a, 3]', '+I[a, 6]', '+I[b, 1]', '+I[b, 3]']
-            self.assert_equals_sorted(expected, results)
-        else:   # Test in batch mode
-            expected = ['+I[a, 6]', '+I[b, 3]']
-            self.assert_equals_sorted(expected, results)
-
-    def test_keyed_sum_with_row_named_type(self):
-        ds = self.env.from_collection(
-            [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
-            type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
-        )
-        keyed_stream = ds.key_by(lambda x: x[0], key_type=Types.STRING())
-
-        keyed_stream.sum("value") \
-            .add_sink(self.test_sink)
-        self.env.execute('key_by_sum_test_with_row_named_type')
-        results = self.test_sink.get_results(False)
-        if self.__class__ == StreamingModeDataStreamTests:
-            expected = ['+I[a, 1]', '+I[a, 3]', '+I[a, 6]', '+I[b, 1]', '+I[b, 3]']
-            self.assert_equals_sorted(expected, results)
-        else:   # Test in batch mode
-            expected = ['+I[a, 6]', '+I[b, 3]']
-            self.assert_equals_sorted(expected, results)
-
     def test_multi_key_by(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 2)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
@@ -1122,6 +1072,44 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         expected = ['+I[a, 0]', '+I[ab, 0]', '+I[c, 1]', '+I[cd, 1]', '+I[cde, 1]']
         self.assert_equals_sorted(expected, results)
 
+    def test_keyed_sum_with_tuple_type(self):
+        ds = self.env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+                                      type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
+        keyed_stream = ds.key_by(lambda x: x[0], key_type=Types.STRING())
+
+        keyed_stream.sum(1)\
+            .add_sink(self.test_sink)
+        self.env.execute('key_by_sum_test_with_tuple_type')
+        results = self.test_sink.get_results(False)
+        expected = ['(a,1)', '(a,3)', '(a,6)', '(b,1)', '(b,3)']
+        self.assert_equals_sorted(expected, results)
+
+    def test_keyed_sum_with_row_type(self):
+        ds = self.env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        keyed_stream = ds.key_by(lambda x: x[0], key_type=Types.STRING())
+
+        keyed_stream.sum(1) \
+            .add_sink(self.test_sink)
+        self.env.execute('key_by_sum_test_with_row_type')
+        results = self.test_sink.get_results(False)
+        expected = ['+I[a, 1]', '+I[a, 3]', '+I[a, 6]', '+I[b, 1]', '+I[b, 3]']
+        self.assert_equals_sorted(expected, results)
+
+    def test_keyed_sum_with_row_named_type(self):
+        ds = self.env.from_collection(
+            [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
+        )
+        keyed_stream = ds.key_by(lambda x: x[0], key_type=Types.STRING())
+
+        keyed_stream.sum("value") \
+            .add_sink(self.test_sink)
+        self.env.execute('key_by_sum_test_with_row_named_type')
+        results = self.test_sink.get_results(False)
+        expected = ['+I[a, 1]', '+I[a, 3]', '+I[a, 6]', '+I[b, 1]', '+I[b, 3]']
+        self.assert_equals_sorted(expected, results)
+
     def test_function_with_error(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 1)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
@@ -1226,6 +1214,44 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         self.env.execute('key_by_test')
         results = self.test_sink.get_results(False)
         expected = ['+I[ab, 0]', '+I[cde, 1]']
+        self.assert_equals_sorted(expected, results)
+
+    def test_keyed_sum_with_tuple_type(self):
+        ds = self.env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+                                      type_info=Types.TUPLE([Types.STRING(), Types.INT()]))
+        keyed_stream = ds.key_by(lambda x: x[0], key_type=Types.STRING())
+
+        keyed_stream.sum(1)\
+            .add_sink(self.test_sink)
+        self.env.execute('key_by_sum_test_with_tuple_type')
+        results = self.test_sink.get_results(False)
+        expected = ['(a,6)', '(b,3)']
+        self.assert_equals_sorted(expected, results)
+
+    def test_keyed_sum_with_row_type(self):
+        ds = self.env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+                                      type_info=Types.ROW([Types.STRING(), Types.INT()]))
+        keyed_stream = ds.key_by(lambda x: x[0], key_type=Types.STRING())
+
+        keyed_stream.sum(1) \
+            .add_sink(self.test_sink)
+        self.env.execute('key_by_sum_test_with_row_type')
+        results = self.test_sink.get_results(False)
+        expected = ['+I[a, 6]', '+I[b, 3]']
+        self.assert_equals_sorted(expected, results)
+
+    def test_keyed_sum_with_row_named_type(self):
+        ds = self.env.from_collection(
+            [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
+        )
+        keyed_stream = ds.key_by(lambda x: x[0], key_type=Types.STRING())
+
+        keyed_stream.sum("value") \
+            .add_sink(self.test_sink)
+        self.env.execute('key_by_sum_test_with_row_named_type')
+        results = self.test_sink.get_results(False)
+        expected = ['+I[a, 6]', '+I[b, 3]']
         self.assert_equals_sorted(expected, results)
 
 
