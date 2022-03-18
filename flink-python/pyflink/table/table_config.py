@@ -16,6 +16,7 @@
 # limitations under the License.
 ################################################################################
 import datetime
+import warnings
 
 from py4j.compat import long
 from typing import Tuple
@@ -285,7 +286,7 @@ class TableConfig(object):
         .. note:: Deprecated in 1.15 and will be removed in next release.
         """
         warnings.warn("Deprecated in 1.15.", DeprecationWarning)
-        
+
         if rounding_mode not in (
                 "UP",
                 "DOWN",
