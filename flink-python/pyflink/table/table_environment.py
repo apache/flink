@@ -1717,6 +1717,8 @@ class StreamTableEnvironment(TableEnvironment):
                     environment_settings._j_environment_settings)
         else:
             if table_config is not None:
+                warnings.warn("Deprecated in 1.15, please use EnvironmentSettings.",
+                              DeprecationWarning)
                 j_tenv = gateway.jvm.StreamTableEnvironment.create(
                     stream_execution_environment._j_stream_execution_environment,
                     table_config._j_table_config)

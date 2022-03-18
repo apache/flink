@@ -85,13 +85,21 @@ class TableConfig(object):
     def get_null_check(self) -> bool:
         """
         A boolean value, "True" enables NULL check and "False" disables NULL check.
+
+        .. note:: Deprecated in 1.15 and will be removed in next release.
         """
+        warnings.warn("Deprecated in 1.15.", DeprecationWarning)
+
         return self._j_table_config.getNullCheck()
 
     def set_null_check(self, null_check: bool):
         """
         Sets the NULL check. If enabled, all fields need to be checked for NULL first.
+
+        .. note:: Deprecated in 1.15 and will be removed in next release.
         """
+        warnings.warn("Deprecated in 1.15.", DeprecationWarning)
+
         if null_check is not None and isinstance(null_check, bool):
             self._j_table_config.setNullCheck(null_check)
         else:
@@ -273,7 +281,11 @@ class TableConfig(object):
 
         :param precision: The precision of the decimal context.
         :param rounding_mode: The rounding mode of the decimal context.
+
+        .. note:: Deprecated in 1.15 and will be removed in next release.
         """
+        warnings.warn("Deprecated in 1.15.", DeprecationWarning)
+        
         if rounding_mode not in (
                 "UP",
                 "DOWN",
@@ -297,7 +309,11 @@ class TableConfig(object):
         .. seealso:: :func:`set_decimal_context`
 
         :return: the current context for decimal division calculation.
+
+        .. note:: Deprecated in 1.15 and will be removed in next release.
         """
+        warnings.warn("Deprecated in 1.15.", DeprecationWarning)
+
         j_math_context = self._j_table_config.getDecimalContext()
         precision = j_math_context.getPrecision()
         rounding_mode = j_math_context.getRoundingMode().name()
