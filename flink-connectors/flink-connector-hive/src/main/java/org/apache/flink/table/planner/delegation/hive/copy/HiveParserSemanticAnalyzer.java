@@ -21,7 +21,6 @@ package org.apache.flink.table.planner.delegation.hive.copy;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveTableUtil;
 import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
-import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.TableSpec;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.TableSpec.SpecType;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.PTFInputSpec;
@@ -32,6 +31,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserWindowingSp
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
+import org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.antlr.runtime.ClassicToken;

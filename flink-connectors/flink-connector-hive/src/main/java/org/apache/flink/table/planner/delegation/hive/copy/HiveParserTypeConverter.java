@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.flink.table.catalog.hive.client.HiveShim;
-import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
+import org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils;
 
 import org.apache.calcite.avatica.util.TimeUnit;
 import org.apache.calcite.plan.RelOptCluster;

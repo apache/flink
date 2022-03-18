@@ -35,6 +35,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConvert
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeInfoUtils;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
+import org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils;
 
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.type.RelDataType;

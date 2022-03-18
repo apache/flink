@@ -94,6 +94,12 @@ under the License.
 			</exclusions>
 		</dependency>
 
+		<dependency>
+			<groupId>org.apache.flink</groupId>
+			<artifactId>flink-table-planer-spi</artifactId>
+			<version>${project.version}</version>
+		</dependency>
+
 		<!-- Table Runtime (not included in the uber) -->
 
 		<dependency>
@@ -103,85 +109,6 @@ under the License.
 		</dependency>
 
 		<!-- Other 3rd party dependencies (included in the uber) -->
-
-		<dependency>
-			<!-- Used for translation of table programs -->
-			<groupId>org.apache.calcite</groupId>
-			<artifactId>calcite-core</artifactId>
-			<!-- When updating the Calcite version, make sure to update the dependency exclusions -->
-			<version>${calcite.version}</version>
-			<exclusions>
-				<!--
-				"mvn dependency:tree" as of Calcite 1.26.0:
-
-				[INFO] +- org.apache.calcite:calcite-core:jar:1.26.0:compile
-				[INFO] |  +- org.apache.calcite:calcite-linq4j:jar:1.26.0:compile
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-annotations:jar:2.12.1:compile
-				[INFO] |  +- org.apiguardian:apiguardian-api:jar:1.1.0:compile
-				[INFO] |  +- com.esri.geometry:esri-geometry-api:jar:2.2.0:runtime
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-core:jar:2.12.1:runtime
-				[INFO] |  +- com.fasterxml.jackson.core:jackson-databind:jar:2.12.1:runtime
-				[INFO] |  +- com.jayway.jsonpath:json-path:jar:2.4.0:runtime
-				[INFO] |  |  \- net.minidev:json-smart:jar:2.3:runtime
-				[INFO] |  |     \- net.minidev:accessors-smart:jar:1.2:runtime
-				[INFO] |  |        \- org.ow2.asm:asm:jar:5.0.4:runtime
-				[INFO] |  +- commons-codec:commons-codec:jar:1.10:runtime
-				[INFO] |  +- org.apache.commons:commons-lang3:jar:3.3.2:compile
-				[INFO] |  \- commons-io:commons-io:jar:2.4:compile
-
-				Dependencies that are not needed for how we use Calcite right now.
-				-->
-				<exclusion>
-					<groupId>org.apache.calcite.avatica</groupId>
-					<artifactId>avatica-server</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.calcite.avatica</groupId>
-					<artifactId>avatica-metrics</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.protobuf</groupId>
-					<artifactId>protobuf-java</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.google.uzaygezen</groupId>
-					<artifactId>uzaygezen-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpclient</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.httpcomponents</groupId>
-					<artifactId>httpcore</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-dbcp2</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.apache.commons</groupId>
-					<artifactId>commons-lang3</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.fasterxml.jackson.dataformat</groupId>
-					<artifactId>jackson-dataformat-yaml</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>com.yahoo.datasketches</groupId>
-					<artifactId>sketches-core</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>net.hydromatic</groupId>
-					<artifactId>aggdesigner-algorithm</artifactId>
-				</exclusion>
-				<!-- Excluding org.apiguardian:apiguardian-api v1.1.0 because org.junit.jupiter:junit-jupiter contains newer version v1.1.2 -->
-				<exclusion>
-					<groupId>org.apiguardian</groupId>
-					<artifactId>apiguardian-api</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
 
 		<dependency>
 			<!-- For legacy string expressions in Table API -->

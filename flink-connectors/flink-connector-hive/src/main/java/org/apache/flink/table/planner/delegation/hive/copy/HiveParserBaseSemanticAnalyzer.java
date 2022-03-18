@@ -22,7 +22,6 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.planner.delegation.hive.HiveParserConstants;
 import org.apache.flink.table.planner.delegation.hive.HiveParserRexNodeConverter;
 import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
-import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.NullOrder;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.OrderExpression;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocationSpec.OrderSpec;
@@ -32,6 +31,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserPTFInvocati
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
+import org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.antlr.runtime.tree.Tree;
@@ -113,7 +113,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.removeASTChild;
+import static org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils.removeASTChild;
 
 /**
  * Counterpart of hive's org.apache.hadoop.hive.ql.parse.BaseSemanticAnalyzer, and also contains

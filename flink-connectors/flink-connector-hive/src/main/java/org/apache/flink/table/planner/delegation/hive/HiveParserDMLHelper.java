@@ -26,12 +26,12 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.operations.Operation;
 import org.apache.flink.table.operations.QueryOperation;
 import org.apache.flink.table.operations.SinkModifyOperation;
-import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.planner.delegation.CalciteContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQB;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
-import org.apache.flink.table.planner.operations.PlannerQueryOperation;
-import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
+import org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils;
+import org.apache.flink.table.planner.operations.ExternPlannerQueryOperation;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.rel.RelCollation;
@@ -73,15 +73,15 @@ import java.util.stream.Collectors;
 /** A helper class to handle DMLs in hive dialect. */
 public class HiveParserDMLHelper {
 
-    private final PlannerContext plannerContext;
+    private final CalciteContext calciteContext;
     private final SqlFunctionConverter funcConverter;
     private final CatalogManager catalogManager;
 
     public HiveParserDMLHelper(
-            PlannerContext plannerContext,
+            CalciteContext calciteContext,
             SqlFunctionConverter funcConverter,
             CatalogManager catalogManager) {
-        this.plannerContext = plannerContext;
+        this.calciteContext = calciteContext;
         this.funcConverter = funcConverter;
         this.catalogManager = catalogManager;
     }
@@ -98,17 +98,18 @@ public class HiveParserDMLHelper {
         Preconditions.checkArgument(
                 queryRelNode instanceof Project
                         || queryRelNode instanceof Sort
-                        || queryRelNode instanceof LogicalDistribution,
+                        || LogicalDistributionUtils.isLogicalDistributionNode(queryRelNode),
                 "Expect top RelNode to be Project, Sort, or LogicalDistribution, actually got "
                         + queryRelNode);
         if (!(queryRelNode instanceof Project)) {
             RelNode parent = ((SingleRel) queryRelNode).getInput();
             // SEL + SORT or SEL + DIST + LIMIT
             Preconditions.checkArgument(
-                    parent instanceof Project || parent instanceof LogicalDistribution,
+                    parent instanceof Project
+                            || LogicalDistributionUtils.isLogicalDistributionNode(parent),
                     "Expect input to be a Project or LogicalDistribution, actually got " + parent);
-            if (parent instanceof LogicalDistribution) {
-                RelNode grandParent = ((LogicalDistribution) parent).getInput();
+            if (LogicalDistributionUtils.isLogicalDistributionNode(parent)) {
+                RelNode grandParent = ((SingleRel) parent).getInput();
                 Preconditions.checkArgument(
                         grandParent instanceof Project,
                         "Expect input of LogicalDistribution to be a Project, actually got "
@@ -122,7 +123,7 @@ public class HiveParserDMLHelper {
                         (SingleRel) queryRelNode, destTable, destSchema, staticPartSpec.keySet());
 
         // track each target col and its expected type
-        RelDataTypeFactory typeFactory = plannerContext.getTypeFactory();
+        RelDataTypeFactory typeFactory = calciteContext.getTypeFactory();
         LinkedHashMap<String, RelDataType> targetColToCalcType = new LinkedHashMap<>();
         List<TypeInfo> targetHiveTypes = new ArrayList<>();
         List<FieldSchema> allCols = new ArrayList<>(destTable.getCols());
@@ -147,13 +148,10 @@ public class HiveParserDMLHelper {
                 Sort sort = (Sort) queryRelNode;
                 RelNode oldInput = sort.getInput();
                 RelNode newInput;
-                if (oldInput instanceof LogicalDistribution) {
+                if (LogicalDistributionUtils.isLogicalDistributionNode(oldInput)) {
                     newInput =
                             replaceDistForStaticParts(
-                                    (LogicalDistribution) oldInput,
-                                    destTable,
-                                    staticPartSpec,
-                                    targetColToCalcType);
+                                    oldInput, destTable, staticPartSpec, targetColToCalcType);
                 } else {
                     newInput =
                             replaceProjectForStaticPart(
@@ -183,17 +181,14 @@ public class HiveParserDMLHelper {
             } else {
                 queryRelNode =
                         replaceDistForStaticParts(
-                                (LogicalDistribution) queryRelNode,
-                                destTable,
-                                staticPartSpec,
-                                targetColToCalcType);
+                                queryRelNode, destTable, staticPartSpec, targetColToCalcType);
             }
         }
 
         // add type conversions
         queryRelNode =
                 addTypeConversions(
-                        plannerContext.getCluster().getRexBuilder(),
+                        calciteContext.getCluster().getRexBuilder(),
                         queryRelNode,
                         new ArrayList<>(targetColToCalcType.values()),
                         targetHiveTypes,
@@ -206,7 +201,10 @@ public class HiveParserDMLHelper {
         ObjectIdentifier identifier = catalogManager.qualifyIdentifier(unresolvedIdentifier);
 
         return Tuple4.of(
-                identifier, new PlannerQueryOperation(queryRelNode), staticPartSpec, overwrite);
+                identifier,
+                new ExternPlannerQueryOperation(queryRelNode, null),
+                staticPartSpec,
+                overwrite);
     }
 
     public Operation createInsertOperation(HiveParserCalcitePlanner analyzer, RelNode queryRelNode)
@@ -286,20 +284,28 @@ public class HiveParserDMLHelper {
     }
 
     private RelNode replaceDistForStaticParts(
-            LogicalDistribution hiveDist,
+            RelNode hiveDist,
             Table destTable,
             Map<String, String> staticPartSpec,
             Map<String, RelDataType> targetColToType) {
-        Project project = (Project) hiveDist.getInput();
+        Project project = (Project) ((SingleRel) hiveDist).getInput();
         RelNode expandedProject =
                 replaceProjectForStaticPart(project, staticPartSpec, destTable, targetColToType);
         hiveDist.replaceInput(0, null);
         final int toShift = staticPartSpec.size();
         final int numDynmPart = destTable.getTTable().getPartitionKeys().size() - toShift;
-        return LogicalDistribution.create(
+        return LogicalDistributionUtils.create(
                 expandedProject,
-                shiftRelCollation(hiveDist.getCollation(), project, toShift, numDynmPart),
-                shiftDistKeys(hiveDist.getDistKeys(), project, toShift, numDynmPart));
+                shiftRelCollation(
+                        LogicalDistributionUtils.getCollation(hiveDist),
+                        project,
+                        toShift,
+                        numDynmPart),
+                shiftDistKeys(
+                        LogicalDistributionUtils.getDistKeys(hiveDist),
+                        project,
+                        toShift,
+                        numDynmPart));
     }
 
     private static List<Integer> shiftDistKeys(
@@ -329,7 +335,7 @@ public class HiveParserDMLHelper {
             }
             shiftedCollations.add(fieldCollation);
         }
-        return plannerContext
+        return calciteContext
                 .getCluster()
                 .traitSet()
                 .canonize(RelCollationImpl.of(shiftedCollations));
@@ -483,7 +489,7 @@ public class HiveParserDMLHelper {
                 updatedIndices.add(
                         HiveParserTypeConverter.convert(
                                 TypeInfoUtils.getTypeInfoFromTypeString(col.getType()),
-                                plannerContext.getTypeFactory()));
+                                calciteContext.getTypeFactory()));
             } else {
                 updatedIndices.add(index);
             }
@@ -494,9 +500,8 @@ public class HiveParserDMLHelper {
             Sort sort = (Sort) queryRelNode;
             RelNode sortInput = sort.getInput();
             // DIST + LIMIT
-            if (sortInput instanceof LogicalDistribution) {
-                RelNode newDist =
-                        handleDestSchemaForDist((LogicalDistribution) sortInput, updatedIndices);
+            if (LogicalDistributionUtils.isLogicalDistributionNode(sortInput)) {
+                RelNode newDist = handleDestSchemaForDist(sortInput, updatedIndices);
                 sort.replaceInput(0, newDist);
                 return sort;
             }
@@ -517,20 +522,20 @@ public class HiveParserDMLHelper {
             return sort;
         } else {
             // PROJECT + DIST
-            return handleDestSchemaForDist((LogicalDistribution) queryRelNode, updatedIndices);
+            return handleDestSchemaForDist(queryRelNode, updatedIndices);
         }
     }
 
-    private RelNode handleDestSchemaForDist(
-            LogicalDistribution hiveDist, List<Object> updatedIndices) throws SemanticException {
-        Project project = (Project) hiveDist.getInput();
+    private RelNode handleDestSchemaForDist(RelNode hiveDist, List<Object> updatedIndices)
+            throws SemanticException {
+        Project project = (Project) ((SingleRel) hiveDist).getInput();
         RelNode addedProject = addProjectForDestSchema(project, updatedIndices);
         // disconnect the original LogicalDistribution
         hiveDist.replaceInput(0, null);
-        return LogicalDistribution.create(
+        return LogicalDistributionUtils.create(
                 addedProject,
-                updateRelCollation(hiveDist.getCollation(), updatedIndices),
-                updateDistKeys(hiveDist.getDistKeys(), updatedIndices));
+                updateRelCollation(LogicalDistributionUtils.getCollation(hiveDist), updatedIndices),
+                updateDistKeys(LogicalDistributionUtils.getDistKeys(hiveDist), updatedIndices));
     }
 
     private RelCollation updateRelCollation(RelCollation collation, List<Object> updatedIndices) {
@@ -545,7 +550,7 @@ public class HiveParserDMLHelper {
             fieldCollation = fieldCollation.withFieldIndex(newIndex);
             updatedCollations.add(fieldCollation);
         }
-        return plannerContext
+        return calciteContext
                 .getCluster()
                 .traitSet()
                 .canonize(RelCollationImpl.of(updatedCollations));
@@ -571,7 +576,7 @@ public class HiveParserDMLHelper {
         List<RexNode> extendedExprs = new ArrayList<>(exprs);
         int numDynmPart = destTable.getTTable().getPartitionKeys().size() - staticPartSpec.size();
         int insertIndex = extendedExprs.size() - numDynmPart;
-        RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();
+        RexBuilder rexBuilder = calciteContext.getCluster().getRexBuilder();
         for (Map.Entry<String, String> spec : staticPartSpec.entrySet()) {
             RexNode toAdd =
                     rexBuilder.makeCharLiteral(HiveParserUtils.asUnicodeString(spec.getValue()));
@@ -604,7 +609,7 @@ public class HiveParserDMLHelper {
                             destSchemaSize, input.getProjects().size()));
         }
         List<RexNode> exprs = new ArrayList<>(updatedIndices.size());
-        RexBuilder rexBuilder = plannerContext.getCluster().getRexBuilder();
+        RexBuilder rexBuilder = calciteContext.getCluster().getRexBuilder();
         for (Object object : updatedIndices) {
             if (object instanceof Integer) {
                 exprs.add(rexBuilder.makeInputRef(input, (Integer) object));

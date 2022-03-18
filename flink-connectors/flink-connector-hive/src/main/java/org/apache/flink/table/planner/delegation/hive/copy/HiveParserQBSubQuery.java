@@ -19,9 +19,9 @@
 package org.apache.flink.table.planner.delegation.hive.copy;
 
 import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
-import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
+import org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.tools.FrameworkConfig;

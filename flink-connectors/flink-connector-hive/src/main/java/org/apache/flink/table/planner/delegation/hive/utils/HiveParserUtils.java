@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.table.planner.delegation.hive;
+package org.apache.flink.table.planner.delegation.hive.utils;
 
 import org.apache.flink.connectors.hive.FlinkHiveException;
 import org.apache.flink.table.catalog.hive.client.HiveMetastoreClientWrapper;
@@ -29,7 +29,9 @@ import org.apache.flink.table.functions.FunctionKind;
 import org.apache.flink.table.functions.hive.HiveGenericUDAF;
 import org.apache.flink.table.functions.hive.HiveGenericUDTF;
 import org.apache.flink.table.module.hive.udf.generic.GenericUDFLegacyGroupingID;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
+import org.apache.flink.table.planner.delegation.hive.HiveParserRexNodeConverter;
+import org.apache.flink.table.planner.delegation.hive.HiveParserTypeCheckProcFactory;
+import org.apache.flink.table.planner.delegation.hive.SqlFunctionConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseDriver;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
@@ -49,7 +51,6 @@ import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
 import org.apache.flink.table.planner.functions.bridging.BridgingSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveAggSqlFunction;
 import org.apache.flink.table.planner.functions.utils.HiveTableSqlFunction;
-import org.apache.flink.table.runtime.types.ClassLogicalTypeConverter;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.util.Preconditions;
@@ -1517,9 +1518,7 @@ public class HiveParserUtils {
                 if (isOperandLiteral(i, false)) {
                     res[i] =
                             getOperandLiteralValue(
-                                    i,
-                                    ClassLogicalTypeConverter.getDefaultExternalClassForType(
-                                            FlinkTypeFactory.toLogicalType(getOperandType(i))));
+                                    i, TypeUtils.getConversionClass(getOperandType(i)));
                 }
             }
             return res;

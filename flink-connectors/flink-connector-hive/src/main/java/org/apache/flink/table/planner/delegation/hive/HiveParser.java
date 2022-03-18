@@ -23,17 +23,19 @@ import org.apache.flink.table.api.SqlParserException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.Catalog;
 import org.apache.flink.table.catalog.CatalogManager;
+import org.apache.flink.table.catalog.ResolvedSchema;
+import org.apache.flink.table.catalog.UnresolvedIdentifier;
 import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.client.HiveShimLoader;
 import org.apache.flink.table.catalog.hive.util.HiveReflectionUtils;
+import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.module.hive.udf.generic.HiveGenericUDFGrouping;
 import org.apache.flink.table.operations.ExplainOperation;
 import org.apache.flink.table.operations.NopOperation;
 import org.apache.flink.table.operations.Operation;
-import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
-import org.apache.flink.table.planner.delegation.ParserImpl;
-import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.planner.delegation.CalciteContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseException;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTNode;
@@ -42,12 +44,18 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserDDLSemanticAnalyzer;
-import org.apache.flink.table.planner.operations.PlannerQueryOperation;
-import org.apache.flink.table.planner.parse.CalciteParser;
-import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
+import org.apache.flink.table.planner.delegation.hive.utils.TypeUtils;
+import org.apache.flink.table.planner.operations.ExternPlannerQueryOperation;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.flink.util.FileUtils;
 
+import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelNode;
+import org.apache.calcite.sql.advise.SqlAdvisor;
+import org.apache.calcite.sql.advise.SqlAdvisorValidator;
+import org.apache.calcite.sql.validate.SqlConformanceEnum;
+import org.apache.calcite.sql.validate.SqlValidator;
 import org.apache.calcite.tools.FrameworkConfig;
 import org.apache.hadoop.hive.common.JavaUtils;
 import org.apache.hadoop.hive.conf.HiveConf;
@@ -57,6 +65,8 @@ import org.apache.hadoop.hive.ql.parse.SemanticException;
 import org.apache.hadoop.hive.ql.session.SessionState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.annotation.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -69,10 +79,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Supplier;
 
 /** A Parser that uses Hive's planner to parse a statement. */
-public class HiveParser extends ParserImpl {
+public class HiveParser implements Parser {
 
     private static final Logger LOG = LoggerFactory.getLogger(HiveParser.class);
 
@@ -154,45 +163,37 @@ public class HiveParser extends ParserImpl {
                                 HiveASTParser.TOK_CREATE_MATERIALIZED_VIEW));
     }
 
-    private final PlannerContext plannerContext;
-    private final FlinkCalciteCatalogReader catalogReader;
+    private final CatalogManager catalogManager;
+    private final CalciteContext calciteContext;
+    private final CalciteCatalogReader catalogReader;
     private final FrameworkConfig frameworkConfig;
     private final SqlFunctionConverter funcConverter;
     private final HiveParserDMLHelper dmlHelper;
 
-    HiveParser(
-            CatalogManager catalogManager,
-            Supplier<FlinkPlannerImpl> validatorSupplier,
-            Supplier<CalciteParser> calciteParserSupplier,
-            PlannerContext plannerContext) {
-        super(
-                catalogManager,
-                validatorSupplier,
-                calciteParserSupplier,
-                plannerContext.getSqlExprToRexConverterFactory());
-        this.plannerContext = plannerContext;
+    HiveParser(CatalogManager catalogManager, CalciteContext calciteContext) {
+        this.catalogManager = catalogManager;
+        this.calciteContext = calciteContext;
         this.catalogReader =
-                plannerContext.createCatalogReader(
+                calciteContext.createCatalogReader(
                         false,
                         catalogManager.getCurrentCatalog(),
                         catalogManager.getCurrentDatabase());
-        this.frameworkConfig = plannerContext.createFrameworkConfig();
+        this.frameworkConfig = calciteContext.createFrameworkConfig();
         this.funcConverter =
                 new SqlFunctionConverter(
-                        plannerContext.getCluster(),
+                        calciteContext.getCluster(),
                         frameworkConfig.getOperatorTable(),
                         catalogReader.nameMatcher());
-        this.dmlHelper = new HiveParserDMLHelper(plannerContext, funcConverter, catalogManager);
+        this.dmlHelper = new HiveParserDMLHelper(calciteContext, funcConverter, catalogManager);
     }
 
     @Override
     public List<Operation> parse(String statement) {
-        CatalogManager catalogManager = getCatalogManager();
         Catalog currentCatalog =
                 catalogManager.getCatalog(catalogManager.getCurrentCatalog()).orElse(null);
         if (!(currentCatalog instanceof HiveCatalog)) {
-            LOG.warn("Current catalog is not HiveCatalog. Falling back to Flink's planner.");
-            return super.parse(statement);
+            throw new ValidationException(
+                    "Hive dialect is not supported when current catalog is HiveCatalog");
         }
         HiveConf hiveConf = new HiveConf(((HiveCatalog) currentCatalog).getHiveConf());
         hiveConf.setVar(HiveConf.ConfVars.DYNAMICPARTITIONINGMODE, "nonstrict");
@@ -211,6 +212,40 @@ public class HiveParser extends ParserImpl {
         }
     }
 
+    @Override
+    public UnresolvedIdentifier parseIdentifier(String identifier) {
+        try {
+            return UnresolvedIdentifier.of(identifier.split("\\."));
+        } catch (Exception e) {
+            throw new SqlParserException(
+                    String.format("Invalid SQL identifier %s.", identifier), e);
+        }
+    }
+
+    @Override
+    public ResolvedExpression parseSqlExpression(
+            String sqlExpression, RowType inputRowType, @Nullable LogicalType outputType) {
+        // todo: check should arrive here or not.
+        throw new IllegalStateException("Shouldn't arrive here.");
+    }
+
+    @Override
+    public String[] getCompletionHints(String statement, int cursor) {
+
+        SqlAdvisorValidator validator =
+                new SqlAdvisorValidator(
+                        frameworkConfig.getOperatorTable(),
+                        catalogReader,
+                        calciteContext.getTypeFactory(),
+                        SqlValidator.Config.DEFAULT.withSqlConformance(SqlConformanceEnum.DEFAULT));
+        SqlAdvisor advisor = new SqlAdvisor(validator, frameworkConfig.getParserConfig());
+        String[] replaced = new String[1];
+
+        return advisor.getCompletionHints(statement, cursor, replaced).stream()
+                .map(item -> item.toIdentifier().toString())
+                .toArray(String[]::new);
+    }
+
     private List<Operation> processCmd(
             String cmd, HiveConf hiveConf, HiveShim hiveShim, HiveCatalog hiveCatalog) {
         try {
@@ -224,7 +259,7 @@ public class HiveParser extends ParserImpl {
                         new HiveParserDDLSemanticAnalyzer(
                                 queryState,
                                 hiveCatalog,
-                                getCatalogManager(),
+                                catalogManager,
                                 this,
                                 hiveShim,
                                 context,
@@ -243,12 +278,7 @@ public class HiveParser extends ParserImpl {
             }
             return Collections.singletonList(operation);
         } catch (HiveASTParseException e) {
-            // ParseException can happen for flink-specific statements, e.g. catalog DDLs
-            try {
-                return super.parse(cmd);
-            } catch (SqlParserException parserException) {
-                throw new SqlParserException("SQL parse failed", e);
-            }
+            throw new SqlParserException("SQL parse failed", e);
         } catch (SemanticException e) {
             throw new ValidationException("HiveParser failed to parse " + cmd, e);
         }
@@ -260,10 +290,10 @@ public class HiveParser extends ParserImpl {
         HiveParserCalcitePlanner calciteAnalyzer =
                 new HiveParserCalcitePlanner(
                         queryState,
-                        plannerContext,
+                        calciteContext,
                         catalogReader,
                         frameworkConfig,
-                        getCatalogManager(),
+                        catalogManager,
                         hiveShim);
         calciteAnalyzer.initCtx(context);
         calciteAnalyzer.init(false);
@@ -296,7 +326,8 @@ public class HiveParser extends ParserImpl {
         if (!analyzer.getQB().getIsQuery()) {
             return dmlHelper.createInsertOperation(analyzer, relNode);
         } else {
-            return new PlannerQueryOperation(relNode);
+            ResolvedSchema resolvedSchema = TypeUtils.resolvedSchema(relNode);
+            return new ExternPlannerQueryOperation(relNode, resolvedSchema);
         }
     }
 

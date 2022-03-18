@@ -19,7 +19,6 @@
 package org.apache.flink.table.planner.delegation;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.factories.Factory;
@@ -40,17 +39,17 @@ public interface ParserFactory extends Factory {
     interface Context {
         CatalogManager getCatalogManager();
 
-        PlannerContext getPlannerContext();
+        CalciteContext getCalciteContext();
     }
 
     /** Default implementation for {@link Context}. */
     class DefaultParserContext implements Context {
         private final CatalogManager catalogManager;
-        private final PlannerContext plannerContext;
+        private final CalciteContext calciteContext;
 
-        public DefaultParserContext(CatalogManager catalogManager, PlannerContext plannerContext) {
+        public DefaultParserContext(CatalogManager catalogManager, CalciteContext calciteContext) {
             this.catalogManager = catalogManager;
-            this.plannerContext = plannerContext;
+            this.calciteContext = calciteContext;
         }
 
         @Override
@@ -59,8 +58,8 @@ public interface ParserFactory extends Factory {
         }
 
         @Override
-        public PlannerContext getPlannerContext() {
-            return plannerContext;
+        public CalciteContext getCalciteContext() {
+            return calciteContext;
         }
     }
 }

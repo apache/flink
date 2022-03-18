@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.module.hive.udf.generic;
 
-import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
+import org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils;
 
 import org.apache.hadoop.hive.ql.exec.UDFArgumentException;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentLengthException;

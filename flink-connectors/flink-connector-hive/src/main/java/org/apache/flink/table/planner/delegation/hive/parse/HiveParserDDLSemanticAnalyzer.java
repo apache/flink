@@ -97,7 +97,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanti
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserQueryState;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserStorageFormat;
-import org.apache.flink.table.planner.utils.OperationConverterUtils;
+import org.apache.flink.table.planner.delegation.hive.utils.TableSchemaUtils;
 
 import org.antlr.runtime.tree.CommonTree;
 import org.apache.calcite.rel.RelNode;
@@ -132,18 +132,16 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.apache.flink.sql.parser.hive.ddl.HiveDDLUtils.COL_DELIMITER;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabase.ALTER_DATABASE_OP;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_NAME;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveDatabaseOwner.DATABASE_OWNER_TYPE;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_COL_CASCADE;
-import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.ALTER_TABLE_OP;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.ALTER_COLUMNS;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_FILE_FORMAT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_LOCATION;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_SERDE_PROPS;
 import static org.apache.flink.sql.parser.hive.ddl.SqlAlterHiveTable.AlterTableOp.CHANGE_TBL_PROPS;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveDatabase.DATABASE_LOCATION_URI;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.ALTER_TABLE_OP;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.COLLECTION_DELIM;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.DATABASE_LOCATION_URI;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.ESCAPE_CHAR;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.FIELD_DELIM;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.LINE_DELIM;
@@ -151,14 +149,16 @@ import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableR
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_INFO_PROP_PREFIX;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERDE_LIB_CLASS_NAME;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableRowFormat.SERIALIZATION_NULL_FORMAT;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.ALTER_COL_CASCADE;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.ALTER_DATABASE_OP;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.NOT_NULL_COLS;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.NOT_NULL_CONSTRAINT_TRAITS;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.PK_CONSTRAINT_TRAIT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_FILE_FORMAT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_INPUT_FORMAT;
 import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.STORED_AS_OUTPUT_FORMAT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_COLS;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.NOT_NULL_CONSTRAINT_TRAITS;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.PK_CONSTRAINT_TRAIT;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_IS_EXTERNAL;
-import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.TABLE_LOCATION_URI;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.TABLE_IS_EXTERNAL;
+import static org.apache.flink.sql.parser.hive.ddl.SqlCreateHiveTable.HiveTableStoredAs.TABLE_LOCATION_URI;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.NotNullConstraint;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.PrimaryKey;
 
@@ -1695,8 +1695,7 @@ public class HiveParserDDLSemanticAnalyzer {
                         newName,
                         HiveTypeUtil.toFlinkType(TypeInfoUtils.getTypeInfoFromTypeString(newType)));
         TableSchema newSchema =
-                OperationConverterUtils.changeColumn(
-                        oldSchema, oldName, newTableColumn, first, flagCol);
+                TableSchemaUtils.changeColumn(oldSchema, oldName, newTableColumn, first, flagCol);
         Map<String, String> props = new HashMap<>(oldTable.getOptions());
         props.put(ALTER_TABLE_OP, ALTER_COLUMNS.name());
         if (isCascade) {

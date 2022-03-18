@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserIntervalYea
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserRowResolver;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserSqlFunctionConverter;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserTypeConverter;
+import org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.avatica.util.TimeUnit;

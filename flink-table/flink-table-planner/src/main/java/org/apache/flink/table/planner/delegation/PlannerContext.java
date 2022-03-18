@@ -59,6 +59,7 @@ import org.apache.calcite.plan.Context;
 import org.apache.calcite.plan.Contexts;
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptPlanner;
+import org.apache.calcite.plan.RelOptTable;
 import org.apache.calcite.plan.RelTraitDef;
 import org.apache.calcite.plan.volcano.VolcanoPlanner;
 import org.apache.calcite.rel.type.RelDataType;
@@ -90,7 +91,7 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
  * the schema.
  */
 @Internal
-public class PlannerContext {
+public class PlannerContext implements CalciteContext {
 
     private final RelDataTypeSystem typeSystem = new FlinkTypeSystem();
     private final FlinkTypeFactory typeFactory = new FlinkTypeFactory(typeSystem);
@@ -185,6 +186,12 @@ public class PlannerContext {
                         // Sets up the ViewExpander explicitly for FlinkRelBuilder.
                         createFlinkPlanner(currentCatalog, currentDatabase).createToRelContext());
         return new FlinkRelBuilder(chain, cluster, relOptSchema);
+    }
+
+    @Override
+    public RelOptTable.ToRelContext createRelContext(
+            String currentCatalog, String currentDatabase) {
+        return createFlinkPlanner(currentCatalog, currentDatabase).createToRelContext();
     }
 
     /**

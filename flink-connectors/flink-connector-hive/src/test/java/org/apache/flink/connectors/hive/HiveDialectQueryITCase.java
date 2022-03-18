@@ -25,7 +25,7 @@ import org.apache.flink.table.catalog.hive.HiveCatalog;
 import org.apache.flink.table.catalog.hive.HiveTestUtils;
 import org.apache.flink.table.module.CoreModule;
 import org.apache.flink.table.module.hive.HiveModule;
-import org.apache.flink.table.planner.delegation.hive.HiveParserUtils;
+import org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 

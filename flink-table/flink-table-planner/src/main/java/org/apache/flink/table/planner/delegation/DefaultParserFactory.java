@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.delegation;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.table.api.SqlDialect;
 import org.apache.flink.table.delegation.Parser;
+import org.apache.flink.util.Preconditions;
 
 import java.util.Collections;
 import java.util.Set;
@@ -45,14 +46,17 @@ public class DefaultParserFactory implements ParserFactory {
 
     @Override
     public Parser create(Context context) {
+        Preconditions.checkState(
+                context.getCalciteContext() instanceof PlannerContext,
+                "Context should be instance of PlannerContext");
+        PlannerContext plannerContext = (PlannerContext) context.getCalciteContext();
         return new ParserImpl(
                 context.getCatalogManager(),
                 () ->
-                        context.getPlannerContext()
-                                .createFlinkPlanner(
-                                        context.getCatalogManager().getCurrentCatalog(),
-                                        context.getCatalogManager().getCurrentDatabase()),
-                context.getPlannerContext()::createCalciteParser,
-                context.getPlannerContext().getSqlExprToRexConverterFactory());
+                        plannerContext.createFlinkPlanner(
+                                context.getCatalogManager().getCurrentCatalog(),
+                                context.getCatalogManager().getCurrentDatabase()),
+                plannerContext::createCalciteParser,
+                plannerContext.getSqlExprToRexConverterFactory());
     }
 }

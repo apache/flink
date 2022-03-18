@@ -22,8 +22,7 @@ import org.apache.flink.table.catalog.CatalogManager;
 import org.apache.flink.table.catalog.hive.client.HiveShim;
 import org.apache.flink.table.catalog.hive.util.HiveTypeUtil;
 import org.apache.flink.table.functions.hive.conversion.HiveInspectors;
-import org.apache.flink.table.planner.calcite.FlinkPlannerImpl;
-import org.apache.flink.table.planner.delegation.PlannerContext;
+import org.apache.flink.table.planner.delegation.CalciteContext;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseDriver;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveASTParseUtils;
 import org.apache.flink.table.planner.delegation.hive.copy.HiveParserASTBuilder;
@@ -50,15 +49,14 @@ import org.apache.flink.table.planner.delegation.hive.copy.HiveParserWindowingSp
 import org.apache.flink.table.planner.delegation.hive.parse.HiveASTParser;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserCreateViewInfo;
 import org.apache.flink.table.planner.delegation.hive.parse.HiveParserErrorMsg;
-import org.apache.flink.table.planner.plan.FlinkCalciteCatalogReader;
-import org.apache.flink.table.planner.plan.nodes.hive.LogicalDistribution;
+import org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.util.Preconditions;
 
 import org.apache.calcite.plan.RelOptCluster;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
-import org.apache.calcite.plan.ViewExpanders;
+import org.apache.calcite.prepare.CalciteCatalogReader;
 import org.apache.calcite.rel.RelCollation;
 import org.apache.calcite.rel.RelCollationImpl;
 import org.apache.calcite.rel.RelCollations;
@@ -148,9 +146,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.generateErrorMessage;
-import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.rewriteGroupingFunctionAST;
-import static org.apache.flink.table.planner.delegation.hive.HiveParserUtils.verifyCanHandleAst;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.addToGBExpr;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.buildHiveColNameToInputPosMap;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.buildHiveToCalciteColumnMap;
@@ -174,6 +169,9 @@ import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBase
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.topLevelConjunctCheck;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.unescapeIdentifier;
 import static org.apache.flink.table.planner.delegation.hive.copy.HiveParserBaseSemanticAnalyzer.validateNoHavingReferenceToAlias;
+import static org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils.generateErrorMessage;
+import static org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils.rewriteGroupingFunctionAST;
+import static org.apache.flink.table.planner.delegation.hive.utils.HiveParserUtils.verifyCanHandleAst;
 
 /** Ported Hive's CalcitePlanner. */
 public class HiveParserCalcitePlanner {
@@ -182,9 +180,8 @@ public class HiveParserCalcitePlanner {
 
     private final HiveParserSemanticAnalyzer semanticAnalyzer;
     private final CatalogManager catalogManager;
-    private final FlinkCalciteCatalogReader catalogReader;
-    private final FlinkPlannerImpl flinkPlanner;
-    private final PlannerContext plannerContext;
+    private final CalciteCatalogReader catalogReader;
+    private final CalciteContext calciteContext;
     private final FrameworkConfig frameworkConfig;
     private final RelOptCluster cluster;
     private final SqlFunctionConverter funcConverter;
@@ -201,23 +198,20 @@ public class HiveParserCalcitePlanner {
 
     public HiveParserCalcitePlanner(
             HiveParserQueryState queryState,
-            PlannerContext plannerContext,
-            FlinkCalciteCatalogReader catalogReader,
+            CalciteContext calciteContext,
+            CalciteCatalogReader catalogReader,
             FrameworkConfig frameworkConfig,
             CatalogManager catalogManager,
             HiveShim hiveShim)
             throws SemanticException {
         this.catalogManager = catalogManager;
         this.catalogReader = catalogReader;
-        flinkPlanner =
-                plannerContext.createFlinkPlanner(
-                        catalogManager.getCurrentCatalog(), catalogManager.getCurrentDatabase());
-        this.plannerContext = plannerContext;
+        this.calciteContext = calciteContext;
         this.frameworkConfig = frameworkConfig;
         this.semanticAnalyzer =
                 new HiveParserSemanticAnalyzer(
-                        queryState, hiveShim, frameworkConfig, plannerContext.getCluster());
-        this.cluster = plannerContext.getCluster();
+                        queryState, hiveShim, frameworkConfig, calciteContext.getCluster());
+        this.cluster = calciteContext.getCluster();
         this.funcConverter =
                 new SqlFunctionConverter(
                         cluster, frameworkConfig.getOperatorTable(), catalogReader.nameMatcher());
@@ -855,16 +849,30 @@ public class HiveParserCalcitePlanner {
                         tableType == TableType.NATIVE, "Only native tables are supported");
 
                 // Build Hive Table Scan Rel
+
                 RelNode tableRel =
-                        catalogReader
-                                .getTable(
-                                        Arrays.asList(
-                                                catalogManager.getCurrentCatalog(),
-                                                table.getDbName(),
-                                                table.getTableName()))
-                                .toRel(
-                                        ViewExpanders.toRelContext(
-                                                flinkPlanner.createToRelContext(), cluster));
+                        calciteContext
+                                .createRelBuilder(
+                                        catalogManager.getCurrentCatalog(), table.getDbName())
+                                .scan(table.getTableName())
+                                .build();
+
+                //                RelNode tableRel =
+                //                        catalogReader
+                //                                .getTable(
+                //                                        Arrays.asList(
+                //
+                // catalogManager.getCurrentCatalog(),
+                //                                                table.getDbName(),
+                //                                                table.getTableName()))
+                //                                .toRel(
+                //                                        ViewExpanders.toRelContext(
+                //                                                calciteContext.createRelContext(
+                //
+                // catalogManager.getCurrentCatalog(),
+                //
+                // catalogManager.getCurrentDatabase()),
+                //                                                cluster));
 
                 // 6. Add Schema(RR) to RelNode-Schema map
                 Map<String, Integer> hiveToCalciteColMap = buildHiveToCalciteColumnMap(rowResolver);
@@ -1569,7 +1577,7 @@ public class HiveParserCalcitePlanner {
             RelTraitSet traitSet = cluster.traitSet();
             RelCollation canonizedCollation =
                     traitSet.canonize(RelCollationImpl.of(fieldCollations));
-            res = LogicalDistribution.create(realInput, canonizedCollation, distKeys);
+            res = LogicalDistributionUtils.create(realInput, canonizedCollation, distKeys);
 
             Map<String, Integer> hiveColNameCalcitePosMap = buildHiveToCalciteColumnMap(outputRR);
             relToRowResolver.put(res, outputRR);
@@ -2569,7 +2577,7 @@ public class HiveParserCalcitePlanner {
         // create correlate node
         if (correlUse == null) {
             correlRel =
-                    plannerContext
+                    calciteContext
                             .createRelBuilder(
                                     catalogManager.getCurrentCatalog(),
                                     catalogManager.getCurrentDatabase())
