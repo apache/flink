@@ -1210,59 +1210,29 @@ class KeyedStream(DataStream):
         if not isinstance(position_to_sum, int) and not isinstance(position_to_sum, str):
             raise TypeError("The input must be of int or str type to locate the value to sum")
 
-        output_type = _from_java_type(self._original_data_type_info.get_java_type_info())
-
-        class SumKeyedProcessFunctionAdapter(KeyedProcessFunction):
+        class SumReduceFunction(ReduceFunction):
 
             def __init__(self, position_to_sum):
                 self._pos = position_to_sum
-                self._sum_value_state = None    # type: ValueState
 
-            def open(self, runtime_context: RuntimeContext):
-                self._sum_value_state = runtime_context.get_state(
-                    ValueStateDescriptor("_sum_state" + str(uuid.uuid4()), output_type))
-                from pyflink.fn_execution.datastream.runtime_context import StreamingRuntimeContext
-                self._in_batch_execution_mode = \
-                    cast(StreamingRuntimeContext, runtime_context)._in_batch_execution_mode
-
-            def close(self):
-                pass
-
-            def process_element(self, value, ctx: 'KeyedProcessFunction.Context'):
+            def reduce(self, value1, value2):
                 from numbers import Number
-                if not isinstance(value[self._pos], Number):
+                if not isinstance(value1[self._pos], Number):
                     raise TypeError("The value to sum by given position must be of numeric type; "
-                                    f"actual {type(value[self._pos])}, expected Number")
-
-                sum_value = self._sum_value_state.value()
-                if sum_value is not None:
-                    if isinstance(value, tuple):
-                        sum_value_list = list(sum_value)
-                        sum_value_list[self._pos] = sum_value[self._pos] + value[self._pos]
-                        sum_value = tuple(sum_value_list)
-                    elif isinstance(value, Row):
-                        sum_value[self._pos] = sum_value[self._pos] + value[self._pos]
-                    else:
-                        raise TypeError("Sum operator only process the data of "
-                                        "Tuple type and {pyflink.common.types.Row} type. "
-                                        f"Actual type: {type(value)}")
+                                    f"actual {type(value1[self._pos])}, expected Number")
+                if isinstance(value1, tuple):
+                    value1_list = list(value1)
+                    value1_list[self._pos] = value1[self._pos] + value2[self._pos]
+                    value1 = tuple(value1_list)
+                elif isinstance(value1, Row):
+                    value1[self._pos] = value1[self._pos] + value2[self._pos]
                 else:
-                    # register a timer for emitting the result at the end when this is the
-                    # first input for this key
-                    if self._in_batch_execution_mode:
-                        ctx.timer_service().register_event_time_timer(0x7fffffffffffffff)
-                    sum_value = value
-                self._sum_value_state.update(sum_value)
-                if not self._in_batch_execution_mode:
-                    yield sum_value
+                    raise TypeError("Sum operator only process the data of "
+                                    "Tuple type and {pyflink.common.types.Row} type. "
+                                    f"Actual type: {type(value1)}")
+                return value1
 
-            def on_timer(self, timestamp: int, ctx: 'KeyedProcessFunction.OnTimerContext'):
-                current_value = self._sum_value_state.value()
-                if current_value is not None:
-                    yield current_value
-
-        return self.process(SumKeyedProcessFunctionAdapter(position_to_sum), output_type) \
-            .name("Sum")
+        return self.reduce(SumReduceFunction(position_to_sum))
 
     def add_sink(self, sink_func: SinkFunction) -> 'DataStreamSink':
         return self._values().add_sink(sink_func)
