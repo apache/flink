@@ -55,7 +55,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
 
     @Override
-    public Configuration getConfiguration() {
+    Configuration getConfiguration() {
         return new Configuration()
                 .set(
                         ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
@@ -63,7 +63,7 @@ class CastFunctionMiscITCase extends BuiltInFunctionTestBase {
     }
 
     @Override
-    public Stream<TestSetSpec> getTestCaseSpecs() {
+    Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.CAST,

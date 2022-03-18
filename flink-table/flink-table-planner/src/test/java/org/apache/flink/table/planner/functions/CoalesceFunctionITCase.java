@@ -31,7 +31,7 @@ import static org.apache.flink.table.api.Expressions.coalesce;
 class CoalesceFunctionITCase extends BuiltInFunctionTestBase {
 
     @Override
-    public Stream<TestSetSpec> getTestCaseSpecs() {
+    Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.COALESCE)
                         .onFieldsWithData(null, null, 1)

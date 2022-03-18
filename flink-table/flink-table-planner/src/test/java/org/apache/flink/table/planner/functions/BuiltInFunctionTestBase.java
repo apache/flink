@@ -65,7 +65,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
  * Test interface implementing the logic to execute tests for {@link BuiltInFunctionDefinition}.
  *
  * <p>To create a new set of test cases, just create a subclass and implement the method {@link
- * #getTestCaseSpecs()}.
+ * #getTestSetSpecs()}.
  *
  * <p>Note: This test base is not the most efficient one. It currently checks the full pipeline
  * end-to-end. If the testing time is too long, we can change the underlying implementation easily
@@ -80,10 +80,10 @@ abstract class BuiltInFunctionTestBase {
         return new Configuration();
     }
 
-    abstract Stream<TestSetSpec> getTestCaseSpecs();
+    abstract Stream<TestSetSpec> getTestSetSpecs();
 
-    final Stream<TestCase> getTestCases() {
-        return this.getTestCaseSpecs()
+    private Stream<TestCase> getTestCases() {
+        return this.getTestSetSpecs()
                 .flatMap(testSpec -> testSpec.getTestCases(this.getConfiguration()));
     }
 
@@ -328,11 +328,11 @@ abstract class BuiltInFunctionTestBase {
         }
     }
 
-    interface TestItem {
+    private interface TestItem {
         void test(TableEnvironmentInternal env, Table inputTable);
     }
 
-    abstract static class ResultTestItem<T> implements TestItem {
+    private abstract static class ResultTestItem<T> implements TestItem {
         final T expression;
         final List<Object> results;
         final List<AbstractDataType<?>> dataTypes;
@@ -375,7 +375,7 @@ abstract class BuiltInFunctionTestBase {
         }
     }
 
-    abstract static class ErrorTestItem<T> implements TestItem {
+    private abstract static class ErrorTestItem<T> implements TestItem {
         final T expression;
         final Class<? extends Throwable> errorClass;
         final String errorMessage;
@@ -428,7 +428,7 @@ abstract class BuiltInFunctionTestBase {
         }
     }
 
-    static class TableApiResultTestItem extends ResultTestItem<List<Expression>> {
+    private static class TableApiResultTestItem extends ResultTestItem<List<Expression>> {
 
         TableApiResultTestItem(
                 List<Expression> expressions,
@@ -451,7 +451,7 @@ abstract class BuiltInFunctionTestBase {
         }
     }
 
-    static class TableApiErrorTestItem extends ErrorTestItem<Expression> {
+    private static class TableApiErrorTestItem extends ErrorTestItem<Expression> {
 
         TableApiErrorTestItem(
                 Expression expression,
@@ -472,7 +472,7 @@ abstract class BuiltInFunctionTestBase {
         }
     }
 
-    static class SqlResultTestItem extends ResultTestItem<String> {
+    private static class SqlResultTestItem extends ResultTestItem<String> {
 
         SqlResultTestItem(
                 String sqlExpression, List<Object> result, List<AbstractDataType<?>> dataType) {
@@ -490,7 +490,7 @@ abstract class BuiltInFunctionTestBase {
         }
     }
 
-    static class SqlErrorTestItem extends ErrorTestItem<String> {
+    private static class SqlErrorTestItem extends ErrorTestItem<String> {
 
         private SqlErrorTestItem(
                 String expression,

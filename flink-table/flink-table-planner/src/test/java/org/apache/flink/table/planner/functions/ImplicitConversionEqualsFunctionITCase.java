@@ -71,7 +71,7 @@ class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestBase {
     private static final String STRING_DATA_EQUALS_TIMESTAMP = "2001-01-01 00:00:00";
 
     @Override
-    public Stream<TestSetSpec> getTestCaseSpecs() {
+    Stream<TestSetSpec> getTestSetSpecs() {
         final List<TestSetSpec> specs = new ArrayList<>();
         specs.addAll(implicitConversionBetweenNumeric());
         specs.addAll(implicitConversionBetweenTimeAndString());

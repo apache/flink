@@ -34,7 +34,7 @@ import static org.apache.flink.table.api.Expressions.row;
 class RowFunctionITCase extends BuiltInFunctionTestBase {
 
     @Override
-    public Stream<TestSetSpec> getTestCaseSpecs() {
+    Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.ROW, "with field access")
                         .onFieldsWithData(12, "Hello world")

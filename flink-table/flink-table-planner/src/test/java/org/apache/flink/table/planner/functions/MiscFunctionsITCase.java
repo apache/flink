@@ -33,7 +33,7 @@ import static org.apache.flink.table.api.Expressions.callSql;
 class MiscFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
-    public Stream<TestSetSpec> getTestCaseSpecs() {
+    Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.TYPE_OF)
                         .onFieldsWithData(12, "Hello world", false)

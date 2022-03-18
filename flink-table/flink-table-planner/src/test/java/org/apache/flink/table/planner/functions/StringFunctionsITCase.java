@@ -30,7 +30,7 @@ import static org.apache.flink.table.api.Expressions.call;
 class StringFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
-    public Stream<TestSetSpec> getTestCaseSpecs() {
+    Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
                 TestSetSpec.forFunction(
                                 BuiltInFunctionDefinitions.REGEXP_EXTRACT, "Check return type")

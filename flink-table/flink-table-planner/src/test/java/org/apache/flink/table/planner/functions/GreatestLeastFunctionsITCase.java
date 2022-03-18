@@ -32,7 +32,7 @@ import static org.apache.flink.table.api.Expressions.call;
 class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
-    public Stream<TestSetSpec> getTestCaseSpecs() {
+    Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.GREATEST)
                         .onFieldsWithData(

@@ -78,7 +78,7 @@ import static org.apache.flink.table.api.JsonQueryWrapper.WITHOUT_ARRAY;
 class JsonFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
-    public Stream<TestSetSpec> getTestCaseSpecs() {
+    Stream<TestSetSpec> getTestSetSpecs() {
         final List<TestSetSpec> testCases = new ArrayList<>();
         testCases.add(jsonExistsSpec());
         testCases.add(jsonValueSpec());

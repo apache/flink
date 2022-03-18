@@ -40,7 +40,7 @@ import static org.apache.flink.table.api.Expressions.$;
 class FieldAccessFromTableITCase extends BuiltInFunctionTestBase {
 
     @Override
-    public Stream<TestSetSpec> getTestCaseSpecs() {
+    Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
 
                 // Actually in case of SQL it does not use the GET method, but

@@ -116,7 +116,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     private static final int[] DEFAULT_ARRAY = new int[] {0, 1, 2};
 
     @Override
-    public Configuration getConfiguration() {
+    Configuration getConfiguration() {
         return new Configuration()
                 .set(TableConfigOptions.LOCAL_TIME_ZONE, TEST_TZ.getId())
                 .set(
@@ -125,7 +125,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     @Override
-    public Stream<TestSetSpec> getTestCaseSpecs() {
+    Stream<TestSetSpec> getTestSetSpecs() {
         final List<TestSetSpec> specs = new ArrayList<>();
         specs.addAll(allTypesBasic());
         specs.addAll(toStringCasts());
@@ -135,7 +135,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
         return specs.stream();
     }
 
-    public static List<TestSetSpec> allTypesBasic() {
+    private static List<TestSetSpec> allTypesBasic() {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(BOOLEAN())
                         .fromCase(BOOLEAN(), null, null)
@@ -960,7 +960,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                 );
     }
 
-    public static List<TestSetSpec> toStringCasts() {
+    private static List<TestSetSpec> toStringCasts() {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(CHAR(3))
                         .fromCase(CHAR(5), null, null)
@@ -1089,7 +1089,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build());
     }
 
-    public static List<TestSetSpec> decimalCasts() {
+    private static List<TestSetSpec> decimalCasts() {
         return Collections.singletonList(
                 CastTestSpecBuilder.testCastTo(DECIMAL(8, 4))
                         .fromCase(STRING(), null, null)
@@ -1105,7 +1105,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
     }
 
     @SuppressWarnings("NumericOverflow")
-    public static List<TestSetSpec> numericBounds() {
+    private static List<TestSetSpec> numericBounds() {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(TINYINT())
                         .fromCase(TINYINT(), Byte.MIN_VALUE, Byte.MIN_VALUE)
@@ -1160,7 +1160,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build());
     }
 
-    public static List<TestSetSpec> constructedTypes() {
+    private static List<TestSetSpec> constructedTypes() {
         return Arrays.asList(
                 CastTestSpecBuilder.testCastTo(MAP(STRING(), STRING()))
                         .fromCase(MAP(FLOAT(), DOUBLE()), null, null)
@@ -1217,7 +1217,7 @@ public class CastFunctionITCase extends BuiltInFunctionTestBase {
                         .build());
     }
 
-    static class CastTestSpecBuilder {
+    private static class CastTestSpecBuilder {
         private TestSetSpec testSetSpec;
         private DataType targetType;
         private final List<Object> columnData = new ArrayList<>();

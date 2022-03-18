@@ -30,7 +30,7 @@ import static org.apache.flink.table.api.Expressions.$;
 class MathFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
-    public Stream<TestSetSpec> getTestCaseSpecs() {
+    Stream<TestSetSpec> getTestSetSpecs() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.PLUS)
                         .onFieldsWithData(new BigDecimal("1514356320000"))
