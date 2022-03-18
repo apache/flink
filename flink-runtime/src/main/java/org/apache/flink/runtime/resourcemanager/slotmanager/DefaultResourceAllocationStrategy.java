@@ -22,6 +22,9 @@ import org.apache.flink.api.common.JobID;
 import org.apache.flink.runtime.clusterframework.types.ResourceProfile;
 import org.apache.flink.runtime.slots.ResourceRequirement;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -52,6 +55,10 @@ import static org.apache.flink.runtime.resourcemanager.slotmanager.SlotManagerUt
  * multi-dimensional resource profiles. The complexity is not necessary.
  */
 public class DefaultResourceAllocationStrategy implements ResourceAllocationStrategy {
+
+    private static final Logger LOG =
+            LoggerFactory.getLogger(DefaultResourceAllocationStrategy.class);
+
     private final ResourceProfile defaultSlotResourceProfile;
     private final ResourceProfile totalResourceProfile;
     private final int numSlotsPerWorker;
@@ -191,6 +198,12 @@ public class DefaultResourceAllocationStrategy implements ResourceAllocationStra
                             jobId);
 
             if (!totalResourceProfile.allFieldsNoLessThan(effectiveProfile)) {
+                LOG.warn(
+                        "The resource requirements from job {}: {} is not less than the total taskmanager resource: {}",
+                        jobId,
+                        effectiveProfile,
+                        totalResourceProfile);
+
                 // Can not fulfill this resource type will the default worker.
                 resultBuilder.addUnfulfillableJob(jobId);
                 continue;
