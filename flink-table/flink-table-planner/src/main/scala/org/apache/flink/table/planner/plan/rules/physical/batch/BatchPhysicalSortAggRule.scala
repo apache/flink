@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalSor
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -81,7 +82,9 @@ class BatchPhysicalSortAggRule
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
 
     val (_, aggBufferTypes, aggFunctions) = AggregateUtil.transformToBatchAggregateFunctions(
-      FlinkTypeFactory.toLogicalRowType(inputRowType), aggCallsWithoutAuxGroupCalls)
+      ShortcutUtils.unwrapTypeFactory(input),
+      FlinkTypeFactory.toLogicalRowType(inputRowType),
+      aggCallsWithoutAuxGroupCalls)
     val groupSet = agg.getGroupSet.toArray
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggFunctions)
     // TODO aggregate include projection now, so do not provide new trait will be safe

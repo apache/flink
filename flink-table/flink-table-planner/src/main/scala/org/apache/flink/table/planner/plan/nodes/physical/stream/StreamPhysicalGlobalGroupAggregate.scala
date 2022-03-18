@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecGlobalGro
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -52,6 +53,7 @@ class StreamPhysicalGlobalGroupAggregate(
   require(indexOfCountStar.isEmpty || indexOfCountStar.get >= 0 && needRetraction)
 
   lazy val localAggInfoList: AggregateInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+    ShortcutUtils.unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(localAggInputRowType),
     aggCalls,
     aggCallNeedRetractions,
@@ -61,6 +63,7 @@ class StreamPhysicalGlobalGroupAggregate(
     needDistinctInfo = true)
 
   lazy val globalAggInfoList: AggregateInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+    ShortcutUtils.unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(localAggInputRowType),
     aggCalls,
     aggCallNeedRetractions,

@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalExchange, StreamPhysicalGlobalGroupAggregate, StreamPhysicalIncrementalGroupAggregate, StreamPhysicalLocalGroupAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.util.Preconditions
 
@@ -105,6 +106,7 @@ class IncrementalAggregateRule
     } else {
       // adapt the needRetract of final global agg to be same as that of partial agg
       val localAggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+        ShortcutUtils.unwrapTypeFactory(finalGlobalAgg),
         // the final agg input is partial agg
         FlinkTypeFactory.toLogicalRowType(partialGlobalAgg.getRowType),
         finalRealAggCalls,

@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -56,6 +57,7 @@ class StreamPhysicalWindowAggregate(
   with StreamPhysicalRel {
 
   lazy val aggInfoList: AggregateInfoList = AggregateUtil.deriveStreamWindowAggregateInfoList(
+    ShortcutUtils.unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
     aggCalls,
     windowing.getWindow,

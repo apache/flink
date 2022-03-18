@@ -26,6 +26,8 @@ import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimiz
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, RelExplainUtil, WindowUtil}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.runtime.groupwindow.{NamedWindowProperty, SliceEnd, WindowReference}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -58,6 +60,7 @@ class StreamPhysicalLocalWindowAggregate(
   with StreamPhysicalRel {
 
   private lazy val aggInfoList = AggregateUtil.deriveStreamWindowAggregateInfoList(
+    ShortcutUtils.unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
     aggCalls,
     windowing.getWindow,

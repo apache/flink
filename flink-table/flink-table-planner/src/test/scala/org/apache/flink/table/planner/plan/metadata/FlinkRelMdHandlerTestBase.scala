@@ -1536,6 +1536,7 @@ class FlinkRelMdHandlerTestBase {
       cluster, batchPhysicalTraits.replace(hash01), batchCalc, hash01)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
+        typeFactory,
         FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
         flinkLogicalWindowAgg.getAggCallList)
     val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
@@ -1675,6 +1676,7 @@ class FlinkRelMdHandlerTestBase {
       cluster, batchPhysicalTraits.replace(hash1), batchCalc, hash1)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
+        typeFactory,
         FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
         flinkLogicalWindowAgg.getAggCallList)
     val aggCallToAggFunction = flinkLogicalWindowAgg.getAggCallList.zip(aggregates)
@@ -1817,6 +1819,7 @@ class FlinkRelMdHandlerTestBase {
     val aggCallsWithoutAuxGroup = flinkLogicalWindowAggWithAuxGroup.getAggCallList.drop(1)
     val (_, _, aggregates) =
       AggregateUtil.transformToBatchAggregateFunctions(
+        typeFactory,
         FlinkTypeFactory.toLogicalRowType(batchExchange1.getRowType),
         aggCallsWithoutAuxGroup)
     val aggCallToAggFunction = aggCallsWithoutAuxGroup.zip(aggregates)

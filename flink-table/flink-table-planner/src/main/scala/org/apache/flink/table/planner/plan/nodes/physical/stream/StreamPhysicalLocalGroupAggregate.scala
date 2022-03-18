@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalGrou
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.`type`.RelDataType
@@ -48,6 +49,7 @@ class StreamPhysicalLocalGroupAggregate(
   extends StreamPhysicalGroupAggregateBase(cluster, traitSet, inputRel) {
 
   private lazy val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+    ShortcutUtils.unwrapTypeFactory(inputRel),
     FlinkTypeFactory.toLogicalRowType(inputRel.getRowType),
     aggCalls,
     aggCallNeedRetractions,

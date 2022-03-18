@@ -134,6 +134,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
 
         final AggregateInfoList aggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
+                        planner.getTypeFactory(),
                         inputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,

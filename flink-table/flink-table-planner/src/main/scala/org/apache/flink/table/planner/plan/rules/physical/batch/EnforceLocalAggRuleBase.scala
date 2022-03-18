@@ -25,6 +25,9 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchPhysicalExpand, BatchPhysicalGroupAggregateBase, BatchPhysicalHashAggregate, BatchPhysicalSortAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchPhysicalExpand, BatchPhysicalGroupAggregateBase, BatchPhysicalHashAggregate, BatchPhysicalSortAggregate}
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
@@ -75,7 +78,9 @@ abstract class EnforceLocalAggRuleBase(
     val aggCallToAggFunction = completeAgg.getAggCallToAggFunction
 
     val (_, aggBufferTypes, _) = AggregateUtil.transformToBatchAggregateFunctions(
-      FlinkTypeFactory.toLogicalRowType(inputRowType), aggCalls)
+      ShortcutUtils.unwrapTypeFactory(input),
+      FlinkTypeFactory.toLogicalRowType(inputRowType),
+      aggCalls)
 
     val traitSet = cluster.getPlanner
       .emptyTraitSet

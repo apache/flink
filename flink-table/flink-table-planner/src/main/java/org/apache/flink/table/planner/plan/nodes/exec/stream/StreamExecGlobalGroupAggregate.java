@@ -191,6 +191,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
 
         final AggregateInfoList localAggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
+                        planner.getTypeFactory(),
                         localAggInputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,
@@ -200,6 +201,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
                         true); // needDistinctInfo
         final AggregateInfoList globalAggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
+                        planner.getTypeFactory(),
                         localAggInputRowType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         aggCallNeedRetractions,

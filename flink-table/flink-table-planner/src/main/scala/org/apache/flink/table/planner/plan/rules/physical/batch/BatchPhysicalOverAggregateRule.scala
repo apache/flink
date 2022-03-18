@@ -27,6 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalOv
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OverAggregateUtil, SortUtil}
 import org.apache.flink.table.planner.typeutils.RowTypeUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.{RelOptCluster, RelOptRule, RelOptRuleCall}
@@ -95,6 +96,7 @@ class BatchPhysicalOverAggregateRule
       val groupToAggCallToAggFunction = groupBuffer.map { group =>
         val aggregateCalls = group.getAggregateCalls(logicWindow)
         val (_, _, aggregates) = AggregateUtil.transformToBatchAggregateFunctions(
+          ShortcutUtils.unwrapTypeFactory(input),
           FlinkTypeFactory.toLogicalRowType(inputTypeWithConstants),
           aggregateCalls,
           sortSpec.getFieldIndices)

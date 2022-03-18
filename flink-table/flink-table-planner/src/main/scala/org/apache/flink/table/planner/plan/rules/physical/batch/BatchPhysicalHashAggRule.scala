@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.ShortcutUtils.{unwrapContext, unwrapTypeFactory}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -90,7 +91,9 @@ class BatchPhysicalHashAggRule
     val (auxGroupSet, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
 
     val (_, aggBufferTypes, aggFunctions) = AggregateUtil.transformToBatchAggregateFunctions(
-      FlinkTypeFactory.toLogicalRowType(inputRowType), aggCallsWithoutAuxGroupCalls)
+      ShortcutUtils.unwrapTypeFactory(agg),
+      FlinkTypeFactory.toLogicalRowType(inputRowType),
+      aggCallsWithoutAuxGroupCalls)
 
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggFunctions)
     val aggProvidedTraitSet = agg.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)

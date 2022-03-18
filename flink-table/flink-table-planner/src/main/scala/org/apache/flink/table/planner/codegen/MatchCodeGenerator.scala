@@ -678,6 +678,7 @@ class MatchCodeGenerator(
         matchAgg.inputExprs.indices.map(i => s"TMP$i"))
 
       val aggInfoList = AggregateUtil.transformToStreamAggregateInfoList(
+        relBuilder.getTypeFactory.asInstanceOf[FlinkTypeFactory],
         FlinkTypeFactory.toLogicalRowType(inputRelType),
         aggCalls,
         needRetraction,

@@ -243,6 +243,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
             Arrays.fill(aggCallNeedRetractions, needRetraction);
             final AggregateInfoList aggInfoList =
                     transformToStreamAggregateInfoList(
+                            planner.getTypeFactory(),
                             inputRowType,
                             JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                             aggCallNeedRetractions,

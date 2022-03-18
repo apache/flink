@@ -26,6 +26,7 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.data.binary.BinaryRowData;
 import org.apache.flink.table.planner.calcite.FlinkRelBuilder;
+import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.codegen.agg.AggsHandlerCodeGenerator;
 import org.apache.flink.table.planner.codegen.over.MultiFieldRangeBoundComparatorCodeGenerator;
@@ -133,6 +134,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                 GroupSpec group = overSpec.getGroups().get(i);
                 AggregateInfoList aggInfoList =
                         AggregateUtil.transformToBatchAggregateInfoList(
+                                planner.getTypeFactory(),
                                 inputTypeWithConstants,
                                 JavaScalaConversionUtil.toScala(group.getAggCalls()),
                                 null, // aggCallNeedRetractions
@@ -162,6 +164,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
         } else {
             List<OverWindowFrame> windowFrames =
                     createOverWindowFrames(
+                            planner.getTypeFactory(),
                             planner.getRelBuilder(),
                             config,
                             inputType,
@@ -188,6 +191,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
     }
 
     private List<OverWindowFrame> createOverWindowFrames(
+            FlinkTypeFactory typeFactory,
             FlinkRelBuilder relBuilder,
             ExecNodeConfig config,
             RowType inputType,
@@ -200,6 +204,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
                 for (AggregateCall aggCall : group.getAggCalls()) {
                     AggregateInfoList aggInfoList =
                             AggregateUtil.transformToBatchAggregateInfoList(
+                                    typeFactory,
                                     inputTypeWithConstants,
                                     JavaScalaConversionUtil.toScala(
                                             Collections.singletonList(aggCall)),
@@ -268,6 +273,7 @@ public class BatchExecOverAggregate extends BatchExecOverAggregateBase {
             } else {
                 AggregateInfoList aggInfoList =
                         AggregateUtil.transformToBatchAggregateInfoList(
+                                typeFactory,
                                 // use aggInputType which considers constants as input instead of
                                 // inputSchema.relDataType
                                 inputTypeWithConstants,

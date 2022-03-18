@@ -163,6 +163,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
 
         final AggregateInfoList localAggInfoList =
                 AggregateUtil.deriveStreamWindowAggregateInfoList(
+                        planner.getTypeFactory(),
                         localAggInputRowType, // should use original input here
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         windowing.getWindow(),
@@ -170,6 +171,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
 
         final AggregateInfoList globalAggInfoList =
                 AggregateUtil.deriveStreamWindowAggregateInfoList(
+                        planner.getTypeFactory(),
                         localAggInputRowType, // should use original input here
                         JavaScalaConversionUtil.toScala(Arrays.asList(aggCalls)),
                         windowing.getWindow(),

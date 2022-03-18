@@ -169,6 +169,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
 
         final AggregateInfoList partialLocalAggInfoList =
                 AggregateUtil.createPartialAggInfoList(
+                        planner.getTypeFactory(),
                         partialLocalAggInputType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(partialOriginalAggCalls)),
                         partialAggCallNeedRetractions,
@@ -188,6 +189,7 @@ public class StreamExecIncrementalGroupAggregate extends StreamExecAggregateBase
 
         final AggregateInfoList incrementalAggInfo =
                 AggregateUtil.createIncrementalAggInfoList(
+                        planner.getTypeFactory(),
                         partialLocalAggInputType,
                         JavaScalaConversionUtil.toScala(Arrays.asList(partialOriginalAggCalls)),
                         partialAggCallNeedRetractions,

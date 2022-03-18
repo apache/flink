@@ -204,7 +204,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             rowTimeIdx,
                             group.isRows(),
                             config,
-                            planner.getRelBuilder());
+                            planner.getRelBuilder(),
+                            planner.getTypeFactory());
         } else if (group.getLowerBound().isPreceding()
                 && !group.getLowerBound().isUnbounded()
                 && group.getUpperBound().isCurrentRow()) {
@@ -228,7 +229,8 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
                             group.isRows(),
                             precedingOffset,
                             config,
-                            planner.getRelBuilder());
+                            planner.getRelBuilder(),
+                            planner.getTypeFactory());
         } else {
             throw new TableException("OVER RANGE FOLLOWING windows are not supported yet.");
         }
@@ -274,9 +276,11 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             int rowTimeIdx,
             boolean isRowsClause,
             ExecNodeConfig config,
-            RelBuilder relBuilder) {
+            RelBuilder relBuilder,
+            FlinkTypeFactory typeFactory) {
         AggregateInfoList aggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
+                        typeFactory,
                         // use aggInputType which considers constants as input instead of
                         // inputSchema.relDataType
                         aggInputRowType,
@@ -357,12 +361,14 @@ public class StreamExecOverAggregate extends ExecNodeBase<RowData>
             boolean isRowsClause,
             long precedingOffset,
             ExecNodeConfig config,
-            RelBuilder relBuilder) {
+            RelBuilder relBuilder,
+            FlinkTypeFactory typeFactory) {
 
         boolean[] aggCallNeedRetractions = new boolean[aggCalls.size()];
         Arrays.fill(aggCallNeedRetractions, true);
         AggregateInfoList aggInfoList =
                 AggregateUtil.transformToStreamAggregateInfoList(
+                        typeFactory,
                         // use aggInputType which considers constants as input instead of
                         // inputSchema.relDataType
                         aggInputType,
