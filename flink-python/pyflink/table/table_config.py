@@ -47,7 +47,7 @@ class TableConfig(object):
     def __init__(self, j_table_config=None):
         gateway = get_gateway()
         if j_table_config is None:
-            self._j_table_config = gateway.jvm.TableConfig()
+            self._j_table_config = gateway.jvm.TableConfig.getDefault()
         else:
             self._j_table_config = j_table_config
 

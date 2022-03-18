@@ -97,6 +97,10 @@ import static java.time.ZoneId.SHORT_IDS;
 @PublicEvolving
 public final class TableConfig implements WritableConfig, ReadableConfig {
 
+    /** Please use {@link TableConfig#getDefault()} instead. */
+    @Deprecated
+    public TableConfig() {}
+
     // Note to implementers:
     // TableConfig is a ReadableConfig which is built once the TableEnvironment is created and
     // contains both the configuration defined in the execution context (flink-conf.yaml + CLI
