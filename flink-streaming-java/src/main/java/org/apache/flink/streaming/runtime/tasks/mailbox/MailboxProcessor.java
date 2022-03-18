@@ -60,7 +60,7 @@ import static org.apache.flink.util.Preconditions.checkState;
  * up. For control flag changes by all other threads, that must happen through mailbox actions, this
  * is automatically the case.
  *
- * <p>This class has a open-prepareClose-close lifecycle that is connected with and maps to the
+ * <p>This class has an open-prepareClose-close lifecycle that is connected with and maps to the
  * lifecycle of the encapsulated {@link TaskMailbox} (which is open-quiesce-close).
  */
 @Internal
@@ -218,14 +218,14 @@ public class MailboxProcessor implements Closeable {
 
         assert localMailbox.getState() == TaskMailbox.State.OPEN : "Mailbox must be opened!";
 
-        final MailboxController defaultActionContext = new MailboxController(this);
+        final MailboxController mailboxController = new MailboxController(this);
 
         while (isNextLoopPossible()) {
             // The blocking `processMail` call will not return until default action is available.
             processMail(localMailbox, false);
             if (isNextLoopPossible()) {
                 mailboxDefaultAction.runDefaultAction(
-                        defaultActionContext); // lock is acquired inside default action as needed
+                        mailboxController); // lock is acquired inside default action as needed
             }
         }
     }
