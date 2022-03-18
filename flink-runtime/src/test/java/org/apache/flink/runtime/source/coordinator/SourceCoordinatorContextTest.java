@@ -153,7 +153,7 @@ public class SourceCoordinatorContextTest extends SourceCoordinatorTestBase {
                     }
                 },
                 "assignSplits() should fail to assign the splits to a reader that is not registered.",
-                "Cannot assign splits");
+                "Cannot assign splits " + splitsAssignment.assignment().get(0));
     }
 
     @Test
