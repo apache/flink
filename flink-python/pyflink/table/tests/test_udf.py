@@ -797,19 +797,10 @@ class PyFlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
 
 
 @pytest.mark.skipif(sys.version_info < (3, 7), reason="requires python3.7")
-class PyFlinkEmbeddedMultiThreadTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
+class PyFlinkEmbeddedThreadTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
     def setUp(self):
-        super(PyFlinkEmbeddedMultiThreadTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
-                                                               "multi-thread")
-
-
-@pytest.mark.skipif(sys.version_info < (3, 8), reason="requires python3.8")
-class PyFlinkEmbeddedSubInterpreterTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
-    def setUp(self):
-        super(PyFlinkEmbeddedSubInterpreterTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode",
-                                                               "sub-interpreter")
+        super(PyFlinkEmbeddedThreadTests, self).setUp()
+        self.t_env.get_config().get_configuration().set_string("python.execution-mode", "thread")
 
 
 # test specify the input_types

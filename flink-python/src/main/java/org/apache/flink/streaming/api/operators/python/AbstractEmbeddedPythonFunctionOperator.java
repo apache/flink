@@ -105,7 +105,7 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
             }
         }
 
-        openPythonInterpreter(pythonConfig.getPythonExec(), env, interpreterConfig.getExecType());
+        openPythonInterpreter(pythonConfig.getPythonExec(), env);
     }
 
     @Override
@@ -152,11 +152,7 @@ public abstract class AbstractEmbeddedPythonFunctionOperator<OUT>
     }
 
     /** Setup method for Python Interpreter. It can be used for initialization work. */
-    public abstract void openPythonInterpreter(
-            String pythonExecutable,
-            Map<String, String> env,
-            PythonInterpreterConfig.ExecType execType)
-            throws Exception;
+    public abstract void openPythonInterpreter(String pythonExecutable, Map<String, String> env);
 
     /** Returns the {@link PythonEnv} used to create PythonEnvironmentManager. */
     public abstract PythonEnv getPythonEnv();
