@@ -27,13 +27,11 @@ import org.apache.flink.util.function.RunnableWithException;
 import org.junit.Test;
 
 import java.util.UUID;
-import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 
 /** Tests for {@link DefaultLeaderElectionService}. */
 public class DefaultLeaderElectionServiceTest extends TestLogger {
@@ -258,15 +256,6 @@ public class DefaultLeaderElectionServiceTest extends TestLogger {
 
                             leaderElectionService.stop();
                             testingLeaderElectionDriver.onFatalError(testException);
-
-                            try {
-                                testingContender.waitForError(timeout);
-                                fail(
-                                        "We expect to have a timeout here because there's no error should be passed to contender.");
-                            } catch (TimeoutException ex) {
-                                // noop
-                            }
-
                             assertThat(testingContender.getError(), is(nullValue()));
                         });
             }
