@@ -1189,14 +1189,14 @@ class KeyedStream(DataStream):
         Example(Row data to sum):
         ::
 
-            >>> ds = self.env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
+            >>> ds = env.from_collection([('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
             ...                                type_info=Types.ROW([Types.STRING(), Types.INT()]))
             >>> ds.key_by(lambda x: x[0]).sum(1)
 
         Example(Row data with fields name to sum):
         ::
 
-            >>> ds = self.env.from_collection(
+            >>> ds = env.from_collection(
             ...     [('a', 1), ('a', 2), ('a', 3), ('b', 1), ('b', 2)],
             ...     type_info=Types.ROW_NAMED(["key", "value"], [Types.STRING(), Types.INT()])
             ... )
@@ -1204,11 +1204,11 @@ class KeyedStream(DataStream):
 
         :param position_to_sum:
             The field position in the data points to sum, type can be int or str.
-            This is applicable to Tuple types, and {pyflink.common.types.Row} types.
+            This is applicable to Tuple types, and :class:`pyflink.common.Row` types.
         :return: The transformed DataStream.
         """
         if not isinstance(position_to_sum, int) and not isinstance(position_to_sum, str):
-            raise TypeError("The input must be a int or str type for locate the value to sum")
+            raise TypeError("The input must be of int or str type to locate the value to sum")
 
         output_type = _from_java_type(self._original_data_type_info.get_java_type_info())
 
