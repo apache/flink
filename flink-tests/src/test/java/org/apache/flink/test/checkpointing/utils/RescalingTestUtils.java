@@ -19,7 +19,6 @@
 package org.apache.flink.test.checkpointing.utils;
 
 import org.apache.flink.api.common.functions.RichFlatMapFunction;
-import org.apache.flink.api.common.state.CheckpointListener;
 import org.apache.flink.api.common.state.ValueState;
 import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -34,7 +33,6 @@ import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /** Test utilities for rescaling. */
 public class RescalingTestUtils {
@@ -93,12 +91,11 @@ public class RescalingTestUtils {
     /** A flatMapper with the index of subtask. */
     public static class SubtaskIndexFlatMapper
             extends RichFlatMapFunction<Integer, Tuple2<Integer, Integer>>
-            implements CheckpointedFunction, CheckpointListener {
+            implements CheckpointedFunction {
 
         private static final long serialVersionUID = 5273172591283191348L;
 
         public static CountDownLatch workCompletedLatch = new CountDownLatch(1);
-        private static AtomicInteger completedCheckpointNum;
 
         private transient ValueState<Integer> counter;
         private transient ValueState<Integer> sum;
@@ -107,7 +104,6 @@ public class RescalingTestUtils {
 
         public SubtaskIndexFlatMapper(int numberElements) {
             this.numberElements = numberElements;
-            this.completedCheckpointNum = new AtomicInteger();
         }
 
         @Override
@@ -140,18 +136,13 @@ public class RescalingTestUtils {
                     context.getKeyedStateStore()
                             .getState(new ValueStateDescriptor<>("sum", Integer.class, 0));
         }
-
-        @Override
-        public void notifyCheckpointComplete(long checkpointId) throws Exception {
-            completedCheckpointNum.getAndIncrement();
-        }
     }
 
     /** Sink for collecting results into a collection. */
     public static class CollectionSink<IN> implements SinkFunction<IN> {
 
-        private static Set<Object> elements =
-                Collections.newSetFromMap(new ConcurrentHashMap<Object, Boolean>());
+        private static final Set<Object> elements =
+                Collections.newSetFromMap(new ConcurrentHashMap<>());
 
         private static final long serialVersionUID = -1652452958040267745L;
 

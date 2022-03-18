@@ -143,7 +143,19 @@ public class TestUtils {
         }
     }
 
-    public static void waitUntilCanceled(JobID jobId, ClusterClient<?> client)
+    public static void waitUntilExternalizedCheckpointCreated(File checkpointDir)
+            throws InterruptedException, IOException {
+        while (true) {
+            Thread.sleep(50);
+            Optional<File> externalizedCheckpoint =
+                    getMostRecentCompletedCheckpointMaybe(checkpointDir);
+            if (externalizedCheckpoint.isPresent()) {
+                break;
+            }
+        }
+    }
+
+    public static void waitUntilJobCanceled(JobID jobId, ClusterClient<?> client)
             throws ExecutionException, InterruptedException {
         while (client.getJobStatus(jobId).get() != JobStatus.CANCELED) {
             Thread.sleep(50);

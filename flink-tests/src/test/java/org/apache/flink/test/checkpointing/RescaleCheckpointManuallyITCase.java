@@ -26,7 +26,6 @@ import org.apache.flink.configuration.CheckpointingOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
-import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
@@ -36,6 +35,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.test.checkpointing.utils.RescalingTestUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
+import org.apache.flink.util.TestLogger;
 
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -43,9 +43,7 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
-import java.io.IOException;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 
@@ -54,7 +52,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
 /** Test checkpoint rescaling for incremental rocksdb. */
-public class RescaleCheckpointManuallyITCase {
+public class RescaleCheckpointManuallyITCase extends TestLogger {
 
     private static final int NUM_TASK_MANAGERS = 2;
     private static final int SLOTS_PER_TASK_MANAGER = 2;
@@ -87,30 +85,19 @@ public class RescaleCheckpointManuallyITCase {
 
     @Test
     public void testCheckpointRescalingInKeyedState() throws Exception {
-        testCheckpointRescalingKeyedState(false, false);
+        testCheckpointRescalingKeyedState(false);
     }
 
     @Test
     public void testCheckpointRescalingOutKeyedState() throws Exception {
-        testCheckpointRescalingKeyedState(true, false);
-    }
-
-    @Test
-    public void testCheckpointRescalingInKeyedStateDerivedMaxParallelism() throws Exception {
-        testCheckpointRescalingKeyedState(false, true);
-    }
-
-    @Test
-    public void testCheckpointRescalingOutKeyedStateDerivedMaxParallelism() throws Exception {
-        testCheckpointRescalingKeyedState(true, true);
+        testCheckpointRescalingKeyedState(true);
     }
 
     /**
      * Tests that a job with purely keyed state can be restarted from a checkpoint with a different
      * parallelism.
      */
-    public void testCheckpointRescalingKeyedState(boolean scaleOut, boolean deriveMaxParallelism)
-            throws Exception {
+    public void testCheckpointRescalingKeyedState(boolean scaleOut) throws Exception {
         final int numberKeys = 42;
         final int numberElements = 1000;
         final int numberElements2 = 500;
@@ -132,12 +119,9 @@ public class RescaleCheckpointManuallyITCase {
 
         assertNotNull(checkpointPath);
 
-        int restoreMaxParallelism =
-                deriveMaxParallelism ? JobVertex.MAX_PARALLELISM_DEFAULT : maxParallelism;
-
         restoreAndAssert(
                 parallelism2,
-                restoreMaxParallelism,
+                maxParallelism,
                 maxParallelism,
                 numberKeys,
                 numberElements2,
@@ -158,9 +142,9 @@ public class RescaleCheckpointManuallyITCase {
             JobGraph jobGraph =
                     createJobGraphWithKeyedState(
                             parallelism, maxParallelism, numberKeys, numberElements, false, 100);
-            NotifyingDefiniteKeySource.countDownLatch = new CountDownLatch(parallelism);
+            NotifyingDefiniteKeySource.sourceLatch = new CountDownLatch(parallelism);
             client.submitJob(jobGraph).get();
-            NotifyingDefiniteKeySource.countDownLatch.await();
+            NotifyingDefiniteKeySource.sourceLatch.await();
 
             RescalingTestUtils.SubtaskIndexFlatMapper.workCompletedLatch.await();
 
@@ -180,11 +164,11 @@ public class RescaleCheckpointManuallyITCase {
             }
 
             assertEquals(expectedResult, actualResult);
-            NotifyingDefiniteKeySource.countDownLatch.await();
+            NotifyingDefiniteKeySource.sourceLatch.await();
 
-            waitUntilExternalizedCheckpointCreated(checkpointDir);
+            TestUtils.waitUntilExternalizedCheckpointCreated(checkpointDir);
             client.cancel(jobGraph.getJobID()).get();
-            TestUtils.waitUntilCanceled(jobGraph.getJobID(), client);
+            TestUtils.waitUntilJobCanceled(jobGraph.getJobID(), client);
             return TestUtils.getMostRecentCompletedCheckpoint(checkpointDir).getAbsolutePath();
         } finally {
             RescalingTestUtils.CollectionSink.clearElementsSet();
@@ -237,18 +221,6 @@ public class RescaleCheckpointManuallyITCase {
         }
     }
 
-    private static void waitUntilExternalizedCheckpointCreated(File checkpointDir)
-            throws InterruptedException, IOException {
-        while (true) {
-            Thread.sleep(50);
-            Optional<File> externalizedCheckpoint =
-                    TestUtils.getMostRecentCompletedCheckpointMaybe(checkpointDir);
-            if (externalizedCheckpoint.isPresent()) {
-                break;
-            }
-        }
-    }
-
     private static JobGraph createJobGraphWithKeyedState(
             int parallelism,
             int maxParallelism,
@@ -296,7 +268,7 @@ public class RescaleCheckpointManuallyITCase {
     private static class NotifyingDefiniteKeySource extends RescalingTestUtils.DefiniteKeySource {
         private static final long serialVersionUID = 8120981235081181746L;
 
-        private static CountDownLatch countDownLatch;
+        private static CountDownLatch sourceLatch;
 
         public NotifyingDefiniteKeySource(
                 int numberKeys, int numberElements, boolean terminateAfterEmission) {
@@ -305,8 +277,8 @@ public class RescaleCheckpointManuallyITCase {
 
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
-            if (countDownLatch != null) {
-                countDownLatch.countDown();
+            if (sourceLatch != null) {
+                sourceLatch.countDown();
             }
             super.run(ctx);
         }
