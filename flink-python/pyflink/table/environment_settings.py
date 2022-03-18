@@ -168,6 +168,7 @@ class EnvironmentSettings(object):
         .. note:: Deprecated in 1.15. Please use
                 :func:`EnvironmentSettings.get_configuration` instead.
         """
+        warnings.warn("Deprecated in 1.15.", DeprecationWarning)
         return Configuration(j_configuration=self._j_environment_settings.toConfiguration())
 
     def get_configuration(self) -> Configuration:
@@ -197,6 +198,7 @@ class EnvironmentSettings(object):
         .. note:: Deprecated in 1.15. Please use
                 :func:`EnvironmentSettings.Builder.with_configuration` instead.
         """
+        warnings.warn("Deprecated in 1.15.", DeprecationWarning)
         return EnvironmentSettings(
             get_gateway().jvm.EnvironmentSettings.fromConfiguration(config._j_configuration))
 
