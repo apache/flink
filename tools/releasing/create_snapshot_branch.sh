@@ -55,7 +55,7 @@ perl -pi -e "s#^baseURL = .*#baseURL = \'${url_base}${SHORT_RELEASE_VERSION}\'#"
 perl -pi -e "s#^  JavaDocs = .*#  JavaDocs = \"${url_base}${SHORT_RELEASE_VERSION}/api/java/\"#" ${config_file}
 perl -pi -e "s#^    \[\"JavaDocs\", .*#    \[\"JavaDocs\", \"${url_base}${SHORT_RELEASE_VERSION}/api/java/\"\],#" ${config_file}
 perl -pi -e "s#^  ScalaDocs = .*#  ScalaDocs = \"${url_base}${SHORT_RELEASE_VERSION}/api/scala/index.html\#org.apache.flink.api.scala.package\"#" ${config_file}
-perl -pi -e "s#^    \[\"ScalaDocs\", .*#    \[\"ScalaDocs\", \"${url_base}${SHORT_RELEASE_VERSION}/api/scala/index.html\#org.apache.flink.api.scala.package/\"\]#" ${config_file}
+perl -pi -e "s#^    \[\"ScalaDocs\", .*#    \[\"ScalaDocs\", \"${url_base}${SHORT_RELEASE_VERSION}/api/scala/index.html\#org.apache.flink.api.scala.package/\"\],#" ${config_file}
 perl -pi -e "s#^  PyDocs = .*#  PyDocs = \"${url_base}${SHORT_RELEASE_VERSION}/api/python/\"#" ${config_file}
 perl -pi -e "s#^    \[\"PyDocs\", .*#    \[\"PyDocs\", \"${url_base}${SHORT_RELEASE_VERSION}/api/python/\"\]#" ${config_file}
 
