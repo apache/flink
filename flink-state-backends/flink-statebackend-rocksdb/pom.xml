@@ -100,7 +100,7 @@ under the License.
 								<include>**/org/apache/flink/contrib/streaming/state/EmbeddedRocksDBStateBackendTest*</include>
 								<!-- Exporting RocksDBStateBackendConfigTest$TestOptionsFactory for pyflink tests -->
 								<include>**/org/apache/flink/contrib/streaming/state/RocksDBStateBackendConfigTest*</include>
-								<include>**/org/apache/flink/contrib/streaming/state/benchmark/StateBackendBenchmarkUtils*</include>
+								<include>**/org/apache/flink/contrib/streaming/state/benchmark/*</include>
 								<include>META-INF/LICENSE</include>
 								<include>META-INF/NOTICE</include>
 							</includes>
