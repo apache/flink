@@ -18,7 +18,6 @@
 import datetime
 
 from py4j.compat import long
-from typing import Tuple
 
 from pyflink.common.configuration import Configuration
 from pyflink.java_gateway import get_gateway
