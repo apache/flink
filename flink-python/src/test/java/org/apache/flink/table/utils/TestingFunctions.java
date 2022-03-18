@@ -34,7 +34,7 @@ import java.util.Iterator;
 /** Testing utils adopted from legacy planner until the Python code is updated. */
 public class TestingFunctions {
 
-    /**RichFunc0 for testing.*/
+    /** RichFunc0 for testing. */
     public static class RichFunc0 extends ScalarFunction {
         private boolean openCalled = false;
         private boolean closeCalled = false;
@@ -80,10 +80,10 @@ public class TestingFunctions {
         }
     }
 
-    /**MaxAccumulator for testing.*/
+    /** MaxAccumulator for testing. */
     static class MaxAccumulator<T extends Comparable> extends Tuple2<T, Boolean> {}
 
-    /**MaxAggFunction for testing.*/
+    /** MaxAggFunction for testing. */
     abstract static class MaxAggFunction<T extends Comparable>
             extends AggregateFunction<T, MaxAccumulator<T>> {
         @Override
@@ -133,7 +133,7 @@ public class TestingFunctions {
         abstract TypeInformation<?> getValueTypeInfo();
     }
 
-    /**ByteMaxAggFunction for testing.*/
+    /** ByteMaxAggFunction for testing. */
     public static class ByteMaxAggFunction extends MaxAggFunction<Byte> {
 
         @Override
@@ -147,7 +147,7 @@ public class TestingFunctions {
         }
     }
 
-    /**TableFunc1 for testing.*/
+    /** TableFunc1 for testing. */
     public static class TableFunc1 extends TableFunction<String> {
         public void eval(String str) {
             if (str.contains("#")) {

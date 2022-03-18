@@ -41,7 +41,7 @@ public class TestingSinks {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TestingSinks.class);
 
-    /**TestAppendingSink for testing.*/
+    /** TestAppendingSink for testing. */
     public static class TestAppendingSink implements DynamicTableSink {
         private final DataType rowDataType;
 
@@ -74,7 +74,7 @@ public class TestingSinks {
         }
     }
 
-    /**RowSink for testing.*/
+    /** RowSink for testing. */
     static class RowSink implements SinkFunction<RowData> {
         private final DynamicTableSink.DataStructureConverter converter;
 
@@ -95,7 +95,7 @@ public class TestingSinks {
         }
     }
 
-    /**RowCollector for testing.*/
+    /** RowCollector for testing. */
     public static class RowCollector {
         private static final List<Tuple2<Boolean, Row>> SINK = new ArrayList<>();
 

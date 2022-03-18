@@ -40,7 +40,7 @@ import static org.apache.flink.util.Preconditions.checkState;
 /** Testing utils adopted from legacy planner until the Python code is updated. */
 public class TestingDescriptors {
 
-    /**CustomAssigner for testing.*/
+    /** CustomAssigner for testing. */
     public static class CustomAssigner extends PunctuatedWatermarkAssigner {
         @Override
         public Watermark getWatermark(Row row, long timestamp) {
@@ -48,7 +48,7 @@ public class TestingDescriptors {
         }
     }
 
-    /**CustomExtractor for testing.*/
+    /** CustomExtractor for testing. */
     public static class CustomExtractor extends TimestampExtractor {
 
         private final String field;
