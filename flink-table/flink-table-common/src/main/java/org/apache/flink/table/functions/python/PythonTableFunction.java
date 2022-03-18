@@ -20,7 +20,6 @@ package org.apache.flink.table.functions.python;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
-import org.apache.flink.api.java.typeutils.RowTypeInfo;
 import org.apache.flink.table.catalog.DataTypeFactory;
 import org.apache.flink.table.functions.TableFunction;
 import org.apache.flink.table.types.DataType;
@@ -41,8 +40,8 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 
     private final String name;
     private final byte[] serializedScalarFunction;
-    private final TypeInformation[] inputTypes;
-    private final RowTypeInfo resultType;
+    private final DataType[] inputTypes;
+    private final DataType resultType;
     private final PythonFunctionKind pythonFunctionKind;
     private final boolean deterministic;
     private final PythonEnv pythonEnv;
@@ -51,8 +50,8 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
     public PythonTableFunction(
             String name,
             byte[] serializedScalarFunction,
-            TypeInformation[] inputTypes,
-            RowTypeInfo resultType,
+            DataType[] inputTypes,
+            DataType resultType,
             PythonFunctionKind pythonFunctionKind,
             boolean deterministic,
             boolean takesRowAsInput,
@@ -100,7 +99,7 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
     @Override
     public TypeInformation[] getParameterTypes(Class[] signature) {
         if (inputTypes != null) {
-            return inputTypes;
+            return TypeConversions.fromDataTypeToLegacyInfo(inputTypes);
         } else {
             return super.getParameterTypes(signature);
         }
@@ -108,7 +107,7 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
 
     @Override
     public TypeInformation<Row> getResultType() {
-        return resultType;
+        return (TypeInformation<Row>) TypeConversions.fromDataTypeToLegacyInfo(resultType);
     }
 
     @Override
@@ -116,15 +115,10 @@ public class PythonTableFunction extends TableFunction<Row> implements PythonFun
         TypeInference.Builder builder = TypeInference.newBuilder();
         if (inputTypes != null) {
             final List<DataType> argumentDataTypes =
-                    Stream.of(inputTypes)
-                            .map(TypeConversions::fromLegacyInfoToDataType)
-                            .collect(Collectors.toList());
+                    Stream.of(inputTypes).collect(Collectors.toList());
             builder.typedArguments(argumentDataTypes);
         }
-        return builder.outputTypeStrategy(
-                        TypeStrategies.explicit(
-                                TypeConversions.fromLegacyInfoToDataType(resultType)))
-                .build();
+        return builder.outputTypeStrategy(TypeStrategies.explicit(resultType)).build();
     }
 
     @Override

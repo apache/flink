@@ -40,7 +40,7 @@ from pyflink.table.statement_set import StatementSet
 from pyflink.table.table_config import TableConfig
 from pyflink.table.table_descriptor import TableDescriptor
 from pyflink.table.table_result import TableResult
-from pyflink.table.types import _to_java_type, _create_type_verifier, RowType, DataType, \
+from pyflink.table.types import _create_type_verifier, RowType, DataType, \
     _infer_schema_from_data, _create_converter, from_arrow_type, RowField, create_arrow_schema, \
     _to_java_data_type
 from pyflink.table.udf import UserDefinedFunctionWrapper, AggregateFunction, udaf, \
@@ -1439,7 +1439,7 @@ class TableEnvironment(object):
         try:
             with temp_file:
                 serializer.serialize(elements, temp_file)
-            row_type_info = _to_java_type(schema)
+            row_type_info = _to_java_data_type(schema)
             execution_config = self._get_j_env().getConfig()
             gateway = get_gateway()
             j_objs = gateway.jvm.PythonBridgeUtils.readPythonObjects(temp_file.name, True)
@@ -1526,8 +1526,7 @@ class TableEnvironment(object):
                 serializer.serialize(data, temp_file)
             jvm = get_gateway().jvm
 
-            data_type = jvm.org.apache.flink.table.types.utils.TypeConversions\
-                .fromLegacyInfoToDataType(_to_java_type(result_type)).notNull()
+            data_type = _to_java_data_type(result_type).notNull()
             data_type = data_type.bridgedTo(
                 load_java_class('org.apache.flink.table.data.RowData'))
 

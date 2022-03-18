@@ -89,10 +89,11 @@ class TableEnvironmentTest(object):
             "python_scalar_func", udf(lambda i: i, result_type=DataTypes.INT()))
 
         t_env.register_java_function("scalar_func",
-                                     "org.apache.flink.table.legacyutils.RichFunc0")
+                                     "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
         t_env.register_java_function(
-            "agg_func", "org.apache.flink.table.legacyutils.ByteMaxAggFunction")
-        t_env.register_java_function("table_func", "org.apache.flink.table.legacyutils.TableFunc1")
+            "agg_func", "org.apache.flink.table.utils.TestingFunctions$ByteMaxAggFunction")
+        t_env.register_java_function("table_func",
+                                     "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
 
         actual = t_env.list_user_defined_functions()
         expected = ['python_scalar_func', 'scalar_func', 'agg_func', 'table_func']
@@ -157,11 +158,11 @@ class TableEnvironmentTest(object):
         t_env = self.t_env
 
         t_env.create_java_temporary_system_function(
-            "scalar_func", "org.apache.flink.table.legacyutils.RichFunc0")
+            "scalar_func", "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
         t_env.create_java_function(
-            "agg_func", "org.apache.flink.table.legacyutils.ByteMaxAggFunction")
+            "agg_func", "org.apache.flink.table.utils.TestingFunctions$ByteMaxAggFunction")
         t_env.create_java_temporary_function(
-            "table_func", "org.apache.flink.table.legacyutils.TableFunc1")
+            "table_func", "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
         self.assert_equals(t_env.list_user_defined_functions(),
                            ['scalar_func', 'agg_func', 'table_func'])
 
@@ -280,10 +281,14 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
                                                            Types.STRING()]))
         t_env = self.t_env
         table = t_env.from_data_stream(ds)
-        field_names = ['a', 'b', 'c']
-        field_types = [DataTypes.INT(), DataTypes.STRING(), DataTypes.STRING()]
-        t_env.register_table_sink("Sink",
-                                  source_sink_utils.TestAppendSink(field_names, field_types))
+        sink_table_ddl = """
+        CREATE TABLE Sink(a INT, b STRING, c STRING) WITH ('connector'='test-sink')
+        """
+        t_env.execute_sql(sink_table_ddl)
+        expr_sink_ddl = """
+        CREATE TABLE ExprSink(a INT, b STRING, c STRING) WITH ('connector'='test-sink')
+        """
+        t_env.execute_sql(expr_sink_ddl)
         table.execute_insert("Sink").wait()
         result = source_sink_utils.results()
         expected = ['+I[1, Hi, Hello]', '+I[2, Hello, Hi]']
@@ -292,8 +297,6 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
         ds = ds.map(lambda x: x, Types.ROW([Types.INT(), Types.STRING(), Types.STRING()])) \
                .map(lambda x: x, Types.ROW([Types.INT(), Types.STRING(), Types.STRING()]))
         table = t_env.from_data_stream(ds, col('a'), col('b'), col('c'))
-        t_env.register_table_sink("ExprSink",
-                                  source_sink_utils.TestAppendSink(field_names, field_types))
         table.execute_insert("ExprSink").wait()
         result = source_sink_utils.results()
         self.assert_equals(result, expected)
@@ -631,13 +634,13 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         t_env = self.t_env
 
         t_env.register_java_function(
-            "scalar_func", "org.apache.flink.table.legacyutils.RichFunc0")
+            "scalar_func", "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
 
         t_env.register_java_function(
-            "agg_func", "org.apache.flink.table.legacyutils.ByteMaxAggFunction")
+            "agg_func", "org.apache.flink.table.utils.TestingFunctions$ByteMaxAggFunction")
 
         t_env.register_java_function(
-            "table_func", "org.apache.flink.table.legacyutils.TableFunc1")
+            "table_func", "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
 
         actual = t_env.list_user_defined_functions()
         expected = ['scalar_func', 'agg_func', 'table_func']
@@ -709,11 +712,11 @@ class BatchTableEnvironmentTests(PyFlinkBatchTableTestCase):
         t_env = self.t_env
 
         t_env.create_java_temporary_system_function(
-            "scalar_func", "org.apache.flink.table.legacyutils.RichFunc0")
+            "scalar_func", "org.apache.flink.table.utils.TestingFunctions$RichFunc0")
         t_env.create_java_function(
-            "agg_func", "org.apache.flink.table.legacyutils.ByteMaxAggFunction")
+            "agg_func", "org.apache.flink.table.utils.TestingFunctions$ByteMaxAggFunction")
         t_env.create_java_temporary_function(
-            "table_func", "org.apache.flink.table.legacyutils.TableFunc1")
+            "table_func", "org.apache.flink.table.utils.TestingFunctions$TableFunc1")
         self.assert_equals(t_env.list_user_defined_functions(),
                            ['scalar_func', 'agg_func', 'table_func'])
 

@@ -20,7 +20,12 @@ package org.apache.flink.table.functions.python.utils;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.functions.TableFunction;
+import org.apache.flink.table.functions.TableFunctionDefinition;
 import org.apache.flink.table.functions.python.PythonFunction;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.TypeConversions;
 
 /** Utilities for creating PythonFunction from the fully qualified name of a Python function. */
 @Internal
@@ -48,5 +53,11 @@ public enum PythonFunctionUtils {
                     String.format("Instantiating python function '%s' failed.", fullyQualifiedName),
                     t);
         }
+    }
+
+    public static FunctionDefinition getPythonTableFunctionDefinition(
+            String name, TableFunction<?> tableFunction, DataType resultType) {
+        return new TableFunctionDefinition(
+                name, tableFunction, TypeConversions.fromDataTypeToLegacyInfo(resultType));
     }
 }

@@ -20,7 +20,7 @@ from typing import Union
 from pyflink import add_version_doc
 from pyflink.java_gateway import get_gateway
 from pyflink.table.expression import Expression, _get_java_expression, TimePointUnit, JsonOnNull
-from pyflink.table.types import _to_java_data_type, DataType, _to_java_type
+from pyflink.table.types import _to_java_data_type, DataType
 from pyflink.table.udf import UserDefinedFunctionWrapper, UserDefinedTableFunctionWrapper
 from pyflink.util.java_utils import to_jarray, load_java_class
 
@@ -773,12 +773,12 @@ def call(f: Union[str, UserDefinedFunctionWrapper], *args) -> Expression:
             TypeInference was not supported for TableFunction in the old planner. Use
             TableFunctionDefinition to work around this issue.
             """
-            j_result_types = to_jarray(gateway.jvm.TypeInformation,
-                                       [_to_java_type(i) for i in f._result_types])
-            j_result_type = gateway.jvm.org.apache.flink.api.java.typeutils.RowTypeInfo(
-                j_result_types)
-            return gateway.jvm.org.apache.flink.table.functions.TableFunctionDefinition(
-                'f', f._java_user_defined_function(), j_result_type)
+            j_result_types = to_jarray(gateway.jvm.DataType,
+                                       [_to_java_data_type(i) for i in f._result_types])
+            j_result_type = gateway.jvm.DataTypes.ROW(j_result_types)
+            return gateway.jvm.org.apache.flink.table.functions.python.utils.PythonFunctionUtils\
+                .getPythonTableFunctionDefinition('f', f._java_user_defined_function(),
+                                                  j_result_type)
         else:
             return f._java_user_defined_function()
 

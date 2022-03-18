@@ -25,6 +25,7 @@ import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.BasicTypeInfo;
 import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.common.typeinfo.Types;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
 import org.apache.flink.api.java.io.CollectionInputFormat;
 import org.apache.flink.api.java.tuple.Tuple;
@@ -35,9 +36,14 @@ import org.apache.flink.api.java.typeutils.TupleTypeInfo;
 import org.apache.flink.core.memory.ByteArrayInputStreamWithPos;
 import org.apache.flink.core.memory.DataInputViewStreamWrapper;
 import org.apache.flink.streaming.api.typeinfo.python.PickledByteArrayTypeInfo;
-import org.apache.flink.table.api.Types;
+import org.apache.flink.table.types.DataType;
+import org.apache.flink.table.types.utils.TypeConversions;
+import org.apache.flink.table.typeutils.TimeIntervalTypeInfo;
 import org.apache.flink.types.Row;
 import org.apache.flink.types.RowKind;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Array;
@@ -50,6 +56,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +68,8 @@ import java.util.stream.Collectors;
 /** Python utilities. */
 @Internal
 public final class PythonTableUtils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(PythonTableUtils.class);
 
     private PythonTableUtils() {}
 
@@ -74,15 +83,17 @@ public final class PythonTableUtils {
      * @return An InputFormat containing the python data.
      */
     public static InputFormat<Row, ?> getInputFormat(
-            final List<Object[]> data,
-            final TypeInformation<Row> dataType,
-            final ExecutionConfig config) {
-        Function<Object, Object> converter = converter(dataType, config);
+            final List<Object[]> data, final DataType dataType, final ExecutionConfig config) {
+        TypeInformation<Row> rowTypeInfo =
+                (TypeInformation<Row>) TypeConversions.fromDataTypeToLegacyInfo(dataType);
+        LOG.info(rowTypeInfo.toString());
+        TypeSerializer<Row> rowTypeSerializer = rowTypeInfo.createSerializer(config);
+        Function<Object, Object> converter = converter(rowTypeInfo, config);
         return new CollectionInputFormat<>(
                 data.stream()
                         .map(objects -> (Row) converter.apply(objects))
                         .collect(Collectors.toList()),
-                dataType.createSerializer(config));
+                rowTypeSerializer);
     }
 
     /**
@@ -98,6 +109,7 @@ public final class PythonTableUtils {
     public static <T> InputFormat<T, ?> getCollectionInputFormat(
             final List<T> data, final TypeInformation<T> dataType, final ExecutionConfig config) {
         Function<Object, Object> converter = converter(dataType, config);
+
         return new CollectionInputFormat<>(
                 data.stream()
                         .map(objects -> (T) converter.apply(objects))
@@ -260,10 +272,10 @@ public final class PythonTableUtils {
 
     private static Function<Object, Object> converter(
             final TypeInformation<?> dataType, final ExecutionConfig config) {
-        if (dataType.equals(Types.BOOLEAN())) {
+        if (dataType.equals(Types.BOOLEAN)) {
             return b -> b instanceof Boolean ? b : null;
         }
-        if (dataType.equals(Types.BYTE())) {
+        if (dataType.equals(Types.BYTE)) {
             return c -> {
                 if (c instanceof Byte) {
                     return c;
@@ -280,7 +292,7 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.SHORT())) {
+        if (dataType.equals(Types.SHORT)) {
             return c -> {
                 if (c instanceof Byte) {
                     return ((Byte) c).shortValue();
@@ -297,7 +309,7 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.INT())) {
+        if (dataType.equals(Types.INT)) {
             return c -> {
                 if (c instanceof Byte) {
                     return ((Byte) c).intValue();
@@ -314,7 +326,7 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.LONG())) {
+        if (dataType.equals(Types.LONG)) {
             return c -> {
                 if (c instanceof Byte) {
                     return ((Byte) c).longValue();
@@ -331,7 +343,7 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.FLOAT())) {
+        if (dataType.equals(Types.FLOAT)) {
             return c -> {
                 if (c instanceof Float) {
                     return c;
@@ -342,7 +354,7 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.DOUBLE())) {
+        if (dataType.equals(Types.DOUBLE)) {
             return c -> {
                 if (c instanceof Float) {
                     return ((Float) c).doubleValue();
@@ -353,10 +365,10 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.DECIMAL())) {
+        if (dataType.equals(Types.BIG_DEC)) {
             return c -> c instanceof BigDecimal ? c : null;
         }
-        if (dataType.equals(Types.SQL_DATE())) {
+        if (dataType.equals(Types.SQL_DATE)) {
             return c -> {
                 if (c instanceof Integer) {
                     long millisLocal = ((Integer) c).longValue() * 86400000;
@@ -367,31 +379,66 @@ public final class PythonTableUtils {
                 return null;
             };
         }
-        if (dataType.equals(Types.SQL_TIME())) {
+
+        if (dataType.equals(Types.SQL_TIME)) {
             return c ->
                     c instanceof Integer || c instanceof Long
                             ? new Time(((Number) c).longValue() / 1000)
                             : null;
         }
-        if (dataType.equals(Types.SQL_TIMESTAMP())) {
+
+        if (dataType.equals(Types.SQL_TIMESTAMP)) {
             return c ->
                     c instanceof Integer || c instanceof Long
                             ? new Timestamp(((Number) c).longValue() / 1000)
                             : null;
         }
+
+        if (dataType.equals(Types.LOCAL_DATE)) {
+            return c -> {
+                if (c instanceof Integer) {
+                    long millisLocal = ((Integer) c).longValue() * 86400000;
+                    long millisUtc =
+                            millisLocal - PythonTableUtils.getOffsetFromLocalMillis(millisLocal);
+                    return Instant.ofEpochMilli(millisUtc)
+                            .atZone(ZoneId.systemDefault())
+                            .toLocalDate();
+                }
+                return null;
+            };
+        }
+
+        if (dataType.equals(Types.LOCAL_TIME)) {
+            return c ->
+                    c instanceof Integer || c instanceof Long
+                            ? Instant.ofEpochMilli(((Number) c).longValue() / 1000)
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalTime()
+                            : null;
+        }
+
+        if (dataType.equals(Types.LOCAL_DATE_TIME)) {
+            return c ->
+                    c instanceof Integer || c instanceof Long
+                            ? Instant.ofEpochMilli(((Number) c).longValue() / 1000)
+                                    .atZone(ZoneId.systemDefault())
+                                    .toLocalDateTime()
+                            : null;
+        }
+
         if (dataType.equals(org.apache.flink.api.common.typeinfo.Types.INSTANT)) {
             return c ->
                     c instanceof Integer || c instanceof Long
                             ? Instant.ofEpochMilli(((Number) c).longValue() / 1000)
                             : null;
         }
-        if (dataType.equals(Types.INTERVAL_MILLIS())) {
+        if (dataType.equals(TimeIntervalTypeInfo.INTERVAL_MILLIS)) {
             return c ->
                     c instanceof Integer || c instanceof Long
                             ? ((Number) c).longValue() / 1000
                             : null;
         }
-        if (dataType.equals(Types.STRING())) {
+        if (dataType.equals(Types.STRING)) {
             return c -> c != null ? c.toString() : null;
         }
         if (dataType.equals(PrimitiveArrayTypeInfo.BYTE_PRIMITIVE_ARRAY_TYPE_INFO)) {

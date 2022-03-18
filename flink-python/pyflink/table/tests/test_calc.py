@@ -66,12 +66,11 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
     def test_from_element(self):
         t_env = self.t_env
         field_names = ["a", "b", "c", "d", "e", "f", "g", "h",
-                       "i", "j", "k", "l", "m", "n", "o", "p", "q"]
+                       "i", "j", "k", "l", "m", "n", "o", "p"]
         field_types = [DataTypes.BIGINT(), DataTypes.DOUBLE(), DataTypes.STRING(),
                        DataTypes.STRING(), DataTypes.DATE(),
                        DataTypes.TIME(),
                        DataTypes.TIMESTAMP(3),
-                       DataTypes.INTERVAL(DataTypes.SECOND(3)),
                        DataTypes.ARRAY(DataTypes.DOUBLE()),
                        DataTypes.ARRAY(DataTypes.DOUBLE(False)),
                        DataTypes.ARRAY(DataTypes.STRING()),
@@ -85,12 +84,32 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
             list(map(lambda field_name, field_type: DataTypes.FIELD(field_name, field_type),
                      field_names,
                      field_types)))
-        table_sink = source_sink_utils.TestAppendSink(field_names, field_types)
-        t_env.register_table_sink("Results", table_sink)
+
+        sink_table_ddl = """
+            CREATE TABLE Results(
+            a BIGINT,
+            b DOUBLE,
+            c STRING,
+            d STRING,
+            e DATE,
+            f TIME,
+            g TIMESTAMP(3),
+            h ARRAY<DOUBLE>,
+            i ARRAY<DOUBLE NOT NULL>,
+            j ARRAY<STRING>,
+            k ARRAY<DATE>,
+            l DECIMAL(38, 18),
+            m ROW<a BIGINT, b DOUBLE>,
+            n MAP<STRING, DOUBLE>,
+            o BYTES,
+            p ARRAY<DOUBLE NOT NULL>)
+            WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+
         t = t_env.from_elements(
             [(1, 1.0, "hi", "hello", datetime.date(1970, 1, 2), datetime.time(1, 0, 0),
               datetime.datetime(1970, 1, 2, 0, 0),
-              datetime.timedelta(days=1, microseconds=10),
               [1.0, None], array.array("d", [1.0, 2.0]),
               ["abc"], [datetime.date(1970, 1, 2)], Decimal(1), Row("a", "b")(1, 2.0),
               {"key": 1.0}, bytearray(b'ABCD'), PythonOnlyPoint(3.0, 4.0))],
@@ -98,8 +117,8 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
         t.execute_insert("Results").wait()
         actual = source_sink_utils.results()
 
-        expected = ['+I[1, 1.0, hi, hello, 1970-01-02, 01:00:00, 1970-01-02 00:00:00.0, '
-                    '86400000, [1.0, null], [1.0, 2.0], [abc], [1970-01-02], '
+        expected = ['+I[1, 1.0, hi, hello, 1970-01-02, 01:00, 1970-01-02T00:00, '
+                    '[1.0, null], [1.0, 2.0], [abc], [1970-01-02], '
                     '1.000000000000000000, +I[1, 2.0], {key=1.0}, [65, 66, 67, 68], [3.0, 4.0]]']
         self.assert_equals(actual, expected)
 
@@ -113,8 +132,12 @@ class StreamTableCalcTests(PyFlinkStreamTableTestCase):
             list(map(lambda field_name, field_type: DataTypes.FIELD(field_name, field_type),
                      field_names,
                      field_types)))
-        table_sink = source_sink_utils.TestAppendSink(field_names, field_types)
-        t_env.register_table_sink("Results", table_sink)
+        sink_table_ddl = """
+            CREATE TABLE Results(a BIGINT, b STRING, c FLOAT)
+            WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+
         t = t_env.from_elements([row(1, 'abc', 2.0), row(2, 'def', 3.0)], schema)
         t.execute_insert("Results").wait()
         actual = source_sink_utils.results()

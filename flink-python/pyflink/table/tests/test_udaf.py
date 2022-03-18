@@ -570,6 +570,14 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         t = self.t_env.from_path("source_table")
 
         from pyflink.testing import source_sink_utils
+        sink_table_ddl = """
+        CREATE TABLE Results(a TINYINT, b TIMESTAMP(3), c TIMESTAMP(3), d BIGINT, e BIGINT)
+        WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+        t.window(Tumble.over("1.hours").on("rowtime").alias("w")) \
+            .group_by("a, w") \
+            .select("a, w.start, w.end, COUNT(c) as c, my_count(c) as d") \
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c', 'd', 'e'],
             [
@@ -590,10 +598,10 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual,
-                           ["+I[2, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 2, 1]",
-                            "+I[3, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 1, 1]",
-                            "+I[1, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 2, 2]",
-                            "+I[1, 2018-03-11 04:00:00.0, 2018-03-11 05:00:00.0, 1, 1]"])
+                           ["+I[2, 2018-03-11T03:00, 2018-03-11T04:00, 2, 1]",
+                            "+I[3, 2018-03-11T03:00, 2018-03-11T04:00, 1, 1]",
+                            "+I[1, 2018-03-11T03:00, 2018-03-11T04:00, 2, 2]",
+                            "+I[1, 2018-03-11T04:00, 2018-03-11T05:00, 1, 1]"])
 
     def test_tumbling_group_window_over_count(self):
         self.t_env.get_config().set("parallelism.default", "1")
@@ -633,6 +641,14 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         t = self.t_env.from_path("source_table")
 
         from pyflink.testing import source_sink_utils
+        sink_table_ddl = """
+        CREATE TABLE Results(a TINYINT, d BIGINT)
+        WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+        t.window(Tumble.over("2.rows").on("protime").alias("w")) \
+            .group_by("a, w") \
+            .select("a, my_sum(c) as b") \
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'd'],
             [
@@ -684,6 +700,14 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         t = self.t_env.from_path("source_table")
 
         from pyflink.testing import source_sink_utils
+        sink_table_ddl = """
+        CREATE TABLE Results(a TINYINT, b TIMESTAMP(3), c TIMESTAMP(3), d BIGINT)
+        WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+        t.window(Slide.over("1.hours").every("30.minutes").on("rowtime").alias("w")) \
+            .group_by("a, w") \
+            .select("a, w.start, w.end, my_sum(c) as c") \
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c', 'd'],
             [
@@ -702,15 +726,15 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual,
-                           ["+I[1, 2018-03-11 02:30:00.0, 2018-03-11 03:30:00.0, 2]",
-                            "+I[2, 2018-03-11 02:30:00.0, 2018-03-11 03:30:00.0, 1]",
-                            "+I[3, 2018-03-11 02:30:00.0, 2018-03-11 03:30:00.0, 2]",
-                            "+I[1, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 5]",
-                            "+I[3, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 2]",
-                            "+I[2, 2018-03-11 03:00:00.0, 2018-03-11 04:00:00.0, 2]",
-                            "+I[2, 2018-03-11 03:30:00.0, 2018-03-11 04:30:00.0, 1]",
-                            "+I[1, 2018-03-11 03:30:00.0, 2018-03-11 04:30:00.0, 11]",
-                            "+I[1, 2018-03-11 04:00:00.0, 2018-03-11 05:00:00.0, 8]"])
+                           ["+I[1, 2018-03-11T02:30, 2018-03-11T03:30, 2]",
+                            "+I[2, 2018-03-11T02:30, 2018-03-11T03:30, 1]",
+                            "+I[3, 2018-03-11T02:30, 2018-03-11T03:30, 2]",
+                            "+I[1, 2018-03-11T03:00, 2018-03-11T04:00, 5]",
+                            "+I[3, 2018-03-11T03:00, 2018-03-11T04:00, 2]",
+                            "+I[2, 2018-03-11T03:00, 2018-03-11T04:00, 2]",
+                            "+I[2, 2018-03-11T03:30, 2018-03-11T04:30, 1]",
+                            "+I[1, 2018-03-11T03:30, 2018-03-11T04:30, 11]",
+                            "+I[1, 2018-03-11T04:00, 2018-03-11T05:00, 8]"])
 
     def test_sliding_group_window_over_count(self):
         self.t_env.get_config().set("parallelism.default", "1")
@@ -750,6 +774,13 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         t = self.t_env.from_path("source_table")
 
         from pyflink.testing import source_sink_utils
+        sink_table_ddl = """
+        CREATE TABLE Results(a TINYINT, d BIGINT) WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+        t.window(Slide.over("2.rows").every("1.rows").on("protime").alias("w")) \
+            .group_by("a, w") \
+            .select("a, my_sum(c) as b") \
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'd'],
             [
@@ -801,6 +832,14 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         t = self.t_env.from_path("source_table")
 
         from pyflink.testing import source_sink_utils
+        sink_table_ddl = """
+        CREATE TABLE Results(a TINYINT, b TIMESTAMP(3), c TIMESTAMP(3), d BIGINT)
+        WITH ('connector'='test-sink')
+        """
+        self.t_env.execute_sql(sink_table_ddl)
+        t.window(Session.with_gap("30.minutes").on("rowtime").alias("w")) \
+            .group_by("a, b, w") \
+            .select("a, w.start, w.end, my_count(c) as c") \
         table_sink = source_sink_utils.TestAppendSink(
             ['a', 'b', 'c', 'd'],
             [
@@ -816,10 +855,10 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
             .wait()
         actual = source_sink_utils.results()
         self.assert_equals(actual,
-                           ["+I[3, 2018-03-11 03:10:00.0, 2018-03-11 03:40:00.0, 1]",
-                            "+I[2, 2018-03-11 03:10:00.0, 2018-03-11 04:00:00.0, 2]",
-                            "+I[1, 2018-03-11 03:10:00.0, 2018-03-11 04:10:00.0, 2]",
-                            "+I[1, 2018-03-11 04:20:00.0, 2018-03-11 04:50:00.0, 1]"])
+                           ["+I[3, 2018-03-11T03:10, 2018-03-11T03:40, 1]",
+                            "+I[2, 2018-03-11T03:10, 2018-03-11T04:00, 2]",
+                            "+I[1, 2018-03-11T03:10, 2018-03-11T04:10, 2]",
+                            "+I[1, 2018-03-11T04:20, 2018-03-11T04:50, 1]"])
 
     @unittest.skip("Python UDFs are currently unsupported in JSON plan")
     def test_execute_group_aggregate_from_json_plan(self):
