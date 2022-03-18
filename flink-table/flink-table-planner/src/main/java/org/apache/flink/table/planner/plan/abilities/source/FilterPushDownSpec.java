@@ -77,7 +77,7 @@ public final class FilterPushDownSpec extends SourceAbilitySpecBase {
         if (tableSource instanceof SupportsFilterPushDown) {
             RexNodeToExpressionConverter converter =
                     new RexNodeToExpressionConverter(
-                            new RexBuilder(context.getFlinkTypeFactory()),
+                            new RexBuilder(context.getTypeFactory()),
                             context.getSourceRowType().getFieldNames().toArray(new String[0]),
                             context.getFunctionCatalog(),
                             context.getCatalogManager(),

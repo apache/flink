@@ -27,8 +27,7 @@ import org.apache.flink.table.planner.functions.aggfunctions.DeclarativeAggregat
 import org.apache.flink.table.planner.functions.utils.UserDefinedFunctionUtils._
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalGroupAggregateBase, BatchPhysicalLocalHashAggregate, BatchPhysicalLocalSortAggregate}
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
-import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTypeFactory
-import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, ShortcutUtils}
+import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
 import org.apache.flink.table.runtime.types.LogicalTypeDataTypeConverter.fromDataTypeToLogicalType
 import org.apache.flink.table.types.DataType
@@ -155,8 +154,7 @@ trait BatchPhysicalAggRuleBase {
   protected def isAggBufferFixedLength(agg: Aggregate): Boolean = {
     val (_, aggCallsWithoutAuxGroupCalls) = AggregateUtil.checkAndSplitAggCalls(agg)
     val (_, aggBufferTypes, _) = AggregateUtil.transformToBatchAggregateFunctions(
-      FlinkTypeFactory.toLogicalRowType(agg.getInput.getRowType),
-      aggCallsWithoutAuxGroupCalls)
+      FlinkTypeFactory.toLogicalRowType(agg.getInput.getRowType), aggCallsWithoutAuxGroupCalls)
 
     isAggBufferFixedLength(aggBufferTypes.map(_.map(fromDataTypeToLogicalType)))
   }

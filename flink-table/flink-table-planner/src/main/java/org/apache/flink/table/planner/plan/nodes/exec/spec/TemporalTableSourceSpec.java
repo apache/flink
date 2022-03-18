@@ -79,14 +79,13 @@ public class TemporalTableSourceSpec {
     }
 
     @JsonIgnore
-    public RelOptTable getTemporalTable(
-            FlinkContext flinkContext, FlinkTypeFactory flinkTypeFactory) {
+    public RelOptTable getTemporalTable(FlinkContext context, FlinkTypeFactory typeFactory) {
         if (null != temporalTable) {
             return temporalTable;
         }
         if (null != tableSourceSpec && null != outputType) {
             LookupTableSource lookupTableSource =
-                    tableSourceSpec.getLookupTableSource(flinkContext, flinkTypeFactory);
+                    tableSourceSpec.getLookupTableSource(context, typeFactory);
             SourceAbilitySpec[] sourceAbilitySpecs = null;
             if (null != tableSourceSpec.getSourceAbilities()) {
                 sourceAbilitySpecs =
@@ -99,8 +98,8 @@ public class TemporalTableSourceSpec {
                     lookupTableSource,
                     true,
                     tableSourceSpec.getContextResolvedTable(),
-                    flinkContext,
-                    flinkTypeFactory,
+                    context,
+                    typeFactory,
                     sourceAbilitySpecs);
         }
         throw new TableException("Can not obtain temporalTable correctly!");

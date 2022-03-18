@@ -67,12 +67,10 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
         this.sourceAbilities = sourceAbilities;
     }
 
-    private DynamicTableSource getTableSource(
-            FlinkContext flinkContext, FlinkTypeFactory flinkTypeFactory) {
+    private DynamicTableSource getTableSource(FlinkContext context, FlinkTypeFactory typeFactory) {
         if (tableSource == null) {
             final DynamicTableSourceFactory factory =
-                    flinkContext
-                            .getModuleManager()
+                    context.getModuleManager()
                             .getFactory(Module::getTableSourceFactory)
                             .orElse(null);
 
@@ -81,9 +79,9 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
                             factory,
                             contextResolvedTable.getIdentifier(),
                             contextResolvedTable.getResolvedTable(),
-                            loadOptionsFromCatalogTable(contextResolvedTable, flinkContext),
-                            flinkContext.getTableConfig(),
-                            flinkContext.getClassLoader(),
+                            loadOptionsFromCatalogTable(contextResolvedTable, context),
+                            context.getTableConfig(),
+                            context.getClassLoader(),
                             contextResolvedTable.isTemporary());
 
             if (sourceAbilities != null) {
@@ -94,10 +92,9 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
                                         .toSourceRowDataType()
                                         .getLogicalType();
                 for (SourceAbilitySpec spec : sourceAbilities) {
-                    SourceAbilityContext context =
-                            new SourceAbilityContext(
-                                    flinkContext, newProducedType, flinkTypeFactory);
-                    spec.apply(tableSource, context);
+                    SourceAbilityContext sourceAbilityContext =
+                            new SourceAbilityContext(context, newProducedType, typeFactory);
+                    spec.apply(tableSource, sourceAbilityContext);
                     if (spec.getProducedType().isPresent()) {
                         newProducedType = spec.getProducedType().get();
                     }
@@ -107,9 +104,8 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
         return tableSource;
     }
 
-    public ScanTableSource getScanTableSource(
-            FlinkContext flinkContext, FlinkTypeFactory flinkTypeFactory) {
-        DynamicTableSource tableSource = getTableSource(flinkContext, flinkTypeFactory);
+    public ScanTableSource getScanTableSource(FlinkContext context, FlinkTypeFactory typeFactory) {
+        DynamicTableSource tableSource = getTableSource(context, typeFactory);
         if (tableSource instanceof ScanTableSource) {
             return (ScanTableSource) tableSource;
         } else {
@@ -121,8 +117,8 @@ public class DynamicTableSourceSpec extends DynamicTableSpecBase {
     }
 
     public LookupTableSource getLookupTableSource(
-            FlinkContext flinkContext, FlinkTypeFactory flinkTypeFactory) {
-        DynamicTableSource tableSource = getTableSource(flinkContext, flinkTypeFactory);
+            FlinkContext context, FlinkTypeFactory typeFactory) {
+        DynamicTableSource tableSource = getTableSource(context, typeFactory);
         if (tableSource instanceof LookupTableSource) {
             return (LookupTableSource) tableSource;
         } else {

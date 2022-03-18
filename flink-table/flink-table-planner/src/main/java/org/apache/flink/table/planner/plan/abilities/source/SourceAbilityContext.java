@@ -48,13 +48,13 @@ public class SourceAbilityContext implements FlinkContext {
 
     private final RowType sourceRowType;
     private final FlinkContext context;
-    private final FlinkTypeFactory flinkTypeFactory;
+    private final FlinkTypeFactory typeFactory;
 
     public SourceAbilityContext(
-            FlinkContext context, RowType sourceRowType, FlinkTypeFactory flinkTypeFactory) {
+            FlinkContext context, RowType sourceRowType, FlinkTypeFactory typeFactory) {
         this.context = context;
         this.sourceRowType = sourceRowType;
-        this.flinkTypeFactory = flinkTypeFactory;
+        this.typeFactory = typeFactory;
     }
 
     @Override
@@ -87,8 +87,8 @@ public class SourceAbilityContext implements FlinkContext {
         return context.getSqlExprToRexConverterFactory();
     }
 
-    public FlinkTypeFactory getFlinkTypeFactory() {
-        return flinkTypeFactory;
+    public FlinkTypeFactory getTypeFactory() {
+        return typeFactory;
     }
 
     @Override
