@@ -50,17 +50,8 @@ class FieldAccessFromTableITCase extends BuiltInFunctionTestBase {
                         .andDataTypes(
                                 ROW(FIELD("nested", BIGINT().notNull())).nullable(),
                                 ROW(FIELD("nested", BIGINT().notNull())).notNull())
-                        .testResult(
-                                resultSpec(
-                                        $("f0").get("nested"),
-                                        "f0.nested",
-                                        null,
-                                        BIGINT().nullable()),
-                                resultSpec(
-                                        $("f1").get("nested"),
-                                        "f1.nested",
-                                        1L,
-                                        BIGINT().notNull())),
+                        .testResult($("f0").get("nested"), "f0.nested", null, BIGINT().nullable())
+                        .testResult($("f1").get("nested"), "f1.nested", 1L, BIGINT().notNull()),
 
                 // In Calcite it maps to FlinkSqlOperatorTable.ITEM
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.AT)
@@ -81,31 +72,15 @@ class FieldAccessFromTableITCase extends BuiltInFunctionTestBase {
                         // accessing elements of MAP or ARRAY is a runtime operations,
                         // we do not know about the size or contents during the inference
                         // therefore the results are always nullable
-                        .testResult(
-                                resultSpec($("f0").at(1), "f0[1]", null, BIGINT().nullable()),
-                                resultSpec($("f1").at(1), "f1[1]", 1L, BIGINT().nullable()),
-                                resultSpec(
-                                        $("f2").at("nested"),
-                                        "f2['nested']",
-                                        null,
-                                        BIGINT().nullable()),
-                                resultSpec(
-                                        $("f3").at("nested"),
-                                        "f3['nested']",
-                                        1L,
-                                        BIGINT().nullable()),
+                        .testResult($("f0").at(1), "f0[1]", null, BIGINT().nullable())
+                        .testResult($("f1").at(1), "f1[1]", 1L, BIGINT().nullable())
+                        .testResult($("f2").at("nested"), "f2['nested']", null, BIGINT().nullable())
+                        .testResult($("f3").at("nested"), "f3['nested']", 1L, BIGINT().nullable())
 
-                                // we know all the fields of a type up front, therefore we can
-                                // derive more accurate types during the inference
-                                resultSpec(
-                                        $("f4").get("nested"),
-                                        "f4['nested']",
-                                        null,
-                                        BIGINT().nullable()),
-                                resultSpec(
-                                        $("f5").get("nested"),
-                                        "f5['nested']",
-                                        1L,
-                                        BIGINT().notNull())));
+                        // we know all the fields of a type up front, therefore we can
+                        // derive more accurate types during the inference
+                        .testResult(
+                                $("f4").get("nested"), "f4['nested']", null, BIGINT().nullable())
+                        .testResult($("f5").get("nested"), "f5['nested']", 1L, BIGINT().notNull()));
     }
 }

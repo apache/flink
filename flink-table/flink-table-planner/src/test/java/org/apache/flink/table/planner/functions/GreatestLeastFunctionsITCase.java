@@ -58,27 +58,26 @@ class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
                                 "SQL validation failed. Invalid function call:\n"
                                         + "GREATEST(INT NOT NULL, STRING NOT NULL)")
                         .testResult(
-                                resultSpec(
-                                        call("GREATEST", $("f1"), $("f3"), $("f2"))
-                                                .cast(DataTypes.DECIMAL(3, 2)),
-                                        "CAST(GREATEST(f1, f3, f2) AS DECIMAL(3, 2))",
-                                        BigDecimal.valueOf(3.14),
-                                        DataTypes.DECIMAL(3, 2).notNull()),
-                                resultSpec(
-                                        call("GREATEST", $("f0"), $("f1"), $("f2")),
-                                        "GREATEST(f0, f1, f2)",
-                                        null,
-                                        DataTypes.INT()),
-                                resultSpec(
-                                        call("GREATEST", $("f4"), $("f5")),
-                                        "GREATEST(f4, f5)",
-                                        "world",
-                                        DataTypes.STRING().notNull()),
-                                resultSpec(
-                                        call("GREATEST", $("f6"), $("f7")),
-                                        "GREATEST(f6, f7)",
-                                        LocalDateTime.parse("1970-01-01T00:00:03.001"),
-                                        DataTypes.TIMESTAMP(3).notNull()))
+                                call("GREATEST", $("f1"), $("f3"), $("f2"))
+                                        .cast(DataTypes.DECIMAL(3, 2)),
+                                "CAST(GREATEST(f1, f3, f2) AS DECIMAL(3, 2))",
+                                BigDecimal.valueOf(3.14),
+                                DataTypes.DECIMAL(3, 2).notNull())
+                        .testResult(
+                                call("GREATEST", $("f0"), $("f1"), $("f2")),
+                                "GREATEST(f0, f1, f2)",
+                                null,
+                                DataTypes.INT())
+                        .testResult(
+                                call("GREATEST", $("f4"), $("f5")),
+                                "GREATEST(f4, f5)",
+                                "world",
+                                DataTypes.STRING().notNull())
+                        .testResult(
+                                call("GREATEST", $("f6"), $("f7")),
+                                "GREATEST(f6, f7)",
+                                LocalDateTime.parse("1970-01-01T00:00:03.001"),
+                                DataTypes.TIMESTAMP(3).notNull())
                         .testSqlValidationError(
                                 "GREATEST(f5, f6)",
                                 "SQL validation failed. Invalid function call:\n"
@@ -97,21 +96,20 @@ class GreatestLeastFunctionsITCase extends BuiltInFunctionTestBase {
                                 "SQL validation failed. Invalid function call:\n"
                                         + "LEAST(INT NOT NULL, STRING NOT NULL)")
                         .testResult(
-                                resultSpec(
-                                        call("LEAST", $("f1"), $("f3"), $("f2"))
-                                                .cast(DataTypes.DECIMAL(3, 2)),
-                                        "CAST(LEAST(f1, f3, f2) AS DECIMAL(3, 2))",
-                                        BigDecimal.valueOf(100, 2),
-                                        DataTypes.DECIMAL(3, 2).notNull()),
-                                resultSpec(
-                                        call("LEAST", $("f0"), $("f1")),
-                                        "LEAST(f0, f1)",
-                                        null,
-                                        DataTypes.INT()),
-                                resultSpec(
-                                        call("LEAST", $("f4"), $("f5")),
-                                        "LEAST(f4, f5)",
-                                        "hello",
-                                        DataTypes.STRING().notNull())));
+                                call("LEAST", $("f1"), $("f3"), $("f2"))
+                                        .cast(DataTypes.DECIMAL(3, 2)),
+                                "CAST(LEAST(f1, f3, f2) AS DECIMAL(3, 2))",
+                                BigDecimal.valueOf(100, 2),
+                                DataTypes.DECIMAL(3, 2).notNull())
+                        .testResult(
+                                call("LEAST", $("f0"), $("f1")),
+                                "LEAST(f0, f1)",
+                                null,
+                                DataTypes.INT())
+                        .testResult(
+                                call("LEAST", $("f4"), $("f5")),
+                                "LEAST(f4, f5)",
+                                "hello",
+                                DataTypes.STRING().notNull()));
     }
 }
