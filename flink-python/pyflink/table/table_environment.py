@@ -1666,7 +1666,6 @@ class StreamTableEnvironment(TableEnvironment):
             >>> table_env = StreamTableEnvironment.create(env)
             # create with StreamExecutionEnvironment and TableConfig.
             >>> table_config = TableConfig()
-            >>> table_config.set_null_check(False)
             >>> table_env = StreamTableEnvironment.create(env, table_config)
             # create with StreamExecutionEnvironment and EnvironmentSettings.
             >>> environment_settings = EnvironmentSettings.in_streaming_mode()
