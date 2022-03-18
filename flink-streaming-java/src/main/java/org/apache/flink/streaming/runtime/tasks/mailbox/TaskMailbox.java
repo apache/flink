@@ -56,7 +56,7 @@ import java.util.Optional;
  *
  * <p>A batch is created with {@link #createBatch()} and consumed with {@link #tryTakeFromBatch()}.
  * Note that there is no blocking {@code takeFromBatch} as batches can only be created and consumed
- * from the * mailbox thread.
+ * from the mailbox thread.
  *
  * <p>Also note that a batch can only be created in the {@link MailboxProcessor#runMailboxLoop()}. A
  * batch must not be extended in any of the consuming methods as we may run into task input
@@ -125,7 +125,7 @@ public interface TaskMailbox {
     /**
      * Creates a batch of mails that can be taken with {@link #tryTakeFromBatch()}. The batch does
      * not affect {@link #tryTake(int)} and {@link #take(int)}; that is, they return the same mails
-     * even if no batch would have been created.
+     * even if no batch had been created.
      *
      * <p>The default batch is empty. Thus, this method must be invoked once before {@link
      * #tryTakeFromBatch()}.

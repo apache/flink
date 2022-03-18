@@ -42,8 +42,8 @@ public interface MailboxDefaultAction {
     }
 
     /**
-     * This context is a feedback interface for the default action to interact with the mailbox
-     * execution. In particular it offers ways to signal that the execution of the default action
+     * This controller is a feedback interface for the default action to interact with the mailbox
+     * execution. In particular, it offers ways to signal that the execution of the default action
      * should be finished or temporarily suspended.
      */
     @Internal
