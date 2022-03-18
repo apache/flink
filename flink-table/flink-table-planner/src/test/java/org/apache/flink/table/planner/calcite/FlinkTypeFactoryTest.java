@@ -87,7 +87,7 @@ class FlinkTypeFactoryTest {
     @MethodSource("testInternalToRelType")
     @ParameterizedTest
     void testInternalToRelType(LogicalType logicalType) {
-        FlinkTypeFactory typeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE());
+        FlinkTypeFactory typeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
 
         assertThat(
                         FlinkTypeFactory.toLogicalType(
@@ -112,7 +112,7 @@ class FlinkTypeFactoryTest {
 
     @Test
     void testInternalToRelTypeNull() {
-        FlinkTypeFactory typeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE());
+        FlinkTypeFactory typeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
 
         LogicalType logicalType = new NullType();
 
@@ -137,7 +137,7 @@ class FlinkTypeFactoryTest {
 
     @Test
     void testCanonizeType() {
-        FlinkTypeFactory typeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE());
+        FlinkTypeFactory typeFactory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
 
         TypeInformation<?> genericTypeInfo = Types.GENERIC(TestClass.class);
         TypeInformation<?> genericTypeInfo2 = Types.GENERIC(TestClass2.class);

@@ -148,7 +148,7 @@ public class DynamicTableSourceSpecSerdeTest {
                         Collections.emptyList(),
                         options2);
 
-        FlinkTypeFactory factory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE());
+        FlinkTypeFactory factory = new FlinkTypeFactory(FlinkTypeSystem.INSTANCE);
         RexBuilder rexBuilder = new RexBuilder(factory);
         DynamicTableSourceSpec spec2 =
                 new DynamicTableSourceSpec(
