@@ -262,6 +262,9 @@ public class SessionContext {
         }
 
         Set<URL> newDependencies = new HashSet<>(dependencies);
+        // merge the jars in config with the jars maintained in session
+        Set<URL> jarsInConfig = getJarsInConfig();
+        newDependencies.addAll(jarsInConfig);
         newDependencies.add(jarURL);
         updateClassLoaderAndDependencies(newDependencies);
 
@@ -280,6 +283,9 @@ public class SessionContext {
         }
 
         Set<URL> newDependencies = new HashSet<>(dependencies);
+        // merge the jars in config with the jars maintained in session
+        Set<URL> jarsInConfig = getJarsInConfig();
+        newDependencies.addAll(jarsInConfig);
         newDependencies.remove(jarURL);
         updateClassLoaderAndDependencies(newDependencies);
 
@@ -324,22 +330,10 @@ public class SessionContext {
     }
 
     private void updateClassLoaderAndDependencies(Collection<URL> newDependencies) {
-        // merge the jar in config with the jar maintained in session
-        Set<URL> jarsInConfig;
-        try {
-            jarsInConfig =
-                    new HashSet<>(
-                            ConfigUtils.decodeListFromConfig(
-                                    sessionConfiguration, PipelineOptions.JARS, URL::new));
-        } catch (MalformedURLException e) {
-            throw new SqlExecutionException(
-                    "Failed to parse the option `pipeline.jars` in configuration.", e);
-        }
-        jarsInConfig.addAll(newDependencies);
         ConfigUtils.encodeCollectionToConfig(
                 sessionConfiguration,
                 PipelineOptions.JARS,
-                new ArrayList<>(jarsInConfig),
+                new ArrayList<>(newDependencies),
                 URL::toString);
 
         // TODO: update the the classloader in CatalogManager.
@@ -373,5 +367,19 @@ public class SessionContext {
                     String.format("Failed to get the jar file with specified path: %s", jarPath),
                     e);
         }
+    }
+
+    private Set<URL> getJarsInConfig() {
+        Set<URL> jarsInConfig;
+        try {
+            jarsInConfig =
+                    new HashSet<>(
+                            ConfigUtils.decodeListFromConfig(
+                                    sessionConfiguration, PipelineOptions.JARS, URL::new));
+        } catch (MalformedURLException e) {
+            throw new SqlExecutionException(
+                    "Failed to parse the option `pipeline.jars` in configuration.", e);
+        }
+        return jarsInConfig;
     }
 }
