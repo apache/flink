@@ -78,8 +78,7 @@ public class TableEnvironmentMock extends TableEnvironmentImpl {
                 moduleManager,
                 tableConfig,
                 createExecutor(),
-                createFunctionCatalog(
-                        tableConfig.getConfiguration(), catalogManager, moduleManager),
+                createFunctionCatalog(tableConfig, catalogManager, moduleManager),
                 createPlanner(),
                 isStreamingMode);
     }

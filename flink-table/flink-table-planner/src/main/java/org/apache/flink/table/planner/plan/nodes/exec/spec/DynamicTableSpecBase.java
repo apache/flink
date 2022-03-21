@@ -38,10 +38,7 @@ class DynamicTableSpecBase {
         // In case of CatalogPlanRestore.IDENTIFIER, getCatalogTable() already returns the table
         //  loaded from the catalog
         final TableConfigOptions.CatalogPlanRestore catalogPlanRestore =
-                flinkContext
-                        .getTableConfig()
-                        .getConfiguration()
-                        .get(TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS);
+                flinkContext.getTableConfig().get(TableConfigOptions.PLAN_RESTORE_CATALOG_OBJECTS);
         if (!contextResolvedTable.isPermanent()
                 || catalogPlanRestore != TableConfigOptions.CatalogPlanRestore.ALL) {
             return Collections.emptyMap();

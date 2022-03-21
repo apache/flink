@@ -408,7 +408,7 @@ public class HiveLookupJoinITCase {
                                 tableEnvInternal
                                         .getCatalogManager()
                                         .resolveCatalogTable(catalogTable),
-                                tableEnv.getConfig().getConfiguration(),
+                                tableEnv.getConfig(),
                                 Thread.currentThread().getContextClassLoader(),
                                 false);
         FileSystemLookupFunction<HiveTablePartition> lookupFunction =

@@ -72,7 +72,7 @@ class ExpressionReducer(
     val resultType = RowType.of(literalTypes: _*)
 
     // generate MapFunction
-    val ctx = new ConstantCodeGeneratorContext(tableConfig.getConfiguration)
+    val ctx = new ConstantCodeGeneratorContext(tableConfig)
 
     val exprGenerator = new ExprCodeGenerator(ctx, false)
       .bindInput(EMPTY_ROW_TYPE)
