@@ -49,7 +49,7 @@ public class ChangelogPeriodicMaterializationITCase
         SharedReference<AtomicBoolean> hasMaterialization =
                 sharedObjects.add(new AtomicBoolean(true));
         StreamExecutionEnvironment env =
-                getEnv(delegatedStateBackend, checkpointFolder, 1000, 1, Long.MAX_VALUE, 0);
+                getEnv(delegatedStateBackend, checkpointFolder, 1000, 1, -1, 0);
         waitAndAssert(
                 buildJobGraph(
                         env,

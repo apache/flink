@@ -107,7 +107,8 @@ class PeriodicMaterializationManager implements Closeable {
     }
 
     public void start() {
-        if (!started) {
+        // disable periodic materialization when periodicMaterializeDelay is negative
+        if (!started && periodicMaterializeDelay >= 0) {
 
             started = true;
 
