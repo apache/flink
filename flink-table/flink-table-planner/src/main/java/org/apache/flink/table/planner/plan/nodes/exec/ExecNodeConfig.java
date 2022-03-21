@@ -27,7 +27,6 @@ import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.delegation.PlannerBase;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 
-import java.time.ZoneId;
 import java.util.Optional;
 
 /**
@@ -93,11 +92,5 @@ public final class ExecNodeConfig implements ReadableConfig {
     @Deprecated
     public long getMaxIdleStateRetentionTime() {
         return tableConfig.getMaxIdleStateRetentionTime();
-    }
-
-    // See https://issues.apache.org/jira/browse/FLINK-26190
-    /** See {@link TableConfig#getLocalTimeZone()}. */
-    public ZoneId getLocalTimeZone() {
-        return tableConfig.getLocalTimeZone();
     }
 }

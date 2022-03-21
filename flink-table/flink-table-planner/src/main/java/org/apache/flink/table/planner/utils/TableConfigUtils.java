@@ -18,14 +18,18 @@
 
 package org.apache.flink.table.planner.utils;
 
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
 import org.apache.flink.table.planner.plan.utils.OperatorType;
 
+import java.time.ZoneId;
 import java.util.HashSet;
 import java.util.Set;
 
+import static java.time.ZoneId.SHORT_IDS;
 import static org.apache.flink.table.api.config.ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS;
 import static org.apache.flink.table.api.config.OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY;
 
@@ -87,6 +91,35 @@ public class TableConfigUtils {
                 .getPlannerConfig()
                 .unwrap(CalciteConfig.class)
                 .orElse(CalciteConfig$.MODULE$.DEFAULT());
+    }
+
+    /**
+     * Similar to {@link TableConfig#getLocalTimeZone()} but extracting it from a generic {@link
+     * ReadableConfig}.
+     *
+     * @see TableConfig#getLocalTimeZone()
+     */
+    public static ZoneId getLocalTimeZone(ReadableConfig tableConfig) {
+        String zone = tableConfig.get(TableConfigOptions.LOCAL_TIME_ZONE);
+        validateTimeZone(zone);
+        return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
+                ? ZoneId.systemDefault()
+                : ZoneId.of(zone);
+    }
+
+    /** Validates user configured time zone. */
+    private static void validateTimeZone(String zone) {
+        final String zoneId = zone.toUpperCase();
+        if (zoneId.startsWith("UTC+")
+                || zoneId.startsWith("UTC-")
+                || SHORT_IDS.containsKey(zoneId)) {
+            throw new IllegalArgumentException(
+                    String.format(
+                            "The supported Zone ID is either a full name such as "
+                                    + "'America/Los_Angeles', or a custom timezone id such as "
+                                    + "'GMT-08:00', but configured Zone ID is '%s'.",
+                            zone));
+        }
     }
 
     // Make sure that we cannot instantiate this class

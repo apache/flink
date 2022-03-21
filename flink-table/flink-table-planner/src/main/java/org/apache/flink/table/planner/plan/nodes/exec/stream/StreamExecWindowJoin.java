@@ -38,6 +38,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.spec.JoinSpec;
 import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.window.WindowJoinOperator;
@@ -161,7 +162,8 @@ public class StreamExecWindowJoin extends ExecNodeBase<RowData>
 
         ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(
-                        leftWindowing.getTimeAttributeType(), config.getLocalTimeZone());
+                        leftWindowing.getTimeAttributeType(),
+                        TableConfigUtils.getLocalTimeZone(config));
         WindowJoinOperator operator =
                 WindowJoinOperatorBuilder.builder()
                         .leftSerializer(leftTypeInfo.toRowSerializer())
