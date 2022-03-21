@@ -21,6 +21,7 @@ package org.apache.flink.runtime.rpc.akka;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -169,6 +170,7 @@ public class MessageSerializationTest extends TestLogger {
     }
 
     private interface TestGateway extends RpcGateway {
+        @Local
         CompletableFuture<Void> foobar(Object object) throws IOException, InterruptedException;
     }
 

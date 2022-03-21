@@ -36,17 +36,21 @@ public class AkkaRpcServiceConfiguration {
 
     private final boolean captureAskCallStack;
 
-    public AkkaRpcServiceConfiguration(
+    private final boolean forceRpcInvocationSerialization;
+
+    private AkkaRpcServiceConfiguration(
             @Nonnull Configuration configuration,
             @Nonnull Time timeout,
             long maximumFramesize,
-            boolean captureAskCallStack) {
+            boolean captureAskCallStack,
+            boolean forceRpcInvocationSerialization) {
 
         checkArgument(maximumFramesize > 0L, "Maximum framesize must be positive.");
         this.configuration = configuration;
         this.timeout = timeout;
         this.maximumFramesize = maximumFramesize;
         this.captureAskCallStack = captureAskCallStack;
+        this.forceRpcInvocationSerialization = forceRpcInvocationSerialization;
     }
 
     @Nonnull
@@ -67,6 +71,10 @@ public class AkkaRpcServiceConfiguration {
         return captureAskCallStack;
     }
 
+    public boolean isForceRpcInvocationSerialization() {
+        return forceRpcInvocationSerialization;
+    }
+
     public static AkkaRpcServiceConfiguration fromConfiguration(Configuration configuration) {
         final Time timeout = Time.fromDuration(configuration.get(AkkaOptions.ASK_TIMEOUT_DURATION));
 
@@ -74,8 +82,15 @@ public class AkkaRpcServiceConfiguration {
 
         final boolean captureAskCallStacks = configuration.get(AkkaOptions.CAPTURE_ASK_CALLSTACK);
 
+        final boolean forceRpcInvocationSerialization =
+                AkkaOptions.isForceRpcInvocationSerializationEnabled(configuration);
+
         return new AkkaRpcServiceConfiguration(
-                configuration, timeout, maximumFramesize, captureAskCallStacks);
+                configuration,
+                timeout,
+                maximumFramesize,
+                captureAskCallStacks,
+                forceRpcInvocationSerialization);
     }
 
     public static AkkaRpcServiceConfiguration defaultConfiguration() {

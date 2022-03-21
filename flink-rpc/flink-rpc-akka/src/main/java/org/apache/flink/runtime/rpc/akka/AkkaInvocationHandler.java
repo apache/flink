@@ -22,6 +22,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.AkkaOptions;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
 import org.apache.flink.runtime.rpc.FencedRpcGateway;
+import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.MainThreadExecutable;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcServer;
@@ -83,6 +84,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
 
     // whether the actor ref is local and thus no message serialization is needed
     protected final boolean isLocal;
+    protected final boolean forceRpcInvocationSerialization;
 
     // default timeout for asks
     private final Time timeout;
@@ -100,6 +102,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
             ActorRef rpcEndpoint,
             Time timeout,
             long maximumFramesize,
+            boolean forceRpcInvocationSerialization,
             @Nullable CompletableFuture<Void> terminationFuture,
             boolean captureAskCallStack,
             ClassLoader flinkClassLoader) {
@@ -111,6 +114,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
         this.isLocal = this.rpcEndpoint.path().address().hasLocalScope();
         this.timeout = Preconditions.checkNotNull(timeout);
         this.maximumFramesize = maximumFramesize;
+        this.forceRpcInvocationSerialization = forceRpcInvocationSerialization;
         this.terminationFuture = terminationFuture;
         this.captureAskCallStack = captureAskCallStack;
     }
@@ -211,6 +215,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
     private Object invokeRpc(Method method, Object[] args) throws Exception {
         String methodName = method.getName();
         Class<?>[] parameterTypes = method.getParameterTypes();
+        final boolean isLocalRpcInvocation = method.getAnnotation(Local.class) != null;
         Annotation[][] parameterAnnotations = method.getParameterAnnotations();
         Time futureTimeout = extractRpcTimeout(parameterAnnotations, args, timeout);
 
@@ -218,6 +223,7 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
                 createRpcInvocationMessage(
                         method.getDeclaringClass().getSimpleName(),
                         methodName,
+                        isLocalRpcInvocation,
                         parameterTypes,
                         args);
 
@@ -282,20 +288,22 @@ class AkkaInvocationHandler implements InvocationHandler, AkkaBasedEndpoint, Rpc
      *
      * @param declaringClassName of the RPC
      * @param methodName of the RPC
+     * @param isLocalRpcInvocation whether the RPC must be sent as a local message
      * @param parameterTypes of the RPC
      * @param args of the RPC
      * @return RpcInvocation message which encapsulates the RPC details
      * @throws IOException if we cannot serialize the RPC invocation parameters
      */
-    protected RpcInvocation createRpcInvocationMessage(
+    private RpcInvocation createRpcInvocationMessage(
             final String declaringClassName,
             final String methodName,
+            final boolean isLocalRpcInvocation,
             final Class<?>[] parameterTypes,
             final Object[] args)
             throws IOException {
         final RpcInvocation rpcInvocation;
 
-        if (isLocal) {
+        if (isLocal && (!forceRpcInvocationSerialization || isLocalRpcInvocation)) {
             rpcInvocation =
                     new LocalRpcInvocation(declaringClassName, methodName, parameterTypes, args);
         } else {
