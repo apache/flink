@@ -22,6 +22,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.streaming.api.transformations.UnionTransformation;
 import org.apache.flink.table.api.CompiledPlan;
 import org.apache.flink.table.api.EnvironmentSettings;
+import org.apache.flink.table.api.PlanReference;
 import org.apache.flink.table.api.TableEnvironment;
 import org.apache.flink.table.api.TableResult;
 import org.apache.flink.table.api.internal.CompiledPlanUtils;
@@ -73,7 +74,10 @@ public abstract class JsonPlanTestBase extends AbstractTestBase {
     protected TableResult compileSqlAndExecutePlan(String sql) {
         CompiledPlan compiledPlan = tableEnv.compilePlanSql(sql);
         checkTransformationUids(compiledPlan);
-        return compiledPlan.execute();
+        // try to execute the string json plan to validate to ser/de result
+        String jsonPlan = compiledPlan.asJsonString();
+        CompiledPlan newCompiledPlan = tableEnv.loadPlan(PlanReference.fromJsonString(jsonPlan));
+        return newCompiledPlan.execute();
     }
 
     protected void checkTransformationUids(CompiledPlan compiledPlan) {
