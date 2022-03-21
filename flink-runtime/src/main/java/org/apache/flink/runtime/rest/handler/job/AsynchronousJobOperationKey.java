@@ -37,6 +37,8 @@ import static java.util.Objects.requireNonNull;
 @Immutable
 public class AsynchronousJobOperationKey extends OperationKey {
 
+    private static final long serialVersionUID = -4907777251835275859L;
+
     private final JobID jobId;
 
     private AsynchronousJobOperationKey(final TriggerId triggerId, final JobID jobId) {
