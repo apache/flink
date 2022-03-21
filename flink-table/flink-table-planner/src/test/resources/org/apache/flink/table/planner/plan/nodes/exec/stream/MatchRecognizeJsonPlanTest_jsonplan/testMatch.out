@@ -130,11 +130,11 @@
       "pattern" : {
         "kind" : "CALL",
         "syntax" : "BINARY",
-        "internalName" : "$$1",
+        "sqlKind" : "PATTERN_CONCAT",
         "operands" : [ {
           "kind" : "CALL",
           "syntax" : "BINARY",
-          "internalName" : "$$1",
+          "sqlKind" : "PATTERN_CONCAT",
           "operands" : [ {
             "kind" : "LITERAL",
             "value" : "A\"",
