@@ -119,13 +119,8 @@ object PartitionPruner {
     val results: JList[Boolean] = new JArrayList[Boolean](allPartitions.size)
     val collector = new ListCollector[Boolean](results)
 
-    val parameters = if (tableConfig.getConfiguration != null) {
-      tableConfig.getConfiguration
-    } else {
-      new Configuration()
-    }
     try {
-      richMapFunction.open(parameters)
+      richMapFunction.open(new Configuration)
       // do filter against all partitions
       allPartitions.foreach { partition =>
         val row = convertPartitionToRow(

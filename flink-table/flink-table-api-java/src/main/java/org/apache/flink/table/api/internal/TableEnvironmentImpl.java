@@ -796,6 +796,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private TableResultInternal executeInternal(
             List<Transformation<?>> transformations, List<String> sinkIdentifierNames) {
         final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
                 execEnv.createPipeline(
                         transformations, tableConfig.getConfiguration(), defaultJobName);
@@ -826,6 +827,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         List<Transformation<?>> transformations =
                 translate(Collections.singletonList(sinkOperation));
         final String defaultJobName = "collect";
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
                 execEnv.createPipeline(
                         transformations, tableConfig.getConfiguration(), defaultJobName);

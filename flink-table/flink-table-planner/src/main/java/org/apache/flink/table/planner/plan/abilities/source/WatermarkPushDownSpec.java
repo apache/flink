@@ -80,9 +80,7 @@ public final class WatermarkPushDownSpec extends SourceAbilitySpecBase {
                             Option.apply("context"));
 
             WatermarkGeneratorSupplier<RowData> supplier =
-                    new GeneratedWatermarkGeneratorSupplier(
-                            context.getTableConfig().getConfiguration(),
-                            generatedWatermarkGenerator);
+                    new GeneratedWatermarkGeneratorSupplier(generatedWatermarkGenerator);
 
             WatermarkStrategy<RowData> watermarkStrategy = WatermarkStrategy.forGenerator(supplier);
             if (idleTimeoutMillis > 0) {

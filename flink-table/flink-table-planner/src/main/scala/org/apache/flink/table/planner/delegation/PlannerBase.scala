@@ -487,6 +487,7 @@ abstract class PlannerBase(
       TimeZone.getTimeZone(tableConfig.getLocalTimeZone).getOffset(epochTime)
     tableConfig.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
 
+    // We pass only the configuration to avoid reconfiguration with the rootConfiguration
     getExecEnv.configure(tableConfig.getConfiguration, Thread.currentThread().getContextClassLoader)
 
     // Use config parallelism to override env parallelism.
@@ -544,6 +545,7 @@ abstract class PlannerBase(
     val transformations = translateToPlan(execGraph)
     afterTranslation()
 
+    // We pass only the configuration to avoid reconfiguration with the rootConfiguration
     val streamGraph = executor.createPipeline(transformations, tableConfig.getConfiguration, null)
       .asInstanceOf[StreamGraph]
 

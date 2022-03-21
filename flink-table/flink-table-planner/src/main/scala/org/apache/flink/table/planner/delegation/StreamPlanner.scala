@@ -190,6 +190,7 @@ class StreamPlanner(
     val transformations = translateToPlan(execGraph)
     afterTranslation()
 
+    // We pass only the configuration to avoid reconfiguration with the rootConfiguration
     val streamGraph = executor.createPipeline(transformations, tableConfig.getConfiguration, null)
       .asInstanceOf[StreamGraph]
 
