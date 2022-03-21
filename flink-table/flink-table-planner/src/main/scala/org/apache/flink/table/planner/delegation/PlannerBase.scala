@@ -226,7 +226,7 @@ abstract class PlannerBase(
           getRelBuilder,
           input,
           collectModifyOperation,
-          getTableConfig.getConfiguration,
+          getTableConfig,
           getFlinkContext.getClassLoader
         )
 
@@ -402,7 +402,7 @@ abstract class PlannerBase(
             catalog.orNull,
             objectIdentifier,
             tableToFind.getOrigin,
-            getTableConfig.getConfiguration,
+            getTableConfig,
             isStreamingMode,
             isTemporary)
           Option(resolvedTable, tableSink)
@@ -424,7 +424,7 @@ abstract class PlannerBase(
             objectIdentifier,
             tableToFind,
             Collections.emptyMap(),
-            getTableConfig.getConfiguration,
+            getTableConfig,
             getFlinkContext.getClassLoader,
             isTemporary)
           Option(resolvedTable, tableSink)
@@ -455,7 +455,7 @@ abstract class PlannerBase(
           catalog.orElse(null),
           objectIdentifier,
           catalogTable,
-          getTableConfig.getConfiguration,
+          getTableConfig,
           isStreamingMode,
           isTemporary)
         // success, then we will use the legacy factories
@@ -479,8 +479,6 @@ abstract class PlannerBase(
   }
 
   protected def beforeTranslation(): Unit = {
-    val configuration = tableConfig.getConfiguration
-
     // Add query start time to TableConfig, these config are used internally,
     // these configs will be used by temporal functions like CURRENT_TIMESTAMP,LOCALTIMESTAMP.
     val epochTime :JLong = System.currentTimeMillis()
@@ -489,9 +487,8 @@ abstract class PlannerBase(
       TimeZone.getTimeZone(tableConfig.getLocalTimeZone).getOffset(epochTime)
     tableConfig.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
 
-    getExecEnv.configure(
-      configuration,
-      Thread.currentThread().getContextClassLoader)
+    // We pass only the configuration to avoid reconfiguration with the rootConfiguration
+    getExecEnv.configure(tableConfig.getConfiguration, Thread.currentThread().getContextClassLoader)
 
     // Use config parallelism to override env parallelism.
     val defaultParallelism = getTableConfig.get(
@@ -548,6 +545,7 @@ abstract class PlannerBase(
     val transformations = translateToPlan(execGraph)
     afterTranslation()
 
+    // We pass only the configuration to avoid reconfiguration with the rootConfiguration
     val streamGraph = executor.createPipeline(transformations, tableConfig.getConfiguration, null)
       .asInstanceOf[StreamGraph]
 

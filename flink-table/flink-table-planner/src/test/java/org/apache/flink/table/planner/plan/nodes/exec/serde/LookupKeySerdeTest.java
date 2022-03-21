@@ -50,7 +50,7 @@ public class LookupKeySerdeTest {
         CatalogManager catalogManager =
                 CatalogManager.newBuilder()
                         .classLoader(Thread.currentThread().getContextClassLoader())
-                        .config(tableConfig.getConfiguration())
+                        .config(tableConfig)
                         .defaultCatalog("default_catalog", new GenericInMemoryCatalog("default_db"))
                         .build();
         FlinkContext flinkContext =

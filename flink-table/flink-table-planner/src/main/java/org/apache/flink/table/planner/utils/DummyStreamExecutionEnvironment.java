@@ -24,6 +24,7 @@ import org.apache.flink.api.common.cache.DistributedCache;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
@@ -82,6 +83,11 @@ public class DummyStreamExecutionEnvironment extends StreamExecutionEnvironment 
     @Override
     public ExecutionConfig getConfig() {
         return realExecEnv.getConfig();
+    }
+
+    @Override
+    public ReadableConfig getConfiguration() {
+        return realExecEnv.getConfiguration();
     }
 
     @Override

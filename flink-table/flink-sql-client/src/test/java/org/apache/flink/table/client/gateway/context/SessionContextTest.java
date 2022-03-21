@@ -20,6 +20,7 @@ package org.apache.flink.table.client.gateway.context;
 
 import org.apache.flink.client.cli.DefaultCLI;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.client.gateway.utils.UserDefinedFunctions;
 import org.apache.flink.table.utils.TestUserClassLoaderJar;
 
@@ -222,12 +223,8 @@ public class SessionContextTest {
                 .toMap();
     }
 
-    private Configuration getConfiguration() {
-        return sessionContext
-                .getExecutionContext()
-                .getTableEnvironment()
-                .getConfig()
-                .getConfiguration();
+    private ReadableConfig getConfiguration() {
+        return sessionContext.getExecutionContext().getTableEnvironment().getConfig();
     }
 
     private void validateAddJar(String jarPath) throws IOException {

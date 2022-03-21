@@ -225,7 +225,8 @@ public abstract class AbstractStreamTableEnvironmentImpl extends TableEnvironmen
         final Transformation<T> transformation = getTransformation(table, transformations);
         executionEnvironment.addOperator(transformation);
 
-        // reconfigure whenever planner transformations are added
+        // Reconfigure whenever planner transformations are added
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         executionEnvironment.configure(tableConfig.getConfiguration());
 
         return new DataStream<>(executionEnvironment, transformation);

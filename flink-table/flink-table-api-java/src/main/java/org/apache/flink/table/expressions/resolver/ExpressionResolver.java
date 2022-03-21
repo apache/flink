@@ -137,7 +137,7 @@ public class ExpressionResolver {
             List<LocalReferenceExpression> localReferences,
             @Nullable DataType outputDataType,
             boolean isGroupedAggregation) {
-        this.config = Preconditions.checkNotNull(tableConfig).getConfiguration();
+        this.config = Preconditions.checkNotNull(tableConfig);
         this.tableLookup = Preconditions.checkNotNull(tableLookup);
         this.fieldLookup = Preconditions.checkNotNull(fieldLookup);
         this.functionLookup = Preconditions.checkNotNull(functionLookup);

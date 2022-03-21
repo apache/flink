@@ -21,7 +21,6 @@ package org.apache.flink.table.catalog;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.configuration.ReadableConfig;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableException;
 import org.apache.flink.table.api.ValidationException;
 import org.apache.flink.table.catalog.exceptions.DatabaseNotExistException;
@@ -75,11 +74,6 @@ public final class FunctionCatalog {
      * planner.
      */
     private PlannerTypeInferenceUtil plannerTypeInferenceUtil;
-
-    public FunctionCatalog(
-            TableConfig tableConfig, CatalogManager catalogManager, ModuleManager moduleManager) {
-        this(checkNotNull(tableConfig).getConfiguration(), catalogManager, moduleManager);
-    }
 
     public FunctionCatalog(
             ReadableConfig config, CatalogManager catalogManager, ModuleManager moduleManager) {

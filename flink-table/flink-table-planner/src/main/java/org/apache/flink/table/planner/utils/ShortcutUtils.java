@@ -89,7 +89,7 @@ public final class ShortcutUtils {
     }
 
     public static ReadableConfig unwrapTableConfig(RelNode relNode) {
-        return unwrapContext(relNode).getTableConfig().getConfiguration();
+        return unwrapContext(relNode).getTableConfig();
     }
 
     public static @Nullable FunctionDefinition unwrapFunctionDefinition(

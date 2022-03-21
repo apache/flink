@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.planner.calcite.FlinkContext;
 import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
@@ -71,8 +71,8 @@ public class SerdeContext {
         return parser;
     }
 
-    public Configuration getConfiguration() {
-        return flinkContext.getTableConfig().getConfiguration();
+    public ReadableConfig getConfiguration() {
+        return flinkContext.getTableConfig();
     }
 
     public ClassLoader getClassLoader() {
