@@ -431,9 +431,7 @@ public class TableEnvHiveConnectorITCase {
                     String.format(
                             "create table db1.t2 (y int,x int) stored as parquet location '%s'",
                             location));
-            tableEnv.getConfig()
-                    .getConfiguration()
-                    .setBoolean(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
+            tableEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
             assertEquals(
                     "[+I[1], +I[2]]",
                     CollectionUtil.iteratorToList(
@@ -584,9 +582,7 @@ public class TableEnvHiveConnectorITCase {
             // test.parquet data: hehuiyuan	{}	[]
             String folderURI = this.getClass().getResource("/parquet").getPath();
 
-            tableEnv.getConfig()
-                    .getConfiguration()
-                    .set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
+            tableEnv.getConfig().set(HiveOptions.TABLE_EXEC_HIVE_FALLBACK_MAPRED_READER, true);
             tableEnv.executeSql(
                     String.format(
                             "create external table src_t (a string, b map<string, string>, c array<string>) stored as %s location 'file://%s'",
