@@ -33,7 +33,7 @@ mode means that the Python user-defined functions will be executed in separate P
 
 In release-1.15, it has introduced a new execution mode called `THREAD` execution mode. The `THREAD`
 mode means that the Python user-defined functions will be executed in the same thread as Java Operator,
-but it will be affected by GIL performance.
+It should be noted that multiple Python user-defined functions running in the same JVM are still affected by GIL.
 
 ## When can/should I use THREAD execution mode?
 
@@ -48,7 +48,7 @@ The execution mode can be configured via the `python.execution-mode` setting.
 There are two possible values:
 
  - `PROCESS`: The Python user-defined functions will be executed in separate Python process. (default)
- - `THREAD`: The Python user-defined functions will be executed in the same thread as Java Operator.
+ - `THREAD`: The Python user-defined functions will be executed in the same process as Java operator.
 
 You could specify the Python execution mode using Python Table API as following:
 
@@ -63,10 +63,10 @@ table_env.get_config().get_configuration().set_string("python.execution-mode", "
 {{< hint info >}}
 Currently, it still doesn't support to execute Python UDFs in `THREAD` execution mode in all places.
 It will fall back to `PROCESS` execution mode in these cases. So it may happen that you configure a job
-to execute in `THREAD` execution modes, however, it's actually executed in `PROCESS` execution mode.
+to execute in `THREAD` execution mode, however, it's actually executed in `PROCESS` execution mode.
 {{< /hint >}}
 {{< hint info >}}
-`THREAD` execution mode only supports Python 3.7+.
+`THREAD` execution mode is only supported in Python 3.7+.
 {{< /hint >}}
 
 ## Execution Behavior

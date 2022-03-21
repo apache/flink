@@ -233,6 +233,7 @@ public class PythonOptions {
                     .withDescription(
                             "Specify the python runtime execution mode. The optional values are `process` and `thread`. "
                                     + "The `process` mode means that the Python user-defined functions will be executed in separate Python process. "
-                                    + "The `thread` mode means that the Python user-defined functions will be executed in the same thread as Java Operator, but it will be affected by GIL performance. "
-                                    + "Note that if the python operator dose not support `thread` mode, we will still use `process` mode.");
+                                    + "The `thread` mode means that the Python user-defined functions will be executed in the same process of the Java operator. "
+                                    + "Note that currently it still doesn't support to execute Python user-defined functions in `thread` mode in all places. "
+                                    + "It will fall back to `process` mode in these cases.");
 }
