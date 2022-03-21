@@ -23,6 +23,7 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.core.testutils.OneShotLatch;
 import org.apache.flink.runtime.concurrent.akka.AkkaFutureUtils;
+import org.apache.flink.runtime.rpc.Local;
 import org.apache.flink.runtime.rpc.RpcEndpoint;
 import org.apache.flink.runtime.rpc.RpcGateway;
 import org.apache.flink.runtime.rpc.RpcService;
@@ -1006,6 +1007,7 @@ public class AkkaRpcActorTest extends TestLogger {
     // ------------------------------------------------------------------------
 
     interface SchedulingRpcEndpointGateway extends RpcGateway {
+        @Local
         void schedule(
                 final CompletableFuture<Void> scheduleRunnableFuture,
                 final CompletableFuture<Void> scheduleCallableFuture,
