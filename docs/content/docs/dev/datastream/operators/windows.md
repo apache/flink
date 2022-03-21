@@ -557,6 +557,31 @@ input
     .aggregate(new AverageAggregate)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+class AverageAggregate(AggregateFunction):
+  def create_accumulator(self) -> Tuple[int, int]:
+    return 0, 0
+
+  def add(self, value: Tuple[str, int], accumulator: Tuple[int, int]) -> Tuple[int, int]:
+    return accumulator[0] + value[1], accumulator[1] + 1
+
+  def get_result(self, accumulator: Tuple[int, int]) -> float:
+    return accumulator[0] / accumulator[1]
+
+  def merge(self, a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+    return a[0] + b[0], a[1] + b[1]
+
+input = ...  # type: DataStream
+
+input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .aggregate(AverageAggregate(),
+               accumulator_type=Types.TUPLE([Types.LONG(), Types.LONG()]),
+               output_type=Types.DOUBLE())
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 The above example computes the average of the second field of the elements in the window.
@@ -676,6 +701,72 @@ abstract class ProcessWindowFunction[IN, OUT, KEY, W <: Window] extends Function
 }
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+class ProcessWindowFunction(Function, Generic[IN, OUT, KEY, W]):
+
+  @abstractmethod
+  def process(self,
+              key: KEY,
+              context: 'ProcessWindowFunction.Context',
+              elements: Iterable[IN]) -> Iterable[OUT]:
+    """
+    Evaluates the window and outputs none or several elements.
+
+    :param key: The key for which this window is evaluated.
+    :param context: The context in which the window is being evaluated.
+    :param elements: The elements in the window being evaluated.
+    :return: The iterable object which produces the elements to emit.
+    """
+    pass
+
+  class Context(ABC, Generic[W2]):
+    """
+    The context holding window metadata.
+    """
+
+    @abstractmethod
+    def window(self) -> W2:
+      """
+      :return: The window that is being evaluated.
+      """
+      pass
+
+    @abstractmethod
+    def current_processing_time(self) -> int:
+      """
+      :return: The current processing time.
+      """
+      pass
+
+    @abstractmethod
+    def current_watermark(self) -> int:
+      """
+      :return: The current event-time watermark.
+      """
+      pass
+
+    @abstractmethod
+    def window_state(self) -> KeyedStateStore:
+      """
+      State accessor for per-key and per-window state.
+
+      .. note::
+          If you use per-window state you have to ensure that you clean it up by implementing
+          :func:`~ProcessWindowFunction.clear`.
+
+      :return: The :class:`KeyedStateStore` used to access per-key and per-window states.
+      """
+      pass
+
+    @abstractmethod
+    def global_state(self) -> KeyedStateStore:
+      """
+      State accessor for per-key global state.
+      """
+      pass
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 The `key` parameter is the key that is extracted
@@ -733,6 +824,27 @@ class MyProcessWindowFunction extends ProcessWindowFunction[(String, Long), Stri
     out.collect(s"Window ${context.window} count: $count")
   }
 }
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+    .key_by(lambda v: v[0]) \
+    .window(TumblingEventTimeWindows.of(Time.minutes(5))) \
+    .process(MyProcessWindowFunction())
+
+# ...
+
+class MyProcessWindowFunction(ProcessWindowFunction):
+
+  def process(self, key: str, context: ProcessWindowFunction.Context,
+              elements: Iterable[Tuple[str, int]]) -> Iterable[str]:
+    count = 0
+    for _ in elements:
+        count += 1
+    yield "Window: {} count: {}".format(context.window(), count)
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -812,6 +924,27 @@ input
       }
   )
 
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+  .key_by(<key selector>) \
+  .window(<window assigner>) \
+  .reduce(lambda v1, v2: (v1[0], v1[1] + v2[1]),
+          window_function=MyProcessWindowFunction(),
+          output_type=Types.TUPLE([Types.STRING(), Types.LONG()]))
+
+# Function definition
+
+class MyProcessWindowFunction(ProcessWindowFunction):
+
+  def process(self, key: str, context: ProcessWindowFunction.Context,
+              min_readings: Iterable[SensorReading]) -> Iterable[Tuple[int, SensorReading]]:
+    min = next(iter(min_readings))
+    yield context.window().start, min
 ```
 {{< /tab >}}
 {{< /tabs >}}
@@ -913,6 +1046,45 @@ class MyProcessWindowFunction extends ProcessWindowFunction[Double, (String, Dou
 
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input
+  .key_by(<key selector>) \
+  .window(<window assigner>) \
+  .aggregate(AverageAggregate(),
+             window_function=MyProcessWindowFunction(),
+             accumulator_type=Types.TUPLE([Types.LONG(), Types.LONG()]),
+             output_type=Types.TUPLE([Types.STRING(), Types.DOUBLE()]))
+
+# Function definitions
+
+class AverageAggregate(AggregateFunction):
+  """
+  The accumulator is used to keep a running sum and a count. The :func:`get_result` method
+  computes the average.
+  """
+  def create_accumulator(self) -> Tuple[int, int]:
+    return 0, 0
+
+  def add(self, value: Tuple[str, int], accumulator: Tuple[int, int]) -> Tuple[int, int]:
+    return accumulator[0] + value[1], accumulator[1] + 1
+
+  def get_result(self, accumulator: Tuple[int, int]) -> float:
+    return accumulator[0] / accumulator[1]
+
+  def merge(self, a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+    return a[0] + b[0], a[1] + b[1]
+
+class MyProcessWindowFunction(ProcessWindowFunction):
+
+  def process(self, key: str, context: ProcessWindowFunction.Context,
+              averages: Iterable[float]) -> Iterable[Tuple[str, float]]:
+    average = next(iter(averages))
+    yield key, average
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 ### Using per-window state in ProcessWindowFunction
@@ -992,6 +1164,22 @@ trait WindowFunction[IN, OUT, KEY, W <: Window] extends Function with Serializab
 }
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+class WindowFunction(Function, Generic[IN, OUT, KEY, W]):
+
+  @abstractmethod
+  def apply(self, key: KEY, window: W, inputs: Iterable[IN]) -> Iterable[OUT]:
+    """
+    Evaluates the window and outputs none or several elements.
+
+    :param key: The key for which this window is evaluated.
+    :param window: The window that is being evaluated.
+    :param inputs: The elements in the window being evaluated.
+    """
+    pass
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 It can be used like this:
@@ -1014,6 +1202,16 @@ val input: DataStream[(String, Long)] = ...
 input
     .keyBy(<key selector>)
     .window(<window assigner>)
+    .apply(new MyWindowFunction())
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
     .apply(new MyWindowFunction())
 ```
 {{< /tab >}}
