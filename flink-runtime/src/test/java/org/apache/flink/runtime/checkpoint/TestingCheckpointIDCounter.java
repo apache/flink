@@ -18,16 +18,18 @@
 package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
+import org.apache.flink.util.concurrent.FutureUtils;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /** Test {@link CheckpointIDCounter} implementation for testing the shutdown behavior. */
 public final class TestingCheckpointIDCounter implements CheckpointIDCounter {
 
     private final Runnable startRunnable;
-    private final Consumer<JobStatus> shutdownConsumer;
+    private final Function<JobStatus, CompletableFuture<Void>> shutdownFunction;
     private final Supplier<Integer> getAndIncrementSupplier;
     private final Supplier<Integer> getSupplier;
     private final Consumer<Long> setCountConsumer;
@@ -36,18 +38,22 @@ public final class TestingCheckpointIDCounter implements CheckpointIDCounter {
             CompletableFuture<JobStatus> shutdownFuture) {
         return TestingCheckpointIDCounter.builder()
                 .withStartRunnable(() -> {})
-                .withShutdownConsumer(shutdownFuture::complete)
+                .withShutdownConsumer(
+                        jobStatus -> {
+                            shutdownFuture.complete(jobStatus);
+                            return FutureUtils.completedVoidFuture();
+                        })
                 .build();
     }
 
     private TestingCheckpointIDCounter(
             Runnable startRunnable,
-            Consumer<JobStatus> shutdownConsumer,
+            Function<JobStatus, CompletableFuture<Void>> shutdownFunction,
             Supplier<Integer> getAndIncrementSupplier,
             Supplier<Integer> getSupplier,
             Consumer<Long> setCountConsumer) {
         this.startRunnable = startRunnable;
-        this.shutdownConsumer = shutdownConsumer;
+        this.shutdownFunction = shutdownFunction;
         this.getAndIncrementSupplier = getAndIncrementSupplier;
         this.getSupplier = getSupplier;
         this.setCountConsumer = setCountConsumer;
@@ -59,8 +65,8 @@ public final class TestingCheckpointIDCounter implements CheckpointIDCounter {
     }
 
     @Override
-    public void shutdown(JobStatus jobStatus) {
-        shutdownConsumer.accept(jobStatus);
+    public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
+        return shutdownFunction.apply(jobStatus);
     }
 
     @Override
@@ -86,7 +92,7 @@ public final class TestingCheckpointIDCounter implements CheckpointIDCounter {
     public static class Builder {
 
         private Runnable startRunnable;
-        private Consumer<JobStatus> shutdownConsumer;
+        private Function<JobStatus, CompletableFuture<Void>> shutdownFunction;
         private Supplier<Integer> getAndIncrementSupplier;
         private Supplier<Integer> getSupplier;
         private Consumer<Long> setCountConsumer;
@@ -96,8 +102,9 @@ public final class TestingCheckpointIDCounter implements CheckpointIDCounter {
             return this;
         }
 
-        public Builder withShutdownConsumer(Consumer<JobStatus> shutdownConsumer) {
-            this.shutdownConsumer = shutdownConsumer;
+        public Builder withShutdownConsumer(
+                Function<JobStatus, CompletableFuture<Void>> shutdownFunction) {
+            this.shutdownFunction = shutdownFunction;
             return this;
         }
 
@@ -119,7 +126,7 @@ public final class TestingCheckpointIDCounter implements CheckpointIDCounter {
         public TestingCheckpointIDCounter build() {
             return new TestingCheckpointIDCounter(
                     startRunnable,
-                    shutdownConsumer,
+                    shutdownFunction,
                     getAndIncrementSupplier,
                     getSupplier,
                     setCountConsumer);

@@ -463,7 +463,7 @@ public class AdaptiveScheduler
         }
 
         try {
-            checkpointIdCounter.shutdown(terminalState);
+            checkpointIdCounter.shutdown(terminalState).get();
         } catch (Exception e) {
             exception = ExceptionUtils.firstOrSuppressed(e, exception);
         }

@@ -20,7 +20,9 @@ package org.apache.flink.runtime.checkpoint;
 
 import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.runtime.jobmanager.HighAvailabilityMode;
+import org.apache.flink.util.concurrent.FutureUtils;
 
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -37,7 +39,9 @@ public class StandaloneCheckpointIDCounter implements CheckpointIDCounter {
     public void start() throws Exception {}
 
     @Override
-    public void shutdown(JobStatus jobStatus) throws Exception {}
+    public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
+        return FutureUtils.completedVoidFuture();
+    }
 
     @Override
     public long getAndIncrement() throws Exception {

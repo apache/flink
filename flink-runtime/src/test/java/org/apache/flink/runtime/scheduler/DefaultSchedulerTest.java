@@ -107,6 +107,7 @@ import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
+import org.slf4j.Logger;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -1608,7 +1609,8 @@ public class DefaultSchedulerTest extends TestLogger {
                             throw new RuntimeException(e);
                         }
                     },
-                    executorService);
+                    executorService,
+                    log);
         } finally {
             executorService.shutdownNow();
         }
@@ -1620,7 +1622,8 @@ public class DefaultSchedulerTest extends TestLogger {
      */
     public static void doTestCheckpointCleanerIsClosedAfterCheckpointServices(
             BiFunction<CheckpointRecoveryFactory, CheckpointsCleaner, SchedulerNG> schedulerFactory,
-            ScheduledExecutorService executorService)
+            ScheduledExecutorService executorService,
+            Logger logger)
             throws Exception {
         final CountDownLatch checkpointServicesShutdownBlocked = new CountDownLatch(1);
         final CountDownLatch cleanerClosed = new CountDownLatch(1);
@@ -1638,9 +1641,17 @@ public class DefaultSchedulerTest extends TestLogger {
                 new StandaloneCheckpointIDCounter() {
 
                     @Override
-                    public void shutdown(JobStatus jobStatus) throws Exception {
-                        checkpointServicesShutdownBlocked.await();
-                        super.shutdown(jobStatus);
+                    public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
+                        try {
+                            checkpointServicesShutdownBlocked.await();
+                        } catch (InterruptedException e) {
+                            logger.error(
+                                    "An error occurred while executing waiting for the CheckpointServices shutdown.",
+                                    e);
+                            Thread.currentThread().interrupt();
+                        }
+
+                        return super.shutdown(jobStatus);
                     }
                 };
         final CheckpointsCleaner checkpointsCleaner =
