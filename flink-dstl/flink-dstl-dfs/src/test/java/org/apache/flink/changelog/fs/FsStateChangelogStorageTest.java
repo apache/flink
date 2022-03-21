@@ -21,6 +21,7 @@ import org.apache.flink.changelog.fs.BatchingStateChangeUploadSchedulerTest.Bloc
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.OperatorID;
 import org.apache.flink.runtime.state.KeyGroupRange;
+import org.apache.flink.runtime.state.changelog.ChangelogStateHandleStreamImpl;
 import org.apache.flink.runtime.state.changelog.StateChangelogStorage;
 import org.apache.flink.runtime.state.changelog.StateChangelogWriter;
 import org.apache.flink.runtime.state.changelog.inmemory.StateChangelogStorageTest;
@@ -30,24 +31,25 @@ import org.apache.flink.streaming.runtime.tasks.mailbox.TaskMailboxImpl;
 
 import org.junit.jupiter.api.Test;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
-import java.io.File;
 import java.util.stream.Stream;
 
 import static org.apache.flink.changelog.fs.UnregisteredChangelogStorageMetricGroup.createUnregisteredChangelogStorageMetricGroup;
 
 /** {@link FsStateChangelogStorage} test. */
-public class FsStateChangelogStorageTest extends StateChangelogStorageTest {
+public class FsStateChangelogStorageTest
+        extends StateChangelogStorageTest<ChangelogStateHandleStreamImpl> {
 
     public static Stream<Boolean> parameters() {
         return Stream.of(true, false);
     }
 
     @Override
-    protected StateChangelogStorage<?> getFactory(boolean compression, File temporaryFolder)
-            throws IOException {
+    protected StateChangelogStorage<ChangelogStateHandleStreamImpl> getFactory(
+            boolean compression, File temporaryFolder) throws IOException {
         return new FsStateChangelogStorage(
                 Path.fromLocalFile(temporaryFolder),
                 compression,

@@ -129,8 +129,7 @@ class BatchingStateChangeUploadSchedulerTest {
                     upload(store, changeSets);
                     assertThat(probe.getUploaded()).isEmpty();
                     assertThat(scheduler.getAllNonPeriodicScheduledTask())
-                            .anyMatch(scheduled -> scheduled.getDelay(MILLISECONDS) == delayMs)
-                            .hasSizeGreaterThan(0);
+                            .anyMatch(scheduled -> scheduled.getDelay(MILLISECONDS) == delayMs);
                     scheduler.triggerAllNonPeriodicTasks();
                     assertThat(probe.getUploaded()).isEqualTo(changeSets);
                 });
@@ -246,30 +245,26 @@ class BatchingStateChangeUploadSchedulerTest {
     }
 
     @Test
-    void testErrorHandling() {
-        assertThatThrownBy(
-                        () -> {
-                            TestingStateChangeUploader probe = new TestingStateChangeUploader();
-                            DirectScheduledExecutorService scheduler =
-                                    new DirectScheduledExecutorService();
-                            try (BatchingStateChangeUploadScheduler store =
-                                    new BatchingStateChangeUploadScheduler(
-                                            Integer.MAX_VALUE,
-                                            MAX_BYTES_IN_FLIGHT,
-                                            MAX_BYTES_IN_FLIGHT,
-                                            RetryPolicy.NONE,
-                                            probe,
-                                            scheduler,
-                                            new RetryingExecutor(
-                                                    5,
-                                                    createUnregisteredChangelogStorageMetricGroup()
-                                                            .getAttemptsPerUpload()),
-                                            createUnregisteredChangelogStorageMetricGroup())) {
-                                scheduler.shutdown();
-                                upload(store, getChanges(4));
-                            }
-                        })
-                .isInstanceOf(RejectedExecutionException.class);
+    void testErrorHandling() throws Exception {
+        TestingStateChangeUploader probe = new TestingStateChangeUploader();
+        DirectScheduledExecutorService scheduler = new DirectScheduledExecutorService();
+        try (BatchingStateChangeUploadScheduler store =
+                new BatchingStateChangeUploadScheduler(
+                        Integer.MAX_VALUE,
+                        MAX_BYTES_IN_FLIGHT,
+                        MAX_BYTES_IN_FLIGHT,
+                        RetryPolicy.NONE,
+                        probe,
+                        scheduler,
+                        new RetryingExecutor(
+                                5,
+                                createUnregisteredChangelogStorageMetricGroup()
+                                        .getAttemptsPerUpload()),
+                        createUnregisteredChangelogStorageMetricGroup())) {
+            scheduler.shutdown();
+            assertThatThrownBy(() -> upload(store, getChanges(4)))
+                    .isInstanceOf(RejectedExecutionException.class);
+        }
     }
 
     @Test

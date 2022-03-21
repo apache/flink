@@ -61,7 +61,7 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
     }
 
     @MethodSource("parameters")
-    @ParameterizedTest
+    @ParameterizedTest(name = "compression = {0}")
     public void testNoAppendAfterClose(boolean compression) throws IOException {
         assertThatThrownBy(
                         () -> {
@@ -78,7 +78,7 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
     }
 
     @MethodSource("parameters")
-    @ParameterizedTest
+    @ParameterizedTest(name = "compression = {0}")
     public void testWriteAndRead(boolean compression) throws Exception {
         KeyGroupRange kgRange = KeyGroupRange.of(0, 5);
         Map<Integer, List<byte[]>> appendsByKeyGroup = generateAppends(kgRange, 10, 20);

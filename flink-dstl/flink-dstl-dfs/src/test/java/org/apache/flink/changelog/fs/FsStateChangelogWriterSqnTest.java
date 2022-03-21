@@ -70,8 +70,8 @@ public class FsStateChangelogWriterSqnTest {
     }
 
     @MethodSource("getSettings")
-    @ParameterizedTest
-    void runTest(WriterSqnTestSettings test) throws IOException {
+    @ParameterizedTest(name = "writerSqnTestSettings = {0}")
+    void runTest(WriterSqnTestSettings writerSqnTestSettings) throws IOException {
         try (FsStateChangelogWriter writer =
                 new FsStateChangelogWriter(
                         UUID.randomUUID(),
@@ -80,13 +80,14 @@ public class FsStateChangelogWriterSqnTest {
                                 new TestingStateChangeUploader()),
                         Long.MAX_VALUE,
                         new SyncMailboxExecutor())) {
-            if (test.withAppend) {
+            if (writerSqnTestSettings.withAppend) {
                 append(writer);
             }
-            test.action.accept(writer);
+            writerSqnTestSettings.action.accept(writer);
             assertThat(writer.lastAppendedSqnUnsafe())
+                    .as(writerSqnTestSettings.getMessage())
                     .isEqualTo(
-                            test.expectIncrement
+                            writerSqnTestSettings.expectIncrement
                                     ? writer.initialSequenceNumber().next()
                                     : writer.initialSequenceNumber());
         }
