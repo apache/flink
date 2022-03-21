@@ -1174,7 +1174,7 @@ class KeyedStream(DataStream):
         return self.process(FilterKeyedProcessFunctionAdapter(func), self._original_data_type_info)\
             .name("Filter")
 
-    def sum(self, position_to_sum: Union[int, str]) -> 'DataStream':
+    def sum(self, position_to_sum: Union[int, str] = 0) -> 'DataStream':
         """
         Applies an aggregation that gives a rolling sum of the data stream at the
         given position grouped by the given key. An independent aggregate is kept
@@ -1204,33 +1204,50 @@ class KeyedStream(DataStream):
 
         :param position_to_sum:
             The field position in the data points to sum, type can be int or str.
-            This is applicable to Tuple types, and :class:`pyflink.common.Row` types.
+            This is applicable to Tuple, List, Number and :class:`pyflink.common.Row` types.
         :return: The transformed DataStream.
         """
         if not isinstance(position_to_sum, int) and not isinstance(position_to_sum, str):
-            raise TypeError("The input must be of int or str type to locate the value to sum")
+            raise TypeError("The field position must be of int or str type "
+                            "to locate the value to sum")
 
         class SumReduceFunction(ReduceFunction):
 
             def __init__(self, position_to_sum):
                 self._pos = position_to_sum
+                self._reduce_func = None
 
             def reduce(self, value1, value2):
                 from numbers import Number
+
+                def init_reduce_func(value1):
+                    if isinstance(value1, tuple):
+                        def reduce_func(v1, v2):
+                            v1_list = list(v1)
+                            v1_list[self._pos] = v1[self._pos] + v2[self._pos]
+                            return tuple(v1_list)
+                        self._reduce_func = reduce_func
+                    elif isinstance(value1, (list, Row)):
+                        def reduce_func(v1, v2):
+                            v1[self._pos] = v1[self._pos] + v2[self._pos]
+                            return v1
+                        self._reduce_func = reduce_func
+                    elif isinstance(value1, Number):
+                        def reduce_func(v1, v2):
+                            return v1 + v2
+                        self._reduce_func = reduce_func
+                    else:
+                        raise TypeError("Sum operator only process the data of "
+                                        "Tuple, Row, List and Number type. "
+                                        f"Actual type: {type(value1)}")
+
                 if not isinstance(value1[self._pos], Number):
                     raise TypeError("The value to sum by given position must be of numeric type; "
                                     f"actual {type(value1[self._pos])}, expected Number")
-                if isinstance(value1, tuple):
-                    value1_list = list(value1)
-                    value1_list[self._pos] = value1[self._pos] + value2[self._pos]
-                    value1 = tuple(value1_list)
-                elif isinstance(value1, Row):
-                    value1[self._pos] = value1[self._pos] + value2[self._pos]
-                else:
-                    raise TypeError("Sum operator only process the data of "
-                                    "Tuple type and {pyflink.common.types.Row} type. "
-                                    f"Actual type: {type(value1)}")
-                return value1
+
+                if not self._reduce_func:
+                    init_reduce_func(value1)
+                return self._reduce_func(value1, value2)
 
         return self.reduce(SumReduceFunction(position_to_sum))
 
