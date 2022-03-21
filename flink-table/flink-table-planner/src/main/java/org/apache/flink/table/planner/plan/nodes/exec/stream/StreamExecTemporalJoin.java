@@ -43,6 +43,7 @@ import org.apache.flink.table.planner.plan.nodes.exec.utils.ExecNodeUtil;
 import org.apache.flink.table.planner.plan.utils.JoinUtil;
 import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.keyselector.RowDataKeySelector;
 import org.apache.flink.table.runtime.operators.join.FlinkJoinType;
@@ -248,7 +249,7 @@ public class StreamExecTemporalJoin extends ExecNodeBase<RowData>
 
         boolean isLeftOuterJoin = joinSpec.getJoinType() == FlinkJoinType.LEFT;
         long minRetentionTime = config.getStateRetentionTime();
-        long maxRetentionTime = config.getMaxIdleStateRetentionTime();
+        long maxRetentionTime = TableConfigUtils.getMaxIdleStateRetentionTime(config);
         if (rightTimeAttributeIndex >= 0) {
             return new TemporalRowTimeJoinOperator(
                     InternalTypeInfo.of(leftInputType),

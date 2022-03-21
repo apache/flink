@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils;
 
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.planner.calcite.CalciteConfig;
 import org.apache.flink.table.planner.calcite.CalciteConfig$;
@@ -105,6 +106,16 @@ public class TableConfigUtils {
         return TableConfigOptions.LOCAL_TIME_ZONE.defaultValue().equals(zone)
                 ? ZoneId.systemDefault()
                 : ZoneId.of(zone);
+    }
+
+    /**
+     * Similar to {@link TableConfig#getMaxIdleStateRetentionTime()}.
+     *
+     * @see TableConfig#getMaxIdleStateRetentionTime()
+     */
+    @Deprecated
+    public static long getMaxIdleStateRetentionTime(ReadableConfig tableConfig) {
+        return tableConfig.get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis() * 3 / 2;
     }
 
     /** Validates user configured time zone. */
