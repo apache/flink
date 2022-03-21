@@ -25,7 +25,7 @@ import org.junit.jupiter.api.Test;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /** Tests for the gpu-discovery-common.sh. */
 class GPUDiscoveryScriptTest {
@@ -34,25 +34,25 @@ class GPUDiscoveryScriptTest {
 
     @Test
     void testNonCoordinationMode() throws Exception {
-        assertThat(OperatingSystem.isLinux()).isTrue();
+        assumeThat(OperatingSystem.isLinux()).isTrue();
         testExistWithNonZero("test_non_coordination_mode");
     }
 
     @Test
     void testCoordinateIndexes() throws Exception {
-        assertThat(OperatingSystem.isLinux()).isTrue();
+        assumeThat(OperatingSystem.isLinux()).isTrue();
         testExistWithNonZero("test_coordinate_indexes");
     }
 
     @Test
     void testPreemptFromDeadProcesses() throws Exception {
-        assertThat(OperatingSystem.isLinux()).isTrue();
+        assumeThat(OperatingSystem.isLinux()).isTrue();
         testExistWithNonZero("test_preempt_from_dead_processes");
     }
 
     @Test
     void testSetCoordinationFile() throws Exception {
-        assertThat(OperatingSystem.isLinux()).isTrue();
+        assumeThat(OperatingSystem.isLinux()).isTrue();
         testExistWithNonZero("test_coordination_file");
     }
 
