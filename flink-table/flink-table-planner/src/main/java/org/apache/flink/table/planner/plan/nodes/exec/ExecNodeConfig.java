@@ -21,10 +21,11 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
 import org.apache.flink.configuration.ReadableConfig;
+import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
-import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
+import org.apache.flink.table.planner.plan.nodes.exec.utils.CommonPythonUtil;
 
 import java.time.ZoneId;
 import java.util.Optional;
@@ -41,34 +42,32 @@ public final class ExecNodeConfig implements ReadableConfig {
     // See https://issues.apache.org/jira/browse/FLINK-26190
     // Used only for the deprecated getMaxIdleStateRetentionTime to also satisfy tests which
     // manipulate maxIdleStateRetentionTime, like OverAggregateHarnessTest.
-    private final TableConfig plannerConfig;
+    private final TableConfig tableConfig;
 
     private final ReadableConfig nodeConfig;
 
-    ExecNodeConfig(TableConfig plannerTableConfig, ReadableConfig nodeConfig) {
+    ExecNodeConfig(TableConfig tableConfig, ReadableConfig nodeConfig) {
         this.nodeConfig = nodeConfig;
-        this.plannerConfig = plannerTableConfig;
+        this.tableConfig = tableConfig;
     }
 
     /**
-     * Return the merged {@link TableConfig} from {@link PlannerBase#getTableConfig()} and {@link
-     * ExecNodeBase#getNodeConfig()}.
+     * Return the {@link PlannerBase#getTableConfig()}.
      *
-     * @return the {@link TableConfig}.
-     * @deprecated This method is used only for {@link CodeGeneratorContext} and related methods,
-     *     which end up passing the {@link TableConfig} to the {@link CodeGeneratorContext}. It
-     *     should be removed once {@link CodeGeneratorContext#nullCheck()} is removed, since for all
-     *     other usages it's possible to use the {@link ReadableConfig}.
+     * @return the {@link PlannerBase#getTableConfig()}.
+     * @deprecated This method is used only for {@link
+     *     CommonPythonUtil#getMergedConfig(StreamExecutionEnvironment, TableConfig)}. It should be
+     *     removed when this method is refactored to accept a {@link ReadableConfig} instead.
      */
     // See https://issues.apache.org/jira/browse/FLINK-26190
     @Deprecated
-    public TableConfig getPlannerConfig() {
-        return plannerConfig;
+    public TableConfig getTableConfig() {
+        return tableConfig;
     }
 
     @Override
     public <T> T get(ConfigOption<T> option) {
-        return nodeConfig.getOptional(option).orElseGet(() -> plannerConfig.get(option));
+        return nodeConfig.getOptional(option).orElseGet(() -> tableConfig.get(option));
     }
 
     @Override
@@ -77,7 +76,7 @@ public final class ExecNodeConfig implements ReadableConfig {
         if (tableValue.isPresent()) {
             return tableValue;
         }
-        return plannerConfig.getOptional(option);
+        return tableConfig.getOptional(option);
     }
 
     /** @return The duration until state which was not updated will be retained. */
@@ -87,18 +86,18 @@ public final class ExecNodeConfig implements ReadableConfig {
 
     // See https://issues.apache.org/jira/browse/FLINK-26190
     /**
-     * Using {@link #plannerConfig} to satisify tests like {@code OverAggregateHarnessTest}, which
+     * Using {@link #tableConfig} to satisify tests like {@code OverAggregateHarnessTest}, which
      * use {@code HarnessTestBase#TestTableConfig} to individually manipulate the
      * maxIdleStateRetentionTime. See {@link TableConfig#getMaxIdleStateRetentionTime()}.
      */
     @Deprecated
     public long getMaxIdleStateRetentionTime() {
-        return plannerConfig.getMaxIdleStateRetentionTime();
+        return tableConfig.getMaxIdleStateRetentionTime();
     }
 
     // See https://issues.apache.org/jira/browse/FLINK-26190
     /** See {@link TableConfig#getLocalTimeZone()}. */
     public ZoneId getLocalTimeZone() {
-        return plannerConfig.getLocalTimeZone();
+        return tableConfig.getLocalTimeZone();
     }
 }
