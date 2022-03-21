@@ -129,9 +129,7 @@ public abstract class ExecNodeBase<T> implements ExecNode<T> {
                     translateToPlanInternal(
                             (PlannerBase) planner,
                             new ExecNodeConfig(
-                                    ((PlannerBase) planner).getConfiguration(),
-                                    ((PlannerBase) planner).getTableConfig(),
-                                    new Configuration()));
+                                    ((PlannerBase) planner).getTableConfig(), new Configuration()));
             if (this instanceof SingleTransformationTranslator) {
                 if (inputsContainSingleton()) {
                     transformation.setParallelism(1);

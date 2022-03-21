@@ -20,44 +20,34 @@ package org.apache.flink.table.planner.plan.nodes.exec;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.config.ExecutionConfigOptions;
 import org.apache.flink.table.planner.codegen.CodeGeneratorContext;
 import org.apache.flink.table.planner.delegation.PlannerBase;
-import org.apache.flink.table.planner.delegation.PlannerConfig;
 
 import java.time.ZoneId;
 import java.util.Optional;
 
 /**
- * Configuration view which is used combine the {@link PlannerConfig} with the {@link
+ * Configuration view which is used combine the {@link PlannerBase#getTableConfig()} with the {@link
  * ExecNodeBase#getNodeConfig()} configuration. The persisted configuration of the {@link ExecNode}
- * which is deserialized from the JSON plan has precedence over the {@link PlannerConfig}.
+ * which is deserialized from the JSON plan has precedence over the {@link
+ * PlannerBase#getTableConfig()}.
  */
 @Internal
 public final class ExecNodeConfig implements ReadableConfig {
 
-    private final ReadableConfig plannerConfig;
-
     // See https://issues.apache.org/jira/browse/FLINK-26190
     // Used only for the deprecated getMaxIdleStateRetentionTime to also satisfy tests which
     // manipulate maxIdleStateRetentionTime, like OverAggregateHarnessTest.
-    private final TableConfig originalTableConfig;
-    // See https://issues.apache.org/jira/browse/FLINK-26190
-    private final TableConfig tableConfig;
+    private final TableConfig plannerConfig;
 
     private final ReadableConfig nodeConfig;
 
-    ExecNodeConfig(
-            ReadableConfig plannerConfig, TableConfig tableConfig, ReadableConfig nodeConfig) {
-        this.plannerConfig = plannerConfig;
+    ExecNodeConfig(TableConfig plannerTableConfig, ReadableConfig nodeConfig) {
         this.nodeConfig = nodeConfig;
-        this.originalTableConfig = tableConfig;
-        this.tableConfig = TableConfig.getDefault();
-        this.tableConfig.addConfiguration(tableConfig.getConfiguration());
-        this.tableConfig.addConfiguration((Configuration) nodeConfig);
+        this.plannerConfig = plannerTableConfig;
     }
 
     /**
@@ -72,8 +62,8 @@ public final class ExecNodeConfig implements ReadableConfig {
      */
     // See https://issues.apache.org/jira/browse/FLINK-26190
     @Deprecated
-    public TableConfig getTableConfig() {
-        return tableConfig;
+    public TableConfig getPlannerConfig() {
+        return plannerConfig;
     }
 
     @Override
@@ -97,18 +87,18 @@ public final class ExecNodeConfig implements ReadableConfig {
 
     // See https://issues.apache.org/jira/browse/FLINK-26190
     /**
-     * Using {@link #originalTableConfig} to satisify tests like {@code OverAggregateHarnessTest},
-     * which use {@code HarnessTestBase#TestTableConfig} to individually manipulate the
+     * Using {@link #plannerConfig} to satisify tests like {@code OverAggregateHarnessTest}, which
+     * use {@code HarnessTestBase#TestTableConfig} to individually manipulate the
      * maxIdleStateRetentionTime. See {@link TableConfig#getMaxIdleStateRetentionTime()}.
      */
     @Deprecated
     public long getMaxIdleStateRetentionTime() {
-        return originalTableConfig.getMaxIdleStateRetentionTime();
+        return plannerConfig.getMaxIdleStateRetentionTime();
     }
 
     // See https://issues.apache.org/jira/browse/FLINK-26190
     /** See {@link TableConfig#getLocalTimeZone()}. */
     public ZoneId getLocalTimeZone() {
-        return tableConfig.getLocalTimeZone();
+        return plannerConfig.getLocalTimeZone();
     }
 }

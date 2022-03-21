@@ -32,7 +32,6 @@ import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, Strea
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.bridge.internal.AbstractStreamTableEnvironmentImpl
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -1261,7 +1260,7 @@ case class StreamTableTestUtil(
   }
 
   def buildStreamProgram(firstProgramNameToRemove: String): Unit = {
-    val program = FlinkStreamProgram.buildProgram(tableEnv.getConfig.getConfiguration)
+    val program = FlinkStreamProgram.buildProgram(tableEnv.getConfig)
     var startRemove = false
     program.getProgramNames.foreach {
       name =>
@@ -1285,8 +1284,7 @@ case class StreamTableTestUtil(
   def getStreamProgram(): FlinkChainedProgram[StreamOptimizeContext] = {
     val tableConfig = tableEnv.getConfig
     val calciteConfig = TableConfigUtils.getCalciteConfig(tableConfig)
-    calciteConfig.getStreamProgram.getOrElse(FlinkStreamProgram.buildProgram(
-      tableConfig.getConfiguration))
+    calciteConfig.getStreamProgram.getOrElse(FlinkStreamProgram.buildProgram(tableConfig))
   }
 
   def enableMiniBatch(): Unit = {
@@ -1346,7 +1344,7 @@ case class BatchTableTestUtil(
   extends TableTestUtil(test, isStreamingMode = false, catalogManager, conf) {
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
-    val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig.getConfiguration)
+    val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig)
     var startRemove = false
     program.getProgramNames.foreach {
       name =>
@@ -1370,8 +1368,7 @@ case class BatchTableTestUtil(
   def getBatchProgram(): FlinkChainedProgram[BatchOptimizeContext] = {
     val tableConfig = tableEnv.getConfig
     val calciteConfig = TableConfigUtils.getCalciteConfig(tableConfig)
-    calciteConfig.getBatchProgram.getOrElse(FlinkBatchProgram.buildProgram(
-      tableConfig.getConfiguration))
+    calciteConfig.getBatchProgram.getOrElse(FlinkBatchProgram.buildProgram(tableConfig))
   }
 
   def createCollectTableSink(
