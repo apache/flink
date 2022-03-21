@@ -44,6 +44,14 @@ cd "$TPCDS_TOOL_DIR"
 TPCDS_GENERATOR_RELATIVE_DIR="../target/generator"
 TPCDS_DATA_RELATIVE_DIR="../table"
 
+ANSWER_OF_QUERY_30="$ORGIN_ANSWER_DIR/30.ans"
+ANSWER_OF_QUERY_30_FILE_ENCODING=`file $ANSWER_OF_QUERY_30`
+if [[ $ANSWER_OF_QUERY_30_FILE_ENCODING =~ "ISO-8859" ]]; then
+  echo "[INFO] `date +%H:%M:%S` Convert file encoding of 30.ans to UTF-8 start."
+  iconv -f latin1 -t UTF-8 $ANSWER_OF_QUERY_30 -o $ANSWER_OF_QUERY_30
+  echo "[INFO] `date +%H:%M:%S` Convert file encoding of 30.ans to UTF-8 success."
+fi
+
 ${TPCDS_TOOL_DIR}/data_generator.sh "$TPCDS_GENERATOR_RELATIVE_DIR" "$SCALE" "$TPCDS_DATA_RELATIVE_DIR" "$END_TO_END_DIR/test-scripts"
 
 cd "$END_TO_END_DIR"

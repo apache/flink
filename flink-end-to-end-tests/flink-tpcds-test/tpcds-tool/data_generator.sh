@@ -130,6 +130,13 @@ elif  [[ "$OS_TYPE" == "linux" ]]; then
         chmod +x  $generator_dir/dsdgen_linux
         cd  $generator_dir
         ./dsdgen_linux -SCALE $scale_factor -FORCE Y -DIR $data_dir
+
+        # TODO: The following code can be removed when FLINK-26760 is fixed
+        # the data generator may generate files encoded in latin1, which the new csv source cannot read
+        echo "[INFO] `date +%H:%M:%S` Convert file encoding of customer.dat to UTF-8 start."
+        iconv -f latin1 -t UTF-8 $data_dir/customer.dat -o $data_dir/customer.dat.tmp
+        echo "[INFO] `date +%H:%M:%S` Convert file encoding of customer.dat to UTF-8 success."
+        mv $data_dir/customer.dat.tmp $data_dir/customer.dat
     else
         echo "[ERROR] Download and validate data generator files fail, please check the network."
         exit 127

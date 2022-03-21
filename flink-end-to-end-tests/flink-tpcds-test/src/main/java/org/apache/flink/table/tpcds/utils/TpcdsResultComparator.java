@@ -26,6 +26,7 @@ import java.nio.file.Files;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Result comparator for TPC-DS test according to the TPC-DS standard specification v2.11.0. Query
@@ -61,7 +62,8 @@ public class TpcdsResultComparator {
 
         for (String queryId : VALIDATE_QUERIES) {
             File expectedFile = new File(expectedDir, queryId + RESULT_SUFFIX);
-            File actualFile = new File(actualDir, queryId + RESULT_SUFFIX);
+            File actualFileDirectory = new File(actualDir, queryId + RESULT_SUFFIX);
+            File actualFile = Objects.requireNonNull(actualFileDirectory.listFiles())[0];
 
             if (compareResult(queryId, expectedFile, actualFile)) {
                 passCnt++;
