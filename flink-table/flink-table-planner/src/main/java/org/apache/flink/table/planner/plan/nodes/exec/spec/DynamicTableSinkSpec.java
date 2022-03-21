@@ -87,7 +87,7 @@ public class DynamicTableSinkSpec extends DynamicTableSpecBase {
                             contextResolvedTable.getIdentifier(),
                             contextResolvedTable.getResolvedTable(),
                             loadOptionsFromCatalogTable(contextResolvedTable, flinkContext),
-                            flinkContext.getTableConfig().getConfiguration(),
+                            flinkContext.getTableConfig(),
                             flinkContext.getClassLoader(),
                             contextResolvedTable.isTemporary());
             if (sinkAbilities != null) {

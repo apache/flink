@@ -287,7 +287,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final CatalogManager catalogManager =
                 CatalogManager.newBuilder()
                         .classLoader(classLoader)
-                        .config(tableConfig.getConfiguration())
+                        .config(tableConfig)
                         .defaultCatalog(
                                 settings.getBuiltInCatalogName(),
                                 new GenericInMemoryCatalog(
@@ -796,6 +796,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     private TableResultInternal executeInternal(
             List<Transformation<?>> transformations, List<String> sinkIdentifierNames) {
         final String defaultJobName = "insert-into_" + String.join(",", sinkIdentifierNames);
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
                 execEnv.createPipeline(
                         transformations, tableConfig.getConfiguration(), defaultJobName);
@@ -826,6 +827,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         List<Transformation<?>> transformations =
                 translate(Collections.singletonList(sinkOperation));
         final String defaultJobName = "collect";
+        // We pass only the configuration to avoid reconfiguration with the rootConfiguration
         Pipeline pipeline =
                 execEnv.createPipeline(
                         transformations, tableConfig.getConfiguration(), defaultJobName);
@@ -1352,10 +1354,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
 
             Catalog catalog =
                     FactoryUtil.createCatalog(
-                            catalogName,
-                            properties,
-                            tableConfig.getConfiguration(),
-                            userClassLoader);
+                            catalogName, properties, tableConfig, userClassLoader);
             catalogManager.registerCatalog(catalogName, catalog);
 
             return TableResultImpl.TABLE_RESULT_OK;
@@ -1371,7 +1370,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                     FactoryUtil.createModule(
                             operation.getModuleName(),
                             operation.getOptions(),
-                            tableConfig.getConfiguration(),
+                            tableConfig,
                             userClassLoader);
             moduleManager.loadModule(operation.getModuleName(), module);
             return TableResultImpl.TABLE_RESULT_OK;
