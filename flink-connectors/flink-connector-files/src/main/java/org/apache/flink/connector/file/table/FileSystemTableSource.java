@@ -64,7 +64,10 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
+
+import static org.apache.flink.util.CollectionUtil.entry;
 
 /** File system table source. */
 @Internal
@@ -109,20 +112,14 @@ public class FileSystemTableSource extends AbstractFileSystemTable
 
     @Override
     public ScanRuntimeProvider getScanRuntimeProvider(ScanContext scanContext) {
-        // When this table has no partition, just return a empty source.
+        // When this table has no partition, just return an empty source.
         if (!partitionKeys.isEmpty() && getOrFetchPartitions().isEmpty()) {
             return InputFormatProvider.of(new CollectionInputFormat<>(new ArrayList<>(), null));
         }
 
         // Resolve metadata and make sure to filter out metadata not in the producedDataType
         final List<String> metadataKeys =
-                DataType.getFieldNames(producedDataType).stream()
-                        .filter(
-                                ((this.metadataKeys == null)
-                                                ? Collections.emptyList()
-                                                : this.metadataKeys)
-                                        ::contains)
-                        .collect(Collectors.toList());
+                this.metadataKeys == null ? Collections.emptyList() : this.metadataKeys;
         final List<ReadableFileInfo> metadataToExtract =
                 metadataKeys.stream().map(ReadableFileInfo::resolve).collect(Collectors.toList());
 
@@ -225,16 +222,27 @@ public class FileSystemTableSource extends AbstractFileSystemTable
             List<ReadableFileInfo> metadata,
             List<String> partitionKeys) {
         if (!metadata.isEmpty() || !partitionKeys.isEmpty()) {
+            final List<String> producedFieldNames = DataType.getFieldNames(producedDataType);
+            final Map<String, FileInfoAccessor> metadataColumns =
+                    IntStream.range(0, metadata.size())
+                            .mapToObj(
+                                    i -> {
+                                        // Access metadata columns from the back because the
+                                        // names are decided by the planner
+                                        final int columnPos =
+                                                producedFieldNames.size() - metadata.size() + i;
+                                        return entry(
+                                                producedFieldNames.get(columnPos),
+                                                metadata.get(i).getAccessor());
+                                    })
+                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+
             bulkFormat =
                     new FileInfoExtractorBulkFormat(
                             bulkFormat,
                             producedDataType,
                             context.createTypeInformation(producedDataType),
-                            metadata.stream()
-                                    .collect(
-                                            Collectors.toMap(
-                                                    ReadableFileInfo::getKey,
-                                                    ReadableFileInfo::getAccessor)),
+                            metadataColumns,
                             partitionKeys,
                             defaultPartName);
         }

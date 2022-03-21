@@ -403,8 +403,7 @@ public final class TestValuesTableFactory
             Collection<Row> data = registeredData.getOrDefault(dataId, Collections.emptyList());
             List<Map<String, String>> partitions =
                     parsePartitionList(helper.getOptions().get(PARTITION_LIST));
-            DataType producedDataType =
-                    context.getCatalogTable().getSchema().toPhysicalRowDataType();
+            DataType producedDataType = context.getPhysicalRowDataType();
             // pushing project into scan will prune schema and we have to get the mapping between
             // partition and row
             Map<Map<String, String>, Collection<Row>> partition2Rows;

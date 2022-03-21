@@ -84,6 +84,9 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 @Internal
 public final class DynamicSinkUtils {
 
+    // Ensures that physical and metadata columns don't collide.
+    private static final String METADATA_COLUMN_PREFIX = "$metadata$";
+
     /** Converts an {@link TableResult#collect()} sink to a {@link RelNode}. */
     public static RelNode convertCollectToRel(
             FlinkRelBuilder relBuilder,
@@ -642,7 +645,11 @@ public final class DynamicSinkUtils {
 
         final Stream<RowField> metadataFields =
                 createRequiredMetadataKeys(schema, sink).stream()
-                        .map(k -> new RowField(k, metadataMap.get(k).getLogicalType()));
+                        .map(
+                                k ->
+                                        new RowField(
+                                                METADATA_COLUMN_PREFIX + k,
+                                                metadataMap.get(k).getLogicalType()));
 
         final List<RowField> rowFields =
                 Stream.concat(physicalFields, metadataFields).collect(Collectors.toList());

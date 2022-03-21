@@ -18,7 +18,6 @@
 
 package org.apache.flink.table.planner.plan.batch.sql
 
-import org.apache.flink.table.api.config.TableConfigOptions
 import org.apache.flink.table.planner.plan.optimize.RelNodeBlockPlanBuilder
 import org.apache.flink.table.planner.utils._
 
