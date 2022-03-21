@@ -18,13 +18,19 @@
 
 package org.apache.flink.kubernetes.highavailability;
 
+import org.apache.flink.api.common.JobStatus;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.kubernetes.kubeclient.resources.KubernetesLeaderElector;
+import org.apache.flink.kubernetes.utils.Constants;
+import org.apache.flink.kubernetes.utils.KubernetesUtils;
 
 import org.junit.Test;
 
+import java.util.concurrent.CompletionException;
+
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.fail;
 
 /** Tests for {@link KubernetesCheckpointIDCounter} operations. */
@@ -45,6 +51,138 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
                             final long counter = checkpointIDCounter.getAndIncrement();
                             assertThat(counter, is(100L));
                             assertThat(checkpointIDCounter.get(), is(101L));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testShutdown() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final KubernetesCheckpointIDCounter checkpointIDCounter =
+                                    new KubernetesCheckpointIDCounter(
+                                            flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
+                            checkpointIDCounter.start();
+
+                            checkpointIDCounter.setCount(100L);
+
+                            assertThat(
+                                    getLeaderConfigMap()
+                                            .getData()
+                                            .get(Constants.CHECKPOINT_COUNTER_KEY),
+                                    is("100"));
+
+                            checkpointIDCounter.shutdown(JobStatus.FINISHED).join();
+
+                            assertThat(
+                                    getLeaderConfigMap()
+                                            .getData()
+                                            .containsKey(Constants.CHECKPOINT_COUNTER_KEY),
+                                    is(false));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testShutdownForLocallyTerminatedJobStatus() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final KubernetesCheckpointIDCounter checkpointIDCounter =
+                                    new KubernetesCheckpointIDCounter(
+                                            flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
+                            checkpointIDCounter.start();
+
+                            checkpointIDCounter.setCount(100L);
+
+                            assertThat(
+                                    getLeaderConfigMap()
+                                            .getData()
+                                            .get(Constants.CHECKPOINT_COUNTER_KEY),
+                                    is("100"));
+
+                            checkpointIDCounter.shutdown(JobStatus.SUSPENDED).join();
+
+                            assertThat(
+                                    getLeaderConfigMap()
+                                            .getData()
+                                            .containsKey(Constants.CHECKPOINT_COUNTER_KEY),
+                                    is(true));
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testIdempotentShutdown() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final KubernetesCheckpointIDCounter checkpointIDCounter =
+                                    new KubernetesCheckpointIDCounter(
+                                            flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
+                            checkpointIDCounter.start();
+
+                            assertThat(
+                                    getLeaderConfigMap()
+                                            .getData()
+                                            .containsKey(Constants.CHECKPOINT_COUNTER_KEY),
+                                    is(false));
+
+                            checkpointIDCounter.shutdown(JobStatus.FINISHED).join();
+
+                            assertThat(
+                                    getLeaderConfigMap()
+                                            .getData()
+                                            .containsKey(Constants.CHECKPOINT_COUNTER_KEY),
+                                    is(false));
+
+                            // a second shutdown should work without causing any errors
+                            checkpointIDCounter.shutdown(JobStatus.FINISHED).join();
+                        });
+            }
+        };
+    }
+
+    @Test
+    public void testShutdownFailureDueToMissingConfigMap() throws Exception {
+        new Context() {
+            {
+                runTest(
+                        () -> {
+                            leaderCallbackGrantLeadership();
+
+                            final KubernetesCheckpointIDCounter checkpointIDCounter =
+                                    new KubernetesCheckpointIDCounter(
+                                            flinkKubeClient, LEADER_CONFIGMAP_NAME, LOCK_IDENTITY);
+                            checkpointIDCounter.start();
+
+                            // deleting the ConfigMap from outside of the CheckpointIDCounter while
+                            // still using the counter (which is stored as an entry in the
+                            // ConfigMap) causes an unexpected failure which we want to simulate
+                            // here
+                            flinkKubeClient.deleteConfigMap(LEADER_CONFIGMAP_NAME);
+
+                            assertThrows(
+                                    CompletionException.class,
+                                    () -> checkpointIDCounter.shutdown(JobStatus.FINISHED).get());
+
+                            // fixing the internal issue should make the shutdown succeed again
+                            KubernetesUtils.createConfigMapIfItDoesNotExist(
+                                    flinkKubeClient, LEADER_CONFIGMAP_NAME, getClusterId());
+                            checkpointIDCounter.shutdown(JobStatus.FINISHED).get();
                         });
             }
         };

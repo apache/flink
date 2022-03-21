@@ -35,6 +35,7 @@ import org.apache.flink.runtime.messages.checkpoint.AcknowledgeCheckpoint;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.ExecutorUtils;
 import org.apache.flink.util.TestLogger;
+import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.concurrent.ManuallyTriggeredScheduledExecutor;
 import org.apache.flink.util.concurrent.ScheduledExecutorServiceAdapter;
 
@@ -835,7 +836,9 @@ public class CheckpointCoordinatorTriggeringTest extends TestLogger {
         public void start() {}
 
         @Override
-        public void shutdown(JobStatus jobStatus) throws Exception {}
+        public CompletableFuture<Void> shutdown(JobStatus jobStatus) {
+            return FutureUtils.completedVoidFuture();
+        }
 
         @Override
         public long getAndIncrement() {
