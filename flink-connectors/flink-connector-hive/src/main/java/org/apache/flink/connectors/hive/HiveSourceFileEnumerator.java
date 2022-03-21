@@ -18,7 +18,6 @@
 
 package org.apache.flink.connectors.hive;
 
-import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.connector.file.src.FileSourceSplit;
 import org.apache.flink.connector.file.src.enumerate.FileEnumerator;
 import org.apache.flink.connectors.hive.read.HiveSourceSplit;
@@ -45,33 +44,27 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
     // For non-partition hive table, partitions only contains one partition which partitionValues is
     // empty.
     private final List<HiveTablePartition> partitions;
-    private final ReadableConfig flinkConf;
+    private final int threadNum;
     private final JobConf jobConf;
 
     public HiveSourceFileEnumerator(
-            List<HiveTablePartition> partitions, ReadableConfig flinkConf, JobConf jobConf) {
+            List<HiveTablePartition> partitions, int threadNum, JobConf jobConf) {
         this.partitions = partitions;
-        this.flinkConf = flinkConf;
+        this.threadNum = threadNum;
         this.jobConf = jobConf;
     }
 
     @Override
     public Collection<FileSourceSplit> enumerateSplits(Path[] paths, int minDesiredSplits)
             throws IOException {
-        return new ArrayList<>(createInputSplits(minDesiredSplits, partitions, flinkConf, jobConf));
+        return new ArrayList<>(createInputSplits(minDesiredSplits, partitions, threadNum, jobConf));
     }
 
     public static List<HiveSourceSplit> createInputSplits(
-            int minNumSplits,
-            List<HiveTablePartition> partitions,
-            ReadableConfig flinkConf,
-            JobConf jobConf)
+            int minNumSplits, List<HiveTablePartition> partitions, int threadNum, JobConf jobConf)
             throws IOException {
         List<HiveSourceSplit> hiveSplits = new ArrayList<>();
-        try (MRSplitsGetter splitsGetter =
-                new MRSplitsGetter(
-                        flinkConf.get(
-                                HiveOptions.TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM))) {
+        try (MRSplitsGetter splitsGetter = new MRSplitsGetter(threadNum)) {
             for (HiveTablePartitionSplits partitionSplits :
                     splitsGetter.getHiveTablePartitionMRSplits(minNumSplits, partitions, jobConf)) {
                 HiveTablePartition partition = partitionSplits.getHiveTablePartition();
@@ -109,21 +102,19 @@ public class HiveSourceFileEnumerator implements FileEnumerator {
         private static final long serialVersionUID = 1L;
 
         private final List<HiveTablePartition> partitions;
-        private final ReadableConfig flinkConf;
+        private final int threadNum;
         private final JobConfWrapper jobConfWrapper;
 
         public Provider(
-                List<HiveTablePartition> partitions,
-                ReadableConfig flinkConf,
-                JobConfWrapper jobConfWrapper) {
+                List<HiveTablePartition> partitions, int threadNum, JobConfWrapper jobConfWrapper) {
             this.partitions = partitions;
-            this.flinkConf = flinkConf;
+            this.threadNum = threadNum;
             this.jobConfWrapper = jobConfWrapper;
         }
 
         @Override
         public FileEnumerator create() {
-            return new HiveSourceFileEnumerator(partitions, flinkConf, jobConfWrapper.conf());
+            return new HiveSourceFileEnumerator(partitions, threadNum, jobConfWrapper.conf());
         }
     }
 }

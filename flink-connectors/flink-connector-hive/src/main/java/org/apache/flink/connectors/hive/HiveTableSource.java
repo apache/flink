@@ -156,7 +156,9 @@ public class HiveTableSource
                                             HiveSourceFileEnumerator.createInputSplits(
                                                             0,
                                                             hivePartitionsToRead,
-                                                            flinkConf,
+                                                            flinkConf.get(
+                                                                    HiveOptions
+                                                                            .TABLE_EXEC_HIVE_LOAD_PARTITION_SPLITS_THREAD_NUM),
                                                             jobConf)
                                                     .size())
                             .limit(limit);
