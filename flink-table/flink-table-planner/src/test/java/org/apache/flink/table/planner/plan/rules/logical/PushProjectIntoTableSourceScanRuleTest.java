@@ -349,7 +349,7 @@ public class PushProjectIntoTableSourceScanRuleTest
                 equalTo(Collections.emptyList()));
         assertThat(
                 DataType.getFieldNames(appliedMetadataDataType.get()),
-                equalTo(Collections.singletonList("m2")));
+                equalTo(Collections.singletonList("$metadata$m2")));
     }
 
     @Test
@@ -375,7 +375,7 @@ public class PushProjectIntoTableSourceScanRuleTest
                 equalTo(Collections.singletonList("f1")));
         assertThat(
                 DataType.getFieldNames(appliedMetadataDataType.get()),
-                equalTo(Arrays.asList("f1", "m2")));
+                equalTo(Arrays.asList("f1", "$metadata$m2")));
     }
 
     // ---------------------------------------------------------------------------------------------

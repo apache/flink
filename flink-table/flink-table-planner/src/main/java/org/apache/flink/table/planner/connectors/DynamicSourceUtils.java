@@ -71,6 +71,9 @@ import static org.apache.flink.table.types.logical.utils.LogicalTypeCasts.suppor
 @Internal
 public final class DynamicSourceUtils {
 
+    // Ensures that physical and metadata columns don't collide.
+    public static final String METADATA_COLUMN_PREFIX = "$metadata$";
+
     /**
      * Converts a given {@link DataStream} to a {@link RelNode}. It adds helper projections if
      * necessary.
@@ -204,7 +207,11 @@ public final class DynamicSourceUtils {
 
         final Stream<RowField> metadataFields =
                 createRequiredMetadataKeys(schema, source).stream()
-                        .map(k -> new RowField(k, metadataMap.get(k).getLogicalType()));
+                        .map(
+                                k ->
+                                        new RowField(
+                                                METADATA_COLUMN_PREFIX + k,
+                                                metadataMap.get(k).getLogicalType()));
 
         final List<RowField> rowFields =
                 Stream.concat(physicalFields, metadataFields).collect(Collectors.toList());
@@ -315,7 +322,9 @@ public final class DynamicSourceUtils {
                                                         .getMetadataKey()
                                                         .orElse(metadataColumn.getName());
                                         return rexBuilder.makeAbstractCast(
-                                                relDataType, relBuilder.field(metadataKey));
+                                                relDataType,
+                                                relBuilder.field(
+                                                        METADATA_COLUMN_PREFIX + metadataKey));
                                     } else {
                                         return relBuilder.field(c.getName());
                                     }
