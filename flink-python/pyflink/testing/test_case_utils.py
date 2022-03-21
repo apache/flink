@@ -107,8 +107,8 @@ class PyFlinkTestCase(unittest.TestCase):
     @classmethod
     def to_py_list(cls, actual):
         py_list = []
-        for i in range(0, actual.length()):
-            py_list.append(actual.apply(i))
+        for i in range(0, actual.size()):
+            py_list.append(actual.get(i))
         return py_list
 
     @classmethod
