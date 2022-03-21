@@ -70,7 +70,7 @@ import java.util.Map;
  * <pre>{@code
  * // for t1 and t2
  * ROW < i INT, s STRING, d DOUBLE >                                              // physical input
- * ROW < i INT, s STRING, d DOUBLE, timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE > // final input
+ * ROW < i INT, s STRING, d DOUBLE, $metadata$timestamp TIMESTAMP(3) WITH LOCAL TIME ZONE > // final input
  *
  * // for t3
  * ROW < i INT, s STRING, d DOUBLE >                                              // physical input
@@ -115,7 +115,8 @@ public interface SupportsWritingMetadata {
      *
      * @param metadataKeys a subset of the keys returned by {@link #listWritableMetadata()}, ordered
      *     by the iteration order of returned map
-     * @param consumedDataType the final input type of the sink
+     * @param consumedDataType the final input type of the sink, it is intended to be only forwarded
+     *     and the planner will decide on the field names to avoid collisions
      * @see EncodingFormat#applyWritableMetadata(List)
      */
     void applyWritableMetadata(List<String> metadataKeys, DataType consumedDataType);

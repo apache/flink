@@ -60,6 +60,7 @@ import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
+import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.METADATA_COLUMN_PREFIX;
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createProducedType;
 import static org.apache.flink.table.planner.connectors.DynamicSourceUtils.createRequiredMetadataKeys;
 import static org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext;
@@ -308,6 +309,7 @@ public class PushProjectIntoTableSourceScanRule
             final List<String> projectedMetadataKeys =
                     projectedMetadataColumns.stream()
                             .map(NestedColumn::name)
+                            .map(k -> k.substring(METADATA_COLUMN_PREFIX.length()))
                             .collect(Collectors.toList());
 
             abilitySpecs.add(new ReadingMetadataSpec(projectedMetadataKeys, newProducedType));

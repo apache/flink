@@ -100,6 +100,25 @@ class TableScanTest extends TableTestBase {
   }
 
   @Test
+  def testDDLWithMetadataThatConflictsWithPhysicalColumn(): Unit = {
+    util.addTable(
+      s"""
+         |CREATE TABLE MetadataTable (
+         |  `timestamp` TIMESTAMP(9),
+         |  `metadata_timestamp` TIMESTAMP(0) METADATA FROM 'timestamp',
+         |  `other` STRING METADATA,
+         |  `computed_other` AS UPPER(`other`),
+         |  `computed_timestamp` AS CAST(`metadata_timestamp` AS STRING)
+         |) WITH (
+         |  'connector' = 'values',
+         |  'bounded' = 'false',
+         |  'readable-metadata' = 'timestamp:TIMESTAMP(0), other:STRING'
+         |)
+       """.stripMargin)
+    util.verifyExecPlan("SELECT * FROM MetadataTable")
+  }
+
+  @Test
   def testDDLWithMetadataColumnProjectionPushDown(): Unit = {
     // tests reordering, skipping, and casting of metadata
     util.addTable(
