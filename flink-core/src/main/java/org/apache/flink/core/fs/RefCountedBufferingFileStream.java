@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.flink.fs.s3.common.utils;
+package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
@@ -109,7 +109,7 @@ public class RefCountedBufferingFileStream extends RefCountedFSOutputStream {
     @Override
     public void sync() throws IOException {
         throw new UnsupportedOperationException(
-                "S3RecoverableFsDataOutputStream cannot sync state to S3. "
+                "Cannot sync state to system like S3. "
                         + "Use persist() to create a persistent recoverable intermediate point.");
     }
 

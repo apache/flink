@@ -19,7 +19,6 @@
 package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.util.ExceptionUtils;
 import org.apache.flink.util.RefCounted;
 
@@ -82,7 +81,6 @@ public class RefCountedFile implements RefCounted {
         }
     }
 
-    @VisibleForTesting
     public int getReferenceCounter() {
         return references.get();
     }

@@ -18,8 +18,8 @@
 
 package org.apache.flink.fs.s3.common.writer;
 
-import org.apache.flink.fs.s3.common.utils.RefCountedBufferingFileStream;
-import org.apache.flink.fs.s3.common.utils.RefCountedFileWithStream;
+import org.apache.flink.core.fs.RefCountedBufferingFileStream;
+import org.apache.flink.core.fs.RefCountedFileWithStream;
 import org.apache.flink.util.IOUtils;
 import org.apache.flink.util.MathUtils;
 

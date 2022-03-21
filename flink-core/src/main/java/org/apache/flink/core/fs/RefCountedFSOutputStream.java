@@ -16,10 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.fs.s3.common.utils;
+package org.apache.flink.core.fs;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.core.fs.FSDataOutputStream;
 import org.apache.flink.util.RefCounted;
 
 import java.io.File;
