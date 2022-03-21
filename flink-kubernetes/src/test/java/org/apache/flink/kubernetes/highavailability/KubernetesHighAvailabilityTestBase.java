@@ -118,6 +118,10 @@ public class KubernetesHighAvailabilityTestBase extends TestLogger {
             return kubernetesTestFixture.createFlinkKubeClientBuilder();
         }
 
+        String getClusterId() {
+            return CLUSTER_ID;
+        }
+
         KubernetesConfigMap getLeaderConfigMap() {
             return kubernetesTestFixture.getLeaderConfigMap();
         }
