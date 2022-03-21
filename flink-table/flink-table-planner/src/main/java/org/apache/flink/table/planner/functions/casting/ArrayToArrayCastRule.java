@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.functions.casting;
 
 import org.apache.flink.table.data.ArrayData;
 import org.apache.flink.table.data.GenericArrayData;
+import org.apache.flink.table.planner.codegen.CodeGenUtils;
 import org.apache.flink.table.types.logical.ArrayType;
 import org.apache.flink.table.types.logical.DistinctType;
 import org.apache.flink.table.types.logical.LogicalType;
@@ -109,7 +110,7 @@ class ArrayToArrayCastRule extends AbstractNullAwareCodeGeneratorCastRule<ArrayD
 
     private static String arrayElementType(LogicalType t) {
         if (t.isNullable()) {
-            return "Object";
+            return CodeGenUtils.boxedTypeTermForType(t);
         }
         switch (t.getTypeRoot()) {
             case BOOLEAN:

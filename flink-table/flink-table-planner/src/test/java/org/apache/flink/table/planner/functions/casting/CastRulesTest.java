@@ -1258,8 +1258,8 @@ class CastRulesTest {
                 CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().nullable()))
                         .fromCase(
                                 ARRAY(INT().nullable()),
-                                new GenericArrayData(new Object[] {1, null, 2}),
-                                new GenericArrayData(new Object[] {1L, null, 2L})),
+                                new GenericArrayData(new Integer[] {1, null, 2}),
+                                new GenericArrayData(new Long[] {1L, null, 2L})),
                 CastTestSpecBuilder.testCastTo(ARRAY(BIGINT().notNull()))
                         .fromCase(
                                 ARRAY(INT().notNull()),
