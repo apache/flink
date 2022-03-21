@@ -26,7 +26,7 @@ from pyflink.table import (DataTypes, TableEnvironment, EnvironmentSettings)
 
 def conversion_from_dataframe():
     t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
-    t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+    t_env.get_config().set("parallelism.default", "1")
 
     # define the source with watermark definition
     pdf = pd.DataFrame(np.random.rand(1000, 2))

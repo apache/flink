@@ -280,10 +280,10 @@ class StreamRowBasedOperationITTests(RowBasedOperationTests, PyFlinkStreamTableT
     def test_flat_aggregate_list_view(self):
         import pandas as pd
         my_concat = udtaf(ListViewConcatTableAggregateFunction())
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "2")
         t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
                                       (3, 'Hi', 'hi'),

@@ -96,7 +96,7 @@ class DependencyTests(object):
 class EmbeddedThreadDependencyTests(DependencyTests, PyFlinkStreamTableTestCase):
     def setUp(self):
         super(EmbeddedThreadDependencyTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode", "thread")
+        self.t_env.get_config().set("python.execution-mode", "thread")
 
 
 class BatchDependencyTests(DependencyTests, PyFlinkBatchTableTestCase):

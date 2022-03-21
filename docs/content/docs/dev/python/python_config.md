@@ -49,9 +49,7 @@ from pyflink.table import TableEnvironment, EnvironmentSettings
 
 env_settings = EnvironmentSettings.in_streaming_mode()
 t_env = TableEnvironment.create(env_settings)
-
-config = t_env.get_config().get_configuration()
-config.set_integer("python.fn-execution.bundle.size", 1000)
+t_env.get_config().set("python.fn-execution.bundle.size", "1000")
 ```
 
 ## Python Options
