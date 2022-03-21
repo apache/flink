@@ -725,6 +725,24 @@ public class HiveDialectQueryITCase {
         }
     }
 
+    @Test
+    public void testBoolComparison() {
+        tableEnv.executeSql("CREATE TABLE tbool (id int, a int, b string, c boolean)");
+        try {
+            tableEnv.executeSql(
+                    "insert into tbool values (1, 1, '12', true), (2, 1, '0.4', false)");
+            // test compare boolean with numeric/string type
+            List<Row> results =
+                    CollectionUtil.iteratorToList(
+                            tableEnv.executeSql(
+                                            "select id from tbool where a = true and b != false and c = '1'")
+                                    .collect());
+            assertThat(results.toString()).isEqualTo("[+I[1]]");
+        } finally {
+            tableEnv.executeSql("drop table tbool");
+        }
+    }
+
     private void runQFile(File qfile) throws Exception {
         QTest qTest = extractQTest(qfile);
         for (int i = 0; i < qTest.statements.size(); i++) {
