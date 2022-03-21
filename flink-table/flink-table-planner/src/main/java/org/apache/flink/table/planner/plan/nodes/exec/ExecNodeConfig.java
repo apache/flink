@@ -82,15 +82,4 @@ public final class ExecNodeConfig implements ReadableConfig {
     public long getStateRetentionTime() {
         return get(ExecutionConfigOptions.IDLE_STATE_RETENTION).toMillis();
     }
-
-    // See https://issues.apache.org/jira/browse/FLINK-26190
-    /**
-     * Using {@link #tableConfig} to satisify tests like {@code OverAggregateHarnessTest}, which use
-     * {@code HarnessTestBase#TestTableConfig} to individually manipulate the
-     * maxIdleStateRetentionTime. See {@link TableConfig#getMaxIdleStateRetentionTime()}.
-     */
-    @Deprecated
-    public long getMaxIdleStateRetentionTime() {
-        return tableConfig.getMaxIdleStateRetentionTime();
-    }
 }
