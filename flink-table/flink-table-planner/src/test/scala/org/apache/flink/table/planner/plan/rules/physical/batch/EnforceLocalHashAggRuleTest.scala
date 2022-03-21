@@ -38,7 +38,7 @@ class EnforceLocalHashAggRuleTest extends EnforceLocalAggRuleTestBase {
   @Before
   override def setup(): Unit = {
     super.setup()
-    val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig.getConfiguration)
+    val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig)
     // remove the original BatchExecHashAggRule and add BatchExecHashAggRuleForOnePhase
     // to let the physical phase generate one phase aggregate
     program.getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)

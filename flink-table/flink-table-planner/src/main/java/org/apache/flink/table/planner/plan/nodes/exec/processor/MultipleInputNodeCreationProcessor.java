@@ -79,7 +79,7 @@ public class MultipleInputNodeCreationProcessor implements ExecNodeGraphProcesso
                             execGraph.getRootNodes(),
                             InputProperty.DamBehavior.BLOCKING,
                             StreamExchangeMode.PIPELINED,
-                            context.getPlanner().getConfiguration());
+                            context.getPlanner().getTableConfig());
             resolver.detectAndResolve();
         }
 
