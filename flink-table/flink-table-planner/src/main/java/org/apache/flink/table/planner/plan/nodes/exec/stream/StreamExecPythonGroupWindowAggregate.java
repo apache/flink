@@ -53,6 +53,7 @@ import org.apache.flink.table.planner.plan.utils.KeySelectorUtil;
 import org.apache.flink.table.planner.plan.utils.PythonUtil;
 import org.apache.flink.table.planner.plan.utils.WindowEmitStrategy;
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.runtime.dataview.DataViewSpec;
 import org.apache.flink.table.runtime.generated.GeneratedProjection;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
@@ -224,7 +225,7 @@ public class StreamExecPythonGroupWindowAggregate extends StreamExecAggregateBas
         final ZoneId shiftTimeZone =
                 TimeWindowUtil.getShiftTimeZone(
                         window.timeAttribute().getOutputDataType().getLogicalType(),
-                        config.getLocalTimeZone());
+                        TableConfigUtils.getLocalTimeZone(config));
         Tuple2<WindowAssigner<?>, Trigger<?>> windowAssignerAndTrigger =
                 generateWindowAssignerAndTrigger();
         WindowAssigner<?> windowAssigner = windowAssignerAndTrigger.f0;
