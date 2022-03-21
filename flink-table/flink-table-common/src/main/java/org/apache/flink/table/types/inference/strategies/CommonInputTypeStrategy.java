@@ -41,7 +41,7 @@ import java.util.stream.IntStream;
 @Internal
 public final class CommonInputTypeStrategy implements InputTypeStrategy {
 
-    private static final Signature.Argument COMMON_ARGUMENT = Signature.Argument.of("<COMMON>");
+    private static final Signature.Argument COMMON_ARGUMENT = Signature.Argument.ofKind("COMMON");
 
     private final ArgumentCount argumentCount;
 

@@ -1272,8 +1272,8 @@ class TemporalTypesTest extends ExpressionTestBase {
     )
     testExpectedTableApiException(
       toTimestampLtz("test_string_type", 0),
-      "toTimestampLtz(test_string_type, 0) requires numeric type for the first input," +
-        " but the actual type 'String'."
+      "Unsupported argument type. " +
+        "Expected type of family 'NUMERIC' but actual type was 'CHAR(16) NOT NULL'"
     )
 
     // invalid type for the second input
@@ -1286,8 +1286,8 @@ class TemporalTypesTest extends ExpressionTestBase {
 
     testExpectedTableApiException(
       toTimestampLtz(123, "test_string_type"),
-      "toTimestampLtz(123, test_string_type) requires numeric type for the second input," +
-        " but the actual type 'String'."
+      "Unsupported argument type. " +
+        "Expected type of family 'INTEGER_NUMERIC' but actual type was 'CHAR(16) NOT NULL'"
     )
   }
 

@@ -71,7 +71,7 @@ public final class ExplicitArgumentTypeStrategy implements ArgumentTypeStrategy 
 
     @Override
     public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-        return Argument.of(expectedDataType.toString());
+        return Argument.of(expectedDataType.getLogicalType());
     }
 
     @Override

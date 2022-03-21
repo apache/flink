@@ -19,7 +19,11 @@
 package org.apache.flink.table.types.inference;
 
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.table.expressions.TableSymbol;
 import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.types.logical.LogicalType;
+import org.apache.flink.table.types.logical.LogicalTypeFamily;
+import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.util.Preconditions;
 
 import javax.annotation.Nullable;
@@ -76,14 +80,53 @@ public final class Signature {
             this.type = Preconditions.checkNotNull(type);
         }
 
-        /** Returns an instance of {@link Argument}. */
         public static Argument of(String name, String type) {
-            return new Argument(Preconditions.checkNotNull(name, "Name must not be null."), type);
+            return new Argument(name, type);
         }
 
-        /** Returns an instance of {@link Argument}. */
+        public static Argument of(String name, LogicalType type) {
+            return of(name, type.asSummaryString());
+        }
+
         public static Argument of(String type) {
             return new Argument(null, type);
+        }
+
+        public static Argument of(LogicalType type) {
+            return of(type.asSummaryString());
+        }
+
+        public static Argument ofKind(String name, String typeGroup) {
+            return new Argument(name, "<" + typeGroup + ">");
+        }
+
+        public static Argument ofKind(String name, LogicalTypeRoot typeRoot) {
+            return ofKind(name, typeRoot.name());
+        }
+
+        public static Argument ofKind(String name, LogicalTypeFamily typeFamily) {
+            return ofKind(name, typeFamily.name());
+        }
+
+        public static Argument ofKind(
+                String name, Class<? extends Enum<? extends TableSymbol>> symbol) {
+            return ofKind(name, symbol.getSimpleName());
+        }
+
+        public static Argument ofKind(String typeGroup) {
+            return ofKind(null, typeGroup);
+        }
+
+        public static Argument ofKind(LogicalTypeRoot typeRoot) {
+            return ofKind(typeRoot.name());
+        }
+
+        public static Argument ofKind(LogicalTypeFamily typeFamily) {
+            return ofKind(typeFamily.name());
+        }
+
+        public static Argument ofKind(Class<? extends Enum<? extends TableSymbol>> symbol) {
+            return ofKind(symbol.getSimpleName());
         }
 
         public Optional<String> getName() {

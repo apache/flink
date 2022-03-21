@@ -75,11 +75,11 @@ public final class RootArgumentTypeStrategy implements ArgumentTypeStrategy {
     public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
         // "< ... >" to indicate that this is not a type
         if (Objects.equals(expectedNullability, Boolean.TRUE)) {
-            return Argument.of("<" + expectedRoot + " NULL>");
+            return Argument.ofKind(expectedRoot + " NULL");
         } else if (Objects.equals(expectedNullability, Boolean.FALSE)) {
-            return Argument.of("<" + expectedRoot + " NOT NULL>");
+            return Argument.ofKind(expectedRoot + " NOT NULL");
         }
-        return Argument.of("<" + expectedRoot + ">");
+        return Argument.ofKind(expectedRoot);
     }
 
     @Override

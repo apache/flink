@@ -60,9 +60,9 @@ public final class LiteralArgumentTypeStrategy implements ArgumentTypeStrategy {
     public Signature.Argument getExpectedArgument(
             FunctionDefinition functionDefinition, int argumentPos) {
         if (allowNull) {
-            return Signature.Argument.of("<LITERAL>");
+            return Signature.Argument.ofKind("LITERAL");
         }
-        return Signature.Argument.of("<LITERAL NOT NULL>");
+        return Signature.Argument.ofKind("LITERAL NOT NULL");
     }
 
     @Override

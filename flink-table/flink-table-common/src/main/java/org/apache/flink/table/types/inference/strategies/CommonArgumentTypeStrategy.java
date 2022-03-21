@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 @Internal
 public final class CommonArgumentTypeStrategy implements ArgumentTypeStrategy {
 
-    private static final Signature.Argument COMMON_ARGUMENT = Signature.Argument.of("<COMMON>");
+    private static final Signature.Argument COMMON_ARGUMENT = Signature.Argument.ofKind("COMMON");
 
     private final boolean preserveNullability;
 

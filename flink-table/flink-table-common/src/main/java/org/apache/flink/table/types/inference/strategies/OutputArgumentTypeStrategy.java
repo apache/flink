@@ -47,7 +47,7 @@ public final class OutputArgumentTypeStrategy implements ArgumentTypeStrategy {
     @Override
     public Signature.Argument getExpectedArgument(
             FunctionDefinition functionDefinition, int argumentPos) {
-        return Signature.Argument.of("<OUTPUT>");
+        return Signature.Argument.ofKind("OUTPUT");
     }
 
     @Override

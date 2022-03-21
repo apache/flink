@@ -39,7 +39,7 @@ public final class AnyArgumentTypeStrategy implements ArgumentTypeStrategy {
     @Override
     public Signature.Argument getExpectedArgument(
             FunctionDefinition functionDefinition, int argumentPos) {
-        return Signature.Argument.of("<ANY>");
+        return Signature.Argument.ofKind("ANY");
     }
 
     @Override

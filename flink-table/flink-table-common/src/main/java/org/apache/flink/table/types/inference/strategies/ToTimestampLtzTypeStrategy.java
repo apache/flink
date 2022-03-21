@@ -19,33 +19,23 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.Signature;
+import org.apache.flink.table.types.inference.TypeStrategy;
 
 import java.util.Optional;
 
-import static org.apache.flink.table.types.inference.InputTypeStrategies.LITERAL;
-
-/** Strategy that checks if an argument is a type literal. */
+/** Type strategy of {@code TO_TIMESTAMP_LTZ}. */
 @Internal
-public class TypeLiteralArgumentTypeStrategy implements ArgumentTypeStrategy {
+public class ToTimestampLtzTypeStrategy implements TypeStrategy {
 
     @Override
-    public Optional<DataType> inferArgumentType(
-            CallContext callContext, int argumentPos, boolean throwOnFailure) {
-        if (!LITERAL.inferArgumentType(callContext, argumentPos, throwOnFailure).isPresent()) {
-            return Optional.empty();
+    public Optional<DataType> inferType(CallContext callContext) {
+        if (callContext.isArgumentLiteral(1)) {
+            int precision = callContext.getArgumentValue(1, Integer.class).get();
+            return Optional.of(DataTypes.TIMESTAMP_LTZ(precision));
         }
-
-        return callContext.getArgumentValue(argumentPos, DataType.class);
-    }
-
-    @Override
-    public Signature.Argument getExpectedArgument(
-            FunctionDefinition functionDefinition, int argumentPos) {
-        return Signature.Argument.ofKind("DATA TYPE NOT NULL");
+        return Optional.of(DataTypes.TIMESTAMP_LTZ(3));
     }
 }

@@ -99,7 +99,9 @@ public final class InternalRowMergerFunction extends ScalarFunction {
                                     FunctionDefinition definition) {
                                 // this helps in printing nice error messages
                                 return Collections.singletonList(
-                                        Signature.of(Argument.of("ROW"), Argument.of("ROW")));
+                                        Signature.of(
+                                                Argument.ofKind(LogicalTypeRoot.ROW),
+                                                Argument.ofKind(LogicalTypeRoot.ROW)));
                             }
                         })
                 .outputTypeStrategy(

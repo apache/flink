@@ -49,6 +49,6 @@ public class CompositeArgumentTypeStrategy implements ArgumentTypeStrategy {
     @Override
     public Signature.Argument getExpectedArgument(
             FunctionDefinition functionDefinition, int argumentPos) {
-        return Signature.Argument.of("<COMPOSITE>");
+        return Signature.Argument.ofKind("COMPOSITE");
     }
 }

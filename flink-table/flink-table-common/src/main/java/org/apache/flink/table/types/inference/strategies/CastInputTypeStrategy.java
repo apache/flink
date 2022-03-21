@@ -81,6 +81,7 @@ class CastInputTypeStrategy implements InputTypeStrategy {
     public List<Signature> getExpectedSignatures(FunctionDefinition definition) {
         return Collections.singletonList(
                 Signature.of(
-                        Signature.Argument.of("<ANY>"), Signature.Argument.of("<TYPE LITERAL>")));
+                        Signature.Argument.ofKind("ANY"),
+                        Signature.Argument.ofKind("TYPE LITERAL")));
     }
 }

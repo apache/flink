@@ -120,11 +120,11 @@ public final class FamilyArgumentTypeStrategy implements ArgumentTypeStrategy {
             FunctionDefinition functionDefinition, int argumentPos) {
         // "< ... >" to indicate that this is not a type
         if (Objects.equals(expectedNullability, Boolean.TRUE)) {
-            return Signature.Argument.of("<" + expectedFamily + " NULL>");
+            return Signature.Argument.ofKind(expectedFamily + " NULL");
         } else if (Objects.equals(expectedNullability, Boolean.FALSE)) {
-            return Signature.Argument.of("<" + expectedFamily + " NOT NULL>");
+            return Signature.Argument.ofKind(expectedFamily + " NOT NULL");
         }
-        return Signature.Argument.of("<" + expectedFamily + ">");
+        return Signature.Argument.ofKind(expectedFamily);
     }
 
     @Override

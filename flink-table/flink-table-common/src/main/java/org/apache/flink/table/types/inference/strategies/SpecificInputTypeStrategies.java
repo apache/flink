@@ -83,6 +83,13 @@ public final class SpecificInputTypeStrategies {
                                     and(logical(LogicalTypeFamily.CHARACTER_STRING), LITERAL),
                                     JSON_ARGUMENT));
 
+    /** See {@link ExtractInputTypeStrategy}. */
+    public static final InputTypeStrategy EXTRACT = new ExtractInputTypeStrategy();
+
+    /** See {@link TemporalOverlapsInputTypeStrategy}. */
+    public static final InputTypeStrategy TEMPORAL_OVERLAPS =
+            new TemporalOverlapsInputTypeStrategy();
+
     // --------------------------------------------------------------------------------------------
     // Strategies composed of other strategies
     // --------------------------------------------------------------------------------------------

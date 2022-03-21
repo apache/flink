@@ -62,7 +62,7 @@ public final class ConstraintArgumentTypeStrategy implements ArgumentTypeStrateg
 
     @Override
     public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-        return Argument.of("<CONSTRAINT>");
+        return Argument.ofKind("CONSTRAINT");
     }
 
     @Override

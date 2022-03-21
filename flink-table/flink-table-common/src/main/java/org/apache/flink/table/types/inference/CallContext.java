@@ -94,6 +94,17 @@ public interface CallContext {
     }
 
     /**
+     * Shorthand for {@code if (throwOnFailure) throw ValidationException(...) else return
+     * Optional.empty()}.
+     */
+    default <T> Optional<T> failInference(boolean throwOnFailure, String message, Object... args) {
+        if (throwOnFailure) {
+            throw new ValidationException(String.format(message, args));
+        }
+        return Optional.empty();
+    }
+
+    /**
      * Returns whether the function call happens as part of an aggregation that defines grouping
      * columns.
      *
