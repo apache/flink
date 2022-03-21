@@ -93,7 +93,7 @@ class BatchPhysicalPythonGroupAggregate(
         } else {
           // If partialKey is enabled, try to use partial key to satisfy the required distribution
           val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-          val partialKeyEnabled = tableConfig.getConfiguration.getBoolean(
+          val partialKeyEnabled = tableConfig.get(
             BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
           partialKeyEnabled && groupKeysList.containsAll(shuffleKeys)
         }

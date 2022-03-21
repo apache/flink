@@ -56,11 +56,10 @@ object SubplanReuser {
     * Finds duplicated sub-plans and return the reused plan.
     */
   def reuseDuplicatedSubplan(rels: Seq[RelNode], tableConfig: TableConfig): Seq[RelNode] = {
-    if (!tableConfig.getConfiguration.getBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED)) {
+    if (!tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SUB_PLAN_ENABLED)) {
       return rels
     }
-    val tableSourceReuseEnabled = tableConfig.getConfiguration.getBoolean(
+    val tableSourceReuseEnabled = tableConfig.get(
       OptimizerConfigOptions.TABLE_OPTIMIZER_REUSE_SOURCE_ENABLED)
     val context = new SubplanReuseContext(tableSourceReuseEnabled, rels: _*)
     val reuseShuttle = new SubplanReuseShuttle(context)

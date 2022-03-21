@@ -75,8 +75,7 @@ object RankUtil {
       tableConfig: TableConfig): (Option[RankRange], Option[RexNode]) = {
     val predicate = FlinkRexUtil.expandSearch(rexBuilder, oriPred)
     // Converts the condition to conjunctive normal form (CNF)
-    val cnfNodeCount = tableConfig.getConfiguration.getInteger(
-      FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
+    val cnfNodeCount = tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
     val cnfCondition = FlinkRexUtil.toCnf(rexBuilder, cnfNodeCount, predicate)
 
     // split the condition into sort limit condition and other condition

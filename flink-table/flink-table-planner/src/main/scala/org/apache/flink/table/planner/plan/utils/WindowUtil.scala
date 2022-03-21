@@ -254,9 +254,8 @@ object WindowUtil {
    * throws exception when the configurations are set.
    */
   def checkEmitConfiguration(tableConfig: TableConfig): Unit = {
-    val conf = tableConfig.getConfiguration
-    if (conf.getBoolean(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED) ||
-      conf.getBoolean(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)) {
+    if (tableConfig.get(TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED) ||
+      tableConfig.get(TABLE_EXEC_EMIT_LATE_FIRE_ENABLED)) {
       throw new TableException("Currently, window table function based aggregate doesn't " +
         s"support early-fire and late-fire configuration " +
         s"'${TABLE_EXEC_EMIT_EARLY_FIRE_ENABLED.key()}' and " +

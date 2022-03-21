@@ -56,7 +56,7 @@ trait BatchPhysicalJoinRuleBase {
       distinctKeys: Seq[Int]): Boolean = {
     val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(buildRel)
     val mq = buildRel.getCluster.getMetadataQuery
-    val ratioConf = tableConfig.getConfiguration.getDouble(
+    val ratioConf = tableConfig.get(
       BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO)
     val inputRows = mq.getRowCount(buildRel)
     val ndvOfGroupKey = mq.getDistinctRowCount(

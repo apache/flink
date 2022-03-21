@@ -55,7 +55,7 @@ class IncrementalAggregateRule
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
 
     // whether incremental aggregate is enabled
-    val incrementalAggEnabled = tableConfig.getConfiguration.getBoolean(
+    val incrementalAggEnabled = tableConfig.get(
       IncrementalAggregateRule.TABLE_OPTIMIZER_INCREMENTAL_AGG_ENABLED)
 
     partialGlobalAgg.partialFinalType == PartialFinalType.PARTIAL &&
