@@ -969,8 +969,8 @@ class Table(object):
         """
         self._t_env._before_execute()
         gateway = get_gateway()
-        max_arrow_batch_size = self._j_table.getTableEnvironment().getConfig().getConfiguration()\
-            .getInteger(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE)
+        max_arrow_batch_size = self._j_table.getTableEnvironment().getConfig()\
+            .get(gateway.jvm.org.apache.flink.python.PythonOptions.MAX_ARROW_BATCH_SIZE)
         batches_iterator = gateway.jvm.org.apache.flink.table.runtime.arrow.ArrowUtils\
             .collectAsPandasDataFrame(self._j_table, max_arrow_batch_size)
         if batches_iterator.hasNext():

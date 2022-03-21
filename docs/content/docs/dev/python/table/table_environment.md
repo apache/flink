@@ -570,7 +570,7 @@ Please refer to the [Dependency Management]({{< ref "docs/dev/python/dependency_
         The following code is an example showing how to set the configuration options through this API:
 ```python
 # set the parallelism to 8
-table_env.get_config().get_configuration().set_string(
+table_env.get_config().set(
     "parallelism.default", "8")
 ```
       </td>
@@ -821,19 +821,19 @@ And now you can configure them by setting key-value options in `TableConfig`, se
 The following code is an example showing how to configure the statebackend, checkpoint and restart strategy through the Table API:
 ```python
 # set the restart strategy to "fixed-delay"
-table_env.get_config().get_configuration().set_string("restart-strategy", "fixed-delay")
-table_env.get_config().get_configuration().set_string("restart-strategy.fixed-delay.attempts", "3")
-table_env.get_config().get_configuration().set_string("restart-strategy.fixed-delay.delay", "30s")
+table_env.get_config().set("restart-strategy", "fixed-delay")
+table_env.get_config().set("restart-strategy.fixed-delay.attempts", "3")
+table_env.get_config().set("restart-strategy.fixed-delay.delay", "30s")
 
 # set the checkpoint mode to EXACTLY_ONCE
-table_env.get_config().get_configuration().set_string("execution.checkpointing.mode", "EXACTLY_ONCE")
-table_env.get_config().get_configuration().set_string("execution.checkpointing.interval", "3min")
+table_env.get_config().set("execution.checkpointing.mode", "EXACTLY_ONCE")
+table_env.get_config().set("execution.checkpointing.interval", "3min")
 
 # set the statebackend type to "rocksdb", other available options are "filesystem" and "jobmanager"
 # you can also set the full qualified Java class name of the StateBackendFactory to this option
 # e.g. org.apache.flink.contrib.streaming.state.RocksDBStateBackendFactory
-table_env.get_config().get_configuration().set_string("state.backend", "rocksdb")
+table_env.get_config().set("state.backend", "rocksdb")
 
 # set the checkpoint directory, which is required by the RocksDB statebackend
-table_env.get_config().get_configuration().set_string("state.checkpoints.dir", "file:///tmp/checkpoints/")
+table_env.get_config().set("state.checkpoints.dir", "file:///tmp/checkpoints/")
 ```

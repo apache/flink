@@ -38,7 +38,7 @@ def word_count():
     # used to test pipeline.jars and pipeline.classpaths
     config_key = sys.argv[1]
     config_value = sys.argv[2]
-    t_env.get_config().get_configuration().set_string(config_key, config_value)
+    t_env.get_config().set(config_key, config_value)
 
     # register Results table in table environment
     tmp_dir = tempfile.gettempdir()

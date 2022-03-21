@@ -58,9 +58,9 @@ class TableConfigTests(PyFlinkTestCase):
     def test_get_configuration(self):
         table_config = TableConfig.get_default()
 
-        table_config.get_configuration().set_string("k1", "v1")
+        table_config.set("k1", "v1")
 
-        self.assertEqual(table_config.get_configuration().get_string("k1", ""), "v1")
+        self.assertEqual(table_config.get("k1", ""), "v1")
 
     def test_add_configuration(self):
         table_config = TableConfig.get_default()
@@ -69,7 +69,7 @@ class TableConfigTests(PyFlinkTestCase):
 
         table_config.add_configuration(configuration)
 
-        self.assertEqual(table_config.get_configuration().get_string("k1", ""), "v1")
+        self.assertEqual(table_config.get("k1", ""), "v1")
 
     def test_get_set_sql_dialect(self):
         table_config = TableConfig.get_default()

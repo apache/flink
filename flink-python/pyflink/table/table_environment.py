@@ -1189,14 +1189,12 @@ class TableEnvironment(object):
         .. versionadded:: 1.10.0
         """
         jvm = get_gateway().jvm
-        python_files = self.get_config().get_configuration().get_string(
-            jvm.PythonOptions.PYTHON_FILES.key(), None)
+        python_files = self.get_config().get(jvm.PythonOptions.PYTHON_FILES.key(), None)
         if python_files is not None:
             python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join([file_path, python_files])
         else:
             python_files = file_path
-        self.get_config().get_configuration().set_string(
-            jvm.PythonOptions.PYTHON_FILES.key(), python_files)
+        self.get_config().set(jvm.PythonOptions.PYTHON_FILES.key(), python_files)
 
     def set_python_requirements(self,
                                 requirements_file_path: str,
@@ -1239,7 +1237,7 @@ class TableEnvironment(object):
         if requirements_cache_dir is not None:
             python_requirements = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
                 [python_requirements, requirements_cache_dir])
-        self.get_config().get_configuration().set_string(
+        self.get_config().set(
             jvm.PythonOptions.PYTHON_REQUIREMENTS.key(), python_requirements)
 
     def add_python_archive(self, archive_path: str, target_dir: str = None):
@@ -1297,15 +1295,13 @@ class TableEnvironment(object):
         if target_dir is not None:
             archive_path = jvm.PythonDependencyUtils.PARAM_DELIMITER.join(
                 [archive_path, target_dir])
-        python_archives = self.get_config().get_configuration().get_string(
-            jvm.PythonOptions.PYTHON_ARCHIVES.key(), None)
+        python_archives = self.get_config().get(jvm.PythonOptions.PYTHON_ARCHIVES.key(), None)
         if python_archives is not None:
             python_files = jvm.PythonDependencyUtils.FILE_DELIMITER.join(
                 [python_archives, archive_path])
         else:
             python_files = archive_path
-        self.get_config().get_configuration().set_string(
-            jvm.PythonOptions.PYTHON_ARCHIVES.key(), python_files)
+        self.get_config().set(jvm.PythonOptions.PYTHON_ARCHIVES.key(), python_files)
 
     def from_elements(self, elements: Iterable, schema: Union[DataType, List[str]] = None,
                       verify_schema: bool = True) -> Table:
@@ -1539,10 +1535,14 @@ class TableEnvironment(object):
 
     def _add_jars_to_j_env_config(self, config_key):
         jvm = get_gateway().jvm
-        jar_urls = self.get_config().get_configuration().get_string(config_key, None)
+        jar_urls = self.get_config().get(config_key, None)
         if jar_urls is not None:
             # normalize
-            jar_urls_list = [jvm.java.net.URL(url).toString() for url in jar_urls.split(";")]
+            jar_urls_list = []
+            for url in jar_urls.split(";"):
+                url = url.strip()
+                if url != "":
+                    jar_urls_list.append(jvm.java.net.URL(url).toString())
             j_configuration = get_j_env_configuration(self._get_j_env())
             if j_configuration.containsKey(config_key):
                 for url in j_configuration.getString(config_key, "").split(";"):

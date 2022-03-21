@@ -243,7 +243,7 @@ class DataStreamConversionTestCases(PyFlinkTestCase):
         self.env.set_parallelism(2)
         config = get_j_env_configuration(self.env._j_stream_execution_environment)
         config.setString("akka.ask.timeout", "20 s")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "1")
         self.test_sink = DataStreamTestSinkFunction()
 
