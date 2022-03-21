@@ -124,8 +124,7 @@ public class PushLocalAggIntoTableSourceScanRuleTest extends TableTestBase {
         // disable push down local agg
         util.getTableEnv()
                 .getConfig()
-                .getConfiguration()
-                .setBoolean(
+                .set(
                         OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_AGGREGATE_PUSHDOWN_ENABLED,
                         false);
 

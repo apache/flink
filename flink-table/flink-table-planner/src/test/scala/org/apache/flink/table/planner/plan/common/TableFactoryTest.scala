@@ -47,7 +47,7 @@ class TableFactoryTest(isBatch: Boolean) extends TableTestBase {
       ObjectIdentifier.of("cat", "default", "t1"),
       ObjectIdentifier.of("cat", "default", "t2"),
       isBatch)
-    util.tableEnv.getConfig.getConfiguration.setBoolean(TestContextTableFactory.REQUIRED_KEY, true)
+    util.tableEnv.getConfig.set(TestContextTableFactory.REQUIRED_KEY, Boolean.box(true))
     util.tableEnv.registerCatalog("cat", new GenericInMemoryCatalog("default") {
       override def getTableFactory: Optional[TableFactory] = Optional.of(factory)
     })

@@ -75,9 +75,9 @@ class OptionsHintTest(param: Param)
 
   @Test
   def testOptionsWithGlobalConfDisabled(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
+    util.tableEnv.getConfig.set(
       TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED,
-      false)
+      Boolean.box(false))
     expectedException.expect(isA(classOf[ValidationException]))
     expectedException.expectMessage(s"OPTIONS hint is allowed only when "
       + s"${TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key} is set to true")

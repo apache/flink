@@ -25,6 +25,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.TableEnvironment;
+import org.apache.flink.table.api.config.TableConfigOptions;
 import org.apache.flink.table.catalog.Column;
 import org.apache.flink.table.catalog.ResolvedSchema;
 import org.apache.flink.table.catalog.UniqueConstraint;
@@ -310,10 +311,7 @@ abstract class ElasticsearchDynamicSinkBaseITCase {
                 TableEnvironment.create(EnvironmentSettings.inStreamingMode());
 
         DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-        tableEnvironment
-                .getConfig()
-                .getConfiguration()
-                .setString("table.local-time-zone", "Asia/Shanghai");
+        tableEnvironment.getConfig().set(TableConfigOptions.LOCAL_TIME_ZONE, "Asia/Shanghai");
 
         String dynamicIndex1 =
                 "dynamic-index-"
