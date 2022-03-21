@@ -1462,7 +1462,8 @@ public class AdaptiveSchedulerTest extends TestLogger {
                             throw new RuntimeException(e);
                         }
                     },
-                    executorService);
+                    executorService,
+                    log);
         } finally {
             executorService.shutdownNow();
         }
