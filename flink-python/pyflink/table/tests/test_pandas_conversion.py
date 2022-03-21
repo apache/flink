@@ -181,7 +181,7 @@ class BatchPandasConversionTests(PandasConversionTests,
 class StreamPandasConversionTests(PandasConversionITTests,
                                   PyFlinkStreamTableTestCase):
     def test_to_pandas_with_event_time(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().set("parallelism.default", "1")
         # create source file path
         import tempfile
         import os
@@ -199,7 +199,7 @@ class StreamPandasConversionTests(PandasConversionITTests,
             for ele in data:
                 fd.write(ele + '\n')
 
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "pipeline.time-characteristic", "EventTime")
 
         source_table = """

@@ -247,10 +247,10 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         self.t_env.create_temporary_function("my_sum", SumAggregateFunction())
         # trigger the finish bundle more frequently to ensure testing the communication
         # between RemoteKeyedStateBackend and the StateGrpcService.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "1")
         t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
                                       (3, 'Hi', 'hi'),
@@ -268,7 +268,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                            pd.DataFrame([[3, 12, 12, 12.0]], columns=['a', 'b', 'c', 'd']))
 
     def test_mixed_with_built_in_functions_with_retract(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().set("parallelism.default", "1")
         self.t_env.create_temporary_system_function(
             "concat",
             ConcatAggregateFunction())
@@ -316,7 +316,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
         self.assertEqual(result[len(result) - 1], expected)
 
     def test_mixed_with_built_in_functions_without_retract(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().set("parallelism.default", "1")
         self.t_env.create_temporary_system_function(
             "concat",
             ConcatAggregateFunction())
@@ -362,10 +362,10 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
     def test_list_view(self):
         my_concat = udaf(ListViewConcatAggregateFunction())
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "2")
         t = self.t_env.from_elements([(1, 'Hi', 'Hello'),
                                       (3, 'Hi', 'hi'),
@@ -385,14 +385,14 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
     def test_map_view(self):
         my_count = udaf(CountDistinctAggregateFunction())
         self.t_env.get_config().set_idle_state_retention(datetime.timedelta(days=1))
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "1")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.map-state.read-cache-size", "1")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.map-state.write-cache-size", "1")
         t = self.t_env.from_elements(
             [(1, 'Hi_', 'hi'),
@@ -419,10 +419,10 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
     def test_data_view_clear(self):
         my_count = udaf(CountDistinctAggregateFunction())
         self.t_env.get_config().set_idle_state_retention(datetime.timedelta(days=1))
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "1")
         t = self.t_env.from_elements(
             [(2, 'hello', 'hello'),
@@ -436,16 +436,16 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
     def test_map_view_iterate(self):
         test_iterate = udaf(TestIterateAggregateFunction())
         self.t_env.get_config().set_idle_state_retention(datetime.timedelta(days=1))
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "2")
         # trigger the cache eviction in a bundle.
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "2")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.map-state.read-cache-size", "2")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.map-state.write-cache-size", "2")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.map-state.iterate-response-batch-size", "2")
         t = self.t_env.from_elements(
             [(1, 'Hi_', 'hi'),
@@ -513,12 +513,12 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
 
     def test_clean_state(self):
         self.t_env.register_function("my_count", CountAggregateFunction())
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set("parallelism.default", "1")
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "1")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "python.state.cache-size", "0")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set(
             "table.exec.state.ttl", "2ms")
 
         self.t_env.execute_sql("""
@@ -596,7 +596,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                             "+I[1, 2018-03-11 04:00:00.0, 2018-03-11 05:00:00.0, 1, 1]"])
 
     def test_tumbling_group_window_over_count(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().set("parallelism.default", "1")
         # create source file path
         tmp_dir = self.tempdir
         data = [
@@ -713,7 +713,7 @@ class StreamTableAggregateTests(PyFlinkStreamTableTestCase):
                             "+I[1, 2018-03-11 04:00:00.0, 2018-03-11 05:00:00.0, 8]"])
 
     def test_sliding_group_window_over_count(self):
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "1")
+        self.t_env.get_config().set("parallelism.default", "1")
         # create source file path
         tmp_dir = self.tempdir
         data = [

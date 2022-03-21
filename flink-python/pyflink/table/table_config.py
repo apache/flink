@@ -25,6 +25,8 @@ from pyflink.table.sql_dialect import SqlDialect
 
 __all__ = ['TableConfig']
 
+from pyflink.util.java_utils import add_jars_to_context_class_loader
+
 
 class TableConfig(object):
     """
@@ -50,6 +52,20 @@ class TableConfig(object):
         else:
             self._j_table_config = j_table_config
 
+    def get(self, key: str, default_value: str) -> str:
+        """
+        Returns the value associated with the given key as a string.
+
+        :param key: The key pointing to the associated value.
+        :param default_value: The default value which is returned in case there is no value
+                              associated with the given key.
+        :return: The (default) value associated with the given key.
+        """
+        if self.get_configuration().contains_key(key):
+            return self.get_configuration().get_string(key, default_value)
+        else:
+            return self._j_table_config.getRootConfiguration().getString(key, default_value)
+
     def set(self, key: str, value: str) -> 'TableConfig':
         """
         Sets a string-based value for the given string-based key.
@@ -57,6 +73,13 @@ class TableConfig(object):
         The value will be parsed by the framework on access.
         """
         self._j_table_config.set(key, value)
+
+        jvm = get_gateway().jvm
+        jars_key = jvm.org.apache.flink.configuration.PipelineOptions.JARS.key()
+        classpaths_key = jvm.org.apache.flink.configuration.PipelineOptions.CLASSPATHS.key()
+        if key in [jars_key, classpaths_key]:
+            add_jars_to_context_class_loader(value.split(";"))
+
         return self
 
     def get_local_timezone(self) -> str:
@@ -283,7 +306,7 @@ class TableConfig(object):
         .. versionadded:: 1.10.0
         """
         jvm = get_gateway().jvm
-        self.get_configuration().set_string(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), python_exec)
+        self.set(jvm.PythonOptions.PYTHON_EXECUTABLE.key(), python_exec)
 
     def get_python_executable(self) -> str:
         """

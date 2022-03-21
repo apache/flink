@@ -38,7 +38,7 @@ Since Flink is a Java/Scala-based project, for both connectors and formats, impl
 are available as jars that need to be specified as job [dependencies]({{< ref "docs/dev/python/dependency_management" >}}).
 
 ```python
-table_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
+table_env.get_config().set("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
 ```
 
 ## How to use connectors
@@ -89,7 +89,7 @@ def log_processing():
     env_settings = EnvironmentSettings.in_streaming_mode()
     t_env = TableEnvironment.create(env_settings)
     # specify connector and format jars
-    t_env.get_config().get_configuration().set_string("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
+    t_env.get_config().set("pipeline.jars", "file:///my/jar/path/connector.jar;file:///my/jar/path/json.jar")
     
     source_ddl = """
             CREATE TABLE source_table(

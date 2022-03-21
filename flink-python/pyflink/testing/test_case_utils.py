@@ -135,8 +135,8 @@ class PyFlinkStreamTableTestCase(PyFlinkTestCase):
     def setUp(self):
         super(PyFlinkStreamTableTestCase, self).setUp()
         self.t_env = TableEnvironment.create(EnvironmentSettings.in_streaming_mode())
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set("parallelism.default", "2")
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "1")
 
 
@@ -148,8 +148,8 @@ class PyFlinkBatchTableTestCase(PyFlinkTestCase):
     def setUp(self):
         super(PyFlinkBatchTableTestCase, self).setUp()
         self.t_env = TableEnvironment.create(EnvironmentSettings.in_batch_mode())
-        self.t_env.get_config().get_configuration().set_string("parallelism.default", "2")
-        self.t_env.get_config().get_configuration().set_string(
+        self.t_env.get_config().set("parallelism.default", "2")
+        self.t_env.get_config().set(
             "python.fn-execution.bundle.size", "1")
 
 

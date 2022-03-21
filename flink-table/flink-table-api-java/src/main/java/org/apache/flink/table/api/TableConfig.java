@@ -206,6 +206,15 @@ public final class TableConfig implements WritableConfig, ReadableConfig {
     }
 
     /**
+     * Gives direct access to the underlying environment-specific key-value map for advanced
+     * configuration.
+     */
+    @Internal
+    public ReadableConfig getRootConfiguration() {
+        return rootConfiguration;
+    }
+
+    /**
      * Adds the given key-value configuration to the underlying application-specific configuration.
      * It overwrites existing keys.
      *

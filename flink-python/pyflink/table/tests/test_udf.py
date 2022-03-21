@@ -35,7 +35,7 @@ class UserDefinedFunctionTests(object):
 
     def test_scalar_function(self):
         # test metric disabled.
-        self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'false')
+        self.t_env.get_config().set('python.metric.enabled', 'false')
         # test lambda function
         add_one = udf(lambda i: i + 1, result_type=DataTypes.BIGINT())
 
@@ -66,8 +66,7 @@ class UserDefinedFunctionTests(object):
              DataTypes.BIGINT(), DataTypes.BIGINT(), DataTypes.BIGINT()])
         self.t_env.register_table_sink("Results", table_sink)
 
-        execution_mode = self.t_env.get_config().get_configuration().get_string(
-            "python.execution-mode", "process")
+        execution_mode = self.t_env.get_config().get("python.execution-mode", "process")
 
         t = self.t_env.from_elements([(1, 2, 3), (2, 5, 6), (3, 1, 9)], ['a', 'b', 'c'])
         t.where(add_one(t.b) <= 3).select(
@@ -222,9 +221,8 @@ class UserDefinedFunctionTests(object):
         self.assert_equals(actual, ["+I[2]", "+I[6]", "+I[3]"])
 
     def test_open(self):
-        self.t_env.get_config().get_configuration().set_string('python.metric.enabled', 'true')
-        execution_mode = self.t_env.get_config().get_configuration().get_string(
-            "python.execution-mode", None)
+        self.t_env.get_config().set('python.metric.enabled', 'true')
+        execution_mode = self.t_env.get_config().get("python.execution-mode", None)
 
         if execution_mode == "process":
             subtract = udf(SubtractWithMetrics(), result_type=DataTypes.BIGINT())
@@ -801,8 +799,7 @@ class PyFlinkBatchUserDefinedFunctionTests(UserDefinedFunctionTests,
 class PyFlinkEmbeddedThreadTests(UserDefinedFunctionTests, PyFlinkBatchTableTestCase):
     def setUp(self):
         super(PyFlinkEmbeddedThreadTests, self).setUp()
-        self.t_env.get_config().get_configuration().set_string("python.execution-mode", "thread")
-
+        self.t_env.get_config().set("python.execution-mode", "thread")
 
 # test specify the input_types
 @udf(input_types=[DataTypes.BIGINT(), DataTypes.BIGINT()], result_type=DataTypes.BIGINT())
