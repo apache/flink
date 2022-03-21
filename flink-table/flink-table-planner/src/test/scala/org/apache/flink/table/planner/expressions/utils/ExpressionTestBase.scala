@@ -22,6 +22,7 @@ import org.apache.flink.api.common.functions.{MapFunction, RichFunction, RichMap
 import org.apache.flink.api.common.functions.util.RuntimeUDFContext
 import org.apache.flink.api.java.typeutils.RowTypeInfo
 import org.apache.flink.configuration.Configuration
+import org.apache.flink.core.testutils.FlinkAssertions
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment
 import org.apache.flink.table.api
 import org.apache.flink.table.api.{EnvironmentSettings, TableException, ValidationException}
@@ -49,6 +50,7 @@ import org.apache.calcite.rel.logical.LogicalCalc
 import org.apache.calcite.rel.rules._
 import org.apache.calcite.rex.RexNode
 import org.apache.calcite.sql.`type`.SqlTypeName.VARCHAR
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.{After, Before, Rule}
 import org.junit.Assert.{assertEquals, assertTrue, fail}
 import org.junit.rules.ExpectedException
@@ -153,23 +155,18 @@ abstract class ExpressionTestBase {
 
     invalidTableApiExprs.foreach {
       case (tableExpr, keywords, clazz) => {
-        try {
-          val invalidExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
-          addTableApiTestExpr(tableExpr, keywords, invalidExprs, clazz)
-          evaluateGivenExprs(invalidExprs)
-          fail(s"Expected a $clazz, but no exception is thrown.")
-        } catch {
-          case e if e.getClass == clazz =>
-            if (keywords != null) {
-              assertTrue(
-                s"The actual exception message \n${e.getMessage}\n" +
-                  s"doesn't contain expected keyword \n$keywords\n",
-                e.getMessage.contains(keywords))
-            }
-          case e: Throwable =>
-            e.printStackTrace()
-            fail(s"Expected throw ${clazz.getSimpleName}, but is $e.")
+        val assertion = if (keywords != null) {
+          FlinkAssertions.anyCauseMatches(clazz, keywords)
+        } else {
+          FlinkAssertions.anyCauseMatches(clazz)
         }
+
+        assertThatThrownBy(
+          () => {
+            val invalidExprs = mutable.ArrayBuffer[(String, RexNode, String)]()
+            addTableApiTestExpr(tableExpr, keywords, invalidExprs, clazz)
+            evaluateGivenExprs(invalidExprs)
+          }).satisfies(assertion)
       }
     }
   }

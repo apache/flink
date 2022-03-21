@@ -53,16 +53,12 @@ public final class ConstraintArgumentTypeStrategy implements ArgumentTypeStrateg
         if (evaluator.test(actualDataTypes)) {
             return Optional.of(actualDataTypes.get(argumentPos));
         }
-
-        if (throwOnFailure) {
-            throw callContext.newValidationError(constraintMessage, actualDataTypes.toArray());
-        }
-        return Optional.empty();
+        return callContext.fail(throwOnFailure, constraintMessage, actualDataTypes.toArray());
     }
 
     @Override
     public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-        return Argument.of("<CONSTRAINT>");
+        return Argument.ofGroup("CONSTRAINT");
     }
 
     @Override

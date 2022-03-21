@@ -240,9 +240,6 @@ class SqlExpressionTest extends ExpressionTestBase {
     testSqlApi("FLOOR(TIME '12:44:31' TO MINUTE)", "12:44:00")
     testSqlApi("CEIL(TIME '12:44:31' TO MINUTE)", "12:45:00")
     testSqlApi("QUARTER(DATE '2016-04-12')", "2")
-    testSqlApi(
-      "(TIME '2:55:00', INTERVAL '1' HOUR) OVERLAPS (TIME '3:30:00', INTERVAL '2' HOUR)",
-      "TRUE")
   }
 
   @Test

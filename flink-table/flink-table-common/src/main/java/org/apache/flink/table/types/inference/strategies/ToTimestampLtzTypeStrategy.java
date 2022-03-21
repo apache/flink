@@ -19,31 +19,23 @@
 package org.apache.flink.table.types.inference.strategies;
 
 import org.apache.flink.annotation.Internal;
-import org.apache.flink.table.functions.FunctionDefinition;
+import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.types.DataType;
-import org.apache.flink.table.types.inference.ArgumentTypeStrategy;
 import org.apache.flink.table.types.inference.CallContext;
-import org.apache.flink.table.types.inference.Signature.Argument;
-import org.apache.flink.table.types.logical.utils.LogicalTypeChecks;
+import org.apache.flink.table.types.inference.TypeStrategy;
 
 import java.util.Optional;
 
-/** Strategy that checks that the argument has a composite type. */
+/** Type strategy of {@code TO_TIMESTAMP_LTZ}. */
 @Internal
-public class CompositeArgumentTypeStrategy implements ArgumentTypeStrategy {
+public class ToTimestampLtzTypeStrategy implements TypeStrategy {
+
     @Override
-    public Optional<DataType> inferArgumentType(
-            CallContext callContext, int argumentPos, boolean throwOnFailure) {
-        DataType dataType = callContext.getArgumentDataTypes().get(argumentPos);
-        if (!LogicalTypeChecks.isCompositeType(dataType.getLogicalType())) {
-            return callContext.fail(throwOnFailure, "A composite type expected. Got: %s", dataType);
+    public Optional<DataType> inferType(CallContext callContext) {
+        if (callContext.isArgumentLiteral(1)) {
+            final int precision = callContext.getArgumentValue(1, Integer.class).get();
+            return Optional.of(DataTypes.TIMESTAMP_LTZ(precision));
         }
-
-        return Optional.of(dataType);
-    }
-
-    @Override
-    public Argument getExpectedArgument(FunctionDefinition functionDefinition, int argumentPos) {
-        return Argument.ofGroup("COMPOSITE");
+        return Optional.of(DataTypes.TIMESTAMP_LTZ(3));
     }
 }

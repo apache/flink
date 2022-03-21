@@ -96,6 +96,16 @@ public abstract class LogicalType implements Serializable {
     }
 
     /**
+     * Returns whether the root of the type is part of at least one family of the {@code typeFamily}
+     * or not.
+     *
+     * @param typeFamilies The families to check against for equality
+     */
+    public boolean isAnyOf(LogicalTypeFamily... typeFamilies) {
+        return Arrays.stream(typeFamilies).anyMatch(tf -> this.typeRoot.getFamilies().contains(tf));
+    }
+
+    /**
      * Returns whether the family type of the type equals to the {@code family} or not.
      *
      * @param family The family type to check against for equality

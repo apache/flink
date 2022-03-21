@@ -26,16 +26,20 @@ import org.apache.flink.util.Preconditions;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Function;
 
-/** Type strategy that returns the n-th input argument. */
+/** Type strategy that returns the n-th input argument, mapping it with the provided function. */
 @Internal
-public final class UseArgumentTypeStrategy implements TypeStrategy {
+public final class ArgumentMappingTypeStrategy implements TypeStrategy {
 
     private final int pos;
+    private final Function<DataType, Optional<DataType>> mapper;
 
-    public UseArgumentTypeStrategy(int pos) {
+    public ArgumentMappingTypeStrategy(int pos, Function<DataType, Optional<DataType>> mapper) {
         Preconditions.checkArgument(pos >= 0);
+        Preconditions.checkNotNull(mapper);
         this.pos = pos;
+        this.mapper = mapper;
     }
 
     @Override
@@ -44,6 +48,6 @@ public final class UseArgumentTypeStrategy implements TypeStrategy {
         if (pos >= argumentDataTypes.size()) {
             return Optional.empty();
         }
-        return Optional.of(argumentDataTypes.get(pos));
+        return mapper.apply(argumentDataTypes.get(pos));
     }
 }

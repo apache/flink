@@ -18,26 +18,41 @@
 
 package org.apache.flink.table.planner.functions;
 
+import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.expressions.TimeIntervalUnit;
 import org.apache.flink.table.functions.BuiltInFunctionDefinitions;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
+import static org.apache.flink.table.api.DataTypes.BOOLEAN;
 import static org.apache.flink.table.api.DataTypes.DATE;
+import static org.apache.flink.table.api.DataTypes.DAY;
+import static org.apache.flink.table.api.DataTypes.HOUR;
+import static org.apache.flink.table.api.DataTypes.INT;
+import static org.apache.flink.table.api.DataTypes.INTERVAL;
+import static org.apache.flink.table.api.DataTypes.SECOND;
+import static org.apache.flink.table.api.DataTypes.TIME;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP;
 import static org.apache.flink.table.api.DataTypes.TIMESTAMP_LTZ;
 import static org.apache.flink.table.api.Expressions.$;
 import static org.apache.flink.table.api.Expressions.call;
+import static org.apache.flink.table.api.Expressions.temporalOverlaps;
 
-/** Test {@link BuiltInFunctionDefinitions#EXTRACT} and its return type. */
-class ExtractFunctionITCase extends BuiltInFunctionTestBase {
+/** Test time-related built-in functions. */
+class TimeFunctionsITCase extends BuiltInFunctionTestBase {
 
     @Override
     Stream<TestSetSpec> getTestSetSpecs() {
+        return Stream.concat(extractTestCases(), temporalOverlapsTestCases());
+    }
+
+    private Stream<TestSetSpec> extractTestCases() {
         return Stream.of(
                 TestSetSpec.forFunction(BuiltInFunctionDefinitions.EXTRACT)
                         .onFieldsWithData(
@@ -45,9 +60,15 @@ class ExtractFunctionITCase extends BuiltInFunctionTestBase {
                                 LocalDateTime.of(2020, 2, 29, 1, 56, 59, 987654321),
                                 null,
                                 LocalDate.of(1990, 10, 14),
-                                Instant.ofEpochMilli(100000012))
+                                Instant.ofEpochMilli(100000012),
+                                true)
                         .andDataTypes(
-                                TIMESTAMP(), TIMESTAMP(), TIMESTAMP(), DATE(), TIMESTAMP_LTZ(3))
+                                TIMESTAMP(),
+                                TIMESTAMP(),
+                                TIMESTAMP(),
+                                DATE(),
+                                TIMESTAMP_LTZ(3),
+                                BOOLEAN())
                         .testResult(
                                 $("f0").extract(TimeIntervalUnit.NANOSECOND),
                                 "EXTRACT(NANOSECOND FROM f0)",
@@ -65,7 +86,11 @@ class ExtractFunctionITCase extends BuiltInFunctionTestBase {
                                 BIGINT().nullable())
                         .testSqlValidationError(
                                 "EXTRACT(NANOSECOND FROM f3)", "NANOSECOND can not be applied")
-                        .testSqlResult("EXTRACT(NANOSECOND FROM f4)", 12000000L, BIGINT())
+                        .testResult(
+                                $("f4").extract(TimeIntervalUnit.NANOSECOND),
+                                "EXTRACT(NANOSECOND FROM f4)",
+                                12000000L,
+                                BIGINT())
                         .testResult(
                                 $("f0").extract(TimeIntervalUnit.MICROSECOND),
                                 "EXTRACT(MICROSECOND FROM f0)",
@@ -96,8 +121,11 @@ class ExtractFunctionITCase extends BuiltInFunctionTestBase {
                                 "EXTRACT(MILLISECOND FROM f2)",
                                 null,
                                 BIGINT().nullable())
-                        // Table API does not support this yet (see FLINK-13785)
-                        .testSqlResult("EXTRACT(MILLISECOND FROM f4)", 12L, BIGINT().nullable())
+                        .testResult(
+                                $("f4").extract(TimeIntervalUnit.MILLISECOND),
+                                "EXTRACT(MILLISECOND FROM f4)",
+                                12L,
+                                BIGINT().nullable())
                         .testResult(
                                 $("f0").extract(TimeIntervalUnit.SECOND),
                                 "EXTRACT(SECOND FROM f0)",
@@ -294,6 +322,107 @@ class ExtractFunctionITCase extends BuiltInFunctionTestBase {
                                 call("EXTRACT", TimeIntervalUnit.EPOCH, $("f2")),
                                 "EXTRACT(EPOCH FROM f2)",
                                 null,
-                                BIGINT().nullable()));
+                                BIGINT().nullable())
+                        .testTableApiValidationError(
+                                call("EXTRACT", TimeIntervalUnit.EPOCH, $("f5")),
+                                "EXTRACT requires 2nd argument to be a temporal type, but type is BOOLEAN")
+                        .testTableApiValidationError(
+                                call("EXTRACT", JsonExistsOnError.ERROR, $("f2")),
+                                "EXTRACT requires 1st argument to be a TimeIntervalUnit literal"));
+    }
+
+    private Stream<TestSetSpec> temporalOverlapsTestCases() {
+        return Stream.of(
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TEMPORAL_OVERLAPS)
+                        .onFieldsWithData(
+                                LocalTime.of(2, 55, 0),
+                                Duration.ofHours(1),
+                                LocalTime.of(3, 30, 0),
+                                Duration.ofHours(2))
+                        .andDataTypes(TIME(), INTERVAL(HOUR()), TIME(), INTERVAL(HOUR()))
+                        .testResult(
+                                temporalOverlaps($("f0"), $("f1"), $("f2"), $("f3")),
+                                "(f0, f1) OVERLAPS (f2, f3)",
+                                true,
+                                BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TEMPORAL_OVERLAPS)
+                        .onFieldsWithData(
+                                LocalTime.of(9, 0, 0),
+                                LocalTime.of(9, 30, 0),
+                                LocalTime.of(9, 29, 0),
+                                LocalTime.of(9, 31, 0),
+                                LocalTime.of(10, 0, 0),
+                                LocalTime.of(10, 15, 0),
+                                Duration.ofHours(3))
+                        .andDataTypes(
+                                TIME(), TIME(), TIME(), TIME(), TIME(), TIME(), INTERVAL(HOUR()))
+                        .testResult(
+                                temporalOverlaps($("f0"), $("f1"), $("f2"), $("f3")),
+                                "(f0, f1) OVERLAPS (f2, f3)",
+                                true,
+                                BOOLEAN())
+                        .testResult(
+                                temporalOverlaps($("f0"), $("f4"), $("f5"), $("f6")),
+                                "(f0, f4) OVERLAPS (f5, f6)",
+                                false,
+                                BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TEMPORAL_OVERLAPS)
+                        .onFieldsWithData(
+                                LocalDate.of(2011, 3, 10),
+                                Duration.ofDays(10),
+                                LocalDate.of(2011, 3, 19),
+                                Duration.ofDays(10))
+                        .andDataTypes(DATE(), INTERVAL(DAY()), DATE(), INTERVAL(DAY()))
+                        .testResult(
+                                temporalOverlaps($("f0"), $("f1"), $("f2"), $("f3")),
+                                "(f0, f1) OVERLAPS (f2, f3)",
+                                true,
+                                BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TEMPORAL_OVERLAPS)
+                        .onFieldsWithData(
+                                LocalDateTime.of(2011, 3, 10, 5, 2, 2),
+                                Duration.ofSeconds(0),
+                                LocalDateTime.of(2011, 3, 10, 5, 2, 2),
+                                LocalDateTime.of(2011, 3, 10, 5, 2, 1),
+                                LocalDateTime.of(2011, 3, 10, 5, 2, 2, 1000000),
+                                LocalDateTime.of(2011, 3, 10, 5, 2, 2, 2000000))
+                        .andDataTypes(
+                                TIMESTAMP(),
+                                INTERVAL(SECOND()),
+                                TIMESTAMP(),
+                                TIMESTAMP(),
+                                TIMESTAMP(),
+                                TIMESTAMP())
+                        .testResult(
+                                temporalOverlaps($("f0"), $("f1"), $("f2"), $("f3")),
+                                "(f0, f1) OVERLAPS (f2, f3)",
+                                true,
+                                BOOLEAN())
+                        .testResult(
+                                temporalOverlaps($("f4"), $("f1"), $("f5"), $("f5")),
+                                "(f4, f1) OVERLAPS (f5, f5)",
+                                false,
+                                BOOLEAN()),
+                TestSetSpec.forFunction(BuiltInFunctionDefinitions.TEMPORAL_OVERLAPS)
+                        .onFieldsWithData(
+                                1,
+                                LocalDateTime.of(2011, 3, 10, 5, 2, 2),
+                                LocalDate.of(2011, 3, 10))
+                        .andDataTypes(INT(), TIMESTAMP(), DATE())
+                        .testTableApiValidationError(
+                                temporalOverlaps($("f0"), $("f1"), $("f1"), $("f1")),
+                                "TEMPORAL_OVERLAPS requires 1st argument 'leftTimePoint' to be a DATETIME type, but is INT")
+                        .testTableApiValidationError(
+                                temporalOverlaps($("f1"), $("f1"), $("f0"), $("f1")),
+                                "TEMPORAL_OVERLAPS requires 3rd argument 'rightTimePoint' to be a DATETIME type, but is INT")
+                        .testTableApiValidationError(
+                                temporalOverlaps($("f1"), $("f1"), $("f2"), $("f2")),
+                                "TEMPORAL_OVERLAPS requires 'leftTimePoint' and 'rightTimePoint' arguments to be of the same type, but is TIMESTAMP(6) != DATE")
+                        .testTableApiValidationError(
+                                temporalOverlaps($("f2"), $("f1"), $("f2"), $("f2")),
+                                "TEMPORAL_OVERLAPS requires 'leftTemporal' and 'leftTimePoint' arguments to be of the same type if 'leftTemporal' is a DATETIME, but is TIMESTAMP(6) != DATE")
+                        .testTableApiValidationError(
+                                temporalOverlaps($("f1"), $("f0"), $("f1"), $("f0")),
+                                "TEMPORAL_OVERLAPS requires 2nd argument 'leftTemporal' to be DATETIME or INTERVAL type, but is INT"));
     }
 }

@@ -50,6 +50,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Strategies for inferring and validating input arguments in a function call.
@@ -304,10 +305,30 @@ public final class InputTypeStrategies {
         return new OrArgumentTypeStrategy(Arrays.asList(strategies));
     }
 
-    /** Strategy for a symbol argument of a specific {@link TableSymbol} enum. */
-    public static SymbolArgumentTypeStrategy symbol(
+    /**
+     * Strategy for a symbol argument of a specific {@link TableSymbol} enum.
+     *
+     * <p>A symbol is implied to be a literal argument.
+     */
+    public static SymbolArgumentTypeStrategy<?> symbol(
             Class<? extends Enum<? extends TableSymbol>> clazz) {
-        return new SymbolArgumentTypeStrategy(clazz);
+        return new SymbolArgumentTypeStrategy<>(clazz);
+    }
+
+    /**
+     * Strategy for a symbol argument of a specific {@link TableSymbol} enum, with value being one
+     * of the provided variants.
+     *
+     * <p>A symbol is implied to be a literal argument.
+     */
+    @SafeVarargs
+    @SuppressWarnings("unchecked")
+    public static <T extends Enum<? extends TableSymbol>> SymbolArgumentTypeStrategy<T> symbol(
+            T firstAllowedVariant, T... otherAllowedVariants) {
+        return new SymbolArgumentTypeStrategy<T>(
+                (Class<T>) firstAllowedVariant.getClass(),
+                Stream.concat(Stream.of(firstAllowedVariant), Arrays.stream(otherAllowedVariants))
+                        .collect(Collectors.toSet()));
     }
 
     /**
