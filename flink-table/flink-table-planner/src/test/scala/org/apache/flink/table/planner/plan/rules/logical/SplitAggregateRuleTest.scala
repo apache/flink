@@ -33,8 +33,8 @@ class SplitAggregateRuleTest extends TableTestBase {
   private val util = streamTestUtil()
   util.addTableSource[(Long, Int, String)]("MyTable", 'a, 'b, 'c)
   util.buildStreamProgram(FlinkStreamProgram.PHYSICAL)
-  util.tableEnv.getConfig.getConfiguration.setBoolean(
-    OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+  util.tableEnv.getConfig.set(
+    OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
 
   @Test
   def testSingleDistinctAgg(): Unit = {
@@ -163,16 +163,16 @@ class SplitAggregateRuleTest extends TableTestBase {
 
   @Test
   def testBucketsConfiguration(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setInteger(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM, 100)
+    util.tableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_BUCKET_NUM, Integer.valueOf(100))
     val sqlQuery = "SELECT COUNT(DISTINCT c) FROM MyTable"
     util.verifyRelPlan(sqlQuery)
   }
 
   @Test
   def testMultipleDistinctAggOnSameColumn(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     val sqlQuery =
       s"""
          |SELECT
@@ -189,8 +189,8 @@ class SplitAggregateRuleTest extends TableTestBase {
 
   @Test
   def testAggFilterClauseBothWithAvgAndCount(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, true)
+    util.tableEnv.getConfig.set(
+      OptimizerConfigOptions.TABLE_OPTIMIZER_DISTINCT_AGG_SPLIT_ENABLED, Boolean.box(true))
     val sqlQuery =
       s"""
          |SELECT

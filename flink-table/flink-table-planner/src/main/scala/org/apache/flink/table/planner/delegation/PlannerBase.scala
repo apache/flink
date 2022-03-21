@@ -484,10 +484,10 @@ abstract class PlannerBase(
     // Add query start time to TableConfig, these config are used internally,
     // these configs will be used by temporal functions like CURRENT_TIMESTAMP,LOCALTIMESTAMP.
     val epochTime :JLong = System.currentTimeMillis()
-    configuration.set(TABLE_QUERY_START_EPOCH_TIME, epochTime)
+    tableConfig.set(TABLE_QUERY_START_EPOCH_TIME, epochTime)
     val localTime :JLong =  epochTime +
       TimeZone.getTimeZone(tableConfig.getLocalTimeZone).getOffset(epochTime)
-    configuration.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
+    tableConfig.set(TABLE_QUERY_START_LOCAL_TIME, localTime)
 
     getExecEnv.configure(
       configuration,

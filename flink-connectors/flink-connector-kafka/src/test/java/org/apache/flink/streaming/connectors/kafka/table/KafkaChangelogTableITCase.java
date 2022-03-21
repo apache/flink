@@ -20,14 +20,16 @@ package org.apache.flink.streaming.connectors.kafka.table;
 
 import org.apache.flink.api.common.serialization.SerializationSchema;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
-import org.apache.flink.configuration.Configuration;
 import org.apache.flink.connector.base.DeliveryGuarantee;
 import org.apache.flink.connector.kafka.sink.KafkaRecordSerializationSchema;
 import org.apache.flink.connector.kafka.sink.KafkaSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkFixedPartitioner;
 import org.apache.flink.streaming.connectors.kafka.partitioner.FlinkKafkaPartitioner;
+import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.api.TableResult;
+import org.apache.flink.table.api.config.ExecutionConfigOptions;
+import org.apache.flink.table.api.config.OptimizerConfigOptions;
 
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.junit.Before;
@@ -58,11 +60,12 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
         createTestTopic(topic, 1, 1);
 
         // enables MiniBatch processing to verify MiniBatch + FLIP-95, see FLINK-18769
-        Configuration tableConf = tEnv.getConfig().getConfiguration();
-        tableConf.setString("table.exec.mini-batch.enabled", "true");
-        tableConf.setString("table.exec.mini-batch.allow-latency", "1s");
-        tableConf.setString("table.exec.mini-batch.size", "5000");
-        tableConf.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE");
+        TableConfig tableConf = tEnv.getConfig();
+        tableConf.set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true);
+        tableConf.set(
+                ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1));
+        tableConf.set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 5000L);
+        tableConf.set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
 
         // ---------- Write the Debezium json into Kafka -------------------
         List<String> lines = readLines("debezium-data-schema-exclude.txt");
@@ -186,11 +189,12 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
         // configure time zone of  the Canal Json metadata "ingestion-timestamp"
         tEnv.getConfig().setLocalTimeZone(ZoneId.of("UTC"));
         // enables MiniBatch processing to verify MiniBatch + FLIP-95, see FLINK-18769
-        Configuration tableConf = tEnv.getConfig().getConfiguration();
-        tableConf.setString("table.exec.mini-batch.enabled", "true");
-        tableConf.setString("table.exec.mini-batch.allow-latency", "1s");
-        tableConf.setString("table.exec.mini-batch.size", "5000");
-        tableConf.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE");
+        TableConfig tableConf = tEnv.getConfig();
+        tableConf.set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true);
+        tableConf.set(
+                ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1));
+        tableConf.set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 5000L);
+        tableConf.set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
 
         // ---------- Write the Canal json into Kafka -------------------
         List<String> lines = readLines("canal-data.txt");
@@ -326,11 +330,12 @@ public class KafkaChangelogTableITCase extends KafkaTableTestBase {
         // configure time zone of  the Maxwell Json metadata "ingestion-timestamp"
         tEnv.getConfig().setLocalTimeZone(ZoneId.of("UTC"));
         // enables MiniBatch processing to verify MiniBatch + FLIP-95, see FLINK-18769
-        Configuration tableConf = tEnv.getConfig().getConfiguration();
-        tableConf.setString("table.exec.mini-batch.enabled", "true");
-        tableConf.setString("table.exec.mini-batch.allow-latency", "1s");
-        tableConf.setString("table.exec.mini-batch.size", "5000");
-        tableConf.setString("table.optimizer.agg-phase-strategy", "TWO_PHASE");
+        TableConfig tableConf = tEnv.getConfig();
+        tableConf.set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED, true);
+        tableConf.set(
+                ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1));
+        tableConf.set(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_SIZE, 5000L);
+        tableConf.set(OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE");
 
         // ---------- Write the Maxwell json into Kafka -------------------
         List<String> lines = readLines("maxwell-data.txt");

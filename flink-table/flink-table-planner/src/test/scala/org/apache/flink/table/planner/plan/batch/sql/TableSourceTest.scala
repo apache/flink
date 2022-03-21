@@ -220,8 +220,9 @@ class TableSourceTest extends TableTestBase {
 
   @Test
   def testTableHintWithDigestReuseForLogicalTableScan(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(
-      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED, true)
+    util.tableEnv.getConfig.set(
+      RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED,
+      Boolean.box(true))
     util.tableEnv.executeSql(
       s"""
          |CREATE TABLE MySink (

@@ -70,7 +70,7 @@ class DeduplicateTest extends TableTestBase {
 
   @Test
   def testLastRowWithWindowOnRowtime(): Unit = {
-    util.tableEnv.getConfig.getConfiguration
+    util.tableEnv.getConfig
       .set(TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofMillis(500))
     util.addTable(
       """
@@ -125,9 +125,9 @@ class DeduplicateTest extends TableTestBase {
 
   @Test
   def testMiniBatchInferFirstRowOnRowtime(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setLong(TABLE_EXEC_MINIBATCH_SIZE, 3L)
-    util.tableEnv.getConfig.getConfiguration.set(
+    util.tableEnv.getConfig.set(TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig.set(TABLE_EXEC_MINIBATCH_SIZE, Long.box(3L))
+    util.tableEnv.getConfig.set(
       TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     val ddl =
       s"""
@@ -175,9 +175,9 @@ class DeduplicateTest extends TableTestBase {
 
   @Test
   def testMiniBatchInferLastRowOnRowtime(): Unit = {
-    util.tableEnv.getConfig.getConfiguration.setBoolean(TABLE_EXEC_MINIBATCH_ENABLED, true)
-    util.tableEnv.getConfig.getConfiguration.setLong(TABLE_EXEC_MINIBATCH_SIZE, 3L)
-    util.tableEnv.getConfig.getConfiguration.set(
+    util.tableEnv.getConfig.set(TABLE_EXEC_MINIBATCH_ENABLED, Boolean.box(true))
+    util.tableEnv.getConfig.set(TABLE_EXEC_MINIBATCH_SIZE, Long.box(3L))
+    util.tableEnv.getConfig.set(
       TABLE_EXEC_MINIBATCH_ALLOW_LATENCY, Duration.ofSeconds(1))
     val ddl =
       s"""

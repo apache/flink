@@ -55,9 +55,9 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
       .replaceBatchProgram(program).build()
     util.tableEnv.getConfig.setPlannerConfig(calciteConfig)
     // only enabled SortAgg
-    util.tableEnv.getConfig.getConfiguration.setString(
+    util.tableEnv.getConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_DISABLED_OPERATORS, "HashAgg")
-    util.tableEnv.getConfig.getConfiguration.setString(
+    util.tableEnv.getConfig.set(
       OptimizerConfigOptions.TABLE_OPTIMIZER_AGG_PHASE_STRATEGY, "TWO_PHASE")
   }
 
