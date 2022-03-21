@@ -110,7 +110,7 @@ abstract class AggTestBase(isBatchMode: Boolean) {
 
   val aggInfoList = AggregateInfoList(
     Array(aggInfo1, aggInfo2, aggInfo3), None, countStarInserted = false, Array())
-  val ctx = new CodeGeneratorContext(tEnv.getConfig.getConfiguration)
+  val ctx = new CodeGeneratorContext(tEnv.getConfig)
   val classLoader: ClassLoader = Thread.currentThread().getContextClassLoader
   val context: ExecutionContext = mock(classOf[ExecutionContext])
   when(context, "getRuntimeContext").thenReturn(mock(classOf[RuntimeContext]))

@@ -137,7 +137,7 @@ abstract class BatchPhysicalOverAggregateBase(
           val isAllFieldsFromInput = requiredDistribution.getKeys.forall(_ < inputFieldCnt)
           if (isAllFieldsFromInput) {
             val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(this)
-            if (tableConfig.getConfiguration.getBoolean(
+            if (tableConfig.get(
               BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)) {
               ImmutableIntList.of(partitionKeyIndices: _*).containsAll(requiredDistribution.getKeys)
             } else {

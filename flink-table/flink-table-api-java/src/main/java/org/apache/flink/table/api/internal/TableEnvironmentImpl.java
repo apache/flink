@@ -745,7 +745,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
                 return loadPlan(PlanReference.fromFile(filePath));
             }
 
-            if (!tableConfig.getConfiguration().get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
+            if (!tableConfig.get(TableConfigOptions.PLAN_FORCE_RECOMPILE)) {
                 throw new TableException(
                         String.format(
                                 "Cannot overwrite the plan file '%s'. "
@@ -782,7 +782,7 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         List<Transformation<?>> transformations = translate(operations);
         List<String> sinkIdentifierNames = extractSinkIdentifierNames(operations);
         TableResultInternal result = executeInternal(transformations, sinkIdentifierNames);
-        if (tableConfig.getConfiguration().get(TABLE_DML_SYNC)) {
+        if (tableConfig.get(TABLE_DML_SYNC)) {
             try {
                 result.await();
             } catch (InterruptedException | ExecutionException e) {

@@ -38,7 +38,7 @@ class CalciteConfigBuilderTest {
     assertTrue(cc.getStreamProgram.isEmpty)
 
     val builder = new CalciteConfigBuilder()
-    val streamPrograms = FlinkStreamProgram.buildProgram(TableConfig.getDefault.getConfiguration)
+    val streamPrograms = FlinkStreamProgram.buildProgram(TableConfig.getDefault)
     streamPrograms.remove(FlinkStreamProgram.PHYSICAL)
     builder.replaceStreamProgram(streamPrograms)
 
@@ -174,7 +174,7 @@ class CalciteConfigBuilderTest {
     assertTrue(config.getSqlParserConfig.isEmpty)
     assertTrue(config.getSqlToRelConverterConfig.isEmpty)
 
-    val streamPrograms = FlinkStreamProgram.buildProgram(TableConfig.getDefault.getConfiguration)
+    val streamPrograms = FlinkStreamProgram.buildProgram(TableConfig.getDefault)
     streamPrograms.remove(FlinkStreamProgram.PHYSICAL)
     builder.replaceStreamProgram(streamPrograms)
     val baseConfig1 = builder.build()

@@ -150,7 +150,7 @@ class PushPartitionIntoLegacyTableSourceScanRule extends RelOptRule(
               inputFields,
               context.getFunctionCatalog,
               context.getCatalogManager,
-              TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig.getConfiguration)))
+              TimeZone.getTimeZone(TableConfigUtils.getLocalTimeZone(tableConfig)))
             def toExpressions: Option[Seq[Expression]] = {
               val expressions = new mutable.ArrayBuffer[Expression]()
               for (predicate <- partitionPredicates) {
