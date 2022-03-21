@@ -103,10 +103,6 @@ abstract class PlannerBase(
   private var parser: Parser = _
   private var currentDialect: SqlDialect = getTableConfig.getSqlDialect
 
-  private val plannerConfiguration: ReadableConfig = new PlannerConfig(
-    tableConfig.getConfiguration,
-    executor.getConfiguration)
-
   @VisibleForTesting
   private[flink] val plannerContext: PlannerContext =
     new PlannerContext(
@@ -148,14 +144,7 @@ abstract class PlannerBase(
   def getFlinkContext: FlinkContext = plannerContext.getFlinkContext
 
   /**
-   * Gives access to both API specific table configuration and executor configuration.
-   *
-   * This configuration should be the main source of truth in the planner module.
-   */
-  def getConfiguration: ReadableConfig = plannerConfiguration
-
-  /**
-   * @deprecated Do not use this method anymore. Use [[getConfiguration]] to access options.
+   * @deprecated Do not use this method anymore. Use [[getTableConfig]] to access options.
    *             Create transformations without it. A [[StreamExecutionEnvironment]] is a mixture
    *             of executor and stream graph generator/builder. In the long term, we would like
    *             to avoid the need for it in the planner module.

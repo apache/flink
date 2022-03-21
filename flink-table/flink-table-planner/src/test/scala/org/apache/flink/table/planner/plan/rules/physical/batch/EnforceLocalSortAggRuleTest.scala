@@ -42,7 +42,7 @@ class EnforceLocalSortAggRuleTest extends EnforceLocalAggRuleTestBase {
     super.setup()
     util.addFunction("weightedAvg", new WeightedAvg)
 
-    val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig.getConfiguration)
+    val program = FlinkBatchProgram.buildProgram(util.tableEnv.getConfig)
     // remove the original BatchExecSortAggRule and add BatchExecSortAggRuleForOnePhase
     // to let the physical phase generate one phase aggregate
     program.getFlinkRuleSetProgram(FlinkBatchProgram.PHYSICAL)
