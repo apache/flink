@@ -34,10 +34,10 @@ from pyflink.datastream.functions import (_get_python_env, FlatMapFunction, MapF
                                           InternalIterableProcessWindowFunction, CoProcessFunction,
                                           InternalSingleValueWindowFunction,
                                           InternalSingleValueProcessWindowFunction,
-                                          PassThroughWindowFunction)
+                                          PassThroughWindowFunction, AggregateFunction)
 from pyflink.datastream.slot_sharing_group import SlotSharingGroup
 from pyflink.datastream.state import ValueStateDescriptor, ValueState, ListStateDescriptor, \
-    StateDescriptor, ReducingStateDescriptor
+    StateDescriptor, ReducingStateDescriptor, AggregatingStateDescriptor
 from pyflink.datastream.utils import convert_to_python_obj
 from pyflink.datastream.window import (CountTumblingWindowAssigner, CountSlidingWindowAssigner,
                                        CountWindowSerializer, TimeWindowSerializer, Trigger,
@@ -1401,6 +1401,74 @@ class WindowedStream(object):
 
         return self._get_result_data_stream(internal_window_function,
                                             reducing_state_descriptor,
+                                            output_type)
+
+    def aggregate(self,
+                  aggregate_function: AggregateFunction,
+                  window_function: Union[WindowFunction, ProcessWindowFunction] = None,
+                  accumulator_type: TypeInformation = None,
+                  output_type: TypeInformation = None) -> DataStream:
+        """
+        Applies the given window function to each window. The window function is called for each
+        evaluation of the window for each key individually. The output of the window function is
+        interpreted as a regular non-windowed stream.
+
+        Arriving data is incrementally aggregated using the given aggregate function. This means
+        that the window function typically has only a single value to process when called.
+
+        Example:
+        ::
+
+            >>> class AverageAggregate(AggregateFunction):
+            ...     def create_accumulator(self) -> Tuple[int, int]:
+            ...         return 0, 0
+            ...
+            ...     def add(self, value: Tuple[str, int], accumulator: Tuple[int, int]) \\
+            ...             -> Tuple[int, int]:
+            ...         return accumulator[0] + value[1], accumulator[1] + 1
+            ...
+            ...     def get_result(self, accumulator: Tuple[int, int]) -> float:
+            ...         return accumulator[0] / accumulator[1]
+            ...
+            ...     def merge(self, a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+            ...         return a[0] + b[0], a[1] + b[1]
+            >>> ds.key_by(lambda x: x[1]) \\
+            ...     .window(TumblingEventTimeWindows.of(Time.seconds(5))) \\
+            ...     .aggregate(AverageAggregate(),
+            ...                accumulator_type=Types.TUPLE([Types.LONG(), Types.LONG()]),
+            ...                output_type=Types.DOUBLE())
+
+        :param aggregate_function: The aggregation function that is used for incremental
+                                   aggregation.
+        :param window_function: The window function.
+        :param accumulator_type: Type information for the internal accumulator type of the
+                                 aggregation function.
+        :param output_type: Type information for the result type of the window function.
+        :return: The data stream that is the result of applying the window function to the window.
+
+        .. versionadded:: 1.16.0
+        """
+        if window_function is None:
+            internal_window_function = InternalSingleValueWindowFunction(
+                PassThroughWindowFunction())  # type: InternalWindowFunction
+        elif isinstance(window_function, WindowFunction):
+            internal_window_function = InternalSingleValueWindowFunction(window_function)
+        elif isinstance(window_function, ProcessWindowFunction):
+            internal_window_function = InternalSingleValueProcessWindowFunction(window_function)
+        else:
+            raise TypeError("window_function should be a WindowFunction or ProcessWindowFunction")
+
+        if accumulator_type is None:
+            accumulator_type = Types.PICKLED_BYTE_ARRAY()
+        elif isinstance(accumulator_type, list):
+            accumulator_type = RowTypeInfo(accumulator_type)
+
+        aggregating_state_descriptor = AggregatingStateDescriptor(WINDOW_STATE_NAME,
+                                                                  aggregate_function,
+                                                                  accumulator_type)
+
+        return self._get_result_data_stream(internal_window_function,
+                                            aggregating_state_descriptor,
                                             output_type)
 
     def apply(self,

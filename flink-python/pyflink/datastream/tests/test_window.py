@@ -16,13 +16,13 @@
 # limitations under the License.
 ################################################################################
 
-from typing import Iterable, Tuple
+from typing import Iterable, Tuple, Dict
 
 from pyflink.common.time import Time
 from pyflink.common.typeinfo import Types
 from pyflink.common.watermark_strategy import WatermarkStrategy, TimestampAssigner
 from pyflink.datastream.data_stream import DataStream
-from pyflink.datastream.functions import (ProcessWindowFunction, WindowFunction)
+from pyflink.datastream.functions import (ProcessWindowFunction, WindowFunction, AggregateFunction)
 from pyflink.datastream.window import (TumblingEventTimeWindows,
                                        SlidingEventTimeWindows, EventTimeSessionWindows,
                                        CountSlidingWindowAssigner, SessionWindowTimeGapExtractor,
@@ -175,10 +175,10 @@ class WindowTests(PyFlinkStreamingTestCase):
 
         class MyProcessFunction(ProcessWindowFunction):
 
-            def clear(self, context: 'ProcessWindowFunction.Context') -> None:
+            def clear(self, context: ProcessWindowFunction.Context) -> None:
                 pass
 
-            def process(self, key, context: 'ProcessWindowFunction.Context',
+            def process(self, key, context: ProcessWindowFunction.Context,
                         elements: Iterable[Tuple[str, int]]) -> Iterable[str]:
                 yield "current window start at {}, reduce result {}".format(
                     context.window().start,
@@ -200,6 +200,133 @@ class WindowTests(PyFlinkStreamingTestCase):
                     "current window start at 3, reduce result ('b', 3)",
                     "current window start at 6, reduce result ('a', 6)",
                     "current window start at 8, reduce result ('b', 17)"]
+        self.assert_equals_sorted(expected, results)
+
+    def test_window_aggregate_passthrough(self):
+        data_stream = self.env.from_collection([
+            ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        class MyAggregateFunction(AggregateFunction):
+
+            def create_accumulator(self) -> Tuple[str, Dict[int, int]]:
+                return '', {0: 0, 1: 0}
+
+            def add(self, value: Tuple[str, int], accumulator: Tuple[str, Dict[int, int]]
+                    ) -> Tuple[str, Dict[int, int]]:
+                number_map = accumulator[1]
+                number_map[value[1] % 2] += 1
+                return value[0], number_map
+
+            def get_result(self, accumulator: Tuple[str, Dict[int, int]]) -> Tuple[str, int]:
+                number_map = accumulator[1]
+                return accumulator[0], number_map[0] - number_map[1]
+
+            def merge(self, acc_a: Tuple[str, Dict[int, int]], acc_b: Tuple[str, Dict[int, int]]
+                      ) -> Tuple[str, Dict[int, int]]:
+                number_map_a = acc_a[1]
+                number_map_b = acc_b[1]
+                new_number_map = {
+                    0: number_map_a[0] + number_map_b[0],
+                    1: number_map_a[1] + number_map_b[1]
+                }
+                return acc_a[0], new_number_map
+
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
+            .aggregate(MyAggregateFunction(),
+                       output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_time_window_aggregate_passthrough')
+        results = self.test_sink.get_results()
+        expected = ['(a,-1)', '(a,0)', '(a,1)', '(b,-1)', '(b,0)']
+        self.assert_equals_sorted(expected, results)
+
+    def test_window_aggregate_accumulator_type(self):
+        data_stream = self.env.from_collection([
+            ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        class MyAggregateFunction(AggregateFunction):
+
+            def create_accumulator(self) -> Tuple[int, str]:
+                return 0, ''
+
+            def add(self, value: Tuple[str, int], accumulator: Tuple[int, str]) -> Tuple[int, str]:
+                return value[1] + accumulator[0], value[0]
+
+            def get_result(self, accumulator: Tuple[str, int]):
+                return accumulator[1], accumulator[0]
+
+            def merge(self, acc_a: Tuple[int, str], acc_b: Tuple[int, str]):
+                return acc_a[0] + acc_b[0], acc_a[1]
+
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
+            .aggregate(MyAggregateFunction(),
+                       accumulator_type=Types.TUPLE([Types.INT(), Types.STRING()]),
+                       output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_time_window_aggregate_accumulator_type')
+        results = self.test_sink.get_results()
+        expected = ['(a,15)', '(a,3)', '(a,6)', '(b,17)', '(b,3)']
+        self.assert_equals_sorted(expected, results)
+
+    def test_window_aggregate_process(self):
+        data_stream = self.env.from_collection([
+            ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+
+        class MyAggregateFunction(AggregateFunction):
+
+            def create_accumulator(self) -> Tuple[int, str]:
+                return 0, ''
+
+            def add(self, value: Tuple[str, int], accumulator: Tuple[int, str]) -> Tuple[int, str]:
+                return value[1] + accumulator[0], value[0]
+
+            def get_result(self, accumulator: Tuple[str, int]):
+                return accumulator[1], accumulator[0]
+
+            def merge(self, acc_a: Tuple[int, str], acc_b: Tuple[int, str]):
+                return acc_a[0] + acc_b[0], acc_a[1]
+
+        class MyProcessWindowFunction(ProcessWindowFunction):
+
+            def process(self, key: str, context: ProcessWindowFunction.Context,
+                        elements: Iterable[Tuple[str, int]]) -> Iterable[str]:
+                agg_result = next(iter(elements))
+                yield "key {} timestamp sum {}".format(agg_result[0], agg_result[1])
+
+            def clear(self, context: ProcessWindowFunction.Context) -> None:
+                pass
+
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
+            .aggregate(MyAggregateFunction(),
+                       window_function=MyProcessWindowFunction(),
+                       accumulator_type=Types.TUPLE([Types.INT(), Types.STRING()]),
+                       output_type=Types.STRING()) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_time_window_aggregate_accumulator_type')
+        results = self.test_sink.get_results()
+        expected = ['key a timestamp sum 15',
+                    'key a timestamp sum 3',
+                    'key a timestamp sum 6',
+                    'key b timestamp sum 17',
+                    'key b timestamp sum 3']
         self.assert_equals_sorted(expected, results)
 
     def test_session_window_late_merge(self):
