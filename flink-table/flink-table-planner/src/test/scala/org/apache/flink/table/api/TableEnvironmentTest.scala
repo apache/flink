@@ -21,7 +21,7 @@ package org.apache.flink.table.api
 import org.apache.flink.api.common.RuntimeExecutionMode
 import org.apache.flink.api.common.typeinfo.Types.STRING
 import org.apache.flink.api.scala._
-import org.apache.flink.configuration.{Configuration, ExecutionOptions}
+import org.apache.flink.configuration.{Configuration, CoreOptions, ExecutionOptions}
 import org.apache.flink.core.testutils.FlinkAssertions.anyCauseMatches
 import org.apache.flink.streaming.api.environment.LocalStreamEnvironment
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
@@ -42,6 +42,7 @@ import org.apache.flink.types.Row
 import org.apache.calcite.plan.RelOptUtil
 import org.apache.calcite.sql.SqlExplainLevel
 import org.assertj.core.api.Assertions.{assertThat, assertThatThrownBy}
+
 import org.junit.Assert.{assertEquals, assertFalse, assertTrue, fail}
 import org.junit.rules.ExpectedException
 import org.junit.{Rule, Test}
@@ -142,11 +143,11 @@ class TableEnvironmentTest {
   @Test
   def testStreamTableEnvironmentExecutionExplainWithConfParallelism(): Unit = {
     val execEnv = StreamExecutionEnvironment.getExecutionEnvironment
-    val settings = EnvironmentSettings.newInstance().inStreamingMode().build()
-    val tEnv = StreamTableEnvironment.create(execEnv, settings)
     val configuration = new Configuration()
-    configuration.setInteger("parallelism.default", 4)
-    tEnv.getConfig.addConfiguration(configuration)
+    configuration.set(CoreOptions.DEFAULT_PARALLELISM, Integer.valueOf(4))
+    val settings =
+      EnvironmentSettings.newInstance().inStreamingMode().withConfiguration(configuration).build()
+    val tEnv = StreamTableEnvironment.create(execEnv, settings)
 
     verifyTableEnvironmentExecutionExplain(tEnv)
   }
