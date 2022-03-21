@@ -83,19 +83,19 @@ public class SessionContextTest {
         sessionContext.set(NAME.key(), "test");
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
-        assertEquals("hive", getConfiguration().getString(TABLE_SQL_DIALECT));
-        assertEquals(128, getConfiguration().getInteger(MAX_PARALLELISM));
-        assertEquals("test", getConfiguration().getString(NAME));
-        assertFalse(getConfiguration().getBoolean(OBJECT_REUSE));
+        assertEquals("hive", getConfiguration().get(TABLE_SQL_DIALECT));
+        assertEquals(128, (int) getConfiguration().get(MAX_PARALLELISM));
+        assertEquals("test", getConfiguration().get(NAME));
+        assertFalse(getConfiguration().get(OBJECT_REUSE));
 
         sessionContext.reset();
-        assertEquals("default", getConfiguration().getString(TABLE_SQL_DIALECT));
+        assertEquals("default", getConfiguration().get(TABLE_SQL_DIALECT));
         assertNull(getConfiguration().get(NAME));
         // The value of MAX_PARALLELISM in DEFAULTS_ENVIRONMENT_FILE is 16
-        assertEquals(16, getConfiguration().getInteger(MAX_PARALLELISM));
-        assertNull(getConfiguration().getString(NAME, null));
+        assertEquals(16, (int) getConfiguration().get(MAX_PARALLELISM));
+        assertNull(getConfiguration().get(NAME));
         // The value of OBJECT_REUSE in origin configuration is true
-        assertTrue(getConfiguration().getBoolean(OBJECT_REUSE));
+        assertTrue(getConfiguration().get(OBJECT_REUSE));
     }
 
     @Test
@@ -109,22 +109,22 @@ public class SessionContextTest {
         // runtime config from flink-conf
         sessionContext.set(OBJECT_REUSE.key(), "false");
 
-        assertEquals("hive", getConfiguration().getString(TABLE_SQL_DIALECT));
-        assertEquals(128, getConfiguration().getInteger(MAX_PARALLELISM));
-        assertEquals("test", getConfiguration().getString(NAME));
-        assertFalse(getConfiguration().getBoolean(OBJECT_REUSE));
+        assertEquals("hive", getConfiguration().get(TABLE_SQL_DIALECT));
+        assertEquals(128, (int) getConfiguration().get(MAX_PARALLELISM));
+        assertEquals("test", getConfiguration().get(NAME));
+        assertFalse(getConfiguration().get(OBJECT_REUSE));
 
         sessionContext.reset(TABLE_SQL_DIALECT.key());
-        assertEquals("default", getConfiguration().getString(TABLE_SQL_DIALECT));
+        assertEquals("default", getConfiguration().get(TABLE_SQL_DIALECT));
 
         sessionContext.reset(MAX_PARALLELISM.key());
-        assertEquals(16, getConfiguration().getInteger(MAX_PARALLELISM));
+        assertEquals(16, (int) getConfiguration().get(MAX_PARALLELISM));
 
         sessionContext.reset(NAME.key());
         assertNull(getConfiguration().get(NAME));
 
         sessionContext.reset(OBJECT_REUSE.key());
-        assertTrue(getConfiguration().getBoolean(OBJECT_REUSE));
+        assertTrue(getConfiguration().get(OBJECT_REUSE));
     }
 
     @Test

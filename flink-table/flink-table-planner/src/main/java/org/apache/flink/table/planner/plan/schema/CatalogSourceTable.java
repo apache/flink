@@ -132,8 +132,7 @@ public final class CatalogSourceTable extends FlinkPreparingTableBase {
         if (hintedOptions.isEmpty()) {
             return contextResolvedTable;
         }
-        final ReadableConfig config = context.getTableConfig().getConfiguration();
-        if (!config.get(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
+        if (!context.getTableConfig().get(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
             throw new ValidationException(
                     String.format(
                             "The '%s' hint is allowed only when the config option '%s' is set to true.",

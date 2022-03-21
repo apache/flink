@@ -145,7 +145,7 @@ class BatchPhysicalHashJoinRule
         toHashTraitByColumns(joinInfo.rightKeys))
 
       // add more possibility to only shuffle by partial joinKeys, now only single one
-      val isShuffleByPartialKeyEnabled = tableConfig.getConfiguration.getBoolean(
+      val isShuffleByPartialKeyEnabled = tableConfig.get(
         BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
       if (isShuffleByPartialKeyEnabled && joinInfo.pairs().length > 1) {
         joinInfo.pairs().foreach { pair =>
@@ -177,7 +177,7 @@ class BatchPhysicalHashJoinRule
     if (leftSize == null || rightSize == null) {
       return (false, false)
     }
-    val threshold = tableConfig.getConfiguration.getLong(
+    val threshold = tableConfig.get(
       OptimizerConfigOptions.TABLE_OPTIMIZER_BROADCAST_JOIN_THRESHOLD)
     joinType match {
       case JoinRelType.LEFT => (rightSize <= threshold, false)

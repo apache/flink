@@ -81,11 +81,11 @@ class LegacyCatalogSourceTable[T](
       .unwrap(classOf[FlinkContext])
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
-    val conf = flinkContext.getTableConfig.getConfiguration
+    val conf = flinkContext.getTableConfig
 
     val hintedOptions = FlinkHints.getHintedOptions(context.getTableHints)
     if (hintedOptions.nonEmpty
-      && !conf.getBoolean(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
+      && !conf.get(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
       throw new ValidationException(s"${FlinkHints.HINT_NAME_OPTIONS} hint is allowed only when "
         + s"${TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key} "
         + s"is set to true")

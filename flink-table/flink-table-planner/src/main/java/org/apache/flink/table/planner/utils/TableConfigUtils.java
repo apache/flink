@@ -40,7 +40,7 @@ public class TableConfigUtils {
      * @return true if the given operator is disabled.
      */
     public static boolean isOperatorDisabled(TableConfig tableConfig, OperatorType operatorType) {
-        String value = tableConfig.getConfiguration().getString(TABLE_EXEC_DISABLED_OPERATORS);
+        String value = tableConfig.get(TABLE_EXEC_DISABLED_OPERATORS);
         if (value == null) {
             return false;
         }
@@ -68,8 +68,7 @@ public class TableConfigUtils {
      * @return the aggregate phase strategy
      */
     public static AggregatePhaseStrategy getAggPhaseStrategy(TableConfig tableConfig) {
-        String aggPhaseConf =
-                tableConfig.getConfiguration().getString(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY).trim();
+        String aggPhaseConf = tableConfig.get(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY).trim();
         if (aggPhaseConf.isEmpty()) {
             return AggregatePhaseStrategy.AUTO;
         } else {

@@ -109,7 +109,7 @@ class BatchPhysicalSortMergeJoinRule
     }
 
     val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    val candidates = if (tableConfig.getConfiguration.getBoolean(
+    val candidates = if (tableConfig.get(
       BatchPhysicalSortMergeJoinRule.TABLE_OPTIMIZER_SMJ_REMOVE_SORT_ENABLED)) {
       // add more possibility to remove redundant sort, and longer optimization time
       Array((false, false), (true, false), (false, true), (true, true))
@@ -127,7 +127,7 @@ class BatchPhysicalSortMergeJoinRule
     }
 
     // add more possibility to only shuffle by partial joinKeys, now only single one
-    val isShuffleByPartialKeyEnabled = tableConfig.getConfiguration.getBoolean(
+    val isShuffleByPartialKeyEnabled = tableConfig.get(
       BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SHUFFLE_BY_PARTIAL_KEY_ENABLED)
     if (isShuffleByPartialKeyEnabled && joinInfo.pairs().length > 1) {
       joinInfo.pairs().foreach { pair =>
