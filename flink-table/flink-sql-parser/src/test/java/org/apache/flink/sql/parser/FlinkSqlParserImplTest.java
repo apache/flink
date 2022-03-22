@@ -314,6 +314,88 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAlterTableAdd() {
+        // add single column
+        sql("alter table t1 add new_column string comment 'new_column docs'")
+                .ok("ALTER TABLE `T1` ADD `NEW_COLUMN` STRING COMMENT 'new_column docs'");
+        sql("alter table t1 add new_column string comment 'new_column docs' first")
+                .ok("ALTER TABLE `T1` ADD `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST");
+        sql("alter table t1 add new_column string comment 'new_column docs' after id")
+                .ok(
+                        "ALTER TABLE `T1` ADD `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`");
+        // add compute column
+        sql("alter table t1 add col_int as col_a - col_b after col_b")
+                .ok("ALTER TABLE `T1` ADD `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`");
+        // add metadata column
+        sql("alter table t1 add col_int int metadata from 'mk1' virtual comment 'comment_metadata' after col_b")
+                .ok(
+                        "ALTER TABLE `T1` ADD `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL "
+                                + "COMMENT 'comment_metadata' AFTER `COL_B`");
+
+        // add watermark
+        sql("alter table t1 add watermark for ts as ts - interval '1' second")
+                .ok("ALTER TABLE `T1` ADD WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+        sql("alter table default_database.t1 add watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER TABLE `DEFAULT_DATABASE`.`T1` ADD WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+        sql("alter table default_catalog.default_database.t1 add watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER TABLE `DEFAULT_CATALOG`.`DEFAULT_DATABASE`.`T1` "
+                                + "ADD WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+
+        // add multiple columns/constraint/watermark
+        final String sql1 =
+                "alter table t1 add (\n"
+                        + "col_int int,\n"
+                        + "log_ts string comment 'log timestamp string' first,\n"
+                        + "ts AS to_timestamp(log_ts) after log_ts,\n"
+                        + "col_meta int metadata from 'mk1' virtual comment 'comment_str' after col_b,\n"
+                        + "primary key (id) not enforced,\n"
+                        + "unique(a, b),\n"
+                        + "watermark for ts as ts - interval '3' second\n"
+                        + ")";
+        final String expected1 =
+                "ALTER TABLE `T1` ADD (\n"
+                        + "  `COL_INT` INTEGER,\n"
+                        + "  `LOG_TS` STRING COMMENT 'log timestamp string' FIRST,\n"
+                        + "  `TS` AS `TO_TIMESTAMP`(`LOG_TS`) AFTER `LOG_TS`,\n"
+                        + "  `COL_META` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_str' AFTER `COL_B`,\n"
+                        + "  PRIMARY KEY (`ID`) NOT ENFORCED,\n"
+                        + "  UNIQUE (`A`, `B`),\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
+                        + ")";
+        sql(sql1).ok(expected1);
+
+        // add constraint with paren
+        sql("alter table t1 add (\nconstraint ct1 primary key(a, b) not enforced\n)")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
+                                + ")");
+        sql("alter table t1 add (\nunique(a, b)\n)")
+                .ok("ALTER TABLE `T1` ADD (\n  UNIQUE (`A`, `B`)\n)");
+
+        // add watermark with paren
+        sql("alter table t1 add (\nwatermark for ts as ts - interval '1' second\n)")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+
+        // add single column with paren
+        sql("alter table t1 add (\nnew_column string comment 'new_column docs' first\n)")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST\n"
+                                + ")");
+        sql("alter table t1 add (\nnew_column string comment 'new_column docs' after id\n)")
+                .ok(
+                        "ALTER TABLE `T1` ADD (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`\n"
+                                + ")");
+    }
+
+    @Test
     void testAlterTableReset() {
         sql("alter table t1 reset ('key1')").ok("ALTER TABLE `T1` RESET (\n  'key1'\n)");
 

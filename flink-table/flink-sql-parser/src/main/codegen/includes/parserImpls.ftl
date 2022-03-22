@@ -594,7 +594,6 @@ SqlAlterTable SqlAlterTable() :
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlNodeList partitionSpec = null;
     SqlIdentifier constraintName;
-    SqlTableConstraint constraint;
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
@@ -627,11 +626,39 @@ SqlAlterTable SqlAlterTable() :
                         propertyList);
         }
     |
-        <ADD> constraint = TableConstraint() {
-            return new SqlAlterTableAddConstraint(
+        <ADD>
+        {
+            AlterTableContext ctx = new AlterTableContext();
+            boolean withParen = true;
+        }
+        (
+            AlterTableAddOrModify(ctx) {
+                // TODO: remove it after supports convert SqlNode to Operation
+                if (ctx.constraints.size() > 0) {
+                    return new SqlAlterTableAddConstraint(
                         tableIdentifier,
-                        constraint,
+                        ctx.constraints.get(0),
                         startPos.plus(getPos()));
+                } else {
+                    withParen = false;
+                }
+            }
+        |
+            <LPAREN>
+            AlterTableAddOrModify(ctx)
+            (
+                <COMMA> AlterTableAddOrModify(ctx)
+            )*
+            <RPAREN>
+        )
+        {
+            return new SqlAlterTableAdd(
+                startPos.plus(getPos()),
+                tableIdentifier,
+                withParen,
+                new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
+                ctx.watermark,
+                ctx.constraints);
         }
     |
         <DROP> <CONSTRAINT>
@@ -720,8 +747,9 @@ void Watermark(TableCreationContext context) :
 }
 
 /** Parses {@code column_name column_data_type [...]}. */
-void TypedColumn(TableCreationContext context) :
+SqlTableColumn TypedColumn(TableCreationContext context) :
 {
+    SqlTableColumn tableColumn;
     SqlIdentifier name;
     SqlParserPos pos;
     SqlDataTypeSpec type;
@@ -730,14 +758,17 @@ void TypedColumn(TableCreationContext context) :
     name = SimpleIdentifier() {pos = getPos();}
     type = ExtendedDataType()
     (
-        MetadataColumn(context, name, type)
+        tableColumn = MetadataColumn(context, name, type)
     |
-        RegularColumn(context, name, type)
+        tableColumn = RegularColumn(context, name, type)
     )
+    {
+        return tableColumn;
+    }
 }
 
 /** Parses {@code column_name AS expr [COMMENT 'comment']}. */
-void ComputedColumn(TableCreationContext context) :
+SqlTableColumn ComputedColumn(TableCreationContext context) :
 {
     SqlIdentifier name;
     SqlParserPos pos;
@@ -759,11 +790,12 @@ void ComputedColumn(TableCreationContext context) :
             comment,
             expr);
         context.columnList.add(computedColumn);
+        return computedColumn;
     }
 }
 
 /** Parses {@code column_name column_data_type METADATA [FROM 'alias_name'] [VIRTUAL] [COMMENT 'comment']}. */
-void MetadataColumn(TableCreationContext context, SqlIdentifier name, SqlDataTypeSpec type) :
+SqlTableColumn MetadataColumn(TableCreationContext context, SqlIdentifier name, SqlDataTypeSpec type) :
 {
     SqlNode metadataAlias = null;
     boolean isVirtual = false;
@@ -793,11 +825,12 @@ void MetadataColumn(TableCreationContext context, SqlIdentifier name, SqlDataTyp
             metadataAlias,
             isVirtual);
         context.columnList.add(metadataColumn);
+        return metadataColumn;
     }
 }
 
 /** Parses {@code column_name column_data_type [constraint] [COMMENT 'comment']}. */
-void RegularColumn(TableCreationContext context, SqlIdentifier name, SqlDataTypeSpec type) :
+SqlTableColumn RegularColumn(TableCreationContext context, SqlIdentifier name, SqlDataTypeSpec type) :
 {
     SqlTableConstraint constraint = null;
     SqlNode comment = null;
@@ -818,6 +851,72 @@ void RegularColumn(TableCreationContext context, SqlIdentifier name, SqlDataType
             type,
             constraint);
         context.columnList.add(regularColumn);
+        return regularColumn;
+    }
+}
+
+/** Parses {@code ALTER TABLE table_name ADD/MODIFY [...]}. */
+void AlterTableAddOrModify(AlterTableContext context) :
+{
+    SqlTableConstraint constraint;
+}
+{
+    (
+        AddOrModifyColumn(context)
+    |
+        constraint = TableConstraint() {
+            context.constraints.add(constraint);
+        }
+    |
+        Watermark(context)
+    )
+}
+
+/** Parses {@code ADD/MODIFY column_name column_data_type [...]}. */
+void AddOrModifyColumn(AlterTableContext context) :
+{
+    SqlTableColumn column;
+    SqlIdentifier referencedColumn = null;
+    SqlTableColumnPosition columnPos = null;
+}
+{
+    (
+        LOOKAHEAD(2)
+        column = TypedColumn(context)
+    |
+        column = ComputedColumn(context)
+    )
+    [
+        (
+            <AFTER>
+            referencedColumn = SimpleIdentifier()
+            {
+                columnPos = new SqlTableColumnPosition(
+                    getPos(),
+                    column,
+                    SqlColumnPosSpec.AFTER.symbol(getPos()),
+                    referencedColumn);
+            }
+        |
+            <FIRST>
+            {
+                columnPos = new SqlTableColumnPosition(
+                    getPos(),
+                    column,
+                    SqlColumnPosSpec.FIRST.symbol(getPos()),
+                    referencedColumn);
+            }
+        )
+    ]
+    {
+        if (columnPos == null) {
+            columnPos = new SqlTableColumnPosition(
+                getPos(),
+                column,
+                SqlColumnPosSpec.LAST.symbol(getPos()),
+                referencedColumn);
+        }
+        context.columnPositions.add(columnPos);
     }
 }
 

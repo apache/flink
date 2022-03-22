@@ -72,12 +72,6 @@ public class SqlAlterTableReset extends SqlAlterTable {
         writer.endList(withFrame);
     }
 
-    protected void printIndent(SqlWriter writer) {
-        writer.sep(",", false);
-        writer.newlineAndIndent();
-        writer.print("  ");
-    }
-
     public String[] fullTableName() {
         return tableIdentifier.names.toArray(new String[0]);
     }

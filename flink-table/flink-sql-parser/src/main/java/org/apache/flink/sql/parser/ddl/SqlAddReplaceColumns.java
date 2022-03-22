@@ -87,10 +87,4 @@ public class SqlAddReplaceColumns extends SqlAlterTable {
         writer.newlineAndIndent();
         writer.endList(frame);
     }
-
-    protected void printIndent(SqlWriter writer) {
-        writer.sep(",", false);
-        writer.newlineAndIndent();
-        writer.print("  ");
-    }
 }
