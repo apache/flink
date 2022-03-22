@@ -65,7 +65,6 @@ import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -332,7 +331,7 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
                         //
                         // Assert the number of TaskManager slots are set
                         //
-                        waitForTaskManagerRegistration(host, port, Duration.ofMillis(30_000));
+                        waitForTaskManagerRegistration(host, port);
                         assertNumberOfSlotsPerTask(host, port, 3);
 
                         final Map<String, String> flinkConfig = getFlinkConfig(host, port);
@@ -387,8 +386,8 @@ public class YARNSessionCapacitySchedulerITCase extends YarnTestBase {
         jobRunner.join();
     }
 
-    private static void waitForTaskManagerRegistration(
-            final String host, final int port, final Duration waitDuration) throws Exception {
+    private static void waitForTaskManagerRegistration(final String host, final int port)
+            throws Exception {
         CommonTestUtils.waitUntilCondition(() -> getNumberOfTaskManagers(host, port) > 0);
     }
 
