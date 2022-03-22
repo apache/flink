@@ -48,7 +48,7 @@ import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -268,7 +268,7 @@ public final class InputTypeStrategies {
 
     /** Strategy for an argument that must fulfill a given constraint. */
     public static ConstraintArgumentTypeStrategy constraint(
-            String constraintMessage, Function<List<DataType>, Boolean> evaluator) {
+            String constraintMessage, Predicate<List<DataType>> evaluator) {
         return new ConstraintArgumentTypeStrategy(constraintMessage, evaluator);
     }
 

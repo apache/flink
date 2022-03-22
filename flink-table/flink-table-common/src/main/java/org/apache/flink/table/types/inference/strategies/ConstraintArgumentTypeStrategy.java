@@ -28,7 +28,7 @@ import org.apache.flink.table.types.inference.Signature.Argument;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
+import java.util.function.Predicate;
 
 /** Strategy for an argument that must fulfill a given constraint. */
 @Internal
@@ -36,10 +36,10 @@ public final class ConstraintArgumentTypeStrategy implements ArgumentTypeStrateg
 
     private final String constraintMessage;
 
-    private final Function<List<DataType>, Boolean> evaluator;
+    private final Predicate<List<DataType>> evaluator;
 
     public ConstraintArgumentTypeStrategy(
-            String constraintMessage, Function<List<DataType>, Boolean> evaluator) {
+            String constraintMessage, Predicate<List<DataType>> evaluator) {
         this.constraintMessage = constraintMessage;
         this.evaluator = evaluator;
     }
@@ -50,7 +50,7 @@ public final class ConstraintArgumentTypeStrategy implements ArgumentTypeStrateg
         final List<DataType> actualDataTypes = callContext.getArgumentDataTypes();
 
         // type fulfills constraint
-        if (evaluator.apply(actualDataTypes)) {
+        if (evaluator.test(actualDataTypes)) {
             return Optional.of(actualDataTypes.get(argumentPos));
         }
 
