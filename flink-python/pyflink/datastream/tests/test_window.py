@@ -202,24 +202,7 @@ class WindowTests(PyFlinkStreamingTestCase):
                     "current window start at 8, reduce result ('b', 17)"]
         self.assert_equals_sorted(expected, results)
 
-    def test_session_window_late_merge(self):
-        data_stream = self.env.from_collection([
-            ('hi', 0), ('hi', 8), ('hi', 4)],
-            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
-        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
-            .with_timestamp_assigner(SecondColumnTimestampAssigner())
-        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
-            .key_by(lambda x: x[0], key_type=Types.STRING()) \
-            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(5))) \
-            .process(CountWindowProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
-            .add_sink(self.test_sink)
-
-        self.env.execute('test_session_window_late_merge')
-        results = self.test_sink.get_results()
-        expected = ['(hi,3)']
-        self.assert_equals_sorted(expected, results)
-
-    def test_time_window_aggregate_passthrough(self):
+    def test_window_aggregate_passthrough(self):
         data_stream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
             type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
@@ -231,8 +214,8 @@ class WindowTests(PyFlinkStreamingTestCase):
             def create_accumulator(self) -> Tuple[str, Dict[int, int]]:
                 return '', {0: 0, 1: 0}
 
-            def add(self, value: Tuple[str, int], accumulator: Tuple[str, Dict[int, int]]) \
-                    -> Tuple[str, Dict[int, int]]:
+            def add(self, value: Tuple[str, int], accumulator: Tuple[str, Dict[int, int]]
+                    ) -> Tuple[str, Dict[int, int]]:
                 number_map = accumulator[1]
                 number_map[value[1] % 2] += 1
                 return value[0], number_map
@@ -241,8 +224,8 @@ class WindowTests(PyFlinkStreamingTestCase):
                 number_map = accumulator[1]
                 return accumulator[0], number_map[0] - number_map[1]
 
-            def merge(self, acc_a: Tuple[str, Dict[int, int]], acc_b: Tuple[str, Dict[int, int]]) \
-                    -> Tuple[str, Dict[int, int]]:
+            def merge(self, acc_a: Tuple[str, Dict[int, int]], acc_b: Tuple[str, Dict[int, int]]
+                      ) -> Tuple[str, Dict[int, int]]:
                 number_map_a = acc_a[1]
                 number_map_b = acc_b[1]
                 new_number_map = {
@@ -253,9 +236,9 @@ class WindowTests(PyFlinkStreamingTestCase):
 
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
             .key_by(lambda x: x[0], key_type=Types.STRING()) \
-            .window(TumblingEventTimeWindows.of(Time.milliseconds(2))) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
             .aggregate(MyAggregateFunction(),
-                       result_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+                       output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
             .add_sink(self.test_sink)
 
         self.env.execute('test_time_window_aggregate_passthrough')
@@ -263,7 +246,7 @@ class WindowTests(PyFlinkStreamingTestCase):
         expected = ['(a,-1)', '(a,0)', '(a,1)', '(b,-1)', '(b,0)']
         self.assert_equals_sorted(expected, results)
 
-    def test_time_window_aggregate_accumulator_type(self):
+    def test_window_aggregate_accumulator_type(self):
         data_stream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
             type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
@@ -286,10 +269,10 @@ class WindowTests(PyFlinkStreamingTestCase):
 
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
             .key_by(lambda x: x[0], key_type=Types.STRING()) \
-            .window(TumblingEventTimeWindows.of(Time.milliseconds(2))) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
             .aggregate(MyAggregateFunction(),
                        accumulator_type=Types.TUPLE([Types.INT(), Types.STRING()]),
-                       result_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+                       output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
             .add_sink(self.test_sink)
 
         self.env.execute('test_time_window_aggregate_accumulator_type')
@@ -297,7 +280,7 @@ class WindowTests(PyFlinkStreamingTestCase):
         expected = ['(a,15)', '(a,3)', '(a,6)', '(b,17)', '(b,3)']
         self.assert_equals_sorted(expected, results)
 
-    def test_time_window_aggregate_process(self):
+    def test_window_aggregate_process(self):
         data_stream = self.env.from_collection([
             ('a', 1), ('a', 2), ('b', 3), ('a', 6), ('b', 8), ('b', 9), ('a', 15)],
             type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
@@ -330,11 +313,11 @@ class WindowTests(PyFlinkStreamingTestCase):
 
         data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
             .key_by(lambda x: x[0], key_type=Types.STRING()) \
-            .window(TumblingEventTimeWindows.of(Time.milliseconds(2))) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(2))) \
             .aggregate(MyAggregateFunction(),
                        window_function=MyProcessWindowFunction(),
                        accumulator_type=Types.TUPLE([Types.INT(), Types.STRING()]),
-                       result_type=Types.STRING()) \
+                       output_type=Types.STRING()) \
             .add_sink(self.test_sink)
 
         self.env.execute('test_time_window_aggregate_accumulator_type')
@@ -344,6 +327,23 @@ class WindowTests(PyFlinkStreamingTestCase):
                     'key a timestamp sum 6',
                     'key b timestamp sum 17',
                     'key b timestamp sum 3']
+        self.assert_equals_sorted(expected, results)
+
+    def test_session_window_late_merge(self):
+        data_stream = self.env.from_collection([
+            ('hi', 0), ('hi', 8), ('hi', 4)],
+            type_info=Types.TUPLE([Types.STRING(), Types.INT()]))  # type: DataStream
+        watermark_strategy = WatermarkStrategy.for_monotonous_timestamps() \
+            .with_timestamp_assigner(SecondColumnTimestampAssigner())
+        data_stream.assign_timestamps_and_watermarks(watermark_strategy) \
+            .key_by(lambda x: x[0], key_type=Types.STRING()) \
+            .window(EventTimeSessionWindows.with_gap(Time.milliseconds(5))) \
+            .process(CountWindowProcessFunction(), Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .add_sink(self.test_sink)
+
+        self.env.execute('test_session_window_late_merge')
+        results = self.test_sink.get_results()
+        expected = ['(hi,3)']
         self.assert_equals_sorted(expected, results)
 
 

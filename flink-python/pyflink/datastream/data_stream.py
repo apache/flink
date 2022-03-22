@@ -1407,7 +1407,7 @@ class WindowedStream(object):
                   aggregate_function: AggregateFunction,
                   window_function: Union[WindowFunction, ProcessWindowFunction] = None,
                   accumulator_type: TypeInformation = None,
-                  result_type: TypeInformation = None) -> DataStream:
+                  output_type: TypeInformation = None) -> DataStream:
         """
         Applies the given window function to each window. The window function is called for each
         evaluation of the window for each key individually. The output of the window function is
@@ -1416,13 +1416,36 @@ class WindowedStream(object):
         Arriving data is incrementally aggregated using the given aggregate function. This means
         that the window function typically has only a single value to process when called.
 
+        Example:
+        ::
+
+            >>> class AverageAggregate(AggregateFunction):
+            ...     def create_accumulator(self) -> Tuple[int, int]:
+            ...         return 0, 0
+            ...     def add(self, value: Tuple[str, int], accumulator: Tuple[int, int]) \\
+            ...             -> Tuple[int, int]:
+            ...         return accumulator[0] + value[1], accumulator[1] + 1
+            ...     def get_result(self, accumulator: Tuple[int, int]) -> float:
+            ...         return accumulator[0] / accumulator[1]
+            ...     def merge(self, a: Tuple[int, int], b: Tuple[int, int]) -> Tuple[int, int]:
+            ...         return a[0] + b[0], a[1] + b[1]
+            ...
+            >>> ds.key_by(lambda x: x[1]) \\
+            ...     .window(TumblingEventTimeWindows.of(Time.seconds(5))) \\
+            ...     .aggregate(AverageAggregate(),
+            ...                accumulator_type=Types.TUPLE([Types.LONG(), Types.LONG()]),
+            ...                output_type=Types.DOUBLE())
+
+
         :param aggregate_function: The aggregation function that is used for incremental
             aggregation.
         :param window_function: The window function.
         :param accumulator_type: Type information for the internal accumulator type of the
             aggregation function.
-        :param result_type: Type information for the result type of the window function.
+        :param output_type: Type information for the result type of the window function.
         :return: The data stream that is the result of applying the window function to the window.
+
+        .. versionadded:: 1.16.0
         """
         if window_function is None:
             internal_window_function = InternalSingleValueWindowFunction(
@@ -1445,7 +1468,7 @@ class WindowedStream(object):
 
         return self._get_result_data_stream(internal_window_function,
                                             aggregating_state_descriptor,
-                                            result_type)
+                                            output_type)
 
     def apply(self,
               window_function: WindowFunction, output_type: TypeInformation = None) -> DataStream:
