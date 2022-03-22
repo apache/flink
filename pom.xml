@@ -1594,7 +1594,6 @@ under the License.
 						<test.randomization.seed>${test.randomization.seed}</test.randomization.seed>
 						<junit.jupiter.extensions.autodetection.enabled>true</junit.jupiter.extensions.autodetection.enabled>
 					</systemPropertyVariables>
-					<argLine>-Xms256m -Xmx2048m -XX:+UseG1GC</argLine>
 				</configuration>
 				<executions>
 					<!--execute all the unit tests-->
@@ -1608,6 +1607,8 @@ under the License.
 							<includes>
 								<include>${test.unit.pattern}</include>
 							</includes>
+							<forkCount>4</forkCount>
+							<argLine>-Xms256m -Xmx1024m -XX:+UseG1GC</argLine>
 						</configuration>
 					</execution>
 					<!--execute all the integration tests-->
@@ -1627,6 +1628,7 @@ under the License.
 								     e.g., 'org.apache.flink.api.scala.typeutils.Foo$Bar$Foobar'. -->
 								<exclude>**/*$*</exclude>
 							</excludes>
+							<argLine>-Xms256m -Xmx2048m -XX:+UseG1GC</argLine>
 							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
