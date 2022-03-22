@@ -18,13 +18,8 @@
 
 package org.apache.flink.table.planner.plan.nodes.exec.serde;
 
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.expressions.FieldReferenceExpression;
 import org.apache.flink.table.expressions.ValueLiteralExpression;
-import org.apache.flink.table.module.ModuleManager;
-import org.apache.flink.table.planner.calcite.FlinkContextImpl;
-import org.apache.flink.table.planner.calcite.FlinkTypeFactory;
-import org.apache.flink.table.planner.functions.sql.FlinkSqlOperatorTable;
 import org.apache.flink.table.planner.plan.logical.LogicalWindow;
 import org.apache.flink.table.planner.plan.logical.SessionGroupWindow;
 import org.apache.flink.table.planner.plan.logical.SlidingGroupWindow;
@@ -34,7 +29,6 @@ import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.logical.BigIntType;
 import org.apache.flink.table.types.logical.TimestampKind;
 import org.apache.flink.table.types.logical.TimestampType;
-import org.apache.flink.table.utils.CatalogManagerMocks;
 
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectReader;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectWriter;
@@ -113,20 +107,7 @@ public class LogicalWindowSerdeTest {
 
     @Test
     public void testLogicalWindowSerde() throws IOException {
-        SerdeContext serdeCtx =
-                new SerdeContext(
-                        null,
-                        new FlinkContextImpl(
-                                false,
-                                TableConfig.getDefault(),
-                                new ModuleManager(),
-                                null,
-                                CatalogManagerMocks.createEmptyCatalogManager(),
-                                null),
-                        Thread.currentThread().getContextClassLoader(),
-                        FlinkTypeFactory.INSTANCE(),
-                        FlinkSqlOperatorTable.instance());
-
+        SerdeContext serdeCtx = JsonSerdeTestUtil.configuredSerdeContext();
         ObjectReader objectReader = JsonSerdeUtil.createObjectReader(serdeCtx);
         ObjectWriter objectWriter = JsonSerdeUtil.createObjectWriter(serdeCtx);
 
