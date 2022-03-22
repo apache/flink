@@ -44,7 +44,6 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.event.Level;
 
 import java.io.File;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumSet;
@@ -149,7 +148,6 @@ public class YARNSessionFIFOITCase extends YarnTestBase {
 
         jobRunner.join();
 
-        final Duration timeout = Duration.ofMinutes(1);
         final long testConditionIntervalInMillis = 500;
         // in "new" mode we can only wait after the job is submitted, because TMs
         // are spun up lazily
