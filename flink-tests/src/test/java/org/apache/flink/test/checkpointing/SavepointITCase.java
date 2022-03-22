@@ -59,9 +59,11 @@ import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.RestoreMode;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
 import org.apache.flink.runtime.messages.FlinkJobNotFoundException;
+import org.apache.flink.runtime.operators.testutils.ExpectedTestException;
 import org.apache.flink.runtime.rest.messages.EmptyRequestBody;
 import org.apache.flink.runtime.rest.messages.JobMessageParameters;
 import org.apache.flink.runtime.rest.messages.job.JobDetailsHeaders;
+import org.apache.flink.runtime.scheduler.stopwithsavepoint.StopWithSavepointStoppingException;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.StateSnapshotContext;
@@ -143,10 +145,12 @@ import static org.apache.flink.util.ExceptionUtils.assertThrowable;
 import static org.apache.flink.util.ExceptionUtils.assertThrowableWithMessage;
 import static org.apache.flink.util.ExceptionUtils.findThrowable;
 import static org.apache.flink.util.ExceptionUtils.findThrowableWithMessage;
+import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
@@ -290,6 +294,79 @@ public class SavepointITCase extends TestLogger {
 
         @Override
         public void initializeState(FunctionInitializationContext context) throws Exception {}
+    }
+
+    private static final OneShotLatch stopWithSavepointRestartLatch = new OneShotLatch();
+
+    @Test
+    public void testStopWithSavepointFailsOverToSavepoint() throws Throwable {
+        int sinkParallelism = 5;
+        MiniClusterWithClientResource cluster =
+                new MiniClusterWithClientResource(
+                        new MiniClusterResourceConfiguration.Builder()
+                                .setNumberSlotsPerTaskManager(sinkParallelism + 1)
+                                .build());
+
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        env.getConfig().setRestartStrategy(RestartStrategies.fixedDelayRestart(3, 10));
+        env.setParallelism(1);
+        env.addSource(new InfiniteTestSource())
+                .name("Infinite Source")
+                .map(new FailingOnCompletedSavepointMapFunction(2))
+                .addSink(new DiscardingSink<>())
+                // different parallelism to break chaining and add some concurrent tasks
+                .setParallelism(sinkParallelism);
+
+        final JobGraph jobGraph = env.getStreamGraph().getJobGraph();
+
+        cluster.before();
+        try {
+            ClusterClient<?> client = cluster.getClusterClient();
+            client.submitJob(jobGraph).get();
+            waitUntilAllTasksAreRunning(cluster.getRestClusterClient(), jobGraph.getJobID());
+
+            cluster.getMiniCluster().triggerCheckpoint(jobGraph.getJobID()).get();
+            final CompletableFuture<String> savepointCompleted =
+                    client.stopWithSavepoint(
+                            jobGraph.getJobID(),
+                            true,
+                            savepointDir.getAbsolutePath(),
+                            SavepointFormatType.CANONICAL);
+
+            final Throwable savepointException =
+                    assertThrows(ExecutionException.class, savepointCompleted::get).getCause();
+            assertThrowable(
+                    savepointException,
+                    throwable ->
+                            throwable instanceof StopWithSavepointStoppingException
+                                    && throwable
+                                            .getMessage()
+                                            .startsWith("A savepoint has been created at: "));
+            assertThat(client.getJobStatus(jobGraph.getJobID()).get(), is(JobStatus.FAILED));
+        } finally {
+            cluster.after();
+        }
+    }
+
+    private static final class FailingOnCompletedSavepointMapFunction
+            extends RichMapFunction<Integer, Integer> implements CheckpointListener {
+        private final long savepointId;
+
+        private FailingOnCompletedSavepointMapFunction(long savepointId) {
+            this.savepointId = savepointId;
+        }
+
+        @Override
+        public Integer map(Integer value) throws Exception {
+            return value;
+        }
+
+        @Override
+        public void notifyCheckpointComplete(long checkpointId) throws Exception {
+            if (checkpointId == savepointId) {
+                throw new ExpectedTestException();
+            }
+        }
     }
 
     /**
@@ -924,7 +1001,8 @@ public class SavepointITCase extends TestLogger {
                 // 1. task failure restart
                 // 2. job failover triggered by the CheckpointFailureManager
                 2,
-                assertInSnapshotCreationFailure());
+                assertInSnapshotCreationFailure(),
+                true);
     }
 
     @Test
@@ -937,8 +1015,26 @@ public class SavepointITCase extends TestLogger {
                 // two restarts expected:
                 // 1. task failure restart
                 // 2. job failover triggered by SchedulerBase.stopWithSavepoint
-                2,
-                assertAfterSnapshotCreationFailure());
+                0,
+                (jobId, actualException) -> {
+                    if (ClusterOptions.isAdaptiveSchedulerEnabled(new Configuration())) {
+                        return actualException
+                                .getMessage()
+                                .contains("Stop with savepoint operation could not be completed");
+                    } else {
+                        Optional<StopWithSavepointStoppingException> actualFlinkException =
+                                findThrowable(
+                                        actualException, StopWithSavepointStoppingException.class);
+                        return actualFlinkException
+                                .map(
+                                        e ->
+                                                e.getMessage()
+                                                        .startsWith(
+                                                                "A savepoint has been created at:"))
+                                .orElse(false);
+                    }
+                },
+                false);
     }
 
     @Test
@@ -1051,7 +1147,8 @@ public class SavepointITCase extends TestLogger {
             InfiniteTestSource failingSource,
             File savepointDir,
             int expectedMaximumNumberOfRestarts,
-            BiFunction<JobID, ExecutionException, Boolean> exceptionAssertion)
+            BiFunction<JobID, ExecutionException, Boolean> exceptionAssertion,
+            boolean shouldRestart)
             throws Exception {
         MiniClusterWithClientResource cluster =
                 new MiniClusterWithClientResource(
@@ -1107,7 +1204,9 @@ public class SavepointITCase extends TestLogger {
                 assertThrowable(e, ex -> exceptionAssertion.apply(jobGraph.getJobID(), e));
             }
 
-            waitUntilAllTasksAreRunning(cluster.getRestClusterClient(), jobGraph.getJobID());
+            if (shouldRestart) {
+                waitUntilAllTasksAreRunning(cluster.getRestClusterClient(), jobGraph.getJobID());
+            }
         } finally {
             cluster.after();
         }

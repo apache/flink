@@ -24,7 +24,6 @@ import org.apache.flink.runtime.checkpoint.CheckpointScheduling;
 import org.apache.flink.runtime.checkpoint.CompletedCheckpoint;
 import org.apache.flink.runtime.execution.ExecutionState;
 import org.apache.flink.runtime.scheduler.SchedulerNG;
-import org.apache.flink.util.FlinkException;
 
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -167,16 +166,13 @@ public class StopWithSavepointTerminationHandlerImpl
      */
     private void terminateExceptionallyWithGlobalFailover(
             Iterable<ExecutionState> unfinishedExecutionStates, String savepointPath) {
-        String errorMessage =
-                String.format(
-                        "Inconsistent execution state after stopping with savepoint. At least one execution is still in one of the following states: %s. A global fail-over is triggered to recover the job %s.",
-                        StringUtils.join(unfinishedExecutionStates, ", "), jobId);
-        FlinkException inconsistentFinalStateException = new FlinkException(errorMessage);
+        StopWithSavepointStoppingException inconsistentFinalStateException =
+                new StopWithSavepointStoppingException(savepointPath, jobId);
 
         log.warn(
-                "A savepoint was created at {} but the corresponding job {} didn't terminate successfully.",
-                savepointPath,
-                jobId,
+                "Inconsistent execution state after stopping with savepoint. At least one"
+                        + " execution is still in one of the following states: {}.",
+                StringUtils.join(unfinishedExecutionStates, ", "),
                 inconsistentFinalStateException);
 
         scheduler.handleGlobalFailure(inconsistentFinalStateException);
