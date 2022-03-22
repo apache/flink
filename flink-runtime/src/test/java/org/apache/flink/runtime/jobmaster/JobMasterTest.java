@@ -97,7 +97,6 @@ import org.apache.flink.runtime.scheduler.TestingSchedulerNGFactory;
 import org.apache.flink.runtime.state.CompletedCheckpointStorageLocation;
 import org.apache.flink.runtime.state.StreamStateHandle;
 import org.apache.flink.runtime.taskexecutor.TaskExecutorGateway;
-import org.apache.flink.runtime.taskexecutor.TaskExecutorToJobManagerHeartbeatPayload;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGateway;
 import org.apache.flink.runtime.taskexecutor.TestingTaskExecutorGatewayBuilder;
 import org.apache.flink.runtime.taskexecutor.slot.SlotOffer;
@@ -153,7 +152,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BiConsumer;
-import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -1734,9 +1732,7 @@ public class JobMasterTest extends TestLogger {
                 (localTaskManagerLocation, jobMasterGateway) ->
                         jobMasterGateway.disconnectTaskManager(
                                 localTaskManagerLocation.getResourceID(),
-                                new FlinkException("Test disconnectTaskManager exception.")),
-                (jobMasterGateway, resourceID) ->
-                        (ignoredA, ignoredB) -> FutureUtils.completedVoidFuture());
+                                new FlinkException("Test disconnectTaskManager exception.")));
     }
 
     @Test
@@ -1748,14 +1744,7 @@ public class JobMasterTest extends TestLogger {
                 testingHeartbeatService,
                 (localTaskManagerLocation, jobMasterGateway) ->
                         testingHeartbeatService.triggerHeartbeatTimeout(
-                                jmResourceId, localTaskManagerLocation.getResourceID()),
-                (jobMasterGateway, taskManagerResourceId) ->
-                        (resourceId, ignored) -> {
-                            jobMasterGateway.heartbeatFromTaskManager(
-                                    taskManagerResourceId,
-                                    TaskExecutorToJobManagerHeartbeatPayload.empty());
-                            return FutureUtils.completedVoidFuture();
-                        });
+                                jmResourceId, localTaskManagerLocation.getResourceID()));
     }
 
     /**
@@ -1815,12 +1804,7 @@ public class JobMasterTest extends TestLogger {
 
     private void runJobFailureWhenTaskExecutorTerminatesTest(
             HeartbeatServices heartbeatServices,
-            BiConsumer<LocalUnresolvedTaskManagerLocation, JobMasterGateway> jobReachedRunningState,
-            BiFunction<
-                            JobMasterGateway,
-                            ResourceID,
-                            BiFunction<ResourceID, AllocatedSlotReport, CompletableFuture<Void>>>
-                    heartbeatConsumerFunction)
+            BiConsumer<LocalUnresolvedTaskManagerLocation, JobMasterGateway> jobReachedRunningState)
             throws Exception {
         final JobGraph jobGraph = JobGraphTestUtils.singleNoOpJobGraph();
         final JobMasterBuilder.TestingOnCompletionActions onCompletionActions =
@@ -1852,10 +1836,6 @@ public class JobMasterTest extends TestLogger {
                                                 taskDeploymentDescriptor.getExecutionAttemptId());
                                         return CompletableFuture.completedFuture(Acknowledge.get());
                                     })
-                            .setHeartbeatJobManagerFunction(
-                                    heartbeatConsumerFunction.apply(
-                                            jobMasterGateway,
-                                            taskManagerUnresolvedLocation.getResourceID()))
                             .createTestingTaskExecutorGateway();
 
             final Collection<SlotOffer> slotOffers =
