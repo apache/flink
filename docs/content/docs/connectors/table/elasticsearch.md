@@ -226,14 +226,6 @@ Connector Options
       <td>Delay between each backoff attempt. For <code>CONSTANT</code> backoff, this is simply the delay between each retry. For <code>EXPONENTIAL</code> backoff, this is the initial base delay.</td>
     </tr>
     <tr>
-      <td><h5>connection.max-retry-timeout</h5></td>
-      <td>optional</td>
-      <td>no</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>Duration</td>
-      <td>Maximum timeout between retries.</td>
-    </tr>
-    <tr>
       <td><h5>connection.path-prefix</h5></td>
       <td>optional</td>
       <td>yes</td>
