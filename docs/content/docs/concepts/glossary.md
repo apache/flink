@@ -27,9 +27,11 @@ under the License.
 
 #### Aggregation
 
-Aggregation is an operation that takes multiple values and returns a single value. When working with 
-streams, it generally makes more sense to think in terms of aggregations over finite windows, rather 
-than over the entire stream.
+Aggregation is an operation that takes multiple [records](#record) and aggregates them into a single 
+record using a user-provided aggregation logic (i.e. counting the number of records). When working with 
+[DataStreams](#datastream), it generally makes more sense to think in terms of aggregations over finite 
+[windows](#window), rather than over the entire DataStream, since records availability cannot be assumed 
+over time, like with traditional database systems.
 
 #### (Flink) Application
 
@@ -43,7 +45,7 @@ to a dedicated [Application Cluster](#application-cluster), or to a [Job Cluster
 #### Application Cluster
 
 A Flink application cluster is a dedicated [Flink cluster](#(flink)-cluster) that only executes 
-[Flink jobs](#flink-job) from one [Flink application](#(flink)-application). The lifetime of the Flink
+[Flink jobs](#flink-job) from one [Flink application](#flink-application). The lifetime of the Flink
 cluster is bound to the lifetime of the Flink application.
 
 #### Asynchronous Snapshotting
@@ -52,13 +54,13 @@ A form of [snapshotting](#snapshot) that doesn't impede the ongoing stream proce
 operator to continue processing while it stores its state snapshot, effectively letting the state 
 snapshots happen asynchronously in the background.
 
-#### At-least-once
+#### At-least-once Delivery Guarantee
 
 A fault-tolerance guarantee and data delivery approach where multiple attempts are made at delivering
 an event such that at least one succeeds. This guarantees that nothing is lost, but you may experience 
-duplicated results.
+duplicated (correct) results.
 
-#### At-most-once
+#### At-Most-Once Delivery Guarantee
 
 A data delivery approach where each event is delivered zero or one times. There is lower latency but
 events may be lost.
@@ -66,7 +68,7 @@ events may be lost.
 #### Backpressure
 
 A situation where a system is receiving data at a higher rate than it can process during a temporary 
-load spike.
+load spike or if the cluster does not have sufficient resources.
 
 #### Barrier Alignment
 
@@ -76,29 +78,28 @@ input streams up to (but not past) both barriers.
 
 #### Batch Processing
 
-This is the processing and analysis on a set of data that have already been stored over a period 
-of time (i.e. in groups or batches). The results are usually not available in real-time. Flink 
-executes batch programs as a special case of streaming programs.
+See [checkpoint barrier](#checkpoint-barrier).
 
 #### Bounded Streams
 
-Bounded [DataStreams](#datastream) have a defined start and end. They can be processed by ingesting 
-all data before performing any computations. Ordered ingestion is not required to process bounded streams 
-because a bounded data set can always be sorted. Processing of bounded streams is also known as 
-[batch processing](#batch-processing).
+Flink treats [bounded data](https://flink.apache.org/flink-architecture.html) as bounded [DataStreams](#datastream), 
+which have a defined start and end. They can be processed by ingesting all data before performing any 
+computations. Ordered ingestion is not required to process bounded streams because a bounded data set 
+can always be sorted. Processing of bounded streams is also known as [batch processing](#batch-processing).
 
 #### Checkpoint
 
 A [snapshot](#snapshot) taken automatically by Flink for the purpose of being able to recover from 
 faults. A checkpoint marks a specific point in each of the input streams along with the corresponding 
-state for each of the operators. Checkpoints can be incremental and unaligned, and are optimized for 
-being restored quickly.
+state for each of the operators. Checkpoints are optimized for being restored quickly.
 
 #### Checkpoint Barrier
 
-A special marker that flows along the graph and triggers the checkpointing process on each of the 
-parallel instances of the operators. Checkpoint barriers are injected into the source operators and 
-flow together with the data. If an operator has multiple outputs, it gets "split" into both of them.
+For providing exactly-once guarantees, Flink aligns the streams at operators that receive multiple
+input streams. A checkpoint barrier is a special marker that flows along the graph and triggers the 
+checkpointing process on each of the parallel instances of the operators. Checkpoint barriers are 
+injected into the source operators and flow together with the data. If an operator has multiple outputs, 
+it is sent to all of them.
 
 #### Checkpoint Coordinator
 
@@ -113,9 +114,10 @@ This could be on the Java heap of the [JobManager](#flink-jobmanager) or on a fi
 
 #### (Flink) Client
 
-This is not part of the runtime and program execution but is used to prepare and send a dataflow graph 
-to the JobManager. The Flink client runs either as part of the program that triggers the execution or 
-in the command line process via `./bin/flink run`.
+This is not part of the runtime and program execution but is used to prepare and send a [dataflow](#dataflow) 
+graph to the [JobManager](#jobmanager) (though in [application mode](#application-cluster), this runs 
+in the JobManager process). The Flink client runs either as part of the program that triggers the 
+execution or in the command line process via `./bin/flink run`.
 
 #### (Flink) Cluster
 
@@ -124,27 +126,47 @@ A distributed system consisting of (typically) one [JobManager](#jobmanager) and
 
 #### Connected Streams
 
-A pattern in Flink where a single operator has two input streams. Connected streams can also be used 
-to implement streaming joins.
+A pattern in Flink where a single operator has two input streams. Connected streams can, for example, 
+be used to implement streaming joins.
 
 #### Connectors
 
-Connectors allow [Flink applications](#(flink)-applications) to read from and write to various external 
-systems. They support multiple formats in order to encode and decode data to match Flink’s data structures.
+Connectors allow [Flink applications](#flink-applications) to read from and write to various external 
+systems. They support multiple formats in order to decode/encode data from/to the existing/desired 
+format of external systems.
+
+This is a term often used to describe a [sink](#sink)/[source](#source) implementation for a specific 
+external system. For example, the Kafka connector is the sink/source implementation for Kafka.
 
 #### Dataflow
 
 See [logical graph](#logical-graph).
 
-#### DataStream
+#### (Flink) DataStream
 
 This is a collection of data in a Flink application. You can think of them as immutable collections 
 of data that can contain duplicates. This data can either be finite or unbounded.
 
+DataStream is a proper noun referring to a specific class in Flink that provides a specific API for working with streams of that type. Table is another class in Flink that provides an API for operating on streams (but at a higher level of abstraction, one based on interpreting streams as dynamic tables).
+
+I would say that with the DataStream API, you are operating at the level of bounded and unbounded streams of data records (or events), and conceptually you are operating on one event at a time.
+With DataStreams you are thinking about being part of the event loop, and reacting to each event.
+
+While with Tables you are dealing with either append-only or updating tables, and relations between tables.
+
+#### Delivery Guarantee
+
+This is a message delivery guarantee that a processing framework offers between two systems. They can 
+be divided into three groups (with costs and considerations for each) which include “[at-most-once](#at-most-once-delivery-guarantee)”, 
+“[at-least-once](#at-least-once-delivery-guarantee)”, and “[exactly-once](#exactly-once-delivery-guarantee)”. 
+Delivery guarantees are typically not considered in [batch processing](#batch-processing) systems, 
+because they always ensure atomicity between reading input data, processing, and delivery of results. 
+This means that each [record](#record) within a batch is processed exactly-once.
+
 #### Directed Acyclic Graph (DAG)
 
 This is a graph that is directed and without cycles connecting the other edges. It can be used to 
-conceptually represent a [dataflow](#dataflow) where you never look back to previous events.
+conceptually represent a [logical graph](#logical-graph) where you never look back to previous events.
 
 #### Dispatcher
 
@@ -164,26 +186,19 @@ The time when an [event](#event) occurred, as recorded by the device producing (
 For reproducible results, you should use event time because the result does not depend on when the 
 calculation is performed.
 
-If you want to use event time, you will also need to supply a Timestamp Extractor and Watermark Generator 
+If you want to use event time, you will also need to supply a {{< javadoc file="org/apache/flink/streaming/api/functions/TimestampExtractor.html" name="Timestamp Extractor" >}} 
+and {{< javadoc file="org/apache/flink/api/common/eventtime/WatermarkStrategy.html" name="Watermark Generator" >}} 
 that Flink will use to track the progress of event time.
 
-#### Exactly-once
+#### Exactly-Once Delivery Guarantee
 
-A fault-tolerance guarantee and data delivery approach where nothing is lost or duplicated. This does 
+A delivery guarantee and data delivery approach where nothing is lost or duplicated. This does 
 not mean that every event will be processed exactly once. Instead, it means that every event will affect 
 the state being managed by Flink exactly once.
 
 #### ExecutionGraph
 
 See [Physical Graph](#physical-graph).
-
-#### Externalized Checkpoint
-
-A checkpoint that is configured to be retained instead of being deleted when a job is cancelled. 
-Flink normally retains only the n-most-recent checkpoints (n being configurable) while a job is running 
-and deletes them when a job is cancelled. 
-
-You can manually resume from an externalized checkpoint. 
 
 #### Format
 
@@ -231,13 +246,13 @@ are then used by Flink to determine whether jobs should be subject to recovery i
 
 #### Key Group
 
-These are the atomic unit by which Flink can redistribute [keyed state](#keyed-state). There are 
+These are the atomic units by which Flink can redistribute [keyed state](#keyed-state). There are 
 exactly as many key groups as the defined maximum parallelism. During execution, each parallel instance 
 of a keyed operator works with the keys for one or more key groups.
 
 #### Keyed State
 
-Keyed state is one of the two basic types of state in Apache Flink (the other being operator state).
+Keyed state is one of the two basic types of state in Apache Flink (the other being [operator state](#operator-state)).
 In order to have all events with the same value of an attribute grouped together, you can partition 
 a stream around that attribute, and maintain it as an embedded key/value store. This results in a keyed
 state. 
@@ -250,26 +265,26 @@ Flink supports several different types of keyed state, with the simplest one bei
 #### Keyed Stream
 
 A keyed stream is a [DataStream](#DataStream) on which [operator state](#operator-state) is partitioned 
-by a key. Typical operations supported by a DataStream are also possible on a keyed stream, except for 
-partitioning methods such as shuffle, forward, and keyBy.
+by a key attribute. Typical operations supported by a DataStream are also possible on a keyed stream, 
+except for partitioning methods such as shuffle, forward, and keyBy.
 
 #### Lateness
 
-Lateness is defined relative to the [watermarks](#watermark). A watermark(t) asserts that the stream 
-is complete up through to time t. Any event is considered late if it comes after the watermark whose 
-timestamp is ≤ t.
+Lateness is defined relative to the [watermarks](#watermark). A `watermark(t)` asserts that the [stream](#stream) 
+is complete up through to time `t`. A [record](#record) with timestamp `s` is considered late if it 
+arrives after any watermark whose timestamp is `≤ s`.
 
 #### ListState<T>
 
-This is a type of [keyed state](#keyed-state) that keeps a list of elements. You can append elements 
-and retrieve an Iterable over all currently stored elements. Elements are added using add(T) or 
-addAll(List<T>). The Iterable can be retrieved using Iterable<T> get().
+This is a type of [keyed state](#keyed-state) that keeps a list of elements per key. You can append 
+elements and retrieve an Iterable over all currently stored elements. Elements are added using add(T) 
+or addAll(List<T>). The Iterable can be retrieved using Iterable<T> get().
 
 #### Logical Graph
 
 This is a directed graph where the nodes are [operators](#operator) and the edges define input/output 
 relationships of the operators and correspond to [DataStreams](#datastreams). A logical graph is created 
-by submitting jobs to a [Flink cluster](#(flink)-cluster) from a [Flink application](#(flink)-application).
+by submitting jobs to a [Flink cluster](#(flink)-cluster) from a [Flink application](#flink-application).
 
 Logical graphs are also often referred to as [dataflow](#dataflow).
 
@@ -300,7 +315,7 @@ This feature is most often used in the implementation of [sources](#source) and 
 
 #### Offset
 
-A number identifying how far you are from the beginning of a certain [DataStream](#datastream). 
+A number identifying how far you are from the beginning of a certain [stream](#stream). 
 
 #### Operator
 
@@ -310,10 +325,10 @@ ingestion and data egress.
 
 #### Operator Chain
 
-An operator chain consists of two or more consecutive [operators](#operator) without any
-repartitioning in between. Operators within the same operator chain forward records to each other
-directly without going through serialization or Flink's network stack. This is a useful optimization
-and increases overall throughput while decreasing latency. The chaining behavior can be configured.
+An operator chain consists of two or more consecutive [operators](#operator) without any repartitioning 
+in between. This can allow Flink to forward records to each operator in the operator chain directly 
+without going through serialization or Flink's network stack. This is a useful optimization and increases 
+overall throughput while decreasing latency. The chaining behavior can be configured.
 
 #### Operator State
 
@@ -334,7 +349,7 @@ DataStream is partitioned is often called repartitioning.
 
 A physical graph is the result of translating a [logical graph](#logical-graph) for execution in a
 distributed runtime. The nodes are [tasks](#task) and the edges indicate input/output relationships
-or [partitions](#partition) of DataStreams.
+or [partitions](#partition) of [streams](#stream).
 
 #### POJO
 
@@ -374,13 +389,23 @@ see only the raw bytes.
 
 #### Record
 
-Records are the elements that make up a [DataStream](#datastream). [Operators](#operator) and [functions](#function) 
-receive records as input and emit records as output.
+A record is a collection of named fields of different data types. [Streams](#stream) of data are organized 
+into records. [Operators](#operator) and [functions](#function) receive records as input and emit records 
+as output.
 
 #### ResourceManager
 
-This is part of the [JobManager](#JobManager) and is responsible for resource de-/allocation and 
-provisioning in a Flink cluster.
+This component is part of the [JobManager](#JobManager) and is responsible for resource de-/allocation 
+and provisioning in a Flink cluster by communicating with external resource management frameworks like 
+Kubernetes or YARN.
+
+#### Retained Checkpoint
+
+A checkpoint that is configured to be retained instead of being deleted when a job is cancelled.
+Flink normally retains only the n-most-recent checkpoints (n being configurable) while a job is running
+and deletes them when a job is cancelled.
+
+You can manually resume from a retained checkpoint.
 
 #### Rich Functions
 
@@ -388,34 +413,22 @@ A RichFunction is a "rich" variant of Flink's function interfaces for data trans
 have some additional methods needed for working with managed keyed state such as `open(Configuration c)`, 
 `close()`, `getRuntimeContext()`.
 
-#### Rolling Total
-
-The sum of a sequence of numbers which is updated each time a new number is added to the sequence, 
-by adding the value of the new number to the previous rolling total.
-
 #### (Runtime) Execution Mode
 
-DataStream API programs can be executed in one of two execution modes: `BATCH` or `STREAMING`. 
-See [Execution Mode]({{< ref "/docs/dev/datastream/execution_mode" >}}) for more details.
+DataStream API programs and [Table programs](#table-program) can be executed in one of two execution 
+modes: `BATCH` or `STREAMING`. See [Execution Mode]({{< ref "/docs/dev/datastream/execution_mode" >}}) 
+for more details.
 
 #### Savepoint
 
-A [snapshot](#snapshot) triggered manually by a user (or an API call) for some operational purpose, 
-such as a stateful redeploy/upgrade/rescaling. Savepoints are always complete and aligned and are 
-optimized for operational flexibility.
-
-#### Scalar
-
-A scalar refers to a single value. This is in contrast to a set of values. 
-
-#### Schema
-
-This refers to the organization or structure of data as a blueprint. 
+A [snapshot](#snapshot) triggered manually by a user (or an API call) for some operational purpose,
+such as a stateful redeploy/upgrade/rescaling. Unlike [checkpoints](#checkpoint), the lifecycle of a 
+savepoint is controlled by the user.
 
 #### Serialization
 
-This is the process of turning a data element in memory into a stream of bytes so that you can more 
-efficiently store it on disk or send it over the network.
+This is the process of turning a data element in memory into a stream of bytes so that you can store 
+it on disk or send it over the network.
 
 Flink handles data types and serialization in a unique way, containing its own type descriptors, 
 generic type extraction, and type serialization framework.
@@ -426,7 +439,7 @@ A long-running [Flink cluster](#(flink)-cluster) which accepts multiple [Flink j
 execution. The lifetime of this cluster is not bound to the lifetime of any Flink job. Formerly, a 
 Session Cluster was also known as a Flink Cluster in *session mode*. 
 
-#### Session Windows
+#### Session Window
 
 This is a [window](#window) that groups elements by sessions of activity. Session windows do not overlap 
 and do not have a fixed start and end time, in contrast to [tumbling windows](#tumbling-window) and 
@@ -445,11 +458,11 @@ a good way to implement an n-way split of a stream.
 
 #### Sink
 
-A sink is a component that consumes incoming processed [DataStreams](#datastream) from Flink and 
-forwards them to files, sockets, external systems, or print them. 
+A sink is a component that consumes incoming processed [streams](#stream) from Flink and forwards them 
+to files, sockets, external systems, or print them. 
 
 A few predefined data sinks are built into Flink, such as support for writing to files, to stdout/stderr, 
-and to sockets.
+and to sockets. Other sinks are available through additional [connectors](#connector).
 
 #### Sliding Window
 
@@ -472,11 +485,12 @@ Flink uses a variant of the Chandy-Lamport algorithm known as asynchronous barri
 
 #### Source
 
-This is the source of the data that gets piped into a [Flink application](#(flink)-application) to be 
+This is the source of the data that gets piped into a [Flink application](#flink-application) to be 
 processed. As long as data keeps flowing in, Flink can keep performing calculations. 
 
 A few basic data sources are built into Flink and are always available, such as reading from files, 
-directories, sockets, and ingesting data from collections and iterators. 
+directories, sockets, and ingesting data from collections and iterators. Other sources are available 
+through additional [connectors](#connector).
 
 #### Spilling
 
@@ -491,6 +505,15 @@ Two implementations of state backends are available. One is based on RocksDB, an
 store that keeps its working state on disk, and the other is heap-based that keeps its working state 
 in memory, on the Java heap.
 
+#### Stream
+
+This is a concept describing a continuous flow of data (generated by various sources) that is fed into 
+stream processing systems to be processed and analyzed in real time. It consists of a series of data 
+elements ordered in time. 
+
+[DataStream](#flink-datastream) is the representation of this concept inside Flink's DataStream API 
+and Table API.
+
 #### Stream Barriers
 
 A core element of Flink's distributed snapshotting. Stream barriers are injected into the [DataStream](#datastream) 
@@ -500,9 +523,9 @@ goes into the current snapshot, and the records that go into the next snapshot.
 
 #### Subtask
 
-A subtask is a [task](#task) responsible for processing a [partition](#partition) of the [DataStream](#datastream). 
-The term "subtask" emphasizes that there are multiple parallel tasks for the same [operator](#operator) 
-or [operator chain](#operator-chain).
+A subtask is an abstract concept that describes a [task](#task) responsible for processing a [partition](#partition) 
+of the [DataStream](#datastream). The term "subtask" emphasizes that there are multiple parallel tasks 
+for the same [operator](#operator) or [operator chain](#operator-chain).
 
 #### Table Program
 
@@ -520,7 +543,7 @@ This is an optimization where Flink puts two subsequent [transformations](#trans
 
 #### Task Parallelism
 
-This is the number of parallel instances of a task. A [Flink application](#(flink)-application) consists 
+This is the number of parallel instances of a task. A [Flink application](#flink-application) consists 
 of multiple [tasks](#task) ([transformations](#transformation), [operators](#operator), [sources](#source), 
 [sinks](#sink)). A task is split into several parallel instances for execution and each parallel instance 
 processes a subset of the task's input data. 
@@ -534,7 +557,7 @@ in a TaskManager indicates the number of concurrent processing tasks.
 #### TaskManager
 
 TaskManagers are the worker processes of a [Flink cluster](#flink-cluster), execute the tasks of a 
-dataflow, and buffer and exchange the [DataStreams](#datastreams). They connect to [JobManagers](#jobmanagers), 
+dataflow, and buffer and exchange the [streams](#streams). They connect to [JobManagers](#jobmanagers), 
 announce themselves as available, and are assigned work. [Tasks](#task) are scheduled to TaskManagers 
 for execution. They communicate with each other to exchange data between subsequent tasks. Each TaskManager 
 is a JVM process and may execute one or more subtasks in separate threads.
@@ -552,11 +575,11 @@ recovery or when starting an application from a [savepoint](#savepoint), timers 
 
 #### Transformation
 
-A transformation is applied to one or more [DataStreams](#datastreams) and results in one or more 
-output DataStreams. A transformation might change a DataStream on a [per-record](#record) basis, but 
-might also only change its [partitioning](#partition) or perform an [aggregation](#aggregation). While 
-[operators](#operator) and [functions](#function) are the "physical" parts of Flink's API, transformations 
-are an API concept. Specifically, most transformations are implemented by certain [operators](#operator).
+A transformation is applied to one or more [streams](#stream) and results in one or more output streams. 
+A transformation might change a stream on a [per-record](#record) basis, but might also only change 
+its [partitioning](#partition) or perform an [aggregation](#aggregation). While [operators](#operator) 
+and [functions](#function) are the "physical" parts of Flink's API, transformations are an API concept. 
+Specifically, most transformations are implemented by certain [operators](#operator).
 
 #### Tumbling Window
 
@@ -564,18 +587,15 @@ This is a [window](#window) that groups elements by a specified window size. Tum
 fixed size and do not overlap. For example, if you specify a tumbling window with a size of 5 minutes, 
 the current window will be evaluated and a new window will be started every five minutes.
 
-#### Tuple
-
-A composite data type that has a finite ordered list of immutable elements. 
-
 #### Unbounded streams
 
-Unbounded [DataStreams](#datastream) have a start but no defined end. They do not terminate, provide 
-data as it is generated, and must be continuously processed. 
+Flink treats [unbounded data](https://flink.apache.org/flink-architecture.html) as unbounded [DataStreams](#datastream),
+which have a start but no defined end. They do not terminate, provide data as it is generated, and must 
+be continuously processed. 
 
 #### (User-Defined) Functions
 
-Functions are implemented by the user and encapsulate the application logic of a [Flink application](#(flink)-application). 
+Functions are implemented by the user and encapsulate the application logic of a [Flink application](#flink-application). 
 Most functions are wrapped by a corresponding [operator](#operator).
 
 #### User-Defined Aggregate Function (UDAF)
@@ -602,9 +622,9 @@ and retrieved using T value().
 #### Watermark
 
 This is the mechanism in Flink to measure progress in event time. Watermarks are special timestamped 
-elements that get inserted by watermark generators into a [DataStream](#datastream). They flow as part 
-of the DataStream and carry a timestamp t. A watermark for time t is an assertion that the stream is 
-(probably) now complete up through time t. 
+elements that get inserted by watermark generators into a [stream](#stream). They flow as part of the
+DataStream and carry a timestamp `t`. A watermark for time `t` is an assertion that the stream is 
+(probably) now complete up through time `t`. 
 
 Watermarks give you control over the tradeoff between latency and completeness. You can either configure
 your watermark with a short-bounded delay and risk producing results with incomplete knowledge of the input
@@ -616,8 +636,9 @@ DatasStream.
 These are vital to processing unbounded streams. Windows split the [DataStream](#datastream) into 
 “buckets” of finite size, over which computations can be applied. 
 
-Flink features very expressive window semantics. Windows can be time-driven (i.e. every 30 seconds) 
-or data-driven (i.e. every 100 elements).
+Flink features very expressive window semantics (i.e. [tumbling windows](#tumbling-window), 
+[sliding windows](#sliding-window), [session windows](#session-window)). Windows can be time-driven 
+(i.e. every 30 seconds) or data-driven (i.e. every 100 elements).
 
 #### Window Assigner
 
