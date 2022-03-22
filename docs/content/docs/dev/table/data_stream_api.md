@@ -598,25 +598,25 @@ pipeline or a statement set:
 
 ```java
 // execute with explicit sink
-tableEnv.from("InputTable").insertInto("OutputTable").execute()
+tableEnv.from("InputTable").insertInto("OutputTable").execute();
 
-tableEnv.executeSql("INSERT INTO OutputTable SELECT * FROM InputTable")
+tableEnv.executeSql("INSERT INTO OutputTable SELECT * FROM InputTable");
 
 tableEnv.createStatementSet()
     .add(tableEnv.from("InputTable").insertInto("OutputTable"))
     .add(tableEnv.from("InputTable").insertInto("OutputTable2"))
-    .execute()
+    .execute();
 
 tableEnv.createStatementSet()
     .addInsertSql("INSERT INTO OutputTable SELECT * FROM InputTable")
     .addInsertSql("INSERT INTO OutputTable2 SELECT * FROM InputTable")
-    .execute()
+    .execute();
 
 // execute with implicit local sink
 
-tableEnv.from("InputTable").execute().print()
+tableEnv.from("InputTable").execute().print();
 
-tableEnv.executeSql("SELECT * FROM InputTable").print()
+tableEnv.executeSql("SELECT * FROM InputTable").print();
 ```
 
 To combine both execution behaviors, every call to `StreamTableEnvironment.toDataStream`
@@ -629,17 +629,17 @@ these "external parts".
 // (1)
 
 // adds a branch with a printing sink to the StreamExecutionEnvironment
-tableEnv.toDataStream(table).print()
+tableEnv.toDataStream(table).print();
 
 // (2)
 
 // executes a Table API end-to-end pipeline as a Flink job and prints locally,
 // thus (1) has still not been executed
-table.execute().print()
+table.execute().print();
 
 // executes the DataStream API pipeline with the sink defined in (1) as a
 // Flink job, (2) was already running before
-env.execute()
+env.execute();
 ```
 
 {{< top >}}
@@ -2771,7 +2771,7 @@ The schema of the resulting view depends on the data type of the registered coll
 {{< tab "Java" >}}
 ```java
 StreamTableEnvironment tableEnv = ...; 
-DataStream<Tuple2<Long, String>> stream = ...
+DataStream<Tuple2<Long, String>> stream = ...;
 
 Table table2 = tableEnv.fromDataStream(stream, $("myLong"), $("myString"));
 ```
@@ -2926,7 +2926,7 @@ When defining a position-based mapping, the specified names must not exist in th
 ```java
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section;
 
-DataStream<Tuple2<Long, Integer>> stream = ...
+DataStream<Tuple2<Long, Integer>> stream = ...;
 
 // convert DataStream into Table with field "myLong" only
 Table table = tableEnv.fromDataStream(stream, $("myLong"));
@@ -2978,7 +2978,7 @@ If no field names are specified, the default field names and field order of the 
 ```java
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
-DataStream<Tuple2<Long, Integer>> stream = ...
+DataStream<Tuple2<Long, Integer>> stream = ...;
 
 // convert DataStream into Table with field "f1" only
 Table table = tableEnv.fromDataStream(stream, $("f1"));
@@ -3039,7 +3039,7 @@ The type of the column is inferred from the atomic type. The name of the column 
 ```java
 StreamTableEnvironment tableEnv = ...;
 
-DataStream<Long> stream = ...
+DataStream<Long> stream = ...;
 
 // Convert DataStream into Table with field name "myLong"
 Table table = tableEnv.fromDataStream(stream, $("myLong"));
@@ -3089,7 +3089,7 @@ Name-based mapping allows for reordering fields and projection with alias (`as`)
 ```java
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
-DataStream<Tuple2<Long, String>> stream = ...
+DataStream<Tuple2<Long, String>> stream = ...;
 
 // convert DataStream into Table with renamed field names "myLong", "myString" (position-based)
 Table table = tableEnv.fromDataStream(stream, $("myLong"), $("myString"));
@@ -3183,7 +3183,7 @@ When converting a POJO `DataStream` into a `Table` without specifying field name
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 // Person is a POJO with fields "name" and "age"
-DataStream<Person> stream = ...
+DataStream<Person> stream = ...;
 
 // convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
 Table table = tableEnv.fromDataStream(stream, $("age").as("myAge"), $("name").as("myName"));
@@ -3230,7 +3230,7 @@ Fields can be renamed by providing names for all fields (mapping based on positi
 StreamTableEnvironment tableEnv = ...; 
 
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
-DataStream<Row> stream = ...
+DataStream<Row> stream = ...;
 
 // Convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
 Table table = tableEnv.fromDataStream(stream, $("myName"), $("myAge"));

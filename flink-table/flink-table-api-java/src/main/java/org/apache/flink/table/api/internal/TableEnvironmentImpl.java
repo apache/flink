@@ -265,21 +265,22 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
     }
 
     public static TableEnvironmentImpl create(Configuration configuration) {
-        return create(EnvironmentSettings.fromConfiguration(configuration), configuration);
+        return create(EnvironmentSettings.newInstance().withConfiguration(configuration).build());
     }
 
     public static TableEnvironmentImpl create(EnvironmentSettings settings) {
-        return create(settings, settings.toConfiguration());
-    }
-
-    private static TableEnvironmentImpl create(
-            EnvironmentSettings settings, Configuration configuration) {
         // temporary solution until FLINK-15635 is fixed
         final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
 
+        final ExecutorFactory executorFactory =
+                FactoryUtil.discoverFactory(
+                        classLoader, ExecutorFactory.class, ExecutorFactory.DEFAULT_IDENTIFIER);
+        final Executor executor = executorFactory.create(settings.getConfiguration());
+
         // use configuration to init table config
-        final TableConfig tableConfig = new TableConfig();
-        tableConfig.addConfiguration(configuration);
+        final TableConfig tableConfig = TableConfig.getDefault();
+        tableConfig.setRootConfiguration(executor.getConfiguration());
+        tableConfig.addConfiguration(settings.getConfiguration());
 
         final ModuleManager moduleManager = new ModuleManager();
 
@@ -297,19 +298,9 @@ public class TableEnvironmentImpl implements TableEnvironmentInternal {
         final FunctionCatalog functionCatalog =
                 new FunctionCatalog(tableConfig, catalogManager, moduleManager);
 
-        final ExecutorFactory executorFactory =
-                FactoryUtil.discoverFactory(
-                        classLoader, ExecutorFactory.class, settings.getExecutor());
-        final Executor executor = executorFactory.create(configuration);
-
         final Planner planner =
                 PlannerFactoryUtil.createPlanner(
-                        settings.getPlanner(),
-                        executor,
-                        tableConfig,
-                        moduleManager,
-                        catalogManager,
-                        functionCatalog);
+                        executor, tableConfig, moduleManager, catalogManager, functionCatalog);
 
         return new TableEnvironmentImpl(
                 catalogManager,

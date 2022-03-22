@@ -59,7 +59,7 @@ The following examples show how to enable these options.
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 // access flink configuration
 TableConfig configuration = tEnv.getConfig();
@@ -122,7 +122,7 @@ The following examples show how to enable the local-global aggregation.
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 // access flink configuration
 TableConfig configuration = tEnv.getConfig();
@@ -210,7 +210,7 @@ The following examples show how to enable the split distinct aggregation optimiz
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 tEnv.getConfig()
   .set("table.optimizer.distinct-agg.split.enabled", "true");  // enable distinct agg split

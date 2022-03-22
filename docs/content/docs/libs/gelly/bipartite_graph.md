@@ -84,11 +84,11 @@ You can create a `BipartiteGraph` in the following ways:
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
-DataSet<Vertex<String, Long>> topVertices = ...
+DataSet<Vertex<String, Long>> topVertices = ...;
 
-DataSet<Vertex<String, Long>> bottomVertices = ...
+DataSet<Vertex<String, Long>> bottomVertices = ...;
 
-DataSet<Edge<String, String, Double>> edges = ...
+DataSet<Edge<String, String, Double>> edges = ...;
 
 Graph<String, String, Long, Long, Double> graph = BipartiteGraph.fromDataSet(topVertices, bottomVertices, edges, env);
 ```
@@ -120,14 +120,14 @@ In the case of a simple projection each node in the result graph contains a pair
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 // Vertices (1, "top1")
-DataSet<Vertex<Long, String>> topVertices = ...
+DataSet<Vertex<Long, String>> topVertices = ...;
 
 // Vertices (2, "bottom2"); (4, "bottom4")
-DataSet<Vertex<Long, String>> bottomVertices = ...
+DataSet<Vertex<Long, String>> bottomVertices = ...;
 
 // Edge that connect vertex 2 to vertex 1 and vertex 4 to vertex 1:
 // (1, 2, "1-2-edge"); (1, 4, "1-4-edge")
-DataSet<Edge<Long, Long, String>> edges = ...
+DataSet<Edge<Long, Long, String>> edges = ...;
 
 BipartiteGraph<Long, Long, String, String, String> graph = BipartiteGraph.fromDataSet(topVertices, bottomVertices, edges, env);
 
@@ -155,14 +155,14 @@ Full projection preserves all the information about the connection between two v
 ```java
 ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 // Vertices (1, "top1")
-DataSet<Vertex<Long, String>> topVertices = ...
+DataSet<Vertex<Long, String>> topVertices = ...;
 
 // Vertices (2, "bottom2"); (4, "bottom4")
-DataSet<Vertex<Long, String>> bottomVertices = ...
+DataSet<Vertex<Long, String>> bottomVertices = ...;
 
 // Edge that connect vertex 2 to vertex 1 and vertex 4 to vertex 1:
 // (1, 2, "1-2-edge"); (1, 4, "1-4-edge")
-DataSet<Edge<Long, Long, String>> edges = ...
+DataSet<Edge<Long, Long, String>> edges = ...;
 
 BipartiteGraph<Long, Long, String, String, String> graph = BipartiteGraph.fromDataSet(topVertices, bottomVertices, edges, env);
 

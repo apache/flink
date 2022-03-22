@@ -26,13 +26,13 @@ import org.apache.flink.api.common.typeinfo.{AtomicType, TypeInformation}
 import org.apache.flink.api.java.typeutils.{PojoTypeInfo, RowTypeInfo, TupleTypeInfo}
 import org.apache.flink.api.scala.typeutils.CaseClassTypeInfo
 import org.apache.flink.configuration.ExecutionOptions
-
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.{JsonNode, ObjectMapper}
 import org.apache.flink.streaming.api.datastream.DataStream
 import org.apache.flink.streaming.api.environment.{LocalStreamEnvironment, StreamExecutionEnvironment}
 import org.apache.flink.streaming.api.scala.{StreamExecutionEnvironment => ScalaStreamExecEnv}
 import org.apache.flink.streaming.api.{TimeCharacteristic, environment}
 import org.apache.flink.table.api._
+import org.apache.flink.table.api.bridge.internal.AbstractStreamTableEnvironmentImpl
 import org.apache.flink.table.api.bridge.java.{StreamTableEnvironment => JavaStreamTableEnv}
 import org.apache.flink.table.api.bridge.scala.{StreamTableEnvironment => ScalaStreamTableEnv}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
@@ -105,14 +105,14 @@ abstract class TableTestBase {
   @Rule
   def name: TestName = testName
 
-  def streamTestUtil(conf: TableConfig = new TableConfig): StreamTableTestUtil =
+  def streamTestUtil(conf: TableConfig = TableConfig.getDefault): StreamTableTestUtil =
     StreamTableTestUtil(this, conf = conf)
 
   def scalaStreamTestUtil(): ScalaStreamTableTestUtil = ScalaStreamTableTestUtil(this)
 
   def javaStreamTestUtil(): JavaStreamTableTestUtil = JavaStreamTableTestUtil(this)
 
-  def batchTestUtil(conf: TableConfig = new TableConfig): BatchTableTestUtil =
+  def batchTestUtil(conf: TableConfig = TableConfig.getDefault): BatchTableTestUtil =
     BatchTableTestUtil(this, conf = conf)
 
   def scalaBatchTestUtil(): ScalaBatchTableTestUtil = ScalaBatchTableTestUtil(this)
@@ -1222,7 +1222,7 @@ abstract class JavaTableTestUtil(
 case class StreamTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None,
-    conf: TableConfig = new TableConfig)
+    conf: TableConfig = TableConfig.getDefault)
   extends TableTestUtil(test, isStreamingMode = true, catalogManager, conf) {
 
   /**
@@ -1342,7 +1342,7 @@ case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUti
 case class BatchTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None,
-    conf: TableConfig = new TableConfig)
+    conf: TableConfig = TableConfig.getDefault)
   extends TableTestUtil(test, isStreamingMode = false, catalogManager, conf) {
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
@@ -1526,10 +1526,17 @@ object TestingTableEnvironment {
       catalogManager: Option[CatalogManager] = None,
       tableConfig: TableConfig): TestingTableEnvironment = {
 
-    tableConfig.addConfiguration(settings.toConfiguration)
-
     // temporary solution until FLINK-15635 is fixed
     val classLoader = Thread.currentThread.getContextClassLoader
+
+    val executorFactory = FactoryUtil.discoverFactory(
+      classLoader, classOf[ExecutorFactory], ExecutorFactory.DEFAULT_IDENTIFIER)
+
+    val executor = executorFactory.create(settings.getConfiguration)
+
+    tableConfig.setRootConfiguration(executor.getConfiguration)
+    tableConfig.addConfiguration(settings.getConfiguration)
+
 
     val moduleManager = new ModuleManager
 
@@ -1538,7 +1545,7 @@ object TestingTableEnvironment {
       case _ =>
         CatalogManager.newBuilder
           .classLoader(classLoader)
-          .config(tableConfig.getConfiguration)
+          .config(tableConfig)
           .defaultCatalog(
             settings.getBuiltInCatalogName,
             new GenericInMemoryCatalog(
@@ -1547,14 +1554,10 @@ object TestingTableEnvironment {
           .build
     }
 
-    val functionCatalog = new FunctionCatalog(tableConfig, catalogMgr, moduleManager)
+    val functionCatalog = new FunctionCatalog(settings.getConfiguration, catalogMgr, moduleManager)
 
-    val executorFactory =
-      FactoryUtil.discoverFactory(classLoader, classOf[ExecutorFactory], settings.getExecutor)
-    val executor = executorFactory.create(tableConfig.getConfiguration)
-
-    val planner = PlannerFactoryUtil.createPlanner(settings.getPlanner, executor, tableConfig,
-      moduleManager, catalogMgr, functionCatalog).asInstanceOf[PlannerBase]
+    val planner = PlannerFactoryUtil.createPlanner(
+      executor, tableConfig, moduleManager, catalogMgr, functionCatalog).asInstanceOf[PlannerBase]
 
     new TestingTableEnvironment(
       catalogMgr,

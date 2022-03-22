@@ -26,7 +26,7 @@ import org.junit.Test;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link GenericInMemoryCatalog} created by {@link GenericInMemoryCatalogFactory}. */
 public class GenericInMemoryCatalogFactoryTest extends TestLogger {
@@ -55,14 +55,14 @@ public class GenericInMemoryCatalogFactoryTest extends TestLogger {
     private static void checkEquals(GenericInMemoryCatalog c1, GenericInMemoryCatalog c2)
             throws Exception {
         // Only assert a few selected properties for now
-        assertEquals(c1.getName(), c2.getName());
-        assertEquals(c1.getDefaultDatabase(), c2.getDefaultDatabase());
-        assertEquals(c1.listDatabases(), c2.listDatabases());
+        assertThat(c2.getName()).isEqualTo(c1.getName());
+        assertThat(c2.getDefaultDatabase()).isEqualTo(c1.getDefaultDatabase());
+        assertThat(c2.listDatabases()).isEqualTo(c1.listDatabases());
 
         final String database = c1.getDefaultDatabase();
 
-        assertEquals(c1.listTables(database), c2.listTables(database));
-        assertEquals(c1.listViews(database), c2.listViews(database));
-        assertEquals(c1.listFunctions(database), c2.listFunctions(database));
+        assertThat(c2.listTables(database)).isEqualTo(c1.listTables(database));
+        assertThat(c2.listViews(database)).isEqualTo(c1.listViews(database));
+        assertThat(c2.listFunctions(database)).isEqualTo(c1.listFunctions(database));
     }
 }

@@ -57,7 +57,7 @@ under the License.
           [.getSideOutput(...)]      <-  可选项："output tag"
 
 上面方括号（[...]）中的命令是可选的。也就是说，Flink 允许你自定义多样化的窗口操作来满足你的需求。
-
+{{< hint info >}} Note: Non-Keyed windows 在 Python DataStream API 中还不支持. {{< /hint >}}
 
 
 ## 窗口的生命周期
@@ -179,6 +179,29 @@ input
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+# 滚动 event-time 窗口
+input \
+    .key_by(<key selector>) \
+    .window(TumblingEventTimeWindows.of(Time.seconds(5))) \
+    .<windowed transformation>(<window function>)
+
+# 滚动 processing-time 窗口
+input \
+    .key_by(<key selector>) \
+    .window(TumblingProcessingTimeWindows.of(Time.seconds(5))) \
+    .<windowed transformation>(<window function>)
+
+# 长度为一天的滚动 event-time 窗口，偏移量为 -8 小时。
+input \
+    .key_by(<key selector>) \
+    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8))) \
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 时间间隔可以用 `Time.milliseconds(x)`、`Time.seconds(x)`、`Time.minutes(x)` 等来指定。
@@ -247,6 +270,29 @@ input
 input
     .keyBy(<key selector>)
     .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8)))
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+# 滑动 event-time 窗口
+input \
+    .key_by(<key selector>) \
+    .window(SlidingEventTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
+    .<windowed transformation>(<window function>)
+
+# 滑动 processing-time 窗口
+input \
+    .key_by(<key selector>) \
+    .window(SlidingProcessingTimeWindows.of(Time.seconds(10), Time.seconds(5))) \
+    .<windowed transformation>(<window function>)
+
+# 滑动 processing-time 窗口，偏移量为 -8 小时
+input \
+    .key_by(<key selector>) \
+    .window(SlidingProcessingTimeWindows.of(Time.hours(12), Time.hours(1), Time.hours(-8))) \
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
@@ -346,6 +392,40 @@ input
     .<windowed transformation>(<window function>)
 ```
 {{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+class MySessionWindowTimeGapExtractor(SessionWindowTimeGapExtractor):
+
+    def extract(self, element: tuple) -> int:
+        # 决定并返回会话间隔
+
+# 设置了固定间隔的 event-time 会话窗口
+input \
+    .key_by(<key selector>) \
+    .window(EventTimeSessionWindows.with_gap(Time.minutes(10))) \
+    .<windowed transformation>(<window function>)
+
+# 设置了动态间隔的 event-time 会话窗口
+input \
+    .key_by(<key selector>) \
+    .window(EventTimeSessionWindows.with_dynamic_gap(MySessionWindowTimeGapExtractor())) \
+    .<windowed transformation>(<window function>)
+
+# 设置了固定间隔的 processing-time 会话窗口
+input \
+    .key_by(<key selector>) \
+    .window(ProcessingTimeSessionWindows.with_gap(Time.minutes(10))) \
+    .<windowed transformation>(<window function>)
+
+# 设置了动态间隔的 processing-time 会话窗口
+input \
+    .key_by(<key selector>) \
+    .window(DynamicProcessingTimeSessionWindows.with_dynamic_gap(MySessionWindowTimeGapExtractor())) \
+    .<windowed transformation>(<window function>)
+```
+{{< /tab >}}
 {{< /tabs >}}
 
 固定间隔可以使用 `Time.milliseconds(x)`、`Time.seconds(x)`、`Time.minutes(x)` 等来设置。
@@ -437,6 +517,17 @@ input
     .keyBy(<key selector>)
     .window(<window assigner>)
     .reduce { (v1, v2) => (v1._1, v1._2 + v2._2) }
+```
+{{< /tab >}}
+{{< tab "Python" >}}
+```python
+input = ...  # type: DataStream
+
+input \
+    .key_by(<key selector>) \
+    .window(<window assigner>) \
+    .reduce(lambda v1, v2: (v1[0], v1[1] + v2[1]),
+            output_type=Types.TUPLE([Types.STRING(), Types.LONG()]))
 ```
 {{< /tab >}}
 {{< /tabs >}}

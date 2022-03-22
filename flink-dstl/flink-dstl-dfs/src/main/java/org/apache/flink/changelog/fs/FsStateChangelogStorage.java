@@ -19,6 +19,7 @@ package org.apache.flink.changelog.fs;
 
 import org.apache.flink.annotation.Experimental;
 import org.apache.flink.annotation.VisibleForTesting;
+import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.io.AvailabilityProvider;
@@ -91,11 +92,12 @@ public class FsStateChangelogStorage
     }
 
     @Override
-    public FsStateChangelogWriter createWriter(String operatorID, KeyGroupRange keyGroupRange) {
+    public FsStateChangelogWriter createWriter(
+            String operatorID, KeyGroupRange keyGroupRange, MailboxExecutor mailboxExecutor) {
         UUID logId = new UUID(0, logIdGenerator.getAndIncrement());
         LOG.info("createWriter for operator {}/{}: {}", operatorID, keyGroupRange, logId);
         return new FsStateChangelogWriter(
-                logId, keyGroupRange, uploader, preEmptivePersistThresholdInBytes);
+                logId, keyGroupRange, uploader, preEmptivePersistThresholdInBytes, mailboxExecutor);
     }
 
     @Override

@@ -23,7 +23,6 @@ import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.OneInputStreamOperatorTestHarness;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -128,7 +127,7 @@ public class StreamArrowPythonProcTimeBoundedRowsOperatorTest
                 3,
                 1,
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
+                        CodeGeneratorContext.apply(new Configuration()),
                         "UdafInputProjection",
                         inputType,
                         udfInputType,

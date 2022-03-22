@@ -26,6 +26,7 @@ import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ClusterOptions;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.HighAvailabilityOptions;
 import org.apache.flink.core.execution.SavepointFormatType;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.runtime.blob.BlobServer;
@@ -44,6 +45,7 @@ import org.apache.flink.runtime.heartbeat.HeartbeatServices;
 import org.apache.flink.runtime.highavailability.HighAvailabilityServices;
 import org.apache.flink.runtime.highavailability.JobResultEntry;
 import org.apache.flink.runtime.highavailability.JobResultStore;
+import org.apache.flink.runtime.highavailability.JobResultStoreOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.JobVertex;
 import org.apache.flink.runtime.jobgraph.OperatorID;
@@ -89,6 +91,7 @@ import javax.annotation.Nullable;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -428,6 +431,17 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         try {
             if (isDuplicateJob(jobGraph.getJobID())) {
+                if (isInGloballyTerminalState(jobGraph.getJobID())) {
+                    log.warn(
+                            "Ignoring JobGraph submission '{}' ({}) because the job already reached a globally-terminal state (i.e. {}) in a previous execution.",
+                            jobGraph.getName(),
+                            jobGraph.getJobID(),
+                            Arrays.stream(JobStatus.values())
+                                    .filter(JobStatus::isGloballyTerminalState)
+                                    .map(JobStatus::name)
+                                    .collect(Collectors.joining(", ")));
+                }
+
                 final DuplicateJobSubmissionException exception =
                         isInGloballyTerminalState(jobGraph.getJobID())
                                 ? DuplicateJobSubmissionException.ofGloballyTerminated(
@@ -603,7 +617,22 @@ public abstract class Dispatcher extends PermanentlyFencedRpcEndpoint<Dispatcher
 
         final CompletableFuture<Void> jobTerminationFuture =
                 cleanupJobStateFuture.thenCompose(
-                        cleanupJobState -> removeJob(jobId, cleanupJobState));
+                        cleanupJobState ->
+                                removeJob(jobId, cleanupJobState)
+                                        .exceptionally(
+                                                throwable -> {
+                                                    log.warn(
+                                                            "The cleanup of job {} failed. The job's artifacts in '{}' and its JobResultStore entry in '{}' needs to be cleaned manually.",
+                                                            jobId,
+                                                            configuration.get(
+                                                                    HighAvailabilityOptions
+                                                                            .HA_STORAGE_PATH),
+                                                            configuration.get(
+                                                                    JobResultStoreOptions
+                                                                            .STORAGE_PATH),
+                                                            throwable);
+                                                    return null;
+                                                }));
 
         FutureUtils.handleUncaughtException(
                 jobTerminationFuture,

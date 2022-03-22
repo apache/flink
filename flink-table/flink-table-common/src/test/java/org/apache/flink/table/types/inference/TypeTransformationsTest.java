@@ -41,7 +41,7 @@ import static org.apache.flink.table.types.inference.TypeTransformations.TO_INTE
 import static org.apache.flink.table.types.inference.TypeTransformations.legacyRawToTypeInfoRaw;
 import static org.apache.flink.table.types.inference.TypeTransformations.timeToSqlTypes;
 import static org.apache.flink.table.types.inference.TypeTransformations.toNullable;
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for built-in {@link TypeTransformations}. */
 public class TypeTransformationsTest {
@@ -64,7 +64,7 @@ public class TypeTransformationsTest {
                                         DataTypes.INT().notNull().bridgedTo(Integer.class)))
                         .bridgedTo(RowData.class);
 
-        assertEquals(expected, DataTypeUtils.transform(dataType, TO_INTERNAL_CLASS));
+        assertThat(DataTypeUtils.transform(dataType, TO_INTERNAL_CLASS)).isEqualTo(expected);
     }
 
     @Test
@@ -95,7 +95,7 @@ public class TypeTransformationsTest {
                                         DataTypes.TIME(9).bridgedTo(Time.class))),
                         DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE()));
 
-        assertEquals(expected, DataTypeUtils.transform(dataType, timeToSqlTypes()));
+        assertThat(DataTypeUtils.transform(dataType, timeToSqlTypes())).isEqualTo(expected);
     }
 
     @Test
@@ -117,7 +117,7 @@ public class TypeTransformationsTest {
                         DataTypes.FIELD("c", rawDataType),
                         DataTypes.FIELD("d", DataTypes.ARRAY(rawDataType)));
 
-        assertEquals(expected, DataTypeUtils.transform(dataType, legacyRawToTypeInfoRaw()));
+        assertThat(DataTypeUtils.transform(dataType, legacyRawToTypeInfoRaw())).isEqualTo(expected);
     }
 
     @Test
@@ -143,7 +143,7 @@ public class TypeTransformationsTest {
                         DataTypes.FIELD("e", DataTypes.MAP(DataTypes.DATE(), DataTypes.TIME(9))),
                         DataTypes.FIELD("f", DataTypes.TIMESTAMP_WITH_TIME_ZONE()));
 
-        assertEquals(expected, DataTypeUtils.transform(dataType, toNullable()));
+        assertThat(DataTypeUtils.transform(dataType, toNullable())).isEqualTo(expected);
     }
 
     // --------------------------------------------------------------------------------------------

@@ -28,7 +28,7 @@ import org.junit.Test;
 
 import java.util.Collections;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test for {@link org.apache.flink.table.module.CoreModule} created by {@link
@@ -47,6 +47,6 @@ public class CoreModuleFactoryTest {
                         new Configuration(),
                         Thread.currentThread().getContextClassLoader());
 
-        assertEquals(expectedModule, actualModule);
+        assertThat(actualModule).isEqualTo(expectedModule);
     }
 }

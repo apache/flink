@@ -27,6 +27,7 @@ import org.apache.flink.api.connector.source.Boundedness;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
+import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
@@ -69,16 +70,20 @@ public class BatchExecutionFileSinkITCase extends FileSinkITBase {
                         "Source",
                         Boundedness.BOUNDED);
 
-        source.setParallelism(NUM_SOURCES)
-                .rebalance()
-                .map(new BatchExecutionOnceFailingMap(NUM_RECORDS, triggerFailover))
-                .setParallelism(NUM_SINKS)
-                .sinkTo(createFileSink(path))
-                .setParallelism(NUM_SINKS);
+        DataStreamSink<Integer> sink =
+                source.setParallelism(NUM_SOURCES)
+                        .rebalance()
+                        .map(new BatchExecutionOnceFailingMap(NUM_RECORDS, triggerFailover))
+                        .setParallelism(NUM_SINKS)
+                        .sinkTo(createFileSink(path))
+                        .setParallelism(NUM_SINKS);
+        configureSink(sink);
 
         StreamGraph streamGraph = env.getStreamGraph();
         return streamGraph.getJobGraph();
     }
+
+    protected void configureSink(DataStreamSink<Integer> sink) {}
 
     // ------------------------ Blocking mode user functions ----------------------------------
 

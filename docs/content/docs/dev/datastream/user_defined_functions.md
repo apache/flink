@@ -212,7 +212,7 @@ returned from the `execute()` method of the execution environment
 completion of the job).
 
 ```java
-myJobExecutionResult.getAccumulatorResult("num-lines")
+myJobExecutionResult.getAccumulatorResult("num-lines");
 ```
 
 All accumulators share a single namespace per job. Thus you can use the same accumulator in

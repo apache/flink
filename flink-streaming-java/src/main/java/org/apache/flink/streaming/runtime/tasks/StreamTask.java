@@ -107,6 +107,7 @@ import org.apache.flink.util.InstantiationUtil;
 import org.apache.flink.util.Preconditions;
 import org.apache.flink.util.SerializedValue;
 import org.apache.flink.util.TernaryBoolean;
+import org.apache.flink.util.clock.SystemClock;
 import org.apache.flink.util.concurrent.ExecutorThreadFactory;
 import org.apache.flink.util.concurrent.FutureUtils;
 import org.apache.flink.util.function.RunnableWithException;
@@ -274,6 +275,9 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
     protected final MailboxProcessor mailboxProcessor;
 
+    /** Mailbox metrics measurement is timer triggered with the given interval in milliseconds. */
+    protected int mailboxMetricsInterval = 1000;
+
     final MailboxExecutor mainMailboxExecutor;
 
     /** TODO it might be replaced by the global IO executor on TaskManager level future. */
@@ -376,8 +380,16 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
         try {
             this.environment = environment;
             this.configuration = new StreamConfig(environment.getTaskConfiguration());
+            Counter numMailsProcessedCounter =
+                    environment.getMetricGroup().getIOMetricGroup().getNumMailsProcessedCounter();
             this.mailboxProcessor =
-                    new MailboxProcessor(this::processInput, mailbox, actionExecutor);
+                    new MailboxProcessor(
+                            this::processInput, mailbox, actionExecutor, numMailsProcessedCounter);
+            environment
+                    .getMetricGroup()
+                    .getIOMetricGroup()
+                    .registerMailboxSizeSupplier(() -> mailbox.size());
+
             // Should be closed last.
             resourceCloser.registerCloseable(mailboxProcessor);
 
@@ -749,6 +761,8 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
 
         scheduleBufferDebloater();
 
+        scheduleMailboxMetrics();
+
         // let the task do its work
         runMailboxLoop();
 
@@ -781,6 +795,29 @@ public abstract class StreamTask<OUT, OP extends StreamOperator<OUT>>
                                     scheduleBufferDebloater();
                                 },
                                 "Buffer size recalculation"));
+    }
+
+    @VisibleForTesting
+    public void measureMailboxLatency() {
+        long startTime = SystemClock.getInstance().relativeTimeMillis();
+        mainMailboxExecutor.execute(
+                () -> {
+                    long endTime = SystemClock.getInstance().relativeTimeMillis();
+                    long latency = endTime - startTime;
+                    environment
+                            .getMetricGroup()
+                            .getIOMetricGroup()
+                            .getMailboxLatency()
+                            .update(latency);
+                    scheduleMailboxMetrics();
+                },
+                "Measure mailbox latency metric");
+    }
+
+    private void scheduleMailboxMetrics() {
+        systemTimerService.registerTimer(
+                systemTimerService.getCurrentProcessingTime() + mailboxMetricsInterval,
+                timestamp -> measureMailboxLatency());
     }
 
     @VisibleForTesting

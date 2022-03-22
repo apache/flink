@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen.sort
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.planner.codegen.CodeGenUtils.{ROW_DATA, newName}
 import org.apache.flink.table.planner.codegen.Indenter.toISC
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, GenerateUtils}
@@ -42,7 +42,7 @@ object ComparatorCodeGenerator {
     * @return A GeneratedRecordComparator
     */
   def gen(
-      tableConfig: TableConfig,
+      tableConfig: ReadableConfig,
       name: String,
       inputType: RowType,
       sortSpec: SortSpec): GeneratedRecordComparator = {
@@ -75,7 +75,7 @@ object ComparatorCodeGenerator {
       """.stripMargin
 
     new GeneratedRecordComparator(
-      className, code, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      className, code, ctx.references.toArray, ctx.tableConfig)
   }
 
 }

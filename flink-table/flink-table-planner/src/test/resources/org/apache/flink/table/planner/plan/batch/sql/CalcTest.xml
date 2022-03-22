@@ -159,6 +159,24 @@ Calc(select=[a, b, c], where=[(SEARCH(b, Sarg[1, 3, 4, 5, 6]) AND SEARCH(c, Sarg
 ]]>
     </Resource>
   </TestCase>
+  <TestCase name="testInNonConstantValues">
+    <Resource name="sql">
+      <![CDATA[SELECT * FROM MyTable WHERE b IN (1, 3, CAST(a AS INT), 5, 6) AND c = 'xx']]>
+    </Resource>
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(a=[$0], b=[$1], c=[$2])
++- LogicalFilter(condition=[AND(OR(=($1, 1), =($1, 3), =($1, CAST($0):INTEGER), =($1, 5), =($1, 6)), =($2, _UTF-16LE'xx'))])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[a, b, CAST('xx' AS VARCHAR(2147483647)) AS c], where=[((SEARCH(b, Sarg[1, 3, 5, 6]) OR (b = CAST(a AS INTEGER))) AND (c = 'xx'))])
++- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
   <TestCase name="testMixedType">
     <Resource name="sql">
       <![CDATA[SELECT ROW(a, b, c), ARRAY[12, b], MAP[a, c] FROM MyTable5 WHERE (a, b, c) = ('foo', 12, TIMESTAMP '1984-07-12 14:34:24')]]>

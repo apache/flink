@@ -114,7 +114,7 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
      * @return A path for a dirty entry for the given the Job ID.
      */
     private Path constructDirtyPath(JobID jobId) {
-        return new Path(this.basePath.getPath(), jobId.toString() + DIRTY_FILE_EXTENSION);
+        return constructEntryPath(jobId.toString() + DIRTY_FILE_EXTENSION);
     }
 
     /**
@@ -125,7 +125,12 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
      * @return A path for a clean entry for the given the Job ID.
      */
     private Path constructCleanPath(JobID jobId) {
-        return new Path(this.basePath.getPath(), jobId.toString() + ".json");
+        return constructEntryPath(jobId.toString() + FILE_EXTENSION);
+    }
+
+    @VisibleForTesting
+    Path constructEntryPath(String fileName) {
+        return new Path(this.basePath, fileName);
     }
 
     @Override
@@ -167,8 +172,13 @@ public class FileSystemJobResultStore extends AbstractThreadsafeJobResultStore {
 
     @Override
     public Set<JobResult> getDirtyResultsInternal() throws IOException {
+        final FileStatus[] statuses = fileSystem.listStatus(this.basePath);
+
+        Preconditions.checkState(
+                statuses != null,
+                "The base directory of the JobResultStore isn't accessible. No dirty JobResults can be restored.");
+
         final Set<JobResult> dirtyResults = new HashSet<>();
-        FileStatus[] statuses = fileSystem.listStatus(this.basePath);
         for (FileStatus s : statuses) {
             if (!s.isDir()) {
                 if (hasValidDirtyJobResultStoreEntryExtension(s.getPath().getName())) {

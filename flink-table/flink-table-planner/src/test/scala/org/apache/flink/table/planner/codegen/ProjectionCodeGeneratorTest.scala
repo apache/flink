@@ -18,7 +18,7 @@
 
 package org.apache.flink.table.planner.codegen
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.data.writer.BinaryRowWriter
 import org.apache.flink.table.data.{DecimalData, GenericRowData, RowData, TimestampData}
@@ -39,7 +39,7 @@ class ProjectionCodeGeneratorTest {
   @Test
   def testProjectionBinaryRow(): Unit = {
     val projection = ProjectionCodeGenerator.generateProjection(
-      new CodeGeneratorContext(new TableConfig),
+      new CodeGeneratorContext(new Configuration),
       "name",
       RowType.of(new IntType(), new BigIntType()),
       RowType.of(new BigIntType(), new IntType()),
@@ -53,7 +53,7 @@ class ProjectionCodeGeneratorTest {
   @Test
   def testProjectionGenericRow(): Unit = {
     val projection = ProjectionCodeGenerator.generateProjection(
-      new CodeGeneratorContext(new TableConfig),
+      new CodeGeneratorContext(new Configuration),
       "name",
       RowType.of(new IntType(), new BigIntType()),
       RowType.of(new BigIntType(), new IntType()),
@@ -69,7 +69,7 @@ class ProjectionCodeGeneratorTest {
   def testProjectionManyField(): Unit = {
     val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
     val projection = ProjectionCodeGenerator.generateProjection(
-      new CodeGeneratorContext(new TableConfig),
+      new CodeGeneratorContext(new Configuration),
       "name",
       rowType,
       rowType,
@@ -87,7 +87,7 @@ class ProjectionCodeGeneratorTest {
   def testProjectionManyFieldGenericRow(): Unit = {
     val rowType = RowType.of((0 until 100).map(_ => new IntType()).toArray: _*)
     val projection = ProjectionCodeGenerator.generateProjection(
-      new CodeGeneratorContext(new TableConfig),
+      new CodeGeneratorContext(new Configuration),
       "name",
       rowType,
       rowType,
@@ -105,7 +105,7 @@ class ProjectionCodeGeneratorTest {
   @Test
   def testProjectionBinaryRowWithVariableLengthData(): Unit = {
     val projection = ProjectionCodeGenerator.generateProjection(
-      new CodeGeneratorContext(new TableConfig),
+      new CodeGeneratorContext(new Configuration),
       "name",
       RowType.of(
         new DecimalType(38, 0),

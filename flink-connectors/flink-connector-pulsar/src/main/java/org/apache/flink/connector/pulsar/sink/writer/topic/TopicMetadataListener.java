@@ -43,7 +43,9 @@ import static java.util.Collections.emptyList;
 import static org.apache.flink.connector.pulsar.common.config.PulsarClientFactory.createAdmin;
 import static org.apache.flink.connector.pulsar.common.utils.PulsarExceptionUtils.sneakyAdmin;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.isPartitioned;
+import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithNonPartition;
 import static org.apache.flink.connector.pulsar.source.enumerator.topic.TopicNameUtils.topicNameWithPartition;
+import static org.apache.pulsar.common.partition.PartitionedTopicMetadata.NON_PARTITIONED;
 
 /**
  * We need the latest topic metadata for making sure the newly created topic partitions would be
@@ -115,8 +117,14 @@ public class TopicMetadataListener implements Serializable, Closeable {
                 && (!partitionedTopics.isEmpty() || !topicMetadata.isEmpty())) {
             List<String> results = new ArrayList<>();
             for (Map.Entry<String, Integer> entry : topicMetadata.entrySet()) {
-                for (int i = 0; i < entry.getValue(); i++) {
-                    results.add(topicNameWithPartition(entry.getKey(), i));
+                int partitionNums = entry.getValue();
+                // Get all topics from partitioned and non-partitioned topic names
+                if (partitionNums == NON_PARTITIONED) {
+                    results.add(topicNameWithNonPartition(entry.getKey()));
+                } else {
+                    for (int i = 0; i < partitionNums; i++) {
+                        results.add(topicNameWithPartition(entry.getKey(), i));
+                    }
                 }
             }
 

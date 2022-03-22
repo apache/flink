@@ -59,7 +59,7 @@ Window TVF aggregation buffer records in [managed memory]({{< ref "docs/deployme
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 // access flink configuration
 TableConfig configuration = tEnv.getConfig();
@@ -121,7 +121,7 @@ GROUP BY color
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 // access flink configuration
 Configuration configuration = tEnv.getConfig().getConfiguration();
@@ -206,7 +206,7 @@ GROUP BY day
 {{< tab "Java" >}}
 ```java
 // instantiate table environment
-TableEnvironment tEnv = ...
+TableEnvironment tEnv = ...;
 
 tEnv.getConfig()
   .set("table.optimizer.distinct-agg.split.enabled", "true");  // enable distinct agg split

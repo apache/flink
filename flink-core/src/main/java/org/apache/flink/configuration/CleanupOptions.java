@@ -21,6 +21,7 @@ package org.apache.flink.configuration;
 import org.apache.flink.annotation.PublicEvolving;
 import org.apache.flink.annotation.docs.ConfigGroup;
 import org.apache.flink.annotation.docs.ConfigGroups;
+import org.apache.flink.annotation.docs.Documentation;
 import org.apache.flink.configuration.description.Description;
 import org.apache.flink.configuration.description.TextElement;
 
@@ -93,7 +94,9 @@ public class CleanupOptions {
                                                                             Collectors.joining(
                                                                                     ", "))
                                                             + ": Cleanup is only performed once. No retry "
-                                                            + "will be initiated in case of failure.",
+                                                            + "will be initiated in case of failure. The job "
+                                                            + "artifacts (and the job's JobResultStore entry) have "
+                                                            + "to be cleaned up manually in case of a failure.",
                                                     NONE_PARAM_VALUES.stream()
                                                             .map(TextElement::code)
                                                             .collect(Collectors.toList())
@@ -105,7 +108,9 @@ public class CleanupOptions {
                                                     "%s, %s: Cleanup attempts will be separated by a fixed "
                                                             + "interval up to the point where the cleanup is "
                                                             + "considered successful or a set amount of retries "
-                                                            + "is reached.",
+                                                            + "is reached. Reaching the configured limit means that "
+                                                            + "the job artifacts (and the job's JobResultStore entry) "
+                                                            + "might need to be cleaned up manually.",
                                                     code(FIXED_DELAY_LABEL),
                                                     code(
                                                             extractAlphaNumericCharacters(
@@ -115,7 +120,9 @@ public class CleanupOptions {
                                                             + "triggers the cleanup with an exponentially "
                                                             + "increasing delay up to the point where the "
                                                             + "cleanup succeeded or a set amount of retries "
-                                                            + "is reached.",
+                                                            + "is reached. Reaching the configured limit means that "
+                                                            + "the job artifacts (and the job's JobResultStore entry) "
+                                                            + "might need to be cleaned up manually.",
                                                     code(EXPONENTIAL_DELAY_LABEL),
                                                     code(
                                                             extractAlphaNumericCharacters(
@@ -125,22 +132,26 @@ public class CleanupOptions {
                                                     + "retry strategy with the given default values.")
                                     .build());
 
+    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> CLEANUP_STRATEGY_FIXED_DELAY_ATTEMPTS =
             ConfigOptions.key(createFixedDelayParameterPrefix("attempts"))
                     .intType()
-                    .defaultValue(1)
+                    .defaultValue(Integer.MAX_VALUE)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "The number of times that Flink retries the cleanup "
-                                                    + "before giving up if %s has been set to %s.",
+                                                    + "before giving up if %s has been set to %s. "
+                                                    + "Reaching the configured limit means that "
+                                                    + "the job artifacts (and the job's JobResultStore entry) "
+                                                    + "might need to be cleaned up manually.",
                                             code(CLEANUP_STRATEGY_PARAM), code(FIXED_DELAY_LABEL))
                                     .build());
 
     public static final ConfigOption<Duration> CLEANUP_STRATEGY_FIXED_DELAY_DELAY =
             ConfigOptions.key(createFixedDelayParameterPrefix("delay"))
                     .durationType()
-                    .defaultValue(Duration.ofSeconds(1))
+                    .defaultValue(Duration.ofMinutes(1))
                     .withDescription(
                             Description.builder()
                                     .text(
@@ -180,16 +191,19 @@ public class CleanupOptions {
                                             code(EXPONENTIAL_DELAY_LABEL))
                                     .build());
 
+    @Documentation.OverrideDefault("infinite")
     public static final ConfigOption<Integer> CLEANUP_STRATEGY_EXPONENTIAL_DELAY_MAX_ATTEMPTS =
             ConfigOptions.key(createExponentialBackoffParameterPrefix("attempts"))
                     .intType()
-                    .noDefaultValue()
+                    .defaultValue(Integer.MAX_VALUE)
                     .withDescription(
                             Description.builder()
                                     .text(
                                             "The number of times a failed cleanup is retried "
-                                                    + "if %s has been set to %s. (no value means: "
-                                                    + "infinitely).",
+                                                    + "if %s has been set to %s. Reaching the "
+                                                    + "configured limit means that the job artifacts "
+                                                    + "(and the job's JobResultStore entry) "
+                                                    + "might need to be cleaned up manually.",
                                             code(CLEANUP_STRATEGY_PARAM),
                                             code(EXPONENTIAL_DELAY_LABEL))
                                     .build());

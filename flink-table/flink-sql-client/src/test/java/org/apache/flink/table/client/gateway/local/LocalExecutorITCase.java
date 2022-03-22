@@ -75,9 +75,7 @@ import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_MA
 import static org.apache.flink.table.client.config.SqlClientOptions.EXECUTION_RESULT_MODE;
 import static org.apache.flink.table.client.gateway.utils.UserDefinedFunctions.ScalarUDF;
 import static org.apache.flink.util.Preconditions.checkState;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Contains basic tests for the {@link LocalExecutor}. */
 public class LocalExecutorITCase extends TestLogger {
@@ -128,25 +126,25 @@ public class LocalExecutorITCase extends TestLogger {
     public void testCompleteStatement() {
         final Executor executor = createLocalExecutor();
         String sessionId = executor.openSession("test-session");
-        assertEquals("test-session", sessionId);
+        assertThat(sessionId).isEqualTo("test-session");
         initSession(executor, sessionId, Collections.emptyMap());
 
         final List<String> expectedTableHints =
                 Arrays.asList(
                         "default_catalog.default_database.TableNumber1",
                         "default_catalog.default_database.TableSourceSink");
-        assertEquals(
-                expectedTableHints, executor.completeStatement(sessionId, "SELECT * FROM Ta", 16));
+        assertThat(executor.completeStatement(sessionId, "SELECT * FROM Ta", 16))
+                .isEqualTo(expectedTableHints);
 
         final List<String> expectedClause = Collections.singletonList("WHERE");
-        assertEquals(
-                expectedClause,
-                executor.completeStatement(sessionId, "SELECT * FROM TableNumber1 WH", 29));
+        assertThat(executor.completeStatement(sessionId, "SELECT * FROM TableNumber1 WH", 29))
+                .isEqualTo(expectedClause);
 
         final List<String> expectedField = Arrays.asList("IntegerField1");
-        assertEquals(
-                expectedField,
-                executor.completeStatement(sessionId, "SELECT * FROM TableNumber1 WHERE Inte", 37));
+        assertThat(
+                        executor.completeStatement(
+                                sessionId, "SELECT * FROM TableNumber1 WHERE Inte", 37))
+                .isEqualTo(expectedField);
         executor.closeSession(sessionId);
     }
 
@@ -162,7 +160,7 @@ public class LocalExecutorITCase extends TestLogger {
         final LocalExecutor executor =
                 createLocalExecutor(Collections.singletonList(udfDependency), configuration);
         String sessionId = executor.openSession("test-session");
-        assertEquals("test-session", sessionId);
+        assertThat(sessionId).isEqualTo("test-session");
 
         initSession(executor, sessionId, replaceVars);
         try {
@@ -173,7 +171,7 @@ public class LocalExecutorITCase extends TestLogger {
                             sessionId,
                             "SELECT scalarUDF(IntegerField1, 5), StringField1, 'ABC' FROM TableNumber1");
 
-            assertFalse(desc.isMaterialized());
+            assertThat(desc.isMaterialized()).isFalse();
 
             final List<String> actualResults =
                     retrieveChangelogResult(
@@ -209,7 +207,7 @@ public class LocalExecutorITCase extends TestLogger {
         final LocalExecutor executor =
                 createLocalExecutor(Collections.singletonList(udfDependency), configuration);
         String sessionId = executor.openSession("test-session");
-        assertEquals("test-session", sessionId);
+        assertThat(sessionId).isEqualTo("test-session");
 
         final List<String> expectedResults = new ArrayList<>();
         expectedResults.add("[47, Hello World]");
@@ -229,7 +227,7 @@ public class LocalExecutorITCase extends TestLogger {
                                 sessionId,
                                 "SELECT scalarUDF(IntegerField1, 5), StringField1 FROM TableNumber1");
 
-                assertFalse(desc.isMaterialized());
+                assertThat(desc.isMaterialized()).isFalse();
 
                 final List<String> actualResults =
                         retrieveChangelogResult(
@@ -333,14 +331,14 @@ public class LocalExecutorITCase extends TestLogger {
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         String sessionId = executor.openSession("test-session");
-        assertEquals("test-session", sessionId);
+        assertThat(sessionId).isEqualTo("test-session");
 
         initSession(executor, sessionId, replaceVars);
         try {
             final ResultDescriptor desc =
                     executeQuery(executor, sessionId, "SELECT *, 'ABC' FROM TestView1");
 
-            assertTrue(desc.isMaterialized());
+            assertThat(desc.isMaterialized()).isTrue();
 
             final List<String> actualResults =
                     retrieveTableResult(
@@ -379,7 +377,7 @@ public class LocalExecutorITCase extends TestLogger {
                 createLocalExecutor(
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         String sessionId = executor.openSession("test-session");
-        assertEquals("test-session", sessionId);
+        assertThat(sessionId).isEqualTo("test-session");
         initSession(executor, sessionId, replaceVars);
 
         final List<String> expectedResults = new ArrayList<>();
@@ -395,7 +393,7 @@ public class LocalExecutorITCase extends TestLogger {
                 final ResultDescriptor desc =
                         executeQuery(executor, sessionId, "SELECT * FROM TestView1");
 
-                assertTrue(desc.isMaterialized());
+                assertThat(desc.isMaterialized()).isTrue();
 
                 final List<String> actualResults =
                         retrieveTableResult(
@@ -456,7 +454,7 @@ public class LocalExecutorITCase extends TestLogger {
                         Collections.singletonList(udfDependency), Configuration.fromMap(configMap));
         String sessionId = executor.openSession("test-session");
 
-        assertEquals("test-session", sessionId);
+        assertThat(sessionId).isEqualTo("test-session");
 
         initSession(executor, sessionId, replaceVars);
 
@@ -464,7 +462,7 @@ public class LocalExecutorITCase extends TestLogger {
             // start job and retrieval
             final ResultDescriptor desc = executeQuery(executor, sessionId, query);
 
-            assertTrue(desc.isMaterialized());
+            assertThat(desc.isMaterialized()).isTrue();
 
             final List<String> actualResults =
                     retrieveTableResult(

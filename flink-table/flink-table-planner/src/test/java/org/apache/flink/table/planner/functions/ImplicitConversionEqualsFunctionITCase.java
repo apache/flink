@@ -23,13 +23,12 @@ import org.apache.flink.table.types.AbstractDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 
-import org.junit.runners.Parameterized;
-
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Stream;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
 import static org.apache.flink.table.api.DataTypes.BOOLEAN;
@@ -49,7 +48,7 @@ import static org.apache.flink.table.api.DataTypes.TINYINT;
  * between numeric and (var)char fields and throw an exception because it will produce wrong result.
  * SEE [FLINK-24914].
  */
-public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestBase {
+class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestBase {
 
     // numeric data
     private static final byte TINY_INT_DATA = (byte) 1;
@@ -71,16 +70,16 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
     private static final String STRING_DATA_EQUALS_TIME = "00:00:00";
     private static final String STRING_DATA_EQUALS_TIMESTAMP = "2001-01-01 00:00:00";
 
-    @Parameterized.Parameters(name = "{index}: {0}")
-    public static List<TestSpec> testData() {
-        final List<TestSpec> specs = new ArrayList<>();
+    @Override
+    Stream<TestSetSpec> getTestSetSpecs() {
+        final List<TestSetSpec> specs = new ArrayList<>();
         specs.addAll(implicitConversionBetweenNumeric());
         specs.addAll(implicitConversionBetweenTimeAndString());
         specs.addAll(unsupportedImplicitConversionBetweenNumericAndString());
-        return specs;
+        return specs.stream();
     }
 
-    private static List<TestSpec> implicitConversionBetweenNumeric() {
+    private static List<TestSetSpec> implicitConversionBetweenNumeric() {
         return Arrays.asList(
                 TypeConversionTestBuilder.left(TINYINT(), TINY_INT_DATA)
                         .right(TINYINT(), TINY_INT_DATA)
@@ -123,7 +122,7 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
                         .build());
     }
 
-    private static List<TestSpec> implicitConversionBetweenTimeAndString() {
+    private static List<TestSetSpec> implicitConversionBetweenTimeAndString() {
         return Arrays.asList(
                 TypeConversionTestBuilder.left(DATE(), DATE_DATA)
                         .right(DATE(), DATE_DATA)
@@ -138,7 +137,7 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
     }
 
     // unsupported temporarily
-    private static List<TestSpec> unsupportedImplicitConversionBetweenNumericAndString() {
+    private static List<TestSetSpec> unsupportedImplicitConversionBetweenNumericAndString() {
         return Collections.singletonList(
                 TypeConversionTestBuilder.left(STRING(), STRING_DATA_EQUALS_NUMERIC)
                         .right(STRING(), STRING_DATA_EQUALS_NUMERIC)
@@ -179,13 +178,13 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
             return this;
         }
 
-        private TestSpec build() {
+        private TestSetSpec build() {
             int columnBaseIdx = 0;
             String leftColumnName = "f" + columnBaseIdx;
             columnBaseIdx++;
 
-            TestSpec testSpec =
-                    TestSpec.forFunction(
+            TestSetSpec testSetSpec =
+                    TestSetSpec.forFunction(
                             BuiltInFunctionDefinitions.EQUALS, "left: " + leftType.toString());
 
             final List<Object> allData = new ArrayList<>();
@@ -198,14 +197,15 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
             allTypes.addAll(rightTypesOnSuccess);
             allTypes.addAll(rightTypesOnFailure);
 
-            testSpec.onFieldsWithData(allData.toArray())
+            testSetSpec
+                    .onFieldsWithData(allData.toArray())
                     .andDataTypes(allTypes.toArray(new AbstractDataType<?>[] {}));
 
             // test successful cases
             for (int i = 0; i < rightTypesOnSuccess.size(); i++) {
                 String rightColumnName = "f" + (i + columnBaseIdx);
                 DataType rightType = rightTypesOnSuccess.get(i);
-                testSpec.testSqlResult(
+                testSetSpec.testSqlResult(
                         String.format(
                                 "CAST(%s AS %s) = CAST(%s AS %s)",
                                 leftColumnName, leftType.toString(), rightColumnName, rightType),
@@ -221,13 +221,13 @@ public class ImplicitConversionEqualsFunctionITCase extends BuiltInFunctionTestB
                 String exceptionMsg =
                         getImplicitConversionFromStringExceptionMsg(
                                 rightType.getLogicalType().getTypeRoot());
-                testSpec.testSqlValidationError(
+                testSetSpec.testSqlValidationError(
                         String.format(
                                 "CAST(%s AS %s) = CAST(%s AS %s)",
                                 leftColumnName, leftType.toString(), rightColumnName, rightType),
                         exceptionMsg);
             }
-            return testSpec;
+            return testSetSpec;
         }
 
         private String getImplicitConversionFromStringExceptionMsg(LogicalTypeRoot rightType) {

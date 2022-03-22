@@ -23,6 +23,7 @@ import org.apache.flink.api.common.typeutils.base.IntSerializer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.ExecutionOptions;
 import org.apache.flink.core.io.SimpleVersionedSerializerTypeSerializerProxy;
+import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -47,6 +48,7 @@ import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
 
 /** Tests for {@link org.apache.flink.streaming.api.transformations.SinkTransformation}. */
 @RunWith(Parameterized.class)
@@ -261,6 +263,57 @@ public class SinkTransformationTranslatorTest extends TestLogger {
         assertThat(
                 globalCommitter.getOperatorFactory().getChainingStrategy(),
                 is(ChainingStrategy.NEVER));
+    }
+
+    @Test
+    public void testSettingOperatorUidHash() {
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStreamSource<Integer> src = env.fromElements(1, 2);
+        final String writerHash = "f6b178ce445dc3ffaa06bad27a51fead";
+        final String committerHash = "68ac8ae79eae4e3135a54f9689c4aa10";
+        final String globalCommitterHash = "77e6aa6eeb1643b3765e1e4a7a672f37";
+        final CustomSinkOperatorUidHashes operatorsUidHashes =
+                CustomSinkOperatorUidHashes.builder()
+                        .setWriterUidHash(writerHash)
+                        .setCommitterUidHash(committerHash)
+                        .setGlobalCommitterUidHash(globalCommitterHash)
+                        .build();
+        src.sinkTo(
+                        TestSink.newBuilder()
+                                .setDefaultCommitter()
+                                .setDefaultGlobalCommitter()
+                                .build(),
+                        operatorsUidHashes)
+                .name(NAME);
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+
+        assertEquals(findWriter(streamGraph).getUserHash(), writerHash);
+        assertEquals(findCommitter(streamGraph).getUserHash(), committerHash);
+        assertEquals(findGlobalCommitter(streamGraph).getUserHash(), globalCommitterHash);
+    }
+
+    /**
+     * When ever you need to change something in this test case please think about possible state
+     * upgrade problems introduced by your changes.
+     */
+    @Test
+    public void testSettingOperatorUids() {
+        final String sinkUid = "f6b178ce445dc3ffaa06bad27a51fead";
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+        final DataStreamSource<Integer> src = env.fromElements(1, 2);
+        src.sinkTo(TestSink.newBuilder().setDefaultCommitter().setDefaultGlobalCommitter().build())
+                .name(NAME)
+                .uid(sinkUid);
+
+        final StreamGraph streamGraph = env.getStreamGraph();
+        assertEquals(findWriter(streamGraph).getTransformationUID(), sinkUid);
+        assertEquals(
+                findCommitter(streamGraph).getTransformationUID(),
+                String.format("Sink Committer: %s", sinkUid));
+        assertEquals(
+                findGlobalCommitter(streamGraph).getTransformationUID(),
+                String.format("Sink %s Global Committer", sinkUid));
     }
 
     private void validateTopology(

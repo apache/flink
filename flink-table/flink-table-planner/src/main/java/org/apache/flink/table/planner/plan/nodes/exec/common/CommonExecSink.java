@@ -23,6 +23,7 @@ import org.apache.flink.api.dag.Transformation;
 import org.apache.flink.api.java.typeutils.InputTypeConfigurable;
 import org.apache.flink.configuration.ReadableConfig;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
+import org.apache.flink.streaming.api.datastream.CustomSinkOperatorUidHashes;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.datastream.DataStreamSink;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
@@ -177,7 +178,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
                             primaryKeys,
                             sinkParallelism,
                             inputParallelism,
-                            inputInsertOnly,
                             needMaterialization);
         }
 
@@ -352,7 +352,6 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             int[] primaryKeys,
             int sinkParallelism,
             int inputParallelism,
-            boolean inputInsertOnly,
             boolean needMaterialize) {
         final ExecutionConfigOptions.SinkKeyedShuffle sinkShuffleByPk =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_SINK_KEYED_SHUFFLE);
@@ -361,11 +360,13 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             case NONE:
                 break;
             case AUTO:
-                sinkKeyBy = inputInsertOnly && sinkParallelism != inputParallelism;
+                // should cover both insert-only and changelog input
+                sinkKeyBy = sinkParallelism != inputParallelism && sinkParallelism != 1;
                 break;
             case FORCE:
-                // single parallelism has no problem
-                sinkKeyBy = sinkParallelism != 1 || inputParallelism != 1;
+                // sink single parallelism has no problem (because none partitioner will cause worse
+                // disorder)
+                sinkKeyBy = sinkParallelism != 1;
                 break;
         }
         if (!sinkKeyBy && !needMaterialize) {
@@ -491,7 +492,9 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
             final Transformation<?> transformation =
                     DataStreamSink.forSinkV1(
-                                    dataStream, ((SinkProvider) runtimeProvider).createSink())
+                                    dataStream,
+                                    ((SinkProvider) runtimeProvider).createSink(),
+                                    CustomSinkOperatorUidHashes.DEFAULT)
                             .getTransformation();
             transformation.setParallelism(sinkParallelism);
             sinkMeta.fill(transformation);
@@ -503,7 +506,9 @@ public abstract class CommonExecSink extends ExecNodeBase<Object>
             final DataStream<RowData> dataStream = new DataStream<>(env, sinkTransformation);
             final Transformation<?> transformation =
                     DataStreamSink.forSink(
-                                    dataStream, ((SinkV2Provider) runtimeProvider).createSink())
+                                    dataStream,
+                                    ((SinkV2Provider) runtimeProvider).createSink(),
+                                    CustomSinkOperatorUidHashes.DEFAULT)
                             .getTransformation();
             transformation.setParallelism(sinkParallelism);
             sinkMeta.fill(transformation);

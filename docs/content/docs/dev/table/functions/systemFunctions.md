@@ -209,7 +209,7 @@ The column functions can be used in all places where column fields are expected,
 ```java
 table
    .groupBy("withColumns(1 to 3)")
-   .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))")
+   .select("withColumns(a to b), myUDAgg(myUDF(withColumns(5 to 20)))");
 ```
 {{< /tab >}}
 {{< tab "Scala" >}}

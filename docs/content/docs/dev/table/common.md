@@ -51,7 +51,7 @@ tableEnv.createTemporaryTable("SourceTable", TableDescriptor.forConnector("datag
       .column("f0", DataTypes.STRING())
       .build())
     .option(DataGenOptions.ROWS_PER_SECOND, 100)
-    .build())
+    .build());
 
 // Create a sink table (using SQL DDL)
 tableEnv.executeSql("CREATE TEMPORARY TABLE SinkTable WITH ('connector' = 'blackhole') LIKE SourceTable");
@@ -344,7 +344,7 @@ tableEnv.createTable("SourceTableA", sourceDescriptor);
 tableEnv.createTemporaryTable("SourceTableB", sourceDescriptor);
 
 // Using SQL DDL
-tableEnv.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)")
+tableEnv.executeSql("CREATE [TEMPORARY] TABLE MyTable (...) WITH (...)");
 ```
 
 ### Expanding Table identifiers
@@ -672,7 +672,7 @@ tableEnv.createTemporaryTable("CsvSinkTable", TableDescriptor.forConnector("file
     .build());
 
 // compute a result Table using Table API operators and/or SQL queries
-Table result = ...
+Table result = ...;
 
 // Prepare the insert into pipeline
 TablePipeline pipeline = result.insertInto("CsvSinkTable");
@@ -921,10 +921,10 @@ tEnv.createTemporaryTable("MySink2", TableDescriptor.forConnector("filesystem")
 StatementSet stmtSet = tEnv.createStatementSet();
 
 Table table1 = tEnv.from("MySource1").where($("word").like("F%"));
-stmtSet.add(table1.insertInto("MySink1");
+stmtSet.add(table1.insertInto("MySink1"));
 
 Table table2 = table1.unionAll(tEnv.from("MySource2"));
-stmtSet.add(table2.insertInto("MySink2");
+stmtSet.add(table2.insertInto("MySink2"));
 
 String explanation = stmtSet.explain();
 System.out.println(explanation);

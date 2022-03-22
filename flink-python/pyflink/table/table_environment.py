@@ -1653,7 +1653,6 @@ class StreamTableEnvironment(TableEnvironment):
 
     @staticmethod
     def create(stream_execution_environment: StreamExecutionEnvironment = None,  # type: ignore
-               table_config: TableConfig = None,
                environment_settings: EnvironmentSettings = None) -> 'StreamTableEnvironment':
         """
         Creates a :class:`~pyflink.table.StreamTableEnvironment`.
@@ -1664,12 +1663,14 @@ class StreamTableEnvironment(TableEnvironment):
             # create with StreamExecutionEnvironment.
             >>> env = StreamExecutionEnvironment.get_execution_environment()
             >>> table_env = StreamTableEnvironment.create(env)
-            # create with StreamExecutionEnvironment and TableConfig.
-            >>> table_config = TableConfig()
-            >>> table_config.set_null_check(False)
-            >>> table_env = StreamTableEnvironment.create(env, table_config)
             # create with StreamExecutionEnvironment and EnvironmentSettings.
-            >>> environment_settings = EnvironmentSettings.in_streaming_mode()
+            >>> configuration = Configuration()
+            >>> configuration.set_string('execution.buffer-timeout', '1 min')
+            >>> environment_settings = EnvironmentSettings
+            >>>     .new_instance()
+            >>>     .in_streaming_mode()
+            >>>     .with_configuration(configuration)
+            >>>     .build()
             >>> table_env = StreamTableEnvironment.create(
             ...     env, environment_settings=environment_settings)
             # create with EnvironmentSettings.
@@ -1679,27 +1680,15 @@ class StreamTableEnvironment(TableEnvironment):
         :param stream_execution_environment: The
                                              :class:`~pyflink.datastream.StreamExecutionEnvironment`
                                              of the TableEnvironment.
-        :param table_config: The configuration of the TableEnvironment, optional.
         :param environment_settings: The environment settings used to instantiate the
                                      TableEnvironment.
         :return: The StreamTableEnvironment created from given StreamExecutionEnvironment and
                  configuration.
         """
         if stream_execution_environment is None and \
-                table_config is None and \
                 environment_settings is None:
             raise ValueError("No argument found, the param 'stream_execution_environment' "
                              "or 'environment_settings' is required.")
-        elif stream_execution_environment is None and \
-                table_config is not None and \
-                environment_settings is None:
-            raise ValueError("Only the param 'table_config' is found, "
-                             "the param 'stream_execution_environment' is also required.")
-        if table_config is not None and \
-                environment_settings is not None:
-            raise ValueError("The param 'table_config' and "
-                             "'environment_settings' cannot be used at the same time")
-
         gateway = get_gateway()
         if environment_settings is not None:
             if stream_execution_environment is None:
@@ -1710,20 +1699,16 @@ class StreamTableEnvironment(TableEnvironment):
                     stream_execution_environment._j_stream_execution_environment,
                     environment_settings._j_environment_settings)
         else:
-            if table_config is not None:
-                j_tenv = gateway.jvm.StreamTableEnvironment.create(
-                    stream_execution_environment._j_stream_execution_environment,
-                    table_config._j_table_config)
-            else:
-                j_tenv = gateway.jvm.StreamTableEnvironment.create(
-                    stream_execution_environment._j_stream_execution_environment)
+            j_tenv = gateway.jvm.StreamTableEnvironment.create(
+                stream_execution_environment._j_stream_execution_environment)
+
         return StreamTableEnvironment(j_tenv)
 
     def from_data_stream(self,
                          data_stream: DataStream,
-                         *fields_or_schema: Union[str, Expression, Schema]) -> Table:
+                         *fields_or_schema: Union[Expression, Schema]) -> Table:
         """
-        1. When fields_or_schema is a str or a sequence of Expression:
+        1. When fields_or_schema is a sequence of Expression:
 
             Converts the given DataStream into a Table with specified field names.
 
@@ -1840,12 +1825,6 @@ class StreamTableEnvironment(TableEnvironment):
         elif all(isinstance(f, Expression) for f in fields_or_schema):
             return Table(j_table=self._j_tenv.fromDataStream(
                 j_data_stream, to_expression_jarray(fields_or_schema)), t_env=self)
-        elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], str):
-            warnings.warn(
-                "Deprecated in 1.12. Use from_data_stream(DataStream, *Expression) instead.",
-                DeprecationWarning)
-            return Table(j_table=self._j_tenv.fromDataStream(
-                j_data_stream, fields_or_schema[0]), t_env=self)
         elif len(fields_or_schema) == 1 and isinstance(fields_or_schema[0], Schema):
             return Table(j_table=self._j_tenv.fromDataStream(
                 j_data_stream, fields_or_schema[0]._j_schema), t_env=self)

@@ -20,11 +20,12 @@ package org.apache.flink.table.codesplit;
 import org.apache.flink.core.testutils.FlinkMatchers;
 import org.apache.flink.util.FileUtils;
 
-import org.hamcrest.MatcherAssert;
-import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.File;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.HamcrestCondition.matching;
 
 /** Tests for {@link JavaCodeSplitter}. */
 public class JavaCodeSplitterTest {
@@ -44,10 +45,11 @@ public class JavaCodeSplitterTest {
         try {
             JavaCodeSplitter.split("public class InvalidClass { return 1; }", 4000, 10000);
         } catch (Exception e) {
-            MatcherAssert.assertThat(
-                    e,
-                    FlinkMatchers.containsMessage(
-                            "JavaCodeSplitter failed. This is a bug. Please file an issue."));
+            assertThat(e)
+                    .satisfies(
+                            matching(
+                                    FlinkMatchers.containsMessage(
+                                            "JavaCodeSplitter failed. This is a bug. Please file an issue.")));
         }
     }
 
@@ -67,7 +69,7 @@ public class JavaCodeSplitterTest {
                                             .getClassLoader()
                                             .getResource("splitter/expected/" + filename + ".java")
                                             .toURI()));
-            Assert.assertEquals(expected, JavaCodeSplitter.split(code, maxLength, maxMembers));
+            assertThat(JavaCodeSplitter.split(code, maxLength, maxMembers)).isEqualTo(expected);
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {

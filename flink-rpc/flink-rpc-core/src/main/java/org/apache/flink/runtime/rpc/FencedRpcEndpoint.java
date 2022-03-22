@@ -18,6 +18,7 @@
 
 package org.apache.flink.runtime.rpc;
 
+import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.util.Preconditions;
 
@@ -56,10 +57,12 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
         this.fencingToken = fencingToken;
         this.unfencedMainThreadExecutor =
                 new UnfencedMainThreadExecutor((FencedMainThreadExecutable) rpcServer);
-        this.fencedMainThreadExecutor =
+
+        MainThreadExecutable mainThreadExecutable =
+                getRpcService().fenceRpcServer(rpcServer, fencingToken);
+        setFencedMainThreadExecutor(
                 new MainThreadExecutor(
-                        getRpcService().fenceRpcServer(rpcServer, fencingToken),
-                        this::validateRunsInMainThread);
+                        mainThreadExecutable, this::validateRunsInMainThread, endpointId));
     }
 
     protected FencedRpcEndpoint(RpcService rpcService, @Nullable F fencingToken) {
@@ -80,9 +83,23 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
         // which is bound to the new fencing token
         MainThreadExecutable mainThreadExecutable =
                 getRpcService().fenceRpcServer(rpcServer, newFencingToken);
+        setFencedMainThreadExecutor(
+                new MainThreadExecutor(
+                        mainThreadExecutable, this::validateRunsInMainThread, getEndpointId()));
+    }
 
-        this.fencedMainThreadExecutor =
-                new MainThreadExecutor(mainThreadExecutable, this::validateRunsInMainThread);
+    /**
+     * Set fenced main thread executor and register it to closeable register.
+     *
+     * @param fencedMainThreadExecutor the given fenced main thread executor
+     */
+    private void setFencedMainThreadExecutor(MainThreadExecutor fencedMainThreadExecutor) {
+        if (this.fencedMainThreadExecutor != null) {
+            this.fencedMainThreadExecutor.close();
+            unregisterResource(this.fencedMainThreadExecutor);
+        }
+        this.fencedMainThreadExecutor = fencedMainThreadExecutor;
+        registerResource(this.fencedMainThreadExecutor);
     }
 
     /**
@@ -140,6 +157,13 @@ public abstract class FencedRpcEndpoint<F extends Serializable> extends RpcEndpo
             throw new RuntimeException(
                     "FencedRpcEndpoint has not been started with a FencedMainThreadExecutable RpcServer.");
         }
+    }
+
+    @VisibleForTesting
+    public boolean validateResourceClosed() {
+        return super.validateResourceClosed()
+                && (fencedMainThreadExecutor == null
+                        || fencedMainThreadExecutor.validateScheduledExecutorClosed());
     }
 
     // ------------------------------------------------------------------------

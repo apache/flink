@@ -25,11 +25,11 @@ from pyflink.fn_execution.table.aggregate_fast cimport DistinctViewDescriptor, R
 from pyflink.fn_execution.coder_impl_fast cimport InternalRowKind
 
 import datetime
-import sys
 from typing import List, Dict
 
 import pytz
 
+from pyflink.common.constants import MAX_LONG_VALUE
 from pyflink.fn_execution.datastream.timerservice_impl import LegacyInternalTimerServiceImpl
 from pyflink.fn_execution.coders import PickleCoder
 from pyflink.fn_execution.table.state_data_view import DataViewSpec, ListViewSpec, MapViewSpec, \
@@ -41,8 +41,6 @@ from pyflink.fn_execution.table.window_process_function import GeneralWindowProc
     InternalWindowProcessFunction, PanedWindowProcessFunction, MergingWindowProcessFunction
 from pyflink.fn_execution.table.window_trigger import Trigger
 from pyflink.table.udf import ImperativeAggregateFunction
-
-MAX_LONG_VALUE = sys.maxsize
 
 cdef InternalRow join_row(list left, list right, InternalRowKind row_kind):
     return InternalRow(left.__add__(right), row_kind)

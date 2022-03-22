@@ -256,7 +256,7 @@ public class StreamExecGlobalWindowAggregate extends StreamExecWindowAggregateBa
             ZoneId shifTimeZone) {
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config.getTableConfig()),
+                                new CodeGeneratorContext(config),
                                 relBuilder,
                                 JavaScalaConversionUtil.toScala(localAggInputRowType.getChildren()),
                                 true) // copyInputField

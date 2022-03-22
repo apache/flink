@@ -64,7 +64,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Tests for all the supported Flink DDL data types. */
 @RunWith(Parameterized.class)
@@ -323,7 +323,7 @@ public class FlinkDDLDataTypeTest {
     }
 
     private static TestItem createTestItem(Object... args) {
-        assert args.length >= 2;
+        assertThat(args.length).isGreaterThanOrEqualTo(2);
         final String testExpr = (String) args[0];
         TestItem testItem = TestItem.fromTestExpr(testExpr);
         if (args[1] instanceof String) {
@@ -463,15 +463,15 @@ public class FlinkDDLDataTypeTest {
 
         public void checkType(String sql, RelDataType type) {
             final SqlNode sqlNode = parseStmtAndHandleEx(sql);
-            assert sqlNode instanceof SqlCreateTable;
+            assertThat(sqlNode).isInstanceOf(SqlCreateTable.class);
             final SqlCreateTable sqlCreateTable = (SqlCreateTable) sqlNode;
             SqlNodeList columns = sqlCreateTable.getColumnList();
-            assert columns.size() == 1;
+            assertThat(columns.size()).isEqualTo(1);
             RelDataType columnType =
                     ((SqlRegularColumn) columns.get(0))
                             .getType()
                             .deriveType(factory.getValidator());
-            assertEquals(type, columnType);
+            assertThat(columnType).isEqualTo(type);
         }
 
         private SqlNode parseStmtAndHandleEx(String sql) {
@@ -500,10 +500,10 @@ public class FlinkDDLDataTypeTest {
 
         public void checkUnparsed(String sql, String expectedUnparsed) {
             final SqlNode sqlNode = parseStmtAndHandleEx(sql);
-            assert sqlNode instanceof SqlCreateTable;
+            assertThat(sqlNode).isInstanceOf(SqlCreateTable.class);
             final SqlCreateTable sqlCreateTable = (SqlCreateTable) sqlNode;
             SqlNodeList columns = sqlCreateTable.getColumnList();
-            assert columns.size() == 1;
+            assertThat(columns.size()).isEqualTo(1);
             SqlDataTypeSpec dataTypeSpec = ((SqlRegularColumn) columns.get(0)).getType();
             SqlWriter sqlWriter = new SqlPrettyWriter(factory.createSqlDialect(), false);
             dataTypeSpec.unparse(sqlWriter, 0, 0);
@@ -513,7 +513,7 @@ public class FlinkDDLDataTypeTest {
             if (dataTypeSpec.getNullable() != null && !dataTypeSpec.getNullable()) {
                 sqlWriter.keyword("NOT NULL");
             }
-            assertEquals(expectedUnparsed, sqlWriter.toSqlString().getSql());
+            assertThat(sqlWriter.toSqlString().getSql()).isEqualTo(expectedUnparsed);
         }
 
         private void checkEx(String expectedMsgPattern, StringAndPos sap, Throwable thrown) {

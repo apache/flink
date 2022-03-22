@@ -42,17 +42,15 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import static org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema;
-import static org.apache.flink.core.testutils.CommonTestUtils.assertThrows;
 import static org.apache.flink.table.planner.delegation.ParserImplTest.TestSpec.forStatement;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
 
 /** Test for {@link ParserImpl}. */
 public class ParserImplTest {
 
     private final boolean isStreamingMode = false;
-    private final TableConfig tableConfig = new TableConfig();
+    private final TableConfig tableConfig = TableConfig.getDefault();
     private final Catalog catalog = new GenericInMemoryCatalog("MockCatalog", "default");
     private final CatalogManager catalogManager =
             CatalogManagerMocks.preparedCatalogManager().defaultCatalog("builtin", catalog).build();
@@ -111,14 +109,13 @@ public class ParserImplTest {
         for (TestSpec spec : TEST_SPECS) {
             if (spec.expectedSummary != null) {
                 Operation op = parser.parse(spec.statement).get(0);
-                assertEquals(spec.expectedSummary, op.asSummaryString());
+                assertThat(op.asSummaryString()).isEqualTo(spec.expectedSummary);
             }
 
             if (spec.expectedError != null) {
-                assertThrows(
-                        spec.expectedError,
-                        SqlParserException.class,
-                        () -> parser.parse(spec.statement));
+                assertThatThrownBy(() -> parser.parse(spec.statement))
+                        .isInstanceOf(SqlParserException.class)
+                        .hasMessageContaining(spec.expectedError);
             }
         }
     }
@@ -177,6 +174,6 @@ public class ParserImplTest {
 
     private void verifySqlCompletion(String statement, int position, String[] expectedHints) {
         String[] hints = parser.getCompletionHints(statement, position);
-        assertArrayEquals(expectedHints, hints);
+        assertThat(hints).isEqualTo(expectedHints);
     }
 }

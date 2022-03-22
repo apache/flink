@@ -97,10 +97,9 @@ public abstract class CommonExecCorrelate extends ExecNodeBase<RowData>
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final CodeGeneratorContext ctx =
-                new CodeGeneratorContext(config.getTableConfig())
-                        .setOperatorBaseClass(operatorBaseClass);
+                new CodeGeneratorContext(config).setOperatorBaseClass(operatorBaseClass);
         return CorrelateCodeGenerator.generateCorrelateTransformation(
-                config.getTableConfig(),
+                config,
                 ctx,
                 inputTransform,
                 (RowType) inputEdge.getOutputType(),

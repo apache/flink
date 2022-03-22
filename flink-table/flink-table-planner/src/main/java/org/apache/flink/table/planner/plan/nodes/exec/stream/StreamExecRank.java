@@ -204,7 +204,7 @@ public class StreamExecRank extends ExecNodeBase<RowData>
         SortSpec sortSpecInSortKey = builder.build();
         GeneratedRecordComparator sortKeyComparator =
                 ComparatorCodeGenerator.gen(
-                        config.getTableConfig(),
+                        config,
                         "StreamExecSortComparator",
                         RowType.of(sortSpec.getFieldTypes(inputType)),
                         sortSpecInSortKey);

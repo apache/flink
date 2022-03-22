@@ -41,6 +41,7 @@ import org.apache.flink.table.factories.ManagedTableFactory;
 import org.apache.flink.table.factories.TestManagedTableFactory;
 import org.apache.flink.table.planner.factories.utils.TestCollectionTableFactory;
 import org.apache.flink.table.types.AbstractDataType;
+import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.types.Row;
 import org.apache.flink.util.CollectionUtil;
 import org.apache.flink.util.FileUtils;
@@ -472,15 +473,14 @@ public class HiveCatalogITCase {
         tableEnv.registerCatalog(hiveCatalog.getName(), hiveCatalog);
         tableEnv.useCatalog(hiveCatalog.getName());
         tableEnv.executeSql("create table generic_table (x int) with ('connector'='COLLECTION')");
-        tableEnv.useCatalog(EnvironmentSettings.DEFAULT_BUILTIN_CATALOG);
+        tableEnv.useCatalog(CatalogManagerMocks.DEFAULT_CATALOG);
         tableEnv.executeSql(
                 String.format(
                         "create table copy like `%s`.`default`.generic_table",
                         hiveCatalog.getName()));
-        Catalog builtInCat = tableEnv.getCatalog(EnvironmentSettings.DEFAULT_BUILTIN_CATALOG).get();
+        Catalog builtInCat = tableEnv.getCatalog(CatalogManagerMocks.DEFAULT_CATALOG).get();
         CatalogBaseTable catalogTable =
-                builtInCat.getTable(
-                        new ObjectPath(EnvironmentSettings.DEFAULT_BUILTIN_DATABASE, "copy"));
+                builtInCat.getTable(new ObjectPath(CatalogManagerMocks.DEFAULT_DATABASE, "copy"));
         assertThat(catalogTable.getOptions()).hasSize(1);
         assertThat(catalogTable.getOptions())
                 .containsEntry(FactoryUtil.CONNECTOR.key(), "COLLECTION");

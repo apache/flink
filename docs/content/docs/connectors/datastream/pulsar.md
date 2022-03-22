@@ -83,15 +83,15 @@ Pulsar source provide two ways of topic-partition subscription:
 
 - Topic list, subscribing messages from all partitions in a list of topics. For example:
   ```java
-  PulsarSource.builder().setTopics("some-topic1", "some-topic2")
+  PulsarSource.builder().setTopics("some-topic1", "some-topic2");
 
   // Partition 0 and 2 of topic "topic-a"
-  PulsarSource.builder().setTopics("topic-a-partition-0", "topic-a-partition-2")
+  PulsarSource.builder().setTopics("topic-a-partition-0", "topic-a-partition-2");
   ```
 
 - Topic pattern, subscribing messages from all topics whose name matches the provided regular expression. For example:
   ```java
-  PulsarSource.builder().setTopicPattern("topic-*")
+  PulsarSource.builder().setTopicPattern("topic-*");
   ```
 
 #### Flexible Topic Naming
@@ -158,21 +158,21 @@ you can use the predefined `PulsarDeserializationSchema`. Pulsar connector provi
 - Decode the message by using Pulsar's [Schema](https://pulsar.apache.org/docs/en/schema-understand/).
   ```java
   // Primitive types
-  PulsarDeserializationSchema.pulsarSchema(Schema)
+  PulsarDeserializationSchema.pulsarSchema(Schema);
 
   // Struct types (JSON, Protobuf, Avro, etc.)
-  PulsarDeserializationSchema.pulsarSchema(Schema, Class)
+  PulsarDeserializationSchema.pulsarSchema(Schema, Class);
 
   // KeyValue type
-  PulsarDeserializationSchema.pulsarSchema(Schema, Class, Class)
+  PulsarDeserializationSchema.pulsarSchema(Schema, Class, Class);
   ```
 - Decode the message by using Flink's `DeserializationSchema`
   ```java
-  PulsarDeserializationSchema.flinkSchema(DeserializationSchema)
+  PulsarDeserializationSchema.flinkSchema(DeserializationSchema);
   ```
 - Decode the message by using Flink's `TypeInformation`
   ```java
-  PulsarDeserializationSchema.flinkTypeInfo(TypeInformation, ExecutionConfig)
+  PulsarDeserializationSchema.flinkTypeInfo(TypeInformation, ExecutionConfig);
   ```
 
 Pulsar `Message<byte[]>` contains some [extra properties](https://pulsar.apache.org/docs/en/concepts-messaging/#messages),
@@ -200,10 +200,10 @@ By default, if no subscription type is defined, Pulsar source uses `Shared` subs
 
 ```java
 // Shared subscription with name "my-shared"
-PulsarSource.builder().setSubscriptionName("my-shared")
+PulsarSource.builder().setSubscriptionName("my-shared");
 
 // Exclusive subscription with name "my-exclusive"
-PulsarSource.builder().setSubscriptionName("my-exclusive").setSubscriptionType(SubscriptionType.Exclusive)
+PulsarSource.builder().setSubscriptionName("my-exclusive").setSubscriptionType(SubscriptionType.Exclusive);
 ```
 
 If you want to use `Key_Shared` subscription type on the Pulsar connector. Ensure that you provide a `RangeGenerator` implementation.
@@ -220,29 +220,29 @@ Built-in start cursors include:
 
 - Start from the earliest available message in the topic.
   ```java
-  StartCursor.earliest()
+  StartCursor.earliest();
   ```
 - Start from the latest available message in the topic.
   ```java
-  StartCursor.latest()
+  StartCursor.latest();
   ```
 - Start from a specified message between the earliest and the latest.
   Pulsar connector would consume from the latest available message if the message id doesn't exist.
 
   The start message is included in consuming result.
   ```java
-  StartCursor.fromMessageId(MessageId)
+  StartCursor.fromMessageId(MessageId);
   ```
 - Start from a specified message between the earliest and the latest.
   Pulsar connector would consume from the latest available message if the message id doesn't exist.
 
   Include or exclude the start message by using the second boolean parameter.
   ```java
-  StartCursor.fromMessageId(MessageId, boolean)
+  StartCursor.fromMessageId(MessageId, boolean);
   ```
 - Start from the specified message time by `Message<byte[]>.getEventTime()`.
   ```java
-  StartCursor.fromMessageTime(long)
+  StartCursor.fromMessageTime(long);
   ```
 
 {{< hint info >}}
@@ -268,23 +268,23 @@ Built-in stop cursors include:
 
 - Connector will never stop consuming.
   ```java
-  StopCursor.never()
+  StopCursor.never();
   ```
 - Stop at the latest available message in Pulsar when the connector starts consuming.
   ```java
-  StopCursor.latest()
+  StopCursor.latest();
   ```
 - Stop when connector meet a given message, or stop at a message which is produced after this given message.
   ```java
-  StopCursor.atMessageId(MessageId)
+  StopCursor.atMessageId(MessageId);
   ```
 - Stop but include the given message in consuming result.
   ```java
-  StopCursor.afterMessageId(MessageId)
+  StopCursor.afterMessageId(MessageId);
   ```
 - Stop at the specified message time by `Message<byte[]>.getEventTime()`.
   ```java
-  StopCursor.atEventTime(long)
+  StopCursor.atEventTime(long);
   ```
 
 ### Configurable Options
@@ -349,7 +349,7 @@ You can define your own `WatermarkStrategy` to extract the event time from the m
 and emit the watermark downstream:
 
 ```java
-env.fromSource(pulsarSource, new CustomWatermarkStrategy(), "Pulsar Source With Custom Watermark Strategy")
+env.fromSource(pulsarSource, new CustomWatermarkStrategy(), "Pulsar Source With Custom Watermark Strategy");
 ```
 
 [This documentation]({{< ref "docs/dev/datastream/event-time/generating_watermarks.md" >}}) describes

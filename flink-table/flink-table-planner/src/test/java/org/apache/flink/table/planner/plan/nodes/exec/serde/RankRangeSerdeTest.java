@@ -28,7 +28,7 @@ import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMap
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test RankRange json ser/de. */
 public class RankRangeSerdeTest {
@@ -44,7 +44,7 @@ public class RankRangeSerdeTest {
                 };
         for (RankRange range : ranges) {
             RankRange result = mapper.readValue(mapper.writeValueAsString(range), RankRange.class);
-            assertEquals(range.toString(), result.toString());
+            assertThat(result.toString()).isEqualTo(range.toString());
         }
     }
 }

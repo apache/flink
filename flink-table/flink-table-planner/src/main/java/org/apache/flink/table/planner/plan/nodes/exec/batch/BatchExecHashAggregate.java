@@ -93,7 +93,7 @@ public class BatchExecHashAggregate extends ExecNodeBase<RowData>
         final RowType inputRowType = (RowType) inputEdge.getOutputType();
         final RowType outputRowType = (RowType) getOutputType();
 
-        final CodeGeneratorContext ctx = new CodeGeneratorContext(config.getTableConfig());
+        final CodeGeneratorContext ctx = new CodeGeneratorContext(config);
 
         final AggregateInfoList aggInfos =
                 AggregateUtil.transformToBatchAggregateInfoList(

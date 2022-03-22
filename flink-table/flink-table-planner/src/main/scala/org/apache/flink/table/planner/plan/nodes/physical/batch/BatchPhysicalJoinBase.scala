@@ -51,7 +51,7 @@ abstract class BatchPhysicalJoinBase(
       tableConfig: TableConfig,
       leftType: RowType,
       rightType: RowType): GeneratedJoinCondition = {
-    val ctx = CodeGeneratorContext(tableConfig)
+    val ctx = CodeGeneratorContext(tableConfig.getConfiguration)
     val exprGenerator = new ExprCodeGenerator(ctx, false)
         .bindInput(leftType)
         .bindSecondInput(rightType)

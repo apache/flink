@@ -91,8 +91,7 @@ public abstract class CommonExecCalc extends ExecNodeBase<RowData>
         final Transformation<RowData> inputTransform =
                 (Transformation<RowData>) inputEdge.translateToPlan(planner);
         final CodeGeneratorContext ctx =
-                new CodeGeneratorContext(config.getTableConfig())
-                        .setOperatorBaseClass(operatorBaseClass);
+                new CodeGeneratorContext(config).setOperatorBaseClass(operatorBaseClass);
 
         final CodeGenOperatorFactory<RowData> substituteStreamOperator =
                 CalcCodeGenerator.generateCalcOperator(

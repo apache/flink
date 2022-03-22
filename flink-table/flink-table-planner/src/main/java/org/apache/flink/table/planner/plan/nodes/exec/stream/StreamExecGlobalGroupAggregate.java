@@ -291,7 +291,7 @@ public class StreamExecGlobalGroupAggregate extends StreamExecAggregateBase {
         // then multi-put to state, so copyInputField is true.
         AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                        new CodeGeneratorContext(config.getTableConfig()),
+                        new CodeGeneratorContext(config),
                         relBuilder,
                         JavaScalaConversionUtil.toScala(localAggInputRowType.getChildren()),
                         true);

@@ -467,6 +467,8 @@ import org.apache.flink.table.api.bridge.scala._
 {{< /tab >}}
 {{< /tabs >}}
 
+请查阅[配置]({{< ref "docs/dev/configuration/overview" >}})小节了解更多细节。
+
 ### Configuration
 
 The `TableEnvironment` will adopt all configuration options from the passed `StreamExecutionEnvironment`.
@@ -596,25 +598,25 @@ pipeline or a statement set:
 
 ```java
 // execute with explicit sink
-tableEnv.from("InputTable").executeInsert("OutputTable")
+tableEnv.from("InputTable").insertInto("OutputTable").execute();
 
-tableEnv.executeSql("INSERT INTO OutputTable SELECT * FROM InputTable")
+tableEnv.executeSql("INSERT INTO OutputTable SELECT * FROM InputTable");
 
 tableEnv.createStatementSet()
-    .addInsert("OutputTable", tableEnv.from("InputTable"))
-    .addInsert("OutputTable2", tableEnv.from("InputTable"))
-    .execute()
+    .add(tableEnv.from("InputTable").insertInto("OutputTable"))
+    .add(tableEnv.from("InputTable").insertInto("OutputTable2"))
+    .execute();
 
 tableEnv.createStatementSet()
     .addInsertSql("INSERT INTO OutputTable SELECT * FROM InputTable")
     .addInsertSql("INSERT INTO OutputTable2 SELECT * FROM InputTable")
-    .execute()
+    .execute();
 
 // execute with implicit local sink
 
-tableEnv.from("InputTable").execute().print()
+tableEnv.from("InputTable").execute().print();
 
-tableEnv.executeSql("SELECT * FROM InputTable").print()
+tableEnv.executeSql("SELECT * FROM InputTable").print();
 ```
 
 To combine both execution behaviors, every call to `StreamTableEnvironment.toDataStream`
@@ -627,17 +629,17 @@ these "external parts".
 // (1)
 
 // adds a branch with a printing sink to the StreamExecutionEnvironment
-tableEnv.toDataStream(table).print()
+tableEnv.toDataStream(table).print();
 
 // (2)
 
 // executes a Table API end-to-end pipeline as a Flink job and prints locally,
 // thus (1) has still not been executed
-table.execute().print()
+table.execute().print();
 
 // executes the DataStream API pipeline with the sink defined in (1) as a
 // Flink job, (2) was already running before
-env.execute()
+env.execute();
 ```
 
 {{< top >}}
@@ -2560,12 +2562,12 @@ TableDescriptor sinkDescriptor = TableDescriptor.forConnector("print").build();
 
 // add a pure Table API pipeline
 Table tableFromSource = tableEnv.from(sourceDescriptor);
-statementSet.addInsert(sinkDescriptor, tableFromSource);
+statementSet.add(tableFromSource.insertInto(sinkDescriptor));
 
 // use table sinks for the DataStream API pipeline
 DataStream<Integer> dataStream = env.fromElements(1, 2, 3);
 Table tableFromStream = tableEnv.fromDataStream(dataStream);
-statementSet.addInsert(sinkDescriptor, tableFromStream);
+statementSet.add(tableFromStream.insertInto(sinkDescriptor));
 
 // attach both pipelines to StreamExecutionEnvironment
 // (the statement set will be cleared after calling this method)
@@ -2611,12 +2613,12 @@ val sinkDescriptor = TableDescriptor.forConnector("print").build
 
 // add a pure Table API pipeline
 val tableFromSource = tableEnv.from(sourceDescriptor)
-statementSet.addInsert(sinkDescriptor, tableFromSource)
+statementSet.add(tableFromSource.insertInto(sinkDescriptor))
 
 // use table sinks for the DataStream API pipeline
 val dataStream = env.fromElements(1, 2, 3)
 val tableFromStream = tableEnv.fromDataStream(dataStream)
-statementSet.addInsert(sinkDescriptor, tableFromStream)
+statementSet.add(tableFromStream.insertInto(sinkDescriptor))
 
 // attach both pipelines to StreamExecutionEnvironment
 // (the statement set will be cleared calling this method)
@@ -2772,7 +2774,7 @@ In particular, these parts might not be well integrated into many recent new fea
 {{< tab "Java" >}}
 ```java
 StreamTableEnvironment tableEnv = ...; 
-DataStream<Tuple2<Long, String>> stream = ...
+DataStream<Tuple2<Long, String>> stream = ...;
 
 Table table2 = tableEnv.fromDataStream(stream, $("myLong"), $("myString"));
 ```
@@ -2908,7 +2910,7 @@ Flink 的 DataStream API 支持多样的数据类型。
 ```java
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section;
 
-DataStream<Tuple2<Long, Integer>> stream = ...
+DataStream<Tuple2<Long, Integer>> stream = ...;
 
 // convert DataStream into Table with field "myLong" only
 Table table = tableEnv.fromDataStream(stream, $("myLong"));
@@ -2960,7 +2962,7 @@ table = t_env.from_data_stream(stream, col('my_long'), col('my_int'))
 ```java
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
-DataStream<Tuple2<Long, Integer>> stream = ...
+DataStream<Tuple2<Long, Integer>> stream = ...;
 
 // convert DataStream into Table with field "f1" only
 Table table = tableEnv.fromDataStream(stream, $("f1"));
@@ -3023,7 +3025,7 @@ Flink 将基础数据类型（`Integer`、`Double`、`String`）或者通用数�
 ```java
 StreamTableEnvironment tableEnv = ...;
 
-DataStream<Long> stream = ...
+DataStream<Long> stream = ...;
 
 // Convert DataStream into Table with field name "myLong"
 Table table = tableEnv.fromDataStream(stream, $("myLong"));
@@ -3081,7 +3083,7 @@ tuple 的 DataStream 都能被转换成表。
 ```java
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
-DataStream<Tuple2<Long, String>> stream = ...
+DataStream<Tuple2<Long, String>> stream = ...;
 
 // convert DataStream into Table with renamed field names "myLong", "myString" (position-based)
 Table table = tableEnv.fromDataStream(stream, $("myLong"), $("myString"));
@@ -3176,7 +3178,7 @@ Flink 支持 POJO 类型作为复合类型。确定 POJO 类型的规则记录�
 StreamTableEnvironment tableEnv = ...; // see "Create a TableEnvironment" section
 
 // Person is a POJO with fields "name" and "age"
-DataStream<Person> stream = ...
+DataStream<Person> stream = ...;
 
 // convert DataStream into Table with renamed fields "myAge", "myName" (name-based)
 Table table = tableEnv.fromDataStream(stream, $("age").as("myAge"), $("name").as("myName"));
@@ -3225,7 +3227,7 @@ Row 类型的字段映射支持基于名称和基于位置两种方式。
 StreamTableEnvironment tableEnv = ...; 
 
 // DataStream of Row with two fields "name" and "age" specified in `RowTypeInfo`
-DataStream<Row> stream = ...
+DataStream<Row> stream = ...;
 
 // Convert DataStream into Table with renamed field names "myName", "myAge" (position-based)
 Table table = tableEnv.fromDataStream(stream, $("myName"), $("myAge"));

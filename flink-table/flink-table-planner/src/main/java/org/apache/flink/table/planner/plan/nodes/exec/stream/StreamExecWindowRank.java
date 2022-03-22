@@ -221,7 +221,7 @@ public class StreamExecWindowRank extends ExecNodeBase<RowData>
                         windowing.getTimeAttributeType(), config.getLocalTimeZone());
         GeneratedRecordComparator sortKeyComparator =
                 ComparatorCodeGenerator.gen(
-                        config.getTableConfig(),
+                        config,
                         "StreamExecSortComparator",
                         RowType.of(sortSpec.getFieldTypes(inputType)),
                         sortSpecInSortKey);

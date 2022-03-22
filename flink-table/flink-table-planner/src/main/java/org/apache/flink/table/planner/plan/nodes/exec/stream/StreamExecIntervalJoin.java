@@ -164,7 +164,7 @@ public class StreamExecIntervalJoin extends ExecNodeBase<RowData>
                 } else {
                     GeneratedJoinCondition joinCondition =
                             JoinUtil.generateConditionFunction(
-                                    config.getTableConfig(), joinSpec, leftRowType, rightRowType);
+                                    config, joinSpec, leftRowType, rightRowType);
                     IntervalJoinFunction joinFunction =
                             new IntervalJoinFunction(
                                     joinCondition, returnTypeInfo, joinSpec.getFilterNulls());

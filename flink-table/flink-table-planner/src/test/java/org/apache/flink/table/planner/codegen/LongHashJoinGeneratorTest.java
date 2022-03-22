@@ -19,7 +19,7 @@
 package org.apache.flink.table.planner.codegen;
 
 import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.table.api.TableConfig;
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.runtime.generated.GeneratedJoinCondition;
 import org.apache.flink.table.runtime.generated.JoinCondition;
@@ -28,8 +28,9 @@ import org.apache.flink.table.runtime.operators.join.Int2HashJoinOperatorTest;
 import org.apache.flink.table.types.logical.IntType;
 import org.apache.flink.table.types.logical.RowType;
 
-import org.junit.Assert;
 import org.junit.Test;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 /** Test for {@link LongHashJoinGenerator}. */
 public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
@@ -37,9 +38,9 @@ public class LongHashJoinGeneratorTest extends Int2HashJoinOperatorTest {
     @Override
     public Object newOperator(long memorySize, HashJoinType type, boolean reverseJoinFunction) {
         RowType keyType = RowType.of(new IntType());
-        Assert.assertTrue(LongHashJoinGenerator.support(type, keyType, new boolean[] {true}));
+        assertThat(LongHashJoinGenerator.support(type, keyType, new boolean[] {true})).isTrue();
         return LongHashJoinGenerator.gen(
-                new TableConfig(),
+                new Configuration(),
                 type,
                 keyType,
                 RowType.of(new IntType(), new IntType()),

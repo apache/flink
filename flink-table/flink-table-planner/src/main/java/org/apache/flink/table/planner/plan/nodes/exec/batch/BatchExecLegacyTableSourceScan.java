@@ -95,7 +95,7 @@ public class BatchExecLegacyTableSourceScan extends CommonExecLegacyTableSourceS
                     TableSourceUtil.fixPrecisionForProducedDataType(
                             tableSource, (RowType) getOutputType());
             return ScanUtil.convertToInternalRow(
-                    new CodeGeneratorContext(config.getTableConfig()),
+                    new CodeGeneratorContext(config),
                     (Transformation<Object>) sourceTransform,
                     fieldIndexes,
                     fixedProducedDataType,

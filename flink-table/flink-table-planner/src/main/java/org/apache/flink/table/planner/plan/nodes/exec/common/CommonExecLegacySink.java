@@ -193,7 +193,7 @@ public abstract class CommonExecLegacySink<T> extends ExecNodeBase<T>
 
             final CodeGenOperatorFactory<T> converterOperator =
                     SinkCodeGenerator.generateRowConverterOperator(
-                            new CodeGeneratorContext(config.getTableConfig()),
+                            new CodeGeneratorContext(config),
                             convertedInputRowType,
                             tableSink,
                             physicalOutputType,

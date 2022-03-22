@@ -97,11 +97,11 @@ class CalcTest extends TableTestBase {
     val util = streamTestUtil()
     val sourceTable = util.addTableSource[(Int, Long, String)]("MyTable", 'a, 'b, 'c)
     val resultTable = sourceTable
-      .addColumns("concat(c, 'sunny') as kid")
-      .addColumns('a + 2, 'b as 'b2)
-      .addOrReplaceColumns(concat('c, "_kid") as 'kid, concat('c, "kid") as 'kid)
-      .addOrReplaceColumns("concat(c, '_kid_last') as kid")
-      .addColumns("'literal_value'")
+      .addColumns(concat($"c", "sunny") as "kid")
+      .addColumns($"a" + 2, $"b" as "b2")
+      .addOrReplaceColumns(concat($"c", "_kid") as "kid", concat($"c", "kid") as "kid")
+      .addOrReplaceColumns(concat($"c", "_kid_last") as "kid")
+      .addColumns("literal_value")
 
     util.verifyExecPlan(resultTable)
   }

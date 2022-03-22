@@ -19,8 +19,6 @@ package org.apache.flink.table.planner.runtime.utils
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{Table, TableEnvironment}
-import org.apache.flink.table.delegation.ExpressionParser
-import org.apache.flink.table.expressions.Expression
 
 import scala.collection.mutable
 import scala.util.Random
@@ -278,15 +276,6 @@ object CollectionBatchExecTable {
     data.+=(new CollectionBatchExecTable.PojoWithMultiplePojos("d", "dd", "e", "ee", 3))
     data.+=(new CollectionBatchExecTable.PojoWithMultiplePojos("d", "dd", "e", "ee", 3))
     BatchTableEnvUtil.fromCollection(env, data, fields)
-  }
-
-  /** Tool converters used to convert string fields to array of [[Expression]]s. **/
-  implicit def strToExpressions(fields: String): Array[Expression] = {
-    if (fields == null) {
-      null
-    } else {
-      ExpressionParser.INSTANCE.parseExpressionList(fields).toArray(Array[Expression]())
-    }
   }
 
   case class MutableTuple3[T1, T2, T3](var _1: T1, var _2: T2, var _3: T3)

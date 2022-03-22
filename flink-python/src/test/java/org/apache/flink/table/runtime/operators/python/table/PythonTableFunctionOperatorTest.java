@@ -21,7 +21,6 @@ package org.apache.flink.table.runtime.operators.python.table;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.python.PythonFunctionRunner;
 import org.apache.flink.table.api.DataTypes;
-import org.apache.flink.table.api.TableConfig;
 import org.apache.flink.table.connector.Projection;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.functions.python.PythonFunctionInfo;
@@ -96,7 +95,7 @@ public class PythonTableFunctionOperatorTest
                 udfOutputType,
                 JoinTypeUtil.getFlinkJoinType(joinRelType),
                 ProjectionCodeGenerator.generateProjection(
-                        CodeGeneratorContext.apply(new TableConfig()),
+                        CodeGeneratorContext.apply(new Configuration()),
                         "UdtfInputProjection",
                         inputType,
                         udfInputType,

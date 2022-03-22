@@ -80,7 +80,7 @@ object HashCodeGenerator {
     """.stripMargin
 
     new GeneratedHashFunction(
-      className, code, ctx.references.toArray, ctx.tableConfig.getConfiguration)
+      className, code, ctx.references.toArray, ctx.tableConfig)
   }
 
   private def generateCodeBody(

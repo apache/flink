@@ -195,14 +195,17 @@ public class SourceCoordinatorContext<SplitT extends SourceSplit>
         callInCoordinatorThread(
                 () -> {
                     // Ensure all the subtasks in the assignment have registered.
-                    for (Integer subtaskId : assignment.assignment().keySet()) {
-                        if (!registeredReaders.containsKey(subtaskId)) {
-                            throw new IllegalArgumentException(
-                                    String.format(
-                                            "Cannot assign splits %s to subtask %d because the subtask is not registered.",
-                                            registeredReaders.get(subtaskId), subtaskId));
-                        }
-                    }
+                    assignment
+                            .assignment()
+                            .forEach(
+                                    (id, splits) -> {
+                                        if (!registeredReaders.containsKey(id)) {
+                                            throw new IllegalArgumentException(
+                                                    String.format(
+                                                            "Cannot assign splits %s to subtask %d because the subtask is not registered.",
+                                                            splits, id));
+                                        }
+                                    });
 
                     assignmentTracker.recordSplitAssignment(assignment);
                     assignment

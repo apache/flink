@@ -93,6 +93,12 @@
             <td>The maximum size of RocksDB's file used for information logging. If the log files becomes larger than this, a new file will be created. If 0, all logs will be written to one log file. The default maximum file size is '25MB'. </td>
         </tr>
         <tr>
+            <td><h5>state.backend.rocksdb.restore-overlap-fraction-threshold</h5></td>
+            <td style="word-wrap: break-word;">0.75</td>
+            <td>Double</td>
+            <td>The threshold of the overlap fraction between the handle's key-group range and target key-group range. When restore base DB, only the handle which overlap fraction greater than or equal to *threshold* has a chance to be an initial handle.</td>
+        </tr>
+        <tr>
             <td><h5>state.backend.rocksdb.thread.num</h5></td>
             <td style="word-wrap: break-word;">2</td>
             <td>Integer</td>

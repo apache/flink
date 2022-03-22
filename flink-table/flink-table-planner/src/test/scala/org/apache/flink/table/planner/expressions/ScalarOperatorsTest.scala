@@ -63,7 +63,7 @@ class ScalarOperatorsTest extends ScalarOperatorsTestBase {
   }
 
   @Test
-  def testCompareOperator(): Unit= {
+  def testCompareOperator(): Unit = {
 
     // f18 and f19 have same length.
     testSqlApi(

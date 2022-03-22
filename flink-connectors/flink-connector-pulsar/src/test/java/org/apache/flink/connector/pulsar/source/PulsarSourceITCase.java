@@ -33,38 +33,15 @@ import org.apache.flink.connector.testframe.junit.annotations.TestSemantics;
 import org.apache.flink.connector.testframe.testsuites.SourceTestSuiteBase;
 import org.apache.flink.streaming.api.CheckpointingMode;
 
-import org.junit.jupiter.api.Disabled;
-
 /** Unite test class for {@link PulsarSource}. */
 @SuppressWarnings("unused")
 class PulsarSourceITCase extends SourceTestSuiteBase<String> {
-
-    @Disabled // TODO: remove override after FLINK-26177 is fixed
-    @Override
-    public void testScaleUp(
-            TestEnvironment testEnv,
-            DataStreamSourceExternalContext<String> externalContext,
-            CheckpointingMode semantic)
-            throws Exception {
-        super.testScaleUp(testEnv, externalContext, semantic);
-    }
-
-    @Disabled // TODO: remove override after FLINK-26177 is fixed
-    @Override
-    public void testScaleDown(
-            TestEnvironment testEnv,
-            DataStreamSourceExternalContext<String> externalContext,
-            CheckpointingMode semantic)
-            throws Exception {
-        super.testScaleDown(testEnv, externalContext, semantic);
-    }
-
     // Defines test environment on Flink MiniCluster
     @TestEnv MiniClusterTestEnvironment flink = new MiniClusterTestEnvironment();
 
     // Defines pulsar running environment
     @TestExternalSystem
-    PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.embedded());
+    PulsarTestEnvironment pulsar = new PulsarTestEnvironment(PulsarRuntime.mock());
 
     @TestSemantics
     CheckpointingMode[] semantics = new CheckpointingMode[] {CheckpointingMode.EXACTLY_ONCE};
@@ -78,4 +55,22 @@ class PulsarSourceITCase extends SourceTestSuiteBase<String> {
     @TestContext
     PulsarTestContextFactory<String, MultipleTopicConsumingContext> multipleTopic =
             new PulsarTestContextFactory<>(pulsar, MultipleTopicConsumingContext::new);
+
+    @Override
+    public void testScaleUp(
+            TestEnvironment testEnv,
+            DataStreamSourceExternalContext<String> externalContext,
+            CheckpointingMode semantic)
+            throws Exception {
+        super.testScaleUp(testEnv, externalContext, semantic);
+    }
+
+    @Override
+    public void testScaleDown(
+            TestEnvironment testEnv,
+            DataStreamSourceExternalContext<String> externalContext,
+            CheckpointingMode semantic)
+            throws Exception {
+        super.testScaleDown(testEnv, externalContext, semantic);
+    }
 }

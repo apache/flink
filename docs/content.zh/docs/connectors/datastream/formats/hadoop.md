@@ -106,7 +106,7 @@ Flink 为 Hadoop `OutputFormats` 提供了一个兼容性包装器。支持任�
 
 ```java
 // 获取我们希望发送的结果
-DataStream<Tuple2<Text, IntWritable>> hadoopResult = [...]
+DataStream<Tuple2<Text, IntWritable>> hadoopResult = [...];
 
 // 设置 the Hadoop TextOutputFormat。
 HadoopOutputFormat<Text, IntWritable> hadoopOF =

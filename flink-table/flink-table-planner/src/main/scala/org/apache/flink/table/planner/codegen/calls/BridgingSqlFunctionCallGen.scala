@@ -67,7 +67,7 @@ class BridgingSqlFunctionCallGen(call: RexCall) extends CallGenerator {
       definition,
       callContext,
       classOf[PlannerBase].getClassLoader,
-      ctx.tableConfig.getConfiguration)
+      ctx.tableConfig)
     val inference = udf.getTypeInference(dataTypeFactory)
 
     generateFunctionAwareCall(

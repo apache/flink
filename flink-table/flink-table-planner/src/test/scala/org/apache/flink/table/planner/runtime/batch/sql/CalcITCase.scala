@@ -617,9 +617,20 @@ class CalcITCase extends BatchTestBase {
 //  }
 
   @Test
+  def testInNonConstantValue(): Unit = {
+    checkResult(
+      "SELECT a FROM Table3 WHERE a IN (CAST(b AS INT), 21)",
+      Seq(row(1), row(2), row(21)))
+  }
+
+  @Test
   def testInSmallValues(): Unit = {
     checkResult(
       "SELECT a FROM Table3 WHERE a in (1, 2)",
+      Seq(row(1), row(2)))
+
+    checkResult(
+      "SELECT a FROM Table3 WHERE a in (1, 2, NULL)",
       Seq(row(1), row(2)))
 
     checkResult(
@@ -1640,10 +1651,10 @@ class CalcITCase extends BatchTestBase {
     tEnv.executeSql(ddl)
 
     checkResult(
-      "select a from MyTable where cast(b as boolean)",
+      "select a from MyTable where try_cast(b as boolean)",
       Seq(row(1)))
     checkResult(
-      "select cast(b as boolean) from MyTable",
+      "select try_cast(b as boolean) from MyTable",
       Seq(row(true), row(false), row(null), row(null)))
   }
 

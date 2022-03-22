@@ -30,6 +30,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static java.util.Collections.emptyMap;
 import static java.util.stream.Collectors.toList;
 
+/** Default implementation class for {@link StateChangeUploader} to test. */
 class TestingStateChangeUploader implements StateChangeUploader {
     private final Collection<StateChangeSet> uploaded = new CopyOnWriteArrayList<>();
     private final List<UploadTask> tasks;

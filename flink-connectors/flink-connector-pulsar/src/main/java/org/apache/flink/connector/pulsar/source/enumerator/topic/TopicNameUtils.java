@@ -52,6 +52,11 @@ public final class TopicNameUtils {
         return TopicName.get(topic).getPartition(partitionId).toString();
     }
 
+    /** Get a non-partitioned topic name that does not belong to any partitioned topic. */
+    public static String topicNameWithNonPartition(String topic) {
+        return TopicName.get(topic).toString();
+    }
+
     public static boolean isPartitioned(String topic) {
         return TopicName.get(topic).isPartitioned();
     }

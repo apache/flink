@@ -113,7 +113,7 @@ public class StreamExecGroupTableAggregate extends ExecNodeBase<RowData>
 
         final AggsHandlerCodeGenerator generator =
                 new AggsHandlerCodeGenerator(
-                                new CodeGeneratorContext(config.getTableConfig()),
+                                new CodeGeneratorContext(config),
                                 planner.getRelBuilder(),
                                 JavaScalaConversionUtil.toScala(inputRowType.getChildren()),
                                 // TODO: heap state backend do not copy key currently,

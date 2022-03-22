@@ -21,13 +21,11 @@ package org.apache.flink.connector.file.sink;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.connector.file.sink.utils.IntegerFileSinkTestDataUtils;
+import org.apache.flink.connector.file.sink.utils.PartSizeAndCheckpointRollingPolicy;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.minicluster.MiniCluster;
 import org.apache.flink.runtime.minicluster.MiniClusterConfiguration;
-import org.apache.flink.streaming.api.functions.sink.filesystem.PartFileInfo;
-import org.apache.flink.streaming.api.functions.sink.filesystem.RollingPolicy;
-import org.apache.flink.streaming.api.functions.sink.filesystem.rollingpolicies.CheckpointRollingPolicy;
 import org.apache.flink.util.TestLogger;
 
 import org.junit.ClassRule;
@@ -35,7 +33,6 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runners.Parameterized;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 
@@ -91,30 +88,7 @@ public abstract class FileSinkITBase extends TestLogger {
         return FileSink.forRowFormat(new Path(path), new IntegerFileSinkTestDataUtils.IntEncoder())
                 .withBucketAssigner(
                         new IntegerFileSinkTestDataUtils.ModuloBucketAssigner(NUM_BUCKETS))
-                .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy(1024))
+                .withRollingPolicy(new PartSizeAndCheckpointRollingPolicy<>(1024, true))
                 .build();
-    }
-
-    /** The testing {@link RollingPolicy} based on maximum file size. */
-    protected static class PartSizeAndCheckpointRollingPolicy
-            extends CheckpointRollingPolicy<Integer, String> {
-
-        private final long maxPartSize;
-
-        public PartSizeAndCheckpointRollingPolicy(long maxPartSize) {
-            this.maxPartSize = maxPartSize;
-        }
-
-        @Override
-        public boolean shouldRollOnEvent(PartFileInfo<String> partFileState, Integer element)
-                throws IOException {
-            return partFileState.getSize() >= maxPartSize;
-        }
-
-        @Override
-        public boolean shouldRollOnProcessingTime(
-                PartFileInfo<String> partFileState, long currentTime) {
-            return false;
-        }
     }
 }

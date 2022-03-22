@@ -125,6 +125,7 @@ import java.util.stream.Collectors;
 import scala.collection.Seq;
 
 import static org.apache.flink.util.Preconditions.checkArgument;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Test implementation of {@link DynamicTableSourceFactory} that creates a source that produces a
@@ -1674,7 +1675,7 @@ public final class TestValuesTableFactory
                 }
             } else {
                 // we don't support OutputFormat for updating query in the TestValues connector
-                assert runtimeSink.equals("SinkFunction");
+                assertThat(runtimeSink.equals("SinkFunction")).isTrue();
                 SinkFunction<RowData> sinkFunction;
                 if (primaryKeyIndices.length > 0) {
                     sinkFunction =

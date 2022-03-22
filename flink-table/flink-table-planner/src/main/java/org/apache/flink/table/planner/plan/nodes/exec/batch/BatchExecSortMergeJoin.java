@@ -108,8 +108,7 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
         RowType keyType = RowType.of(keyFieldTypes);
 
         GeneratedJoinCondition condFunc =
-                JoinUtil.generateConditionFunction(
-                        config.getTableConfig(), nonEquiCondition, leftType, rightType);
+                JoinUtil.generateConditionFunction(config, nonEquiCondition, leftType, rightType);
 
         long externalBufferMemory =
                 config.get(ExecutionConfigOptions.TABLE_EXEC_RESOURCE_EXTERNAL_BUFFER_MEMORY)
@@ -134,13 +133,13 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
                         leftIsSmaller,
                         condFunc,
                         ProjectionCodeGenerator.generateProjection(
-                                new CodeGeneratorContext(config.getTableConfig()),
+                                new CodeGeneratorContext(config),
                                 "SMJProjection",
                                 leftType,
                                 keyType,
                                 leftKeys),
                         ProjectionCodeGenerator.generateProjection(
-                                new CodeGeneratorContext(config.getTableConfig()),
+                                new CodeGeneratorContext(config),
                                 "SMJProjection",
                                 rightType,
                                 keyType,
@@ -171,6 +170,6 @@ public class BatchExecSortMergeJoin extends ExecNodeBase<RowData>
     private SortCodeGenerator newSortGen(
             ExecNodeConfig config, int[] originalKeys, RowType inputType) {
         SortSpec sortSpec = SortUtil.getAscendingSortSpec(originalKeys);
-        return new SortCodeGenerator(config.getTableConfig(), inputType, sortSpec);
+        return new SortCodeGenerator(config, inputType, sortSpec);
     }
 }
