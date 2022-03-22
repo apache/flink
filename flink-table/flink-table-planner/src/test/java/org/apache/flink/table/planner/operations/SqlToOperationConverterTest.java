@@ -51,7 +51,6 @@ import org.apache.flink.table.catalog.exceptions.TableAlreadyExistException;
 import org.apache.flink.table.catalog.exceptions.TableNotExistException;
 import org.apache.flink.table.delegation.Parser;
 import org.apache.flink.table.factories.TestManagedTableFactory;
-import org.apache.flink.table.module.ModuleManager;
 import org.apache.flink.table.operations.BeginStatementSetOperation;
 import org.apache.flink.table.operations.EndStatementSetOperation;
 import org.apache.flink.table.operations.ExplainOperation;
@@ -96,6 +95,7 @@ import org.apache.flink.table.planner.expressions.utils.Func8$;
 import org.apache.flink.table.planner.parse.CalciteParser;
 import org.apache.flink.table.planner.parse.ExtendedParser;
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions;
+import org.apache.flink.table.planner.utils.PlannerMocks;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.utils.CatalogManagerMocks;
 import org.apache.flink.table.utils.ExpressionResolverMocks;
@@ -146,35 +146,32 @@ public class SqlToOperationConverterTest {
                                             ExecutionOptions.RUNTIME_MODE.key(),
                                             RuntimeExecutionMode.BATCH.name())))
                     .build();
-    private final ModuleManager moduleManager = new ModuleManager();
-    private final FunctionCatalog functionCatalog =
-            new FunctionCatalog(tableConfig, catalogManager, moduleManager);
+
+    private final PlannerMocks plannerMocks =
+            PlannerMocks.newBuilder()
+                    .withBatchMode(true)
+                    .withTableConfig(tableConfig)
+                    .withCatalogManager(catalogManager)
+                    .withRootSchema(
+                            asRootSchema(
+                                    new CatalogManagerCalciteSchema(
+                                            catalogManager, isStreamingMode)))
+                    .build();
+    private final PlannerContext plannerContext = plannerMocks.getPlannerContext();
+    private final FunctionCatalog functionCatalog = plannerMocks.getFunctionCatalog();
+
     private final Supplier<FlinkPlannerImpl> plannerSupplier =
             () ->
-                    getPlannerContext()
-                            .createFlinkPlanner(
-                                    catalogManager.getCurrentCatalog(),
-                                    catalogManager.getCurrentDatabase());
-    private final PlannerContext plannerContext =
-            new PlannerContext(
-                    true,
-                    tableConfig,
-                    moduleManager,
-                    functionCatalog,
-                    catalogManager,
-                    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, isStreamingMode)),
-                    Collections.emptyList());
+                    plannerContext.createFlinkPlanner(
+                            catalogManager.getCurrentCatalog(),
+                            catalogManager.getCurrentDatabase());
 
     private final Parser parser =
             new ParserImpl(
                     catalogManager,
                     plannerSupplier,
                     () -> plannerSupplier.get().parser(),
-                    getPlannerContext().getSqlExprToRexConverterFactory());
-
-    private PlannerContext getPlannerContext() {
-        return plannerContext;
-    }
+                    plannerContext.getSqlExprToRexConverterFactory());
 
     @BeforeEach
     public void before() throws TableAlreadyExistException, DatabaseNotExistException {

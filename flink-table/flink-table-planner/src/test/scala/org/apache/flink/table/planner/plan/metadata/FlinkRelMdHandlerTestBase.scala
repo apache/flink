@@ -19,12 +19,10 @@
 package org.apache.flink.table.planner.plan.metadata
 
 import org.apache.flink.table.api.{TableConfig, TableException}
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
 import org.apache.flink.table.data.RowData
 import org.apache.flink.table.expressions.ApiExpressionUtils.intervalOfMillis
 import org.apache.flink.table.expressions._
 import org.apache.flink.table.functions.{FunctionIdentifier, UserDefinedFunctionHelper}
-import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.operations.TableSourceQueryOperation
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.delegation.PlannerContext
@@ -43,13 +41,12 @@ import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, Inte
 import org.apache.flink.table.planner.plan.stream.sql.join.TestTemporalTable
 import org.apache.flink.table.planner.plan.utils._
 import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
-import org.apache.flink.table.planner.utils.Top3
+import org.apache.flink.table.planner.utils.{PlannerMocks, Top3}
 import org.apache.flink.table.runtime.groupwindow._
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, RankType, VariableRankRange}
 import org.apache.flink.table.types.AtomicDataType
 import org.apache.flink.table.types.logical._
 import org.apache.flink.table.types.utils.TypeConversions
-import org.apache.flink.table.utils.CatalogManagerMocks
 
 import com.google.common.collect.{ImmutableList, Lists}
 import org.apache.calcite.jdbc.CalciteSchema
@@ -62,7 +59,6 @@ import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical._
 import org.apache.calcite.rel.metadata.{JaninoRelMetadataProvider, RelMetadataQuery, RelMetadataQueryBase}
 import org.apache.calcite.rex._
-import org.apache.calcite.schema.SchemaPlus
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.calcite.sql.`type`.{BasicSqlType, SqlTypeName}
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
@@ -83,27 +79,18 @@ import scala.collection.JavaConversions._
 class FlinkRelMdHandlerTestBase {
 
   val tableConfig = TableConfig.getDefault()
-  val rootSchema: SchemaPlus = MetadataTestUtil.initRootSchema()
-
-  val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
-  val moduleManager = new ModuleManager
 
   // TODO batch RelNode and stream RelNode should have different PlannerContext
   //  and RelOptCluster due to they have different trait definitions.
-  val plannerContext: PlannerContext =
-  new PlannerContext(
-    false,
-    tableConfig,
-    moduleManager,
-    new FunctionCatalog(tableConfig, catalogManager, moduleManager),
-    catalogManager,
-    CalciteSchema.from(rootSchema),
-    util.Arrays.asList(
-      ConventionTraitDef.INSTANCE,
-      FlinkRelDistributionTraitDef.INSTANCE,
-      RelCollationTraitDef.INSTANCE
-    )
-  )
+  val plannerContext: PlannerContext = PlannerMocks.newBuilder
+      .withTableConfig(tableConfig)
+      .withRootSchema(CalciteSchema.from(MetadataTestUtil.initRootSchema()))
+      .withTraitDefs(util.Arrays.asList(
+        ConventionTraitDef.INSTANCE,
+        FlinkRelDistributionTraitDef.INSTANCE,
+        RelCollationTraitDef.INSTANCE))
+    .build().getPlannerContext
+
   val typeFactory: FlinkTypeFactory = plannerContext.getTypeFactory
   val mq: FlinkRelMetadataQuery = FlinkRelMetadataQuery.instance()
 

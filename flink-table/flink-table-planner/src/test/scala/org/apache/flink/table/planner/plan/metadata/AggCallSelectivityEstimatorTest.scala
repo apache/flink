@@ -18,22 +18,16 @@
 
 package org.apache.flink.table.planner.plan.metadata
 
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.FunctionCatalog
-import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.plan.stats.{ColumnStats, TableStats}
 import org.apache.flink.table.planner.calcite.{FlinkRexBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.PlannerContext
-import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
+import org.apache.flink.table.planner.utils.PlannerMocks
 import org.apache.flink.table.planner.{JDouble, JLong}
-import org.apache.flink.table.utils.CatalogManagerMocks
 import org.apache.flink.util.Preconditions
 
 import com.google.common.collect.ImmutableList
 import org.apache.calcite.jdbc.CalciteSchema
-import org.apache.calcite.plan.ConventionTraitDef
-import org.apache.calcite.rel.RelCollationTraitDef
 import org.apache.calcite.rel.`type`.RelDataType
 import org.apache.calcite.rel.core.{Aggregate, AggregateCall, TableScan}
 import org.apache.calcite.rel.logical.LogicalAggregate
@@ -45,6 +39,7 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable
 import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.{SqlAggFunction, SqlOperator}
 import org.apache.calcite.util.ImmutableBitSet
+
 import org.junit.Assert._
 import org.junit.{Before, BeforeClass, Test}
 
@@ -77,26 +72,13 @@ class AggCallSelectivityEstimatorTest {
 
   private def mockScan(
       statistic: FlinkStatistic = FlinkStatistic.UNKNOWN): TableScan = {
-    val tableConfig = TableConfig.getDefault
-    val moduleManager = new ModuleManager
-    val catalogManager = CatalogManagerMocks.createEmptyCatalogManager()
     val rootSchema = CalciteSchema.createRootSchema(true, false).plus()
     val table = new MockMetaTable(relDataType, statistic)
     rootSchema.add("test", table)
-    val plannerContext: PlannerContext =
-      new PlannerContext(
-        false,
-        tableConfig,
-        moduleManager,
-        new FunctionCatalog(tableConfig, catalogManager, moduleManager),
-        catalogManager,
-        CalciteSchema.from(rootSchema),
-        util.Arrays.asList(
-          ConventionTraitDef.INSTANCE,
-          FlinkRelDistributionTraitDef.INSTANCE,
-          RelCollationTraitDef.INSTANCE
-        )
-      )
+    val plannerContext: PlannerContext = PlannerMocks.newBuilder
+      .withRootSchema(CalciteSchema.from(rootSchema))
+      .build()
+      .getPlannerContext
 
     val relBuilder = plannerContext.createRelBuilder("default_catalog", "default_database")
     relBuilder.clear()
@@ -147,12 +129,9 @@ class AggCallSelectivityEstimatorTest {
   }
 
   private def createInputRef(index: Int): RexInputRef = {
-    createInputRefWithNullability(index, isNullable = false)
-  }
-
-  private def createInputRefWithNullability(index: Int, isNullable: Boolean): RexInputRef = {
     val relDataType = typeFactory.createSqlType(allFieldTypes(index))
-    val relDataTypeWithNullability = typeFactory.createTypeWithNullability(relDataType, isNullable)
+    val relDataTypeWithNullability =
+      typeFactory.createTypeWithNullability(relDataType, isNullable = false)
     rexBuilder.makeInputRef(relDataTypeWithNullability, index)
   }
 
@@ -520,7 +499,6 @@ class AggCallSelectivityEstimatorTest {
     // count(amount), count(price) group by name
     val agg1 = createAggregate(Array(name_idx),
       Seq((SqlStdOperatorTable.COUNT, amount_idx), (SqlStdOperatorTable.COUNT, price_idx)))
-    val se = new SelectivityEstimator(agg1, mq)
 
     // count(amount) > 6
     val predicate1 = createCall(GREATER_THAN, createInputRef(1), createNumericLiteral(6))
@@ -573,7 +551,6 @@ class AggCallSelectivityEstimatorTest {
     // sum(amount), sum(price) group by name
     val agg1 = createAggregate(Array(name_idx),
       Seq((SqlStdOperatorTable.SUM, amount_idx), (SqlStdOperatorTable.SUM, price_idx)))
-    val se = new SelectivityEstimator(agg1, mq)
 
     // tests with statistics
     val statistic1 = createFlinkStatistic(Some(100L), Some(Map(
@@ -597,7 +574,6 @@ class AggCallSelectivityEstimatorTest {
     // sum(amount), sum(price) group by name
     val agg1 = createAggregate(Array(name_idx),
       Seq((SqlStdOperatorTable.SUM, amount_idx), (SqlStdOperatorTable.SUM, price_idx)))
-    val se = new SelectivityEstimator(agg1, mq)
 
     // tests with statistics
     val statistic1 = createFlinkStatistic(Some(100L), Some(Map(
@@ -616,7 +592,6 @@ class AggCallSelectivityEstimatorTest {
     val s2 = (120.0 - 10.0) / (120.0 - 4.0)
     assertEquals(Some(s1 + s2 - s1 * s2), estimator.evaluate(predicate))
   }
-
 }
 
 object AggCallSelectivityEstimatorTest {

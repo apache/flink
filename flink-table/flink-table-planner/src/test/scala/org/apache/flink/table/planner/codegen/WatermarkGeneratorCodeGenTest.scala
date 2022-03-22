@@ -22,20 +22,14 @@ import org.apache.flink.api.common.eventtime.WatermarkGeneratorSupplier
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.metrics.MetricGroup
 import org.apache.flink.streaming.util.MockStreamingRuntimeContext
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog, ObjectIdentifier, UnresolvedIdentifier}
+import org.apache.flink.table.catalog.{ObjectIdentifier, UnresolvedIdentifier}
 import org.apache.flink.table.data.{GenericRowData, TimestampData}
-import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkPlannerImpl, FlinkTypeFactory}
-import org.apache.flink.table.planner.catalog.CatalogManagerCalciteSchema
-import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.runtime.utils.JavaUserDefinedScalarFunctions.JavaFunc5
+import org.apache.flink.table.planner.utils.PlannerMocks
 import org.apache.flink.table.runtime.generated.WatermarkGenerator
 import org.apache.flink.table.types.logical.{IntType, TimestampType}
 import org.apache.flink.table.utils.CatalogManagerMocks
-
-import org.apache.calcite.jdbc.CalciteSchemaBuilder.asRootSchema
-import org.apache.calcite.plan.ConventionTraitDef
 
 import org.junit.Assert.{assertEquals, assertTrue}
 import org.junit.Test
@@ -44,32 +38,15 @@ import org.junit.runners.Parameterized
 
 import java.lang.{Integer => JInt, Long => JLong}
 import java.util
-import java.util.Collections
 
 /**
   * Tests the generated [[WatermarkGenerator]] from [[WatermarkGeneratorCodeGenerator]].
   */
 @RunWith(classOf[Parameterized])
 class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
+  val plannerMocks = PlannerMocks.create()
 
-  // mock FlinkPlannerImpl to avoid discovering TableEnvironment and Executor.
-  val tableConfig = TableConfig.getDefault
-  val moduleManager = new ModuleManager
-  val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
-  val functionCatalog = new FunctionCatalog(tableConfig, catalogManager, moduleManager)
-  val plannerContext = new PlannerContext(
-    false,
-    tableConfig,
-    moduleManager,
-    functionCatalog,
-    catalogManager,
-    asRootSchema(new CatalogManagerCalciteSchema(catalogManager, false)),
-    Collections.singletonList(ConventionTraitDef.INSTANCE))
-  val planner: FlinkPlannerImpl = plannerContext.createFlinkPlanner(
-    catalogManager.getCurrentCatalog,
-    catalogManager.getCurrentDatabase)
-
-  def getPlanner: FlinkPlannerImpl = planner
+  def getPlanner: FlinkPlannerImpl = plannerMocks.getPlanner
 
   val data = List(
     GenericRowData.of(TimestampData.fromEpochMillis(1000L), JInt.valueOf(5)),
@@ -124,7 +101,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
     JavaFunc5.openCalled = false
     JavaFunc5.closeCalled = false
     if (isLegacy) {
-      functionCatalog.registerTempCatalogScalarFunction(
+      plannerMocks.getFunctionCatalog.registerTempCatalogScalarFunction(
         ObjectIdentifier.of(
           CatalogManagerMocks.DEFAULT_CATALOG,
           CatalogManagerMocks.DEFAULT_DATABASE,
@@ -132,7 +109,7 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
         new JavaFunc5
       )
     } else {
-      functionCatalog.registerTemporaryCatalogFunction(
+      plannerMocks.getFunctionCatalog.registerTemporaryCatalogFunction(
         UnresolvedIdentifier.of(CatalogManagerMocks.DEFAULT_CATALOG,
           CatalogManagerMocks.DEFAULT_DATABASE,
           "myFunc"
@@ -164,14 +141,14 @@ class WatermarkGeneratorCodeGenTest(useDefinedConstructor: Boolean) {
 
   private def generateWatermarkGenerator(expr: String,
       useDefinedConstructor: Boolean): WatermarkGenerator = {
-    val tableRowType = plannerContext.getTypeFactory.buildRelNodeRowType(
+    val tableRowType = plannerMocks.getPlannerContext.getTypeFactory.buildRelNodeRowType(
       Seq("ts", "offset"),
       Seq(
         new TimestampType(3),
         new IntType()
       ))
     val rowType = FlinkTypeFactory.toLogicalRowType(tableRowType)
-    val converter = planner.createToRelContext()
+    val converter = plannerMocks.getPlanner.createToRelContext()
         .getCluster
         .getPlanner
         .getContext

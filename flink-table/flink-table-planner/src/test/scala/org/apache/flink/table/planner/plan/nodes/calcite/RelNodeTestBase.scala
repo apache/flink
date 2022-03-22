@@ -18,24 +18,18 @@
 
 package org.apache.flink.table.planner.plan.nodes.calcite
 
-import org.apache.flink.table.api.TableConfig
-import org.apache.flink.table.catalog.{CatalogManager, FunctionCatalog}
-import org.apache.flink.table.module.ModuleManager
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory, FlinkTypeSystem}
 import org.apache.flink.table.planner.delegation.PlannerContext
 import org.apache.flink.table.planner.plan.metadata.MockMetaTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistributionTraitDef
+import org.apache.flink.table.planner.utils.PlannerMocks
 import org.apache.flink.table.types.logical.LogicalType
-import org.apache.flink.table.utils.CatalogManagerMocks
 
-import org.apache.calcite.jdbc.CalciteSchema
-import org.apache.calcite.plan.{Convention, ConventionTraitDef, RelOptCluster, RelTraitSet}
+import org.apache.calcite.plan.{Convention, RelOptCluster, RelTraitSet}
 import org.apache.calcite.rel.hint.RelHint
 import org.apache.calcite.rel.logical.LogicalTableScan
-import org.apache.calcite.rel.RelCollationTraitDef
 import org.apache.calcite.rex.RexBuilder
-import org.apache.calcite.schema.SchemaPlus
+
 import org.junit.Before
 
 import java.util
@@ -45,25 +39,7 @@ import java.util
  * TODO refactor the metadata test to extract the common logic for all related tests.
  */
 class RelNodeTestBase {
-  val tableConfig = TableConfig.getDefault()
-  val rootSchema: SchemaPlus = CalciteSchema.createRootSchema(true, false).plus()
-  val catalogManager: CatalogManager = CatalogManagerMocks.createEmptyCatalogManager()
-  val moduleManager = new ModuleManager
-
-  val plannerContext: PlannerContext = new PlannerContext(
-    false,
-    tableConfig,
-    moduleManager,
-    new FunctionCatalog(tableConfig, catalogManager, moduleManager),
-    catalogManager,
-    CalciteSchema.from(rootSchema),
-    util.Arrays.asList(
-      ConventionTraitDef.INSTANCE,
-      FlinkRelDistributionTraitDef.INSTANCE,
-      RelCollationTraitDef.INSTANCE
-      )
-    )
-
+  val plannerContext: PlannerContext = PlannerMocks.create().getPlannerContext
   val typeFactory: FlinkTypeFactory = plannerContext.getTypeFactory
   var relBuilder: FlinkRelBuilder = _
   var rexBuilder: RexBuilder = _
