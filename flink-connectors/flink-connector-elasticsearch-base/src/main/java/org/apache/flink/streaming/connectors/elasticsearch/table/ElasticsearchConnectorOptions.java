@@ -133,12 +133,6 @@ public class ElasticsearchConnectorOptions {
                     .noDefaultValue()
                     .withDescription("Delay between each backoff attempt.");
 
-    public static final ConfigOption<Duration> CONNECTION_MAX_RETRY_TIMEOUT_OPTION =
-            ConfigOptions.key("connection.max-retry-timeout")
-                    .durationType()
-                    .noDefaultValue()
-                    .withDescription("Maximum timeout between retries.");
-
     public static final ConfigOption<String> CONNECTION_PATH_PREFIX =
             ConfigOptions.key("connection.path-prefix")
                     .stringType()
