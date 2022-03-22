@@ -95,10 +95,15 @@ under the License.
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<hadoop.version>2.8.5</hadoop.version>
+		<flink.XmxITCase>2048m</flink.XmxITCase>
+		<flink.XmxUnitTest>1024m</flink.XmxUnitTest>
 		<!-- Need to use a user property here because the surefire
 			 forkCount is not exposed as a property. With this we can set
 			 it on the "mvn" commandline in travis. -->
-		<flink.forkCount>2</flink.forkCount>
+		<!-- Number of forkCounts for ITCase and UnitTest should take into account allocated memory
+			 to the jvm (-Xmx) and the available memory on the machine running the test -->
+		<flink.forkCountITCase>2</flink.forkCountITCase>
+		<flink.forkCountUnitTest>4</flink.forkCountUnitTest>
 		<flink.reuseForks>true</flink.reuseForks>
 		<flink.shaded.version>15.0</flink.shaded.version>
 		<flink.shaded.jackson.version>2.12.4</flink.shaded.jackson.version>
@@ -1580,7 +1585,6 @@ under the License.
 				<configuration>
 					<!-- enables TCP/IP communication between surefire and forked JVM-->
 					<forkNode implementation="org.apache.maven.plugin.surefire.extensions.SurefireForkNodeFactory"/>
-					<forkCount>${flink.forkCount}</forkCount>
 					<reuseForks>${flink.reuseForks}</reuseForks>
 					<trimStackTrace>false</trimStackTrace>
 					<systemPropertyVariables combine.children="append">
@@ -1617,7 +1621,8 @@ under the License.
 							<includes>
 								<include>${test.unit.pattern}</include>
 							</includes>
-							<argLine>-Xms256m -Xmx1792m -XX:+UseG1GC</argLine>
+							<forkCount>${flink.forkCountUnitTest}</forkCount>
+							<argLine>-Xms256m -Xmx${flink.XmxUnitTest} -XX:+UseG1GC</argLine>
 						</configuration>
 					</execution>
 					<!--execute all the integration tests-->
@@ -1637,7 +1642,8 @@ under the License.
 								     e.g., 'org.apache.flink.api.scala.typeutils.Foo$Bar$Foobar'. -->
 								<exclude>**/*$*</exclude>
 							</excludes>
-							<argLine>-Xms256m -Xmx2048m -XX:+UseG1GC</argLine>
+							<forkCount>${flink.forkCountITCase}</forkCount>
+							<argLine>-Xms256m -Xmx${flink.XmxITCase} -XX:+UseG1GC</argLine>
 							<reuseForks>false</reuseForks>
 						</configuration>
 					</execution>
