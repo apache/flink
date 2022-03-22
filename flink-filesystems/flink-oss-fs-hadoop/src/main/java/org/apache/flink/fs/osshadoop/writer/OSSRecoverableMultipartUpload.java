@@ -19,7 +19,7 @@
 package org.apache.flink.fs.osshadoop.writer;
 
 import org.apache.flink.annotation.VisibleForTesting;
-import org.apache.flink.fs.common.utils.RefCountedFSOutputStream;
+import org.apache.flink.core.fs.RefCountedFSOutputStream;
 import org.apache.flink.fs.osshadoop.OSSAccessor;
 
 import com.aliyun.oss.model.PartETag;

@@ -20,8 +20,8 @@ package org.apache.flink.fs.osshadoop;
 
 import org.apache.flink.core.fs.FileSystemKind;
 import org.apache.flink.core.fs.RecoverableWriter;
-import org.apache.flink.fs.common.utils.RefCountedFileWithStream;
-import org.apache.flink.fs.common.utils.RefCountedTmpFileCreator;
+import org.apache.flink.core.fs.RefCountedFileWithStream;
+import org.apache.flink.core.fs.RefCountedTmpFileCreator;
 import org.apache.flink.fs.osshadoop.writer.OSSRecoverableWriter;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;
 import org.apache.flink.util.Preconditions;

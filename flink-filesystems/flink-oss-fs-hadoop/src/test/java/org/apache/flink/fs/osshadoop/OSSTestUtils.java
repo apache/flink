@@ -21,8 +21,8 @@ package org.apache.flink.fs.osshadoop;
 import org.apache.flink.core.fs.FSDataInputStream;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.fs.common.utils.RefCountedBufferingFileStream;
-import org.apache.flink.fs.common.utils.RefCountedFileWithStream;
+import org.apache.flink.core.fs.RefCountedBufferingFileStream;
+import org.apache.flink.core.fs.RefCountedFileWithStream;
 import org.apache.flink.fs.osshadoop.writer.OSSRecoverableMultipartUpload;
 
 import org.junit.rules.TemporaryFolder;

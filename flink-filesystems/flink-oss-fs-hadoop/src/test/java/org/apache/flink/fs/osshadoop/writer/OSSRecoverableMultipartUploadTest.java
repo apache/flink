@@ -21,7 +21,7 @@ package org.apache.flink.fs.osshadoop.writer;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.core.fs.FileSystem;
 import org.apache.flink.core.fs.Path;
-import org.apache.flink.fs.common.utils.RefCountedBufferingFileStream;
+import org.apache.flink.core.fs.RefCountedBufferingFileStream;
 import org.apache.flink.fs.osshadoop.OSSAccessor;
 import org.apache.flink.fs.osshadoop.OSSTestUtils;
 import org.apache.flink.runtime.fs.hdfs.HadoopFileSystem;

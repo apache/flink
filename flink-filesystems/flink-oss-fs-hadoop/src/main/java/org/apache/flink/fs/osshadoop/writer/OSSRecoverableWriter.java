@@ -18,12 +18,12 @@
 
 package org.apache.flink.fs.osshadoop.writer;
 
+import org.apache.flink.core.fs.BackPressuringExecutor;
 import org.apache.flink.core.fs.Path;
 import org.apache.flink.core.fs.RecoverableFsDataOutputStream;
 import org.apache.flink.core.fs.RecoverableWriter;
+import org.apache.flink.core.fs.RefCountedFileWithStream;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
-import org.apache.flink.fs.common.utils.BackPressuringExecutor;
-import org.apache.flink.fs.common.utils.RefCountedFileWithStream;
 import org.apache.flink.fs.osshadoop.OSSAccessor;
 import org.apache.flink.util.function.FunctionWithException;
 
