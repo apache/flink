@@ -59,6 +59,7 @@ public interface CatalogFunction {
      *
      * @return whether the function is a generic function
      */
+    @Deprecated
     boolean isGeneric();
 
     /**
