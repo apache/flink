@@ -72,7 +72,7 @@ public class TableConfigUtils {
      * @param tableConfig TableConfig object
      * @return the aggregate phase strategy
      */
-    public static AggregatePhaseStrategy getAggPhaseStrategy(TableConfig tableConfig) {
+    public static AggregatePhaseStrategy getAggPhaseStrategy(ReadableConfig tableConfig) {
         String aggPhaseConf = tableConfig.get(TABLE_OPTIMIZER_AGG_PHASE_STRATEGY).trim();
         if (aggPhaseConf.isEmpty()) {
             return AggregatePhaseStrategy.AUTO;
