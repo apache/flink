@@ -71,7 +71,7 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
     @Test
     public void testWriteAndRead() throws Exception {
         KeyGroupRange kgRange = KeyGroupRange.of(0, 5);
-        Map<Integer, List<byte[]>> appendsByKeyGroup = generateAppends(kgRange, 10, 20);
+        Map<Integer, List<byte[]>> appendsByKeyGroup = generateAppends(kgRange, 405, 20);
 
         try (StateChangelogStorage<T> client = getFactory();
                 StateChangelogWriter<T> writer =
@@ -84,6 +84,7 @@ public class StateChangelogStorageTest<T extends ChangelogStateHandle> {
                 for (byte[] bytes : appends) {
                     writer.append(group, bytes);
                 }
+                writer.nextSequenceNumber();
             }
 
             T handle = writer.persist(prev).get();
