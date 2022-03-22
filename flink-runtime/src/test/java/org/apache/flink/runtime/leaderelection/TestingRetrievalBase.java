@@ -27,7 +27,6 @@ import javax.annotation.Nullable;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Base class which provides some convenience functions for testing purposes of {@link
@@ -43,12 +42,12 @@ public class TestingRetrievalBase {
     private String oldAddress;
     private Throwable error;
 
-    public String waitForNewLeader(long timeout) throws Exception {
+    public String waitForNewLeader() throws Exception {
         throwExceptionIfNotNull();
 
         CommonTestUtils.waitUntilCondition(
                 () -> {
-                    leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
+                    leader = leaderEventQueue.take();
                     return leader != null
                             && !leader.isEmpty()
                             && !leader.getLeaderAddress().equals(oldAddress);
@@ -59,24 +58,20 @@ public class TestingRetrievalBase {
         return leader.getLeaderAddress();
     }
 
-    public void waitForEmptyLeaderInformation(long timeout) throws Exception {
+    public void waitForEmptyLeaderInformation() throws Exception {
         throwExceptionIfNotNull();
 
         CommonTestUtils.waitUntilCondition(
                 () -> {
-                    leader = leaderEventQueue.poll(timeout, TimeUnit.MILLISECONDS);
+                    leader = leaderEventQueue.take();
                     return leader != null && leader.isEmpty();
                 });
 
         oldAddress = null;
     }
 
-    public void waitForError(long timeout) throws Exception {
-        CommonTestUtils.waitUntilCondition(
-                () -> {
-                    error = errorQueue.poll(timeout, TimeUnit.MILLISECONDS);
-                    return error != null;
-                });
+    public void waitForError() throws Exception {
+        error = errorQueue.take();
     }
 
     public void handleError(Throwable ex) {

@@ -37,7 +37,6 @@ import static org.junit.Assert.assertThat;
 public class DefaultLeaderElectionServiceTest extends TestLogger {
 
     private static final String TEST_URL = "akka//user/jobmanager";
-    private static final long timeout = 50L;
 
     @Test
     public void testOnGrantAndRevokeLeadership() throws Exception {
@@ -48,7 +47,7 @@ public class DefaultLeaderElectionServiceTest extends TestLogger {
                             // grant leadership
                             testingLeaderElectionDriver.isLeader();
 
-                            testingContender.waitForLeader(timeout);
+                            testingContender.waitForLeader();
                             assertThat(testingContender.getDescription(), is(TEST_URL));
                             assertThat(
                                     testingContender.getLeaderSessionID(),
@@ -63,7 +62,7 @@ public class DefaultLeaderElectionServiceTest extends TestLogger {
 
                             // revoke leadership
                             testingLeaderElectionDriver.notLeader();
-                            testingContender.waitForRevokeLeader(timeout);
+                            testingContender.waitForRevokeLeader();
                             assertThat(testingContender.getLeaderSessionID(), is(nullValue()));
                             assertThat(leaderElectionService.getLeaderSessionID(), is(nullValue()));
                             // External storage should be cleared
@@ -236,7 +235,7 @@ public class DefaultLeaderElectionServiceTest extends TestLogger {
 
                             testingLeaderElectionDriver.onFatalError(testException);
 
-                            testingContender.waitForError(timeout);
+                            testingContender.waitForError();
                             assertThat(testingContender.getError(), is(notNullValue()));
                             assertThat(
                                     testingContender.getError(),

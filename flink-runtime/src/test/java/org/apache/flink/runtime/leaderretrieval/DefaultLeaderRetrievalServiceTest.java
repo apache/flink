@@ -38,7 +38,6 @@ import static org.junit.Assert.assertThat;
 public class DefaultLeaderRetrievalServiceTest extends TestLogger {
 
     private static final String TEST_URL = "akka//user/jobmanager";
-    private static final long timeout = 50L;
 
     @Test
     public void testNotifyLeaderAddress() throws Exception {
@@ -49,7 +48,7 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
                             final LeaderInformation newLeader =
                                     LeaderInformation.known(UUID.randomUUID(), TEST_URL);
                             testingLeaderRetrievalDriver.onUpdate(newLeader);
-                            testingListener.waitForNewLeader(timeout);
+                            testingListener.waitForNewLeader();
                             assertThat(
                                     testingListener.getLeaderSessionID(),
                                     is(newLeader.getLeaderSessionID()));
@@ -69,10 +68,10 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
                             final LeaderInformation newLeader =
                                     LeaderInformation.known(UUID.randomUUID(), TEST_URL);
                             testingLeaderRetrievalDriver.onUpdate(newLeader);
-                            testingListener.waitForNewLeader(timeout);
+                            testingListener.waitForNewLeader();
 
                             testingLeaderRetrievalDriver.onUpdate(LeaderInformation.empty());
-                            testingListener.waitForEmptyLeaderInformation(timeout);
+                            testingListener.waitForEmptyLeaderInformation();
                             assertThat(testingListener.getLeaderSessionID(), is(nullValue()));
                             assertThat(testingListener.getAddress(), is(nullValue()));
                         });
@@ -90,7 +89,7 @@ public class DefaultLeaderRetrievalServiceTest extends TestLogger {
 
                             testingLeaderRetrievalDriver.onFatalError(testException);
 
-                            testingListener.waitForError(timeout);
+                            testingListener.waitForError();
                             assertThat(
                                     testingListener.getError(),
                                     FlinkMatchers.containsCause(testException));

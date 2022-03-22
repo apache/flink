@@ -203,7 +203,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
 
                             // lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader(TIMEOUT);
+                            electionEventHandler.waitForRevokeLeader();
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);
@@ -284,7 +284,7 @@ public class KubernetesCheckpointIDCounterTest extends KubernetesHighAvailabilit
 
                             // lost leadership
                             getLeaderCallback().notLeader();
-                            electionEventHandler.waitForRevokeLeader(TIMEOUT);
+                            electionEventHandler.waitForRevokeLeader();
                             getLeaderConfigMap()
                                     .getAnnotations()
                                     .remove(KubernetesLeaderElector.LEADER_ANNOTATION_KEY);
