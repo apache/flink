@@ -18,6 +18,8 @@
 
 package org.apache.flink.table.planner.plan.schema;
 
+import org.apache.flink.table.api.ValidationException;
+import org.apache.flink.table.catalog.ObjectIdentifier;
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic;
 
 import org.apache.calcite.plan.RelOptSchema;
@@ -56,6 +58,15 @@ public abstract class ExpandingPreparingTable extends FlinkPreparingTableBase {
     }
 
     private RelNode expand(RelOptTable.ToRelContext context) {
+        // view with hints is prohibited
+        if (context.getTableHints().size() > 0) {
+            throw new ValidationException(
+                    String.format(
+                            "View '%s' cannot be enriched with new options. "
+                                    + "Hints can only be applied to tables.",
+                            ObjectIdentifier.of(
+                                    super.names.get(0), super.names.get(1), super.names.get(2))));
+        }
         final RelNode rel = convertToRel(context);
         // Expand any views
         return rel.accept(

@@ -136,7 +136,7 @@ public class CliClientITCase extends AbstractTestBase {
                 testSqlStatements.stream().map(s -> s.sql).collect(Collectors.toList());
         List<Result> actualResults = runSqlStatements(sqlStatements);
         String out = transformOutput(testSqlStatements, actualResults);
-        assertThat(in).isEqualTo(out);
+        assertThat(out).isEqualTo(in);
     }
 
     /**
