@@ -20,6 +20,11 @@ package org.apache.flink.table.functions;
 
 import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.PublicEvolving;
+import org.apache.flink.api.common.typeinfo.BasicArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.PrimitiveArrayTypeInfo;
+import org.apache.flink.api.common.typeinfo.TypeInformation;
+import org.apache.flink.api.java.typeutils.MapTypeInfo;
+import org.apache.flink.api.java.typeutils.ObjectArrayTypeInfo;
 import org.apache.flink.table.api.DataTypes;
 import org.apache.flink.table.api.JsonExistsOnError;
 import org.apache.flink.table.api.JsonOnNull;
@@ -35,11 +40,13 @@ import org.apache.flink.table.types.inference.InputTypeStrategies;
 import org.apache.flink.table.types.inference.TypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificInputTypeStrategies;
 import org.apache.flink.table.types.inference.strategies.SpecificTypeStrategies;
+import org.apache.flink.table.types.logical.LegacyTypeInformationType;
 import org.apache.flink.table.types.logical.LogicalType;
 import org.apache.flink.table.types.logical.LogicalTypeFamily;
 import org.apache.flink.table.types.logical.LogicalTypeRoot;
 import org.apache.flink.table.types.logical.StructuredType.StructuredComparison;
 import org.apache.flink.table.types.logical.utils.LogicalTypeMerging;
+import org.apache.flink.table.types.utils.LegacyTypeInfoDataTypeConverter;
 import org.apache.flink.util.Preconditions;
 
 import java.lang.reflect.Field;
@@ -47,6 +54,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import static org.apache.flink.table.api.DataTypes.BIGINT;
@@ -1338,14 +1346,67 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("at")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(SpecificInputTypeStrategies.AT)
+                    .outputTypeStrategy(
+                            argument(
+                                    0,
+                                    dt -> {
+                                        // Remove once we get rid of legacy types
+                                        if (dt.getLogicalType()
+                                                instanceof LegacyTypeInformationType) {
+                                            TypeInformation<?> typeInformation =
+                                                    ((LegacyTypeInformationType<?>)
+                                                                    dt.getLogicalType())
+                                                            .getTypeInformation();
+                                            if (typeInformation instanceof BasicArrayTypeInfo) {
+                                                return Optional.of(
+                                                        LegacyTypeInfoDataTypeConverter.toDataType(
+                                                                ((BasicArrayTypeInfo<?, ?>)
+                                                                                typeInformation)
+                                                                        .getComponentInfo()));
+                                            } else if (typeInformation
+                                                    instanceof PrimitiveArrayTypeInfo) {
+                                                return Optional.of(
+                                                        LegacyTypeInfoDataTypeConverter.toDataType(
+                                                                ((PrimitiveArrayTypeInfo<?>)
+                                                                                typeInformation)
+                                                                        .getComponentType()));
+                                            } else if (typeInformation
+                                                    instanceof ObjectArrayTypeInfo) {
+                                                return Optional.of(
+                                                        LegacyTypeInfoDataTypeConverter.toDataType(
+                                                                ((ObjectArrayTypeInfo<?, ?>)
+                                                                                typeInformation)
+                                                                        .getComponentInfo()));
+                                            } else if (typeInformation instanceof MapTypeInfo) {
+                                                return Optional.of(
+                                                        LegacyTypeInfoDataTypeConverter.toDataType(
+                                                                ((MapTypeInfo<?, ?>)
+                                                                                typeInformation)
+                                                                        .getValueTypeInfo()));
+                                            } else {
+                                                throw new IllegalStateException(
+                                                        "Unsupported legacy type. Please migrate to the new type system");
+                                            }
+                                        } else {
+                                            return Optional.of(
+                                                    dt.getChildren()
+                                                            .get(dt.getChildren().size() - 1)
+                                                            .nullable());
+                                        }
+                                    }))
                     .build();
 
     public static final BuiltInFunctionDefinition CARDINALITY =
             BuiltInFunctionDefinition.newBuilder()
                     .name("cardinality")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            or(
+                                    sequence(logical(LogicalTypeRoot.ARRAY)),
+                                    sequence(logical(LogicalTypeRoot.MAP)),
+                                    sequence(logical(LogicalTypeRoot.MULTISET))))
+                    .outputTypeStrategy(explicit(INT()))
                     .build();
 
     public static final BuiltInFunctionDefinition ARRAY =
@@ -1360,7 +1421,46 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("element")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(sequence(logical(LogicalTypeRoot.ARRAY)))
+                    .outputTypeStrategy(
+                            argument(
+                                    0,
+                                    dt -> {
+                                        // Remove once we get rid of legacy types
+                                        if (dt.getLogicalType()
+                                                instanceof LegacyTypeInformationType) {
+                                            TypeInformation<?> typeInformation =
+                                                    ((LegacyTypeInformationType<?>)
+                                                                    dt.getLogicalType())
+                                                            .getTypeInformation();
+                                            if (typeInformation instanceof BasicArrayTypeInfo) {
+                                                return Optional.of(
+                                                        LegacyTypeInfoDataTypeConverter.toDataType(
+                                                                ((BasicArrayTypeInfo<?, ?>)
+                                                                                typeInformation)
+                                                                        .getComponentInfo()));
+                                            } else if (typeInformation
+                                                    instanceof PrimitiveArrayTypeInfo) {
+                                                return Optional.of(
+                                                        LegacyTypeInfoDataTypeConverter.toDataType(
+                                                                ((PrimitiveArrayTypeInfo<?>)
+                                                                                typeInformation)
+                                                                        .getComponentType()));
+                                            } else if (typeInformation
+                                                    instanceof ObjectArrayTypeInfo) {
+                                                return Optional.of(
+                                                        LegacyTypeInfoDataTypeConverter.toDataType(
+                                                                ((ObjectArrayTypeInfo<?, ?>)
+                                                                                typeInformation)
+                                                                        .getComponentInfo()));
+                                            } else {
+                                                throw new IllegalStateException(
+                                                        "Unsupported legacy type. Please migrate to the new type system");
+                                            }
+                                        } else {
+                                            return Optional.of(dt.getChildren().get(0).nullable());
+                                        }
+                                    }))
                     .build();
 
     public static final BuiltInFunctionDefinition MAP =
@@ -1730,7 +1830,7 @@ public final class BuiltInFunctionDefinitions {
                     .name("JSON_ARRAYAGG_ABSENT_ON_NULL")
                     .kind(AGGREGATE)
                     .inputTypeStrategy(sequence(JSON_ARGUMENT))
-                    .outputTypeStrategy(explicit(DataTypes.STRING().notNull()))
+                    .outputTypeStrategy(explicit(STRING().notNull()))
                     .runtimeDeferred()
                     .build();
 
@@ -1742,7 +1842,9 @@ public final class BuiltInFunctionDefinitions {
             BuiltInFunctionDefinition.newBuilder()
                     .name("in")
                     .kind(SCALAR)
-                    .outputTypeStrategy(TypeStrategies.MISSING)
+                    .inputTypeStrategy(
+                            comparable(ConstantArgumentCount.from(1), StructuredComparison.EQUALS))
+                    .outputTypeStrategy(explicit(BOOLEAN().notNull()))
                     .build();
 
     public static final BuiltInFunctionDefinition CAST =
