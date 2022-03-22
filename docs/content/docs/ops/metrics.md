@@ -1691,12 +1691,12 @@ configured interval (`metrics.system-resource-probing-interval`).
 System resources reporting requires an optional dependency to be present on the
 classpath (for example placed in Flink's `lib` directory):
 
-  - `com.github.oshi:oshi-core:3.4.0` (licensed under EPL 1.0 license)
+  - `com.github.oshi:oshi-core:6.1.5` (licensed under MIT license)
 
 Including it's transitive dependencies:
 
-  - `net.java.dev.jna:jna-platform:jar:4.2.2`
-  - `net.java.dev.jna:jna:jar:4.2.2`
+  - `net.java.dev.jna:jna-platform:jar:5.10.0`
+  - `net.java.dev.jna:jna:jar:5.10.0`
 
 Failures in this regard will be reported as warning messages like `NoClassDefFoundError`
 logged by `SystemResourcesMetricsInitializer` during the startup.
@@ -1714,38 +1714,42 @@ logged by `SystemResourcesMetricsInitializer` during the startup.
   </thead>
   <tbody>
     <tr>
-      <th rowspan="12"><strong>Job-/TaskManager</strong></th>
-      <td rowspan="12">System.CPU</td>
+      <th rowspan="13"><strong>Job-/TaskManager</strong></th>
+      <td rowspan="13">System.CPU</td>
       <td>Usage</td>
       <td>Overall % of CPU usage on the machine.</td>
     </tr>
     <tr>
       <td>Idle</td>
-      <td>% of CPU Idle usage on the machine.</td>
+      <td>% of CPU Idle time on the machine.</td>
     </tr>
     <tr>
       <td>Sys</td>
-      <td>% of System CPU usage on the machine.</td>
+      <td>% of System CPU time on the machine.</td>
     </tr>
     <tr>
       <td>User</td>
-      <td>% of User CPU usage on the machine.</td>
+      <td>% of User CPU time on the machine.</td>
     </tr>
     <tr>
       <td>IOWait</td>
-      <td>% of IOWait CPU usage on the machine.</td>
+      <td>% of IOWait CPU time on the machine.</td>
     </tr>
     <tr>
       <td>Irq</td>
-      <td>% of Irq CPU usage on the machine.</td>
+      <td>% of Irq CPU time on the machine.</td>
     </tr>
     <tr>
       <td>SoftIrq</td>
-      <td>% of SoftIrq CPU usage on the machine.</td>
+      <td>% of SoftIrq CPU time on the machine.</td>
     </tr>
     <tr>
       <td>Nice</td>
-      <td>% of Nice Idle usage on the machine.</td>
+      <td>% of Nice CPU time on the machine.</td>
+    </tr>
+    <tr>
+      <td>Steal</td>
+      <td>% of Steal CPU time on the machine.</td>
     </tr>
     <tr>
       <td>Load1min</td>

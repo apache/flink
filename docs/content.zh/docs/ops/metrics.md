@@ -1707,12 +1707,12 @@ configured interval (`metrics.system-resource-probing-interval`).
 System resources reporting requires an optional dependency to be present on the
 classpath (for example placed in Flink's `lib` directory):
 
-  - `com.github.oshi:oshi-core:3.4.0` (licensed under EPL 1.0 license)
+  - `com.github.oshi:oshi-core:6.1.5` (licensed under MIT license)
 
 Including it's transitive dependencies:
 
-  - `net.java.dev.jna:jna-platform:jar:4.2.2`
-  - `net.java.dev.jna:jna:jar:4.2.2`
+  - `net.java.dev.jna:jna-platform:jar:5.10.0`
+  - `net.java.dev.jna:jna:jar:5.10.0`
 
 Failures in this regard will be reported as warning messages like `NoClassDefFoundError`
 logged by `SystemResourcesMetricsInitializer` during the startup.
