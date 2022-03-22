@@ -791,7 +791,7 @@ class DataStreamTests(object):
 
         self.env.execute('test_time_window')
         results = self.test_sink.get_results()
-        expected = ['(hi,1)', '(hi,1)', '(hi,2)', '(hi,3)']
+        expected = ['(hi,1)', '(hi,3)', '(hi,3)']
         self.assert_equals_sorted(expected, results)
 
     def test_session_window_late_merge(self):
