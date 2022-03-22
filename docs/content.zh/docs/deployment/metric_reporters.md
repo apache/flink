@@ -29,7 +29,7 @@ under the License.
 # 指标发送器
 
 Flink 支持用户将 Flink 的各项运行时指标发送给外部系统。
-了解更多指标方面信息可查看 [metric system documentation]({{< ref "zh/docs/ops/metrics" >}})。
+了解更多指标方面信息可查看 [metric system documentation]({{< ref "docs/ops/metrics" >}})。
 
 <a name="reporter"></a>
 
@@ -38,14 +38,14 @@ Flink 支持用户将 Flink 的各项运行时指标发送给外部系统。
 你可以通过 `conf/flink-conf.yaml` 文件来配置一种或多种发送器，将运行时指标暴露给外部系统。
 发送器会在 TaskManager、Flink 作业启动时进行实例化。
 
-- `metrics.reporter.<name>.<config>`: 命名为`<name>`采集器的`<config>`项。
-- `metrics.reporter.<name>.class`: 命名为`<name>`采集器的类名称。
-- `metrics.reporter.<name>.factory.class`: 命名为`<name>`采集器的工厂类名称。
-- `metrics.reporter.<name>.interval`: 命名为`<name>`采集器的发送间隔。
-- `metrics.reporter.<name>.scope.delimiter`: 命名为`<name>`采集器的标识符中的间隔符（默认与`metrics.scope.delimiter`相同）。
-- `metrics.reporter.<name>.scope.variables.excludes`:（可选）tag-based 类的采集器（例如 Prometheus、InfluxDB）应该忽略的变量列表，以分号（;）分隔。
-- `metrics.reporters`:（可选）启用的采集器名称列表，以逗号分隔。默认所有配置了的采集器都会被启用。
-- `metrics.reporter.<name>.scope.variables.additional`:（可选）map 形式的变量列表，列表中使用逗号分隔，map 中变量名与变量值以”:“分隔。 tag-based 类的采集器（例如 Prometheus、InfluxDB）可以使用此选项。
+- `metrics.reporter.<name>.<config>`: 命名为 `<name>` 发送器的 `<config>` 项。
+- `metrics.reporter.<name>.class`: 命名为 `<name>` 发送器的类名称。
+- `metrics.reporter.<name>.factory.class`: 命名为 `<name>` 发送器的工厂类名称。
+- `metrics.reporter.<name>.interval`: 命名为 `<name>` 发送器的发送间隔。
+- `metrics.reporter.<name>.scope.delimiter`: 命名为 `<name>` 发送器的标识符中的间隔符（默认与`metrics.scope.delimiter`相同）。
+- `metrics.reporter.<name>.scope.variables.excludes`:（可选的）tag-based 类的发送器（例如 Prometheus、InfluxDB）应该忽略的变量列表，以分号（;）分隔。
+- `metrics.reporters`:（可选的）启用的发送器名称列表，以逗号分隔。默认所有配置了的发送器都会被启用。
+- `metrics.reporter.<name>.scope.variables.additional`:（可选的）map 形式的变量列表，列表中使用逗号分隔，map 中变量名与变量值以”:“分隔。tag-based 类的发送器（例如 Prometheus、InfluxDB）可以使用此选项。
 
 每种发送器都需要至少设置 `class` 或 `factory.class` 属性中的一个，要配置哪个取决于发送器，具体情况参照下文中各发送器的配置示例。
 有些基于定时调度的发送器还可以通过 `interval` 来配置发送间隔，下文会列出各类发送器的详细配置示例。
@@ -70,7 +70,7 @@ metrics.reporter.my_other_reporter.port: 10000
 你可以实现 `org.apache.flink.metrics.reporter.MetricReporter` 接口来自定义发送器，并实现 `Scheduled` 接口让发送器周期性地将运行时指标发送出去。
 另外也可以实现 `MetricReporterFactory` 接口，让发送器作为插件被 Flink 导入。
 
-接下来的部分列出了 Flink 支持的采集器。
+接下来的部分列出了 Flink 支持的发送器。
 
 <a name="jmx"></a>
 
@@ -85,7 +85,7 @@ JMX 发送器默认可直接使用，无需引入其他依赖。
 参数：
 >>>>>>> a7bad35a1f8 ([FLINK-25705][docs]Translate "Metric Reporters" page of "Deployment" in to Chinese)
 
-- `port` - (非必须) JMX 监听的端口。
+- `port` -（可选的） JMX 监听的端口。
   如果需要在一台机器上运行多个发送器示例进行监控时（比如 TaskManger 与 JobManager 在一台机器上运行时），建议将端口号配置为 `9250-9260` 这样的区间，
   实际使用的端口会在相关作业 或 TaskManger 的日志中显示。如果设置了这个选项， Flink 会按照配置的端口号或端口区间开启 JMX 发送器，
   这些运行时指标可以通过本地的 JMX 默认接口访问到。
@@ -117,7 +117,7 @@ metrics.reporter.jmx.port: 8789
 
 - `host` - Graphite 服务的地址
 - `port` - Graphite 服务的端口
-- `protocol` - 使用的协议 (TCP/UDP)
+- `protocol` - 使用的协议（TCP/UDP）
 
 配置示例：
 
@@ -160,7 +160,7 @@ metrics.reporter.influxdb.writeTimeout: 60000
 metrics.reporter.influxdb.interval: 60 SECONDS
 ```
 
-InfluxDB 采集器会使用 http 协议按照将指标发送到 InfluxDB 服务器。指标的保留策略可通过配置指定，或按照 InfluxDB 服务端的保留策略决定。
+InfluxDB 发送器会使用 http 协议按照将指标发送到 InfluxDB 服务器。指标的保留策略可通过配置指定，或按照 InfluxDB 服务端的保留策略决定。
 所有的 Flink 运行指标变量（见 [List of all Variables]({{< ref "zh/docs/ops/metrics" >}}#list-of-all-variables)）都会按照 tag 形式上报给 InfluxDB。
 
 <a name="prometheus"></a>
@@ -170,8 +170,8 @@ InfluxDB 采集器会使用 http 协议按照将指标发送到 InfluxDB 服务�
 
 参数：
 
-- `port` - （可选）Prometheus 采集器监听的端口，默认为[9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations)。如果需要在一台机器上运行多个发送器示例进行监控时（比如 TaskManger 与 JobManager 在一台机器上运行时），建议将端口号配置为 `9250-9260` 这样的区间，
-- `filterLabelValueCharacters`（可选）指定是否过滤 label 中的非法字符。如果设置过滤，所有没有匹配 \[a-zA-Z0-9：_\] 的字符都会被过滤掉，如果设置不过滤，则不会有字符被过滤掉。设置不过滤前，请确保你的 label 符合[Prometheus 的命名规范](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels)
+- `port` - （可选的）Prometheus 发送器监听的端口，默认为[9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations)。如果需要在一台机器上运行多个发送器示例进行监控时（比如 TaskManger 与 JobManager 在一台机器上运行时），建议将端口号配置为 `9250-9260` 这样的区间，
+- `filterLabelValueCharacters`（可选的）指定是否过滤 label 中的非法字符。如果设置过滤，所有没有匹配 \[a-zA-Z0-9：_\] 的字符都会被过滤掉，如果设置不过滤，则不会有字符被过滤掉。设置不过滤前，请确保你的 label 符合[Prometheus 的命名规范](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels)
 
 配置示例：
 
@@ -211,7 +211,7 @@ metrics.reporter.promgateway.groupingKey: k1=v1;k2=v2
 metrics.reporter.promgateway.interval: 60 SECONDS
 ```
 
-PrometheusPushGatewayReporter 采集器将运行指标发送给 [Pushgateway](https://github.com/prometheus/pushgateway)，Prometheus 再从 Pushgateway 拉取、解析运行指标。
+PrometheusPushGatewayReporter 发送器将运行指标发送给 [Pushgateway](https://github.com/prometheus/pushgateway)，Prometheus 再从 Pushgateway 拉取、解析运行指标。
 
 更多使用方法可查看 [Prometheus 的文档](https://prometheus.io/docs/practices/pushing/)
 
@@ -241,18 +241,18 @@ metrics.reporter.stsd.interval: 60 SECONDS
 
 注意，使用 Datadog 时候，Flink 运行指标中的任何变量，例如`<host>`、`<job_name>`、 `<tm_id>`、 `<subtask_index>`、`<task_name>`、 `<operator_name>`，都会被当作`host:localhost`、`job_name:myjobname` 这样的 tag 发送。
 
-<span class="label label-info">注意</span> 按照 Datedog 的 Histograms 命名约定，Histograms 类的运行指标会作为一系列 gauges 显示(`<metric_name>.<aggregation>`)。
+<span class="label label-info">注意</span> 按照 Datedog 的 Histograms 命名约定，Histograms 类的运行指标会作为一系列 gauges 显示（`<metric_name>.<aggregation>`）。
 默认情况下 `min` 即最小值被发送到 Datedog，`sum` 不会被发送。
-与 Datadog 提供的 Histograms 相比，Histograms 类的运行指标不会按照指定的发送间隔进行聚合计算的。
+与 Datadog 提供的 Histograms 相比，Histograms 类的运行指标不会按照指定的发送间隔进行聚合计算  。
 
 参数:
 
 - `apikey` - Datadog 的 API KEY。
-- `tags` - (可选) 发送到 Datadog 时将会转换为指标的全局 tag。tag 间只能以逗号分隔。
-- `proxyHost` - (可选) 发送到 Datadog 时使用的代理主机。
-- `proxyPort` - (可选) 发送到 Datadog 时使用的代理端口，默认为 8080。
-- `dataCenter` - (可选) 要连接的数据中心 (`EU`/`US`)，默认为 `US`。
-- `maxMetricsPerRequest` - (可选) 每次请求携带的最大运行指标个数，默认为 2000。
+- `tags` - （可选的） 发送到 Datadog 时将会转换为指标的全局 tag。tag 间只能以逗号分隔。
+- `proxyHost` - （可选的） 发送到 Datadog 时使用的代理主机。
+- `proxyPort` - （可选的） 发送到 Datadog 时使用的代理端口，默认为 8080。
+- `dataCenter` - （可选的） 要连接的数据中心 （`EU`/`US`），默认为 `US`。
+- `maxMetricsPerRequest` - （可选的） 每次请求携带的最大运行指标个数，默认为 2000。
 
 配置示例:
 
