@@ -134,7 +134,6 @@ private static IndexRequest createIndexRequest(String element) {
 
     return Requests.indexRequest()
         .index("my-index")
-        .type("my-type")
         .id(element)
         .source(json);
 }
@@ -195,7 +194,7 @@ def createIndexRequest(element: (String)): IndexRequest = {
     "data" -> element.asInstanceOf[AnyRef]
   )
 
-  Requests.indexRequest.index("my-index").`type`("my-type").source(mapAsJavaMap(json))
+  Requests.indexRequest.index("my-index").source(mapAsJavaMap(json))
 }
 ```
 {{< /tab >}}
@@ -246,6 +245,11 @@ env.enableCheckpointing(5000) // checkpoint every 5000 msecs
 This causes the sink to buffer requests until it either finishes or the BulkProcessor flushes automatically. 
 By default, the BulkProcessor will flush after 1000 added Actions. To configure the processor to flush more frequently, please refer to the <a href="#configuring-the-internal-bulk-processor">BulkProcessor configuration section</a>.
 </p>
+
+<p style="border-radius: 5px; padding: 5px" class="bg-info">
+Using UpdateRequests with deterministic ids and the upsert method it is possible to achieve exactly-once semantics in Elasticsearch when AT_LEAST_ONCE delivery is configured for the connector.
+</p>
+
 
 ### Handling Failing Elasticsearch Requests
 
