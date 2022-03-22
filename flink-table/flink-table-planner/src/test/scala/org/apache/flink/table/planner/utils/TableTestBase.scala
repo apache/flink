@@ -104,15 +104,15 @@ abstract class TableTestBase {
   @Rule
   def name: TestName = testName
 
-  def streamTestUtil(conf: TableConfig = TableConfig.getDefault): StreamTableTestUtil =
-    StreamTableTestUtil(this, conf = conf)
+  def streamTestUtil(tableConfig: TableConfig = TableConfig.getDefault): StreamTableTestUtil =
+    StreamTableTestUtil(this, tableConfig = tableConfig)
 
   def scalaStreamTestUtil(): ScalaStreamTableTestUtil = ScalaStreamTableTestUtil(this)
 
   def javaStreamTestUtil(): JavaStreamTableTestUtil = JavaStreamTableTestUtil(this)
 
-  def batchTestUtil(conf: TableConfig = TableConfig.getDefault): BatchTableTestUtil =
-    BatchTableTestUtil(this, conf = conf)
+  def batchTestUtil(tableConfig: TableConfig = TableConfig.getDefault): BatchTableTestUtil =
+    BatchTableTestUtil(this, tableConfig = tableConfig)
 
   def scalaBatchTestUtil(): ScalaBatchTableTestUtil = ScalaBatchTableTestUtil(this)
 
@@ -1221,8 +1221,8 @@ abstract class JavaTableTestUtil(
 case class StreamTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None,
-    conf: TableConfig = TableConfig.getDefault)
-  extends TableTestUtil(test, isStreamingMode = true, catalogManager, conf) {
+    override val tableConfig: TableConfig = TableConfig.getDefault)
+  extends TableTestUtil(test, isStreamingMode = true, catalogManager, tableConfig) {
 
   /**
    * Register a table with specific row time field and offset.
@@ -1340,8 +1340,8 @@ case class JavaStreamTableTestUtil(test: TableTestBase) extends JavaTableTestUti
 case class BatchTableTestUtil(
     test: TableTestBase,
     catalogManager: Option[CatalogManager] = None,
-    conf: TableConfig = TableConfig.getDefault)
-  extends TableTestUtil(test, isStreamingMode = false, catalogManager, conf) {
+    override val tableConfig: TableConfig = TableConfig.getDefault)
+  extends TableTestUtil(test, isStreamingMode = false, catalogManager, tableConfig) {
 
   def buildBatchProgram(firstProgramNameToRemove: String): Unit = {
     val program = FlinkBatchProgram.buildProgram(tableEnv.getConfig)

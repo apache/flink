@@ -105,7 +105,6 @@ class BatchPhysicalWindowAggregateRule
       FlinkTypeFactory.toLogicalRowType(input.getRowType), aggCallsWithoutAuxGroupCalls)
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggregates)
     val internalAggBufferTypes = aggBufferTypes.map(_.map(fromDataTypeToLogicalType))
-    val tableConfig = ShortcutUtils.unwrapTableConfig(call)
 
     window match {
       case TumblingGroupWindow(_, _, size) if hasTimeIntervalType(size) =>
@@ -120,7 +119,7 @@ class BatchPhysicalWindowAggregateRule
           internalAggBufferTypes,
           useHashWindowAgg(agg),
           enableAssignPane = false,
-          supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, sizeInLong))
+          supportLocalWindowAgg(aggregates, sizeInLong, sizeInLong))
 
       case SlidingGroupWindow(_, _, size, slide) if hasTimeIntervalType(size) =>
         val (sizeInLong, slideInLong) = (
@@ -136,7 +135,7 @@ class BatchPhysicalWindowAggregateRule
           internalAggBufferTypes,
           useHashWindowAgg(agg),
           useAssignPane(aggregates, sizeInLong, slideInLong),
-          supportLocalWindowAgg(call, tableConfig, aggregates, sizeInLong, slideInLong))
+          supportLocalWindowAgg(aggregates, sizeInLong, slideInLong))
 
       case _ => // sliding & tumbling count window and session window not supported
         throw new TableException(s"Window $window is not supported right now.")
@@ -358,8 +357,6 @@ class BatchPhysicalWindowAggregateRule
    * to use a local aggregate or not.
    */
   private def supportLocalWindowAgg(
-      call: RelOptRuleCall,
-      tableConfig: TableConfig,
       aggregateList: Array[UserDefinedFunction],
       windowSize: Long,
       slideSize: Long): Boolean = {

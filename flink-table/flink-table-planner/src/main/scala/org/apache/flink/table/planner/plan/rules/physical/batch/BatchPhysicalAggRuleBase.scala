@@ -17,7 +17,8 @@
  */
 package org.apache.flink.table.planner.plan.rules.physical.batch
 
-import org.apache.flink.table.api.{TableConfig, TableException}
+import org.apache.flink.configuration.ReadableConfig
+import org.apache.flink.table.api.TableException
 import org.apache.flink.table.data.binary.BinaryRowData
 import org.apache.flink.table.functions.{AggregateFunction, UserDefinedFunction}
 import org.apache.flink.table.planner.JArrayList
@@ -106,7 +107,7 @@ trait BatchPhysicalAggRuleBase {
 
   protected def isTwoPhaseAggWorkable(
       aggFunctions: Array[UserDefinedFunction],
-      tableConfig: TableConfig): Boolean = {
+      tableConfig: ReadableConfig): Boolean = {
     getAggPhaseStrategy(tableConfig) match {
       case AggregatePhaseStrategy.ONE_PHASE => false
       case _ => doAllSupportMerge(aggFunctions)
@@ -116,7 +117,7 @@ trait BatchPhysicalAggRuleBase {
   protected def isOnePhaseAggWorkable(
       agg: Aggregate,
       aggFunctions: Array[UserDefinedFunction],
-      tableConfig: TableConfig): Boolean = {
+      tableConfig: ReadableConfig): Boolean = {
     getAggPhaseStrategy(tableConfig) match {
       case AggregatePhaseStrategy.ONE_PHASE => true
       case AggregatePhaseStrategy.TWO_PHASE => !doAllSupportMerge(aggFunctions)
@@ -142,11 +143,11 @@ trait BatchPhysicalAggRuleBase {
     aggFunctions.isEmpty || supportLocalAgg
   }
 
-  protected def isEnforceOnePhaseAgg(tableConfig: TableConfig): Boolean = {
+  protected def isEnforceOnePhaseAgg(tableConfig: ReadableConfig): Boolean = {
     getAggPhaseStrategy(tableConfig) == AggregatePhaseStrategy.ONE_PHASE
   }
 
-  protected def isEnforceTwoPhaseAgg(tableConfig: TableConfig): Boolean = {
+  protected def isEnforceTwoPhaseAgg(tableConfig: ReadableConfig): Boolean = {
     getAggPhaseStrategy(tableConfig) == AggregatePhaseStrategy.TWO_PHASE
   }
 

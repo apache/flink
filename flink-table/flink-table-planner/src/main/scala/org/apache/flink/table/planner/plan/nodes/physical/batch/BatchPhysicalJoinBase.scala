@@ -17,7 +17,7 @@
  */
 package org.apache.flink.table.planner.plan.nodes.physical.batch
 
-import org.apache.flink.table.api.TableConfig
+import org.apache.flink.configuration.ReadableConfig
 import org.apache.flink.table.planner.codegen.{CodeGeneratorContext, ExprCodeGenerator, FunctionCodeGenerator}
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.nodes.physical.common.CommonPhysicalJoin
@@ -48,7 +48,7 @@ abstract class BatchPhysicalJoinBase(
   with BatchPhysicalRel {
 
   private[flink] def generateCondition(
-      tableConfig: TableConfig,
+      tableConfig: ReadableConfig,
       leftType: RowType,
       rightType: RowType): GeneratedJoinCondition = {
     val ctx = CodeGeneratorContext(tableConfig)
