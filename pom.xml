@@ -516,7 +516,7 @@ under the License.
 			<dependency>
 				<groupId>com.github.oshi</groupId>
 				<artifactId>oshi-core</artifactId>
-				<version>3.4.0</version>
+				<version>6.1.5</version>
 			</dependency>
 
 			<!-- We no longer align the avro version with the version bundled in Hadoop.
