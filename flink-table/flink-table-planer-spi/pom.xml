@@ -39,11 +39,6 @@
 	<packaging>jar</packaging>
 
 	<dependencies>
-		<!-- Mainly used for calcite-core, relocated in org.apache.flink.calcite.shaded by the shade plugin -->
-		<dependency>
-			<groupId>com.google.guava</groupId>
-			<artifactId>guava</artifactId>
-		</dependency>
 
 		<dependency>
 			<!-- Used for translation of table programs -->
@@ -120,6 +115,10 @@
 				<exclusion>
 					<groupId>org.apiguardian</groupId>
 					<artifactId>apiguardian-api</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>com.google.guava</groupId>
+					<artifactId>guava</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
