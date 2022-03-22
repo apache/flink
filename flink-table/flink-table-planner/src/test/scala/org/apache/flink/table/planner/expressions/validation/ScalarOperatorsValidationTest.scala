@@ -43,9 +43,9 @@ class ScalarOperatorsValidationTest extends ScalarOperatorsTestBase {
   // Sub-query functions
   // ----------------------------------------------------------------------------------------------
 
-  @Test(expected = classOf[ValidationException])
+  @Test
   def testInMoreThanOneTypes(): Unit = {
-    testTableApi('f2.in('f3, 'f4, 4), "FAIL")
+    testTableApi('f2.in('f3, 'f4, 4), "TRUE")
   }
 
   @Test(expected = classOf[ValidationException])

@@ -90,6 +90,9 @@ public final class SpecificInputTypeStrategies {
     public static final InputTypeStrategy TEMPORAL_OVERLAPS =
             new TemporalOverlapsInputTypeStrategy();
 
+    /** See {@link AtInputTypeStrategy}. */
+    public static final InputTypeStrategy AT = new AtInputTypeStrategy();
+
     // --------------------------------------------------------------------------------------------
     // Strategies composed of other strategies
     // --------------------------------------------------------------------------------------------
