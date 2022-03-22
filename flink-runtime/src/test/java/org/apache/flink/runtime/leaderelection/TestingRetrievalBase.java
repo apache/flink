@@ -110,7 +110,7 @@ public class TestingRetrievalBase {
      */
     @Nullable
     public Throwable getError() {
-        return this.error;
+        return error == null ? errorQueue.poll() : error;
     }
 
     private void throwExceptionIfNotNull() throws Exception {

@@ -84,7 +84,7 @@ public class TestingLeaderBase {
      */
     @Nullable
     public Throwable getError() {
-        return this.error;
+        return error == null ? errorQueue.poll() : error;
     }
 
     public boolean isLeader() {
