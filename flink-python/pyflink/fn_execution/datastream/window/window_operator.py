@@ -375,7 +375,7 @@ class WindowOperator(object):
 
                 if trigger_result.is_purge():
                     self.window_state.clear()
-                self.register_cleanup_timer(actual_window)
+                self.register_cleanup_timer(window)
 
             merging_windows.persist()
         else:
