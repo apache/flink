@@ -876,6 +876,24 @@ public class DispatcherTest extends AbstractDispatcherTest {
     }
 
     @Test
+    public void testShutDownClusterShouldPreventJobSubmission() throws Exception {
+        dispatcher =
+                createAndStartDispatcher(
+                        heartbeatServices,
+                        haServices,
+                        JobMasterServiceLeadershipRunnerFactory.INSTANCE);
+        final DispatcherGateway dispatcherGateway =
+                dispatcher.getSelfGateway(DispatcherGateway.class);
+        dispatcherGateway.shutDownCluster().get();
+
+        final CompletableFuture<Acknowledge> submitFuture =
+                dispatcherGateway.submitJob(jobGraph, TIMEOUT);
+        final ExecutionException executionException =
+                assertThrows(ExecutionException.class, submitFuture::get);
+        assertTrue(executionException.getCause() instanceof JobSubmissionException);
+    }
+
+    @Test
     public void testOnRemovedJobGraphDoesNotCleanUpHAFiles() throws Exception {
         final CompletableFuture<JobID> removeJobGraphFuture = new CompletableFuture<>();
         final CompletableFuture<JobID> releaseJobGraphFuture = new CompletableFuture<>();
