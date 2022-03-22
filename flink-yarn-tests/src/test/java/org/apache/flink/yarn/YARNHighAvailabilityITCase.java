@@ -75,7 +75,6 @@ import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -106,7 +105,6 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
     @ClassRule public static final TemporaryFolder FOLDER = new TemporaryFolder();
 
     private static final String LOG_DIR = "flink-yarn-tests-ha";
-    private static final Duration TIMEOUT = Duration.ofSeconds(200L);
 
     private static TestingServer zkServer;
     private static String storageDir;
@@ -326,7 +324,7 @@ public class YARNHighAvailabilityITCase extends YarnTestBase {
         log.info("Sending stop job signal");
         stopJobSignal.signal();
         final CompletableFuture<JobResult> jobResult = restClusterClient.requestJobResult(jobId);
-        jobResult.get(TIMEOUT.toMillis(), TimeUnit.MILLISECONDS);
+        jobResult.get(200, TimeUnit.SECONDS);
     }
 
     @Nonnull
