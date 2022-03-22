@@ -117,11 +117,6 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  * <p>There are various ways that transformation functions can use state without implementing the
  * full-fledged {@code CheckpointedFunction} interface:
  *
- * <h4>Operator State</h4>
- *
- * <p>Checkpointing some state that is part of the function object itself is possible in a simpler
- * way by directly implementing the {@link ListCheckpointed} interface.
- *
  * <h4>Keyed State</h4>
  *
  * <p>Access to keyed state is possible via the {@link RuntimeContext}'s methods:
@@ -144,7 +139,6 @@ import org.apache.flink.runtime.state.FunctionSnapshotContext;
  * }
  * }</pre>
  *
- * @see ListCheckpointed
  * @see RuntimeContext
  */
 @Public
