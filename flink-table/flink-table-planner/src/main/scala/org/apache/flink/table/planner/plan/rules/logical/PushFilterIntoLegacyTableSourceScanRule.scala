@@ -26,6 +26,7 @@ import org.apache.flink.table.planner.expressions.converter.ExpressionConverter
 import org.apache.flink.table.planner.plan.schema.{FlinkPreparingTableBase, LegacyTableSourceTable}
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil, RexNodeExtractor}
+import org.apache.flink.table.planner.utils.{ShortcutUtils, TableConfigUtils}
 import org.apache.flink.table.sources.FilterableTableSource
 
 import org.apache.calcite.plan.RelOptRule.{none, operand}
@@ -94,8 +95,8 @@ class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
         relBuilder.getRexBuilder,
         context.getFunctionCatalog,
         context.getCatalogManager,
-        TimeZone.getTimeZone(scan.getCluster.getPlanner.getContext
-            .unwrap(classOf[FlinkContext]).getTableConfig.getLocalTimeZone))
+        TimeZone.getTimeZone(
+          TableConfigUtils.getLocalTimeZone(ShortcutUtils.unwrapTableConfig(scan))))
 
     if (predicates.isEmpty) {
       // no condition can be translated to expression

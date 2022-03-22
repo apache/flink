@@ -22,7 +22,7 @@ import org.apache.flink.table.api._
 import org.apache.flink.table.expressions.TimeIntervalUnit
 import org.apache.flink.table.planner.codegen.CodeGenException
 import org.apache.flink.table.planner.expressions.utils.ExpressionTestBase
-import org.apache.flink.table.planner.utils.DateTimeTestUtil
+import org.apache.flink.table.planner.utils.{DateTimeTestUtil, TableConfigUtils}
 import org.apache.flink.table.planner.utils.DateTimeTestUtil._
 import org.apache.flink.table.types.DataType
 import org.apache.flink.types.Row
@@ -1735,9 +1735,9 @@ class TemporalTypesTest extends ExpressionTestBase {
     testData.setField(21, 44L)
     testData.setField(22, 3)
     testData.setField(23, localDateTime("1970-01-01 00:00:00.123456789")
-      .atZone(config.getLocalTimeZone).toInstant)
+      .atZone(TableConfigUtils.getLocalTimeZone(config)).toInstant)
     testData.setField(24, localDateTime("1970-01-01 00:00:00.123456789")
-      .atZone(config.getLocalTimeZone).toInstant)
+      .atZone(TableConfigUtils.getLocalTimeZone(config)).toInstant)
     testData.setField(25, localDateTime("1970-01-01 00:00:00.123456789").toInstant(ZoneOffset.UTC))
     testData setField(26, new Integer(124).byteValue())
     testData

@@ -53,6 +53,7 @@ import org.apache.flink.table.connector.ChangelogMode;
 import org.apache.flink.table.expressions.ResolvedExpression;
 import org.apache.flink.table.expressions.utils.ResolvedExpressionMock;
 import org.apache.flink.table.planner.factories.TestValuesTableFactory;
+import org.apache.flink.table.planner.utils.TableConfigUtils;
 import org.apache.flink.table.types.AtomicDataType;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.logical.LocalZonedTimestampType;
@@ -529,7 +530,7 @@ public class DataStreamJavaITCase extends AbstractTestBase {
         final TableConfig tableConfig = tableEnv.getConfig();
 
         // session time zone should not have an impact on the conversion
-        final ZoneId originalZone = tableConfig.getLocalTimeZone();
+        final ZoneId originalZone = TableConfigUtils.getLocalTimeZone(tableConfig);
         tableConfig.setLocalTimeZone(ZoneId.of("Europe/Berlin"));
 
         final LocalDateTime localDateTime1 = LocalDateTime.parse("1970-01-01T00:00:00.000");
