@@ -44,7 +44,7 @@ object FlinkBatchProgram {
   val PHYSICAL = "physical"
   val PHYSICAL_REWRITE = "physical_rewrite"
 
-  def buildProgram(config: ReadableConfig): FlinkChainedProgram[BatchOptimizeContext] = {
+  def buildProgram(tableConfig: ReadableConfig): FlinkChainedProgram[BatchOptimizeContext] = {
     val chainedProgram = new FlinkChainedProgram[BatchOptimizeContext]()
 
     chainedProgram.addLast(
@@ -151,7 +151,7 @@ object FlinkBatchProgram {
         .build())
 
     // join reorder
-    if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED)) {
+    if (tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED)) {
       chainedProgram.addLast(
         JOIN_REORDER,
         FlinkGroupProgramBuilder.newBuilder[BatchOptimizeContext]

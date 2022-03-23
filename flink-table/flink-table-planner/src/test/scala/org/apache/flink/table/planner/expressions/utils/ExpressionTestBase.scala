@@ -76,7 +76,7 @@ abstract class ExpressionTestBase {
   private val tEnv = StreamTableEnvironmentImpl.create(env, settings)
     .asInstanceOf[StreamTableEnvironmentImpl]
 
-  val config = tEnv.getConfig
+  val tableConfig = tEnv.getConfig
 
   private val resolvedDataType = if (containsLegacyTypes) {
     TypeConversions.fromLegacyInfoToDataType(typeInfo)
@@ -100,7 +100,7 @@ abstract class ExpressionTestBase {
 
   @Before
   def prepare(): Unit = {
-    config.set(
+    tableConfig.set(
       ExecutionConfigOptions.TABLE_EXEC_LEGACY_CAST_BEHAVIOUR,
       ExecutionConfigOptions.LegacyCastBehaviour.DISABLED
     )
@@ -357,7 +357,7 @@ abstract class ExpressionTestBase {
 
   private def getCodeGenFunction(rexNodes: List[RexNode]):
     GeneratedFunction[MapFunction[RowData, BinaryRowData]] = {
-    val ctx = CodeGeneratorContext(config)
+    val ctx = CodeGeneratorContext(tableConfig)
     val inputType = if (containsLegacyTypes) {
       fromTypeInfoToLogicalType(typeInfo)
     } else {

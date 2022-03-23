@@ -43,7 +43,7 @@ object FlinkStreamProgram {
   val PHYSICAL = "physical"
   val PHYSICAL_REWRITE = "physical_rewrite"
 
-  def buildProgram(config: ReadableConfig): FlinkChainedProgram[StreamOptimizeContext] = {
+  def buildProgram(tableConfig: ReadableConfig): FlinkChainedProgram[StreamOptimizeContext] = {
     val chainedProgram = new FlinkChainedProgram[StreamOptimizeContext]()
 
     // rewrite sub-queries to joins
@@ -161,7 +161,7 @@ object FlinkStreamProgram {
         .build())
 
     // join reorder
-    if (config.get(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED)) {
+    if (tableConfig.get(OptimizerConfigOptions.TABLE_OPTIMIZER_JOIN_REORDER_ENABLED)) {
       chainedProgram.addLast(
         JOIN_REORDER,
         FlinkGroupProgramBuilder.newBuilder[StreamOptimizeContext]

@@ -154,10 +154,10 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       miniBatchInterval: MiniBatchInterval,
       isSinkBlock: Boolean): RelNode = {
 
-    val config = planner.getTableConfig
-    val calciteConfig = TableConfigUtils.getCalciteConfig(config)
+    val tableConfig = planner.getTableConfig
+    val calciteConfig = TableConfigUtils.getCalciteConfig(tableConfig)
     val programs = calciteConfig.getStreamProgram
-      .getOrElse(FlinkStreamProgram.buildProgram(config))
+      .getOrElse(FlinkStreamProgram.buildProgram(tableConfig))
     Preconditions.checkNotNull(programs)
 
     val context = unwrapContext(relNode)
@@ -166,7 +166,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
 
       override def isBatchMode: Boolean = false
 
-      override def getTableConfig: TableConfig = config
+      override def getTableConfig: TableConfig = tableConfig
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 
