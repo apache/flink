@@ -116,6 +116,7 @@ public class StreamGraph implements Pipeline {
     private Map<Integer, StreamNode> streamNodes;
     private Set<Integer> sources;
     private Set<Integer> sinks;
+    private Set<Integer> expandedSinks;
     private Map<Integer, Tuple2<Integer, OutputTag>> virtualSideOutputNodes;
     private Map<Integer, Tuple3<Integer, StreamPartitioner<?>, StreamExchangeMode>>
             virtualPartitionNodes;
@@ -156,6 +157,7 @@ public class StreamGraph implements Pipeline {
         iterationSourceSinkPairs = new HashSet<>();
         sources = new HashSet<>();
         sinks = new HashSet<>();
+        expandedSinks = new HashSet<>();
         slotSharingGroupResources = new HashMap<>();
     }
 
@@ -365,6 +367,16 @@ public class StreamGraph implements Pipeline {
                     vertexID, ((OutputFormatOperatorFactory) operatorFactory).getOutputFormat());
         }
         sinks.add(vertexID);
+    }
+
+    /**
+     * Register expanded sink nodes. These nodes should also be treated as sinks. But we do not add
+     * them into {@link #sinks} to avoid messing up the json plan.
+     *
+     * @param nodeIds sink nodes to register
+     */
+    public void registerExpandedSinks(Collection<Integer> nodeIds) {
+        expandedSinks.addAll(nodeIds);
     }
 
     public <IN, OUT> void addOperator(
@@ -874,6 +886,10 @@ public class StreamGraph implements Pipeline {
 
     public Collection<Integer> getSinkIDs() {
         return sinks;
+    }
+
+    public Collection<Integer> getExpandedSinkIds() {
+        return expandedSinks;
     }
 
     public Collection<StreamNode> getStreamNodes() {
