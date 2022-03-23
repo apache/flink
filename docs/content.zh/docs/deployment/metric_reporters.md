@@ -106,7 +106,7 @@ metrics.reporter.jmx.port: 8789
 
 例如`host=localhost,job_name=MyJob,task_name=MyTask` 就是一个“key-property”列表。
 
-总结来说，”域“标注出了某个指标的类，“key-property”列表标注出了该指标的一个（或者多个）实例。
+总结来说，”域“标注出了某个指标的类，“key-property” 列表标注出了该指标的一个（或者多个）实例。
 
 <a name="graphite"></a>
 
