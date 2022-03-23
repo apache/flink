@@ -1552,7 +1552,7 @@ public class StreamingJobGraphGeneratorTest extends TestLogger {
         return StreamingJobGraphGenerator.createJobGraph(env.getStreamGraph());
     }
 
-    private static final class UnusedOperatorFactory extends AbstractStreamOperatorFactory<Long> {
+    static final class UnusedOperatorFactory extends AbstractStreamOperatorFactory<Long> {
 
         @Override
         public <T extends StreamOperator<Long>> T createStreamOperator(

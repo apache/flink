@@ -147,6 +147,12 @@ public class JobVertex implements java.io.Serializable {
      */
     private final List<IntermediateDataSetID> intermediateDataSetIdsToConsume = new ArrayList<>();
 
+    /** Indicates whether this job vertex contains source operators. */
+    private boolean containsSourceOperators = false;
+
+    /** Indicates whether this job vertex contains sink operators. */
+    private boolean containsSinkOperators = false;
+
     // --------------------------------------------------------------------------------------------
 
     /**
@@ -523,6 +529,22 @@ public class JobVertex implements java.io.Serializable {
         }
 
         return true;
+    }
+
+    public void markContainsSources() {
+        this.containsSourceOperators = true;
+    }
+
+    public boolean containsSources() {
+        return containsSourceOperators;
+    }
+
+    public void markContainsSinks() {
+        this.containsSinkOperators = true;
+    }
+
+    public boolean containsSinks() {
+        return containsSinkOperators;
     }
 
     // --------------------------------------------------------------------------------------------

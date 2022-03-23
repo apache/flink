@@ -186,6 +186,8 @@ public class StreamingJobGraphGenerator {
 
         setPhysicalEdges();
 
+        markContainsSourcesOrSinks();
+
         setSlotSharingAndCoLocation();
 
         setManagedMemoryFraction(
@@ -1176,6 +1178,27 @@ public class StreamingJobGraphGenerator {
                     streamGraph.getSourceVertex(upStreamVertex.getInEdges().get(0)), streamGraph);
         }
         return upStreamVertex.getOperatorFactory();
+    }
+
+    private void markContainsSourcesOrSinks() {
+        for (Map.Entry<Integer, JobVertex> entry : jobVertices.entrySet()) {
+            final JobVertex jobVertex = entry.getValue();
+            final Set<Integer> vertexOperators = new HashSet<>();
+            vertexOperators.add(entry.getKey());
+            if (chainedConfigs.containsKey(entry.getKey())) {
+                vertexOperators.addAll(chainedConfigs.get(entry.getKey()).keySet());
+            }
+
+            for (int nodeId : vertexOperators) {
+                if (streamGraph.getSourceIDs().contains(nodeId)) {
+                    jobVertex.markContainsSources();
+                }
+                if (streamGraph.getSinkIDs().contains(nodeId)
+                        || streamGraph.getExpandedSinkIds().contains(nodeId)) {
+                    jobVertex.markContainsSinks();
+                }
+            }
+        }
     }
 
     private void setSlotSharingAndCoLocation() {
