@@ -465,7 +465,7 @@ public class ConfigOptionsDocGenerator {
         return ""
                 + "        <tr>\n"
                 + "            <td><h5>"
-                + escapeCharacters(option.key())
+                + escapeCharacters(getDocumentedKey(optionWithMetaInfo))
                 + "</h5>"
                 + execModeStringBuilder.toString()
                 + "</td>\n"
@@ -479,6 +479,24 @@ public class ConfigOptionsDocGenerator {
                 + getDescription(optionWithMetaInfo)
                 + "</td>\n"
                 + "        </tr>\n";
+    }
+
+    @VisibleForTesting
+    static String getDocumentedKey(OptionWithMetaInfo optionWithMetaInfo) {
+        Documentation.SuffixOption suffixOptionAnnotation =
+                optionWithMetaInfo.field.getAnnotation(Documentation.SuffixOption.class);
+        if (suffixOptionAnnotation == null) {
+            suffixOptionAnnotation =
+                    optionWithMetaInfo
+                            .field
+                            .getDeclaringClass()
+                            .getAnnotation(Documentation.SuffixOption.class);
+        }
+
+        final String originalKey = optionWithMetaInfo.option.key();
+        return suffixOptionAnnotation == null
+                ? originalKey
+                : suffixOptionAnnotation.value() + "." + originalKey;
     }
 
     @VisibleForTesting
@@ -637,7 +655,7 @@ public class ConfigOptionsDocGenerator {
     }
 
     private static void sortOptions(List<OptionWithMetaInfo> configOptions) {
-        configOptions.sort(Comparator.comparing(option -> option.option.key()));
+        configOptions.sort(Comparator.comparing(option -> getDocumentedKey(option)));
     }
 
     /**

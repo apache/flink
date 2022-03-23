@@ -145,7 +145,9 @@ public final class Documentation {
     @Target({ElementType.FIELD, ElementType.TYPE})
     @Retention(RetentionPolicy.RUNTIME)
     @Internal
-    public @interface SuffixOption {}
+    public @interface SuffixOption {
+        String value();
+    }
 
     /**
      * Annotation used on config option fields or REST API message headers to exclude it from
