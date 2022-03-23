@@ -84,7 +84,7 @@ class CachedSchemaCoderProviderTest {
                 getBasicAuthFromProvider(provider);
 
         assertThat(basicAuthCredentialProvider).isNotNull();
-        assertThat(userPassword).isEqualTo(basicAuthCredentialProvider.getUserInfo(null));
+        assertThat(basicAuthCredentialProvider.getUserInfo(null)).isEqualTo(userPassword);
     }
 
     @Test
@@ -108,7 +108,7 @@ class CachedSchemaCoderProviderTest {
                 getBearerAuthFromProvider(provider);
 
         assertThat(bearerAuthCredentialProvider).isNotNull();
-        assertThat(token).isEqualTo(bearerAuthCredentialProvider.getBearerToken(null));
+        assertThat(bearerAuthCredentialProvider.getBearerToken(null)).isEqualTo(token);
     }
 
     private String getAbsolutePath(String path) throws URISyntaxException {

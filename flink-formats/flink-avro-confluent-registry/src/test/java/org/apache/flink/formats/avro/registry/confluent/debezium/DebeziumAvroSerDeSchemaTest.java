@@ -226,7 +226,7 @@ class DebeziumAvroSerDeSchemaTest {
         }
     }
 
-    private class MockInitializationContext
+    private static class MockInitializationContext
             implements DeserializationSchema.InitializationContext,
                     SerializationSchema.InitializationContext {
         @Override
