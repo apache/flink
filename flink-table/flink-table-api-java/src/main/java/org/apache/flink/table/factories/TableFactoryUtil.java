@@ -135,7 +135,7 @@ public class TableFactoryUtil {
     /** Checks whether the {@link CatalogTable} uses legacy connector sink options. */
     public static boolean isLegacyConnectorOptions(
             @Nullable Catalog catalog,
-            ReadableConfig tableConfig,
+            ReadableConfig configuration,
             boolean isStreamingMode,
             ObjectIdentifier objectIdentifier,
             CatalogTable catalogTable,
@@ -148,12 +148,12 @@ public class TableFactoryUtil {
         } else {
             try {
                 // try to create legacy table source using the options,
-                // some legacy factories uses the new 'connector' key
+                // some legacy factories may use the 'type' key
                 TableFactoryUtil.findAndCreateTableSink(
                         catalog,
                         objectIdentifier,
                         catalogTable,
-                        tableConfig,
+                        configuration,
                         isStreamingMode,
                         isTemporary);
                 // success, then we will use the legacy factories
