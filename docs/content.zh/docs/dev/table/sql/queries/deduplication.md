@@ -56,7 +56,7 @@ The following examples show how to specify SQL queries with Deduplication on str
 
 ```sql
 CREATE TABLE Orders (
-  order_time  STRING,
+  order_id  STRING,
   user        STRING,
   product     STRING,
   num         BIGINT,
