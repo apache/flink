@@ -449,14 +449,22 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         applicationConfiguration.applyToConfiguration(flinkConfiguration);
 
+        final List<String> pipelineJars =
+                flinkConfiguration
+                        .getOptional(PipelineOptions.JARS)
+                        .orElse(Collections.emptyList());
         // No need to do pipelineJars validation if it is a PyFlink job.
         if (!(PackagedProgramUtils.isPython(applicationConfiguration.getApplicationClassName())
                 || PackagedProgramUtils.isPython(applicationConfiguration.getProgramArguments()))) {
-            final List<String> pipelineJars =
-                    flinkConfiguration
-                            .getOptional(PipelineOptions.JARS)
-                            .orElse(Collections.emptyList());
             Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+        } else {
+            final List<String> pipelineJarsWithPythonJar = new ArrayList<>(pipelineJars);
+            pipelineJarsWithPythonJar.add(PackagedProgramUtils.getPythonJar().toString());
+            ConfigUtils.encodeCollectionToConfig(
+                    flinkConfiguration,
+                    PipelineOptions.JARS,
+                    pipelineJarsWithPythonJar,
+                    Object::toString);
         }
 
         try {

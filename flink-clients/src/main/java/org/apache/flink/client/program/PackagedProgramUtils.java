@@ -202,6 +202,20 @@ public enum PackagedProgramUtils {
     }
 
     public static URL getPythonJar() {
+        // try to find the flink-python jar in the current classloader
+        try {
+            Class<?> pythonProgramOptionsClazz =
+                    Class.forName("org.apache.flink.client.cli.PythonProgramOptions");
+            final URL pythonJarPath =
+                    pythonProgramOptionsClazz.getProtectionDomain().getCodeSource().getLocation();
+            if (pythonJarPath != null) {
+                return pythonJarPath;
+            }
+        } catch (Exception e) {
+            // ignore
+        }
+
+        // try to find the flink-python jar under directory FLINK_HOME/opt
         String flinkOptPath = System.getenv(ConfigConstants.ENV_FLINK_OPT_DIR);
         final List<Path> pythonJarPath = new ArrayList<>();
         try {
