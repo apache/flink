@@ -38,6 +38,7 @@ import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -84,6 +85,14 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                                 .setNumberSlotsPerTaskManager(SLOTS_PER_TASK_MANAGER)
                                 .build());
         cluster.before();
+    }
+
+    @AfterClass
+    public static void shutDownExistingCluster() {
+        if (cluster != null) {
+            cluster.after();
+            cluster = null;
+        }
     }
 
     @Test
