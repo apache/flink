@@ -27,6 +27,7 @@ import org.apache.flink.client.deployment.ClusterRetrieveException;
 import org.apache.flink.client.deployment.ClusterSpecification;
 import org.apache.flink.client.deployment.application.ApplicationConfiguration;
 import org.apache.flink.client.program.ClusterClientProvider;
+import org.apache.flink.client.program.PackagedProgramUtils;
 import org.apache.flink.client.program.rest.RestClusterClient;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.ConfigOption;
@@ -448,11 +449,15 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
 
         applicationConfiguration.applyToConfiguration(flinkConfiguration);
 
-        final List<String> pipelineJars =
-                flinkConfiguration
-                        .getOptional(PipelineOptions.JARS)
-                        .orElse(Collections.emptyList());
-        Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+        // No need to do pipelineJars validation if it is a PyFlink job.
+        if (!(PackagedProgramUtils.isPython(applicationConfiguration.getApplicationClassName())
+                || PackagedProgramUtils.isPython(applicationConfiguration.getProgramArguments()))) {
+            final List<String> pipelineJars =
+                    flinkConfiguration
+                            .getOptional(PipelineOptions.JARS)
+                            .orElse(Collections.emptyList());
+            Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
+        }
 
         try {
             return deployInternal(
