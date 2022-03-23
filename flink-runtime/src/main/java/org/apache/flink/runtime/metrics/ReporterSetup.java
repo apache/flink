@@ -20,8 +20,6 @@ package org.apache.flink.runtime.metrics;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.ConfigConstants;
-import org.apache.flink.configuration.ConfigOption;
-import org.apache.flink.configuration.ConfigOptions;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.DelegatingConfiguration;
 import org.apache.flink.configuration.MetricOptions;
@@ -79,15 +77,10 @@ public final class ReporterSetup {
                             // classes
                             "([\\S&&[^.]]*)\\."
                             + '('
-                            + Pattern.quote(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX)
+                            + Pattern.quote(MetricOptions.REPORTER_CLASS.key())
                             + '|'
-                            + Pattern.quote(ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX)
+                            + Pattern.quote(MetricOptions.REPORTER_FACTORY_CLASS.key())
                             + ')');
-
-    private static final ConfigOption<Map<String, String>> ADDITIONAL_VARIABLES =
-            ConfigOptions.key(ConfigConstants.METRICS_REPORTER_ADDITIONAL_VARIABLES)
-                    .mapType()
-                    .defaultValue(Collections.emptyMap());
 
     private final String name;
     private final MetricConfig configuration;
@@ -107,17 +100,17 @@ public final class ReporterSetup {
 
     public Optional<String> getDelimiter() {
         return Optional.ofNullable(
-                configuration.getString(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, null));
+                configuration.getString(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), null));
     }
 
     public Optional<String> getIntervalSettings() {
         return Optional.ofNullable(
-                configuration.getString(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, null));
+                configuration.getString(MetricOptions.REPORTER_INTERVAL.key(), null));
     }
 
     public Set<String> getExcludedVariables() {
         String excludedVariablesList =
-                configuration.getString(ConfigConstants.METRICS_REPORTER_EXCLUDED_VARIABLES, null);
+                configuration.getString(MetricOptions.REPORTER_EXCLUDED_VARIABLES.key(), null);
         if (excludedVariablesList == null) {
             return Collections.emptySet();
         } else {
@@ -308,7 +301,8 @@ public final class ReporterSetup {
 
                 // massage user variables keys into scope format for parity to variable exclusion
                 Map<String, String> additionalVariables =
-                        reporterConfig.get(ADDITIONAL_VARIABLES).entrySet().stream()
+                        reporterConfig.get(MetricOptions.REPORTER_ADDITIONAL_VARIABLES).entrySet()
+                                .stream()
                                 .collect(
                                         Collectors.toMap(
                                                 e -> ScopeFormat.asVariable(e.getKey()),
@@ -341,11 +335,8 @@ public final class ReporterSetup {
             final Map<String, MetricReporterFactory> reporterFactories)
             throws ClassNotFoundException, IllegalAccessException, InstantiationException {
 
-        final String reporterClassName =
-                reporterConfig.getString(ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX, null);
-        final String factoryClassName =
-                reporterConfig.getString(
-                        ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX, null);
+        final String reporterClassName = reporterConfig.get(MetricOptions.REPORTER_CLASS);
+        final String factoryClassName = reporterConfig.get(MetricOptions.REPORTER_FACTORY_CLASS);
 
         if (factoryClassName != null) {
             return loadViaFactory(
@@ -431,9 +422,9 @@ public final class ReporterSetup {
                             + " Please configure a factory class instead: '{}{}.{}: {}' to ensure that the configuration"
                             + " continues to work with future versions.",
                     reporterName,
-                    ConfigConstants.METRICS_REPORTER_PREFIX,
+                    MetricOptions.REPORTER_CLASS.key(),
                     reporterName,
-                    ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                    MetricOptions.REPORTER_FACTORY_CLASS.key(),
                     alternativeFactoryClassName);
             return loadViaFactory(
                     alternativeFactoryClassName, reporterName, reporterConfig, reporterFactories);

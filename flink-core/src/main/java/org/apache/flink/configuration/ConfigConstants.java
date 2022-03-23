@@ -1113,28 +1113,24 @@ public final class ConfigConstants {
      */
     public static final String METRICS_REPORTER_PREFIX = "metrics.reporter.";
 
-    /** The class of the reporter to use. This is used as a suffix in an actual reporter config */
-    public static final String METRICS_REPORTER_CLASS_SUFFIX = "class";
+    /** @deprecated use {@link MetricOptions#REPORTER_CLASS} */
+    @Deprecated public static final String METRICS_REPORTER_CLASS_SUFFIX = "class";
 
-    /**
-     * The class of the reporter factory to use. This is used as a suffix in an actual reporter
-     * config
-     */
-    public static final String METRICS_REPORTER_FACTORY_CLASS_SUFFIX = "factory.class";
+    /** @deprecated use {@link MetricOptions#REPORTER_FACTORY_CLASS} */
+    @Deprecated public static final String METRICS_REPORTER_FACTORY_CLASS_SUFFIX = "factory.class";
 
-    /** The interval between reports. This is used as a suffix in an actual reporter config */
-    public static final String METRICS_REPORTER_INTERVAL_SUFFIX = "interval";
+    /** @deprecated use {@link MetricOptions#REPORTER_INTERVAL} */
+    @Deprecated public static final String METRICS_REPORTER_INTERVAL_SUFFIX = "interval";
 
-    /**
-     * The delimiter used to assemble the metric identifier. This is used as a suffix in an actual
-     * reporter config.
-     */
-    public static final String METRICS_REPORTER_SCOPE_DELIMITER = "scope.delimiter";
+    /** @deprecated use {@link MetricOptions#REPORTER_SCOPE_DELIMITER} */
+    @Deprecated public static final String METRICS_REPORTER_SCOPE_DELIMITER = "scope.delimiter";
 
-    /** The set of variables that should be excluded. */
+    /** @deprecated use {@link MetricOptions#REPORTER_EXCLUDED_VARIABLES} */
+    @Deprecated
     public static final String METRICS_REPORTER_EXCLUDED_VARIABLES = "scope.variables.excludes";
 
-    /** The map of additional variables that should be included. */
+    /** @deprecated use {@link MetricOptions#REPORTER_ADDITIONAL_VARIABLES} */
+    @Deprecated
     public static final String METRICS_REPORTER_ADDITIONAL_VARIABLES = "scope.variables.additional";
 
     /** @deprecated Use {@link MetricOptions#SCOPE_DELIMITER} instead. */
