@@ -27,11 +27,14 @@ import org.apache.flink.metrics.MetricConfig;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.SimpleCounter;
 import org.apache.flink.metrics.reporter.Scheduled;
+import org.apache.flink.metrics.util.TestCounter;
+import org.apache.flink.metrics.util.TestMeter;
 import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.concurrent.ManuallyTriggeredScheduledExecutorService;
 import org.apache.flink.runtime.metrics.CollectingMetricsReporter.MetricGroupAndName;
 import org.apache.flink.runtime.metrics.dump.MetricDumpSerialization;
 import org.apache.flink.runtime.metrics.dump.MetricQueryService;
+import org.apache.flink.runtime.metrics.filter.DefaultMetricFilter;
 import org.apache.flink.runtime.metrics.groups.MetricGroupTest;
 import org.apache.flink.runtime.metrics.groups.TaskManagerMetricGroup;
 import org.apache.flink.runtime.metrics.groups.UnregisteredMetricGroups;
@@ -461,5 +464,42 @@ class MetricRegistryImplTest {
         public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
             throw new RuntimeException();
         }
+    }
+
+    @Test
+    void testMetricFiltering() {
+        final String excludedMetricName = "excluded";
+        final NotificationCapturingReporter reporter = new NotificationCapturingReporter();
+
+        final Configuration reporterConfig = new Configuration();
+        reporterConfig.set(MetricOptions.REPORTER_INCLUDES, Arrays.asList("*:*:counter"));
+        reporterConfig.set(
+                MetricOptions.REPORTER_EXCLUDES, Arrays.asList("*:" + excludedMetricName));
+
+        MetricRegistryImpl registry =
+                new MetricRegistryImpl(
+                        MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
+                        Arrays.asList(
+                                ReporterSetup.forReporter(
+                                        "test",
+                                        DefaultMetricFilter.fromConfiguration(reporterConfig),
+                                        reporter)));
+
+        registry.register(
+                new TestMeter(), "", new MetricGroupTest.DummyAbstractMetricGroup(registry));
+
+        assertThat(reporter.getLastAddedMetric()).isEmpty();
+
+        registry.register(
+                new TestCounter(),
+                excludedMetricName,
+                new MetricGroupTest.DummyAbstractMetricGroup(registry));
+
+        assertThat(reporter.getLastAddedMetric()).isEmpty();
+
+        registry.register(
+                new TestCounter(), "foo", new MetricGroupTest.DummyAbstractMetricGroup(registry));
+
+        assertThat(reporter.getLastAddedMetric()).isNotEmpty();
     }
 }

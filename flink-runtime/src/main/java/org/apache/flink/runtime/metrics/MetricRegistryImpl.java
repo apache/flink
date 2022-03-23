@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.configuration.MetricOptions;
+import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Metric;
 import org.apache.flink.metrics.MetricGroup;
 import org.apache.flink.metrics.View;
@@ -172,6 +173,7 @@ public class MetricRegistryImpl implements MetricRegistry {
                                     new ReporterScopedSettings(
                                             reporters.size(),
                                             delimiterForReporter.charAt(0),
+                                            reporterSetup.getFilter(),
                                             reporterSetup.getExcludedVariables(),
                                             reporterSetup.getAdditionalVariables())));
                 } catch (Throwable t) {
@@ -380,6 +382,12 @@ public class MetricRegistryImpl implements MetricRegistry {
                 LOG.warn(
                         "Cannot register metric, because the MetricRegistry has already been shut down.");
             } else {
+                if (LOG.isDebugEnabled()) {
+                    LOG.debug(
+                            "Registering metric {}.{}.",
+                            group.getLogicalScope(CharacterFilter.NO_OP_FILTER),
+                            metricName);
+                }
                 if (reporters != null) {
                     forAllReporters(MetricReporter::notifyOfAddedMetric, metric, metricName, group);
                 }
@@ -445,6 +453,18 @@ public class MetricRegistryImpl implements MetricRegistry {
             try {
                 ReporterAndSettings reporterAndSettings = reporters.get(i);
                 if (reporterAndSettings != null) {
+                    final String logicalScope = group.getLogicalScope(CharacterFilter.NO_OP_FILTER);
+                    if (!reporterAndSettings
+                            .settings
+                            .getFilter()
+                            .filter(metric, metricName, logicalScope)) {
+                        LOG.trace(
+                                "Ignoring metric {}.{} for reporter #{} due to filter rules.",
+                                logicalScope,
+                                metricName,
+                                i);
+                        continue;
+                    }
                     FrontMetricGroup front =
                             new FrontMetricGroup<AbstractMetricGroup<?>>(
                                     reporterAndSettings.getSettings(), group);

@@ -32,6 +32,7 @@ import org.apache.flink.runtime.clusterframework.types.ResourceID;
 import org.apache.flink.runtime.metrics.MetricRegistryImpl;
 import org.apache.flink.runtime.metrics.MetricRegistryTestUtils;
 import org.apache.flink.runtime.metrics.ReporterSetup;
+import org.apache.flink.runtime.metrics.filter.MetricFilter;
 import org.apache.flink.runtime.metrics.groups.FrontMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerJobMetricGroup;
 import org.apache.flink.runtime.metrics.groups.JobManagerMetricGroup;
@@ -340,6 +341,7 @@ class PrometheusReporterTest {
     }
 
     private static ReporterScopedSettings createReporterScopedSettings() {
-        return new ReporterScopedSettings(0, ',', Collections.emptySet(), Collections.emptyMap());
+        return new ReporterScopedSettings(
+                0, ',', MetricFilter.NO_OP_FILTER, Collections.emptySet(), Collections.emptyMap());
     }
 }

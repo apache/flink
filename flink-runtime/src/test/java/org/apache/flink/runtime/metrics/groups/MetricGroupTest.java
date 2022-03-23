@@ -402,7 +402,7 @@ public class MetricGroupTest extends TestLogger {
 
         @Override
         protected String getGroupName(CharacterFilter filter) {
-            return "";
+            return "foo";
         }
 
         @Override
