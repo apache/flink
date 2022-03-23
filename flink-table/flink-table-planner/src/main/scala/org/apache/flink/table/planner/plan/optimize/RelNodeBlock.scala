@@ -258,12 +258,12 @@ class RelNodeWrapper(relNode: RelNode) {
 /**
   * Builds [[RelNodeBlock]] plan
   */
-class RelNodeBlockPlanBuilder private(config: ReadableConfig) {
+class RelNodeBlockPlanBuilder private(tableConfig: ReadableConfig) {
 
   private val node2Wrapper = new util.IdentityHashMap[RelNode, RelNodeWrapper]()
   private val node2Block = new util.IdentityHashMap[RelNode, RelNodeBlock]()
 
-  private val isUnionAllAsBreakPointEnabled = config
+  private val isUnionAllAsBreakPointEnabled = tableConfig
     .get(RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_UNIONALL_AS_BREAKPOINT_ENABLED)
 
   /**
@@ -415,7 +415,7 @@ object RelNodeBlockPlanBuilder {
     */
   def buildRelNodeBlockPlan(
       sinkNodes: Seq[RelNode],
-      config: ReadableConfig): Seq[RelNodeBlock] = {
+      tableConfig: ReadableConfig): Seq[RelNodeBlock] = {
     require(sinkNodes.nonEmpty)
 
     // expand QueryOperationCatalogViewTable in TableScan
@@ -426,8 +426,8 @@ object RelNodeBlockPlanBuilder {
       Seq(new RelNodeBlock(convertedRelNodes.head))
     } else {
       // merge multiple RelNode trees to RelNode dag
-      val relNodeDag = reuseRelNodes(convertedRelNodes, config)
-      val builder = new RelNodeBlockPlanBuilder(config)
+      val relNodeDag = reuseRelNodes(convertedRelNodes, tableConfig)
+      val builder = new RelNodeBlockPlanBuilder(tableConfig)
       builder.buildRelNodeBlockPlan(relNodeDag)
     }
   }
@@ -438,8 +438,8 @@ object RelNodeBlockPlanBuilder {
     * @param relNodes RelNode trees
     * @return RelNode dag which reuse common subPlan in each tree
     */
-  private def reuseRelNodes(relNodes: Seq[RelNode], config: ReadableConfig): Seq[RelNode] = {
-    val findOpBlockWithDigest = config
+  private def reuseRelNodes(relNodes: Seq[RelNode], tableConfig: ReadableConfig): Seq[RelNode] = {
+    val findOpBlockWithDigest = tableConfig
       .get(RelNodeBlockPlanBuilder.TABLE_OPTIMIZER_REUSE_OPTIMIZE_BLOCK_WITH_DIGEST_ENABLED)
     if (!findOpBlockWithDigest) {
       return relNodes

@@ -78,9 +78,9 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
     * @return The optimized [[RelNode]] tree
     */
   private def optimizeTree(relNode: RelNode): RelNode = {
-    val config = planner.getTableConfig
-    val programs = TableConfigUtils.getCalciteConfig(config).getBatchProgram
-      .getOrElse(FlinkBatchProgram.buildProgram(config))
+    val tableConfig = planner.getTableConfig
+    val programs = TableConfigUtils.getCalciteConfig(tableConfig).getBatchProgram
+      .getOrElse(FlinkBatchProgram.buildProgram(tableConfig))
     Preconditions.checkNotNull(programs)
 
     val context = unwrapContext(relNode)
@@ -89,7 +89,7 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
 
       override def isBatchMode: Boolean = true
 
-      override def getTableConfig: TableConfig = config
+      override def getTableConfig: TableConfig = tableConfig
 
       override def getFunctionCatalog: FunctionCatalog = planner.functionCatalog
 
