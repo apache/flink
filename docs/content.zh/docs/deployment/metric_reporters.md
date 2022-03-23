@@ -163,7 +163,7 @@ InfluxDB 发送器会使用 http 协议按照将指标发送到 InfluxDB 服务�
 参数：
 
 - `port` - （可选的）Prometheus 发送器监听的端口，默认为[9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations)。如果需要在一台机器上运行多个发送器示例进行监控时（比如 TaskManger 与 JobManager 在一台机器上运行时），建议将端口号配置为 `9250-9260` 这样的区间，
-- `filterLabelValueCharacters`（可选的）指定是否过滤 label 中的非法字符。如果设置过滤，所有没有匹配 \[a-zA-Z0-9：_\] 的字符都会被过滤掉，如果设置不过滤，则不会有字符被过滤掉。设置不过滤前，请确保你的 label 符合[Prometheus 的命名规范](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels)
+- `filterLabelValueCharacters`（可选的）指定是否过滤 label 中的非法字符。如果设置过滤，所有没有匹配 \[a-zA-Z0-9:_\] 的字符都会被过滤掉，如果设置不过滤，则不会有字符被过滤掉。设置不过滤前，请确保你的 label 符合 [Prometheus 的命名规范](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels)
 
 配置示例：
 
