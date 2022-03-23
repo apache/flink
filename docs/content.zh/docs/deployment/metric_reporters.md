@@ -128,7 +128,7 @@ metrics.reporter.grph.interval: 60 SECONDS
 
 Parameters:
 
-{{< generated/influxdb_reporter_configuration >}}
+{{< include_reporter_config "layouts/shortcodes/generated/influxdb_reporter_configuration.html" >}}
 
 Example configuration:
 
@@ -180,7 +180,7 @@ All Flink metrics variables (see [List of all Variables]({{< ref "docs/ops/metri
 
 Parameters:
 
-{{< generated/prometheus_push_gateway_reporter_configuration >}}
+{{< include_reporter_config "layouts/shortcodes/generated/prometheus_push_gateway_reporter_configuration.html" >}}
 
 Example configuration:
 
