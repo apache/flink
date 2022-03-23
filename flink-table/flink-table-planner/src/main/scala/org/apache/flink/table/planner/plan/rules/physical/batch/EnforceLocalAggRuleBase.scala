@@ -23,8 +23,8 @@ import org.apache.flink.table.planner.calcite.FlinkTypeFactory
 import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalExchange, BatchPhysicalExpand, BatchPhysicalGroupAggregateBase, BatchPhysicalHashAggregate, BatchPhysicalSortAggregate}
-import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil}
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.plan.utils.AggregateUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleOperand}
 import org.apache.calcite.rel.RelNode
@@ -47,7 +47,7 @@ abstract class EnforceLocalAggRuleBase(
   with BatchPhysicalAggRuleBase {
 
   protected def isTwoPhaseAggEnabled(agg: BatchPhysicalGroupAggregateBase): Boolean = {
-    val tableConfig = ShortcutUtils.unwrapTableConfig(agg)
+    val tableConfig = unwrapTableConfig(agg)
     val aggFunctions = agg.getAggCallToAggFunction.map(_._2).toArray
     isTwoPhaseAggWorkable(aggFunctions, tableConfig)
   }

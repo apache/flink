@@ -21,8 +21,7 @@ import org.apache.flink.table.planner.JHashMap
 import org.apache.flink.table.planner.plan.`trait`.{FlinkRelDistribution, FlinkRelDistributionTraitDef}
 import org.apache.flink.table.planner.plan.metadata.FlinkMetadata.FlinkDistribution
 import org.apache.flink.table.planner.plan.rules.physical.batch.BatchPhysicalSortRule
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.rel._
 import org.apache.calcite.rel.core.{Calc, Sort, TableScan}
@@ -72,7 +71,7 @@ class FlinkRelMdDistribution private extends MetadataHandler[FlinkDistribution] 
   }
 
   def flinkDistribution(sort: Sort, mq: RelMetadataQuery): FlinkRelDistribution = {
-    val tableConfig = ShortcutUtils.unwrapTableConfig(sort)
+    val tableConfig = unwrapTableConfig(sort)
     val enableRangeSort = tableConfig.get(BatchPhysicalSortRule.TABLE_EXEC_RANGE_SORT_ENABLED)
     if ((sort.getCollation.getFieldCollations.nonEmpty &&
       sort.fetch == null && sort.offset == null) && enableRangeSort) {

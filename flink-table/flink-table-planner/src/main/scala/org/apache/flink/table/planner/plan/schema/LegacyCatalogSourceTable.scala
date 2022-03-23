@@ -28,7 +28,7 @@ import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.planner.hint.FlinkHints
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapContext
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
 import org.apache.flink.table.types.logical.{LocalZonedTimestampType, TimestampKind, TimestampType}
 
@@ -76,7 +76,7 @@ class LegacyCatalogSourceTable[T](
 
   override def toRel(context: RelOptTable.ToRelContext): RelNode = {
     val cluster = context.getCluster
-    val flinkContext = ShortcutUtils.unwrapContext(cluster)
+    val flinkContext = unwrapContext(cluster)
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
     val tableConfig = flinkContext.getTableConfig

@@ -22,8 +22,7 @@ import org.apache.flink.annotation.Experimental
 import org.apache.flink.configuration.ConfigOption
 import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.plan.metadata.FlinkRelMetadataQuery
-import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -62,7 +61,7 @@ class JoinDeriveNullFilterRule
 
     val rexBuilder = join.getCluster.getRexBuilder
     val mq = FlinkRelMetadataQuery.reuseOrCreate(join.getCluster.getMetadataQuery)
-    val tableConfig = ShortcutUtils.unwrapTableConfig(join)
+    val tableConfig = unwrapTableConfig(join)
     val minNullCount = tableConfig.get(
       JoinDeriveNullFilterRule.TABLE_OPTIMIZER_JOIN_NULL_FILTER_THRESHOLD)
 

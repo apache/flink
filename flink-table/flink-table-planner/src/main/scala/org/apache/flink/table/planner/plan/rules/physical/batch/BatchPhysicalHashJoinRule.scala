@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalJoin
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalHashJoin
 import org.apache.flink.table.planner.plan.utils.OperatorType
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -60,7 +60,7 @@ class BatchPhysicalHashJoinRule
       return false
     }
 
-    val tableConfig = ShortcutUtils.unwrapTableConfig(call)
+    val tableConfig = unwrapTableConfig(call)
     val isShuffleHashJoinEnabled = !isOperatorDisabled(tableConfig, OperatorType.ShuffleHashJoin)
     val isBroadcastHashJoinEnabled = !isOperatorDisabled(
       tableConfig, OperatorType.BroadcastHashJoin)
@@ -74,7 +74,7 @@ class BatchPhysicalHashJoinRule
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = ShortcutUtils.unwrapTableConfig(call)
+    val tableConfig = unwrapTableConfig(call)
     val join: Join = call.rel(0)
     val joinInfo = join.analyzeCondition
     val joinType = join.getJoinType

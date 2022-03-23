@@ -18,10 +18,9 @@
 package org.apache.flink.table.planner.plan.rules.logical
 
 import org.apache.flink.table.api.TableException
-import org.apache.flink.table.planner.calcite.FlinkContext
 import org.apache.flink.table.planner.plan.nodes.logical.{FlinkLogicalCalc, FlinkLogicalOverAggregate, FlinkLogicalRank}
 import org.apache.flink.table.planner.plan.utils.RankUtil
-import org.apache.flink.table.planner.utils.ShortcutUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.operators.rank.{ConstantRankRange, ConstantRankRangeWithoutEnd, RankType}
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -53,7 +52,7 @@ abstract class FlinkLogicalRankRuleBase
     val condition = calc.getProgram.getCondition
     val predicate = calc.getProgram.expandLocalRef(condition)
 
-    val tableConfig = ShortcutUtils.unwrapTableConfig(calc)
+    val tableConfig = unwrapTableConfig(calc)
     val (rankRange, remainingPreds) = RankUtil.extractRankRange(
       predicate,
       rankFieldIndex,
@@ -178,7 +177,7 @@ class FlinkLogicalRankRuleForRangeEnd extends FlinkLogicalRankRuleBase {
         val predicate = calc.getProgram.expandLocalRef(condition)
         // the rank function is the last field of FlinkLogicalOverAggregate
         val rankFieldIndex = window.getRowType.getFieldCount - 1
-        val tableConfig = ShortcutUtils.unwrapTableConfig(calc)
+        val tableConfig = unwrapTableConfig(calc)
         val (rankRange, remainingPreds) = RankUtil.extractRankRange(
           predicate,
           rankFieldIndex,
@@ -243,7 +242,7 @@ class FlinkLogicalRankRuleForConstantRange extends FlinkLogicalRankRuleBase {
         val predicate = calc.getProgram.expandLocalRef(condition)
         // the rank function is the last field of FlinkLogicalOverAggregate
         val rankFieldIndex = window.getRowType.getFieldCount - 1
-        val config = ShortcutUtils.unwrapTableConfig(calc)
+        val config = unwrapTableConfig(calc)
         val (rankRange, remainingPreds) = RankUtil.extractRankRange(
           predicate,
           rankFieldIndex,
