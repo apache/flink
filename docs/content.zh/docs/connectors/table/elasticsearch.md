@@ -130,11 +130,27 @@ CREATE TABLE myUserTable (
       <td>用于连接 Elasticsearch 实例的密码。如果配置了<code>username</code>，则此选项也必须配置为非空字符串。</td>
     </tr>
     <tr>
-      <td><h5>sink.delivery-guarantee</h5></td>
-      <td>可选</td>
-      <td style="word-wrap: break-word;">NONE</td>
+      <td><h5>failure-handler</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">fail</td>
       <td>String</td>
-      <td>提交时可选的传输保障策略。有效值为 <code>NONE</code> 或者 <code>AT_LEAST_ONCE</code>。</td>
+      <td>对 Elasticsearch 请求失败情况下的失败处理策略。有效策略为：
+      <ul>
+        <li><code>fail</code>：如果请求失败并因此导致作业失败，则抛出异常。</li>
+        <li><code>ignore</code>：忽略失败并放弃请求。</li>
+        <li><code>retry-rejected</code>：重新添加由于队列容量饱和而失败的请求。</li>
+        <li>自定义类名称：使用 ActionRequestFailureHandler 的子类进行失败处理。</li>
+      </ul>
+      </td>
+    </tr>
+    <tr>
+      <td><h5>sink.flush-on-checkpoint</h5></td>
+      <td>optional</td>
+      <td style="word-wrap: break-word;">true</td>
+      <td>Boolean</td>
+      <td>在进行 checkpoint 时是否保证刷出缓冲区中的数据。如果关闭这一选项，在进行checkpoint时 sink 将不再为所有进行
+        中的请求等待 Elasticsearch 的执行完成确认。因此，在这种情况下 sink 将不对至少一次的请求的一致性提供任何保证。
+      </td>
     </tr>
     <tr>
       <td><h5>sink.bulk-flush.max-actions</h5></td>
@@ -166,11 +182,11 @@ CREATE TABLE myUserTable (
     <tr>
       <td><h5>sink.bulk-flush.backoff.strategy</h5></td>
       <td>可选</td>
-      <td style="word-wrap: break-word;">NONE</td>
+      <td style="word-wrap: break-word;">DISABLED</td>
       <td>String</td>
       <td>指定在由于临时请求错误导致任何 flush 操作失败时如何执行重试。有效策略为：
       <ul>
-        <li><code>NONE</code>：不执行重试，即第一次请求错误后失败。</li>
+        <li><code>DISABLED</code>：不执行重试，即第一次请求错误后失败。</li>
         <li><code>CONSTANT</code>：等待重试之间的回退延迟。</li>
         <li><code>EXPONENTIAL</code>：先等待回退延迟，然后在重试之间指数递增。</li>
       </ul>
@@ -189,13 +205,6 @@ CREATE TABLE myUserTable (
       <td style="word-wrap: break-word;">(none)</td>
       <td>Duration</td>
       <td>每次退避尝试之间的延迟。对于 <code>CONSTANT</code> 退避策略，该值是每次重试之间的延迟。对于 <code>EXPONENTIAL</code> 退避策略，该值是初始的延迟。</td>
-    </tr>
-    <tr>
-      <td><h5>sink.parallelism</h5></td>
-      <td>可选</td>
-      <td style="word-wrap: break-word;">(none)</td>
-      <td>Integer</td>
-      <td>定义 Elasticsearch sink 算子的并行度。默认情况下，并行度由框架定义为与上游串联的算子相同。</td>
     </tr>
     <tr>
       <td><h5>connection.path-prefix</h5></td>

@@ -157,6 +157,7 @@ Connector Options
     <tr>
       <td><h5>sink.flush-on-checkpoint</h5></td>
       <td>optional</td>
+      <td></td>
       <td style="word-wrap: break-word;">true</td>
       <td>Boolean</td>
       <td>Flush on checkpoint or not. When disabled, a sink will not wait for all pending action requests
