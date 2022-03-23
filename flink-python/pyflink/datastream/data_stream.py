@@ -1220,33 +1220,33 @@ class KeyedStream(DataStream):
             def reduce(self, value1, value2):
                 from numbers import Number
 
-                def init_reduce_func(value1):
-                    if isinstance(value1, tuple):
+                def init_reduce_func(value_to_check):
+                    if isinstance(value_to_check, tuple):
                         def reduce_func(v1, v2):
                             v1_list = list(v1)
                             v1_list[self._pos] = v1[self._pos] + v2[self._pos]
                             return tuple(v1_list)
                         self._reduce_func = reduce_func
-                    elif isinstance(value1, (list, Row)):
+                    elif isinstance(value_to_check, (list, Row)):
                         def reduce_func(v1, v2):
                             v1[self._pos] = v1[self._pos] + v2[self._pos]
                             return v1
                         self._reduce_func = reduce_func
-                    elif isinstance(value1, Number):
+                    elif isinstance(value_to_check, Number):
                         def reduce_func(v1, v2):
                             return v1 + v2
                         self._reduce_func = reduce_func
                     else:
                         raise TypeError("Sum operator only process the data of "
                                         "Tuple, Row, List and Number type. "
-                                        f"Actual type: {type(value1)}")
+                                        f"Actual type: {type(value_to_check)}")
 
-                if not isinstance(value1[self._pos], Number):
+                if not isinstance(value2, Number) and not isinstance(value2[self._pos], Number):
                     raise TypeError("The value to sum by given position must be of numeric type; "
-                                    f"actual {type(value1[self._pos])}, expected Number")
+                                    f"actual {type(value2[self._pos])}, expected Number")
 
                 if not self._reduce_func:
-                    init_reduce_func(value1)
+                    init_reduce_func(value2)
                 return self._reduce_func(value1, value2)
 
         return self.reduce(SumReduceFunction(position_to_sum))
