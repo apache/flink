@@ -594,6 +594,8 @@ SqlAlterTable SqlAlterTable() :
     SqlNodeList propertyKeyList = SqlNodeList.EMPTY;
     SqlNodeList partitionSpec = null;
     SqlIdentifier constraintName;
+    AlterTableContext ctx = new AlterTableContext();
+    boolean withParen = true;
 }
 {
     <ALTER> <TABLE> { startPos = getPos(); }
@@ -627,10 +629,6 @@ SqlAlterTable SqlAlterTable() :
         }
     |
         <ADD>
-        {
-            AlterTableContext ctx = new AlterTableContext();
-            boolean withParen = true;
-        }
         (
             AlterTableAddOrModify(ctx) {
                 // TODO: remove it after supports convert SqlNode to Operation
@@ -660,6 +658,30 @@ SqlAlterTable SqlAlterTable() :
                 ctx.watermark,
                 ctx.constraints);
         }
+    |
+        <MODIFY>
+        (
+            AlterTableAddOrModify(ctx) {
+                withParen = false;
+            }
+        |
+            <LPAREN>
+            AlterTableAddOrModify(ctx)
+            (
+                <COMMA> AlterTableAddOrModify(ctx)
+            )*
+            <RPAREN>
+        )
+        {
+            return new SqlAlterTableModify(
+                startPos.plus(getPos()),
+                tableIdentifier,
+                withParen,
+                new SqlNodeList(ctx.columnPositions, startPos.plus(getPos())),
+                ctx.watermark,
+                ctx.constraints);
+        }
+
     |
         <DROP> <CONSTRAINT>
         constraintName = SimpleIdentifier() {

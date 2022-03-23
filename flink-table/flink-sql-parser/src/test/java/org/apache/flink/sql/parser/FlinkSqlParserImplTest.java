@@ -396,6 +396,93 @@ class FlinkSqlParserImplTest extends SqlParserTest {
     }
 
     @Test
+    public void testAlterTableModify() {
+        // modify single column
+        sql("alter table t1 modify new_column string comment 'new_column docs'")
+                .ok("ALTER TABLE `T1` MODIFY `NEW_COLUMN` STRING COMMENT 'new_column docs'");
+        sql("alter table t1 modify new_column string comment 'new_column docs' first")
+                .ok("ALTER TABLE `T1` MODIFY `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST");
+        sql("alter table t1 modify new_column string comment 'new_column docs' after id")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`");
+        // modify compute column
+        sql("alter table t1 modify col_int as col_a - col_b after col_b")
+                .ok("ALTER TABLE `T1` MODIFY `COL_INT` AS (`COL_A` - `COL_B`) AFTER `COL_B`");
+        // modify metadata column
+        sql("alter table t1 modify col_int int metadata from 'mk1' virtual comment 'comment_metadata' after col_b")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY `COL_INT` INTEGER METADATA FROM 'mk1' VIRTUAL "
+                                + "COMMENT 'comment_metadata' AFTER `COL_B`");
+
+        // modify watermark
+        sql("alter table t1 modify watermark for ts as ts - interval '1' second")
+                .ok("ALTER TABLE `T1` MODIFY WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+        sql("alter table default_database.t1 modify watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER TABLE `DEFAULT_DATABASE`.`T1` MODIFY WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+        sql("alter table default_catalog.default_database.t1 modify watermark for ts as ts - interval '1' second")
+                .ok(
+                        "ALTER TABLE `DEFAULT_CATALOG`.`DEFAULT_DATABASE`.`T1` "
+                                + "MODIFY WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)");
+
+        // modify constraint
+        sql("alter table t1 modify constraint ct1 primary key(a, b) not enforced")
+                .ok("ALTER TABLE `T1` MODIFY CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED");
+        sql("alter table t1 modify unique(a, b)").ok("ALTER TABLE `T1` MODIFY UNIQUE (`A`, `B`)");
+
+        // modify multiple columns/constraint/watermark
+        final String sql1 =
+                "alter table t1 modify (\n"
+                        + "col_int int,\n"
+                        + "log_ts string comment 'log timestamp string' first,\n"
+                        + "ts AS to_timestamp(log_ts) after log_ts,\n"
+                        + "col_meta int metadata from 'mk1' virtual comment 'comment_str' after col_b,\n"
+                        + "primary key (id) not enforced,\n"
+                        + "unique(a, b),\n"
+                        + "watermark for ts as ts - interval '3' second\n"
+                        + ")";
+        final String expected1 =
+                "ALTER TABLE `T1` MODIFY (\n"
+                        + "  `COL_INT` INTEGER,\n"
+                        + "  `LOG_TS` STRING COMMENT 'log timestamp string' FIRST,\n"
+                        + "  `TS` AS `TO_TIMESTAMP`(`LOG_TS`) AFTER `LOG_TS`,\n"
+                        + "  `COL_META` INTEGER METADATA FROM 'mk1' VIRTUAL COMMENT 'comment_str' AFTER `COL_B`,\n"
+                        + "  PRIMARY KEY (`ID`) NOT ENFORCED,\n"
+                        + "  UNIQUE (`A`, `B`),\n"
+                        + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '3' SECOND)\n"
+                        + ")";
+        sql(sql1).ok(expected1);
+
+        // modify constraint with paren
+        sql("alter table t1 modify (\nconstraint ct1 primary key(a, b) not enforced\n)")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  CONSTRAINT `CT1` PRIMARY KEY (`A`, `B`) NOT ENFORCED\n"
+                                + ")");
+        sql("alter table t1 modify (\nunique(a, b)\n)")
+                .ok("ALTER TABLE `T1` MODIFY (\n  UNIQUE (`A`, `B`)\n)");
+
+        // modify watermark with paren
+        sql("alter table t1 modify (\nwatermark for ts as ts - interval '1' second\n)")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  WATERMARK FOR `TS` AS (`TS` - INTERVAL '1' SECOND)\n"
+                                + ")");
+
+        // modify single column with paren
+        sql("alter table t1 modify (\nnew_column string comment 'new_column docs' first\n)")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' FIRST\n"
+                                + ")");
+        sql("alter table t1 modify (\nnew_column string comment 'new_column docs' after id\n)")
+                .ok(
+                        "ALTER TABLE `T1` MODIFY (\n"
+                                + "  `NEW_COLUMN` STRING COMMENT 'new_column docs' AFTER `ID`\n"
+                                + ")");
+    }
+
+    @Test
     void testAlterTableReset() {
         sql("alter table t1 reset ('key1')").ok("ALTER TABLE `T1` RESET (\n  'key1'\n)");
 
