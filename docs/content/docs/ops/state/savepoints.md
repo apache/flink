@@ -256,8 +256,8 @@ of checkpoints.
 
 {{< hint info >}}
 **Attention:**
-1. Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk_<x>`. Flink does not
-take ownership of the `<checkpoint_dir>/<job_id>` directory, but only the `chk_<x>`. The directory
+1. Retained checkpoints are stored in a path like `<checkpoint_dir>/<job_id>/chk-<x>`. Flink does not
+take ownership of the `<checkpoint_dir>/<job_id>` directory, but only the `chk-<x>`. The directory
 of the old job will not be deleted by Flink
 
 2. [Native](#savepoint-format) format supports incremental RocksDB savepoints. For those savepoints Flink puts all

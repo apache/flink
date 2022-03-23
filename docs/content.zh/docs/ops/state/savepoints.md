@@ -193,7 +193,7 @@ $ bin/flink run -s :savepointPath -restoreMode :mode -n [:runArgs]
 
 {{< hint info >}}
 **注意：**
-1. Retained checkpoints 被存储在 `<checkpoint_dir>/<job_id>/chk_<x>` 这样的目录中。Flink 不会接管 `<checkpoint_dir>/<job_id>` 目录的所有权，而只会接管 `chk_<x>` 的所有权。Flink 不会删除旧作业的目录。
+1. Retained checkpoints 被存储在 `<checkpoint_dir>/<job_id>/chk-<x>` 这样的目录中。Flink 不会接管 `<checkpoint_dir>/<job_id>` 目录的所有权，而只会接管 `chk-<x>` 的所有权。Flink 不会删除旧作业的目录。
 
 2. [Native](#savepoint-format) 格式支持增量的 RocksDB savepoints。对于这些 savepoints，Flink 将所有 SST 存储在 savepoints 目录中。这意味着这些 savepoints 是自包含和目录可移动的。然而，在 CLAIM 模式下恢复时，后续的 checkpoints 可能会复用一些 SST 文件，这反过来会阻止在 savepoints 被清理时删除 savepoints 目录。 Flink 之后运行期间可能会删除复用的SST 文件，但不会删除 savepoints 目录。因此，如果在 CLAIM 模式下恢复，Flink 可能会留下一个空的 savepoints 目录。
 {{< /hint >}}
