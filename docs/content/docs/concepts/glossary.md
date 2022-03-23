@@ -142,17 +142,15 @@ external system. For example, the Kafka connector is the sink/source implementat
 
 See [logical graph](#logical-graph).
 
-#### (Flink) DataStream
+#### DataStream
 
-This is a collection of data in a Flink application. You can think of them as immutable collections 
-of data that can contain duplicates. This data can either be finite or unbounded.
+DataStream refers to a class in Flink that provides a specific API used to represent and work with  
+[streams](#stream) in a [Flink application](#flink-application). You can think of a DataStream as immutable 
+collections of data that can contain duplicates. This data can either be [bounded](#bounded-streams) 
+or [unbounded](#unbounded-streams). You can create an initial DataStream by adding a [source](#source).
 
-DataStream is a proper noun referring to a specific class in Flink that provides a specific API for working with streams of that type. Table is another class in Flink that provides an API for operating on streams (but at a higher level of abstraction, one based on interpreting streams as dynamic tables).
-
-I would say that with the DataStream API, you are operating at the level of bounded and unbounded streams of data records (or events), and conceptually you are operating on one event at a time.
-With DataStreams you are thinking about being part of the event loop, and reacting to each event.
-
-While with Tables you are dealing with either append-only or updating tables, and relations between tables.
+Table is another class in Flink that provides a (relational) API for operating on [streams](#stream), 
+but at a higher level of abstraction, one based on interpreting streams as [dynamic tables](#dynamic-table).
 
 #### Delivery Guarantee
 
@@ -173,6 +171,8 @@ conceptually represent a [logical graph](#logical-graph) where you never look ba
 This is a component of the [JobManager](#jobmanager) and provides a REST interface to submit Flink 
 applications for execution and starts a new [JobMaster](#jobmaster) for each submitted job. It also 
 runs the Flink web UI to provide information about job executions.
+
+#### Dynamic Table
 
 #### Event
 
@@ -340,10 +340,9 @@ This is a technique for making programs run faster by performing several computa
 
 #### Partition
 
-A partition is an independent subset of the overall [DataStream](#datastream). A DataStream is divided 
-into partitions by assigning each [record](#record) to one or more partitions via keys. Partitions of 
-DataStreams are consumed by [tasks](#task) during runtime. A transformation that changes the way a 
-DataStream is partitioned is often called repartitioning.
+A partition is an independent subset of the overall [stream](#stream). Partitions of streams are 
+consumed by [tasks](#task) during runtime. A transformation that changes the way a stream is partitioned 
+is often called repartitioning.
 
 #### Physical Graph
 
