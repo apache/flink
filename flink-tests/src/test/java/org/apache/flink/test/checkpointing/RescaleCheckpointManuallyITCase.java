@@ -32,6 +32,7 @@ import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.test.checkpointing.utils.RescalingTestUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
@@ -43,8 +44,10 @@ import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
@@ -105,129 +108,85 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
         final int parallelism2 = scaleOut ? 4 : 3;
         final int maxParallelism = 13;
 
-        cluster.before();
-
         ClusterClient<?> client = cluster.getClusterClient();
+        StreamExecutionEnvironment env = createEnvironment(parallelism, maxParallelism, 100);
+
         String checkpointPath =
                 runJobAndGetCheckpoint(
-                        numberKeys,
-                        numberElements,
-                        parallelism,
-                        maxParallelism,
-                        client,
-                        checkpointDir);
+                        numberKeys, numberElements, parallelism, env, client, checkpointDir);
 
         assertNotNull(checkpointPath);
+        env.setParallelism(parallelism2);
+        JobGraph scaledJobGraph =
+                createJobGraphWithKeyedState(numberKeys, numberElements2, true, env);
 
-        restoreAndAssert(
-                parallelism2,
-                maxParallelism,
-                maxParallelism,
-                numberKeys,
-                numberElements2,
-                numberElements + numberElements2,
-                client,
-                checkpointPath);
+        scaledJobGraph.setSavepointRestoreSettings(
+                SavepointRestoreSettings.forPath(checkpointPath));
+        submitJobAndWaitForResult(client, scaledJobGraph, getClass().getClassLoader());
+
+        Set<Tuple2<Integer, Integer>> actualResult2 = CollectionSink.getElementsSet();
+        assertEquals(
+                getExpectedResult(
+                        numberKeys, maxParallelism, parallelism2, numberElements + numberElements2),
+                actualResult2);
     }
 
     private static String runJobAndGetCheckpoint(
             int numberKeys,
             int numberElements,
             int parallelism,
-            int maxParallelism,
+            StreamExecutionEnvironment env,
             ClusterClient<?> client,
             File checkpointDir)
             throws Exception {
         try {
             JobGraph jobGraph =
-                    createJobGraphWithKeyedState(
-                            parallelism, maxParallelism, numberKeys, numberElements, false, 100);
+                    createJobGraphWithKeyedState(numberKeys, numberElements, false, env);
             NotifyingDefiniteKeySource.sourceLatch = new CountDownLatch(parallelism);
             client.submitJob(jobGraph).get();
             NotifyingDefiniteKeySource.sourceLatch.await();
 
-            RescalingTestUtils.SubtaskIndexFlatMapper.workCompletedLatch.await();
-
-            // verify the current state
-            Set<Tuple2<Integer, Integer>> actualResult =
-                    RescalingTestUtils.CollectionSink.getElementsSet();
-
-            Set<Tuple2<Integer, Integer>> expectedResult = new HashSet<>();
-
-            for (int key = 0; key < numberKeys; key++) {
-                int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism);
-                expectedResult.add(
-                        Tuple2.of(
-                                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                                        maxParallelism, parallelism, keyGroupIndex),
-                                numberElements * key));
+            while (CollectionSink.getElementsSet().size() < numberKeys) {
+                Thread.sleep(50);
             }
-
-            assertEquals(expectedResult, actualResult);
-            NotifyingDefiniteKeySource.sourceLatch.await();
 
             TestUtils.waitUntilExternalizedCheckpointCreated(checkpointDir);
             client.cancel(jobGraph.getJobID()).get();
             TestUtils.waitUntilJobCanceled(jobGraph.getJobID(), client);
             return TestUtils.getMostRecentCompletedCheckpoint(checkpointDir).getAbsolutePath();
         } finally {
-            RescalingTestUtils.CollectionSink.clearElementsSet();
-        }
-    }
-
-    private void restoreAndAssert(
-            int restoreParallelism,
-            int restoreMaxParallelism,
-            int maxParallelismBefore,
-            int numberKeys,
-            int numberElements,
-            int numberElementsExpect,
-            ClusterClient<?> client,
-            String restorePath)
-            throws Exception {
-        try {
-
-            JobGraph scaledJobGraph =
-                    createJobGraphWithKeyedState(
-                            restoreParallelism,
-                            restoreMaxParallelism,
-                            numberKeys,
-                            numberElements,
-                            true,
-                            100);
-
-            scaledJobGraph.setSavepointRestoreSettings(
-                    SavepointRestoreSettings.forPath(restorePath));
-
-            submitJobAndWaitForResult(client, scaledJobGraph, getClass().getClassLoader());
-
-            Set<Tuple2<Integer, Integer>> actualResult2 =
-                    RescalingTestUtils.CollectionSink.getElementsSet();
-
-            Set<Tuple2<Integer, Integer>> expectedResult2 = new HashSet<>();
-
-            for (int key = 0; key < numberKeys; key++) {
-                int keyGroupIndex =
-                        KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelismBefore);
-                expectedResult2.add(
-                        Tuple2.of(
-                                KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                                        maxParallelismBefore, restoreParallelism, keyGroupIndex),
-                                key * numberElementsExpect));
-            }
-            assertEquals(expectedResult2, actualResult2);
-        } finally {
-            RescalingTestUtils.CollectionSink.clearElementsSet();
+            CollectionSink.clearElementsSet();
         }
     }
 
     private static JobGraph createJobGraphWithKeyedState(
-            int parallelism,
-            int maxParallelism,
             int numberKeys,
             int numberElements,
             boolean terminateAfterEmission,
-            int checkpointingInterval) {
+            StreamExecutionEnvironment env) {
+        DataStream<Integer> input =
+                env.addSource(
+                                new NotifyingDefiniteKeySource(
+                                        numberKeys, numberElements, terminateAfterEmission))
+                        .keyBy(
+                                new KeySelector<Integer, Integer>() {
+                                    private static final long serialVersionUID = 1L;
+
+                                    @Override
+                                    public Integer getKey(Integer value) throws Exception {
+                                        return value;
+                                    }
+                                });
+        DataStream<Tuple2<Integer, Integer>> result =
+                input.flatMap(new RescalingTestUtils.SubtaskIndexFlatMapper(numberElements));
+
+        result.addSink(new CollectionSink<>());
+
+        return env.getStreamGraph().getJobGraph();
+    }
+
+    private static StreamExecutionEnvironment createEnvironment(
+            int parallelism, int maxParallelism, int checkpointingInterval) {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
         env.setParallelism(parallelism);
         if (0 < maxParallelism) {
@@ -239,34 +198,26 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                         CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
         env.setRestartStrategy(RestartStrategies.noRestart());
         env.getConfig().setUseSnapshotCompression(true);
+        return env;
+    }
 
-        DataStream<Integer> input =
-                env.addSource(
-                                new NotifyingDefiniteKeySource(
-                                        numberKeys, numberElements, terminateAfterEmission))
-                        .keyBy(
-                                new KeySelector<Integer, Integer>() {
-                                    private static final long serialVersionUID =
-                                            -7952298871120320940L;
+    private static Set getExpectedResult(
+            int numberKeys, int maxParallelism, int parallelism, int numberElements) {
+        Set<Tuple2<Integer, Integer>> expectedResult = new HashSet<>();
 
-                                    @Override
-                                    public Integer getKey(Integer value) throws Exception {
-                                        return value;
-                                    }
-                                });
-        RescalingTestUtils.SubtaskIndexFlatMapper.workCompletedLatch =
-                new CountDownLatch(numberKeys);
-
-        DataStream<Tuple2<Integer, Integer>> result =
-                input.flatMap(new RescalingTestUtils.SubtaskIndexFlatMapper(numberElements));
-
-        result.addSink(new RescalingTestUtils.CollectionSink<>());
-
-        return env.getStreamGraph().getJobGraph();
+        for (int key = 0; key < numberKeys; key++) {
+            int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism);
+            expectedResult.add(
+                    Tuple2.of(
+                            KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
+                                    maxParallelism, parallelism, keyGroupIndex),
+                            key * numberElements));
+        }
+        return expectedResult;
     }
 
     private static class NotifyingDefiniteKeySource extends RescalingTestUtils.DefiniteKeySource {
-        private static final long serialVersionUID = 8120981235081181746L;
+        private static final long serialVersionUID = 1L;
 
         private static CountDownLatch sourceLatch;
 
@@ -281,6 +232,31 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                 sourceLatch.countDown();
             }
             super.run(ctx);
+        }
+    }
+
+    /**
+     * A duplicate sink from RescalingITCase.CollectionSink, because the static elements in this
+     * class can not be shared.
+     */
+    private static class CollectionSink<IN> implements SinkFunction<IN> {
+
+        private static final Set<Object> elements =
+                Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+        private static final long serialVersionUID = -1652452958040267745L;
+
+        public static <IN> Set<IN> getElementsSet() {
+            return (Set<IN>) elements;
+        }
+
+        public static void clearElementsSet() {
+            elements.clear();
+        }
+
+        @Override
+        public void invoke(IN value) throws Exception {
+            elements.add(value);
         }
     }
 }

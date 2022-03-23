@@ -19,12 +19,9 @@
 package org.apache.flink.test.checkpointing;
 
 import org.apache.flink.api.common.JobID;
-import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
-import org.apache.flink.api.common.state.ValueState;
-import org.apache.flink.api.common.state.ValueStateDescriptor;
 import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.common.time.Time;
 import org.apache.flink.api.common.typeutils.base.IntSerializer;
@@ -53,6 +50,7 @@ import org.apache.flink.streaming.api.functions.sink.DiscardingSink;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.streaming.api.functions.source.SourceFunction;
+import org.apache.flink.test.checkpointing.utils.RescalingTestUtils;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.testutils.TestingUtils;
 import org.apache.flink.util.Collector;
@@ -99,7 +97,7 @@ public class RescalingITCase extends TestLogger {
     public static Collection<Object[]> data() {
         return Arrays.asList(
                 new Object[][] {
-                        {"filesystem", 2}, {"rocksdb", 0}, {"filesystem", 0}, {"rocksdb", 2}
+                    {"filesystem", 2}, {"rocksdb", 0}, {"filesystem", 0}, {"rocksdb", 2}
                 });
     }
 
@@ -672,7 +670,7 @@ public class RescalingITCase extends TestLogger {
 
         DataStream<Integer> input =
                 env.addSource(
-                                new SubtaskIndexSource(
+                                new RescalingTestUtils.DefiniteKeySource(
                                         numberKeys, numberElements, terminateAfterEmission))
                         .keyBy(
                                 new KeySelector<Integer, Integer>() {
@@ -736,61 +734,8 @@ public class RescalingITCase extends TestLogger {
         return env.getStreamGraph().getJobGraph();
     }
 
-    private static class SubtaskIndexSource extends RichParallelSourceFunction<Integer> {
-
-        private static final long serialVersionUID = -400066323594122516L;
-
-        private final int numberKeys;
-        private final int numberElements;
-        private final boolean terminateAfterEmission;
-
-        protected int counter = 0;
-
-        private boolean running = true;
-
-        SubtaskIndexSource(int numberKeys, int numberElements, boolean terminateAfterEmission) {
-
-            this.numberKeys = numberKeys;
-            this.numberElements = numberElements;
-            this.terminateAfterEmission = terminateAfterEmission;
-        }
-
-        @Override
-        public void run(SourceContext<Integer> ctx) throws Exception {
-            final Object lock = ctx.getCheckpointLock();
-            final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
-
-            while (running) {
-
-                if (counter < numberElements) {
-                    synchronized (lock) {
-                        for (int value = subtaskIndex;
-                             value < numberKeys;
-                             value += getRuntimeContext().getNumberOfParallelSubtasks()) {
-
-                            ctx.collect(value);
-                        }
-
-                        counter++;
-                    }
-                } else {
-                    if (terminateAfterEmission) {
-                        running = false;
-                    } else {
-                        Thread.sleep(100);
-                    }
-                }
-            }
-        }
-
-        @Override
-        public void cancel() {
-            running = false;
-        }
-    }
-
-    private static class SubtaskIndexNonPartitionedStateSource extends SubtaskIndexSource
-            implements ListCheckpointed<Integer> {
+    private static class SubtaskIndexNonPartitionedStateSource
+            extends RescalingTestUtils.DefiniteKeySource implements ListCheckpointed<Integer> {
 
         private static final long serialVersionUID = 8388073059042040203L;
 
@@ -814,21 +759,12 @@ public class RescalingITCase extends TestLogger {
         }
     }
 
-    private static class SubtaskIndexFlatMapper
-            extends RichFlatMapFunction<Integer, Tuple2<Integer, Integer>>
-            implements CheckpointedFunction {
-
-        private static final long serialVersionUID = 5273172591283191348L;
+    private static class SubtaskIndexFlatMapper extends RescalingTestUtils.SubtaskIndexFlatMapper {
 
         private static CountDownLatch workCompletedLatch = new CountDownLatch(1);
 
-        private transient ValueState<Integer> counter;
-        private transient ValueState<Integer> sum;
-
-        private final int numberElements;
-
-        SubtaskIndexFlatMapper(int numberElements) {
-            this.numberElements = numberElements;
+        public SubtaskIndexFlatMapper(int numberElements) {
+            super(numberElements);
         }
 
         @Override
@@ -845,21 +781,6 @@ public class RescalingITCase extends TestLogger {
                 out.collect(Tuple2.of(getRuntimeContext().getIndexOfThisSubtask(), s));
                 workCompletedLatch.countDown();
             }
-        }
-
-        @Override
-        public void snapshotState(FunctionSnapshotContext context) throws Exception {
-            // all managed, nothing to do.
-        }
-
-        @Override
-        public void initializeState(FunctionInitializationContext context) throws Exception {
-            counter =
-                    context.getKeyedStateStore()
-                            .getState(new ValueStateDescriptor<>("counter", Integer.class, 0));
-            sum =
-                    context.getKeyedStateStore()
-                            .getState(new ValueStateDescriptor<>("sum", Integer.class, 0));
         }
     }
 

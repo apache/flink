@@ -25,14 +25,8 @@ import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.runtime.state.FunctionInitializationContext;
 import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.util.Collector;
-
-import java.util.Collections;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CountDownLatch;
 
 /** Test utilities for rescaling. */
 public class RescalingTestUtils {
@@ -40,10 +34,10 @@ public class RescalingTestUtils {
     /** A parallel source with definite keys. */
     public static class DefiniteKeySource extends RichParallelSourceFunction<Integer> {
 
-        private static final long serialVersionUID = -400066323594122516L;
+        private static final long serialVersionUID = 1L;
 
         private final int numberKeys;
-        private final int numberElements;
+        protected final int numberElements;
         private final boolean terminateAfterEmission;
 
         protected int counter = 0;
@@ -93,14 +87,12 @@ public class RescalingTestUtils {
             extends RichFlatMapFunction<Integer, Tuple2<Integer, Integer>>
             implements CheckpointedFunction {
 
-        private static final long serialVersionUID = 5273172591283191348L;
+        private static final long serialVersionUID = 1L;
 
-        public static CountDownLatch workCompletedLatch = new CountDownLatch(1);
+        protected transient ValueState<Integer> counter;
+        protected transient ValueState<Integer> sum;
 
-        private transient ValueState<Integer> counter;
-        private transient ValueState<Integer> sum;
-
-        private final int numberElements;
+        protected final int numberElements;
 
         public SubtaskIndexFlatMapper(int numberElements) {
             this.numberElements = numberElements;
@@ -118,7 +110,6 @@ public class RescalingTestUtils {
 
             if (count % numberElements == 0) {
                 out.collect(Tuple2.of(getRuntimeContext().getIndexOfThisSubtask(), s));
-                workCompletedLatch.countDown();
             }
         }
 
@@ -135,28 +126,6 @@ public class RescalingTestUtils {
             sum =
                     context.getKeyedStateStore()
                             .getState(new ValueStateDescriptor<>("sum", Integer.class, 0));
-        }
-    }
-
-    /** Sink for collecting results into a collection. */
-    public static class CollectionSink<IN> implements SinkFunction<IN> {
-
-        private static final Set<Object> elements =
-                Collections.newSetFromMap(new ConcurrentHashMap<>());
-
-        private static final long serialVersionUID = -1652452958040267745L;
-
-        public static <IN> Set<IN> getElementsSet() {
-            return (Set<IN>) elements;
-        }
-
-        public static void clearElementsSet() {
-            elements.clear();
-        }
-
-        @Override
-        public void invoke(IN value) throws Exception {
-            elements.add(value);
         }
     }
 }
