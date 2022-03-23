@@ -35,12 +35,18 @@ under the License.
 创建 `TableEnvironment` 的推荐方式是通过 `EnvironmentSettings` 对象创建:
 
 ```python
+from pyflink.common import Configuration
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a streaming TableEnvironment
-env_settings = EnvironmentSettings.in_streaming_mode()
-# or a batch TableEnvironment
-# env_settings = EnvironmentSettings.in_batch_mode()
+config = Configuration()
+config.set_string('execution.buffer-timeout', '1 min')
+env_settings = EnvironmentSettings \
+    .new_instance() \
+    .in_streaming_mode() \
+    .with_configuration(config) \
+    .build()
+
 table_env = TableEnvironment.create(env_settings)
 ```
 
@@ -562,12 +568,9 @@ TableEnvironment API
         返回 table config，可以通过 table config 来定义 Table API 的运行时行为。
         你可以在 <a href="{{< ref "docs/deployment/config" >}}">配置</a> 和
         <a href="{{< ref "docs/dev/python/python_config" >}}">Python 配置</a> 中找到所有可用的配置选项。 <br> <br>
-        下面的代码示例展示了如何通过这个 API 来设置配置选项：
-```python
-# set the parallelism to 8
-table_env.get_config().set(
-    "parallelism.default", "8")
-```
+        下面的代码示例展示了如何通过这个 API 来设置配置选项：<br>
+# set the parallelism to 8 <br>
+table_env.get_config().set("parallelism.default", "8")
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.get_config" name="链接">}}

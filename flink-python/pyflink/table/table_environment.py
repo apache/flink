@@ -1666,11 +1666,11 @@ class StreamTableEnvironment(TableEnvironment):
             # create with StreamExecutionEnvironment and EnvironmentSettings.
             >>> configuration = Configuration()
             >>> configuration.set_string('execution.buffer-timeout', '1 min')
-            >>> environment_settings = EnvironmentSettings
-            >>>     .new_instance()
-            >>>     .in_streaming_mode()
-            >>>     .with_configuration(configuration)
-            >>>     .build()
+            >>> environment_settings = EnvironmentSettings \\
+            ...     .new_instance() \\
+            ...     .in_streaming_mode() \\
+            ...     .with_configuration(configuration) \\
+            ...     .build()
             >>> table_env = StreamTableEnvironment.create(
             ...     env, environment_settings=environment_settings)
             # create with EnvironmentSettings.

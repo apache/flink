@@ -35,13 +35,18 @@ Create a TableEnvironment
 The recommended way to create a `TableEnvironment` is to create from an `EnvironmentSettings` object:
 
 ```python
+from pyflink.common import Configuration
 from pyflink.table import EnvironmentSettings, TableEnvironment
 
 # create a streaming TableEnvironment
-env_settings = EnvironmentSettings.in_streaming_mode()
+config = Configuration()
+config.set_string('execution.buffer-timeout', '1 min')
+env_settings = EnvironmentSettings \
+    .new_instance() \
+    .in_streaming_mode() \
+    .with_configuration(config) \
+    .build()
 
-# or a batch TableEnvironment
-# env_settings = EnvironmentSettings.in_batch_mode()
 table_env = TableEnvironment.create(env_settings)
 ```
 
@@ -567,12 +572,9 @@ Please refer to the [Dependency Management]({{< ref "docs/dev/python/dependency_
         Returns the table config to define the runtime behavior of the Table API.
         You can find all the available configuration options in <a href="{{< ref "docs/deployment/config" >}}">Configuration</a> and
         <a href="{{< ref "docs/dev/python/python_config" >}}">Python Configuration</a>. <br> <br>
-        The following code is an example showing how to set the configuration options through this API:
-```python
-# set the parallelism to 8
-table_env.get_config().set(
-    "parallelism.default", "8")
-```
+        The following code is an example showing how to set the configuration options through this API:<br>
+# set the parallelism to 8<br>
+table_env.get_config().set("parallelism.default", "8")
       </td>
       <td class="text-center">
         {{< pythondoc file="pyflink.table.html#pyflink.table.TableEnvironment.get_config" name="link">}}
