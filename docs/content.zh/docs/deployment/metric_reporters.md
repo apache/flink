@@ -43,9 +43,9 @@ Flink 支持用户将 Flink 的各项运行时指标发送给外部系统。
 - `metrics.reporter.<name>.factory.class`: 命名为 `<name>` 发送器的工厂类名称。
 - `metrics.reporter.<name>.interval`: 命名为 `<name>` 发送器的发送间隔。
 - `metrics.reporter.<name>.scope.delimiter`: 命名为 `<name>` 发送器的标识符中的间隔符（默认与`metrics.scope.delimiter`相同）。
-- `metrics.reporter.<name>.scope.variables.excludes`:（可选的）tag-based 类的发送器（例如 Prometheus、InfluxDB）应该忽略的变量列表，以分号（;）分隔。
+- `metrics.reporter.<name>.scope.variables.excludes`: （可选的）tag-based 类的发送器（例如 Prometheus、InfluxDB）应该忽略的变量列表，以分号（;）分隔。
 - `metrics.reporters`:（可选的）启用的发送器名称列表，以逗号分隔。默认所有配置了的发送器都会被启用。
-- `metrics.reporter.<name>.scope.variables.additional`:（可选的）map 形式的变量列表，列表中使用逗号分隔，map 中变量名与变量值以”:“分隔。tag-based 类的发送器（例如 Prometheus、InfluxDB）可以使用此选项。
+- `metrics.reporter.<name>.scope.variables.additional`: （可选的）map 形式的变量列表，列表中使用逗号分隔，map 中变量名与变量值以“:”分隔。tag-based 类的发送器（例如 Prometheus、InfluxDB）可以使用此选项。
 
 每种发送器都需要至少设置 `class` 或 `factory.class` 属性中的一个，要配置哪个取决于发送器，具体情况参照下文中各发送器的配置示例。
 有些基于定时调度的发送器还可以通过 `interval` 来配置发送间隔，下文会列出各类发送器的详细配置示例。
@@ -87,7 +87,7 @@ JMX 发送器默认可直接使用，无需引入其他依赖。
 
 - `port` -（可选的）JMX 监听的端口。
   如果需要在一台机器上运行多个发送器示例进行监控时（比如 TaskManger 与 JobManager 在一台机器上运行时），建议将端口号配置为 `9250-9260` 这样的区间，
-  实际使用的端口会在相关作业 或 TaskManger 的日志中显示。如果设置了这个选项， Flink 会按照配置的端口号或端口区间开启 JMX 发送器，
+  实际使用的端口会在相关作业 或 TaskManger 的日志中显示。如果设置了这个选项，Flink 会按照配置的端口号或端口区间开启 JMX 发送器，
   这些运行时指标可以通过本地的 JMX 默认接口访问到。
 
 配置示例：
@@ -97,16 +97,16 @@ metrics.reporter.jmx.factory.class: org.apache.flink.metrics.jmx.JMXReporterFact
 metrics.reporter.jmx.port: 8789
 ```
 
-通过 JMX 发送的指标由“域“和”key-properties”列表组成，”域“总以 `org.apache.flink` 开头，后跟一个“通用指标标识符”。
+通过 JMX 发送的指标由“域”和“key-properties”列表组成，“域”总以 `org.apache.flink` 开头，后跟一个“通用指标标识符”。
 
 “通用指标标识符”不像一般系统的指标度量那样按照所度量范围的形式进行命名，而是不包含任何变量，如同常量一样，每个作业都有。
-例如，`org.apache.flink.job.task.numBytesOut` 就是一个”域“。
+例如，`org.apache.flink.job.task.numBytesOut` 就是一个“域”。
 
 “key-property”列表包含所有指标的具体变量值，无论配置的度量范围格式如何，都能关联到指定的指标。
 
 例如`host=localhost,job_name=MyJob,task_name=MyTask` 就是一个“key-property”列表。
 
-总结来说，”域“标注出了某个指标的类，“key-property” 列表标注出了该指标的一个（或者多个）实例。
+总结来说，“域”标注出了某个指标的类，“key-property”列表标注出了该指标的一个（或者多个）实例。
 
 <a name="graphite"></a>
 
@@ -115,9 +115,9 @@ metrics.reporter.jmx.port: 8789
 
 参数：
 
-- `host` - Graphite 服务的地址
-- `port` - Graphite 服务的端口
-- `protocol` - 使用的协议（TCP/UDP）
+- `host` - Graphite 服务的地址。
+- `port` - Graphite 服务的端口。
+- `protocol` - 使用的协议（TCP/UDP）。
 
 配置示例：
 
@@ -170,8 +170,8 @@ InfluxDB 发送器会使用 http 协议按照将指标发送到 InfluxDB 服务�
 
 参数：
 
-- `port` - （可选的）Prometheus 发送器监听的端口，默认为[9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations)。如果需要在一台机器上运行多个发送器示例进行监控时（比如 TaskManger 与 JobManager 在一台机器上运行时），建议将端口号配置为 `9250-9260` 这样的区间，
-- `filterLabelValueCharacters`（可选的）指定是否过滤 label 中的非法字符。如果设置过滤，所有没有匹配 \[a-zA-Z0-9:_\] 的字符都会被过滤掉，如果设置不过滤，则不会有字符被过滤掉。设置不过滤前，请确保你的 label 符合 [Prometheus 的命名规范](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels)
+- `port` - （可选的）Prometheus 发送器监听的端口，默认为 [9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations)。如果需要在一台机器上运行多个发送器示例进行监控时（比如 TaskManger 与 JobManager 在一台机器上运行时），建议将端口号配置为 `9250-9260` 这样的区间。
+- `filterLabelValueCharacters` -（可选的）指定是否过滤 label 中的非法字符。如果设置过滤，所有没有按照 \[a-zA-Z0-9:_\] 匹配的字符都会被过滤掉，如果设置不过滤，则不会有字符被过滤掉。设置不过滤前，请确保你的 label 符合 [Prometheus 的 lable 命名规范](https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels)。
 
 配置示例：
 
@@ -222,8 +222,8 @@ PrometheusPushGatewayReporter 发送器将运行指标发送给 [Pushgateway](ht
 
 参数：
 
-- `host` - StatsD 的服务器地址
-- `port` - StatsD 的服务器端口
+- `host` - StatsD 的服务器地址。
+- `port` - StatsD 的服务器端口。
 
 配置示例：
 
@@ -239,7 +239,7 @@ metrics.reporter.stsd.interval: 60 SECONDS
 ### Datadog
 #### (org.apache.flink.metrics.datadog.DatadogHttpReporter)
 
-注意，使用 Datadog 时候，Flink 运行指标中的任何变量，例如`<host>`、`<job_name>`、 `<tm_id>`、 `<subtask_index>`、`<task_name>`、 `<operator_name>`，都会被当作`host:localhost`、`job_name:myjobname` 这样的 tag 发送。
+使用 Datadog 时，Flink 运行指标中的任何变量，例如`<host>`、`<job_name>`、 `<tm_id>`、 `<subtask_index>`、`<task_name>`、 `<operator_name>`，都会被当作`host:localhost`、`job_name:myjobname` 这样的 tag 发送。
 
 <span class="label label-info">注意</span> 按照 Datedog 的 Histograms 命名约定，Histograms 类的运行指标会作为一系列 gauges 显示（`<metric_name>.<aggregation>`）。
 默认情况下 `min` 即最小值被发送到 Datedog，`sum` 不会被发送。
