@@ -21,6 +21,7 @@ package org.apache.flink.runtime.metrics.groups;
 import org.apache.flink.api.common.JobID;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.CharacterFilter;
 import org.apache.flink.metrics.Gauge;
 import org.apache.flink.metrics.Metric;
@@ -243,7 +244,7 @@ public class MetricGroupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 TestReporter.class.getName());
 
         MetricRegistryImpl registry =

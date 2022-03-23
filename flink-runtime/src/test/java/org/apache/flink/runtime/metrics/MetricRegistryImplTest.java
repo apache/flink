@@ -142,7 +142,7 @@ public class MetricRegistryImplTest extends TestLogger {
     public void testReporterScheduling() throws Exception {
         MetricConfig config = new MetricConfig();
         config.setProperty("arg1", "hello");
-        config.setProperty(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "50 MILLISECONDS");
+        config.setProperty(MetricOptions.REPORTER_INTERVAL.key(), "50 MILLISECONDS");
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
@@ -180,7 +180,7 @@ public class MetricRegistryImplTest extends TestLogger {
         MetricConfig config = new MetricConfig();
         // in a prior implementation the time amount was applied even if the time unit was invalid
         // in this case this would imply using 1 SECOND as the interval (seconds is the default)
-        config.setProperty(ConfigConstants.METRICS_REPORTER_INTERVAL_SUFFIX, "1 UNICORN");
+        config.setProperty(MetricOptions.REPORTER_INTERVAL.key(), "1 UNICORN");
 
         final ManuallyTriggeredScheduledExecutorService manuallyTriggeredScheduledExecutorService =
                 new ManuallyTriggeredScheduledExecutorService();
@@ -220,12 +220,12 @@ public class MetricRegistryImplTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test1."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 TestReporter6.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test2."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 TestReporter7.class.getName());
 
         MetricRegistryImpl registry =
@@ -345,13 +345,13 @@ public class MetricRegistryImplTest extends TestLogger {
     @Test
     public void testConfigurableDelimiterForReporters() throws Exception {
         MetricConfig config1 = new MetricConfig();
-        config1.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "_");
+        config1.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "_");
 
         MetricConfig config2 = new MetricConfig();
-        config2.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
+        config2.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "-");
 
         MetricConfig config3 = new MetricConfig();
-        config3.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "AA");
+        config3.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "AA");
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
@@ -375,13 +375,13 @@ public class MetricRegistryImplTest extends TestLogger {
     public void testConfigurableDelimiterForReportersInGroup() throws Exception {
         String name = "C";
         MetricConfig config1 = new MetricConfig();
-        config1.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "_");
+        config1.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "_");
 
         MetricConfig config2 = new MetricConfig();
-        config2.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "-");
+        config2.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "-");
 
         MetricConfig config3 = new MetricConfig();
-        config3.setProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER, "AA");
+        config3.setProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key(), "AA");
 
         Configuration config = new Configuration();
         config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B");
@@ -389,37 +389,37 @@ public class MetricRegistryImplTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test1."
-                        + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER,
+                        + MetricOptions.REPORTER_SCOPE_DELIMITER.key(),
                 "_");
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test1."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 CollectingMetricsReporter.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test2."
-                        + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER,
+                        + MetricOptions.REPORTER_SCOPE_DELIMITER.key(),
                 "-");
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test2."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 CollectingMetricsReporter.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test3."
-                        + ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER,
+                        + MetricOptions.REPORTER_SCOPE_DELIMITER.key(),
                 "AA");
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test3."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 CollectingMetricsReporter.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test4."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 CollectingMetricsReporter.class.getName());
 
         List<ReporterSetup> reporterConfigurations =
@@ -445,7 +445,7 @@ public class MetricRegistryImplTest extends TestLogger {
         for (ReporterSetup cfg : reporterConfigurations) {
             String delimiter =
                     cfg.getConfiguration()
-                            .getProperty(ConfigConstants.METRICS_REPORTER_SCOPE_DELIMITER);
+                            .getProperty(MetricOptions.REPORTER_SCOPE_DELIMITER.key());
             if (delimiter == null || delimiter.equals("AA")) {
                 // test3 reporter: 'AA' - not correct
                 // for test4 reporter use global delimiter

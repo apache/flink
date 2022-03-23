@@ -103,6 +103,8 @@ public final class Documentation {
 
         public static final String DEPRECATED_FILE_SINKS = "deprecated_file_sinks";
 
+        public static final String METRIC_REPORTERS = "metric_reporters";
+
         private Sections() {}
     }
 

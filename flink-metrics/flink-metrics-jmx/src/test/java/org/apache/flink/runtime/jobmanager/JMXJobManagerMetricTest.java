@@ -72,7 +72,7 @@ class JMXJobManagerMetricTest {
         flinkConfiguration.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 JMXReporter.class.getName());
         flinkConfiguration.setString(MetricOptions.SCOPE_NAMING_JM_JOB, "jobmanager.<job_name>");
 

@@ -125,7 +125,7 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "reporter1."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 TestReporter1.class.getName());
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -145,17 +145,17 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test1."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 TestReporter11.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test2."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 TestReporter12.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test3."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 TestReporter13.class.getName());
 
         List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -201,7 +201,7 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "reporter1."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 TestReporter1.class.getName());
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg1", "value1");
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter1.arg2", "value2");
@@ -220,7 +220,7 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "reporter2."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 TestReporter2.class.getName());
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg1", "value1");
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "reporter2.arg3", "value3");
@@ -242,12 +242,12 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporterFactory.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_EXCLUDED_VARIABLES,
+                        + MetricOptions.REPORTER_EXCLUDED_VARIABLES.key(),
                 excludedVariable1 + ";" + excludedVariable2);
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -270,7 +270,7 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporterFactory.class.getName());
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -292,12 +292,12 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 InstantiationTypeTrackingTestReporterFactory.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 InstantiationTypeTrackingTestReporter.class.getName());
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -318,12 +318,12 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporterFactory.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "fail."
-                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 FailingFactory.class.getName());
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -338,12 +338,12 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test1."
-                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 InstantiationTypeTrackingTestReporterFactory.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test2."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 InstantiationTypeTrackingTestReporter.class.getName());
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -367,7 +367,7 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 ConfigExposingReporterFactory.class.getName());
         config.setString(ConfigConstants.METRICS_REPORTER_PREFIX + "test.arg", "hello");
 
@@ -387,7 +387,7 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 InstantiationTypeTrackingTestReporter2.class.getName());
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);
@@ -411,7 +411,7 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 InstantiationTypeTrackingTestReporter.class.getName());
 
         final List<ReporterSetup> reporterSetups =
@@ -443,12 +443,12 @@ public class ReporterSetupTest extends TestLogger {
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                 TestReporterFactory.class.getName());
         config.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "test."
-                        + ConfigConstants.METRICS_REPORTER_ADDITIONAL_VARIABLES,
+                        + MetricOptions.REPORTER_ADDITIONAL_VARIABLES.key(),
                 String.join(",", tag1 + ":" + tagValue1, tag2 + ":" + tagValue2));
 
         final List<ReporterSetup> reporterSetups = ReporterSetup.fromConfiguration(config, null);

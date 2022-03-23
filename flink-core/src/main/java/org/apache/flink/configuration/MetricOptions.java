@@ -25,7 +25,9 @@ import org.apache.flink.configuration.description.InlineElement;
 import org.apache.flink.configuration.description.TextElement;
 
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static org.apache.flink.configuration.ConfigOptions.key;
 import static org.apache.flink.configuration.description.TextElement.text;
@@ -33,6 +35,9 @@ import static org.apache.flink.configuration.description.TextElement.text;
 /** Configuration options for metrics and metric reporters. */
 @PublicEvolving
 public class MetricOptions {
+
+    private static final String NAMED_REPORTER_CONFIG_PREFIX =
+            ConfigConstants.METRICS_REPORTER_PREFIX + "<name>";
 
     /**
      * An optional list of reporter names. If configured, only reporters whose name matches any of
@@ -60,20 +65,62 @@ public class MetricOptions {
                                     + " any of the names in the list will be started. Otherwise, all reporters that could be found in"
                                     + " the configuration will be started.");
 
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 1)
     public static final ConfigOption<String> REPORTER_CLASS =
-            key("metrics.reporter.<name>.class")
+            key("class")
                     .stringType()
                     .noDefaultValue()
                     .withDescription("The reporter class to use for the reporter named <name>.");
 
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 1)
+    public static final ConfigOption<String> REPORTER_FACTORY_CLASS =
+            key("factory.class")
+                    .stringType()
+                    .noDefaultValue()
+                    .withDescription(
+                            "The reporter factory class to use for the reporter named <name>.");
+
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 2)
     public static final ConfigOption<Duration> REPORTER_INTERVAL =
-            key("metrics.reporter.<name>.interval")
+            key("interval")
                     .durationType()
                     .defaultValue(Duration.ofSeconds(10))
                     .withDescription("The reporter interval to use for the reporter named <name>.");
 
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 2)
+    public static final ConfigOption<String> REPORTER_SCOPE_DELIMITER =
+            key("scope.delimiter")
+                    .stringType()
+                    .defaultValue(".")
+                    .withDescription(
+                            "The delimiter used to assemble the metric identifier for the reporter named <name>.");
+
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 3)
+    public static final ConfigOption<Map<String, String>> REPORTER_ADDITIONAL_VARIABLES =
+            key("scope.variables.additional")
+                    .mapType()
+                    .defaultValue(Collections.emptyMap())
+                    .withDescription(
+                            "The map of additional variables that should be included for the reporter named <name>. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).");
+
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 3)
+    public static final ConfigOption<String> REPORTER_EXCLUDED_VARIABLES =
+            key("scope.variables.excludes")
+                    .stringType()
+                    .defaultValue(".")
+                    .withDescription(
+                            "The set of variables that should be excluded for the reporter named <name>. Only applicable to tag-based reporters (e.g., PRometheus, InfluxDB).");
+
+    @Documentation.SuffixOption(NAMED_REPORTER_CONFIG_PREFIX)
+    @Documentation.Section(value = Documentation.Sections.METRIC_REPORTERS, position = 4)
     public static final ConfigOption<String> REPORTER_CONFIG_PARAMETER =
-            key("metrics.reporter.<name>.<parameter>")
+            key("<parameter>")
                     .stringType()
                     .noDefaultValue()
                     .withDescription(

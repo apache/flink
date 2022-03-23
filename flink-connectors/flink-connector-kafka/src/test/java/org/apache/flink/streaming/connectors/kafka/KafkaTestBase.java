@@ -21,6 +21,7 @@ import org.apache.flink.client.program.ProgramInvocationException;
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.metrics.jmx.JMXReporter;
 import org.apache.flink.runtime.client.JobExecutionException;
@@ -133,7 +134,7 @@ public abstract class KafkaTestBase extends TestLogger {
         flinkConfig.setString(
                 ConfigConstants.METRICS_REPORTER_PREFIX
                         + "my_reporter."
-                        + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                        + MetricOptions.REPORTER_CLASS.key(),
                 JMXReporter.class.getName());
         return flinkConfig;
     }

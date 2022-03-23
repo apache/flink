@@ -20,6 +20,7 @@ package org.apache.flink.metrics.prometheus.tests;
 
 import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.prometheus.PrometheusReporter;
 import org.apache.flink.metrics.prometheus.PrometheusReporterFactory;
 import org.apache.flink.tests.util.AutoClosableProcess;
@@ -179,14 +180,14 @@ public class PrometheusReporterEndToEndITCase extends TestLogger {
                 config.setString(
                         ConfigConstants.METRICS_REPORTER_PREFIX
                                 + "prom."
-                                + ConfigConstants.METRICS_REPORTER_FACTORY_CLASS_SUFFIX,
+                                + MetricOptions.REPORTER_FACTORY_CLASS.key(),
                         PrometheusReporterFactory.class.getName());
                 break;
             case REFLECTION:
                 config.setString(
                         ConfigConstants.METRICS_REPORTER_PREFIX
                                 + "prom."
-                                + ConfigConstants.METRICS_REPORTER_CLASS_SUFFIX,
+                                + MetricOptions.REPORTER_CLASS.key(),
                         PrometheusReporter.class.getCanonicalName());
         }
 
