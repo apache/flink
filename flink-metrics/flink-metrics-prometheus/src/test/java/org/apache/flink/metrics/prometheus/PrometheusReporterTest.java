@@ -269,13 +269,6 @@ class PrometheusReporterTest {
     }
 
     @Test
-    void addingUnknownMetricTypeDoesNotThrowException() {
-        class SomeMetricType implements Metric {}
-
-        reporter.notifyOfAddedMetric(new SomeMetricType(), "name", metricGroup);
-    }
-
-    @Test
     void cannotStartTwoReportersOnSamePort() throws Exception {
         ReporterSetup setup1 = createReporterSetup("test1", portRangeProvider.next());
 

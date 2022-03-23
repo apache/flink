@@ -77,42 +77,52 @@ public class DatadogHttpReporter implements MetricReporter, Scheduled {
         tags.addAll(getTagsFromMetricGroup(group));
         String host = getHostFromMetricGroup(group);
 
-        if (metric instanceof Counter) {
-            Counter c = (Counter) metric;
-            counters.put(c, new DCounter(c, name, host, tags, clock));
-        } else if (metric instanceof Gauge) {
-            Gauge g = (Gauge) metric;
-            gauges.put(g, new DGauge(g, name, host, tags, clock));
-        } else if (metric instanceof Meter) {
-            Meter m = (Meter) metric;
-            // Only consider rate
-            meters.put(m, new DMeter(m, name, host, tags, clock));
-        } else if (metric instanceof Histogram) {
-            Histogram h = (Histogram) metric;
-            histograms.put(h, new DHistogram(h, name, host, tags, clock));
-        } else {
-            LOGGER.warn(
-                    "Cannot add unknown metric type {}. This indicates that the reporter "
-                            + "does not support this metric type.",
-                    metric.getClass().getName());
+        switch (metric.getMetricType()) {
+            case COUNTER:
+                Counter c = (Counter) metric;
+                counters.put(c, new DCounter(c, name, host, tags, clock));
+                break;
+            case GAUGE:
+                Gauge g = (Gauge) metric;
+                gauges.put(g, new DGauge(g, name, host, tags, clock));
+                break;
+            case METER:
+                Meter m = (Meter) metric;
+                // Only consider rate
+                meters.put(m, new DMeter(m, name, host, tags, clock));
+                break;
+            case HISTOGRAM:
+                Histogram h = (Histogram) metric;
+                histograms.put(h, new DHistogram(h, name, host, tags, clock));
+                break;
+            default:
+                LOGGER.warn(
+                        "Cannot add unknown metric type {}. This indicates that the reporter "
+                                + "does not support this metric type.",
+                        metric.getClass().getName());
         }
     }
 
     @Override
     public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
-        if (metric instanceof Counter) {
-            counters.remove(metric);
-        } else if (metric instanceof Gauge) {
-            gauges.remove(metric);
-        } else if (metric instanceof Meter) {
-            meters.remove(metric);
-        } else if (metric instanceof Histogram) {
-            histograms.remove(metric);
-        } else {
-            LOGGER.warn(
-                    "Cannot remove unknown metric type {}. This indicates that the reporter "
-                            + "does not support this metric type.",
-                    metric.getClass().getName());
+        switch (metric.getMetricType()) {
+            case COUNTER:
+                counters.remove(metric);
+                break;
+            case GAUGE:
+                gauges.remove(metric);
+                break;
+            case METER:
+                meters.remove(metric);
+                break;
+            case HISTOGRAM:
+                histograms.remove(metric);
+                break;
+            default:
+                LOGGER.warn(
+                        "Cannot remove unknown metric type {}. This indicates that the reporter "
+                                + "does not support this metric type.",
+                        metric.getClass().getName());
         }
     }
 
