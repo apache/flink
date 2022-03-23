@@ -418,6 +418,22 @@ $ ./bin/flink run \
       --python examples/python/table/word_count.py
 ```
 
+- Run a PyFlink job using a [YARN cluster in Application Mode]({{< ref "docs/deployment/resource-providers/yarn" >}}#application-mode):
+```bash
+$ ./bin/flink run-application -t yarn-application \
+      -Djobmanager.memory.process.size=1024m \
+      -Dtaskmanager.memory.process.size=1024m \
+      -Dyarn.application.name=<ApplicationName> \
+      -Dyarn.ship-files=/path/to/shipfiles \
+      -pyarch shipfiles/venv.zip \
+      -pyclientexec venv.zip/venv/bin/python3 \
+      -pyexec venv.zip/venv/bin/python3 \
+      -py shipfiles/word_count.py
+```
+<span class="label label-info">Note</span> It assumes that the Python dependencies needed to execute the job are already placed in the directory `/path/to/shipfiles`. For example, it should contain venv.zip and word_count.py for the above example.
+
+<span class="label label-info">Note</span> As it executes the job on the JobManager in YARN application mode, the paths specified in `-pyarch` and `-py` are paths relative to `shipfiles` which is the directory name of the shipped files.
+
 - Run a PyFlink application on a native Kubernetes cluster having the cluster ID `<ClusterId>`, it requires a docker image with PyFlink installed, please refer to [Enabling PyFlink in docker]({{< ref "docs/deployment/resource-providers/standalone/docker" >}}#enabling-python):
 ```bash
 $ ./bin/flink run-application \
