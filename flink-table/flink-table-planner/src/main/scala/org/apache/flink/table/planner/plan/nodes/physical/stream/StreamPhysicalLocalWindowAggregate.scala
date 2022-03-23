@@ -24,7 +24,8 @@ import org.apache.flink.table.planner.plan.nodes.exec.stream.StreamExecLocalWind
 import org.apache.flink.table.planner.plan.nodes.exec.{ExecNode, InputProperty}
 import org.apache.flink.table.planner.plan.rules.physical.stream.TwoStageOptimizedWindowAggregateRule
 import org.apache.flink.table.planner.plan.utils.WindowUtil.checkEmitConfiguration
-import org.apache.flink.table.planner.plan.utils.{AggregateUtil, FlinkRelOptUtil, RelExplainUtil, WindowUtil}
+import org.apache.flink.table.planner.plan.utils.{AggregateUtil, RelExplainUtil, WindowUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils.unwrapTableConfig
 import org.apache.flink.table.runtime.groupwindow.{NamedWindowProperty, SliceEnd, WindowReference}
 
 import org.apache.calcite.plan.{RelOptCluster, RelTraitSet}
@@ -123,7 +124,7 @@ class StreamPhysicalLocalWindowAggregate(
   }
 
   override def translateToExecNode(): ExecNode[_] = {
-    checkEmitConfiguration(FlinkRelOptUtil.getTableConfigFromContext(this))
+    checkEmitConfiguration(unwrapTableConfig(this))
     new StreamExecLocalWindowAggregate(
       grouping,
       aggCalls.toArray,
