@@ -81,7 +81,7 @@ JMX 发送器默认可直接使用，无需引入其他依赖。
 
 参数：
 
-- `port` -（可选的） JMX 监听的端口。
+- `port` -（可选的）JMX 监听的端口。
   如果需要在一台机器上运行多个发送器示例进行监控时（比如 TaskManger 与 JobManager 在一台机器上运行时），建议将端口号配置为 `9250-9260` 这样的区间，
   实际使用的端口会在相关作业 或 TaskManger 的日志中显示。如果设置了这个选项， Flink 会按照配置的端口号或端口区间开启 JMX 发送器，
   这些运行时指标可以通过本地的 JMX 默认接口访问到。
@@ -235,16 +235,16 @@ metrics.reporter.stsd.interval: 60 SECONDS
 
 <span class="label label-info">注意</span> 按照 Datedog 的 Histograms 命名约定，Histograms 类的运行指标会作为一系列 gauges 显示（`<metric_name>.<aggregation>`）。
 默认情况下 `min` 即最小值被发送到 Datedog，`sum` 不会被发送。
-与 Datadog 提供的 Histograms 相比，Histograms 类的运行指标不会按照指定的发送间隔进行聚合计算  。
+与 Datadog 提供的 Histograms 相比，Histograms 类的运行指标不会按照指定的发送间隔进行聚合计算。
 
 参数:
 
 - `apikey` - Datadog 的 API KEY。
-- `tags` - （可选的） 发送到 Datadog 时将会转换为指标的全局 tag。tag 间只能以逗号分隔。
-- `proxyHost` - （可选的） 发送到 Datadog 时使用的代理主机。
-- `proxyPort` - （可选的） 发送到 Datadog 时使用的代理端口，默认为 8080。
-- `dataCenter` - （可选的） 要连接的数据中心 （`EU`/`US`），默认为 `US`。
-- `maxMetricsPerRequest` - （可选的） 每次请求携带的最大运行指标个数，默认为 2000。
+- `tags` - （可选的）发送到 Datadog 时将会转换为指标的全局 tag。tag 间只能以逗号分隔。
+- `proxyHost` - （可选的）发送到 Datadog 时使用的代理主机。
+- `proxyPort` - （可选的）发送到 Datadog 时使用的代理端口，默认为 8080。
+- `dataCenter` - （可选的）要连接的数据中心（`EU`/`US`），默认为 `US`。
+- `maxMetricsPerRequest` - （可选的）每次请求携带的最大运行指标个数，默认为 2000。
 
 配置示例:
 
