@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkRelNode
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.doAllAggSupportSplit
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ExpandUtil, WindowUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
 import org.apache.calcite.plan.{RelOptRule, RelOptRuleCall}
@@ -37,7 +38,6 @@ import org.apache.calcite.sql.fun.SqlStdOperatorTable._
 import org.apache.calcite.sql.fun.{SqlMinMaxAggFunction, SqlStdOperatorTable}
 import org.apache.calcite.sql.{SqlAggFunction, SqlKind}
 import org.apache.calcite.util.{ImmutableBitSet, ImmutableIntList}
-
 import com.google.common.collect.ImmutableList
 
 import java.math.{BigDecimal => JBigDecimal}
@@ -125,7 +125,7 @@ class SplitAggregateRule extends RelOptRule(
   "SplitAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = ShortcutUtils.unwrapTableConfig(call)
     val agg: FlinkLogicalAggregate = call.rel(0)
 
     val splitDistinctAggEnabled = tableConfig.get(
@@ -146,7 +146,7 @@ class SplitAggregateRule extends RelOptRule(
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = ShortcutUtils.unwrapTableConfig(call)
     val originalAggregate: FlinkLogicalAggregate = call.rel(0)
     val aggCalls = originalAggregate.getAggCallList
     val input: FlinkRelNode = call.rel(1)

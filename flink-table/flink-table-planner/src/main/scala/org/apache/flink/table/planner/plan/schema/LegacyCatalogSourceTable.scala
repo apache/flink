@@ -28,6 +28,7 @@ import org.apache.flink.table.planner.JMap
 import org.apache.flink.table.planner.calcite.{FlinkRelBuilder, FlinkTypeFactory}
 import org.apache.flink.table.planner.catalog.CatalogSchemaTable
 import org.apache.flink.table.planner.hint.FlinkHints
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.sources.{StreamTableSource, TableSource, TableSourceValidation}
 import org.apache.flink.table.types.logical.{LocalZonedTimestampType, TimestampKind, TimestampType}
 
@@ -75,17 +76,14 @@ class LegacyCatalogSourceTable[T](
 
   override def toRel(context: RelOptTable.ToRelContext): RelNode = {
     val cluster = context.getCluster
-    val flinkContext = cluster
-      .getPlanner
-      .getContext
-      .unwrap(classOf[FlinkContext])
+    val flinkContext = ShortcutUtils.unwrapContext(cluster)
     val typeFactory = cluster.getTypeFactory.asInstanceOf[FlinkTypeFactory]
 
-    val conf = flinkContext.getTableConfig
+    val tableConfig = flinkContext.getTableConfig
 
     val hintedOptions = FlinkHints.getHintedOptions(context.getTableHints)
     if (hintedOptions.nonEmpty
-      && !conf.get(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
+      && !tableConfig.get(TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED)) {
       throw new ValidationException(s"${FlinkHints.HINT_NAME_OPTIONS} hint is allowed only when "
         + s"${TableConfigOptions.TABLE_DYNAMIC_TABLE_OPTIONS_ENABLED.key} "
         + s"is set to true")
@@ -93,7 +91,7 @@ class LegacyCatalogSourceTable[T](
 
     val tableSource = findAndCreateLegacyTableSource(
       hintedOptions,
-      conf)
+      tableConfig)
 
     // erase time indicator types in the rowType
     val actualRowType = eraseTimeIndicator(rowType, typeFactory, tableSource)

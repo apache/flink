@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.plan.`trait`.FlinkRelDistribution
 import org.apache.flink.table.planner.plan.logical.{LogicalWindow, SlidingGroupWindow, TumblingGroupWindow}
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalWindowAggregate
-import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalLocalSortWindowAggregate, BatchPhysicalSortWindowAggregate, BatchPhysicalHashWindowAggregate, BatchPhysicalLocalHashWindowAggregate}
+import org.apache.flink.table.planner.plan.nodes.physical.batch.{BatchPhysicalHashWindowAggregate, BatchPhysicalLocalHashWindowAggregate, BatchPhysicalLocalSortWindowAggregate, BatchPhysicalSortWindowAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
 import org.apache.flink.table.planner.plan.utils.AggregateUtil.hasTimeIntervalType
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
@@ -42,6 +42,7 @@ import org.apache.calcite.rel.core.{Aggregate, AggregateCall}
 import org.apache.calcite.rel.{RelCollations, RelNode}
 import org.apache.calcite.sql.`type`.SqlTypeName
 import org.apache.commons.math3.util.ArithmeticUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import scala.collection.JavaConversions._
 
@@ -104,7 +105,7 @@ class BatchPhysicalWindowAggregateRule
       FlinkTypeFactory.toLogicalRowType(input.getRowType), aggCallsWithoutAuxGroupCalls)
     val aggCallToAggFunction = aggCallsWithoutAuxGroupCalls.zip(aggregates)
     val internalAggBufferTypes = aggBufferTypes.map(_.map(fromDataTypeToLogicalType))
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = ShortcutUtils.unwrapTableConfig(call)
 
     window match {
       case TumblingGroupWindow(_, _, size) if hasTimeIntervalType(size) =>
@@ -166,8 +167,8 @@ class BatchPhysicalWindowAggregateRule
     // local-agg output order: groupSet | assignTs | auxGroupSet | aggCalls
     val newInputTimeFieldIndexFromLocal = groupSet.length
 
-    val config = input.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    if (!isEnforceOnePhaseAgg(config) && supportLocalAgg) {
+    val tableConfig = ShortcutUtils.unwrapTableConfig(input)
+    if (!isEnforceOnePhaseAgg(tableConfig) && supportLocalAgg) {
       val windowType = if (inputTimeIsDate) new IntType() else new BigIntType()
       // local
       var localRequiredTraitSet = input.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
@@ -278,7 +279,7 @@ class BatchPhysicalWindowAggregateRule
       call.transformTo(globalAgg)
     }
     // disable one-phase agg if prefer two-phase agg
-    if (!isEnforceTwoPhaseAgg(config) || !supportLocalAgg) {
+    if (!isEnforceTwoPhaseAgg(tableConfig) || !supportLocalAgg) {
       var requiredTraitSet = agg.getTraitSet.replace(FlinkConventions.BATCH_PHYSICAL)
       // distribute by grouping keys
       requiredTraitSet = if (agg.getGroupCount != 0) {

@@ -31,6 +31,7 @@ import org.apache.calcite.sql.SqlExplainLevel
 import org.apache.calcite.sql.SqlKind._
 import org.apache.calcite.sql.`type`.SqlTypeName._
 import org.apache.commons.math3.util.ArithmeticUtils
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import java.io.{PrintWriter, StringWriter}
 import java.math.BigDecimal
@@ -194,13 +195,9 @@ object FlinkRelOptUtil {
     new RelFieldCollation(fieldIndex, direction, nullDirection)
   }
 
-  def getTableConfigFromContext(rel: RelNode): TableConfig = {
-    rel.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-  }
-
   /** Get max cnf node limit by context of rel */
   def getMaxCnfNodeCount(rel: RelNode): Int = {
-    getTableConfigFromContext(rel).get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
+    ShortcutUtils.unwrapTableConfig(rel).get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
   }
 
   /**

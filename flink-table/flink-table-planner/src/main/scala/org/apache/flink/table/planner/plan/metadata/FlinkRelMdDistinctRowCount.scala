@@ -23,6 +23,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.{Expand, Rank, WindowAg
 import org.apache.flink.table.planner.plan.nodes.physical.batch._
 import org.apache.flink.table.planner.plan.schema.FlinkPreparingTableBase
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil, FlinkRexUtil, RankUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.{JArrayList, JDouble}
 
 import org.apache.calcite.plan.RelOptUtil
@@ -203,7 +204,7 @@ class FlinkRelMdDistinctRowCount private extends MetadataHandler[BuiltInMetadata
       null
     } else {
       val rexBuilder = rel.getCluster.getRexBuilder
-      val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
+      val tableConfig = ShortcutUtils.unwrapTableConfig(rel)
       val maxCnfNodeCount = tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
       val cnf = FlinkRexUtil.toCnf(rexBuilder, maxCnfNodeCount, predicate)
       val conjunctions = RelOptUtil.conjunctions(cnf)

@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.stream._
 import org.apache.flink.table.planner.plan.rules.physical.FlinkExpandConversionRule._
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, ChangelogPlanUtils}
-import org.apache.flink.table.planner.utils.AggregatePhaseStrategy
+import org.apache.flink.table.planner.utils.{AggregatePhaseStrategy, ShortcutUtils}
 import org.apache.flink.table.planner.utils.TableConfigUtils.getAggPhaseStrategy
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -58,7 +58,7 @@ class TwoStageOptimizedAggregateRule extends RelOptRule(
   "TwoStageOptimizedAggregateRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = ShortcutUtils.unwrapTableConfig(call)
     val agg: StreamPhysicalGroupAggregate = call.rel(0)
     val realInput: RelNode = call.rel(2)
 

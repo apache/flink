@@ -26,7 +26,7 @@ import org.apache.flink.table.planner.delegation.BatchPlanner
 import org.apache.flink.table.planner.plan.nodes.calcite.{LegacySink, Sink}
 import org.apache.flink.table.planner.plan.optimize.program.{BatchOptimizeContext, FlinkBatchProgram}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
-import org.apache.flink.table.planner.utils.TableConfigUtils
+import org.apache.flink.table.planner.utils.{ShortcutUtils, TableConfigUtils}
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
@@ -82,7 +82,7 @@ class BatchCommonSubGraphBasedOptimizer(planner: BatchPlanner)
       .getOrElse(FlinkBatchProgram.buildProgram(config))
     Preconditions.checkNotNull(programs)
 
-    val context = relNode.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
+    val context = ShortcutUtils.unwrapContext(relNode)
 
     programs.optimize(relNode, new BatchOptimizeContext {
 

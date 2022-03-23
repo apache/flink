@@ -24,6 +24,7 @@ import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.PartialFinalType
 import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalExchange, StreamPhysicalGlobalGroupAggregate, StreamPhysicalIncrementalGroupAggregate, StreamPhysicalLocalGroupAggregate}
 import org.apache.flink.table.planner.plan.utils.AggregateUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -52,7 +53,7 @@ class IncrementalAggregateRule
     val finalLocalAgg: StreamPhysicalLocalGroupAggregate = call.rel(2)
     val partialGlobalAgg: StreamPhysicalGlobalGroupAggregate = call.rel(3)
 
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = ShortcutUtils.unwrapTableConfig(call)
 
     // whether incremental aggregate is enabled
     val incrementalAggEnabled = tableConfig.get(

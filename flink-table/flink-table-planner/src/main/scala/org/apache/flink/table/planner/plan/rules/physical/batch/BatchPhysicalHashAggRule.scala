@@ -25,6 +25,7 @@ import org.apache.flink.table.planner.plan.nodes.logical.FlinkLogicalAggregate
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalHashAggregate
 import org.apache.flink.table.planner.plan.utils.PythonUtil.isPythonAggregate
 import org.apache.flink.table.planner.plan.utils.{AggregateUtil, OperatorType}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.utils.TableConfigUtils.isOperatorDisabled
 
 import org.apache.calcite.plan.RelOptRule.{any, operand}
@@ -63,7 +64,7 @@ class BatchPhysicalHashAggRule
   with BatchPhysicalAggRuleBase {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = ShortcutUtils.unwrapTableConfig(call)
     if (isOperatorDisabled(tableConfig, OperatorType.HashAgg)) {
       return false
     }
@@ -74,7 +75,7 @@ class BatchPhysicalHashAggRule
   }
 
   override def onMatch(call: RelOptRuleCall): Unit = {
-    val tableConfig = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
+    val tableConfig = ShortcutUtils.unwrapTableConfig(call)
     val agg: FlinkLogicalAggregate = call.rel(0)
     val input: RelNode = call.rel(1)
     val inputRowType = input.getRowType

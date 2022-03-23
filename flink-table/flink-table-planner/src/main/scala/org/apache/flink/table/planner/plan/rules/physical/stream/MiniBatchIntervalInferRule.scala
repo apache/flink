@@ -20,8 +20,9 @@ package org.apache.flink.table.planner.plan.rules.physical.stream
 
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.planner.plan.`trait`.{MiniBatchInterval, MiniBatchIntervalTrait, MiniBatchIntervalTraitDef, MiniBatchMode}
-import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalGroupWindowAggregate, StreamPhysicalDataStreamScan, StreamPhysicalLegacyTableSourceScan, StreamPhysicalMiniBatchAssigner, StreamPhysicalRel, StreamPhysicalTableSourceScan, StreamPhysicalWatermarkAssigner}
+import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysicalDataStreamScan, StreamPhysicalGroupWindowAggregate, StreamPhysicalLegacyTableSourceScan, StreamPhysicalMiniBatchAssigner, StreamPhysicalRel, StreamPhysicalTableSourceScan, StreamPhysicalWatermarkAssigner}
 import org.apache.flink.table.planner.plan.utils.FlinkRelOptUtil
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.RelOptRule._
 import org.apache.calcite.plan.hep.HepRelVertex
@@ -63,7 +64,7 @@ class MiniBatchIntervalInferRule extends RelOptRule(
     val rel: StreamPhysicalRel = call.rel(0)
     val miniBatchIntervalTrait = rel.getTraitSet.getTrait(MiniBatchIntervalTraitDef.INSTANCE)
     val inputs = getInputs(rel)
-    val config = FlinkRelOptUtil.getTableConfigFromContext(rel)
+    val config = ShortcutUtils.unwrapTableConfig(rel)
     val miniBatchEnabled = config.get(ExecutionConfigOptions.TABLE_EXEC_MINIBATCH_ENABLED)
 
     val updatedTrait = rel match {

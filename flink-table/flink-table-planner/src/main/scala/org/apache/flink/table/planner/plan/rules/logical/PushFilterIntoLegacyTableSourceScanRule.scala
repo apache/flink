@@ -49,8 +49,8 @@ class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
   "PushFilterIntoLegacyTableSourceScanRule") {
 
   override def matches(call: RelOptRuleCall): Boolean = {
-    val config = call.getPlanner.getContext.unwrap(classOf[FlinkContext]).getTableConfig
-    if (!config.get(
+    val tableConfig = ShortcutUtils.unwrapTableConfig(call)
+    if (!tableConfig.get(
       OptimizerConfigOptions.TABLE_OPTIMIZER_SOURCE_PREDICATE_PUSHDOWN_ENABLED)) {
       return false
     }
@@ -85,7 +85,7 @@ class PushFilterIntoLegacyTableSourceScanRule extends RelOptRule(
       relOptTable: FlinkPreparingTableBase): Unit = {
 
     val relBuilder = call.builder()
-    val context = call.getPlanner.getContext.unwrap(classOf[FlinkContext])
+    val context = ShortcutUtils.unwrapContext(call)
     val maxCnfNodeCount = FlinkRelOptUtil.getMaxCnfNodeCount(scan)
     val (predicates, unconvertedRexNodes) =
       RexNodeExtractor.extractConjunctiveConditions(

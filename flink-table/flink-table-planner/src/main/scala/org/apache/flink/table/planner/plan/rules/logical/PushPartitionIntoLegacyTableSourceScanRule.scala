@@ -27,7 +27,7 @@ import org.apache.flink.table.planner.calcite.{FlinkContext, FlinkTypeFactory}
 import org.apache.flink.table.planner.plan.schema.LegacyTableSourceTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, PartitionPruner, RexNodeExtractor, RexNodeToExpressionConverter}
-import org.apache.flink.table.planner.utils.{CatalogTableStatisticsConverter, TableConfigUtils}
+import org.apache.flink.table.planner.utils.{CatalogTableStatisticsConverter, ShortcutUtils, TableConfigUtils}
 import org.apache.flink.table.planner.utils.JavaScalaConversionUtil.toScala
 import org.apache.flink.table.sources.PartitionableTableSource
 
@@ -70,7 +70,7 @@ class PushPartitionIntoLegacyTableSourceScanRule extends RelOptRule(
   override def onMatch(call: RelOptRuleCall): Unit = {
     val filter: Filter = call.rel(0)
     val scan: LogicalTableScan = call.rel(1)
-    val context = call.getPlanner.getContext.unwrap(classOf[FlinkContext])
+    val context = ShortcutUtils.unwrapContext(call)
     val tableConfig = context.getTableConfig
     val tableSourceTable = scan.getTable.unwrap(classOf[LegacyTableSourceTable[_]])
     val tableIdentifier = tableSourceTable.tableIdentifier

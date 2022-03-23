@@ -31,6 +31,7 @@ import org.apache.flink.table.planner.plan.nodes.calcite.LogicalTableAggregate;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWatermarkAssigner;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowAggregate;
 import org.apache.flink.table.planner.plan.nodes.calcite.LogicalWindowTableAggregate;
+import org.apache.flink.table.planner.utils.ShortcutUtils;
 import org.apache.flink.table.runtime.groupwindow.NamedWindowProperty;
 import org.apache.flink.table.runtime.operators.rank.RankRange;
 import org.apache.flink.table.runtime.operators.rank.RankType;
@@ -88,7 +89,8 @@ public final class FlinkRelBuilder extends RelBuilder {
         super(context, cluster, relOptSchema);
 
         this.toRelNodeConverter =
-                new QueryOperationConverter(this, context.unwrap(FlinkContext.class).isBatchMode());
+                new QueryOperationConverter(
+                        this, ShortcutUtils.unwrapContext(context).isBatchMode());
         this.expandFactory =
                 Util.first(
                         context.unwrap(ExpandFactory.class),

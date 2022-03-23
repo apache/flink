@@ -24,6 +24,7 @@ import org.apache.flink.configuration.ConfigOptions.key
 import org.apache.flink.table.planner.plan.nodes.FlinkConventions
 import org.apache.flink.table.planner.plan.nodes.physical.batch.BatchPhysicalLocalHashAggregate
 import org.apache.flink.table.planner.plan.utils.{FlinkRelMdUtil, FlinkRelOptUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import org.apache.calcite.plan.RelOptRule
 import org.apache.calcite.rel.RelNode
@@ -54,7 +55,7 @@ trait BatchPhysicalJoinRuleBase {
   def chooseSemiBuildDistinct(
       buildRel: RelNode,
       distinctKeys: Seq[Int]): Boolean = {
-    val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(buildRel)
+    val tableConfig = ShortcutUtils.unwrapTableConfig(buildRel)
     val mq = buildRel.getCluster.getMetadataQuery
     val ratioConf = tableConfig.get(
       BatchPhysicalJoinRuleBase.TABLE_OPTIMIZER_SEMI_JOIN_BUILD_DISTINCT_NDV_RATIO)

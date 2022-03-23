@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.plan.metadata
 import org.apache.flink.table.planner.plan.metadata.SelectivityEstimator._
 import org.apache.flink.table.planner.plan.stats._
 import org.apache.flink.table.planner.plan.utils.{FlinkRelOptUtil, FlinkRexUtil}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 import org.apache.flink.table.planner.{JArrayList, JDouble, JHashMap, JHashSet}
 
 import org.apache.calcite.avatica.util.DateTimeUtils
@@ -56,7 +57,7 @@ class SelectivityEstimator(rel: RelNode, mq: FlinkRelMetadataQuery)
   extends RexVisitorImpl[Option[Double]](true) {
 
   private val rexBuilder = rel.getCluster.getRexBuilder
-  private val tableConfig = FlinkRelOptUtil.getTableConfigFromContext(rel)
+  private val tableConfig = ShortcutUtils.unwrapTableConfig(rel)
   private val maxCnfNodeCount = tableConfig.get(FlinkRexUtil.TABLE_OPTIMIZER_CNF_NODES_LIMIT)
 
   // these default values is referred to RelMdUtil#guessSelectivity

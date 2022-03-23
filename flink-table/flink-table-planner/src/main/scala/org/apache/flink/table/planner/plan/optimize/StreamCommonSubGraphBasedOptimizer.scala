@@ -31,7 +31,7 @@ import org.apache.flink.table.planner.plan.nodes.physical.stream.{StreamPhysical
 import org.apache.flink.table.planner.plan.optimize.program.{FlinkStreamProgram, StreamOptimizeContext}
 import org.apache.flink.table.planner.plan.schema.IntermediateRelTable
 import org.apache.flink.table.planner.plan.stats.FlinkStatistic
-import org.apache.flink.table.planner.utils.TableConfigUtils
+import org.apache.flink.table.planner.utils.{ShortcutUtils, TableConfigUtils}
 import org.apache.flink.util.Preconditions
 
 import org.apache.calcite.rel.RelNode
@@ -159,7 +159,7 @@ class StreamCommonSubGraphBasedOptimizer(planner: StreamPlanner)
       .getOrElse(FlinkStreamProgram.buildProgram(config))
     Preconditions.checkNotNull(programs)
 
-    val context = relNode.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
+    val context = ShortcutUtils.unwrapContext(relNode)
 
     programs.optimize(relNode, new StreamOptimizeContext() {
 

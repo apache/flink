@@ -38,6 +38,7 @@ import org.apache.flink.types.RowKind
 import org.apache.calcite.rel.RelNode
 import org.apache.calcite.util.ImmutableBitSet
 import org.apache.flink.table.catalog.{ManagedTableListener, ResolvedCatalogBaseTable}
+import org.apache.flink.table.planner.utils.ShortcutUtils
 
 import scala.collection.JavaConversions._
 
@@ -827,8 +828,7 @@ class FlinkChangelogModeInferenceProgram extends FlinkOptimizeProgram[StreamOpti
      *  contain upsertKeys of the input update stream.
      */
     private def analyzeUpsertMaterializeStrategy(sink: StreamPhysicalSink): Boolean = {
-      val tableConfig = sink.getCluster.getPlanner.getContext.unwrap(classOf[FlinkContext])
-          .getTableConfig
+      val tableConfig = ShortcutUtils.unwrapTableConfig(sink)
       val inputChangelogMode = ChangelogPlanUtils.getChangelogMode(
         sink.getInput.asInstanceOf[StreamPhysicalRel]).get
       val primaryKeys = sink.contextResolvedTable.getResolvedSchema.getPrimaryKeyIndexes
