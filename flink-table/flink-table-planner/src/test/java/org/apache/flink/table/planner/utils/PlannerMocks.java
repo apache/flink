@@ -154,6 +154,8 @@ public class PlannerMocks {
         private List<RelTraitDef> traitDefs = Collections.emptyList();
         private CalciteSchema rootSchema;
 
+        private Builder() {}
+
         public Builder withBatchMode(boolean batchMode) {
             this.batchMode = batchMode;
             return this;
@@ -187,6 +189,10 @@ public class PlannerMocks {
         public PlannerMocks build() {
             return new PlannerMocks(batchMode, tableConfig, catalogManager, traitDefs, rootSchema);
         }
+    }
+
+    public static Builder newBuilder() {
+        return new Builder();
     }
 
     public static PlannerMocks create() {

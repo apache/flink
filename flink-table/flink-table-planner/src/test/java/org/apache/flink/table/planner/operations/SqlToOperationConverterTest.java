@@ -148,7 +148,7 @@ public class SqlToOperationConverterTest {
                     .build();
 
     private final PlannerMocks plannerMocks =
-            new PlannerMocks.Builder()
+            PlannerMocks.newBuilder()
                     .withBatchMode(true)
                     .withTableConfig(tableConfig)
                     .withCatalogManager(catalogManager)

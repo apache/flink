@@ -69,7 +69,7 @@ class JsonSerdeTestUtil {
             CatalogManager catalogManager, TableConfig tableConfig) {
         final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
         final PlannerContext plannerContext =
-                new PlannerMocks.Builder()
+                PlannerMocks.newBuilder()
                         .withCatalogManager(catalogManager)
                         .withTableConfig(tableConfig)
                         .withRootSchema(

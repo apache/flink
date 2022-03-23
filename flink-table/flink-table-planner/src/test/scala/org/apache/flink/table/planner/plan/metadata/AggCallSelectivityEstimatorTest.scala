@@ -75,7 +75,7 @@ class AggCallSelectivityEstimatorTest {
     val rootSchema = CalciteSchema.createRootSchema(true, false).plus()
     val table = new MockMetaTable(relDataType, statistic)
     rootSchema.add("test", table)
-    val plannerContext: PlannerContext = new PlannerMocks.Builder()
+    val plannerContext: PlannerContext = PlannerMocks.newBuilder
       .withRootSchema(CalciteSchema.from(rootSchema))
       .build()
       .getPlannerContext

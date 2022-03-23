@@ -82,7 +82,7 @@ class FlinkRelMdHandlerTestBase {
 
   // TODO batch RelNode and stream RelNode should have different PlannerContext
   //  and RelOptCluster due to they have different trait definitions.
-  val plannerContext: PlannerContext = new PlannerMocks.Builder()
+  val plannerContext: PlannerContext = PlannerMocks.newBuilder
       .withTableConfig(tableConfig)
       .withRootSchema(CalciteSchema.from(MetadataTestUtil.initRootSchema()))
       .withTraitDefs(util.Arrays.asList(

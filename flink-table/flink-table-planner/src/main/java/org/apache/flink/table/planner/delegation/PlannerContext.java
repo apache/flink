@@ -103,7 +103,6 @@ public class PlannerContext {
     private final List<RelTraitDef> traitDefs;
     private final FrameworkConfig frameworkConfig;
 
-    /** Tests should use {@code PlannerMocks.Builder} or {@code PlannerMocks.create} instead. */
     public PlannerContext(
             boolean isBatchMode,
             TableConfig tableConfig,
