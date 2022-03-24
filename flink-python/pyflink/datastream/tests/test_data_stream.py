@@ -1093,6 +1093,63 @@ class StreamingModeDataStreamTests(DataStreamTests, PyFlinkStreamingTestCase):
         expected = ['(1,1)', '(5,1)', '(15,1)', '(5,2)', '(16,2)']
         self.assert_equals_sorted(expected, results)
 
+    def test_keyed_min_and_max(self):
+        ds = self.env.from_collection([('a', 3, 0), ('a', 1, 1), ('b', 5, 1), ('b', 3, 1)],
+                                      type_info=Types.ROW_NAMED(
+                                          ["v1", "v2", "v3"],
+                                          [Types.STRING(), Types.INT(), Types.INT()])
+                                      )
+        # 1th operator min: ('a', 3, 0), ('a', 1, 0), ('b', 5, 1), ('b', 3, 1)
+        # 2th operator max: ('a', 3, 0), ('a', 3, 0), ('b', 5, 1), ('b', 5, 1)
+        # 3th operator max: ('a', 1), ('a', 1), ('b', 1), ('b', 1)
+        # 4th operator min: ('a', 'a', 'b', 'b')
+        ds.key_by(lambda x: x[0]) \
+            .min("v2") \
+            .map(lambda x: (x[0], x[1], x[2]),
+                 output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.INT()])) \
+            .key_by(lambda x: x[2]) \
+            .max(1) \
+            .map(lambda x: (x[0], 1), output_type=Types.TUPLE([Types.STRING(), Types.INT()])) \
+            .key_by(lambda x: x[1]) \
+            .max() \
+            .map(lambda x: x[0], output_type=Types.STRING()) \
+            .key_by(lambda x: x) \
+            .min() \
+            .add_sink(self.test_sink)
+
+        self.env.execute("key_by_min_max_test_stream")
+        results = self.test_sink.get_results(False)
+        expected = ['a', 'a', 'b', 'b']
+        self.assert_equals_sorted(expected, results)
+
+    def test_keyed_min_by_and_max_by(self):
+        ds = self.env.from_collection([('a', 3, 0), ('a', 1, 1), ('b', 5, 0), ('b', 3, 1)],
+                                      type_info=Types.ROW_NAMED(
+                                          ["v1", "v2", "v3"],
+                                          [Types.STRING(), Types.INT(), Types.INT()])
+                                      )
+        # 1th operator min_by: ('a', 3, 0), ('a', 1, 1), ('b', 5, 0), ('b', 3, 1)
+        # 2th operator max_by: ('a', 3, 0), ('a', 3, 0), ('b', 5, 0), ('b', 5, 0)
+        # 3th operator min_by: ('a', 3, 0), ('a', 3, 0), ('a', 3, 0), ('a', 3, 0)
+        # 4th operator max_by: ('a', 'a', 'a', 'a')
+        ds.key_by(lambda x: x[0]) \
+            .min_by("v2") \
+            .map(lambda x: (x[0], x[1], x[2]),
+                 output_type=Types.TUPLE([Types.STRING(), Types.INT(), Types.INT()])) \
+            .key_by(lambda x: x[2]) \
+            .max_by(1) \
+            .key_by(lambda x: x[2]) \
+            .min_by() \
+            .map(lambda x: x[0], output_type=Types.STRING()) \
+            .key_by(lambda x: x) \
+            .max_by() \
+            .add_sink(self.test_sink)
+
+        self.env.execute("key_by_min_by_max_by_test_stream")
+        results = self.test_sink.get_results(False)
+        expected = ['a', 'a', 'a', 'a']
+        self.assert_equals_sorted(expected, results)
+
     def test_function_with_error(self):
         ds = self.env.from_collection([('a', 0), ('b', 0), ('c', 1), ('d', 1), ('e', 1)],
                                       type_info=Types.ROW([Types.STRING(), Types.INT()]))
@@ -1233,6 +1290,69 @@ class BatchModeDataStreamTests(DataStreamTests, PyFlinkBatchTestCase):
         results = self.test_sink.get_results(False)
         expected = ['24']
         self.assertEqual(expected, results)
+
+    def test_keyed_min_and_max(self):
+        ds = self.env.from_collection(
+            [(1, '9', 0), (1, '5', 1), (1, '6', 2), (5, '5', 0), (5, '3', 1)],
+            type_info=Types.ROW_NAMED(["v1", "v2", "v3"],
+                                      [Types.INT(), Types.STRING(), Types.INT()])
+        )
+
+        def flat_map_func(data):
+            for i in data:
+                yield int(i)
+
+        ds.key_by(lambda x: x[0]) \
+            .min("v2") \
+            .map(lambda x: (x[0], x[1], x[2]),
+                 output_type=Types.TUPLE([Types.INT(), Types.STRING(), Types.INT()])) \
+            .key_by(lambda x: x[2]) \
+            .max(0) \
+            .flat_map(flat_map_func, output_type=Types.INT()) \
+            .key_by(lambda x: x) \
+            .min() \
+            .key_by(lambda x: x) \
+            .max() \
+            .add_sink(self.test_sink)
+
+        self.env.execute("key_by_min_max_test_batch")
+        results = self.test_sink.get_results(False)
+        expected = ['0', '5']
+        self.assert_equals_sorted(expected, results)
+
+    def test_keyed_min_by_and_max_by(self):
+        ds = self.env.from_collection(
+            [(1, '9', 0), (1, '5', 1), (1, '6', 2), (5, '5', 0), (5, '3', 1)],
+            type_info=Types.ROW_NAMED(["v1", "v2", "v3"],
+                                      [Types.INT(), Types.STRING(), Types.INT()])
+        )
+
+        def flat_map_func1(data):
+            for i in data:
+                yield int(i), 1
+
+        def flat_map_func2(data):
+            for i in data:
+                yield i
+
+        ds.key_by(lambda x: x[0]) \
+            .min_by("v2") \
+            .map(lambda x: (x[0], x[1], x[2]),
+                 output_type=Types.TUPLE([Types.INT(), Types.STRING(), Types.INT()])) \
+            .key_by(lambda x: x[2]) \
+            .max_by(0) \
+            .flat_map(flat_map_func1, output_type=Types.TUPLE([Types.INT(), Types.INT()])) \
+            .key_by(lambda x: [1]) \
+            .min_by() \
+            .flat_map(flat_map_func2, output_type=Types.INT()) \
+            .key_by(lambda x: x) \
+            .max_by() \
+            .add_sink(self.test_sink)
+
+        self.env.execute("key_by_min_by_max_by_test_batch")
+        results = self.test_sink.get_results(False)
+        expected = ['1']
+        self.assert_equals_sorted(expected, results)
 
 
 class MyKeySelector(KeySelector):
