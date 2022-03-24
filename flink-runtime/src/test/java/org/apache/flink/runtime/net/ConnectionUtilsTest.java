@@ -42,9 +42,9 @@ import static org.junit.Assert.assertTrue;
 public class ConnectionUtilsTest {
 
     @Test
-    public void testReturnLocalHostAddressUsingHeuristics() throws Exception {
-        // instead of using a unstable localhost:port as "unreachable" to cause Test fails unstably
-        // using a Absolutely unreachable outside ip:port
+    public void testReturnLoopbackAddressUsingHeuristics() throws Exception {
+        // instead of using an unstable localhost:port as "unreachable" to cause Test fails unstably
+        // using an Absolutely unreachable outside ip:port
         InetSocketAddress unreachable = new InetSocketAddress("8.8.8.8", 0xFFFF);
 
         final long start = System.nanoTime();
@@ -58,8 +58,8 @@ public class ConnectionUtilsTest {
         // we should have found a heuristic address
         assertNotNull(add);
 
-        // make sure that we returned the InetAddress.getLocalHost as a heuristic
-        assertEquals(InetAddress.getLocalHost(), add);
+        // make sure that we returned the InetAddress.getLoopbackAddress as a heuristic
+        assertEquals(InetAddress.getLoopbackAddress(), add);
     }
 
     @Test
