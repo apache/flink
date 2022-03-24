@@ -65,6 +65,10 @@
   }, {
     "id" : 3,
     "type" : "stream-exec-changelog-normalize_1",
+    "configuration" : {
+      "table.exec.mini-batch.enabled" : "false",
+      "table.exec.mini-batch.size" : "-1"
+    },
     "uniqueKeys" : [ 0, 1 ],
     "generateUpdateBefore" : true,
     "inputProperties" : [ {
@@ -79,6 +83,12 @@
   }, {
     "id" : 4,
     "type" : "stream-exec-sink_1",
+    "configuration" : {
+      "table.exec.sink.keyed-shuffle" : "AUTO",
+      "table.exec.sink.not-null-enforcer" : "ERROR",
+      "table.exec.sink.type-length-enforcer" : "IGNORE",
+      "table.exec.sink.upsert-materialize" : "AUTO"
+    },
     "dynamicTableSink" : {
       "table" : {
         "identifier" : "`default_catalog`.`default_database`.`MySink`",
