@@ -65,7 +65,7 @@ metrics.reporter.my_other_reporter.host: 192.168.1.1
 metrics.reporter.my_other_reporter.port: 10000
 ```
 
-**注意**：Flink 在启动时必须能访问到发送器所属的 jar 包。支持 `factory.class` 配置的发送器可以被加载为 [plugins]({{< ref "zh/docs/deployment/filesystems/plugins" >}})，没有该项配置的发送器需要保证 jar 包在 /lib 目录下。Flink 自带的发送器（文档中已经列出的发送器）无需做其他配置，开箱即用。
+**注意**：Flink 在启动时必须能访问到发送器所属的 jar 包。支持 `factory.class` 配置的发送器可以被加载为 [plugins]({{< ref "docs/deployment/filesystems/plugins" >}})，没有该项配置的发送器需要保证 jar 包在 /lib 目录下。Flink 自带的发送器（文档中已经列出的发送器）无需做其他配置，开箱即用。
 
 你可以实现 `org.apache.flink.metrics.reporter.MetricReporter` 接口来自定义发送器，并实现 `Scheduled` 接口让发送器周期性地将运行时指标发送出去。
 另外也可以实现 `MetricReporterFactory` 接口，让发送器作为插件被 Flink 导入。
