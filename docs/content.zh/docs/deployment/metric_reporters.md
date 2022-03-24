@@ -161,7 +161,7 @@ metrics.reporter.influxdb.interval: 60 SECONDS
 ```
 
 InfluxDB 发送器会使用 http 协议按照将指标发送到 InfluxDB 服务器。指标的保留策略可通过配置指定，或按照 InfluxDB 服务端的保留策略决定。
-所有的 Flink 运行指标变量（见 [List of all Variables]({{< ref "zh/docs/ops/metrics" >}}#list-of-all-variables)）都会按照 tag 形式上报给 InfluxDB。
+所有的 Flink 运行指标变量（见 [List of all Variables]({{< ref "docs/ops/metrics" >}}#list-of-all-variables)）都会按照 tag 形式上报给 InfluxDB。
 
 <a name="prometheus"></a>
 
