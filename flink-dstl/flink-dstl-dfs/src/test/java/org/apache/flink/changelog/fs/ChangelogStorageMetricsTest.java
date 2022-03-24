@@ -201,12 +201,12 @@ public class ChangelogStorageMetricsTest {
                 writer.append(0, new byte[] {0, 1, 2, 3});
                 writer.persist(from).get();
             }
-            HistogramStatistics histogram = metrics.getAttemptsPerUpload().getStatistics();
-            assertEquals(maxAttempts, histogram.getMin());
-            assertEquals(maxAttempts, histogram.getMax());
         } finally {
             storage.close();
         }
+        HistogramStatistics histogram = metrics.getAttemptsPerUpload().getStatistics();
+        assertEquals(maxAttempts, histogram.getMin());
+        assertEquals(maxAttempts, histogram.getMax());
     }
 
     @Test
