@@ -154,7 +154,7 @@ public class PostgresCatalogITCase extends PostgresCatalogTestBase {
         assertEquals(
                 "[+I["
                         + "[1, 2, 3], "
-                        + "[[92, 120, 51, 50], [92, 120, 51, 51], [92, 120, 51, 52]], "
+                        + "[[50], [51], [52]], "
                         + "[3, 4, 5], "
                         + "[4, 5, 6], "
                         + "[5.5, 6.6, 7.7], "
