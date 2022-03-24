@@ -19,7 +19,6 @@
 package org.apache.flink.runtime.metrics;
 
 import org.apache.flink.api.common.time.Time;
-import org.apache.flink.configuration.ConfigConstants;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MetricOptions;
 import org.apache.flink.metrics.Counter;
@@ -48,11 +47,13 @@ import org.apache.flink.shaded.guava30.com.google.common.collect.Iterators;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import java.time.Duration;
+import javax.annotation.Nullable;
+
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
@@ -76,16 +77,6 @@ class MetricRegistryImplTest {
         metricRegistry.shutdown().get();
 
         assertThat(metricRegistry.isShutdown()).isTrue();
-    }
-
-    /** Reporter that exposes whether open() was called. */
-    protected static class TestReporter1 extends TestReporter {
-        public static boolean wasOpened = false;
-
-        @Override
-        public void open(MetricConfig config) {
-            wasOpened = true;
-        }
     }
 
     @Test
@@ -125,16 +116,6 @@ class MetricRegistryImplTest {
                 .isTrue();
     }
 
-    /** Reporter that exposes the {@link MetricConfig} it was given. */
-    protected static class TestReporter2 extends TestReporter {
-        static MetricConfig mc;
-
-        @Override
-        public void open(MetricConfig config) {
-            mc = config;
-        }
-    }
-
     /**
      * Verifies that reporters implementing the Scheduled interface are regularly called to report
      * the metrics.
@@ -145,20 +126,22 @@ class MetricRegistryImplTest {
         config.setProperty("arg1", "hello");
         config.setProperty(MetricOptions.REPORTER_INTERVAL.key(), "50 MILLISECONDS");
 
+        final ReportCountingReporter reporter = new ReportCountingReporter();
+
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
-                                ReporterSetup.forReporter("test", config, new TestReporter3())));
+                                ReporterSetup.forReporter("test", config, reporter)));
 
         long start = System.currentTimeMillis();
 
         // only start counting from now on
-        TestReporter3.reportCount = 0;
+        reporter.resetCount();
 
         for (int x = 0; x < 10; x++) {
             Thread.sleep(100);
-            int reportCount = TestReporter3.reportCount;
+            int reportCount = reporter.getReportCount();
             long curT = System.currentTimeMillis();
             /**
              * Within a given time-frame T only T/500 reports may be triggered due to the interval
@@ -173,7 +156,7 @@ class MetricRegistryImplTest {
                     .as("Too many reports were triggered.")
                     .isGreaterThanOrEqualTo(reportCount);
         }
-        assertThat(TestReporter3.reportCount).as("No report was triggered.").isGreaterThan(0);
+        assertThat(reporter.getReportCount()).as("No report was triggered.").isGreaterThan(0);
 
         registry.shutdown().get();
     }
@@ -192,7 +175,8 @@ class MetricRegistryImplTest {
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Collections.singletonList(
-                                ReporterSetup.forReporter("test", config, new TestReporter3())),
+                                ReporterSetup.forReporter(
+                                        "test", config, new ReportCountingReporter())),
                         manuallyTriggeredScheduledExecutorService);
         try {
             Collection<ScheduledFuture<?>> scheduledTasks =
@@ -206,55 +190,54 @@ class MetricRegistryImplTest {
     }
 
     /** Reporter that exposes how often report() was called. */
-    protected static class TestReporter3 extends TestReporter implements Scheduled {
-        public static int reportCount = 0;
+    private static class ReportCountingReporter extends TestReporter implements Scheduled {
+        private int reportCount = 0;
 
         @Override
         public void report() {
             reportCount++;
+        }
+
+        public int getReportCount() {
+            return reportCount;
+        }
+
+        public void resetCount() {
+            reportCount = 0;
         }
     }
 
     /** Verifies that reporters are notified of added/removed metrics. */
     @Test
     void testReporterNotifications() throws Exception {
-        Configuration config = new Configuration();
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test1."
-                        + MetricOptions.REPORTER_CLASS.key(),
-                TestReporter6.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test2."
-                        + MetricOptions.REPORTER_CLASS.key(),
-                TestReporter7.class.getName());
+        final NotificationCapturingReporter reporter1 = new NotificationCapturingReporter();
+        final NotificationCapturingReporter reporter2 = new NotificationCapturingReporter();
 
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
-                                ReporterSetup.forReporter("test1", new TestReporter6()),
-                                ReporterSetup.forReporter("test2", new TestReporter7())));
+                                ReporterSetup.forReporter("test1", reporter1),
+                                ReporterSetup.forReporter("test2", reporter2)));
 
         TaskManagerMetricGroup root =
                 TaskManagerMetricGroup.createTaskManagerMetricGroup(
                         registry, "host", new ResourceID("id"));
         root.counter("rootCounter");
 
-        assertThat(TestReporter6.addedMetric).isInstanceOf(Counter.class);
-        assertThat(TestReporter6.addedMetricName).isEqualTo("rootCounter");
+        assertThat(reporter1.getLastAddedMetric()).containsInstanceOf(Counter.class);
+        assertThat(reporter1.getLastAddedMetricName()).hasValue("rootCounter");
 
-        assertThat(TestReporter7.addedMetric).isInstanceOf(Counter.class);
-        assertThat(TestReporter7.addedMetricName).isEqualTo("rootCounter");
+        assertThat(reporter2.getLastAddedMetric()).containsInstanceOf(Counter.class);
+        assertThat(reporter2.getLastAddedMetricName()).hasValue("rootCounter");
 
         root.close();
 
-        assertThat(TestReporter6.removedMetric).isInstanceOf(Counter.class);
-        assertThat(TestReporter6.removedMetricName).isEqualTo("rootCounter");
+        assertThat(reporter1.getLastRemovedMetric()).containsInstanceOf(Counter.class);
+        assertThat(reporter1.getLastRemovedMetricName()).hasValue("rootCounter");
 
-        assertThat(TestReporter7.removedMetric).isInstanceOf(Counter.class);
-        assertThat(TestReporter7.removedMetricName).isEqualTo("rootCounter");
+        assertThat(reporter2.getLastRemovedMetric()).containsInstanceOf(Counter.class);
+        assertThat(reporter2.getLastRemovedMetricName()).hasValue("rootCounter");
 
         registry.shutdown().get();
     }
@@ -263,36 +246,12 @@ class MetricRegistryImplTest {
      * Reporter that exposes the name and metric instance of the last metric that was added or
      * removed.
      */
-    protected static class TestReporter6 extends TestReporter {
-        static Metric addedMetric;
-        static String addedMetricName;
+    private static class NotificationCapturingReporter extends TestReporter {
+        @Nullable private Metric addedMetric;
+        @Nullable private String addedMetricName;
 
-        static Metric removedMetric;
-        static String removedMetricName;
-
-        @Override
-        public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
-            addedMetric = metric;
-            addedMetricName = metricName;
-        }
-
-        @Override
-        public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
-            removedMetric = metric;
-            removedMetricName = metricName;
-        }
-    }
-
-    /**
-     * Reporter that exposes the name and metric instance of the last metric that was added or
-     * removed.
-     */
-    protected static class TestReporter7 extends TestReporter {
-        static Metric addedMetric;
-        static String addedMetricName;
-
-        static Metric removedMetric;
-        static String removedMetricName;
+        @Nullable private Metric removedMetric;
+        @Nullable private String removedMetricName;
 
         @Override
         public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
@@ -304,6 +263,22 @@ class MetricRegistryImplTest {
         public void notifyOfRemovedMetric(Metric metric, String metricName, MetricGroup group) {
             removedMetric = metric;
             removedMetricName = metricName;
+        }
+
+        public Optional<Metric> getLastAddedMetric() {
+            return Optional.ofNullable(addedMetric);
+        }
+
+        public Optional<String> getLastAddedMetricName() {
+            return Optional.ofNullable(addedMetricName);
+        }
+
+        public Optional<Metric> getLastRemovedMetric() {
+            return Optional.ofNullable(removedMetric);
+        }
+
+        public Optional<String> getLastRemovedMetricName() {
+            return Optional.ofNullable(removedMetricName);
         }
     }
 
@@ -388,42 +363,6 @@ class MetricRegistryImplTest {
         Configuration config = new Configuration();
         config.setString(MetricOptions.SCOPE_NAMING_TM, "A.B");
 
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test1."
-                        + MetricOptions.REPORTER_SCOPE_DELIMITER.key(),
-                "_");
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test1."
-                        + MetricOptions.REPORTER_CLASS.key(),
-                CollectingMetricsReporter.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test2."
-                        + MetricOptions.REPORTER_SCOPE_DELIMITER.key(),
-                "-");
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test2."
-                        + MetricOptions.REPORTER_CLASS.key(),
-                CollectingMetricsReporter.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test3."
-                        + MetricOptions.REPORTER_SCOPE_DELIMITER.key(),
-                "AA");
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test3."
-                        + MetricOptions.REPORTER_CLASS.key(),
-                CollectingMetricsReporter.class.getName());
-        config.setString(
-                ConfigConstants.METRICS_REPORTER_PREFIX
-                        + "test4."
-                        + MetricOptions.REPORTER_CLASS.key(),
-                CollectingMetricsReporter.class.getName());
-
         List<ReporterSetup> reporterConfigurations =
                 Arrays.asList(
                         ReporterSetup.forReporter(
@@ -469,8 +408,6 @@ class MetricRegistryImplTest {
     /** Tests that the query actor will be stopped when the MetricRegistry is shut down. */
     @Test
     void testQueryActorShutdown() throws Exception {
-        final Duration timeout = Duration.ofSeconds(10L);
-
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration());
@@ -483,36 +420,38 @@ class MetricRegistryImplTest {
 
         registry.shutdown().get();
 
-        queryService.getTerminationFuture().get(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        queryService.getTerminationFuture().get();
     }
 
     @Test
     void testExceptionIsolation() throws Exception {
+        final NotificationCapturingReporter reporter1 = new NotificationCapturingReporter();
+
         MetricRegistryImpl registry =
                 new MetricRegistryImpl(
                         MetricRegistryTestUtils.defaultMetricRegistryConfiguration(),
                         Arrays.asList(
                                 ReporterSetup.forReporter("test1", new FailingReporter()),
-                                ReporterSetup.forReporter("test2", new TestReporter7())));
+                                ReporterSetup.forReporter("test2", reporter1)));
 
         Counter metric = new SimpleCounter();
         registry.register(
                 metric, "counter", new MetricGroupTest.DummyAbstractMetricGroup(registry));
 
-        assertThat(TestReporter7.addedMetric).isEqualTo(metric);
-        assertThat(TestReporter7.addedMetricName).isEqualTo("counter");
+        assertThat(reporter1.getLastAddedMetric()).hasValue(metric);
+        assertThat(reporter1.getLastAddedMetricName()).hasValue("counter");
 
         registry.unregister(
                 metric, "counter", new MetricGroupTest.DummyAbstractMetricGroup(registry));
 
-        assertThat(TestReporter7.removedMetric).isEqualTo(metric);
-        assertThat(TestReporter7.removedMetricName).isEqualTo("counter");
+        assertThat(reporter1.getLastRemovedMetric()).hasValue(metric);
+        assertThat(reporter1.getLastRemovedMetricName()).hasValue("counter");
 
         registry.shutdown().get();
     }
 
     /** Reporter that throws an exception when it is notified of an added or removed metric. */
-    protected static class FailingReporter extends TestReporter {
+    private static class FailingReporter extends TestReporter {
         @Override
         public void notifyOfAddedMetric(Metric metric, String metricName, MetricGroup group) {
             throw new RuntimeException();
