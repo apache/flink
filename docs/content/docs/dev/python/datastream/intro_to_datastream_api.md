@@ -78,7 +78,7 @@ def state_access_demo():
     # 3. define the execution logic
     ds = ds.map(lambda a: Row(a % 4, 1), output_type=Types.ROW([Types.LONG(), Types.LONG()])) \
            .key_by(lambda a: a[0]) \
-           .map(MyMapFunction(), output_type=Types.ROW([Types.LONG(), Types.LONG()]))
+           .map(MyMapFunction(), output_type=Types.TUPLE([Types.LONG(), Types.LONG()]))
 
     # 4. create sink and emit result to sink
     output_path = '/opt/output/'
