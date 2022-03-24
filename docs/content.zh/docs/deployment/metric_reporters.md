@@ -188,7 +188,7 @@ Flink 指标类型与 Prometheus 指标类型对应关系如下：
 | Histogram | Summary    | 分位数为 .5, .75, .95, .98, .99 和 .999。  |
 | Meter     | Gauge      | Prometheus 的 gauge 为 meter 的百分比形式。 |
 
-所有的 Flink 运行指标变量（见 [List of all Variables]({{< ref "zh/docs/ops/metrics" >}}#list-of-all-variables)）都会按照 label 形式上报给 Prometheus。
+所有的 Flink 运行指标变量（见 [List of all Variables]({{< ref "docs/ops/metrics" >}}#list-of-all-variables)）都会按照 label 形式上报给 Prometheus。
 
 <a name="prometheuspushgateway"></a>
 
