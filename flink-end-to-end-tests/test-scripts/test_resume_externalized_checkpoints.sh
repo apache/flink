@@ -40,7 +40,7 @@ function run_resume_externalized_checkpoints() {
 
   set_config_key "taskmanager.numberOfTaskSlots" "${NUM_SLOTS}"
   set_config_key "metrics.fetcher.update-interval" "2000"
-  setup_flink_slf4j_metric_reporter
+  setup_flink_slf4j_metric_reporter "numRecordsIn"
   start_cluster
 
   CHECKPOINT_DIR="$TEST_DATA_DIR/externalized-chckpt-e2e-backend-dir"

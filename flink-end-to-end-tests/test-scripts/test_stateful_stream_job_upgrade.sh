@@ -29,7 +29,7 @@ else
 fi
 
 set_config_key "taskmanager.numberOfTaskSlots" "${NUM_SLOTS}"
-setup_flink_slf4j_metric_reporter
+setup_flink_slf4j_metric_reporter "numRecordsIn"
 set_config_key "metrics.fetcher.update-interval" "2000"
 
 start_cluster
