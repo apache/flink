@@ -21,6 +21,7 @@ package org.apache.flink.table.planner.utils
 import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.java.tuple.{Tuple2 => JTuple2}
 import org.apache.flink.api.java.typeutils.{ObjectArrayTypeInfo, RowTypeInfo, TupleTypeInfo}
+import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.AggregateFunction
 import org.apache.flink.types.Row
@@ -123,9 +124,11 @@ class Top10 extends AggregateFunction[Array[JTuple2[JInt, JFloat]], Array[JTuple
 
 case class NonMergableCountAcc(var count: Long)
 
-class NonMergableCount extends AggregateFunction[Long, NonMergableCountAcc] {
+class NonMergableCount extends AggregateFunction[java.lang.Long, NonMergableCountAcc] {
 
-  def accumulate(acc: NonMergableCountAcc, value: Any): Unit = {
+  def accumulate(
+      acc: NonMergableCountAcc,
+      @DataTypeHint(inputGroup = InputGroup.ANY) value: Any): Unit = {
     if (null != value) {
       acc.count = acc.count + 1
     }
@@ -133,14 +136,15 @@ class NonMergableCount extends AggregateFunction[Long, NonMergableCountAcc] {
 
   override def createAccumulator(): NonMergableCountAcc = NonMergableCountAcc(0)
 
-  override def getValue(acc: NonMergableCountAcc): Long = acc.count
+  override def getValue(acc: NonMergableCountAcc): java.lang.Long = acc.count
 }
 
 case class CountMinMaxAcc(var count: Long, var min: Int, var max: Int)
 
+@DataTypeHint("ROW<f0 BIGINT, f1 INT, f2 INT>")
 class CountMinMax extends AggregateFunction[Row, CountMinMaxAcc] {
 
-  def accumulate(acc: CountMinMaxAcc, value: Int): Unit = {
+  def accumulate(acc: CountMinMaxAcc, value: java.lang.Integer): Unit = {
     if (acc.count == 0 || value < acc.min) {
       acc.min = value
     }
@@ -165,9 +169,5 @@ class CountMinMax extends AggregateFunction[Row, CountMinMaxAcc] {
       null.asInstanceOf[Int]
     }
     Row.of(JLong.valueOf(acc.count), JInt.valueOf(min), JInt.valueOf(max))
-  }
-
-  override def getResultType: TypeInformation[Row] = {
-    new RowTypeInfo(Types.LONG, Types.INT, Types.INT)
   }
 }

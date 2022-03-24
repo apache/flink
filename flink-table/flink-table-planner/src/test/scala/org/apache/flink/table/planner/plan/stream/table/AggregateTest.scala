@@ -22,7 +22,7 @@ import org.apache.flink.api.common.typeinfo.BasicTypeInfo
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
 import org.apache.flink.table.planner.plan.utils.JavaUserDefinedAggFunctions.WeightedAvg
-import org.apache.flink.table.planner.utils.{CountMinMax, TableTestBase}
+import org.apache.flink.table.planner.utils.{CountMinMax, NonMergableCount, TableTestBase}
 
 import org.junit.Test
 
@@ -199,7 +199,7 @@ class AggregateTest extends TableTestBase {
   }
 
   @Test
-  def testAggregateWithScalarResult(): Unit = {
+  def testAggregateWithScalarResultBuiltIn(): Unit = {
     val util = streamTestUtil()
     val table = util.addTableSource[(Int, Long, String)](
       "MyTable", 'a, 'b, 'c)
@@ -207,6 +207,21 @@ class AggregateTest extends TableTestBase {
     val resultTable = table
       .groupBy('b)
       .aggregate('a.count)
+      .select('b, 'TMP_0)
+
+    util.verifyExecPlan(resultTable)
+  }
+
+  @Test
+  def testAggregateWithScalarResult(): Unit = {
+    val util = streamTestUtil()
+    val table = util.addTableSource[(Int, Long, String)](
+      "MyTable", 'a, 'b, 'c)
+
+    val testAgg = new NonMergableCount
+    val resultTable = table
+      .groupBy('b)
+      .aggregate(testAgg('a))
       .select('b, 'TMP_0)
 
     util.verifyExecPlan(resultTable)

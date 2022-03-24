@@ -20,20 +20,36 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[AS($0, _UTF-16LE'b')], x=[AS($1.f0, _UTF-16LE'x')], y=[AS($1.f1, _UTF-16LE'y')])
-+- LogicalAggregate(group=[{1}], TMP_0=[CountMinMax($0)])
++- LogicalAggregate(group=[{1}], TMP_0=[*org.apache.flink.table.planner.utils.CountMinMax*($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, TMP_0.f0 AS x, TMP_0.f1 AS y])
-+- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
++- GroupAggregate(groupBy=[b], select=[b, *org.apache.flink.table.planner.utils.CountMinMax*(a) AS TMP_0])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
     </Resource>
   </TestCase>
   <TestCase name="testAggregateWithScalarResult">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], TMP_0=[$1])
++- LogicalAggregate(group=[{1}], TMP_0=[*org.apache.flink.table.planner.utils.NonMergableCount*($0)])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+GroupAggregate(groupBy=[b], select=[b, *org.apache.flink.table.planner.utils.NonMergableCount*(a) AS TMP_0])
++- Exchange(distribution=[hash[b]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testAggregateWithScalarResultBuiltIn">
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], TMP_0=[$1])
@@ -158,14 +174,14 @@ Calc(select=[4 AS four, EXPR$0])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[AS($0, _UTF-16LE'b')], f0=[AS($1.f0, _UTF-16LE'f0')], f1=[AS($1.f1, _UTF-16LE'f1')])
-+- LogicalAggregate(group=[{1}], TMP_0=[CountMinMax($0)])
++- LogicalAggregate(group=[{1}], TMP_0=[*org.apache.flink.table.planner.utils.CountMinMax*($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1])
-+- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
++- GroupAggregate(groupBy=[b], select=[b, *org.apache.flink.table.planner.utils.CountMinMax*(a) AS TMP_0])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -265,14 +281,14 @@ GroupWindowAggregate(window=[SlidingGroupWindow('w, rowtime, 3600000, 900000)], 
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[AS($0, _UTF-16LE'b')], f0=[AS($1.f0, _UTF-16LE'f0')], f1=[AS($1.f1, _UTF-16LE'f1')], f2=[AS($1.f2, _UTF-16LE'f2')])
-+- LogicalAggregate(group=[{1}], TMP_0=[CountMinMax($0)])
++- LogicalAggregate(group=[{1}], TMP_0=[*org.apache.flink.table.planner.utils.CountMinMax*($0)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, TMP_0.f0 AS f0, TMP_0.f1 AS f1, TMP_0.f2 AS f2])
-+- GroupAggregate(groupBy=[b], select=[b, CountMinMax(a) AS TMP_0])
++- GroupAggregate(groupBy=[b], select=[b, *org.apache.flink.table.planner.utils.CountMinMax*(a) AS TMP_0])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>

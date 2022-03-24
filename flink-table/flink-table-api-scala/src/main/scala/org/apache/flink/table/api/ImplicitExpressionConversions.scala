@@ -168,33 +168,13 @@ trait ImplicitExpressionConversions {
     }
   }
 
-  implicit class ImperativeAggregateFunctionCall[T: TypeInformation, ACC: TypeInformation]
-      (val a: ImperativeAggregateFunction[T, ACC]) {
-
-    private def createFunctionDefinition(): FunctionDefinition = {
-      val resultTypeInfo: TypeInformation[T] = UserDefinedFunctionHelper
-        .getReturnTypeOfAggregateFunction(a, implicitly[TypeInformation[T]])
-
-      val accTypeInfo: TypeInformation[ACC] = UserDefinedFunctionHelper.
-        getAccumulatorTypeOfAggregateFunction(a, implicitly[TypeInformation[ACC]])
-
-      a match {
-        case af: AggregateFunction[_, _] =>
-          new AggregateFunctionDefinition(
-            af.getClass.getName, af, resultTypeInfo, accTypeInfo)
-        case taf: TableAggregateFunction[_, _] =>
-          new TableAggregateFunctionDefinition(
-            taf.getClass.getName, taf, resultTypeInfo, accTypeInfo)
-      }
-    }
+  implicit class ImperativeAggregateFunctionCall(val a: ImperativeAggregateFunction[_, _]) {
 
     /**
       * Calls an aggregate function for the given parameters.
       */
     def apply(params: Expression*): Expression = {
-      unresolvedCall(
-        createFunctionDefinition(),
-        params.map(ApiExpressionUtils.objectToExpression): _*)
+      unresolvedCall(a, params.map(ApiExpressionUtils.objectToExpression): _*)
     }
 
     /**

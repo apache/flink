@@ -309,7 +309,7 @@ public class JavaUserDefinedAggFunctions {
         }
 
         // Overloaded accumulate method
-        public void accumulate(CountDistinctAccum accumulator, long id) {
+        public void accumulate(CountDistinctAccum accumulator, Long id) {
             try {
                 Integer cnt = accumulator.map.get(String.valueOf(id));
                 if (cnt != null) {
@@ -372,7 +372,7 @@ public class JavaUserDefinedAggFunctions {
     public static class CountDistinctWithRetractAndReset extends CountDistinct {
 
         // Overloaded retract method
-        public void retract(CountDistinctAccum accumulator, long id) {
+        public void retract(CountDistinctAccum accumulator, Long id) {
             try {
                 Integer cnt = accumulator.map.get(String.valueOf(id));
                 if (cnt != null) {

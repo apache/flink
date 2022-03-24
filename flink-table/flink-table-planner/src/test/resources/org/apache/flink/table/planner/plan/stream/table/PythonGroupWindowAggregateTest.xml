@@ -16,17 +16,100 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 <Root>
-  <TestCase name="testPandasEventTimeSlidingGroupWindowOverCount">
+  <TestCase name="testGeneralEventTimeSessionGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
++- LogicalWindowAggregate(group=[{1}], EXPR$2=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$TestPythonAggregateFunction*($0, $2)], window=[SessionGroupWindow('w, rowtime, 7)], properties=[EXPR$0, EXPR$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
++- PythonGroupWindowAggregate(groupBy=[b], window=[SessionGroupWindow('w, rowtime, 7)], properties=[EXPR$0, EXPR$1], select=[b, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$TestPythonAggregateFunction*(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
+   +- Exchange(distribution=[hash[b]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGeneralEventTimeSlidingGroupWindowOverCount">
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{1}], EXPR$0=[PandasAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, proctime, 5, 2)], properties=[])
++- LogicalWindowAggregate(group=[{1}], EXPR$0=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$TestPythonAggregateFunction*($0, $2)], window=[SlidingGroupWindow('w, proctime, 5, 2)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, proctime, 5, 2)], select=[b, PandasAggregateFunction(a, c) AS EXPR$0])
+PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, proctime, 5, 2)], select=[b, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$TestPythonAggregateFunction*(a, c) AS EXPR$0])
++- Exchange(distribution=[hash[b]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]], fields=[a, b, c, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGeneralEventTimeSlidingGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
++- LogicalWindowAggregate(group=[{1}], EXPR$2=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$TestPythonAggregateFunction*($0, $2)], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
++- PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1], select=[b, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$TestPythonAggregateFunction*(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
+   +- Exchange(distribution=[hash[b]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGeneralEventTimeTumblingGroupWindowOverCount">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{1}], EXPR$0=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$TestPythonAggregateFunction*($0, $2)], window=[TumblingGroupWindow('w, proctime, 2)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, proctime, 2)], select=[b, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$TestPythonAggregateFunction*(a, c) AS EXPR$0])
++- Exchange(distribution=[hash[b]])
+   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]], fields=[a, b, c, proctime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testGeneralEventTimeTumblingGroupWindowOverTime">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
++- LogicalWindowAggregate(group=[{1}], EXPR$2=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$TestPythonAggregateFunction*($0, $2)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
++- PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1], select=[b, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$TestPythonAggregateFunction*(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
+   +- Exchange(distribution=[hash[b]])
+      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
+]]>
+    </Resource>
+  </TestCase>
+  <TestCase name="testPandasEventTimeSlidingGroupWindowOverCount">
+    <Resource name="ast">
+      <![CDATA[
+LogicalProject(b=[$0], EXPR$0=[$1])
++- LogicalWindowAggregate(group=[{1}], EXPR$0=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2)], window=[SlidingGroupWindow('w, proctime, 5, 2)], properties=[])
+   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]])
+]]>
+    </Resource>
+    <Resource name="optimized exec plan">
+      <![CDATA[
+PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, proctime, 5, 2)], select=[b, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*(a, c) AS EXPR$0])
 +- Exchange(distribution=[hash[b]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]], fields=[a, b, c, proctime])
 ]]>
@@ -36,14 +119,14 @@ PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, proctime,
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
-+- LogicalWindowAggregate(group=[{1}], EXPR$2=[PandasAggregateFunction($0, $2)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1])
++- LogicalWindowAggregate(group=[{1}], EXPR$2=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
-+- PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1], select=[b, PandasAggregateFunction(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
++- PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1], select=[b, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
 ]]>
@@ -53,14 +136,14 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
-+- LogicalWindowAggregate(group=[{1}], EXPR$2=[PandasAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1])
++- LogicalWindowAggregate(group=[{1}], EXPR$2=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2)], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
-+- PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1], select=[b, PandasAggregateFunction(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
++- PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1], select=[b, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
 ]]>
@@ -70,99 +153,16 @@ Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{1}], EXPR$0=[PandasAggregateFunction($0, $2)], window=[TumblingGroupWindow('w, proctime, 2)], properties=[])
++- LogicalWindowAggregate(group=[{1}], EXPR$0=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2)], window=[TumblingGroupWindow('w, proctime, 2)], properties=[])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, proctime, 2)], select=[b, PandasAggregateFunction(a, c) AS EXPR$0])
+PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, proctime, 2)], select=[b, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*(a, c) AS EXPR$0])
 +- Exchange(distribution=[hash[b]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]], fields=[a, b, c, proctime])
 ]]>
     </Resource>
-  </TestCase>
-  <TestCase name="testGeneralEventTimeSlidingGroupWindowOverCount">
-	<Resource name="ast">
-  	  <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{1}], EXPR$0=[TestPythonAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, proctime, 5, 2)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]])
-]]>
-	</Resource>
-	<Resource name="optimized exec plan">
-	  <![CDATA[
-PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, proctime, 5, 2)], select=[b, TestPythonAggregateFunction(a, c) AS EXPR$0])
-+- Exchange(distribution=[hash[b]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]], fields=[a, b, c, proctime])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testGeneralEventTimeTumblingGroupWindowOverTime">
-    <Resource name="ast">
-	  <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
-+- LogicalWindowAggregate(group=[{1}], EXPR$2=[TestPythonAggregateFunction($0, $2)], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
-]]>
-	</Resource>
-	<Resource name="optimized exec plan">
-	  <![CDATA[
-Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
-+- PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, rowtime, 5)], properties=[EXPR$0, EXPR$1], select=[b, TestPythonAggregateFunction(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
-   +- Exchange(distribution=[hash[b]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
-]]>
-	</Resource>
-  </TestCase>
-  <TestCase name="testGeneralEventTimeSlidingGroupWindowOverTime">
-	<Resource name="ast">
-	  <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
-+- LogicalWindowAggregate(group=[{1}], EXPR$2=[TestPythonAggregateFunction($0, $2)], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
-]]>
-	</Resource>
-    <Resource name="optimized exec plan">
-	  <![CDATA[
-Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
-+- PythonGroupWindowAggregate(groupBy=[b], window=[SlidingGroupWindow('w, rowtime, 5, 2)], properties=[EXPR$0, EXPR$1], select=[b, TestPythonAggregateFunction(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
-   +- Exchange(distribution=[hash[b]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
-]]>
-    </Resource>
-  </TestCase>
-  <TestCase name="testGeneralEventTimeTumblingGroupWindowOverCount">
-    <Resource name="ast">
-	  <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$1])
-+- LogicalWindowAggregate(group=[{1}], EXPR$0=[TestPythonAggregateFunction($0, $2)], window=[TumblingGroupWindow('w, proctime, 2)], properties=[])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]])
-]]>
-	</Resource>
-	<Resource name="optimized exec plan">
-	  <![CDATA[
-PythonGroupWindowAggregate(groupBy=[b], window=[TumblingGroupWindow('w, proctime, 2)], select=[b, TestPythonAggregateFunction(a, c) AS EXPR$0])
-+- Exchange(distribution=[hash[b]])
-   +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]], fields=[a, b, c, proctime])
-]]>
-	</Resource>
-  </TestCase>
-  <TestCase name="testGeneralEventTimeSessionGroupWindowOverTime">
-	<Resource name="ast">
-	  <![CDATA[
-LogicalProject(b=[$0], EXPR$0=[$2], EXPR$1=[$3], EXPR$2=[$1])
-+- LogicalWindowAggregate(group=[{1}], EXPR$2=[TestPythonAggregateFunction($0, $2)], window=[SessionGroupWindow('w, rowtime, 7)], properties=[EXPR$0, EXPR$1])
-   +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]])
-]]>
-	</Resource>
-	<Resource name="optimized exec plan">
-	  <![CDATA[
-Calc(select=[b, EXPR$0, EXPR$1, EXPR$2])
-+- PythonGroupWindowAggregate(groupBy=[b], window=[SessionGroupWindow('w, rowtime, 7)], properties=[EXPR$0, EXPR$1], select=[b, TestPythonAggregateFunction(a, c) AS EXPR$2, start('w) AS EXPR$0, end('w) AS EXPR$1])
-   +- Exchange(distribution=[hash[b]])
-      +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
-]]>
-	</Resource>
   </TestCase>
 </Root>

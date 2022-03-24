@@ -20,13 +20,13 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalProject(c=[$0], f0=[$1], f1=[$2])
-+- LogicalTableAggregate(group=[{2}], tableAggregate=[[EmptyTableAggFunc($0)]])
++- LogicalTableAggregate(group=[{2}], tableAggregate=[[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*($0)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GroupTableAggregate(groupBy=[c], select=[c, EmptyTableAggFunc(a) AS (f0, f1)])
+GroupTableAggregate(groupBy=[c], select=[c, *org.apache.flink.table.planner.utils.EmptyTableAggFunc*(a) AS (f0, f1)])
 +- Exchange(distribution=[hash[c]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -72,13 +72,13 @@ Calc(select=[bb, (f0 + 1) AS _c1, f1 AS y])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$0], f0_0=[$1])
-+- LogicalTableAggregate(group=[{0}], tableAggregate=[[EmptyTableAggFuncWithIntResultType($1)]])
++- LogicalTableAggregate(group=[{0}], tableAggregate=[[*org.apache.flink.table.planner.utils.EmptyTableAggFuncWithIntResultType*($1)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(f0, f1, f2, d, e)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GroupTableAggregate(groupBy=[f0], select=[f0, EmptyTableAggFuncWithIntResultType(f1) AS (f0_0)])
+GroupTableAggregate(groupBy=[f0], select=[f0, *org.apache.flink.table.planner.utils.EmptyTableAggFuncWithIntResultType*(f1) AS (f0_0)])
 +- Exchange(distribution=[hash[f0]])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table2, source: [TestTableSource(f0, f1, f2, d, e)]]], fields=[f0, f1, f2, d, e])
 ]]>
@@ -88,14 +88,14 @@ GroupTableAggregate(groupBy=[f0], select=[f0, EmptyTableAggFuncWithIntResultType
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[*org.apache.flink.table.planner.expressions.utils.Func0$$6ad060e6c46e5cd996d7b888db472ebc*($0)], b=[$1])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($0, $1)]])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*($0, $1)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[*org.apache.flink.table.planner.expressions.utils.Func0$$6ad060e6c46e5cd996d7b888db472ebc*(f0) AS a, f1 AS b])
-+- GroupTableAggregate(select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
++- GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*(a, b) AS (f0, f1)])
    +- Exchange(distribution=[single])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
@@ -105,15 +105,16 @@ Calc(select=[*org.apache.flink.table.planner.expressions.utils.Func0$$6ad060e6c4
     <Resource name="ast">
       <![CDATA[
 LogicalProject(a=[$0], b=[$1])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($3, $4)]])
-   +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*($0, $1)]])
+   +- LogicalProject(d0=[CAST($3):TIMESTAMP(9)], e0=[CAST($4):TIMESTAMP(9)])
+      +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GroupTableAggregate(select=[EmptyTableAggFunc(d, e) AS (f0, f1)])
+GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*(d0, e0) AS (f0, f1)])
 +- Exchange(distribution=[single])
-   +- Calc(select=[a, b, c, CAST(d AS TIMESTAMP(3)) AS d, PROCTIME_MATERIALIZE(e) AS e])
+   +- Calc(select=[CAST(CAST(d AS TIMESTAMP(3)) AS TIMESTAMP(9)) AS d0, CAST(PROCTIME_MATERIALIZE(e) AS TIMESTAMP(9)) AS e0])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>
     </Resource>
@@ -122,13 +123,13 @@ GroupTableAggregate(select=[EmptyTableAggFunc(d, e) AS (f0, f1)])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(f0=[$0], f1=[$1])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1)]])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*($1)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-GroupTableAggregate(select=[EmptyTableAggFunc(b) AS (f0, f1)])
+GroupTableAggregate(select=[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*(b) AS (f0, f1)])
 +- Exchange(distribution=[single])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(a, b, c, d, e)]]], fields=[a, b, c, d, e])
 ]]>

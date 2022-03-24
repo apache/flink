@@ -20,13 +20,13 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalProject(b=[$0], EXPR$0=[$1])
-+- LogicalAggregate(group=[{1}], EXPR$0=[PandasAggregateFunction($0, $2)])
++- LogicalAggregate(group=[{1}], EXPR$0=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-PythonGroupAggregate(groupBy=[b], select=[b, PandasAggregateFunction(a, c) AS EXPR$0])
+PythonGroupAggregate(groupBy=[b], select=[b, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*(a, c) AS EXPR$0])
 +- Sort(orderBy=[b ASC])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
@@ -37,13 +37,13 @@ PythonGroupAggregate(groupBy=[b], select=[b, PandasAggregateFunction(a, c) AS EX
     <Resource name="ast">
       <![CDATA[
 LogicalProject(EXPR$0=[$0])
-+- LogicalAggregate(group=[{}], EXPR$0=[PandasAggregateFunction($0, $2)])
++- LogicalAggregate(group=[{}], EXPR$0=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*($0, $2)])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
-PythonGroupAggregate(select=[PandasAggregateFunction(a, c) AS EXPR$0])
+PythonGroupAggregate(select=[*org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*(a, c) AS EXPR$0])
 +- Exchange(distribution=[single])
    +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>

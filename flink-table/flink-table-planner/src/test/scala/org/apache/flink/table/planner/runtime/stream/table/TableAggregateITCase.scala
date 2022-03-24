@@ -208,7 +208,7 @@ class TableAggregateITCase(mode: StateBackendMode) extends StreamingWithStateTes
     expectedException.expect(classOf[ValidationException])
     expectedException.expectMessage(
       s"Could not find an implementation method 'retract' in class '${classOf[Top3].getName}' " +
-      s"for function 'Top3' that matches the following signature:\n" +
+      s"for function '*${classOf[Top3].getName}*' that matches the following signature:\n" +
       s"void retract(${classOf[Top3Accum].getName}, java.lang.Integer)")
 
     val top3 = new Top3

@@ -26,7 +26,7 @@ LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.Jav
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, w0$o0 AS _c1])
-+- PythonOverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, PandasAggregateFunction(a, c) AS w0$o0])
++- PythonOverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*(a, c) AS w0$o0])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]], fields=[a, b, c, proctime])
 ]]>
@@ -42,7 +42,7 @@ LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.Jav
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, w0$o0 AS _c1])
-+- PythonOverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 10 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, PandasAggregateFunction(a, c) AS w0$o0])
++- PythonOverAggregate(partitionBy=[b], orderBy=[proctime ASC], window=[ ROWS BETWEEN 10 PRECEDING AND CURRENT ROW], select=[a, b, c, proctime, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*(a, c) AS w0$o0])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, proctime)]]], fields=[a, b, c, proctime])
 ]]>
@@ -58,7 +58,7 @@ LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.Jav
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, w0$o0 AS _c1])
-+- PythonOverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, b, c, rowtime, PandasAggregateFunction(a, c) AS w0$o0])
++- PythonOverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ RANG BETWEEN 10000 PRECEDING AND CURRENT ROW], select=[a, b, c, rowtime, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*(a, c) AS w0$o0])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
 ]]>
@@ -74,7 +74,7 @@ LogicalProject(b=[$1], _c1=[AS(*org.apache.flink.table.planner.runtime.utils.Jav
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[b, w0$o0 AS _c1])
-+- PythonOverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 10 PRECEDING AND CURRENT ROW], select=[a, b, c, rowtime, PandasAggregateFunction(a, c) AS w0$o0])
++- PythonOverAggregate(partitionBy=[b], orderBy=[rowtime ASC], window=[ ROWS BETWEEN 10 PRECEDING AND CURRENT ROW], select=[a, b, c, rowtime, *org.apache.flink.table.planner.runtime.utils.JavaUserDefinedAggFunctions$PandasAggregateFunction*(a, c) AS w0$o0])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c, rowtime)]]], fields=[a, b, c, rowtime])
 ]]>

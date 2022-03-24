@@ -20,6 +20,7 @@ package org.apache.flink.table.planner.utils
 import org.apache.flink.api.common.typeinfo.{BasicTypeInfo, TypeInformation}
 import org.apache.flink.api.java.tuple.{Tuple1 => JTuple1}
 import org.apache.flink.api.java.typeutils.TupleTypeInfo
+import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
 import org.apache.flink.table.api.Types
 import org.apache.flink.table.functions.AggregateFunction
 
@@ -35,7 +36,9 @@ class CountAccumulator extends JTuple1[JLong] {
   */
 class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
 
-  def accumulate(acc: CountAccumulator, value: Any): Unit = {
+  def accumulate(
+      acc: CountAccumulator,
+      @DataTypeHint(inputGroup = InputGroup.ANY) value: Any): Unit = {
     if (value != null) {
       acc.f0 += 1L
     }
@@ -45,7 +48,9 @@ class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
     acc.f0 += 1L
   }
 
-  def retract(acc: CountAccumulator, value: Any): Unit = {
+  def retract(
+      acc: CountAccumulator,
+      @DataTypeHint(inputGroup = InputGroup.ANY) value: Any): Unit = {
     if (value != null) {
       acc.f0 -= 1L
     }
@@ -69,10 +74,4 @@ class CountAggFunction extends AggregateFunction[JLong, CountAccumulator] {
   override def createAccumulator(): CountAccumulator = {
     new CountAccumulator
   }
-
-  override def getAccumulatorType: TypeInformation[CountAccumulator] = {
-    new TupleTypeInfo(classOf[CountAccumulator], BasicTypeInfo.LONG_TYPE_INFO)
-  }
-
-  override def getResultType: TypeInformation[java.lang.Long] = Types.LONG
 }

@@ -470,10 +470,10 @@ Calc(select=[string, (EXPR$0 + 1) AS s1, (EXPR$0 + 3) AS s2, EXPR$1 AS x, EXPR$1
       <![CDATA[
 LogicalUnion(all=[true])
 :- LogicalProject(_c0=[AS(1, _UTF-16LE'_c0')])
-:  +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1, $2)]], window=[SlidingGroupWindow('w1, ts, 3600000, 3600000)], properties=[])
+:  +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*($1, $2)]], window=[SlidingGroupWindow('w1, ts, 3600000, 3600000)], properties=[])
 :     +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]])
 +- LogicalProject(_c0=[AS(1, _UTF-16LE'_c0')])
-   +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[EmptyTableAggFunc($1, $2)]], window=[SlidingGroupWindow('w1, ts, 7200000, 3600000)], properties=[])
+   +- LogicalWindowTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*($1, $2)]], window=[SlidingGroupWindow('w1, ts, 7200000, 3600000)], properties=[])
       +- LogicalTableScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]])
 ]]>
     </Resource>
@@ -481,11 +481,11 @@ LogicalUnion(all=[true])
       <![CDATA[
 Union(all=[true], union=[_c0])
 :- Calc(select=[1 AS _c0])
-:  +- GroupWindowTableAggregate(window=[SlidingGroupWindow('w1, ts, 3600000, 3600000)], select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
+:  +- GroupWindowTableAggregate(window=[SlidingGroupWindow('w1, ts, 3600000, 3600000)], select=[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*(a, b) AS (f0, f1)])
 :     +- Exchange(distribution=[single])(reuse_id=[1])
 :        +- LegacyTableSourceScan(table=[[default_catalog, default_database, Table1, source: [TestTableSource(ts, a, b)]]], fields=[ts, a, b])
 +- Calc(select=[1 AS _c0])
-   +- GroupWindowTableAggregate(window=[SlidingGroupWindow('w1, ts, 7200000, 3600000)], select=[EmptyTableAggFunc(a, b) AS (f0, f1)])
+   +- GroupWindowTableAggregate(window=[SlidingGroupWindow('w1, ts, 7200000, 3600000)], select=[*org.apache.flink.table.planner.utils.EmptyTableAggFunc*(a, b) AS (f0, f1)])
       +- Reused(reference_id=[1])
 ]]>
     </Resource>

@@ -51,7 +51,6 @@ import org.apache.flink.table.operations.ValuesQueryOperation;
 import org.apache.flink.table.operations.WindowAggregateQueryOperation.ResolvedGroupWindow;
 import org.apache.flink.table.types.DataType;
 import org.apache.flink.table.types.utils.DataTypeUtils;
-import org.apache.flink.table.types.utils.TypeConversions;
 import org.apache.flink.table.typeutils.FieldInfoUtils;
 import org.apache.flink.util.Preconditions;
 
@@ -662,22 +661,28 @@ public final class OperationTreeBuilder {
 
         private Optional<AggregateWithAlias> getAggregate(
                 UnresolvedCallExpression unresolvedCall, List<String> aliases) {
-            FunctionDefinition functionDefinition = unresolvedCall.getFunctionDefinition();
             if (isFunctionOfKind(unresolvedCall, FunctionKind.AGGREGATE)) {
-                final List<String> fieldNames;
-                if (aliases.isEmpty()) {
-                    if (functionDefinition instanceof AggregateFunctionDefinition) {
-                        TypeInformation<?> resultTypeInfo =
-                                ((AggregateFunctionDefinition) functionDefinition)
-                                        .getResultTypeInfo();
-                        fieldNames = Arrays.asList(FieldInfoUtils.getFieldNames(resultTypeInfo));
-                    } else {
-                        fieldNames = Collections.emptyList();
-                    }
+                final ResolvedExpression resolvedExpression =
+                        resolver.resolve(Collections.singletonList(unresolvedCall)).get(0);
+                List<String> fieldNames;
+                // legacy
+                final FunctionDefinition functionDefinition =
+                        unresolvedCall.getFunctionDefinition();
+                if (functionDefinition instanceof AggregateFunctionDefinition) {
+                    final TypeInformation<?> resultTypeInfo =
+                            ((AggregateFunctionDefinition) functionDefinition).getResultTypeInfo();
+                    // Legacy functions will return "f0" for atomic data types
+                    fieldNames = Arrays.asList(FieldInfoUtils.getFieldNames(resultTypeInfo));
                 } else {
-                    ResolvedExpression resolvedExpression =
-                            resolver.resolve(Collections.singletonList(unresolvedCall)).get(0);
-                    validateAlias(aliases, resolvedExpression, isRowBasedAggregate);
+                    // Will return an empty list for atomic data types
+                    fieldNames = DataType.getFieldNames(resolvedExpression.getOutputDataType());
+                }
+                if (!aliases.isEmpty()) {
+                    validateAlias(
+                            aliases,
+                            resolvedExpression,
+                            Math.max(1, fieldNames.size()),
+                            isRowBasedAggregate);
                     fieldNames = aliases;
                 }
                 return Optional.of(new AggregateWithAlias(unresolvedCall, fieldNames));
@@ -694,12 +699,10 @@ public final class OperationTreeBuilder {
         private void validateAlias(
                 List<String> aliases,
                 ResolvedExpression resolvedExpression,
-                Boolean isRowbasedAggregate) {
+                int fieldCount,
+                Boolean isRowBasedAggregate) {
 
-            int length =
-                    TypeConversions.fromDataTypeToLegacyInfo(resolvedExpression.getOutputDataType())
-                            .getArity();
-            int callArity = isRowbasedAggregate ? length : 1;
+            int callArity = isRowBasedAggregate ? fieldCount : 1;
             int aliasesSize = aliases.size();
 
             if ((0 < aliasesSize) && (aliasesSize != callArity)) {

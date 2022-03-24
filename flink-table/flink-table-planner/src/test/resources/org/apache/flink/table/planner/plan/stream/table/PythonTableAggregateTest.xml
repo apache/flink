@@ -20,14 +20,14 @@ limitations under the License.
     <Resource name="ast">
       <![CDATA[
 LogicalProject(d=[AS($1, _UTF-16LE'd')], e=[AS($2, _UTF-16LE'e')])
-+- LogicalTableAggregate(group=[{1}], tableAggregate=[[PythonEmptyTableAggFunc($0, $2)]])
++- LogicalTableAggregate(group=[{1}], tableAggregate=[[*org.apache.flink.table.planner.utils.PythonEmptyTableAggFunc*($0, $2)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[f0 AS d, f1 AS e])
-+- PythonGroupTableAggregate(groupBy=[b], select=[b, PythonEmptyTableAggFunc(a, c) AS (f0, f1)])
++- PythonGroupTableAggregate(groupBy=[b], select=[b, *org.apache.flink.table.planner.utils.PythonEmptyTableAggFunc*(a, c) AS (f0, f1)])
    +- Exchange(distribution=[hash[b]])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -37,14 +37,14 @@ Calc(select=[f0 AS d, f1 AS e])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(d=[AS($0, _UTF-16LE'd')], e=[AS($1, _UTF-16LE'e')])
-+- LogicalTableAggregate(group=[{}], tableAggregate=[[PythonEmptyTableAggFunc($0, $2)]])
++- LogicalTableAggregate(group=[{}], tableAggregate=[[*org.apache.flink.table.planner.utils.PythonEmptyTableAggFunc*($0, $2)]])
    +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
     </Resource>
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[f0 AS d, f1 AS e])
-+- PythonGroupTableAggregate(select=[PythonEmptyTableAggFunc(a, c) AS (f0, f1)])
++- PythonGroupTableAggregate(select=[*org.apache.flink.table.planner.utils.PythonEmptyTableAggFunc*(a, c) AS (f0, f1)])
    +- Exchange(distribution=[single])
       +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])
 ]]>
@@ -54,7 +54,7 @@ Calc(select=[f0 AS d, f1 AS e])
     <Resource name="ast">
       <![CDATA[
 LogicalProject(d=[AS($1, _UTF-16LE'd')], e=[AS($2, _UTF-16LE'e')])
-+- LogicalTableAggregate(group=[{1}], tableAggregate=[[PythonEmptyTableAggFunc($0, $2)]])
++- LogicalTableAggregate(group=[{1}], tableAggregate=[[*org.apache.flink.table.planner.utils.PythonEmptyTableAggFunc*($0, $2)]])
    +- LogicalProject(a=[$0], b=[$1], $f3=[+($2, 1)])
       +- LogicalTableScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]])
 ]]>
@@ -62,7 +62,7 @@ LogicalProject(d=[AS($1, _UTF-16LE'd')], e=[AS($2, _UTF-16LE'e')])
     <Resource name="optimized exec plan">
       <![CDATA[
 Calc(select=[f0 AS d, f1 AS e])
-+- PythonGroupTableAggregate(groupBy=[b], select=[b, PythonEmptyTableAggFunc(a, $f3) AS (f0, f1)])
++- PythonGroupTableAggregate(groupBy=[b], select=[b, *org.apache.flink.table.planner.utils.PythonEmptyTableAggFunc*(a, $f3) AS (f0, f1)])
    +- Exchange(distribution=[hash[b]])
       +- Calc(select=[a, b, (c + 1) AS $f3])
          +- LegacyTableSourceScan(table=[[default_catalog, default_database, MyTable, source: [TestTableSource(a, b, c)]]], fields=[a, b, c])

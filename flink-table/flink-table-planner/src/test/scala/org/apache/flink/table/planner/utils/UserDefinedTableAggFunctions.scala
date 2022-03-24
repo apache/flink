@@ -141,13 +141,13 @@ class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Wi
   @Override
   def createAccumulator(): Top3WithMapViewAccum = {
     val acc = new Top3WithMapViewAccum
-    acc.data = new MapView(Types.INT, Types.INT)
+    acc.data = new MapView()
     acc.size = 0
     acc.smallest = Integer.MAX_VALUE
     acc
   }
 
-  def add(acc: Top3WithMapViewAccum, v: Int): Unit = {
+  def add(acc: Top3WithMapViewAccum, v: JInt): Unit = {
     var cnt = acc.data.get(v)
     acc.size += 1
     if (cnt == null) {
@@ -156,7 +156,7 @@ class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Wi
     acc.data.put(v, cnt + 1)
   }
 
-  def delete(acc: Top3WithMapViewAccum, v: Int): Unit = {
+  def delete(acc: Top3WithMapViewAccum, v: JInt): Unit = {
     if (acc.data.contains(v)) {
       acc.size -= 1
       val cnt = acc.data.get(v) - 1
@@ -179,7 +179,7 @@ class Top3WithMapView extends TableAggregateFunction[JTuple2[JInt, JInt], Top3Wi
     }
   }
 
-  def accumulate(acc: Top3WithMapViewAccum, v: Int) {
+  def accumulate(acc: Top3WithMapViewAccum, v: JInt) {
     if (acc.size == 0) {
       acc.size = 1
       acc.smallest = v

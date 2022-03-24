@@ -26,9 +26,12 @@ import org.apache.flink.api.scala.typeutils.Types
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
 import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
+import org.apache.flink.table.api.DataTypes
+import org.apache.flink.table.catalog.DataTypeFactory
 import org.apache.flink.table.data.{RowData, StringData}
 import org.apache.flink.table.functions.{AggregateFunction, FunctionContext, ScalarFunction}
 import org.apache.flink.table.planner.{JInt, JLong}
+import org.apache.flink.table.types.inference.TypeInference
 import org.apache.flink.types.Row
 
 import com.google.common.base.Charsets
@@ -39,7 +42,7 @@ import java.lang.{Iterable => JIterable}
 import java.sql.{Date, Timestamp}
 import java.time.{Instant, LocalDate, LocalDateTime, LocalTime}
 import java.util
-import java.util.TimeZone
+import java.util.{Optional, TimeZone}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.annotation.varargs
@@ -457,17 +460,19 @@ class GenericAggregateFunction extends AggregateFunction[java.lang.Integer, Rand
 
   override def createAccumulator(): RandomClass = new RandomClass(0)
 
-  override def getResultType: TypeInformation[java.lang.Integer] =
-    new GenericTypeInfo[Integer](classOf[Integer])
+  override def getTypeInference(tf: DataTypeFactory): TypeInference = {
+    TypeInference.newBuilder()
+      .typedArguments(DataTypes.INT())
+      .accumulatorTypeStrategy(_ => Optional.of(tf.createRawDataType(classOf[RandomClass])))
+      .outputTypeStrategy(_ => Optional.of(tf.createRawDataType(classOf[Integer])))
+      .build()
+  }
 
-  override def getAccumulatorType: TypeInformation[RandomClass] = new GenericTypeInfo[RandomClass](
-    classOf[RandomClass])
-
-  def accumulate(acc: RandomClass, value: Int): Unit = {
+  def accumulate(acc: RandomClass, value: java.lang.Integer): Unit = {
     acc.i = value
   }
 
-  def retract(acc: RandomClass, value: Int): Unit = {
+  def retract(acc: RandomClass, value: java.lang.Integer): Unit = {
     acc.i = value
   }
 }
