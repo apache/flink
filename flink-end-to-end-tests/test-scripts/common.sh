@@ -628,9 +628,10 @@ function kill_random_taskmanager {
 }
 
 function setup_flink_slf4j_metric_reporter() {
-  INTERVAL="${1:-1 SECONDS}"
+  METRIC_NAME_PATTERN="${1:-"*"}"
   set_config_key "metrics.reporter.slf4j.factory.class" "org.apache.flink.metrics.slf4j.Slf4jReporterFactory"
-  set_config_key "metrics.reporter.slf4j.interval" "${INTERVAL}"
+  set_config_key "metrics.reporter.slf4j.interval" "1 SECONDS"
+  set_config_key "metrics.reporter.slf4j.filter.includes" "*:${METRIC_NAME_PATTERN}"
 }
 
 function get_job_metric {
