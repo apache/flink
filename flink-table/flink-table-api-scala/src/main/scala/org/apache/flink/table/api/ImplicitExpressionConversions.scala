@@ -463,6 +463,11 @@ trait ImplicitExpressionConversions {
   }
 
   /**
+   * Return the current database, the return type of this expression is [[DataTypes.STRING()]].
+   */
+  def currentDatabase(): Expression = Expressions.currentDatabase()
+
+  /**
    * Returns the current SQL time in local time zone, the return type of this expression is
    * [[DataTypes.TIME]], this is a synonym for [[ImplicitExpressionConversions.currentTime()]].
    */

@@ -19,11 +19,12 @@ package org.apache.flink.table.planner.runtime.batch.table
 
 import org.apache.flink.api.scala._
 import org.apache.flink.table.api._
-import org.apache.flink.table.api.DataTypes._
+import org.apache.flink.table.catalog.CatalogDatabaseImpl
 import org.apache.flink.table.data.DecimalDataUtils
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.{BatchTableEnvUtil, BatchTestBase, CollectionBatchExecTable, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.planner.utils.DateTimeTestUtil.localDateTime
 import org.apache.flink.table.utils.LegacyRowResource
@@ -40,6 +41,7 @@ import java.util
 
 import scala.collection.{mutable, Seq}
 import scala.collection.JavaConverters._
+import scala.collection.convert.ImplicitConversions.`iterator asScala`
 
 class CalcITCase extends BatchTestBase {
 
@@ -640,6 +642,35 @@ class CalcITCase extends BatchTestBase {
     TestBaseUtils.compareResultAsText(results.asJava, expected)
   }
 
+  @Test
+  def testCurrentDatabase(): Unit = {
+    val result1 = tEnv
+      .from("Table3")
+      .limit(1)
+      .select(currentDatabase())
+      .execute()
+      .collect()
+      .toList
+    assertEquals(Seq(row(tEnv.getCurrentDatabase)), result1)
+
+    // switch to another database
+    tEnv
+      .getCatalog(tEnv.getCurrentCatalog)
+      .get()
+      .createDatabase(
+        "db1",
+        new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1"),
+        false)
+    tEnv.useDatabase("db1")
+    val result2 = tEnv
+      .from("default_database.Table3")
+      .limit(1)
+      .select(currentDatabase())
+      .execute()
+      .collect()
+      .toList
+    assertEquals(Seq(row(tEnv.getCurrentDatabase)), result2)
+  }
 }
 
 @SerialVersionUID(1L)

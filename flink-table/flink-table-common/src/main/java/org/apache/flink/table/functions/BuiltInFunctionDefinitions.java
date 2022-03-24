@@ -1383,6 +1383,16 @@ public final class BuiltInFunctionDefinitions {
                     .build();
 
     // --------------------------------------------------------------------------------------------
+    // Catalog functions
+    // --------------------------------------------------------------------------------------------
+    public static final BuiltInFunctionDefinition CURRENT_DATABASE =
+            BuiltInFunctionDefinition.newBuilder()
+                    .name("currentDatabase")
+                    .kind(SCALAR)
+                    .outputTypeStrategy(explicit(STRING().notNull()))
+                    .build();
+
+    // --------------------------------------------------------------------------------------------
     // Time functions
     // --------------------------------------------------------------------------------------------
 

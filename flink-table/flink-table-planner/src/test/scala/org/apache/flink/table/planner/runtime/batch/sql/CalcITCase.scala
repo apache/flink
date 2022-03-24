@@ -28,6 +28,7 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.api.{DataTypes, TableSchema, ValidationException}
 import org.apache.flink.table.api.config.ExecutionConfigOptions
 import org.apache.flink.table.api.config.ExecutionConfigOptions.LegacyCastBehaviour
+import org.apache.flink.table.catalog.CatalogDatabaseImpl
 import org.apache.flink.table.data.{DecimalDataUtils, TimestampData}
 import org.apache.flink.table.data.util.DataFormatConverters.LocalDateConverter
 import org.apache.flink.table.planner.expressions.utils.{RichFunc1, RichFunc2, RichFunc3, SplitUDF}
@@ -2097,5 +2098,20 @@ class CalcITCase extends BatchTestBase {
         "COALESCE(cast(NULL as double), cast(NULL as double))",
       Seq(row(1, 1, 2, 1, 3, 4, 1, 1, 2, 1, 3, 4, 1.0, 1.0, 2.0, 2.0, 2.0, null))
     )
+  }
+
+  @Test
+  def testCurrentDatabase(): Unit = {
+    checkResult("SELECT CURRENT_DATABASE()", Seq(row(tEnv.getCurrentDatabase)))
+    // switch to another database
+    tEnv
+      .getCatalog(tEnv.getCurrentCatalog)
+      .get()
+      .createDatabase(
+        "db1",
+        new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1"),
+        false)
+    tEnv.useDatabase("db1")
+    checkResult("SELECT CURRENT_DATABASE()", Seq(row(tEnv.getCurrentDatabase)))
   }
 }

@@ -21,9 +21,11 @@ import org.apache.flink.api.scala._
 import org.apache.flink.table.annotation.{DataTypeHint, InputGroup}
 import org.apache.flink.table.api._
 import org.apache.flink.table.api.bridge.scala._
+import org.apache.flink.table.catalog.CatalogDatabaseImpl
 import org.apache.flink.table.functions.ScalarFunction
 import org.apache.flink.table.planner.expressions.utils._
 import org.apache.flink.table.planner.runtime.utils.{StreamingWithStateTestBase, TestingAppendSink, TestingRetractSink, UserDefinedFunctionTestUtils}
+import org.apache.flink.table.planner.runtime.utils.BatchTestBase.row
 import org.apache.flink.table.planner.runtime.utils.StreamingWithStateTestBase.StateBackendMode
 import org.apache.flink.table.planner.runtime.utils.TestData._
 import org.apache.flink.table.utils.LegacyRowResource
@@ -38,6 +40,7 @@ import java.util
 
 import scala.annotation.varargs
 import scala.collection.{mutable, Seq}
+import scala.collection.convert.ImplicitConversions.`iterator asScala`
 
 @RunWith(classOf[Parameterized])
 class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode) {
@@ -656,6 +659,39 @@ class CalcITCase(mode: StateBackendMode) extends StreamingWithStateTestBase(mode
 
     val expected = List("0,0,0", "1,1,1", "2,2,2")
     assertEquals(expected.sorted, sink.getAppendResults.sorted)
+  }
+
+  @Test
+  def testCurrentDatabase(): Unit = {
+    val result1 =
+      env
+        .fromCollection(tupleData3)
+        .toTable(tEnv)
+        .limit(1)
+        .select(currentDatabase())
+        .execute()
+        .collect()
+        .toList
+    assertEquals(Seq(row(tEnv.getCurrentDatabase)), result1)
+
+    // switch to another database
+    tEnv
+      .getCatalog(tEnv.getCurrentCatalog)
+      .get()
+      .createDatabase(
+        "db1",
+        new CatalogDatabaseImpl(new util.HashMap[String, String](), "db1"),
+        false)
+    tEnv.useDatabase("db1")
+    val result2 = env
+      .fromCollection(tupleData3)
+      .toTable(tEnv)
+      .limit(1)
+      .select(currentDatabase())
+      .execute()
+      .collect()
+      .toList
+    assertEquals(Seq(row(tEnv.getCurrentDatabase)), result2)
   }
 }
 
