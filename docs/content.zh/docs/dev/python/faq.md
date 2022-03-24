@@ -32,7 +32,7 @@ under the License.
 
 ## 准备Python虚拟环境
 
-您可以下载[便捷脚本]({% link downloads/setup-pyflink-virtual-env.sh %})，以准备可在Mac OS和大多数Linux发行版上使用的Python虚拟环境包(virtual env zip)。
+您可以下载[便捷脚本](/downloads/setup-pyflink-virtual-env.sh)，以准备可在Mac OS和大多数Linux发行版上使用的Python虚拟环境包(virtual env zip)。
 您可以指定PyFlink的版本，来生成对应的PyFlink版本所需的Python虚拟环境，否则将安装最新版本的PyFlink所对应的Python虚拟环境。
 
 {{< stable >}}
