@@ -77,9 +77,6 @@ The following sections list the supported reporters.
 ### JMX 
 #### (org.apache.flink.metrics.jmx.JMXReporter)
 
-You don't have to include an additional dependency since the JMX reporter is available by default
-but not activated.
-
 Parameters:
 
 - `port` - (optional) the port on which JMX listens for connections.
@@ -128,9 +125,6 @@ metrics.reporter.grph.interval: 60 SECONDS
 
 ### InfluxDB
 #### (org.apache.flink.metrics.influxdb.InfluxdbReporter)
-
-In order to use this reporter you must copy `/opt/flink-metrics-influxdb-{{< version >}}.jar` into the `plugins/influxdb` folder
-of your Flink distribution.
 
 Parameters:
 
