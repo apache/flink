@@ -18,7 +18,11 @@
 
 package org.apache.flink.test.checkpointing;
 
+import org.apache.flink.api.common.functions.RichFlatMapFunction;
 import org.apache.flink.api.common.restartstrategy.RestartStrategies;
+import org.apache.flink.api.common.state.ValueState;
+import org.apache.flink.api.common.state.ValueStateDescriptor;
+import org.apache.flink.api.common.time.Deadline;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.client.program.ClusterClient;
@@ -27,31 +31,46 @@ import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.StateBackendOptions;
 import org.apache.flink.runtime.jobgraph.JobGraph;
 import org.apache.flink.runtime.jobgraph.SavepointRestoreSettings;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
 import org.apache.flink.runtime.state.KeyGroupRangeAssignment;
 import org.apache.flink.runtime.testutils.MiniClusterResourceConfiguration;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.test.checkpointing.utils.RescalingTestUtils;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.api.functions.source.RichParallelSourceFunction;
 import org.apache.flink.test.util.MiniClusterWithClientResource;
 import org.apache.flink.test.util.TestUtils;
+import org.apache.flink.util.Collector;
 import org.apache.flink.util.TestLogger;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
 import java.io.File;
+import java.time.Duration;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.flink.test.util.TestUtils.submitJobAndWaitForResult;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
-/** Test checkpoint rescaling for incremental rocksdb. */
+/**
+ * Test checkpoint rescaling for incremental rocksdb. The implementations of
+ * NotifyingDefiniteKeySource, SubtaskIndexFlatMapper and CollectionSink refer to RescalingITCase,
+ * because the static fields in these classes can not be shared.
+ */
 public class RescaleCheckpointManuallyITCase extends TestLogger {
 
     private static final int NUM_TASK_MANAGERS = 2;
@@ -83,6 +102,14 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
         cluster.before();
     }
 
+    @After
+    public void shutDownExistingCluster() {
+        if (cluster != null) {
+            cluster.after();
+            cluster = null;
+        }
+    }
+
     @Test
     public void testCheckpointRescalingInKeyedState() throws Exception {
         testCheckpointRescalingKeyedState(false);
@@ -105,8 +132,6 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
         final int parallelism2 = scaleOut ? 4 : 3;
         final int maxParallelism = 13;
 
-        cluster.before();
-
         ClusterClient<?> client = cluster.getClusterClient();
         String checkpointPath =
                 runJobAndGetCheckpoint(
@@ -121,7 +146,6 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
 
         restoreAndAssert(
                 parallelism2,
-                maxParallelism,
                 maxParallelism,
                 numberKeys,
                 numberElements2,
@@ -139,18 +163,20 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             File checkpointDir)
             throws Exception {
         try {
+            Duration timeout = Duration.ofMinutes(5);
+            Deadline deadline = Deadline.now().plus(timeout);
+
             JobGraph jobGraph =
                     createJobGraphWithKeyedState(
                             parallelism, maxParallelism, numberKeys, numberElements, false, 100);
-            NotifyingDefiniteKeySource.sourceLatch = new CountDownLatch(parallelism);
             client.submitJob(jobGraph).get();
-            NotifyingDefiniteKeySource.sourceLatch.await();
 
-            RescalingTestUtils.SubtaskIndexFlatMapper.workCompletedLatch.await();
+            assertTrue(
+                    SubtaskIndexFlatMapper.workCompletedLatch.await(
+                            deadline.timeLeft().toMillis(), TimeUnit.MILLISECONDS));
 
             // verify the current state
-            Set<Tuple2<Integer, Integer>> actualResult =
-                    RescalingTestUtils.CollectionSink.getElementsSet();
+            Set<Tuple2<Integer, Integer>> actualResult = CollectionSink.getElementsSet();
 
             Set<Tuple2<Integer, Integer>> expectedResult = new HashSet<>();
 
@@ -164,21 +190,19 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             }
 
             assertEquals(expectedResult, actualResult);
-            NotifyingDefiniteKeySource.sourceLatch.await();
 
             TestUtils.waitUntilExternalizedCheckpointCreated(checkpointDir);
             client.cancel(jobGraph.getJobID()).get();
             TestUtils.waitUntilJobCanceled(jobGraph.getJobID(), client);
             return TestUtils.getMostRecentCompletedCheckpoint(checkpointDir).getAbsolutePath();
         } finally {
-            RescalingTestUtils.CollectionSink.clearElementsSet();
+            CollectionSink.clearElementsSet();
         }
     }
 
     private void restoreAndAssert(
             int restoreParallelism,
-            int restoreMaxParallelism,
-            int maxParallelismBefore,
+            int maxParallelism,
             int numberKeys,
             int numberElements,
             int numberElementsExpect,
@@ -190,7 +214,7 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
             JobGraph scaledJobGraph =
                     createJobGraphWithKeyedState(
                             restoreParallelism,
-                            restoreMaxParallelism,
+                            maxParallelism,
                             numberKeys,
                             numberElements,
                             true,
@@ -201,23 +225,21 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
 
             submitJobAndWaitForResult(client, scaledJobGraph, getClass().getClassLoader());
 
-            Set<Tuple2<Integer, Integer>> actualResult2 =
-                    RescalingTestUtils.CollectionSink.getElementsSet();
+            Set<Tuple2<Integer, Integer>> actualResult2 = CollectionSink.getElementsSet();
 
             Set<Tuple2<Integer, Integer>> expectedResult2 = new HashSet<>();
 
             for (int key = 0; key < numberKeys; key++) {
-                int keyGroupIndex =
-                        KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelismBefore);
+                int keyGroupIndex = KeyGroupRangeAssignment.assignToKeyGroup(key, maxParallelism);
                 expectedResult2.add(
                         Tuple2.of(
                                 KeyGroupRangeAssignment.computeOperatorIndexForKeyGroup(
-                                        maxParallelismBefore, restoreParallelism, keyGroupIndex),
+                                        maxParallelism, restoreParallelism, keyGroupIndex),
                                 key * numberElementsExpect));
             }
             assertEquals(expectedResult2, actualResult2);
         } finally {
-            RescalingTestUtils.CollectionSink.clearElementsSet();
+            CollectionSink.clearElementsSet();
         }
     }
 
@@ -246,41 +268,141 @@ public class RescaleCheckpointManuallyITCase extends TestLogger {
                                         numberKeys, numberElements, terminateAfterEmission))
                         .keyBy(
                                 new KeySelector<Integer, Integer>() {
-                                    private static final long serialVersionUID =
-                                            -7952298871120320940L;
+                                    private static final long serialVersionUID = 1L;
 
                                     @Override
                                     public Integer getKey(Integer value) throws Exception {
                                         return value;
                                     }
                                 });
-        RescalingTestUtils.SubtaskIndexFlatMapper.workCompletedLatch =
-                new CountDownLatch(numberKeys);
+        SubtaskIndexFlatMapper.workCompletedLatch = new CountDownLatch(numberKeys);
 
         DataStream<Tuple2<Integer, Integer>> result =
-                input.flatMap(new RescalingTestUtils.SubtaskIndexFlatMapper(numberElements));
+                input.flatMap(new SubtaskIndexFlatMapper(numberElements));
 
-        result.addSink(new RescalingTestUtils.CollectionSink<>());
+        result.addSink(new CollectionSink<>());
 
         return env.getStreamGraph().getJobGraph();
     }
 
-    private static class NotifyingDefiniteKeySource extends RescalingTestUtils.DefiniteKeySource {
-        private static final long serialVersionUID = 8120981235081181746L;
+    private static class NotifyingDefiniteKeySource extends RichParallelSourceFunction<Integer> {
 
-        private static CountDownLatch sourceLatch;
+        private static final long serialVersionUID = 1L;
+
+        private final int numberKeys;
+        private final int numberElements;
+        private final boolean terminateAfterEmission;
+
+        protected int counter = 0;
+
+        private boolean running = true;
 
         public NotifyingDefiniteKeySource(
                 int numberKeys, int numberElements, boolean terminateAfterEmission) {
-            super(numberKeys, numberElements, terminateAfterEmission);
+            this.numberKeys = numberKeys;
+            this.numberElements = numberElements;
+            this.terminateAfterEmission = terminateAfterEmission;
         }
 
         @Override
         public void run(SourceContext<Integer> ctx) throws Exception {
-            if (sourceLatch != null) {
-                sourceLatch.countDown();
+            final int subtaskIndex = getRuntimeContext().getIndexOfThisSubtask();
+            while (running) {
+
+                if (counter < numberElements) {
+                    synchronized (ctx.getCheckpointLock()) {
+                        for (int value = subtaskIndex;
+                                value < numberKeys;
+                                value += getRuntimeContext().getNumberOfParallelSubtasks()) {
+                            ctx.collect(value);
+                        }
+                        counter++;
+                    }
+                } else {
+                    if (terminateAfterEmission) {
+                        running = false;
+                    } else {
+                        Thread.sleep(100);
+                    }
+                }
             }
-            super.run(ctx);
+        }
+
+        @Override
+        public void cancel() {
+            running = false;
+        }
+    }
+
+    private static class SubtaskIndexFlatMapper
+            extends RichFlatMapFunction<Integer, Tuple2<Integer, Integer>>
+            implements CheckpointedFunction {
+
+        private static final long serialVersionUID = 1L;
+
+        public static CountDownLatch workCompletedLatch = new CountDownLatch(1);
+
+        private transient ValueState<Integer> counter;
+        private transient ValueState<Integer> sum;
+
+        private final int numberElements;
+
+        public SubtaskIndexFlatMapper(int numberElements) {
+            this.numberElements = numberElements;
+        }
+
+        @Override
+        public void flatMap(Integer value, Collector<Tuple2<Integer, Integer>> out)
+                throws Exception {
+            Integer counterValue = counter.value();
+            int count = counterValue == null ? 1 : counterValue + 1;
+            counter.update(count);
+
+            Integer sumValue = sum.value();
+            int s = sumValue == null ? value : sumValue + value;
+            sum.update(s);
+
+            if (count % numberElements == 0) {
+                out.collect(Tuple2.of(getRuntimeContext().getIndexOfThisSubtask(), s));
+                workCompletedLatch.countDown();
+            }
+        }
+
+        @Override
+        public void snapshotState(FunctionSnapshotContext context) throws Exception {
+            // all managed, nothing to do.
+        }
+
+        @Override
+        public void initializeState(FunctionInitializationContext context) throws Exception {
+            counter =
+                    context.getKeyedStateStore()
+                            .getState(new ValueStateDescriptor<>("counter", Integer.class));
+            sum =
+                    context.getKeyedStateStore()
+                            .getState(new ValueStateDescriptor<>("sum", Integer.class));
+        }
+    }
+
+    private static class CollectionSink<IN> implements SinkFunction<IN> {
+
+        private static final Set<Object> elements =
+                Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+        private static final long serialVersionUID = 1L;
+
+        @SuppressWarnings("unchecked")
+        public static <IN> Set<IN> getElementsSet() {
+            return (Set<IN>) elements;
+        }
+
+        public static void clearElementsSet() {
+            elements.clear();
+        }
+
+        @Override
+        public void invoke(IN value) throws Exception {
+            elements.add(value);
         }
     }
 }
