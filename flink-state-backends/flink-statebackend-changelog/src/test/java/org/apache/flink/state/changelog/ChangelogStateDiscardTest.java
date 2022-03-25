@@ -450,7 +450,7 @@ public class ChangelogStateDiscardTest {
 
     private static void materialize(
             ChangelogKeyedStateBackend<String> backend, StateChangelogWriter<?> writer) {
-        backend.updateChangelogSnapshotState(empty(), 0L, writer.nextSequenceNumber());
+        backend.handleMaterializationResult(empty(), 0L, writer.nextSequenceNumber());
     }
 
     private static void truncate(

@@ -72,7 +72,7 @@ public class ChangelogKeyedStateBackendTest {
         MockKeyedStateBackend<Integer> mock = createMock();
         ChangelogKeyedStateBackend<Integer> changelog = createChangelog(mock);
         try {
-            changelog.updateChangelogSnapshotState(
+            changelog.handleMaterializationResult(
                     SnapshotResult.empty(), materializationId, SequenceNumber.of(Long.MAX_VALUE));
             checkpoint(changelog, checkpointId).get().discardState();
 
