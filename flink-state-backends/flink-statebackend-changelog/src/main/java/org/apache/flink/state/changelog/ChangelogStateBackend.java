@@ -47,6 +47,7 @@ import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.runtime.taskmanager.AsynchronousException;
 import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation;
 import org.apache.flink.state.changelog.restore.ChangelogBackendRestoreOperation.BaseBackendBuilder;
+import org.apache.flink.state.common.PeriodicMaterializationManager;
 import org.apache.flink.util.Preconditions;
 
 import org.slf4j.Logger;

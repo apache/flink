@@ -62,6 +62,7 @@ import org.apache.flink.runtime.state.metrics.LatencyTrackingStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlStateFactory;
 import org.apache.flink.runtime.state.ttl.TtlTimeProvider;
 import org.apache.flink.state.changelog.restore.FunctionDelegationHelper;
+import org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationTarget;
 import org.apache.flink.util.FlinkRuntimeException;
 
 import org.apache.flink.shaded.guava30.com.google.common.io.Closer;
@@ -95,7 +96,7 @@ import java.util.stream.Stream;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableList;
-import static org.apache.flink.state.changelog.PeriodicMaterializationManager.MaterializationRunnable;
+import static org.apache.flink.state.common.PeriodicMaterializationManager.MaterializationRunnable;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /**
@@ -108,7 +109,8 @@ import static org.apache.flink.util.Preconditions.checkNotNull;
 public class ChangelogKeyedStateBackend<K>
         implements CheckpointableKeyedStateBackend<K>,
                 CheckpointListener,
-                TestableKeyedStateBackend<K> {
+                TestableKeyedStateBackend<K>,
+                MaterializationTarget {
     private static final Logger LOG = LoggerFactory.getLogger(ChangelogKeyedStateBackend.class);
 
     /**
@@ -624,6 +626,7 @@ public class ChangelogKeyedStateBackend<K>
      * @return a tuple of - future snapshot result from the underlying state backend - a {@link
      *     SequenceNumber} identifying the latest change in the changelog
      */
+    @Override
     public Optional<MaterializationRunnable> initMaterialization() throws Exception {
         SequenceNumber upTo = stateChangelogWriter.nextSequenceNumber();
         SequenceNumber lastMaterializedTo = changelogSnapshotState.lastMaterializedTo();
@@ -677,7 +680,8 @@ public class ChangelogKeyedStateBackend<K>
      * This method is not thread safe. It should be called either under a lock or through task
      * mailbox executor.
      */
-    public void updateChangelogSnapshotState(
+    @Override
+    public void handleMaterializationResult(
             SnapshotResult<KeyedStateHandle> materializedSnapshot,
             long materializationID,
             SequenceNumber upTo)

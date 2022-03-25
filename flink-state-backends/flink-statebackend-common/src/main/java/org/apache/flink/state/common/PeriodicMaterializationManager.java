@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.changelog;
+package org.apache.flink.state.common;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.api.common.operators.MailboxExecutor;
 import org.apache.flink.core.fs.FileSystemSafetyNet;
@@ -46,7 +47,35 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.apache.flink.util.Preconditions.checkNotNull;
 
 /** Stateless Materialization Manager. */
-class PeriodicMaterializationManager implements Closeable {
+@Internal
+public class PeriodicMaterializationManager implements Closeable {
+
+    /** {@link MaterializationRunnable} provider and consumer, i.e. state backend. */
+    public interface MaterializationTarget {
+
+        /**
+         * Initialize state materialization so that materialized data can be persisted durably and
+         * included into the checkpoint.
+         *
+         * <p>This method is not thread safe. It should be called either under a lock or through
+         * task mailbox executor.
+         *
+         * @return a tuple of - future snapshot result from the underlying state backend - a {@link
+         *     SequenceNumber} identifying the latest change in the changelog
+         */
+        Optional<MaterializationRunnable> initMaterialization() throws Exception;
+
+        /**
+         * This method is not thread safe. It should be called either under a lock or through task
+         * mailbox executor.
+         */
+        void handleMaterializationResult(
+                SnapshotResult<KeyedStateHandle> materializedSnapshot,
+                long materializationID,
+                SequenceNumber upTo)
+                throws Exception;
+    }
+
     private static final Logger LOG = LoggerFactory.getLogger(PeriodicMaterializationManager.class);
 
     /** task mailbox executor, execute from Task Thread. */
@@ -70,19 +99,19 @@ class PeriodicMaterializationManager implements Closeable {
     /** Number of consecutive materialization failures. */
     private final AtomicInteger numberOfConsecutiveFailures;
 
-    private final ChangelogKeyedStateBackend<?> keyedStateBackend;
+    private final MaterializationTarget target;
 
     /** Whether PeriodicMaterializationManager is started. */
     private boolean started = false;
 
     private final long initialDelay;
 
-    PeriodicMaterializationManager(
+    public PeriodicMaterializationManager(
             MailboxExecutor mailboxExecutor,
             ExecutorService asyncOperationsThreadPool,
             String subtaskName,
             AsyncExceptionHandler asyncExceptionHandler,
-            ChangelogKeyedStateBackend<?> keyedStateBackend,
+            MaterializationTarget target,
             long periodicMaterializeDelay,
             int allowedNumberOfFailures,
             String operatorSubtaskId) {
@@ -90,7 +119,7 @@ class PeriodicMaterializationManager implements Closeable {
         this.asyncOperationsThreadPool = checkNotNull(asyncOperationsThreadPool);
         this.subtaskName = checkNotNull(subtaskName);
         this.asyncExceptionHandler = checkNotNull(asyncExceptionHandler);
-        this.keyedStateBackend = checkNotNull(keyedStateBackend);
+        this.target = checkNotNull(target);
 
         this.periodicMaterializeDelay = periodicMaterializeDelay;
         this.allowedNumberOfFailures = allowedNumberOfFailures;
@@ -132,7 +161,7 @@ class PeriodicMaterializationManager implements Closeable {
         mailboxExecutor.execute(
                 () -> {
                     Optional<MaterializationRunnable> materializationRunnableOptional =
-                            keyedStateBackend.initMaterialization();
+                            target.initMaterialization();
 
                     if (materializationRunnableOptional.isPresent()) {
                         MaterializationRunnable runnable = materializationRunnableOptional.get();
@@ -169,7 +198,7 @@ class PeriodicMaterializationManager implements Closeable {
 
                                 mailboxExecutor.execute(
                                         () ->
-                                                keyedStateBackend.updateChangelogSnapshotState(
+                                                target.handleMaterializationResult(
                                                         snapshotResult, materializationID, upTo),
                                         "Task {} update materializedSnapshot up to changelog sequence number: {}",
                                         subtaskName,
@@ -273,7 +302,8 @@ class PeriodicMaterializationManager implements Closeable {
         }
     }
 
-    static class MaterializationRunnable {
+    /** A {@link Runnable} representing the materialization and the associated metadata. */
+    public static class MaterializationRunnable {
         private final RunnableFuture<SnapshotResult<KeyedStateHandle>> materializationRunnable;
 
         private final long materializationID;
