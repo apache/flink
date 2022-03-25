@@ -29,9 +29,6 @@ under the License.
 Flink allows reporting metrics to external systems.
 For more information about Flink's metric system go to the [metric system documentation]({{< ref "docs/ops/metrics" >}}).
 
-
-## Reporter
-
 Metrics can be exposed to an external system by configuring one or several reporters in `conf/flink-conf.yaml`. These
 reporters will be instantiated on each job and task manager when they are started.
 
@@ -66,10 +63,32 @@ You can write your own `Reporter` by implementing the `org.apache.flink.metrics.
 If the Reporter should send out reports regularly you have to implement the `Scheduled` interface as well.
 By additionally implementing a `MetricReporterFactory` your reporter can also be loaded as a plugin.
 
+## Identifiers vs. tags
+
+There are generally 2 formats for how reporters export metrics.
+
+Identifier-based reporters assemble a flat string containing all scope information and the metric name.
+An example could be `job.MyJobName.numRestarts`.
+
+Tag-based reporters on the other hand define a generic class of metrics consisting of a logical scope and metric name (e.g., `job.numRestarts`),
+and report a particular instance of said metric as a set of `key-value` pairs, so called "tags" or "variables" (e.g., "jobName=MyJobName").
+
+## Push vs. Pull
+
+Metrics are exported either via pushes or pulls.
+
+Push-based reporters usually implement the `Scheduled` interface and periodically send a summary of current metrics to an external system.
+
+Pull-based reporters are queried from an external system instead.
+
+## Reporters
+
 The following sections list the supported reporters.
 
 ### JMX 
 #### (org.apache.flink.metrics.jmx.JMXReporter)
+
+Type: pull/tags
 
 Parameters:
 
@@ -101,6 +120,8 @@ The domain thus identifies a metric class, while the key-property list identifie
 ### Graphite
 #### (org.apache.flink.metrics.graphite.GraphiteReporter)
 
+Type: push/identifier
+
 Parameters:
 
 - `host` - the Graphite server host
@@ -119,6 +140,8 @@ metrics.reporter.grph.interval: 60 SECONDS
 
 ### InfluxDB
 #### (org.apache.flink.metrics.influxdb.InfluxdbReporter)
+
+Type: push/tags
 
 Parameters:
 
@@ -147,6 +170,8 @@ All Flink metrics variables (see [List of all Variables]({{< ref "docs/ops/metri
 ### Prometheus
 #### (org.apache.flink.metrics.prometheus.PrometheusReporter)
 
+Type: pull/tags
+
 Parameters:
 
 - `port` - (optional) the port the Prometheus exporter listens on, defaults to [9249](https://github.com/prometheus/prometheus/wiki/Default-port-allocations). In order to be able to run several instances of the reporter on one host (e.g. when one TaskManager is colocated with the JobManager) it is advisable to use a port range like `9250-9260`.
@@ -172,6 +197,8 @@ All Flink metrics variables (see [List of all Variables]({{< ref "docs/ops/metri
 ### PrometheusPushGateway 
 #### (org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter)
 
+Type: push/tags
+
 Parameters:
 
 {{< include_reporter_config "layouts/shortcodes/generated/prometheus_push_gateway_reporter_configuration.html" >}}
@@ -195,6 +222,8 @@ Please see the [Prometheus documentation](https://prometheus.io/docs/practices/p
 ### StatsD
 #### (org.apache.flink.metrics.statsd.StatsDReporter)
 
+Type: push/identifier
+
 Parameters:
 
 - `host` - the StatsD server host
@@ -211,6 +240,8 @@ metrics.reporter.stsd.interval: 60 SECONDS
 
 ### Datadog
 #### (org.apache.flink.metrics.datadog.DatadogHttpReporter)
+
+Type: push/tags
 
 Note any variables in Flink metrics, such as `<host>`, `<job_name>`, `<tm_id>`, `<subtask_index>`, `<task_name>`, and `<operator_name>`,
 will be sent to Datadog as tags. Tags will look like `host:localhost` and `job_name:myjobname`.
@@ -244,6 +275,8 @@ metrics.reporter.dghttp.interval: 60 SECONDS
 
 ### Slf4j
 #### (org.apache.flink.metrics.slf4j.Slf4jReporter)
+
+Type: push/identifier
 
 Example configuration:
 
