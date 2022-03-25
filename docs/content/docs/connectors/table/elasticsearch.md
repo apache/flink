@@ -239,7 +239,7 @@ Features
 ### Key Handling
 
 Elasticsearch sink can work in either upsert mode or append mode, it depends on whether primary key is defined.
-If primary key is defined, Elasticsearch sink works in upsert mode which can consume queries containing UPDATE/DELETE messages.
+If primary key is defined, Elasticsearch sink works in upsert mode which can consume queries containing UPDATE/INSERT messages.
 If primary key is not defined, Elasticsearch sink works in append mode which can only consume queries containing INSERT only messages.
 
 In Elasticsearch connector, the primary key is used to calculate the Elasticsearch document id, which is a string of up to 512 bytes. It cannot have whitespaces.
