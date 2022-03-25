@@ -259,7 +259,7 @@ public class PackagedProgram implements AutoCloseable {
         }
 
         if (isPython) {
-            libs.add(PackagedProgramUtils.getPythonJar());
+            libs.add(PackagedProgramUtils.getPythonJar(null));
         }
 
         return libs;
@@ -289,7 +289,7 @@ public class PackagedProgram implements AutoCloseable {
         }
 
         if (isPython(entryPointClassName)) {
-            libs.add(PackagedProgramUtils.getPythonJar());
+            libs.add(PackagedProgramUtils.getPythonJar(null));
         }
 
         return libs;

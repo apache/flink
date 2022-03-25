@@ -459,7 +459,7 @@ public class YarnClusterDescriptor implements ClusterDescriptor<ApplicationId> {
             Preconditions.checkArgument(pipelineJars.size() == 1, "Should only have one jar");
         } else {
             final List<String> pipelineJarsWithPythonJar = new ArrayList<>(pipelineJars);
-            pipelineJarsWithPythonJar.add(PackagedProgramUtils.getPythonJar().toString());
+            pipelineJarsWithPythonJar.add(PackagedProgramUtils.getPythonJar(null).toString());
             ConfigUtils.encodeCollectionToConfig(
                     flinkConfiguration,
                     PipelineOptions.JARS,

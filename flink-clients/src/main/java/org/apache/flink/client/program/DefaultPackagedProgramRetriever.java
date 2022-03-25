@@ -133,7 +133,7 @@ public class DefaultPackagedProgramRetriever implements PackagedProgramRetriever
             throws FlinkException {
         if (PackagedProgramUtils.isPython(jobClassName)
                 || PackagedProgramUtils.isPython(programArgs)) {
-            return FromJarEntryClassInformationProvider.createFromPythonJar();
+            return FromJarEntryClassInformationProvider.createFromPythonJar(userClasspath);
         }
 
         if (jarFile != null) {
