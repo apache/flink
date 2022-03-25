@@ -25,24 +25,12 @@ import org.apache.flink.streaming.api.graph.StreamGraph;
 
 import org.junit.Test;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Collections;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
 
 /** A test class to test PythonConfigUtil getting executionEnvironment correctly. */
 public class PythonConfigUtilTest {
-
-    @Test
-    public void testGetEnvironmentConfig()
-            throws IllegalAccessException, NoSuchFieldException, InvocationTargetException {
-        StreamExecutionEnvironment executionEnvironment =
-                StreamExecutionEnvironment.getExecutionEnvironment();
-        Configuration envConfig =
-                PythonConfigUtil.getEnvConfigWithDependencies(executionEnvironment);
-        assertNotNull(envConfig);
-    }
 
     @Test
     public void testJobName() {

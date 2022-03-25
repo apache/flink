@@ -54,7 +54,6 @@ import org.junit.Test;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
@@ -521,7 +520,6 @@ public class StreamArrowPythonGroupWindowAggregateFunctionOperatorTest
                     udfOutputType,
                     getFunctionUrn(),
                     getUserDefinedFunctionsProto(),
-                    new HashMap<>(),
                     PythonTestUtils.createMockFlinkMetricContainer(),
                     false);
         }
