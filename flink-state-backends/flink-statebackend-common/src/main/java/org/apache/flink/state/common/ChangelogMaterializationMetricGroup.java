@@ -15,8 +15,9 @@
  * limitations under the License.
  */
 
-package org.apache.flink.state.changelog;
+package org.apache.flink.state.common;
 
+import org.apache.flink.annotation.Internal;
 import org.apache.flink.annotation.VisibleForTesting;
 import org.apache.flink.metrics.Counter;
 import org.apache.flink.metrics.MetricGroup;
@@ -24,24 +25,25 @@ import org.apache.flink.metrics.ThreadSafeSimpleCounter;
 import org.apache.flink.runtime.metrics.groups.ProxyMetricGroup;
 
 /** Metrics related to the materialization part of Changelog. */
-class ChangelogMaterializationMetricGroup extends ProxyMetricGroup<MetricGroup> {
+@Internal
+public class ChangelogMaterializationMetricGroup extends ProxyMetricGroup<MetricGroup> {
 
     private static final String PREFIX = "ChangelogMaterialization";
 
     @VisibleForTesting
-    static final String STARTED_MATERIALIZATION = PREFIX + ".startedMaterialization";
+    public static final String STARTED_MATERIALIZATION = PREFIX + ".startedMaterialization";
 
     @VisibleForTesting
-    static final String COMPLETED_MATERIALIZATION = PREFIX + ".completedMaterialization";
+    public static final String COMPLETED_MATERIALIZATION = PREFIX + ".completedMaterialization";
 
     @VisibleForTesting
-    static final String FAILED_MATERIALIZATION = PREFIX + ".failedMaterialization";
+    public static final String FAILED_MATERIALIZATION = PREFIX + ".failedMaterialization";
 
     private final Counter startedMaterializationCounter;
     private final Counter completedMaterializationCounter;
     private final Counter failedMaterializationCounter;
 
-    ChangelogMaterializationMetricGroup(MetricGroup parentMetricGroup) {
+    public ChangelogMaterializationMetricGroup(MetricGroup parentMetricGroup) {
         super(parentMetricGroup);
         this.startedMaterializationCounter =
                 counter(STARTED_MATERIALIZATION, new ThreadSafeSimpleCounter());
