@@ -146,7 +146,7 @@ public class SingleInputGateFactory {
                         networkBufferSize,
                         new ThroughputCalculator(SystemClock.getInstance()),
                         maybeCreateBufferDebloater(
-                                gateIndex, networkInputGroup.addGroup(gateIndex)));
+                                owningTaskName, gateIndex, networkInputGroup.addGroup(gateIndex)));
 
         InputChannelMetrics metrics =
                 new InputChannelMetrics(networkInputGroup, owner.getParentGroup());
@@ -154,10 +154,12 @@ public class SingleInputGateFactory {
         return inputGate;
     }
 
-    private BufferDebloater maybeCreateBufferDebloater(int gateIndex, MetricGroup inputGroup) {
+    private BufferDebloater maybeCreateBufferDebloater(
+            String owningTaskName, int gateIndex, MetricGroup inputGroup) {
         if (debloatConfiguration.isEnabled()) {
             final BufferDebloater bufferDebloater =
                     new BufferDebloater(
+                            owningTaskName,
                             gateIndex,
                             debloatConfiguration.getTargetTotalBufferSize().toMillis(),
                             debloatConfiguration.getMaxBufferSize(),
