@@ -37,6 +37,8 @@ import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.memory.MemCheckpointStreamFactory;
 import org.apache.flink.runtime.state.storage.JobManagerCheckpointStorage;
 import org.apache.flink.runtime.testutils.ExceptionallyDoneFuture;
+import org.apache.flink.state.common.ChangelogMaterializationMetricGroup;
+import org.apache.flink.state.common.PeriodicMaterializationManager;
 import org.apache.flink.util.Preconditions;
 
 import org.junit.Test;
@@ -48,13 +50,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.RunnableFuture;
 
 import static org.apache.flink.runtime.state.StateBackendTestUtils.wrapStateBackendWithSnapshotFunction;
-import static org.apache.flink.state.changelog.ChangelogMaterializationMetricGroup.COMPLETED_MATERIALIZATION;
-import static org.apache.flink.state.changelog.ChangelogMaterializationMetricGroup.FAILED_MATERIALIZATION;
-import static org.apache.flink.state.changelog.ChangelogMaterializationMetricGroup.STARTED_MATERIALIZATION;
 import static org.apache.flink.state.changelog.ChangelogStateBackendMetricGroup.LATEST_FULL_SIZE_OF_MATERIALIZATION;
 import static org.apache.flink.state.changelog.ChangelogStateBackendMetricGroup.LATEST_FULL_SIZE_OF_NON_MATERIALIZATION;
 import static org.apache.flink.state.changelog.ChangelogStateBackendMetricGroup.LATEST_INC_SIZE_OF_MATERIALIZATION;
 import static org.apache.flink.state.changelog.ChangelogStateBackendMetricGroup.LATEST_INC_SIZE_OF_NON_MATERIALIZATION;
+import static org.apache.flink.state.common.ChangelogMaterializationMetricGroup.COMPLETED_MATERIALIZATION;
+import static org.apache.flink.state.common.ChangelogMaterializationMetricGroup.FAILED_MATERIALIZATION;
+import static org.apache.flink.state.common.ChangelogMaterializationMetricGroup.STARTED_MATERIALIZATION;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 
